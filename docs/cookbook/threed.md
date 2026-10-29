@@ -57,6 +57,47 @@ Plt.Create()
 
 ![3D Bar](../images/threed_bar3d_interactive.png)
 
+### The strength of the light
+
+`WithLighting(dx, dy, dz, ambient, diffuse)` uses all five numbers. A face gets the intensity
+`ambient + diffuse · (dot + 1) / 2`, held to 0 to 1, where `dot` is the cosine between its normal and the light; at the
+defaults, 0.3 and 0.7, that is matplotlib's own shading. The same bars with no ambient part and with no direct part:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Styling;
+
+double[] barColumn = [0, 1, 2, 0, 1, 2];
+double[] barRow = [0, 0, 0, 1, 1, 1];
+double[] barHeight = [3, 5, 2, 4, 6, 1];
+
+Plt.Create()
+    .WithTitle("A light with no ambient part: ambient 0, diffuse 1")
+    .WithSize(640, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithCamera(elevation: 25, azimuth: -60)
+        .WithLighting(dx: -0.4, dy: -0.8, dz: 0.45, ambient: 0.0, diffuse: 1.0)
+        .Bar3D(barColumn, barRow, barHeight, s => { s.Color = Colors.Tomato; s.BarWidth = 0.6; }))
+    .Save("light_direct.svg");
+
+Plt.Create()
+    .WithTitle("A light with no direct part: ambient 1, diffuse 0")
+    .WithSize(640, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithCamera(elevation: 25, azimuth: -60)
+        .WithLighting(dx: -0.4, dy: -0.8, dz: 0.45, ambient: 1.0, diffuse: 0.0)
+        .Bar3D(barColumn, barRow, barHeight, s => { s.Color = Colors.Tomato; s.BarWidth = 0.6; }))
+    .Save("light_ambient.svg");
+```
+
+![Six tomato-coloured bars; the faces turned away from the light are almost black](../images/light_direct.png)
+
+![The same six bars, every face in the same tomato colour](../images/light_ambient.png)
+
+
+With no ambient part the faces turned away from the light are almost black; with no direct part every face has the same colour.
+A light of your own (`ILightSource`) shades a bar as it shades a surface.
+
 ### The axis frame follows the camera
 
 Any azimuth works, including the ones that swing the cube past the matplotlib default view. Each

@@ -34,22 +34,21 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
         // fill colour. Match that.
         var strokeColor = Colors.Black;
 
-        // Per-face fill colours. We want to match matplotlib's bar3d shading exactly
-        // (art3d._shade_colors), which is NOT Lambertian — it maps the raw signed dot
-        // product to [0.3, 1.0]. Two colours are enough because opposite faces share a
-        // shade value (matplotlib draws all 6, same pattern).
+        // Per-face fill colours. A lit bar is shaded face by face by the light it is lit by, the same question a surface
+        // asks of it: matplotlib's bar3d shading (art3d._shade_colors) for a directional light, which maps the raw signed
+        // dot product to a band of intensities rather than clamping it at zero. Each of the six faces has its own outward
+        // normal; an unlit bar keeps the fixed per-face opacities below.
         Color topColor, bottomColor;
         Color frontColor, backColor;
         Color leftColor, rightColor;
-        if (Context.LightSource is DirectionalLight dl)
+        if (Context.LightSource is { } light)
         {
-            double lx = dl.Dx, ly = dl.Dy, lz = dl.Dz;
-            topColor    = baseColor.Shade( 0,  0,  1, lx, ly, lz);
-            bottomColor = baseColor.Shade( 0,  0, -1, lx, ly, lz);
-            frontColor  = baseColor.Shade( 0, -1,  0, lx, ly, lz);
-            backColor   = baseColor.Shade( 0,  1,  0, lx, ly, lz);
-            leftColor   = baseColor.Shade(-1,  0,  0, lx, ly, lz);
-            rightColor  = baseColor.Shade( 1,  0,  0, lx, ly, lz);
+            topColor    = light.Shade(baseColor,  0,  0,  1);
+            bottomColor = light.Shade(baseColor,  0,  0, -1);
+            frontColor  = light.Shade(baseColor,  0, -1,  0);
+            backColor   = light.Shade(baseColor,  0,  1,  0);
+            leftColor   = light.Shade(baseColor, -1,  0,  0);
+            rightColor  = light.Shade(baseColor,  1,  0,  0);
         }
         else
         {

@@ -574,7 +574,7 @@ public abstract class AxesRenderer
             Ctx.BeginGroup("colorbar");
 
         ColorBarRendering.ColorBarRendererFactory
-            .Create(cb, colorMap, min, max, PlotArea, Ctx, Theme)
+            .Create(cb, colorMap, min, max, dataProvider.ColorBarNormalizer(), PlotArea, Ctx, Theme)
             .Render();
 
         Ctx.EndGroup();

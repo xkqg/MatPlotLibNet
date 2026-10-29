@@ -64,7 +64,7 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
             cMin = series.VMin ?? c.Lo;
             cMax = series.VMax ?? c.Hi;
         }
-        var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
+        var normalizer = series.NormalizerOrLinear();
 
         var marker = Slot.ScatterMarkerOf(series.Marker);
         for (int i = 0; i < pts.Length; i++)

@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -20,9 +21,9 @@ public class ComposedVerbDocumentationTests
     private static readonly Type[] Families =
         [typeof(CategoricalAxesExtensions), typeof(DistributionAxesExtensions), typeof(XYAxesExtensions), typeof(GridAxesExtensions)];
 
-    /// <summary>The types the verbs introduce: the three parts a callback receives, the control limits, and the named data.</summary>
+    /// <summary>The types the verbs introduce: the parts a callback receives, the reference of a probability plot, the control limits, and the named data.</summary>
     private static readonly Type[] VerbTypes =
-        [typeof(DumbbellParts), typeof(ParetoParts), typeof(QQPlotParts), typeof(ControlChartParts), typeof(ControlLimits), typeof(SurvivalGroup), typeof(NamedSample)];
+        [typeof(DumbbellParts), typeof(ParetoParts), typeof(QQPlotParts), typeof(QQReference), typeof(RiskTableParts), typeof(LogRankResult), typeof(ControlChartParts), typeof(ControlChartData), typeof(ControlLimits), typeof(SurvivalGroup), typeof(NamedSample)];
 
     private static readonly XDocument Documentation = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MatPlotLibNet.xml"));
 

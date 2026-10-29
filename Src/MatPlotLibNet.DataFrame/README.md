@@ -74,6 +74,7 @@ StochasticResult df.Stochastic(string highCol, string lowCol, string closeCol, i
 double[]      df.ParabolicSar(string highCol, string lowCol, double step = 0.02, double max = 0.2)
 BandsResult   df.KeltnerChannels(string highCol, string lowCol, string closeCol, int period = 20, double atrMultiplier = 1.5)
 double[]      df.Vwap(string highCol, string lowCol, string closeCol, string volumeCol)
+double[]      df.Vwap(string highCol, string lowCol, string closeCol, string volumeCol, int anchor)  // NaN before the anchor row
 ```
 
 Result types:

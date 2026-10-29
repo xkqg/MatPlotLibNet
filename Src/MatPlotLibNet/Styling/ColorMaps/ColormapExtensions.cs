@@ -23,6 +23,15 @@ public static class ColormapExtensions
             => source.ColorMap ?? fallback;
     }
 
+    extension(INormalizable source)
+    {
+        /// <summary>The normaliser <paramref name="source"/> maps its values to colours with: the one it names, otherwise the
+        /// linear one. The one place "no normaliser" means "linear", so a renderer and a colour bar that read the same series
+        /// cannot read it differently.</summary>
+        /// <returns>The series' <see cref="INormalizable.Normalizer"/>, or <see cref="LinearNormalizer.Instance"/>.</returns>
+        internal INormalizer NormalizerOrLinear() => source.Normalizer ?? LinearNormalizer.Instance;
+    }
+
     extension(int index)
     {
         /// <summary>Maps an index in <c>[0, count)</c> to a colormap fraction in <c>[0, 1]</c> using

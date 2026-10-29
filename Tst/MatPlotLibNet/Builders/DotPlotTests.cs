@@ -561,7 +561,7 @@ public class DotPlotTests
 
         Assert.Empty(axes.Series);
         Assert.Null(axes.YAxis.TickLocator);
-        Assert.Null(axes.GridOverride);
+        Assert.Null(axes.GridChange);
         Assert.False(axes.Grid.Visible);
     }
 

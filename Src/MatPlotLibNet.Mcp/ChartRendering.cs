@@ -83,14 +83,18 @@ internal sealed class ChartRendering
         return new ChartSaveResult(full, format, bytes.LongLength, _summarizer.Describe(figure));
     }
 
-    /// <summary>The format a file extension asks for, for a message that names both.</summary>
-    public static ChartFormat? FormatOfExtension(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    /// <summary>The extension of each format, spelled once by core (<see cref="ExportExtension"/>), the same strings
+    /// <c>Figure.Save</c> routes on.</summary>
+    private static readonly IReadOnlyDictionary<string, ChartFormat> FormatOfExtensionTable = new Dictionary<string, ChartFormat>
     {
-        ".png" => ChartFormat.Png,
-        ".svg" => ChartFormat.Svg,
-        ".pdf" => ChartFormat.Pdf,
-        _ => null,
+        [ExportExtension.Png] = ChartFormat.Png,
+        [ExportExtension.Svg] = ChartFormat.Svg,
+        [ExportExtension.Pdf] = ChartFormat.Pdf,
     };
+
+    /// <summary>The format a file extension asks for, for a message that names both.</summary>
+    public static ChartFormat? FormatOfExtension(string path) =>
+        FormatOfExtensionTable.TryGetValue(Path.GetExtension(path).ToLowerInvariant(), out var format) ? format : null;
 
     private static void RequireMatchingExtension(ChartFormat format, string path)
     {

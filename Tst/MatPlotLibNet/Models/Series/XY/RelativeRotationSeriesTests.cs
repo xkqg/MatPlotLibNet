@@ -392,6 +392,81 @@ public class RelativeRotationSeriesTests
         Assert.Null(r.XMax);
     }
 
+    // ── the centre is always in the range ────────────────────────────────────
+
+    private static RelativeRotationSeries OneSided(bool above, int n = 60)
+    {
+        // A strengthening (or weakening) asset against a flat benchmark: its ratio and its momentum stay on one side of 100.
+        double[] asset = [.. Enumerable.Range(0, n).Select(i => 100 + (above ? 1 : -1) * i * i * 0.02)];
+        return new([asset], Flat(n), ["ONE"]) { ShortPeriod = 3, LongPeriod = 5, TailLength = 8 };
+    }
+
+    /// <summary>Measured before the change: the range was the extent of the data alone, so a chart whose assets all stand on one
+    /// side of the 100/100 centre (all leading, all lagging) had no centre in its plot, no crosshair and quadrants of no area,
+    /// where the quadrants are what the chart is read by. The range now holds the centre, as StockCharts' does, and the empty
+    /// space it leaves is accepted.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ComputeDataRange_WithAssetsOnOneSideOf100_HoldsTheCentre(bool above)
+    {
+        var series = OneSided(above);
+        series.ShowQuadrantGrid = false;
+        var data = series.ComputeDataRange(null!);
+        Assert.True(above ? data.XMin > 100 && data.YMin > 100 : data.XMax < 100 && data.YMax < 100, "the premise: the data stands on one side");
+        series.ShowQuadrantGrid = true;
+
+        var range = series.ComputeDataRange(null!);
+
+        Assert.Equal(Math.Min(data.XMin!.Value, RelativeRotationSeries.Centre), range.XMin!.Value);
+        Assert.Equal(Math.Max(data.XMax!.Value, RelativeRotationSeries.Centre), range.XMax!.Value);
+        Assert.Equal(Math.Min(data.YMin!.Value, RelativeRotationSeries.Centre), range.YMin!.Value);
+        Assert.Equal(Math.Max(data.YMax!.Value, RelativeRotationSeries.Centre), range.YMax!.Value);
+        Assert.InRange(RelativeRotationSeries.Centre, range.XMin!.Value, range.XMax!.Value);
+        Assert.InRange(RelativeRotationSeries.Centre, range.YMin!.Value, range.YMax!.Value);
+    }
+
+    [Fact]
+    public void TheCentre_IsOneHundred() => Assert.Equal(100.0, RelativeRotationSeries.Centre);
+
+    /// <summary>Without the quadrant grid nothing is drawn at the centre, so the range holds the data alone.</summary>
+    [Fact]
+    public void ComputeDataRange_WithTheQuadrantGridOff_HoldsOnlyTheData()
+    {
+        var series = OneSided(above: true);
+        series.ShowQuadrantGrid = false;
+
+        var range = series.ComputeDataRange(null!);
+
+        Assert.True(range.XMin > 100);
+        Assert.True(range.YMin > 100);
+    }
+
+    [Fact]
+    public void ComputeDataRange_WithAssetsOnBothSidesOf100_IsTheDataRange()
+    {
+        var series = Sample(60);
+        series.ShortPeriod = 3;
+        series.LongPeriod = 5;
+        series.ShowQuadrantGrid = false;
+        var data = series.ComputeDataRange(null!);
+        Assert.True(data.XMin <= 100 && data.XMax >= 100 && data.YMin <= 100 && data.YMax >= 100, "the premise: the data holds the centre");
+        series.ShowQuadrantGrid = true;
+
+        Assert.Equal(data, series.ComputeDataRange(null!));
+    }
+
+    [Fact]
+    public void ComputeDataRange_OfNothingToDraw_StaysEmpty_WhateverTheGrid()
+    {
+        var series = new RelativeRotationSeries([], [], []);
+
+        var range = series.ComputeDataRange(null!);
+
+        Assert.Null(range.XMin);
+        Assert.Null(range.YMax);
+    }
+
     [Fact]
     public void ComputeDataRange_ValidAssets_ReturnsBoundedRange()
     {

@@ -56,7 +56,7 @@ internal sealed class StemSeriesRenderer : SeriesRenderer<StemSeries>
             var left = Transform.DataToPixel(span.Lo, 0);
             var right = Transform.DataToPixel(span.Hi, 0);
             if (left.CanDrawLineTo(right))
-                Ctx.DrawLine(left, right, new StrokeStyle(series.BaselineColor ?? Colors.Gray, 1, LineStyle.Solid));
+                Ctx.DrawLine(left, right, new StrokeStyle(series.BaselineColor ?? Context.Theme.Neutral, 1, LineStyle.Solid));
         }
     }
 }

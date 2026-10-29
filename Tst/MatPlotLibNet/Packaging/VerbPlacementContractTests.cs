@@ -123,8 +123,8 @@ public class VerbPlacementContractTests
     public void TheFourFamiliesAndTheirVerbs_AreFound()
     {
         Assert.Equal(4, Families.Length);
-        Assert.Equal(17, AllVerbs.Length);
-        Assert.Equal(10, TypesTheVerbsIntroduce().Length);
+        Assert.Equal(20, AllVerbs.Length);
+        Assert.Equal(13, TypesTheVerbsIntroduce().Length);
     }
 
     [Theory]
@@ -332,7 +332,7 @@ public class VerbPlacementContractTests
     {
         var parts = TypesTheVerbsIntroduce().Where(type => type.Name.EndsWith("Parts", StringComparison.Ordinal)).ToArray();
 
-        Assert.Equal(6, parts.Length);
+        Assert.Equal(7, parts.Length);
         foreach (var type in parts)
         {
             Assert.True(type.PartsViolations().Count == 0, $"{type.Name}: {Show(type.PartsViolations())}.");

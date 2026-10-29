@@ -86,6 +86,60 @@ Plt.Create()
     .Save("grid_spines.svg");
 ```
 
+`WithGrid` is kept as a change over the grid of whichever theme the figure is drawn under, so a theme set later keeps your
+change and takes the rest from the theme, and a second `WithGrid` adds to the first. A polar chart's rings and spokes and a
+3-D chart's walls follow it in colour, width and line style:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
+
+double[] gridAngle = [.. Enumerable.Range(0, 100).Select(i => i * 2 * Math.PI / 100)];
+double[] gridRadius = [.. gridAngle.Select(a => 1 + Math.Cos(3 * a))];
+
+Plt.Create()
+    .WithTitle("A polar chart on a dashed crimson grid")
+    .WithSize(600, 600)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .PolarPlot(gridRadius, gridAngle, s => { s.Color = Colors.Blue; s.LineWidth = 2; })
+        .WithGrid(g => g with { Color = Colors.Crimson, LineStyle = LineStyle.Dashed }))
+    .Save("polar_grid.svg");
+```
+
+![A three-petalled blue curve on a polar axes whose rings and spokes are dashed crimson lines](../images/polar_grid.png)
+
+
+## The neutral grey
+
+Reference lines, price levels, Fibonacci lines, trendlines, waterfall connectors, a dumbbell's connector and the outlines of a
+map wear one grey, `Theme.NeutralColor`. A theme that sets none derives it from its plot: the library's grey where that stands
+at 3 : 1 or more against the plot, otherwise the nearest grey that does, so Nord, Dracula, Monokai, Gruvbox and OpsPanel get one of
+their own. `ThemeBuilder.WithNeutralColor` names one by hand, and a colour set on the line itself always wins:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Styling;
+
+double[] weekNumber = [1, 2, 3, 4, 5, 6, 7, 8];
+double[] throughput = [3.1, 3.9, 3.4, 4.8, 5.2, 4.9, 6.3, 6.8];
+
+Plt.Create()
+    .WithTheme(Theme.Nord)
+    .WithTitle("Reference lines under Nord")
+    .WithSize(700, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(weekNumber, throughput, s => s.Label = "Throughput")
+        .AxHLine(5.0, line => line.Label = "Target")
+        .AxHLine(3.0, line => line.Label = "Floor")
+        .SetXLabel("Week")
+        .WithLegend())
+    .Save("neutral_colour.svg");
+```
+
+![A line chart on Nord's dark background with two dashed grey reference lines, Target at 5 and Floor at 3](../images/neutral_colour.png)
+
+
 ## Tight margins
 
 Remove all padding around the data:

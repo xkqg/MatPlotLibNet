@@ -47,7 +47,11 @@ internal sealed class ChartSchemaDescription
         ["normalizer"] = "how the values of a series drawn through a colour map (scatter, heatmap, contour, image, 3-D surface and the like) map onto it, written by kind: {\"type\": a normaliser named in the overview, then that kind's fields}",
         ["dpi"] = "the resolution, 96 by default: a PNG is drawn with dpi / 96 pixels for each unit of width and height, so 192 doubles its size in pixels with the same layout; the picture may not exceed the canvas ceiling in pixels. SVG and PDF are vector and ignore it",
         ["theme"] = "the figure's look; absent for the matplotlib-v2 default. Written field by field over the plain 'default' theme: a field left out is that theme's. Its name is a label, not a preset to load",
-        ["gridOverridesTheme"] = "true when grid is the axes' own choice, drawn whatever the theme's grid is (a grid switched off included)",
+        ["gridOverridesTheme"] = "true when grid is the axes' own choice, drawn whatever the theme's grid is (a grid switched off included); a reader that knows gridChange reads that instead, so leave this out when you write gridChange",
+        ["firstCellDate"] = "the date of the cell in row 0, column 0 of a heatmap that is a calendar (a week to a column, the seven days of it down the column): the table of the chart then gives every cell its date, the first cell's plus 7 days for each column and one for each row; absent for a heatmap that is no calendar",
+        ["neutralColor"] ="the grey that reference lines, trendlines, price levels, a map's outlines and the like wear over the plot; absent, the theme derives it from its plot (#808080 where that stands at 3 : 1 or more against the plot, otherwise the nearest grey that does)",
+        ["wearsNeutral"] = "true for a series that wears the theme's neutral grey in place of a colour of its own (a dumbbell's connector, a map's outline); a colour the series names wins, and the series then holds no colour of the cycle",
+        ["gridChange"] ="what the axes changed about the theme's grid: only the properties it names, each with its value, applied over the grid of the theme the figure is drawn under, so it follows the theme (visible false draws no grid even under a theme that draws one); absent when nothing was changed",
         ["extraRightYAxes"] = "the right Y axes past the first, outward from the plot: entry i is the right axis i + 1, secondaryYAxis being axis 0 (with none, an empty axis 0 stands first); each entry is a Y axis slot, below",
         ["rightYAxesOverflow"] = "more right Y axes, in the same outward order: it continues where extraRightYAxes stops, and the reader takes both lists in that order; each entry is a Y axis slot",
         ["leftYAxes"] = "the left Y axes past the primary yAxis, outward from the plot: entry i is the left axis i + 1; each entry is a Y axis slot, below",
@@ -126,6 +130,8 @@ internal sealed class ChartSchemaDescription
         AppendFields(text, FieldsOf(TypeNamed("ColorBarDto")));
         text.AppendLine().AppendLine("Grid fields (subPlots[].grid, and a theme's defaultGrid):");
         AppendFields(text, FieldsOf(TypeNamed("GridDto")));
+        text.AppendLine().AppendLine("Grid change fields (subPlots[].gridChange: only the fields named change the theme's grid, the rest stay the theme's):");
+        AppendFields(text, FieldsOf(TypeNamed("GridChangeDto")));
         text.AppendLine().AppendLine("Theme fields (the figure's theme):");
         AppendFields(text, FieldsOf(TypeNamed("ThemeDto")));
         text.AppendLine().AppendLine("Cycler fields (a theme's propCycler: the lists each next series steps through):");

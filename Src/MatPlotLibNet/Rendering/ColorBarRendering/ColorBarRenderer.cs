@@ -72,11 +72,16 @@ public abstract class ColorBarRenderer
         ExtendMax = cb.Extend is ColorBarExtend.Max or ColorBarExtend.Both;
     }
 
-    /// <summary>The ticks along a gradient of <paramref name="lengthPx"/>, in the theme's tick font.</summary>
+    /// <summary>The normaliser the chart colours its values with, which decides where a tick stands along the gradient: the
+    /// linear one unless the factory is given the series' own.</summary>
+    internal INormalizer Normalizer { get; init; } = LinearNormalizer.Instance;
+
+    /// <summary>The ticks along a gradient of <paramref name="lengthPx"/>, in the theme's tick font, placed where the chart's
+    /// normaliser sends their values.</summary>
     /// <param name="lengthPx">The length of the whole bar.</param>
     /// <param name="vertical">Whether the bar is vertical.</param>
     internal ColorBarScale ScaleAlong(double lengthPx, bool vertical) =>
-        ColorBarScale.For(Min, Max, lengthPx, ThemedFontProvider.TickFont(Theme).Size, vertical);
+        ColorBarScale.For(Min, Max, lengthPx, vertical, Normalizer, Ctx, ThemedFontProvider.TickFont(Theme));
 
     /// <summary>Renders the colorbar onto the context. Concrete subclasses implement
     /// orientation-specific layout (horizontal below the plot, vertical to the right).</summary>

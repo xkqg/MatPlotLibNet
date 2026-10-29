@@ -52,7 +52,7 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
             if (contour.Points.Length < 2) continue;
 
             // Map level to color
-            var color = series.ColorMap is not null ? cmap.ColorOf(contour.Level, LinearNormalizer.Instance, zMin, zMax) : Colors.Gray;
+            var color = series.ColorMap is not null ? cmap.ColorOf(contour.Level, LinearNormalizer.Instance, zMin, zMax) : Context.Theme.Neutral;
 
             // Convert data points to pixel points
             var pixelPoints = new List<Point>(contour.Points.Length);

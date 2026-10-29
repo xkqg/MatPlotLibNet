@@ -98,10 +98,11 @@ public sealed class ChartSerializer : IChartSerializer
         ResponsiveSvg = figure.ResponsiveSvg.OrNullAtRest(RestingFigure.ResponsiveSvg),
     };
 
-    /// <summary>Writes one axes. <paramref name="theme"/> is the figure's: a grid the axes changed over the theme's grid
-    /// is a change (code the JSON cannot carry), so it is written as the grid it draws under that theme, marked as the
-    /// axes' own (<see cref="AxesDto.GridOverridesTheme"/>) so that a grid switched off stays off under a theme that
-    /// draws one.</summary>
+    /// <summary>Writes one axes. <paramref name="theme"/> is the figure's: a grid the axes changed over the theme's grid is
+    /// written as that change (<see cref="AxesDto.GridChange"/>: the properties it set, with their values), so it is still
+    /// "the theme's grid, but ..." when it is read and drawn under another theme. The grid it draws under the figure's theme
+    /// is written beside it, marked as the axes' own (<see cref="AxesDto.GridOverridesTheme"/>), for a reader that predates
+    /// the change: it draws that grid whatever the theme is, and a grid switched off stays off under a theme that draws one.</summary>
     internal static AxesDto AxesToDto(Axes axes, Theme theme)
     {
         var rightPast = SlotsPastSlot0ToDto(axes.YAxes.Right);
@@ -121,8 +122,9 @@ public sealed class ChartSerializer : IChartSerializer
             XAxis = AxisToDto(axes.XAxis),
             YAxis = AxisToDto(axes.YAxis),
             ZAxis = AxisToDto(axes.ZAxis),
-            Grid = GridDto.From(axes.GridOverride is null ? axes.Grid : axes.GridUnder(theme)),
-            GridOverridesTheme = axes.GridOverride is null ? null : true,
+            Grid = GridDto.From(axes.GridChange is null ? axes.Grid : axes.GridUnder(theme)),
+            GridOverridesTheme = axes.GridChange is null ? null : true,
+            GridChange = axes.GridChange is { } gridChange ? GridChangeDto.From(gridChange) : null,
             BarMode = axes.BarMode == BarMode.Stacked ? "stacked" : null,
             Series = SeriesToDtos(axes.Series),
             Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(AnnotationToDto).ToList() : null,
@@ -333,6 +335,8 @@ public sealed class ChartSerializer : IChartSerializer
             dto.MaxDisplayPoints = xy.MaxDisplayPoints;
         if (series is ChartSeries { ColorGroup: { } colorGroup })
             dto.ColorGroup = colorGroup;
+        if (series is ChartSeries { WearsNeutral: true })
+            dto.WearsNeutral = true;
         return dto;
     }
 
@@ -352,6 +356,8 @@ public sealed class ChartSerializer : IChartSerializer
             xy.MaxDisplayPoints = maxDisplayPoints;
         if (series is ChartSeries chartSeries && dto.ColorGroup is { } colorGroup)
             chartSeries.ColorGroup = colorGroup;
+        if (series is ChartSeries wearing && dto.WearsNeutral is true)
+            wearing.WearsNeutral = true;
     }
 
     /// <summary>Reads the figure back: the counterpart of <see cref="FigureToDto"/>. A setting the JSON leaves out reads
@@ -446,7 +452,7 @@ public sealed class ChartSerializer : IChartSerializer
         if (axDto.EnableInteractiveAttributes is { } enableInteractiveAttributes) axes.EnableInteractiveAttributes = enableInteractiveAttributes;
         if (axDto.Emit3DVertexData is { } emit3DVertexData) axes.Emit3DVertexData = emit3DVertexData;
         axDto.CoordinateSystem.ApplyEnum<Models.CoordinateSystem>(v => axes.CoordinateSystem = v);
-        if (axDto.Grid is not null) RestoreGrid(axes, axDto.Grid.ToGridStyle(), axDto.GridOverridesTheme is true);
+        RestoreGrid(axes, axDto);
         if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
         if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
         RestoreCameraAndLighting(axes, axDto);
@@ -690,13 +696,19 @@ public sealed class ChartSerializer : IChartSerializer
         }
     }
 
-    /// <summary>Reads an axes' grid back. A grid that overrides the theme's is the grid the axes draws whatever the theme's
-    /// grid is (a switched-off one included), so it comes back as that change; any other grid comes back as it stands,
-    /// and the renderer takes the theme's grid over one that is not switched on (<see cref="Axes.GridUnder"/>).</summary>
-    private static void RestoreGrid(Axes axes, GridStyle grid, bool overridesTheme)
+    /// <summary>Reads an axes' grid back. A <see cref="AxesDto.GridChange"/> is the change the author made, and it is the only
+    /// thing read as one: it is applied over the grid of the theme the figure is drawn under. A JSON written before changes
+    /// were written has only the resolved grid: marked as the axes' own it is the grid the axes draws whatever the theme's
+    /// grid is (a switched-off one included), so it comes back as the change that sets every property to what it has; any
+    /// other grid comes back as it stands, and the renderer takes the theme's grid over one that is not switched on
+    /// (<see cref="Axes.GridUnder"/>).</summary>
+    private static void RestoreGrid(Axes axes, AxesDto axDto)
     {
-        axes.Grid = grid;
-        if (overridesTheme) axes.GridOverride = _ => grid;
+        var grid = axDto.Grid?.ToGridStyle();
+        if (grid is not null) axes.Grid = grid;
+
+        if (axDto.GridChange is { } change) axes.GridChange = change.ToGridChange();
+        else if (axDto.GridOverridesTheme is true && grid is not null) axes.GridChange = GridChange.AllOf(grid);
     }
 
     /// <summary>Reads one axis back: the counterpart of <see cref="AxisToDto"/>. The tick locator is made first, so that a
@@ -767,15 +779,6 @@ internal static class AxesSerializationExtensions
 {
     extension(Axes target)
     {
-        /// <summary>Copies everything an axes draws from <paramref name="source"/> onto this axes — series,
-        /// title, both axes, grid, spines, legend, and every overlay (annotations, reference lines, spans,
-        /// trendlines, levels, Fibonacci retracements, secondary axes). The same write/read pair the JSON
-        /// round-trip uses, so a property this contract carries for a figure is carried here too, with nothing
-        /// to hand-copy a second time: <see cref="AxesBuilder.AddInset(InsetBounds, Action{AxesBuilder})"/>
-        /// composes an inset's real axes from the configured builder's this way, instead of naming one property
-        /// at a time.</summary>
-        internal void CopyAxesState(Axes source, Theme theme) => ChartSerializer.RestoreAxes(target, ChartSerializer.AxesToDto(source, theme));
-
         /// <summary>Reconstructs ANY registered series kind from <paramref name="dto"/> and seats it where
         /// <paramref name="reseat"/> says — the row-99 fix (ROADMAP.md: "the right-hand and top axes carry lines
         /// and points; a bar or an area there is not kept"). <see cref="SeriesRegistry.Create"/> always lands its
@@ -1111,8 +1114,12 @@ internal sealed record AxesDto
     public GridDto? Grid { get; init; }
     /// <summary><see langword="true"/> when <see cref="Grid"/> is the axes' own change over the theme's grid: the axes
     /// draws it whatever the theme's grid is, a grid switched off included. Absent when the axes takes the theme's grid
-    /// (or switched its own on as it stands).</summary>
+    /// (or switched its own on as it stands). A reader that knows <see cref="GridChange"/> reads that instead; this is what
+    /// a reader that predates it draws.</summary>
     public bool? GridOverridesTheme { get; init; }
+    /// <summary>What the axes changed about the theme's grid: only the properties it set, each with its value. Applied over
+    /// the grid of the theme the figure is drawn under, so the change follows the theme. Absent when the axes changed nothing.</summary>
+    public GridChangeDto? GridChange { get; init; }
     public string? BarMode { get; init; }
     public List<SeriesDto>? Series { get; init; }
     public AxisDto? SecondaryYAxis { get; init; }
@@ -1519,6 +1526,9 @@ public sealed record SeriesDto
     public string? LabelFormat { get; init; }
     public string? MaskMode { get; init; }
     public Color? CellValueColor { get; init; }
+    /// <summary>The date of the cell in row 0, column 0 of a heatmap that is a calendar (<see cref="Models.Series.HeatmapSeries.FirstCellDate"/>);
+    /// absent for a grid that is no calendar. With it the table of the heatmap gives every cell its date.</summary>
+    public DateTime? FirstCellDate { get; init; }
 
     // v1.10 DendrogramSeries
     public DendrogramOrientation? DendrogramOrientation { get; init; }
@@ -1631,6 +1641,11 @@ public sealed record SeriesDto
     /// absent for a series that holds its own slot, as every series does until a verb groups it. Read back, two
     /// series written with the same value here are drawn in one cycled colour again, as they were.</summary>
     public int? ColorGroup { get; set; }
+
+    /// <summary><see langword="true"/> for a series that wears the theme's neutral grey in place of a colour of its own
+    /// (<see cref="Models.Series.ChartSeries.WearsNeutral"/>): a dumbbell's connector, the outline of a map. Absent for every other
+    /// series. A series that names a colour wears that colour, and a JSON written before this field carries the grey as that colour.</summary>
+    public bool? WearsNeutral { get; set; }
 
     /// <summary>What a series of another package writes of itself beyond the fields above, for the discriminator that package
     /// registers a reader for (<see cref="SeriesRegistry.Register"/>): a JSON value this library carries and does not read. Absent

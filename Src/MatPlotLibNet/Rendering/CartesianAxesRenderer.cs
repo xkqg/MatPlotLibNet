@@ -691,7 +691,8 @@ public class CartesianAxesRenderer : AxesRenderer
 
     /// <summary>
     /// Computes the combined X and Y data ranges across all series on the axes, including
-    /// shared axes' ranges when <c>sharex</c>/<c>sharey</c> is configured. The heavy lifting
+    /// shared axes' series when <c>sharex</c>/<c>sharey</c> is configured: their ranges AND their sticky edges, so
+    /// axes that share a scale have the same one. The heavy lifting
     /// lives in <see cref="Range1D"/> (pipeline methods) and <see cref="AxesRangeExtensions"/>
     /// (aggregation helpers). Exposed as <c>internal</c> so regression tests can assert the
     /// padding / sticky-edge / nice-bound interaction without rendering to SVG.
@@ -699,18 +700,19 @@ public class CartesianAxesRenderer : AxesRenderer
     internal DataRange ComputeDataRanges()
     {
         // === 1. Aggregate — seed from axis-level limits, fold in own + shared series; a set limit is exact ===
-        var xRange = Axes.AggregateXRangeWithSharedAxes(Range1D.FromAxis(Axes.XAxis)).WithExplicitLimits(Axes.XAxis);
-        var yRange = Axes.AggregateYRangeWithSharedAxes(Range1D.FromAxis(Axes.YAxis)).WithExplicitLimits(Axes.YAxis);
+        // One snapshot of the own series (Histogram rebuilds bins each call), then each scale's contributions: own plus the
+        // axes it is shared with. The same contributions range the scale and decide its sticky edges below, so the axes
+        // that share a scale cannot disagree on its margins.
+        var own = Axes.SnapshotContributions();
+        DataRangeContribution[] xContribs = [.. own, .. Axes.LinkedContributions(axes => axes.ShareXWith)];
+        DataRangeContribution[] yContribs = [.. own, .. Axes.LinkedContributions(axes => axes.ShareYWith)];
+        var xRange = xContribs.FoldXRange(Range1D.FromAxis(Axes.XAxis)).WithExplicitLimits(Axes.XAxis);        var yRange = yContribs.FoldYRange(Range1D.FromAxis(Axes.YAxis)).WithExplicitLimits(Axes.YAxis);
 
         // === 2. Normalize — handle empty / lopsided / zero-width inputs before any math ===
         xRange = xRange.Normalized().PositiveForLog(Axes.XAxis);
         yRange = yRange.Normalized().PositiveForLog(Axes.YAxis);
 
-        // === 3. Snapshot contributions once, then drive padding + sticky + nice-bound ===
-        // Calling ComputeDataRange per series is expensive (Histogram rebuilds bins each call),
-        // so the legacy code's "iterate three times" pattern is replaced by one snapshot.
-        var contribs = Axes.SnapshotContributions();
-
+        // === 3. Drive padding + sticky + nice-bound from the contributions gathered once above ===
         // The unpadded snapshot is captured BEFORE padding so sticky clamp can distinguish
         // "padding pushed past the sticky" (snap back) from "another series has data past the
         // sticky" (preserve, an overlay's sticky must not clip a wider underlying series).
@@ -720,15 +722,14 @@ public class CartesianAxesRenderer : AxesRenderer
         xRange = xRange.Padded(Axes.XAxis.Margin ?? Theme.AxisXMargin, Axes.XAxis);
         yRange = yRange.Padded(Axes.YAxis.Margin ?? Theme.AxisYMargin, Axes.YAxis);
 
-        foreach (var c in contribs)
-        {
+        foreach (var c in xContribs)
             xRange = xRange.ClampSticky(c.StickyXMin, c.StickyXMax, xUnpadded, Axes.XAxis);
+        foreach (var c in yContribs)
             yRange = yRange.ClampSticky(c.StickyYMin, c.StickyYMax, yUnpadded, Axes.YAxis);
-        }
 
         var locator = new MatPlotLibNet.Rendering.TickLocators.AutoLocator();
-        xRange = xRange.ExpandedToNiceBoundsIfAuto(Axes.XAxis, xUnpadded, contribs.HasAnyStickyX(), locator);
-        yRange = yRange.ExpandedToNiceBoundsIfAuto(Axes.YAxis, yUnpadded, contribs.HasAnyStickyY(), locator);
+        xRange = xRange.ExpandedToNiceBoundsIfAuto(Axes.XAxis, xUnpadded, xContribs.HasAnyStickyX(), locator);
+        yRange = yRange.ExpandedToNiceBoundsIfAuto(Axes.YAxis, yUnpadded, yContribs.HasAnyStickyY(), locator);
 
         // === 4. Orient — an inverted axis is drawn high to low, the way a limit set high to low already is ===
         xRange = xRange.OrientedBy(Axes.XAxis);

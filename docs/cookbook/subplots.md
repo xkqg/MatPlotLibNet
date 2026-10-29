@@ -104,6 +104,34 @@ Plt.Create()
     .Save("inset.svg");
 ```
 
+The callback gets a builder over the inset itself, so what it sets is what the inset has: its own legend, tick locators and
+formatters, scales and overlays. An inset can hold an inset, and its grid is the theme's grid of the figure it is drawn under.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
+
+double[] signalX = [.. Enumerable.Range(0, 50).Select(i => i / 5.0)];
+double[] signalY = [.. signalX.Select(v => Math.Sin(3 * v) * Math.Exp(-v / 4))];
+double[] zoomX = [.. signalX.Where(v => v <= 1.5)];
+double[] zoomY = [.. zoomX.Select(v => Math.Sin(3 * v) * Math.Exp(-v / 4))];
+
+Plt.Create()
+    .WithTitle("An inset that keeps its legend")
+    .WithSize(750, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(signalX, signalY, s => s.Label = "Full signal")
+        .WithLegend(LegendPosition.LowerLeft)
+        .AddInset(0.5, 0.45, 0.45, 0.45, inset => inset
+            .Plot(zoomX, zoomY, s => { s.Label = "Detail"; s.Color = Colors.Crimson; })
+            .WithLegend()))
+    .Save("inset_legend.svg");
+```
+
+![A damped sine wave with the legend "Full signal" at the lower left and an inset of its first 1.5 units, whose own legend reads "Detail"](../images/inset_legend.png)
+
+
 ## Shared axes
 
 `ShareX` links the axis ranges of the subplots that pass the same key:

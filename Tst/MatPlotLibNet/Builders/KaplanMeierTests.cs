@@ -18,8 +18,9 @@ namespace MatPlotLibNet.Tests.Builders;
 /// (worked out in <see cref="MatPlotLibNet.Tests.Models.Series.SurvivalGroupExtensionsTests"/>), drawn "steps-post" from
 /// (0, 1); a Greenwood confidence band around it; and a censor mark at every time a subject left without an event. The
 /// curve, its band and its marks share one colour group, so all three wear the same colour and only the curve has a legend
-/// entry — the Y axis titled "Survival probability". No risk table and no log-rank test: a risk table is a table of counts,
-/// and a log-rank test a statistic to compute, neither a mark to draw. The arithmetic is fractions of whole numbers except
+/// entry — the Y axis titled "Survival probability". No risk table and no log-rank test: a risk table is a table of
+/// counts and a log-rank test a statistic, neither a mark of this curve, so <c>RiskTable</c> draws them on an
+/// axes of its own under it. The arithmetic is fractions of whole numbers except
 /// the band's standard error (one <see cref="Math.Sqrt"/>, which every platform computes to the same bit), so the levels
 /// are asserted to 1e-15 and the band to 1e-12.</summary>
 public class KaplanMeierTests

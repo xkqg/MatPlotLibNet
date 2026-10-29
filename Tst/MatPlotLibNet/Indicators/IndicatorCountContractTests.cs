@@ -37,7 +37,7 @@ public class IndicatorCountContractTests
 
     /// <summary>The number the documents publish. Changing it is a DOCUMENTED change: bump this, and bump
     /// README.md and the wiki's Home page with it.</summary>
-    private const int PublishedIndicators = 58;
+    private const int PublishedIndicators = 59;
 
     /// <summary>Of those, the ones that also run incrementally.</summary>
     private const int PublishedStreamingIndicators = 11;

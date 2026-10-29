@@ -142,10 +142,10 @@ table, the legend and the SVG groups hold those series, and nothing more:
   ridges carry no legend label, so their series groups have no `aria-label`.
 - **A part with no name has none.** A lollipop's stems, a dumbbell's connector and the cells of a calendar heatmap
   carry no label, so they have no series group of their own and a plain column header.
-- **What the table cannot say.** A calendar heatmap's table names the weekday of each cell (Mon … Sun) and numbers
-  its week column from 0. It holds no dates: the chart is a heatmap of its cells and does not keep them. A Marimekko
-  chart's table keeps the edges of its columns, which give each column's share of the total, and names its segments.
-  It does not name the columns, whose names stand under their centres, where no point of the chart stands.
+- **A calendar heatmap's table dates every cell.** It names the weekday of each cell (Mon … Sun), numbers its week column
+  from 0 and gives the date (`yyyy-MM-dd`), kept as the date of the first cell and worked out from the column and the row; a
+  padding cell keeps the date it stands for with no value. A Marimekko chart's table has a row for each column, with its
+  name, the edge it begins at, the edge it ends at and the share of the cell in it, and names its segments.
 
 The tick labels themselves are inside the picture, which a screen reader announces by its alt text. Say what the
 chart is in `WithAltText` and `WithDescription`.

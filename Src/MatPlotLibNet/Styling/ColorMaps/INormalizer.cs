@@ -74,12 +74,24 @@ public sealed class TwoSlopeNormalizer : INormalizer, IJsonDescribed<NormalizerD
     }
 }
 
+/// <summary>A normaliser that sends the values between two boundaries to one colour: a colour bar drawn for it is bands, one
+/// per bin, with a tick on each boundary, since the colour of a value says which bin it is in and nothing about where in the
+/// bin it stands. Internal: the bar asks a normaliser for this capability and holds no list of types.</summary>
+internal interface IDiscreteNormalizer
+{
+    /// <summary>The boundaries of the bins, ascending: <c>n + 1</c> of them for <c>n</c> bins.</summary>
+    double[] Boundaries { get; }
+}
+
 /// <summary>Discrete boundary normalization that maps values to bins defined by boundary values.
 /// Values between consecutive boundaries map to the same normalized value.</summary>
-public sealed class BoundaryNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
+public sealed class BoundaryNormalizer : INormalizer, IDiscreteNormalizer, IJsonDescribed<NormalizerDto>
 {
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new BoundaryNormalizerDto(_boundaries);
+
+    /// <inheritdoc />
+    double[] IDiscreteNormalizer.Boundaries => _boundaries;
 
     private readonly double[] _boundaries;
 

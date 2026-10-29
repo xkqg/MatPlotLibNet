@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 
 namespace MatPlotLibNet.Models.Series;
@@ -15,30 +16,29 @@ internal readonly record struct ViolinSlice(double Y, double HalfWidth);
 /// draws the body and by the series that ranges over it.</summary>
 internal static class ViolinBodyExtensions
 {
-    /// <summary>The number of intervals the sample's extent is cut into: the outline stands at one more height than this.</summary>
-    internal const int Intervals = 20;
+    /// <summary>The number of heights the outline stands at, matplotlib's <c>violinplot</c> <c>points=100</c>: evenly from the
+    /// lowest value to the highest.</summary>
+    internal const int Heights = 100;
 
     extension(double[] sorted)
     {
-        /// <summary>The outline of the body of a violin, from the lowest value to the highest. The width at a height is the
-        /// share of the sample within a twentieth of the extent above and below it, times <paramref name="widths"/>; a sample
-        /// whose values are all equal is given an extent of 1.</summary>
-        /// <param name="widths">The series' <see cref="ViolinSeries.Widths"/>.</param>
-        /// <returns>The outline at <see cref="Intervals"/> + 1 heights, lowest first.</returns>
+        /// <summary>The outline of the body of a violin, from the lowest value to the highest: the Gaussian kernel density of the
+        /// sample at <see cref="Heights"/> heights, with Silverman's bandwidth (<see cref="GaussianKde"/>, the estimator the
+        /// density curve and the ridgeline are drawn with), scaled so the widest point of the body is <paramref name="widths"/>.
+        /// A sample without a spread (one observation, or every value the same) has no density: its body is a spike, the whole
+        /// width at its value at every height, as matplotlib draws it.</summary>
+        /// <param name="widths">The series' <see cref="ViolinSeries.Widths"/>: the half-width of the body at its widest.</param>
+        /// <returns>The outline at <see cref="Heights"/> heights, lowest first.</returns>
         internal ViolinSlice[] Outline(double widths)
         {
-            double min = sorted[0], range = sorted[^1] - min;
-            if (range == 0) range = 1;
-            double bandwidth = range / Intervals;
-            var outline = new ViolinSlice[Intervals + 1];
-            for (int s = 0; s <= Intervals; s++)
-            {
-                double y = min + range * s / Intervals;
-                int lo = sorted.BisectLeft(y - bandwidth), hi = sorted.BisectRight(y + bandwidth);
-                outline[s] = new ViolinSlice(y, (hi - lo) / (double)sorted.Length * widths);
-            }
+            double min = sorted[0], max = sorted[^1];
+            if (min == max) return [.. Enumerable.Repeat(new ViolinSlice(min, widths), Heights)];
 
-            return outline;
+            double[] heights = [.. Enumerable.Range(0, Heights).Select(i => min + (max - min) * i / (Heights - 1))];
+            heights[^1] = max;
+            double[] density = GaussianKde.DensityAt(sorted, GaussianKde.SilvermanBandwidth(sorted), heights);
+            double peak = density.Max();
+            return [.. heights.Select((y, i) => new ViolinSlice(y, density[i] / peak * widths))];
         }
     }
 }

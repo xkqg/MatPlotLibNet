@@ -158,8 +158,9 @@ public class DumbbellTests
         Assert.True(Before.Values[3] > After.Values[3]);
     }
 
-    /// <summary>The connector is the library's neutral grey (the colour of every reference line, level and trendline) drawn behind the dots, 3 wide, without caps, with no label of its own, and it
-    /// takes no colour slot: the dots wear the theme's first two colours and the connector wears neither.</summary>
+    /// <summary>The connector wears the theme's neutral grey (the colour of every reference line, level and trendline) without
+    /// naming it, drawn behind the dots, 3 wide, without caps, with no label of its own, and it takes no colour slot: the dots
+    /// wear the theme's first two colours and the connector wears neither.</summary>
     [Fact]
     public void TheConnector_IsNeutral_BehindTheDots_AndTakesNoSlot()
     {
@@ -169,7 +170,8 @@ public class DumbbellTests
 
         var connector = (ErrorBarSeries)axes.Series[2];
 
-        Assert.Equal(Colors.Gray, connector.Color);
+        Assert.Null(connector.Color);
+        Assert.True(connector.WearsNeutral);
         Assert.Equal(3, connector.LineWidth);
         Assert.Equal(0, connector.CapSize);
         Assert.Equal(-1, connector.ZOrder);
@@ -179,23 +181,19 @@ public class DumbbellTests
         var colours = SeriesColours(svg);
         Assert.Equal(figure.Theme.CycleColors[0].ToHex(), colours[0]);
         Assert.Equal(figure.Theme.CycleColors[1].ToHex(), colours[1]);
-        Assert.Equal(Colors.Gray.ToHex(), colours[2]);
+        Assert.Equal(figure.Theme.Neutral.ToHex(), colours[2]);
         Assert.Equal(3, colours.Distinct().Count());
     }
 
-    /// <summary>H1, measured: the connector is visible on a light and on a dark theme set AFTER the verb, because the library's
-    /// neutral grey stands at a contrast of 3 : 1 or more against the plot background of both (WCAG asks 3 : 1 of a graphic).
-    /// Over the 30 shipped themes that grey reaches 3 : 1 on 25 (the five below: Nord, Dracula, Monokai, Gruvbox, OpsPanel,
-    /// where every reference line shares it); the lighter #AAAAAA the connector wore before reached it on 12 only, and stood at
-    /// 2.32 : 1 on the default theme, 1.84 on ggplot and 1.59 on OpsPanel. The verb fixes the colour when it runs and the theme
-    /// is read at render time, so the colour has to be one that reads on the common themes.</summary>
+    /// <summary>H1, measured: the connector is visible on every one of the 30 shipped themes, set AFTER the verb, because the
+    /// connector names no colour and wears the theme's neutral grey, which stands at a contrast of 3 : 1 or more against the
+    /// theme's plot (WCAG asks 3 : 1 of a graphic). A grey fixed when the verb runs, #808080, reached it on 25 of the 30 and
+    /// stood at 2.32 : 1 on Dracula; the lighter #AAAAAA it wore before that reached it on 12 only.</summary>
     [Theory]
-    [InlineData("Default")]
-    [InlineData("Dark")]
-    [InlineData("Ggplot")]
+    [MemberData(nameof(Styling.ThemeNeutralTests.BuiltInThemes), MemberType = typeof(Styling.ThemeNeutralTests))]
     public void TheConnector_IsVisibleOnTheTheme_WhateverIsSetAfterTheVerb(string themeName)
     {
-        var theme = themeName switch { "Dark" => Theme.Dark, "Ggplot" => Theme.Ggplot, _ => Theme.Default };
+        var theme = (Theme)typeof(Theme).GetProperty(themeName)!.GetValue(null)!;
 
         var figure = Plt.Create().WithSize(800, 450)
             .AddSubPlot(1, 1, 1, ax => ax.Dumbbell(Products, Before, After)).WithTheme(theme).Build();

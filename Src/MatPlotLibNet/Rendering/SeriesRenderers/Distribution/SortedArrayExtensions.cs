@@ -3,8 +3,7 @@
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>Percentile / bisection extensions on pre-sorted <c>double[]</c> arrays, used by
-/// distribution-plot renderers (box / violin / ECDF).</summary>
+/// <summary>Percentile extension on pre-sorted <c>double[]</c> arrays, used by the box, violin and point-plot renderers.</summary>
 internal static class SortedArrayExtensions
 {
     extension(double[] sorted)
@@ -16,22 +15,6 @@ internal static class SortedArrayExtensions
             double idx = (sorted.Length - 1) * p / 100.0;
             int lower = (int)Math.Floor(idx), upper = Math.Min(lower + 1, sorted.Length - 1);
             return sorted[lower] + (idx - lower) * (sorted[upper] - sorted[lower]);
-        }
-
-        /// <summary>Leftmost insertion index for <paramref name="value"/> in <paramref name="sorted"/>.</summary>
-        internal int BisectLeft(double value)
-        {
-            int lo = 0, hi = sorted.Length;
-            while (lo < hi) { int mid = (lo + hi) / 2; if (sorted[mid] < value) lo = mid + 1; else hi = mid; }
-            return lo;
-        }
-
-        /// <summary>Rightmost insertion index for <paramref name="value"/> in <paramref name="sorted"/>.</summary>
-        internal int BisectRight(double value)
-        {
-            int lo = 0, hi = sorted.Length;
-            while (lo < hi) { int mid = (lo + hi) / 2; if (sorted[mid] <= value) lo = mid + 1; else hi = mid; }
-            return lo;
         }
     }
 }

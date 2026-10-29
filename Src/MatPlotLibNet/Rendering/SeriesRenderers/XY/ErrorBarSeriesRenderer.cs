@@ -52,7 +52,7 @@ internal sealed class ErrorBarSeriesRenderer : SeriesRenderer<ErrorBarSeries>
     /// <inheritdoc />
     public override void Render(ErrorBarSeries series)
     {
-        var color = ResolveColor(series.Color);
+        var color = series is { Color: null, WearsNeutral: true } ? Context.Theme.Neutral : ResolveColor(series.Color);
         int n = series.XData.Length;
         // An error bar has no dash pattern or marker of its own (its bars are solid, its point a dot), so the slot decides
         // only the width, which the bars and caps take unless the series names theirs.

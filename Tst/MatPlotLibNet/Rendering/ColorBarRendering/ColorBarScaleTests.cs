@@ -17,6 +17,11 @@ namespace MatPlotLibNet.Tests.Rendering.ColorBarRendering;
 /// for (<see cref="MaxNLocator.ForLength"/>) and the range a bar covers.</summary>
 public class ColorBarScaleTests
 {
+    /// <summary>The scale of a bar under the linear normaliser, the way every test below states a bar: the range, how long it
+    /// is, the size of the tick font and its orientation.</summary>
+    private static ColorBarScale Linear(double min, double max, double lengthPx, double fontPx, bool vertical) =>
+        ColorBarScale.For(min, max, lengthPx, vertical, LinearNormalizer.Instance, new SvgRenderContext(), new Font { Size = fontPx });
+
     // ---- the number of ticks by the length of the bar ------------------------------------------------------------------
 
     [Theory]
@@ -41,7 +46,7 @@ public class ColorBarScaleTests
     [Fact]
     public void ARangeOf0To11_HasTheTicks0To10InTwos_WrittenInOneFormat()
     {
-        var scale = ColorBarScale.For(0, 11, 300, 13, vertical: true);
+        var scale = Linear(0, 11, 300, 13, vertical: true);
 
         Assert.Equal([0.0, 2, 4, 6, 8, 10], scale.Ticks);
         Assert.Equal(["0", "2", "4", "6", "8", "10"], scale.Labels);
@@ -50,7 +55,7 @@ public class ColorBarScaleTests
     [Fact]
     public void ARangeOfFractions_WritesEveryLabelWithTheSameNumberOfDecimals()
     {
-        var scale = ColorBarScale.For(0, 1, 300, 13, vertical: true);
+        var scale = Linear(0, 1, 300, 13, vertical: true);
 
         Assert.Equal(["0.0", "0.2", "0.4", "0.6", "0.8", "1.0"], scale.Labels);
     }
@@ -59,7 +64,7 @@ public class ColorBarScaleTests
     public void ATickPastTheEndOfTheRange_IsLeftOut()
     {
         // The locator may reach a hundredth of a step past the range: the tick 10 is 0.01 past 9.99 and is not drawn.
-        var scale = ColorBarScale.For(0, 9.99, 300, 13, vertical: true);
+        var scale = Linear(0, 9.99, 300, 13, vertical: true);
 
         Assert.All(scale.Ticks, tick => Assert.InRange(tick, 0, 9.99));
         Assert.DoesNotContain(10.0, scale.Ticks);
@@ -68,12 +73,13 @@ public class ColorBarScaleTests
     [Fact]
     public void ARangeFromHighToLow_HasTheSameTicks_AndTheFractionRunsFromTheStartOfTheGradient()
     {
-        var scale = ColorBarScale.For(11, 0, 300, 13, vertical: true);
+        var scale = Linear(11, 0, 300, 13, vertical: true);
 
         Assert.Equal([0.0, 2, 4, 6, 8, 10], scale.Ticks);
-        Assert.Equal(0, scale.FractionOf(11), 12);     // the start of the gradient is the value Min
-        Assert.Equal(1, scale.FractionOf(0), 12);
-        Assert.Equal(1.0 / 11, scale.FractionOf(10), 12);
+        // The start of the gradient is the value Min: the ticks 0..10 stand at 1 - v/11 along it.
+        double[] expected = [1.0, 1 - 2.0 / 11, 1 - 4.0 / 11, 1 - 6.0 / 11, 1 - 8.0 / 11, 1.0 / 11];
+        Assert.Equal(expected.Length, scale.Fractions.Length);
+        for (int i = 0; i < expected.Length; i++) Assert.Equal(expected[i], scale.Fractions[i], 12);
     }
 
     [Theory]
@@ -82,7 +88,7 @@ public class ColorBarScaleTests
     [InlineData(0.0, double.PositiveInfinity)]
     public void ARangeThatCannotBeDrawn_HasNoTick(double min, double max)
     {
-        var scale = ColorBarScale.For(min, max, 300, 13, vertical: true);
+        var scale = Linear(min, max, 300, 13, vertical: true);
 
         Assert.Empty(scale.Ticks);
         Assert.Empty(scale.Labels);
@@ -91,8 +97,8 @@ public class ColorBarScaleTests
     [Fact]
     public void AShorterBar_HasFewerTicksThanALongOne()
     {
-        var shortBar = ColorBarScale.For(0, 11, 45, 13, vertical: true);
-        var longBar = ColorBarScale.For(0, 11, 300, 13, vertical: true);
+        var shortBar = Linear(0, 11, 45, 13, vertical: true);
+        var longBar = Linear(0, 11, 300, 13, vertical: true);
 
         Assert.True(shortBar.Ticks.Length < longBar.Ticks.Length);
     }
@@ -105,7 +111,7 @@ public class ColorBarScaleTests
         var ctx = new SvgRenderContext();
         var font = ThemedFontProvider.TickFont(Theme.Default);
 
-        double widest = ColorBarScale.WidestLabel(0, 123456789, ctx, font);
+        double widest = ColorBarScale.WidestLabel(0, 123456789, ctx, font, LinearNormalizer.Instance);
 
         // The shortest bar asks for 2 ticks: 0 and 100000000, the longest label there is.
         Assert.Equal(ctx.MeasureText("100000000", font).Width, widest, 9);
@@ -116,7 +122,7 @@ public class ColorBarScaleTests
     [InlineData(double.NaN, 1.0)]
     [InlineData(0.0, double.PositiveInfinity)]
     public void TheWidestLabelOfARangeThatCannotBeDrawn_IsNothing(double min, double max) =>
-        Assert.Equal(0, ColorBarScale.WidestLabel(min, max, new SvgRenderContext(), ThemedFontProvider.TickFont(Theme.Default)));
+        Assert.Equal(0, ColorBarScale.WidestLabel(min, max, new SvgRenderContext(), ThemedFontProvider.TickFont(Theme.Default), LinearNormalizer.Instance));
 
     // ---- the range a bar covers ----------------------------------------------------------------------------------------
 

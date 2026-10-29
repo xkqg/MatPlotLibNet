@@ -123,7 +123,7 @@ Where it stands now:
 - **MathText** — LaTeX-like labels with fractions, square roots, accents, Greek letters (96 symbol mappings)
 - **Text in any script** — Arabic and Hebrew read the right way round, because the Unicode bidirectional algorithm and HarfBuzz shaping are both in there
 - **SignalR interactivity** — server-authoritative charts with mutation + notification events
-- **148 colormaps**, SIMD numerics, DataFrame integration with 58 technical indicators, Jupyter notebooks
+- **148 colormaps**, SIMD numerics, DataFrame integration with 59 technical indicators, Jupyter notebooks
 - **An MCP server** so an agent can draw one of these charts and then look at it
 
 MIT licensed, .NET 10 and .NET 8, 19,890 tests, and every class has to clear 90 % line and branch coverage.

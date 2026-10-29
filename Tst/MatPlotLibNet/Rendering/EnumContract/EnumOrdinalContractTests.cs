@@ -86,6 +86,11 @@ public static class EnumOrdinalSnapshot
             [typeof(ConnectionStyle)] = new Dictionary<string, int> {
                 ["Straight"] = 0, ["Arc3"] = 1, ["Angle"] = 2, ["Angle3"] = 3,
             },
+            [typeof(ControlRules)] = new Dictionary<string, int> {
+                // [Flags] enum numbered as Nelson numbers his tests — values are powers of two. All is the eight together.
+                ["None"] = 0, ["Nelson1"] = 1, ["Nelson2"] = 2, ["Nelson3"] = 4, ["Nelson4"] = 8,
+                ["Nelson5"] = 16, ["Nelson6"] = 32, ["Nelson7"] = 64, ["Nelson8"] = 128, ["All"] = 255,
+            },
             [typeof(CoordinateSystem)] = new Dictionary<string, int> {
                 ["Cartesian"] = 0, ["Polar"] = 1, ["ThreeD"] = 2,
             },

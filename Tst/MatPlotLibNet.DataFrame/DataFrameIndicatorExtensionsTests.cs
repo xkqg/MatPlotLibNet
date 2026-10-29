@@ -238,6 +238,45 @@ public class DataFrameIndicatorExtensionsTests
         AssertNonEmptyResult(result);
     }
 
+    /// <summary>The columns are 102 + i, 98 + i and 100 + i, so the typical price is 100 + i and the volume 1000 + 10 i: the
+    /// cumulative VWAP is the plain loop's number, to the bit, as it was before the bridge moved onto the candle constructor.</summary>
+    [Fact]
+    public void Vwap_IsTheCumulativeVwapOfTheTypicalPrice()
+    {
+        double[] result = MakeCandleDf().Vwap("high", "low", "close", "volume");
+
+        double cumPriceVol = 0, cumVol = 0;
+        for (int i = 0; i < result.Length; i++)
+        {
+            double typical = (102.0 + i + (98.0 + i) + (100.0 + i)) / 3.0;
+            double volume = 1000.0 + i * 10;
+            cumPriceVol += typical * volume;
+            cumVol += volume;
+            Assert.Equal(cumPriceVol / cumVol, result[i]);
+        }
+    }
+
+    /// <summary>Anchored at row 3 there is no value before it, the anchor row reads its own typical price (103) and the next row
+    /// weighs 104 at volume 1040 against 103 at 1030.</summary>
+    [Fact]
+    public void Vwap_WithAnAnchor_IsNaNBeforeIt_AndSumsFromIt()
+    {
+        double[] result = MakeCandleDf().Vwap("high", "low", "close", "volume", anchor: 3);
+
+        Assert.All(result[..3], v => Assert.True(double.IsNaN(v)));
+        Assert.Equal(103.0, result[3]);
+        Assert.Equal((103.0 * 1030 + 104.0 * 1040) / (1030.0 + 1040), result[4]);
+    }
+
+    [Fact]
+    public void Vwap_AnAnchorThatIsNoRow_IsRefused()
+    {
+        var df = MakeCandleDf();
+
+        Assert.Equal("anchor", Assert.Throws<ArgumentOutOfRangeException>(() => df.Vwap("high", "low", "close", "volume", anchor: -1)).ParamName);
+        Assert.Equal("anchor", Assert.Throws<ArgumentOutOfRangeException>(() => df.Vwap("high", "low", "close", "volume", anchor: N)).ParamName);
+    }
+
     // ── Error handling ────────────────────────────────────────────────────────
 
     [Fact]

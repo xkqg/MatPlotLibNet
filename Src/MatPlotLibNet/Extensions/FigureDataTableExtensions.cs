@@ -246,17 +246,26 @@ public static class FigureDataTableExtensions
         return true;
     }
 
+    /// <summary>One column of a fragment, on its way into a merged table: the table it stands in and its place there.</summary>
+    private readonly record struct MergedColumn(ChartDataTable Table, int Index);
+
     /// <summary>One table from a run of fragments: the shared first column under the axis' own name, then every
     /// fragment's remaining columns. Every column that is a POSITION is resolved against the axis it is a
-    /// position on — that is the whole reason a series marks them.</summary>
+    /// position on — that is the whole reason a series marks them. A column that is the same as one already in the table, in
+    /// its header and in every cell (the edges the cells of a Marimekko chart's segments all stand between), is one column of
+    /// it and not repeated: a table says each thing once.</summary>
     private static ChartDataTable Merge(List<SeriesFragment> group, Axes axes, string? caption)
     {
         var seed = group[0].Table;
         var columns = new List<ChartDataColumn> { Resolve(seed.Columns[0], axes) };
+        var sources = new List<MergedColumn>();
         foreach (var fragment in group)
         {
             for (int c = 1; c < fragment.Table.Columns.Count; c++)
             {
+                var source = new MergedColumn(fragment.Table, c);
+                if (sources.Any(kept => SameColumn(kept, source))) continue;
+                sources.Add(source);
                 columns.Add(Resolve(fragment.Table.Columns[c], axes));
             }
         }
@@ -265,18 +274,23 @@ public static class FigureDataTableExtensions
         for (int r = 0; r < seed.RowCount; r++)
         {
             var cells = new List<DataCell>(columns.Count) { seed.Rows[r][0] };
-            foreach (var fragment in group)
-            {
-                for (int c = 1; c < fragment.Table.Columns.Count; c++)
-                {
-                    cells.Add(fragment.Table.Rows[r][c]);
-                }
-            }
-
+            cells.AddRange(sources.Select(source => source.Table.Rows[r][source.Index]));
             rows.Add(cells);
         }
 
         return new ChartDataTable(caption, columns, rows);
+    }
+
+    /// <summary>Whether two columns are the same: the same column (header, kind and axis) with the same cell in every row.</summary>
+    private static bool SameColumn(MergedColumn left, MergedColumn right)
+    {
+        if (left.Table.Columns[left.Index] != right.Table.Columns[right.Index]) return false;
+        for (int r = 0; r < left.Table.RowCount; r++)
+        {
+            if (!left.Table.Rows[r][left.Index].Equals(right.Table.Rows[r][right.Index])) return false;
+        }
+
+        return true;
     }
 
     /// <summary>A column, named and typed by the AXIS it is a position on. A series knows its <c>start</c> and

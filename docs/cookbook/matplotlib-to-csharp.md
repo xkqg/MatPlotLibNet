@@ -74,7 +74,7 @@ Plt.Create()
 | `plt.subplots_adjust(hspace=…)` | `figure.WithSubPlotSpacing(sp => sp with { VerticalGap = … })` | |
 | `plt.subplot_mosaic('AB;CC')` | `Plt.Mosaic("AB;CC")` | Same string layout language. |
 | `fig.add_axes([…])` | `ax.AddInset(bounds, inset => …)` | An inset belongs to the axes it sits in. |
-| `plt.savefig('c.png')` | `figure.Save("c.png")` | The extension picks the format: `.svg`, `.png`, `.pdf`, `.gif`. |
+| `plt.savefig('c.png')` | `figure.Save("c.png")` | The extension picks the format: `.svg` and `.json` from core, `.png` and `.pdf` with the `MatPlotLibNet.Skia` package loaded (without it they are refused, not written as SVG); an animation is saved as `.gif` from its builder. |
 | `fig.canvas.tostring_rgb()` | `figure.ToSvg()` | The markup as a string, for a web response. |
 | `plt.show()` | — | Nothing renders to a screen by itself; see the [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) or the Blazor, WPF, MAUI, Avalonia and Uno controls. |
 | `plt.gca()`, `plt.gcf()` | — | There is no current figure to get. |
@@ -113,7 +113,8 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | matplotlib / Python | MatPlotLibNet | Notes |
 |---|---|---|
 | `ax.spy(matrix)` | `ax.Spy(matrix)` | Square markers on the cells whose magnitude is above a threshold, row 0 on top. |
-| `scipy.stats.probplot(x, plot=ax)` | `ax.QQPlot(sample)` | scipy's plotting positions and least-squares reference line; normal distribution only. |
+| `scipy.stats.probplot(x, plot=ax)` | `ax.QQPlot(sample)` | scipy's plotting positions and least-squares reference line, against the normal distribution. |
+| `scipy.stats.probplot(x, dist=stats.expon, plot=ax)` | `ax.ProbabilityPlot(sample, QQReference.Exponential)` | The same, against an exponential, uniform, log-normal or Student t distribution, or one of your own (`QQReference.Of`). |
 | `ax.stackplot(x, ys, baseline='wiggle')` | `ax.StreamGraph(x, layers)` | One area per layer, each named in the legend. |
 | `pandas.plotting.parallel_coordinates(df, 'class')` | `ax.ParallelCoordinates(dimensions, rows)` | Each column scaled to 0..1; rows that share a name are one class. |
 | `lifelines.KaplanMeierFitter().fit(t, e).plot_survival_function()` | `ax.KaplanMeier(groups)` | The product-limit curve only, no band or censor marks. |

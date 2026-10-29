@@ -179,4 +179,38 @@ public class SeriesTablesNamedByAxesTests
 
         Assert.Equal(area.ToDataTable()!.ToCsv(), TableOf(area, axes)!.ToCsv());
     }
+
+    private static Axes WithXNames(params string[] names)
+    {
+        var axes = new Axes();
+        axes.XAxis.TickLocator = new FixedLocator([.. Enumerable.Range(0, names.Length).Select(k => k + 0.5)]);
+        axes.XAxis.TickFormatter = new CategoryFormatter(names, reversed: false);
+        return axes;
+    }
+
+    /// <summary>Columns of a fill to the baseline with no label: a row for each run of two edges the X axis names at its centre,
+    /// the fill's height being the first point's, and the height's column named "y" as an unlabelled series' always is.</summary>
+    [Fact]
+    public void AnUnlabelledFillToTheBaseline_TablesItsColumns_UnderY()
+    {
+        var axes = WithXNames("first", "second");
+        var area = axes.AddSeries(new AreaSeries([0, 1, double.NaN, 1, 2], [3, 3, double.NaN, 4, 4]));
+
+        var table = TableOf(area, axes)!;
+
+        Assert.Equal(["x", "left", "right", "y"], Headers(table));
+        Assert.Equal(2, table.RowCount);
+        Assert.Equal([3.0, 4.0], table.Rows.Select(row => row[3].Number));
+    }
+
+    /// <summary>A run of one x has no width and no name; with no other run there are no columns, so the area tables as any other
+    /// area does.</summary>
+    [Fact]
+    public void AnAreaWhoseOnlyColumnHasNoWidth_TablesAsItAlwaysDid()
+    {
+        var axes = WithXNames("first");
+        var area = axes.AddSeries(new AreaSeries([1, 1], [2, 2]));
+
+        Assert.Equal(area.ToDataTable()!.ToCsv(), TableOf(area, axes)!.ToCsv());
+    }
 }

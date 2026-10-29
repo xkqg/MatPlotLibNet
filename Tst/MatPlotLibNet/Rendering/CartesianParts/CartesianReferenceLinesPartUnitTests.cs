@@ -74,13 +74,26 @@ public class CartesianReferenceLinesPartUnitTests
     }
 
     [Fact]
-    public void Render_LineWithoutColor_FallsBackToGray()
+    public void Render_LineWithoutColor_FallsBackToTheThemesNeutral()
     {
         var ax = new Axes();
         ax.AxVLine(5);
         var ctx = new RecordingRenderContext();
         Build(ax, ctx).Render();
-        Assert.Equal(Colors.Gray,
+        Assert.Equal(DefaultTheme.Neutral,
+            (Color)((dynamic)ctx.OfKind("DrawLine")[0].Args!).color);
+        Assert.Equal(Colors.Gray, DefaultTheme.Neutral);
+    }
+
+    /// <summary>The neutral is the theme's: Nord's plot is dark enough that #808080 stands at 2.55 : 1 against it.</summary>
+    [Fact]
+    public void Render_LineWithoutColor_UnderNord_WearsNordsNeutral()
+    {
+        var ax = new Axes();
+        ax.AxVLine(5);
+        var ctx = new RecordingRenderContext();
+        new CartesianReferenceLinesPart(ax, Plot, ctx, Theme.Nord, Transform(), Range).Render();
+        Assert.Equal(Color.FromHex("#8D8D8D"),
             (Color)((dynamic)ctx.OfKind("DrawLine")[0].Args!).color);
     }
 

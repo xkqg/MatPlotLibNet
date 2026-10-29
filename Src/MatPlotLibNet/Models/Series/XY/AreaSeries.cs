@@ -135,12 +135,24 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
             : base.ToDataTable();
 
     /// <inheritdoc />
-    /// <remarks>A fill down to one level the Y axis names stands on that name as a whole: a ridge on its group's baseline.
-    /// Its table is the x and the height of the fill above the level, row by row, under the series' label or, without
-    /// one, the name; the level itself says nothing a row needs, and a height is no position. Any other area tables as
-    /// <see cref="ToDataTable()"/> does.</remarks>
+    /// <remarks>Two shapes stand on the names of an axis as a whole.
+    /// <para>A fill down to one level the Y axis names stands on that name: a ridge on its group's baseline. Its table is the
+    /// x and the height of the fill above the level, row by row, under the series' label or, without one, the name; the level
+    /// itself says nothing a row needs, and a height is no position.</para>
+    /// <para>A fill drawn as columns, each a run of two edges between gaps (the cells of a Marimekko chart), whose centres the
+    /// X axis names: a row for each column, keyed by its name, with the edge it begins at, the edge it ends at, and the height
+    /// of the fill in it, which is the height of the cell. A column the axis does not name is no row, and an area with a run it
+    /// cannot name is no columns. Any other area tables as <see cref="ToDataTable()"/> does.</para></remarks>
     ChartDataTable? ITableNamedByAxes.ToDataTable(AxisNames names)
     {
+        if (ColumnRuns(names) is { } columns)
+        {
+            var rows = columns.Select(column => (IReadOnlyList<DataCell>)
+                [DataCell.FromNumber(column.Centre), DataCell.FromNumber(column.Left), DataCell.FromNumber(column.Right), DataCell.FromNumber(column.Height)]);
+            return new ChartDataTable(null,
+                [new("x", Axis: DataAxis.X), new("left", Axis: DataAxis.X), new("right", Axis: DataAxis.X), new(Label ?? "y")], [.. rows]);
+        }
+
         if (Level() is not { } level || names.Along(DataAxis.Y, [level]) is not [{ } name])
         {
             return ToDataTable();
@@ -148,6 +160,42 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
 
         double[] heights = [.. YData.Zip(YData2!, (top, bottom) => top - bottom)];
         return ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new(Label ?? name)], [XData, heights]);
+    }
+
+    /// <summary>One column of an area drawn as columns: where it stands and how high the fill is in it.</summary>
+    private readonly record struct ColumnRun(double Centre, double Left, double Right, double Height);
+
+    /// <summary>The columns this area is drawn as, when it is drawn as columns the X axis names: the points between two
+    /// gaps (a missing x) are a run, a run of two points is a column from the one to the other, and the column stands on the
+    /// name the axis shows at its centre, <c>(left + right) / 2</c>, the position a Marimekko chart puts its name at. A column
+    /// with no width has no name and is left out. The fill's height in a column is the height of its first point above the
+    /// second curve, or above the baseline when there is none.</summary>
+    /// <param name="names">The names the axes shows along the axes this area stands on.</param>
+    /// <returns>The columns in order; <see langword="null"/> when the area is no columns: a run is not two points, a run of
+    /// some width stands on no name, or there is no column at all.</returns>
+    private ColumnRun[]? ColumnRuns(AxisNames names)
+    {
+        var columns = new List<ColumnRun>();
+        for (int start = 0; start < XData.Length;)
+        {
+            if (!double.IsFinite(XData[start])) { start++; continue; }
+
+            int end = start;
+            while (end + 1 < XData.Length && double.IsFinite(XData[end + 1])) end++;
+            if (end - start != 1) return null;
+
+            double left = Math.Min(XData[start], XData[end]), right = Math.Max(XData[start], XData[end]);
+            if (left != right)
+            {
+                double centre = (left + right) / 2;
+                if (names.Along(DataAxis.X, [centre]) is not [{ }]) return null;
+                columns.Add(new(centre, left, right, YData[start] - (YData2 is { } second ? second[start] : 0)));
+            }
+
+            start = end + 1;
+        }
+
+        return columns.Count > 0 ? [.. columns] : null;
     }
 
     /// <summary>The one level the second curve holds, when it is one: every value of it that can be drawn is the same

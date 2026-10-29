@@ -69,7 +69,7 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
     private void DrawQuadrantGrid()
     {
         var b = Area.PlotBounds;
-        var center = Transform.DataToPixel(100.0, 100.0);
+        var center = Transform.DataToPixel(RelativeRotationSeries.Centre, RelativeRotationSeries.Centre);
         var inside = new Point(Math.Max(b.X, Math.Min(center.X, b.Right)), Math.Max(b.Y, Math.Min(center.Y, b.Bottom)));
 
         // The edges where each axis shows its higher values: right and top, unless the axis runs backwards.

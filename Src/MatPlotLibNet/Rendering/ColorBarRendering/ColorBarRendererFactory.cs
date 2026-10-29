@@ -24,4 +24,15 @@ public static class ColorBarRendererFactory
             ColorBarOrientation.Horizontal => new HorizontalColorBarRenderer(cb, colorMap, min, max, plotArea, ctx, theme, steps),
             _                              => new VerticalColorBarRenderer(cb, colorMap, min, max, plotArea, ctx, theme, steps),
         };
+
+    /// <summary>Constructs the right colorbar renderer for the given orientation, placing its ticks where
+    /// <paramref name="normalizer"/> sends their values: the normaliser the series that backs the bar colours its values with.
+    /// The overload without one places them evenly along the range, as for a linear normaliser.</summary>
+    internal static ColorBarRenderer Create(ColorBar cb, IColorMap colorMap, double min, double max, INormalizer normalizer,
+                                             Rect plotArea, IRenderContext ctx, Theme theme, int steps = 50)
+        => cb.Orientation switch
+        {
+            ColorBarOrientation.Horizontal => new HorizontalColorBarRenderer(cb, colorMap, min, max, plotArea, ctx, theme, steps) { Normalizer = normalizer },
+            _                              => new VerticalColorBarRenderer(cb, colorMap, min, max, plotArea, ctx, theme, steps) { Normalizer = normalizer },
+        };
 }

@@ -19,6 +19,11 @@ namespace MatPlotLibNet.Models.Series;
 /// are available via <see cref="Formula"/>.</remarks>
 public sealed class RelativeRotationSeries : ChartSeries, IColormappable
 {
+    /// <summary>The value both RS-Ratio and RS-Momentum are centred on: 100 means "as strong as the benchmark" and "no change in
+    /// strength". The quadrant grid is drawn around it, the formulas are scaled to it, and the range of the axes holds it, so
+    /// there is one 100 and the three cannot disagree.</summary>
+    internal const double Centre = 100;
+
     /// <summary>Per-asset close price series. Length must equal <see cref="AssetLabels"/>.</summary>
     public IReadOnlyList<double[]> AssetCloses { get; }
 
@@ -44,7 +49,8 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
     /// Alpha ramps from 0.2 (oldest) to 1.0 (head). Default <c>8</c>.</summary>
     public int TailLength { get; set; } = 8;
 
-    /// <summary>Draws the 100/100 crosshair and four faint quadrant fills when true. Default <see langword="true"/>.</summary>
+    /// <summary>Draws the 100/100 crosshair and four faint quadrant fills when true, and keeps the centre inside the range of the
+    /// axes so they have an area to stand on. Default <see langword="true"/>.</summary>
     public bool ShowQuadrantGrid { get; set; } = true;
 
     /// <inheritdoc cref="IColormappable.ColorMap"/>
@@ -100,13 +106,12 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
 
         for (int a = 0; a < AssetCloses.Count; a++)
         {
-            var (ratio, momentum) = Formula switch
+            results[a] = Formula switch
             {
                 RrgFormula.ZScore    => ComputeZScore(AssetCloses[a], bench, ShortPeriod, MomentumLookback),
                 RrgFormula.LogReturn => ComputeLogReturn(AssetCloses[a], bench, ShortPeriod, LongPeriod),
                 _                   => ComputeDualEma(AssetCloses[a], bench, ShortPeriod, LongPeriod),
             };
-            results[a] = new RrsPoint(ratio, momentum);
         }
         return results;
     }
@@ -116,7 +121,7 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         int n = asset.Length;
         var rs = new double[n];
         for (int t = 0; t < n; t++)
-            rs[t] = bench[t] == 0.0 ? double.NaN : asset[t] / bench[t] * 100.0;
+            rs[t] = bench[t] == 0.0 ? double.NaN : asset[t] / bench[t] * Centre;
         return rs;
     }
 
@@ -127,7 +132,7 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         return a;
     }
 
-    private static (double[], double[]) ComputeDualEma(double[] asset, double[] bench, int shortP, int longP)
+    private static RrsPoint ComputeDualEma(double[] asset, double[] bench, int shortP, int longP)
     {
         int n = asset.Length;
         var rs = BuildRs(asset, bench);
@@ -141,13 +146,13 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
             for (int t = 0; t < n; t++)
             {
                 if (!double.IsNaN(emaShortRs[t]) && !double.IsNaN(emaLongRs[t]) && emaLongRs[t] != 0.0)
-                    rsRatio[t] = emaShortRs[t] / emaLongRs[t] * 100.0;
+                    rsRatio[t] = emaShortRs[t] / emaLongRs[t] * Centre;
             }
         }
 
         // Momentum: apply DualEma to the valid suffix of rsRatio.
         int validStart = IndexOfFirstValid(rsRatio);
-        if (validStart < 0) return (rsRatio, NaNArray(n));
+        if (validStart < 0) return new(rsRatio, NaNArray(n));
 
         var rsRatioValid = rsRatio[validStart..];
         double[] emaShortMom = new Ema(rsRatioValid, shortP).Compute();
@@ -159,14 +164,14 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
             for (int i = 0; i < rsRatioValid.Length; i++)
             {
                 if (!double.IsNaN(emaShortMom[i]) && !double.IsNaN(emaLongMom[i]) && emaLongMom[i] != 0.0)
-                    rsMomentum[validStart + i] = emaShortMom[i] / emaLongMom[i] * 100.0;
+                    rsMomentum[validStart + i] = emaShortMom[i] / emaLongMom[i] * Centre;
             }
         }
 
-        return (rsRatio, rsMomentum);
+        return new(rsRatio, rsMomentum);
     }
 
-    private static (double[], double[]) ComputeZScore(double[] asset, double[] bench, int window, int rocLookback)
+    private static RrsPoint ComputeZScore(double[] asset, double[] bench, int window, int rocLookback)
     {
         int n = asset.Length;
         var rs = BuildRs(asset, bench);
@@ -176,16 +181,16 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
 
         // RS-Momentum: ROC of RS then z-score.
         double[] rocShort = new Roc(rs, rocLookback).Compute();
-        if (rocShort.Length == 0) return (rsRatio, NaNArray(n));
+        if (rocShort.Length == 0) return new(rsRatio, NaNArray(n));
 
         var rocZScore = ZScoreNormalize(rocShort, window);
         var rsMomentum = NaNArray(n);
         Array.Copy(rocZScore, 0, rsMomentum, rocLookback, rocZScore.Length);
 
-        return (rsRatio, rsMomentum);
+        return new(rsRatio, rsMomentum);
     }
 
-    private static (double[], double[]) ComputeLogReturn(double[] asset, double[] bench, int shortP, int longP)
+    private static RrsPoint ComputeLogReturn(double[] asset, double[] bench, int shortP, int longP)
     {
         int n = asset.Length;
         var rs = BuildRs(asset, bench);
@@ -197,7 +202,7 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         double[] rocLongArr  = new Roc(rs, longP).Compute();
         double[] rocShortArr = new Roc(rs, shortP).Compute();
 
-        if (rocLongArr.Length == 0) return (rsRatio, NaNArray(n));
+        if (rocLongArr.Length == 0) return new(rsRatio, NaNArray(n));
 
         // Both roc arrays are shorter; overlap starts at index longP in the original.
         int overlapLen = rocLongArr.Length; // n - longP
@@ -214,10 +219,10 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         var rsMomentum = NaNArray(n);
         Array.Copy(logRetZScore, 0, rsMomentum, longP, logRetZScore.Length);
 
-        return (rsRatio, rsMomentum);
+        return new(rsRatio, rsMomentum);
     }
 
-    // Z-score normalization: 100 + (src - SMA_w) / StdDev_w.
+    // Z-score normalization: Centre + (src - SMA_w) / StdDev_w.
     // Returns full-length array with NaN for first (period-1) elements.
     private static double[] ZScoreNormalize(double[] src, int period)
     {
@@ -238,8 +243,8 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         {
             int t = i + offset;
             result[t] = stddevs[i] < 1e-12
-                ? 100.0
-                : 100.0 + (src[t] - means[i]) / stddevs[i];
+                ? Centre
+                : Centre + (src[t] - means[i]) / stddevs[i];
         }
         return result;
     }
@@ -278,6 +283,16 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         }
 
         if (!anyValid) return new(null, null, null, null);
+
+        // The quadrants and the crosshair are drawn around the centre, so the plot holds it, even when every asset stands on
+        // one side of it (all leading, all lagging): the empty space is what shows which quadrant they are in, as StockCharts'
+        // chart does. Without the grid nothing is drawn there, and the range is the data's alone.
+        if (ShowQuadrantGrid)
+        {
+            xMin = Math.Min(xMin, Centre); xMax = Math.Max(xMax, Centre);
+            yMin = Math.Min(yMin, Centre); yMax = Math.Max(yMax, Centre);
+        }
+
         if (xMin == xMax) { xMin -= 0.5; xMax += 0.5; }
         if (yMin == yMax) { yMin -= 0.5; yMax += 0.5; }
         return new(xMin, xMax, yMin, yMax);

@@ -101,6 +101,12 @@ Plt.Create()
     .Save("heatmap_twoslope.svg");
 ```
 
+The colour bar follows the normaliser. A tick stands where the colour of its value is drawn, not at the value's share of
+the range, so under a log normaliser the ticks crowd towards the top of the bar exactly as the colours do, and a tick
+that would stand within one label of the one before it is left out:
+
+![A colour bar under a log normaliser, 100 to 1000](../images/heatmap_log_colorbar.png)
+
 ## Heatmap with custom series config
 
 ```csharp

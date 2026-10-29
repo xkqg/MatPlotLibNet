@@ -68,7 +68,8 @@ public static class LeastSquares
 
     /// <summary>
     /// Computes confidence bands around the fitted polynomial at the given evaluation X points.
-    /// Uses the t-distribution with <c>n − (degree+1)</c> degrees of freedom.
+    /// Uses the t-distribution with <c>n − (degree+1)</c> degrees of freedom, at its exact quantile
+    /// (<see cref="StudentT.Quantile"/>) for any level.
     /// </summary>
     /// <param name="x">Original X data.</param>
     /// <param name="y">Original Y data.</param>
@@ -92,7 +93,7 @@ public static class LeastSquares
         double s2 = ss / dof;
         double s = Math.Sqrt(s2);
 
-        double tVal = StudentTQuantile((1.0 + level) / 2.0, dof);
+        double tVal = StudentT.Quantile((1.0 + level) / 2.0, dof);
 
         // Build X^T X inverse for leverage computation
         int p = m;
@@ -200,46 +201,5 @@ public static class LeastSquares
             for (int c = 0; c < n; c++)
                 inv[r, c] = aug[r, n + c];
         return inv;
-    }
-
-    /// <summary>
-    /// Approximates the upper quantile of the t-distribution at a given one-sided probability and degrees of freedom.
-    /// Uses a lookup table for small dof and the normal approximation for large dof.
-    /// </summary>
-    private static double StudentTQuantile(double p, int dof)
-    {
-        // p is the one-sided probability (e.g., 0.975 for 95% CI, 0.995 for 99% CI)
-        if (dof >= 120) return StandardNormal.Quantile(p);
-
-        // Lookup for p ≈ 0.995  (99% two-sided CI)
-        if (p >= 0.99)
-        {
-            if (dof >= 60) return 2.660;
-            if (dof >= 30) return 2.750;
-            if (dof >= 20) return 2.845;
-            if (dof >= 15) return 2.947;
-            if (dof >= 10) return 3.169;
-            if (dof >= 8)  return 3.355;
-            if (dof >= 6)  return 3.707;
-            if (dof >= 5)  return 4.032;
-            if (dof >= 4)  return 4.604;
-            if (dof >= 3)  return 5.841;
-            if (dof >= 2)  return 9.925;
-            return 63.657; // dof == 1
-        }
-
-        // Lookup for p ≈ 0.975  (95% two-sided CI)
-        if (dof >= 60) return 2.000;
-        if (dof >= 30) return 2.042;
-        if (dof >= 20) return 2.086;
-        if (dof >= 15) return 2.131;
-        if (dof >= 10) return 2.228;
-        if (dof >= 8)  return 2.306;
-        if (dof >= 6)  return 2.447;
-        if (dof >= 5)  return 2.571;
-        if (dof >= 4)  return 2.776;
-        if (dof >= 3)  return 3.182;
-        if (dof >= 2)  return 4.303;
-        return 12.706; // dof == 1
     }
 }

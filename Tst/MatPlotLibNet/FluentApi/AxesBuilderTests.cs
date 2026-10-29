@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
@@ -558,10 +560,10 @@ public class AxesBuilderTests
         Assert.Equal(0.35, inset.InsetBounds.Value.Width);
     }
 
-    /// <summary>AddInset hand-copies a subset of the configured builder's state onto the real inset Axes
-    /// (series, title, axis labels/min/max, spines, grid) — everything else configured on the inset builder
-    /// is silently lost. Measured: an axis scale and a reference line configured inside the callback never
-    /// reach the inset that is actually drawn.</summary>
+    /// <summary>The inset is configured where it stands, so nothing configured inside the callback has to be carried across
+    /// to it. Before, the callback ran on a throw-away builder and its axes was copied onto the inset through the JSON
+    /// round trip: an axis scale and a reference line came across, a user tick formatter did not, and the grid was resolved
+    /// once under <c>Theme.Default</c>. The tests below pin what came across then and what comes across now.</summary>
     [Fact]
     public void AddInset_Fluent_CopiesAxisScale()
     {
@@ -592,6 +594,144 @@ public class AxesBuilderTests
         var inset = figure.SubPlots[0].Insets[0];
         Assert.Single(inset.ReferenceLines);
         Assert.Equal(2.5, inset.ReferenceLines[0].Value);
+    }
+
+    /// <summary>An <c>ITickFormatter</c> an application wrote itself: it has no JSON form, so a copy through the JSON round
+    /// trip cannot carry it.</summary>
+    private sealed class UserFormatter : ITickFormatter
+    {
+        public string Format(double value) => $"<{value}>";
+    }
+
+    /// <summary>Measured before the change: a tick formatter an author sets on the inset's axis was null on the inset that
+    /// is drawn, because the copy went through the JSON form and an <c>ITickFormatter</c> instance of their own has none.</summary>
+    [Fact]
+    public void AddInset_Fluent_KeepsAUserTickFormatter()
+    {
+        var formatter = new UserFormatter();
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])
+                    .SetXTickFormatter(formatter)
+                    .SetYTickFormatter(formatter)))
+            .Build();
+
+        var inset = figure.SubPlots[0].Insets[0];
+        Assert.Same(formatter, inset.XAxis.TickFormatter);
+        Assert.Same(formatter, inset.YAxis.TickFormatter);
+    }
+
+    /// <summary>Measured before the change: under the classic theme, whose grid is off, an inset that changed one property of
+    /// its grid drew a visible grid, because the change had been applied to <c>Theme.Default</c>'s grid (visible) at build
+    /// time and the result kept as a constant. The change is a change over the grid of the theme the figure is drawn under.</summary>
+    [Fact]
+    public void AddInset_Fluent_GridFollowsTheFiguresTheme()
+    {
+        var theme = Theme.MatplotlibV2;
+        Assert.False(theme.DefaultGrid.Visible);
+        var figure = Plt.Create().WithTheme(theme)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])
+                    .WithGrid(g => g with { Alpha = 0.5 })))
+            .Build();
+
+        var drawn = figure.SubPlots[0].Insets[0].GridUnder(theme);
+        Assert.False(drawn.Visible);
+        Assert.Equal(0.5, drawn.Alpha);
+        Assert.True(figure.SubPlots[0].Insets[0].GridUnder(Theme.Default).Visible);
+    }
+
+    // ── what an inset keeps: the state that came across through the copy stays across in place ────────────
+
+    private static Axes InsetOf(Func<AxesBuilder, AxesBuilder> configure) =>
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => configure(inset.Plot([1.5, 2.0], [3.5, 4.0]))))
+            .Build().SubPlots[0].Insets[0];
+
+    [Fact]
+    public void AddInset_Fluent_KeepsTheLegend()
+    {
+        var inset = InsetOf(b => b.WithLegend(LegendPosition.LowerLeft));
+
+        Assert.Equal(LegendPosition.LowerLeft, inset.Legend.Position);
+        Assert.True(inset.Legend.Visible);
+    }
+
+    [Fact]
+    public void AddInset_Fluent_KeepsATickLocator()
+    {
+        var inset = InsetOf(b => b.SetXTickLocator(new FixedLocator([1.6, 1.8])));
+
+        Assert.IsType<FixedLocator>(inset.XAxis.TickLocator);
+    }
+
+    [Fact]
+    public void AddInset_Fluent_KeepsTheOverlays()
+    {
+        var inset = InsetOf(b => b
+            .Annotate("peak", 2.0, 4.0)
+            .AxVSpan(1.6, 1.8)
+            .AddTrendline(1.5, 3.5, 2.0, 4.0)
+            .AddLevel(3.8)
+            .AddFibonacci(4.0, 3.5));
+
+        Assert.Equal("peak", Assert.Single(inset.Annotations).Text);
+        Assert.Single(inset.Spans);
+        Assert.Single(inset.Trendlines);
+        Assert.Equal(3.8, Assert.Single(inset.HorizontalLevels).Value);
+        Assert.Single(inset.FibonacciRetracements);
+    }
+
+    [Fact]
+    public void AddInset_Fluent_KeepsAColorBar()
+    {
+        var inset = InsetOf(b => b.WithColorBar());
+
+        Assert.NotNull(inset.ColorBar);
+    }
+
+    [Fact]
+    public void AddInset_Fluent_KeepsAStreamingSeriesAndAPlanarBarSeries()
+    {
+        var inset = InsetOf(b => b
+            .SignalXY([1.0, 2.0], [3.0, 4.0])
+            .PlanarBar3D([1.0, 2.0], [1.0, 2.0], [3.0, 4.0]));
+
+        Assert.Contains(inset.Series, s => s is SignalXYSeries);
+        Assert.Contains(inset.Series, s => s is PlanarBar3DSeries);
+    }
+
+    /// <summary>A share key set inside the callback is not consumed: the inset is not a subplot of the figure, so it joins
+    /// no share group, as before.</summary>
+    [Fact]
+    public void AddInset_Fluent_DoesNotConsumeAShareKey()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .ShareX("k")
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset.Plot([1.5, 2.0], [3.5, 4.0]).ShareX("k")))
+            .Build();
+
+        Assert.Null(figure.SubPlots[0].ShareXWith);
+        Assert.Null(figure.SubPlots[0].Insets[0].ShareXWith);
+    }
+
+    /// <summary>The callback of an inset may itself add an inset: the second one is configured in place too.</summary>
+    [Fact]
+    public void AddInset_Fluent_NestsInPlace()
+    {
+        var formatter = new UserFormatter();
+        var inner = InsetOf(b => b.AddInset(0.1, 0.1, 0.5, 0.5, i => i.Plot([1.5, 1.6], [3.5, 3.6]).SetXTickFormatter(formatter)))
+            .Insets[0];
+
+        Assert.Same(formatter, inner.XAxis.TickFormatter);
     }
 
     /// <summary>Verifies the canonical InsetBounds overload creates and configures the inset.</summary>

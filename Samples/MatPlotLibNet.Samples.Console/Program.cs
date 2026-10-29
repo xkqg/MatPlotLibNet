@@ -2795,6 +2795,231 @@ Console.WriteLine("Saved horizontal_bars.svg");
     Console.WriteLine("Saved cartogram_dorling");
 }
 
+// --- 68. Cookbook images — a sample against the exponential distribution ---
+{
+    double[] waits = [2.1, 0.4, 5.6, 1.3, 0.9, 3.8, 0.2, 1.7, 2.6, 0.6, 8.4, 1.1,
+                      0.7, 4.2, 1.9, 0.3, 3.1, 1.5, 0.8, 2.3];
+
+    Plt.Create()
+        .WithTitle("Minutes between arrivals against the exponential distribution")
+        .WithSize(700, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .ProbabilityPlot(waits, QQReference.Exponential, parts => parts.Points.Alpha = 0.8)
+            .SetYLabel("Minutes between arrivals"))
+        .SaveSvgAndPng(SamplesPath("probability_plot.svg"));
+    Console.WriteLine("Saved probability_plot.svg");
+}
+
+// --- 69. Cookbook images — a survival curve with the number at risk and the log-rank test under it ---
+{
+    SurvivalGroup[] arms =
+    [
+        new("Treatment", [6, 7, 10, 15, 19, 25, 32, 34], [true, true, false, true, false, true, false, false]),
+        new("Placebo",   [1, 2, 3, 4, 5, 8, 8, 11],      [true, true, true, false, true, true, true, true]),
+    ];
+
+    Plt.Create()
+        .WithTitle("Time to relapse")
+        .WithSize(800, 600)
+        .WithGridSpec(2, 1, heightRatios: [4, 1])
+        .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(arms).WithLegend(), key: "survival")
+        .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(arms).SetXLabel("Weeks"))
+        .SaveSvgAndPng(SamplesPath("risk_table.svg"));
+    Console.WriteLine("Saved risk_table.svg");
+}
+
+// --- 70. Cookbook images — an X-bar chart held to the limits of an earlier period, marked by Nelson's tests ---
+{
+    // Twenty subgroups of five fills; from the eleventh on the process drifts up by half a gram.
+    double[][] subgroups = [.. Enumerable.Range(0, 20).Select(i =>
+        Enumerable.Range(0, 5).Select(j => 50 + ((i * 7 + j * 3) % 9 - 4) * 0.25 + (i >= 10 ? 0.5 : 0)).ToArray())];
+
+    Plt.Create()
+        .WithTitle("Fill weight, mean of five")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.XBar(subgroups), ControlRules.Nelson1 | ControlRules.Nelson2,
+                new ControlLimits(Center: 50, Lower: 49.2, Upper: 50.8),
+                parts => { parts.Values.Label = "subgroup mean"; parts.Violations.Label = "out of control"; })
+            .SetXLabel("Subgroup")
+            .SetXTickLocator(new MultipleLocator(5))
+            .SetYLabel("Weight (g)")
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("xbar_chart.svg"));
+    Console.WriteLine("Saved xbar_chart.svg");
+}
+
+// --- 71. Cookbook images — where the volume traded, and a VWAP anchored at a bar ---
+{
+    var walk = new Random(7);
+    int barCount = 60;
+    double[] closes = new double[barCount], highs = new double[barCount], lows = new double[barCount], volumes = new double[barCount];
+    double level = 100;
+    for (int i = 0; i < barCount; i++)
+    {
+        level += (walk.NextDouble() - 0.5) * 2;
+        closes[i] = level;
+        highs[i] = level + walk.NextDouble();
+        lows[i] = level - walk.NextDouble();
+        volumes[i] = 1000 + walk.Next(2000);
+    }
+
+    double[] barIndex = [.. Enumerable.Range(0, barCount).Select(i => (double)i)];
+    Plt.Create()
+        .WithTitle("Volume by price, and the VWAP since bar 30")
+        .WithSize(900, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(barIndex, closes, line => line.Label = "Close")
+            .Vwap(MatPlotLibNet.Indicators.OhlcvBars.Hlcv(highs, lows, closes, volumes), anchor: 30, vwap => vwap.Label = "VWAP from bar 30")
+            .VolumeProfile(MatPlotLibNet.Indicators.OhlcvBars.Cv(closes, volumes))
+            .SetXLabel("Bar")
+            .SetYLabel("Price")
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("volume_profile.svg"));
+    Console.WriteLine("Saved volume_profile.svg");
+}
+
+// --- 72. Cookbook images — a colour bar whose ticks stand where the log normaliser puts their colours ---
+{
+    double[,] counts = new double[6, 8];
+    for (int r = 0; r < 6; r++)
+        for (int c = 0; c < 8; c++)
+            counts[r, c] = Math.Pow(10, 2 + (r * 8 + c) / 48.0);
+
+    Plt.Create()
+        .WithTitle("Requests per cell, 100 to 1000 on a log scale")
+        .WithSize(700, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Heatmap(counts)
+            .WithColorMap("plasma")
+            .WithNormalizer(new LogNormalizer())
+            .WithColorBar(cb => cb with { Label = "requests" }))
+        .SaveSvgAndPng(SamplesPath("heatmap_log_colorbar.svg"));
+    Console.WriteLine("Saved heatmap_log_colorbar.svg");
+}
+
+// --- 73. Cookbook images — the same bars under two lights, one with no ambient part and one with no direct part ---
+{
+    double[] barColumn = [0, 1, 2, 0, 1, 2];
+    double[] barRow = [0, 0, 0, 1, 1, 1];
+    double[] barHeight = [3, 5, 2, 4, 6, 1];
+
+    Plt.Create()
+        .WithTitle("A light with no ambient part: ambient 0, diffuse 1")
+        .WithSize(640, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithCamera(elevation: 25, azimuth: -60)
+            .WithLighting(dx: -0.4, dy: -0.8, dz: 0.45, ambient: 0.0, diffuse: 1.0)
+            .Bar3D(barColumn, barRow, barHeight, s => { s.Color = Colors.Tomato; s.BarWidth = 0.6; }))
+        .SaveSvgAndPng(SamplesPath("light_direct.svg"));
+    Console.WriteLine("Saved light_direct.svg");
+
+    Plt.Create()
+        .WithTitle("A light with no direct part: ambient 1, diffuse 0")
+        .WithSize(640, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithCamera(elevation: 25, azimuth: -60)
+            .WithLighting(dx: -0.4, dy: -0.8, dz: 0.45, ambient: 1.0, diffuse: 0.0)
+            .Bar3D(barColumn, barRow, barHeight, s => { s.Color = Colors.Tomato; s.BarWidth = 0.6; }))
+        .SaveSvgAndPng(SamplesPath("light_ambient.svg"));
+    Console.WriteLine("Saved light_ambient.svg");
+}
+
+// --- 74. Cookbook images — reference lines wear the grey the theme owns ---
+{
+    double[] weekNumber = [1, 2, 3, 4, 5, 6, 7, 8];
+    double[] throughput = [3.1, 3.9, 3.4, 4.8, 5.2, 4.9, 6.3, 6.8];
+
+    Plt.Create()
+        .WithTheme(Theme.Nord)
+        .WithTitle("Reference lines under Nord")
+        .WithSize(700, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(weekNumber, throughput, s => s.Label = "Throughput")
+            .AxHLine(5.0, line => line.Label = "Target")
+            .AxHLine(3.0, line => line.Label = "Floor")
+            .SetXLabel("Week")
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("neutral_colour.svg"));
+    Console.WriteLine("Saved neutral_colour.svg");
+}
+
+// --- 75. Cookbook images — a relative rotation graph whose assets all lead ---
+{
+    int rotationWeeks = 80;
+    var rotationNoise = new Random(3);
+    double[] rotationBenchmark = new double[rotationWeeks];
+    double rotationLevel = 100;
+    for (int week = 0; week < rotationWeeks; week++)
+    {
+        rotationLevel *= 1 + (rotationNoise.NextDouble() - 0.5) * 0.004;
+        rotationBenchmark[week] = rotationLevel;
+    }
+
+    double[] Leader(double pull) =>
+        [.. rotationBenchmark.Select((b, week) => b * (1 + pull * Math.Pow(week / (double)rotationWeeks, 2)))];
+
+    Plt.Create()
+        .WithTitle("Three assets that all lead their benchmark")
+        .WithSize(800, 650)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .SetXLabel("RS-Ratio")
+            .SetYLabel("RS-Momentum")
+            .RelativeRotation([Leader(0.6), Leader(0.4), Leader(0.25)], rotationBenchmark, ["Alpha", "Beta", "Gamma"],
+                s => s.TailLength = 12))
+        .SaveSvgAndPng(SamplesPath("rrg_centre.svg"));
+    Console.WriteLine("Saved rrg_centre.svg");
+}
+
+// --- 76. Cookbook images — an inset built where it stands keeps its legend ---
+{
+    double[] signalX = [.. Enumerable.Range(0, 50).Select(i => i / 5.0)];
+    double[] signalY = [.. signalX.Select(v => Math.Sin(3 * v) * Math.Exp(-v / 4))];
+    double[] zoomX = [.. signalX.Where(v => v <= 1.5)];
+    double[] zoomY = [.. zoomX.Select(v => Math.Sin(3 * v) * Math.Exp(-v / 4))];
+
+    Plt.Create()
+        .WithTitle("An inset that keeps its legend")
+        .WithSize(750, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(signalX, signalY, s => s.Label = "Full signal")
+            .WithLegend(LegendPosition.LowerLeft)
+            .AddInset(0.5, 0.45, 0.45, 0.45, inset => inset
+                .Plot(zoomX, zoomY, s => { s.Label = "Detail"; s.Color = Colors.Crimson; })
+                .WithLegend()))
+        .SaveSvgAndPng(SamplesPath("inset_legend.svg"));
+    Console.WriteLine("Saved inset_legend.svg");
+}
+
+// --- 77. Cookbook images — a violin drawn from the Gaussian density of twelve observations ---
+{
+    double[][] twelve = [[2.1, 2.4, 2.6, 2.9, 3.0, 3.1, 3.4, 3.6, 3.8, 4.2, 5.1, 6.3]];
+
+    Plt.Create()
+        .WithTitle("A violin of twelve observations")
+        .WithSize(500, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Violin(twelve, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; })
+            .SetYLabel("Value"))
+        .SaveSvgAndPng(SamplesPath("violin_density.svg"));
+    Console.WriteLine("Saved violin_density.svg");
+}
+
+// --- 78. Cookbook images — a polar chart whose rings and spokes follow WithGrid ---
+{
+    double[] gridAngle = [.. Enumerable.Range(0, 100).Select(i => i * 2 * Math.PI / 100)];
+    double[] gridRadius = [.. gridAngle.Select(a => 1 + Math.Cos(3 * a))];
+
+    Plt.Create()
+        .WithTitle("A polar chart on a dashed crimson grid")
+        .WithSize(600, 600)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .PolarPlot(gridRadius, gridAngle, s => { s.Color = Colors.Blue; s.LineWidth = 2; })
+            .WithGrid(g => g with { Color = Colors.Crimson, LineStyle = LineStyle.Dashed }))
+        .SaveSvgAndPng(SamplesPath("polar_grid.svg"));
+    Console.WriteLine("Saved polar_grid.svg");
+}
+
 // --- 59. The pictures the wiki shows that no sample above draws ---
 // The wiki keeps a copy of each of them; WikiPicturesTests holds the copies to what is drawn here.
 WikiPictures.SaveAll((name, figure) =>

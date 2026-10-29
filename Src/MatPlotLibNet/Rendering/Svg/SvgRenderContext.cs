@@ -578,11 +578,10 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(" data-").Append(axis).Append("linthresh=\"").Append(linthresh.ToSvgNumber()).Append('"');
     }
 
-    /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation.
-    /// Optional <paramref name="light"/> emits data-light-dir/ambient/diffuse so the JS can recompute
-    /// face shading under rotation.</summary>
+    /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation. The light is not
+    /// among them: a face is shaded in data space, which a rotation does not change, so nothing recomputes it.</summary>
     internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds,
-        CubeFaceSelection faces, Lighting.DirectionalLight? light = null)
+        CubeFaceSelection faces)
     {
         _sb.Append("<g class=\"mpl-3d-scene\"")
            .Append(" data-elevation=\"").Append(elevation.ToSvgNumber()).Append('"')
@@ -604,15 +603,6 @@ public sealed class SvgRenderContext : IRenderContext
            .Append(" data-plot-y=\"").Append(plotBounds.Y.ToSvgNumber()).Append('"')
            .Append(" data-plot-w=\"").Append(plotBounds.Width.ToSvgNumber()).Append('"')
            .Append(" data-plot-h=\"").Append(plotBounds.Height.ToSvgNumber()).Append('"');
-        if (light is not null)
-        {
-            _sb.Append(" data-light-dir=\"")
-               .Append(light.Dx.ToSvgNumber()).Append(',')
-               .Append(light.Dy.ToSvgNumber()).Append(',')
-               .Append(light.Dz.ToSvgNumber()).Append('"')
-               .Append(" data-light-ambient=\"").Append(light.Ambient.ToSvgNumber()).Append('"')
-               .Append(" data-light-diffuse=\"").Append(light.Diffuse.ToSvgNumber()).Append('"');
-        }
         _sb.AppendLine(">");
     }
 

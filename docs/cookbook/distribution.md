@@ -1,6 +1,6 @@
 ---
 title: "Histograms, box plots and violin plots in C#"
-description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves and density scatters, and in one call each a ridgeline, a Q-Q plot, a Kaplan-Meier survival curve and a raincloud plot."
+description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves and density scatters, and in one call each a ridgeline, a Q-Q or probability plot, a Kaplan-Meier survival curve with its risk table and log-rank test, and a raincloud plot."
 ---
 
 # Distribution Charts
@@ -131,6 +131,28 @@ Plt.Create()
 ```
 
 ![Violin plot](../images/violin.png)
+
+A violin's width at a height is the Gaussian kernel density of the sample there (Silverman's bandwidth, the estimator `Kde`
+and `Ridgeline` use), scaled so that the widest point is the violin's width; a sample without spread is a spike. On a small
+sample that is one smooth hump:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Styling;
+
+double[][] twelve = [[2.1, 2.4, 2.6, 2.9, 3.0, 3.1, 3.4, 3.6, 3.8, 4.2, 5.1, 6.3]];
+
+Plt.Create()
+    .WithTitle("A violin of twelve observations")
+    .WithSize(500, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Violin(twelve, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; })
+        .SetYLabel("Value"))
+    .Save("violin_density.svg");
+```
+
+![A purple violin of twelve observations: one smooth hump, widest near 3, a thin tail up to 6.3](../images/violin_density.png)
+
 
 ### Placing violins and boxes
 
@@ -307,7 +329,38 @@ it, takes no colour from the theme's cycle and has no legend entry. The line is 
 skewed sample it runs out through the frame, where scipy widens the axes to hold all of it. `QQPlotParts` hands
 you both: `parts.Reference.IsExtended = true` draws the line across the whole plot, as R does. The verb titles
 the axes "Theoretical quantiles" and "Sample quantiles"; a title you set after the call replaces it. A missing
-observation is left out; fewer than two observations are refused. Only the normal distribution is compared.
+observation is left out; fewer than two observations are refused. `QQPlot` compares the sample with the normal
+distribution; `ProbabilityPlot`, next, compares it with another.
+
+### Against another distribution
+
+`ProbabilityPlot(sample, reference)` draws the same chart for a distribution you choose, with the conventions of scipy's
+`probplot(x, dist=...)`: the sorted sample against the reference's quantiles at the same plotting positions, and the
+least-squares line. `QQReference` names the distribution: `Normal` (what `QQPlot` uses), `Exponential`, `Uniform`,
+`LogNormal(sigma)`, `FittedLogNormal(sample)`, `StudentT(degreesOfFreedom)`, or `Of(name, quantile)` with the quantile
+function of one of your own.
+
+```csharp
+double[] waits = [2.1, 0.4, 5.6, 1.3, 0.9, 3.8, 0.2, 1.7, 2.6, 0.6, 8.4, 1.1,
+                  0.7, 4.2, 1.9, 0.3, 3.1, 1.5, 0.8, 2.3];
+
+Plt.Create()
+    .WithTitle("Minutes between arrivals against the exponential distribution")
+    .WithSize(700, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .ProbabilityPlot(waits, QQReference.Exponential, parts => parts.Points.Alpha = 0.8)
+        .SetYLabel("Minutes between arrivals"))
+    .Save("probability_plot.svg");
+```
+
+![Waiting times against the exponential distribution](../images/probability_plot.png)
+
+A sample that follows the reference lies on the line up to location and scale: the line's slope estimates the scale and
+its height at 0 the location, so the reference is the standard member of its family. The X axis names a reference other
+than the normal one ("Theoretical quantiles (exponential)"). `FittedLogNormal` takes the shape from the sample (the
+standard deviation of its logarithms, so every observation must be above 0), and a reference whose quantile is not a
+finite number at a plotting position is refused by name. `QQPlot` is `ProbabilityPlot` against `QQReference.Normal` and
+draws the picture it always did.
 
 ## Kaplan-Meier curve
 
@@ -344,9 +397,35 @@ is the same on every platform.
 Each group is one line series drawn in steps, named in the legend after its group, with a Greenwood confidence band
 around the curve and a mark at every time a subject left without an event, both sharing the curve's own colour
 group. The Y axis is titled "Survival probability"; the X axis is yours to title, since the unit is your
-durations'. This is the curve, its band and its marks: no number-at-risk table and no log-rank test. A duration
+durations'. This is the curve, its band and its marks; the numbers at risk and the log-rank test are `RiskTable`, below. A duration
 that is missing, negative or infinite is refused, because a subject without a time cannot be counted at risk; leave
 that subject out of the arrays if that is what you mean.
+
+### Number at risk and the log-rank test
+
+`RiskTable(groups)` draws, for each group and each time, how many subjects are still at risk (followed to that time or
+longer: the count the curve is estimated with), and below the rows one line that states the log-rank test of whether the
+groups' survival differs. It is an axes of its own: stack it under the survival axes and share the X axis, so a count
+stands directly under its time on the curve.
+
+```csharp
+Plt.Create()
+    .WithTitle("Time to relapse")
+    .WithSize(800, 600)
+    .WithGridSpec(2, 1, heightRatios: [4, 1])
+    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(arms).WithLegend(), key: "survival")
+    .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(arms).SetXLabel("Weeks"))
+    .Save("risk_table.svg");
+```
+
+![A survival curve with the number at risk and the log-rank test under it](../images/risk_table.png)
+
+`times` chooses the columns; without it they are the ticks the automatic locator gives from 0 to the longest follow-up
+(at most nine). The test is the Mantel-Cox form, as R's `survdiff` and lifelines' `multivariate_logrank_test` compute it:
+here chi-square 7.85 on 1 degree of freedom, p = 0.0051; Freireich's leukaemia trial gives 16.79, p below 0.0001, as R
+does. With no event in any group the line says there is nothing to compare, and a single group has no test. A count at
+time 0 stands just inside the plot, so it does not run into the names of the rows. `RiskTableParts` hands you the
+count annotations, the line and the `LogRankResult` (statistic, degrees of freedom, p-value).
 
 ## Raincloud
 

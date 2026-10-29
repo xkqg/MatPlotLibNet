@@ -29,7 +29,7 @@ public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormali
     /// node carries none — the one place the value → colour rule lives, shared by every hierarchical renderer.</summary>
     internal Color? ColorFromValue(TreeNode node, IColorMap cmap, double cMin, double cMax)
         => node.ColorValue is { } v
-            ? cmap.ColorOf(v, Normalizer ?? LinearNormalizer.Instance, cMin, cMax)
+            ? cmap.ColorOf(v, this.NormalizerOrLinear(), cMin, cMax)
             : null;
 
     /// <summary>The (min, max) the colour values are normalized over: the explicit limits where set, the

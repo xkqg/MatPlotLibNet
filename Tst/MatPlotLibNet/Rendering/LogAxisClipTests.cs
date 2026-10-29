@@ -398,14 +398,15 @@ public class LogAxisClipTests
             new ViolinSeries([[-3.0, -1, 0.5, 2, 4, 30]]) { ShowExtrema = true, ShowMedians = true, ShowMeans = true }));
 
         AssertNothingUndrawableReached(ctx);
-        // The outline runs over 21 levels from -3 to 30 on each side; the levels -3 and -1.35 lie at or below 0 and are
-        // clipped to the bottom edge, the others are where the log scale puts them (0.3 below this axis' floor of 1).
+        // The outline runs over 100 levels from -3 to 30 on each side, a third of a unit apart; the levels from -3 up to 0 (the
+        // first ten) lie at or below 0 and are clipped to the bottom edge, and the thirteenth, the level 1, stands on it (the
+        // axis' floor is 1); the others are where the log scale puts them (the eleventh, at one third, below the floor).
         var body = Assert.Single(Polygons(ctx));
-        Assert.Equal(42, body.Length);
-        Assert.Equal(4, body.Count(p => p.Y == BottomEdge));
+        Assert.Equal(200, body.Length);
+        Assert.Equal(22, body.Count(p => p.Y == BottomEdge));
         Assert.Equal(BottomEdge, body[0].Y);
         Assert.Equal(BottomEdge, body[^1].Y);
-        Assert.Equal(PixelY(-3 + 33.0 * 2 / 20), body[2].Y, 9);
+        Assert.Equal(PixelY(-3 + 33.0 * 10 / 99), body[10].Y, 9);
         Assert.Equal(PixelY(30), body.Min(p => p.Y), 9);
         // the extrema bar from the bottom edge to 30, the tick at 30, the median and the mean; the tick at -3 is masked
         var lines = Lines(ctx);

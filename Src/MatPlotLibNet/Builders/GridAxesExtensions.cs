@@ -72,8 +72,9 @@ public static class GridAxesExtensions
             var grid = CalendarGrid.Of(dates, values, firstDayOfWeek);
 
             // A heatmap draws its row 0 at the top while the Y axis counts upward: the weekdays are named from the top down.
+            // The heatmap carries the date of its first cell, so its table can give every cell the date it stands for.
             return axes
-                .Heatmap(grid.Cells, configure)
+                .Heatmap(grid.Cells, cells => { cells.FirstCellDate = grid.FirstCellDate; configure?.Invoke(cells); })
                 .SetYCategoryTicks(grid.WeekdayNames, topDown: true)
                 .SetXCategoryTicks(grid.MonthColumns)
                 .WithColorBar();

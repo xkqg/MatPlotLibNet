@@ -45,8 +45,16 @@ public static class ComposedChartShapes
         new("slope", Slope, 5, 0),
         new("dot-plot", DotPlot, 2, 2),
         new("qq", QQ, 1, 1),
+        new("probability-plot", ProbabilityPlot, 1, 1),
         new("control-chart", ControlChart, 2, 2),
+        new("shewhart-chart", ShewhartChart, 2, 2),
+        new("moving-range-chart", MovingRangeChart, 2, 2),
+        new("xbar-chart", XBarChart, 2, 2),
+        new("range-chart", RangeChart, 2, 2),
+        new("p-chart", PChart, 2, 2),
+        new("c-chart", CChart, 2, 2),
         new("kaplan-meier", KaplanMeier, 2, 2),
+        new("risk-table", RiskTable, 2, 2),
         new("parallel-coordinates", ParallelCoordinates, 3, 3),
         new("stream-graph", StreamGraph, 4, 4),
         new("marimekko", Marimekko, 3, 3),
@@ -548,6 +556,21 @@ public static class ComposedChartShapes
             .WithLegend());
     }
 
+    /// <summary>A sample sorted up the Y axis against the quantiles of Student's t distribution with 3 degrees of freedom at
+    /// Filliben's positions, built by <c>ProbabilityPlot</c>: the same parts as the Q-Q plot (a scatter series named through the
+    /// callback and a trendline, which takes no colour slot), the X axis naming the reference. The sample is made by integer
+    /// arithmetic and comes unsorted; the missing observation is left out.
+    /// <para>The quantiles come from a root and an incomplete beta function, so this shape is compared in-process only, never
+    /// against stored bytes.</para></summary>
+    private static FigureBuilder ProbabilityPlot(bool missing)
+    {
+        double[] sample = [.. Enumerable.Range(0, 40).Select(i => 10 + (i * 7919 % 40 - 19.5) / 9.0 + i % 5 * 0.15)];
+        if (missing) sample[7] = double.NaN;
+        return Plt.Create().WithSize(600, 600).AddSubPlot(1, 1, 1, ax => ax
+            .ProbabilityPlot(sample, QQReference.StudentT(3), parts => parts.Points.Label = "sample")
+            .WithLegend());
+    }
+
     private static readonly double[] ControlDays = [.. Enumerable.Range(1, 25).Select(i => (double)i)];
 
     /// <summary>A steady process (50 -/+ 1 in steps of a half) with one spike up (58, day 18) and one dip down (42, day 22),
@@ -572,6 +595,99 @@ public static class ComposedChartShapes
                 parts.Violations.Label = "beyond a limit";
             })
             .WithLegend());
+
+    /// <summary>The measurements of <see cref="ControlChart"/> drawn by <c>ShewhartChart</c> with all eight of Nelson's tests:
+    /// the same parts (a marked line, a scatter series of the flagged points that takes the next colour, three reference
+    /// lines), the scatter now holding the union of what the eight tests flag. Both series are named through the callback.</summary>
+    private static FigureBuilder ShewhartChart(bool missing) =>
+        Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.Individuals(ControlDays, ControlValues(missing)), ControlRules.All, configure: parts =>
+            {
+                parts.Values.Label = "measurement";
+                parts.Violations.Label = "out of control";
+            })
+            .WithLegend());
+
+    /// <summary>The moving ranges of the same measurements, built by <c>ShewhartChart</c> from
+    /// <c>ControlChartData.MovingRange</c>: the distance between each value and the one before it as a marked line, the average
+    /// range as the centre, 3.267 times it as the upper limit and 0 as the lower, and the ranges beyond the upper limit flagged
+    /// by rule 1 (the jumps to and from the spike and the dip). Both series are named through the callback.</summary>
+    private static FigureBuilder MovingRangeChart(bool missing) =>
+        Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.MovingRange(ControlDays, ControlValues(missing)), configure: parts =>
+            {
+                parts.Values.Label = "moving range";
+                parts.Violations.Label = "beyond the limit";
+            })
+            .WithLegend());
+
+    /// <summary>Twenty subgroups of five measurements around 50, made by integer arithmetic (steps of a quarter), the thirteenth
+    /// shifted up by 4. The variant with a missing value has one observation of the sixth subgroup lost (NaN), which leaves that
+    /// subgroup out of the chart as a whole.</summary>
+    private static double[][] ControlSubgroups(bool missing)
+    {
+        double[][] subgroups = [.. Enumerable.Range(0, 20).Select(i => Enumerable.Range(0, 5).Select(j => 50 + ((i * 7 + j * 3) % 9 - 4) * 0.25).ToArray())];
+        subgroups[12] = [.. subgroups[12].Select(v => v + 4)];
+        if (missing) subgroups[5][2] = double.NaN;
+        return subgroups;
+    }
+
+    /// <summary>The subgroup means of <see cref="ControlSubgroups"/> built by <c>ShewhartChart</c> from <c>ControlChartData.XBar</c>:
+    /// a marked line, the grand mean and A2 times the average range either side of it, the points flagged by tests 1 and 2 as the
+    /// scatter series that takes the next colour. Both series are named through the callback.</summary>
+    private static FigureBuilder XBarChart(bool missing) =>
+        Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.XBar(ControlSubgroups(missing)), ControlRules.Nelson1 | ControlRules.Nelson2, configure: parts =>
+            {
+                parts.Values.Label = "subgroup mean";
+                parts.Violations.Label = "out of control";
+            })
+            .WithLegend());
+
+    /// <summary>The subgroup ranges of <see cref="ControlSubgroups"/> built by <c>ShewhartChart</c> from
+    /// <c>ControlChartData.Range</c>: the average range and D3 and D4 times it as the limits.</summary>
+    private static FigureBuilder RangeChart(bool missing) =>
+        Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.Range(ControlSubgroups(missing)), ControlRules.Nelson1 | ControlRules.Nelson2, configure: parts =>
+            {
+                parts.Values.Label = "subgroup range";
+                parts.Violations.Label = "out of control";
+            })
+            .WithLegend());
+
+    /// <summary>Twenty-five samples of 200 items with 4 to 8 defectives and one sample with 19 (a spike), built by
+    /// <c>ShewhartChart</c> from <c>ControlChartData.P</c>: the proportions as a marked line, the pooled proportion and its
+    /// binomial limits. The variant with a missing value has no result for the sixth sample.</summary>
+    private static FigureBuilder PChart(bool missing)
+    {
+        double[] defectives = [.. Enumerable.Range(0, 25).Select(i => (double)(4 + i * 7 % 5))];
+        defectives[17] = 19;
+        if (missing) defectives[5] = double.NaN;
+        return Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.P(defectives, 200), configure: parts =>
+            {
+                parts.Values.Label = "proportion defective";
+                parts.Violations.Label = "beyond a limit";
+            })
+            .WithLegend());
+    }
+
+    /// <summary>Twenty-five counts of 3 to 7 defects and one count of 16 (a spike), built by <c>ShewhartChart</c> from
+    /// <c>ControlChartData.C</c>: the counts as a marked line, the average and its Poisson limits, the lower one at 0. The
+    /// variant with a missing value has no count for the sixth sample.</summary>
+    private static FigureBuilder CChart(bool missing)
+    {
+        double[] counts = [.. Enumerable.Range(0, 25).Select(i => (double)(3 + i * 7 % 5))];
+        counts[17] = 16;
+        if (missing) counts[5] = double.NaN;
+        return Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
+            .ShewhartChart(ControlChartData.C(counts), configure: parts =>
+            {
+                parts.Values.Label = "defects";
+                parts.Violations.Label = "beyond a limit";
+            })
+            .WithLegend());
+    }
 
     /// <summary>The call chain the <c>ControlChart</c> verb replaces, written by hand with the public building blocks: the
     /// mean of the values that are there, the average moving range between neighbouring values that are there over d2 =
@@ -625,6 +741,14 @@ public static class ComposedChartShapes
         Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
             .KaplanMeier(SurvivalArms(missing))
             .WithLegend());
+
+    /// <summary>The survival chart of <see cref="KaplanMeier"/> with its risk table stacked under it (height 4 to 1, the X axis
+    /// shared), built by <c>RiskTable</c>: a row of counts for each arm at every fifth month, and the log-rank test below the
+    /// rows. The colours and the legend are the survival chart's; the table adds annotations, which take no colour slot.</summary>
+    private static FigureBuilder RiskTable(bool missing) =>
+        Plt.Create().WithSize(800, 600).WithGridSpec(2, 1, heightRatios: [4, 1])
+            .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(SurvivalArms(missing)).WithLegend(), key: "survival")
+            .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(SurvivalArms(missing), [0, 5, 10, 15, 20, 25, 30]));
 
     /// <summary>The call chain the <c>KaplanMeier</c> verb replaces, written by hand with the public building blocks: the
     /// risk sets worked out by hand from the sorted subjects (E an event, C a censoring), each level the one before times

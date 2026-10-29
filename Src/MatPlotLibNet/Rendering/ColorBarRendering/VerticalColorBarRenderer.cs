@@ -31,6 +31,7 @@ internal sealed class VerticalColorBarRenderer : ColorBarRenderer
         double extH  = fullH * ExtendFrac;
         double gradY = barY + (ExtendMax ? extH : 0);
         double gradH = fullH - (ExtendMin ? extH : 0) - (ExtendMax ? extH : 0);
+        var scale = ScaleAlong(fullH, vertical: true);
 
         if (ExtendMax)
         {
@@ -41,7 +42,7 @@ internal sealed class VerticalColorBarRenderer : ColorBarRenderer
         for (int i = 0; i < Steps; i++)
         {
             double frac = 1.0 - (double)i / Steps;
-            var color = ColorMap.GetColor(frac);
+            var color = ColorMap.GetColor(scale.GradientFraction(frac, 1.0 - (i + 0.5) / Steps));
             double stepY = gradY + gradH * i / Steps;
             double stepH = gradH / Steps + 1;
             Ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH), new ShapeStyle(color, null, 0));
@@ -60,11 +61,10 @@ internal sealed class VerticalColorBarRenderer : ColorBarRenderer
         var tickFont = ThemedFontProvider.TickFont(Theme);
         double labelX = barX + barW + 4;
         double maxTickWidth = 0;
-        var scale = ScaleAlong(fullH, vertical: true);
         // Top to bottom: the end of the gradient is on top, and a tick stands over the gradient, not over the wedges at its ends.
-        foreach (int i in Enumerable.Range(0, scale.Ticks.Length).OrderByDescending(i => scale.FractionOf(scale.Ticks[i])))
+        foreach (int i in Enumerable.Range(0, scale.Ticks.Length).OrderByDescending(i => scale.Fractions[i]))
         {
-            double y = gradY + gradH * (1 - scale.FractionOf(scale.Ticks[i]));
+            double y = gradY + gradH * (1 - scale.Fractions[i]);
             Ctx.DrawText(scale.Labels[i], new Point(labelX, y + 4), tickFont, TextAlignment.Left);
             var w = Ctx.MeasureText(scale.Labels[i], tickFont).Width;
             if (w > maxTickWidth) maxTickWidth = w;

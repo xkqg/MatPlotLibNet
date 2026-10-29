@@ -402,9 +402,10 @@ internal sealed class ConstrainedLayoutEngine
             // (rotated) label height + PadRight. The widest label is the wider of a 6-char number (the estimate the bar was
             // laid out by) and the widest label the bar's ticks can have: the layout does not know how long the bar turns out
             // to be, so it takes the widest over every number of ticks the bar can ask for.
-            var barRange = cb.RangeOf(axes.Series.ColorBarProvider());
+            var barProvider = axes.Series.ColorBarProvider();
+            var barRange = cb.RangeOf(barProvider);
             double tickLabelW = Math.Max(ctx.MeasureText("0.0000", tickFont).Width,
-                ColorBarScale.WidestLabel(barRange.Min, barRange.Max, ctx, tickFont));
+                ColorBarScale.WidestLabel(barRange.Min, barRange.Max, ctx, tickFont, barProvider.ColorBarNormalizer()));
             double labelH = cb.Label is not null ? ctx.MeasureText(cb.Label, labelFont).Height : 0;
             double cbWidth = cb.Padding + cb.Width + 4 + tickLabelW + 8 + labelH + PadRight;
             if (cbWidth > rightNeeded) rightNeeded = cbWidth;

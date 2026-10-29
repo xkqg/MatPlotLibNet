@@ -162,10 +162,9 @@ public class LeastSquaresTests
         Assert.Single(upper);
     }
 
-    /// <summary>StudentTQuantile L212 TRUE — dof ≥ 120 → the normal quantile (<see cref="StandardNormal.Quantile"/>).
-    /// n=122, degree=0 → m=1, dof=max(122−1,1)=121.</summary>
+    /// <summary>A band at 121 degrees of freedom (n=122, degree=0 → m=1, dof=max(122−1,1)=121) is finite.</summary>
     [Fact]
-    public void ConfidenceBand_Dof121_UsesNormalQuantile_ProducesFiniteBand()
+    public void ConfidenceBand_Dof121_ProducesFiniteBand()
     {
         double[] x = Enumerable.Range(0, 122).Select(i => (double)i).ToArray();
         double[] y = x.Select((xi, i) => 2.0 * xi + 1.0 + (i % 2 == 0 ? 0.3 : -0.3)).ToArray();
@@ -174,16 +173,16 @@ public class LeastSquaresTests
         Assert.True(double.IsFinite(upper[0]) && upper[0] > lower[0]);
     }
 
-    /// <summary>With 121 degrees of freedom the band is z · s · √h wide on each side, with z the exact standard normal quantile
-    /// (<see cref="StandardNormal.Quantile"/>), not an approximation that is off by up to 4.4e-4: a mean fit (degree 0) of
-    /// 122 values of ±0.3 has leverage h = 1/122 and s² = Σr² / 121 with Σr² = 122 · 0.09. Before the exact quantile, the
-    /// 95 % band was 4.3e-4 · s · √h too wide (z = 1.96039 for 1.95996).</summary>
+    /// <summary>With 121 degrees of freedom the band is t · s · √h wide on each side, with t the exact Student quantile (scipy's
+    /// <c>t.ppf</c>: 1.9797637625053868 at 0.975, not the 1.959963984540054 of the normal, which a band of this many degrees of
+    /// freedom used until the quantile was exact for every dof): a mean fit (degree 0) of 122 values of ±0.3 has leverage
+    /// h = 1/122 and s² = Σr² / 121 with Σr² = 122 · 0.09.</summary>
     [Theory]
-    [InlineData(0.5, 0.6744897501960817)]
-    [InlineData(0.9, 1.6448536269514722)]
-    [InlineData(0.95, 1.959963984540054)]
-    [InlineData(0.99, 2.5758293035489004)]
-    public void ConfidenceBand_Dof121_HalfWidthIsTheExactNormalQuantileTimesTheStandardError(double level, double z)
+    [InlineData(0.5, 0.6765227377805033)]
+    [InlineData(0.9, 1.6575443190874721)]
+    [InlineData(0.95, 1.9797637625053868)]
+    [InlineData(0.99, 2.6170722661708643)]
+    public void ConfidenceBand_Dof121_HalfWidthIsTheExactStudentQuantileTimesTheStandardError(double level, double z)
     {
         double[] x = Enumerable.Range(0, 122).Select(i => (double)i).ToArray();
         double[] y = x.Select((_, i) => i % 2 == 0 ? 0.3 : -0.3).ToArray();
@@ -195,7 +194,7 @@ public class LeastSquaresTests
     }
 
     /// <summary>A level below zero puts the probability below the median: level=−0.2 → p=(1+(−0.2))/2=0.4, the lower half of
-    /// the quantile function; dof=121 routes to the normal quantile. The band stays finite.</summary>
+    /// the quantile function. The band stays finite.</summary>
     [Fact]
     public void ConfidenceBand_NegativeLevel_DoesNotThrow()
     {
@@ -264,5 +263,27 @@ public class LeastSquaresTests
         double mid = (x[0] + x[^1]) / 2.0;
         var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [mid], level);
         Assert.True(upper[0] > lower[0]);
+    }
+
+    /// <summary>Measured before the change: the band took the 95 % quantile for every level below 99 %, so a 90 % band was drawn
+    /// as wide as a 95 % one (dof 10: 2.228 where a 90 % band's quantile is 1.812), and a 99 % band at dof 12 took the table's
+    /// nearest row. The quantile is Student's t, exact: the widths of the bands of one fit are in the ratio of the quantiles
+    /// (scipy's <c>t.ppf</c>: dof 10 1.8124611228116756, 2.2281388519862744 and 3.16927267261695 at 0.95, 0.975, 0.995).</summary>
+    [Theory]
+    [InlineData(12, 0.90, 1.8124611228116756, 2.2281388519862744)]
+    [InlineData(12, 0.99, 3.16927267261695, 2.2281388519862744)]
+    [InlineData(3, 0.90, 6.313751514675037, 12.706204736174694)]
+    [InlineData(32, 0.90, 1.697260886593957, 2.0422724563012378)]
+    public void ConfidenceBand_Widths_AreInTheRatioOfTheExactStudentTQuantiles(int n, double level, double quantile, double quantileAt95)
+    {
+        double[] x = Enumerable.Range(0, n).Select(i => (double)i).ToArray();
+        double[] y = x.Select((xi, i) => 2.0 * xi + 1.0 + (i % 2 == 0 ? 0.5 : -0.5)).ToArray();
+        double[] coeff = LeastSquares.PolyFit(x, y, 1);
+        double mid = (x[0] + x[^1]) / 2.0;
+
+        var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [mid], level);
+        var (upper95, lower95) = LeastSquares.ConfidenceBand(x, y, coeff, [mid], 0.95);
+
+        Assert.Equal(quantile / quantileAt95, (upper[0] - lower[0]) / (upper95[0] - lower95[0]), 9);
     }
 }

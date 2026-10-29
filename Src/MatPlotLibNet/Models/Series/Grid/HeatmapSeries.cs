@@ -32,6 +32,12 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     /// <summary>Optional explicit cell-annotation colour. When null the renderer auto-picks black or white per cell to maximise contrast against the fill.</summary>
     public Color? CellValueColor { get; set; }
 
+    /// <summary>The date of the cell in row 0, column 0, when the grid is a calendar: the days of a week run down a column and
+    /// a week is a column, so the cell in row <c>r</c> and column <c>c</c> is the day <c>7 · c + r</c> days after it. A calendar
+    /// heatmap sets it (<c>CalendarHeatmap</c>); the data table then gives each cell its date. <see langword="null"/> (the
+    /// default) for a grid that is no calendar, whose table has no date column.</summary>
+    public DateTime? FirstCellDate { get; set; }
+
     /// <inheritdoc />
     public MinMaxRange GetColorBarRange() => Data.ScanColorBarRange();
 
@@ -68,6 +74,7 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
         LabelFormat = LabelFormat,
         MaskMode = MaskMode != HeatmapMaskMode.None ? MaskMode.ToString() : null,
         CellValueColor = CellValueColor,
+        FirstCellDate = FirstCellDate,
         Normalizer = this.DescribeNormalizer(),
     };
 
@@ -95,6 +102,7 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
         {
             hs.CellValueColor = dto.CellValueColor.Value;
         }
+        hs.FirstCellDate = dto.FirstCellDate;
         hs.RestoreNormalizer(dto);
         return hs;
     }
@@ -115,7 +123,8 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
 
     /// <inheritdoc />
     /// <remarks>Long form: one row per cell. A wide grid would make the column headers indices, which say
-    /// nothing a reader can use; row and column as numbers are readable at any size.</remarks>
+    /// nothing a reader can use; row and column as numbers are readable at any size. A calendar
+    /// (<see cref="FirstCellDate"/>) adds the date of each cell.</remarks>
     public override ChartDataTable? ToDataTable() => Table(null, null);
 
     /// <inheritdoc />
@@ -131,20 +140,42 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     private ChartDataTable Table(string?[]? rowNames, string?[]? columnNames)
     {
         int rows = Data.GetLength(0), cols = Data.GetLength(1);
+        bool dated = FirstCellDate is not null;
         var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
             {
-                out_.Add([Place(r, rowNames), Place(c, columnNames), DataCell.FromNumber(Data[r, c])]);
+                var cells = new List<DataCell>(4) { Place(r, rowNames), Place(c, columnNames) };
+                if (dated) cells.Add(DateOf(r, c));
+                cells.Add(DataCell.FromNumber(Data[r, c]));
+                out_.Add(cells);
             }
         }
 
-        return new ChartDataTable(null,
-            [new("row", rowNames is null ? DataColumnKind.Number : DataColumnKind.Text),
-             new("column", columnNames is null ? DataColumnKind.Number : DataColumnKind.Text),
-             new(Label ?? "value")],
-            out_);
+        var columns = new List<ChartDataColumn>
+        {
+            new("row", rowNames is null ? DataColumnKind.Number : DataColumnKind.Text),
+            new("column", columnNames is null ? DataColumnKind.Number : DataColumnKind.Text),
+        };
+        if (dated) columns.Add(new("date", DataColumnKind.Date));
+        columns.Add(new(Label ?? "value"));
+        return new ChartDataTable(null, columns, out_);
+    }
+
+    /// <summary>The first day an OLE Automation date can name; the table spells a date as one, and a day before it is not named.</summary>
+    private static readonly long FirstNameableDay = new DateTime(100, 1, 1).Ticks;
+
+    /// <summary>The date of the cell in row <paramref name="row"/> and column <paramref name="column"/> of a calendar: the
+    /// first cell's plus 7 days for each column and one for each row. A day the table cannot spell (before the year 100, or
+    /// past the last day a <see cref="DateTime"/> holds, as the padding of the last week of the calendar can be) is an
+    /// empty cell.</summary>
+    private DataCell DateOf(int row, int column)
+    {
+        long ticks = FirstCellDate!.Value.Date.Ticks + (7L * column + row) * TimeSpan.TicksPerDay;
+        return ticks >= FirstNameableDay && ticks <= DateTime.MaxValue.Ticks
+            ? DataCell.FromNumber(new DateTime(ticks).ToOADate())
+            : DataCell.Empty;
     }
 
     /// <summary>A row or column: its name when the axis names it (a slot centre always can be placed, so a name is

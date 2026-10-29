@@ -179,6 +179,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         };
     }
 
+    /// <summary>The theme this pass draws under. A series that draws itself through <c>Accept</c> (a map from
+    /// <c>MatPlotLibNet.Geo</c>) reads its theme-dependent colours here, since a <see cref="RenderArea"/> carries none.</summary>
+    internal Styling.Theme Theme => _context.Theme;
+
     // XY family
     /// <inheritdoc />
     public void Visit(LineSeries s, RenderArea a) => Dispatch(_line ??= new(_context), s);

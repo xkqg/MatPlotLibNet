@@ -31,6 +31,7 @@ internal sealed record ThemeDto
     public double? AxisYMargin { get; init; }
     public LegendPosition? DefaultLegendPosition { get; init; }
     public Color? Pane3DColor { get; init; }
+    public Color? NeutralColor { get; init; }
     public AlarmPaletteDto? Alarm { get; init; }
 
     /// <summary>The theme every property is measured against and read back over.</summary>
@@ -55,6 +56,7 @@ internal sealed record ThemeDto
         AxisYMargin = theme.AxisYMargin.OrNullAtRest(Plain.AxisYMargin),
         DefaultLegendPosition = theme.DefaultLegendPosition.OrNullAtRest(Plain.DefaultLegendPosition),
         Pane3DColor = theme.Pane3DColor,
+        NeutralColor = theme.NeutralColor,
         Alarm = theme.Alarm == Plain.Alarm ? null : AlarmPaletteDto.From(theme.Alarm, Plain.Alarm),
     };
 
@@ -76,6 +78,7 @@ internal sealed record ThemeDto
         AxisYMargin = AxisYMargin ?? Plain.AxisYMargin,
         DefaultLegendPosition = DefaultLegendPosition ?? Plain.DefaultLegendPosition,
         Pane3DColor = Pane3DColor,
+        NeutralColor = NeutralColor,
         Alarm = Alarm?.ToAlarmPalette(Plain.Alarm) ?? Plain.Alarm,
     };
 }

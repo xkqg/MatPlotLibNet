@@ -55,7 +55,7 @@ public abstract class CandleIndicator<TResult> : Indicator<TResult>
         int n = BarCount;
         var tp = new double[n];
         for (int i = 0; i < n; i++)
-            tp[i] = (High[i] + Low[i] + Close[i]) / 3.0;
+            tp[i] = PriceSources.TypicalPrice(High[i], Low[i], Close[i]);
         return tp;
     }
 

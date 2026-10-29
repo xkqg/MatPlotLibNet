@@ -138,6 +138,63 @@ public class CartesianAxesRendererRangeTests
     }
 
     /// <summary>
+    /// Axes that share an X axis share ONE scale: the sticky edges of the linked axes' series (a bar chart's edges, an area's
+    /// ends) decide the margins of the sharing axes as well, because the range they pad and clamp is the union of both. Read
+    /// from its own series alone, an axes with a line over the same data padded 5% where the bars it shares with did not, and
+    /// the same time stood at two pixel columns (3 px apart on a risk table under a survival curve).
+    /// </summary>
+    [Fact]
+    public void ShareXWith_TakesTheStickyEdgesOfTheLinkedAxes_SoTheTwoScalesAreOne()
+    {
+        var target = new Axes();
+        target.Bar(["A", "B", "C"], [3.0, 7.0, 5.0]);
+        var sharing = new Axes();
+        sharing.Plot([0.5, 2.5], [1.0, 2.0]);   // inside the bars' extent (0.1 to 2.9), so their edges still decide
+        sharing.ShareXWith = target;
+
+        var own = BuildRenderer(target).ComputeDataRanges();
+        var shared = BuildRenderer(sharing).ComputeDataRanges();
+
+        Assert.Equal(0.1, own.XMin, 12);
+        Assert.Equal(own.XMin, shared.XMin);
+        Assert.Equal(own.XMax, shared.XMax);
+    }
+
+    /// <summary>The same for Y: the bars' baseline at 0 is a sticky edge of the Y scale the sharing axes reads too.</summary>
+    [Fact]
+    public void ShareYWith_TakesTheStickyEdgesOfTheLinkedAxes_SoTheTwoScalesAreOne()
+    {
+        var target = new Axes();
+        target.Bar(["A", "B", "C"], [3.0, 7.0, 5.0]);
+        var sharing = new Axes();
+        sharing.Plot([0.0, 3.0], [0.0, 7.0]);
+        sharing.ShareYWith = target;
+
+        var own = BuildRenderer(target).ComputeDataRanges();
+        var shared = BuildRenderer(sharing).ComputeDataRanges();
+
+        Assert.Equal(0.0, own.YMin);
+        Assert.Equal(own.YMin, shared.YMin);
+        Assert.Equal(own.YMax, shared.YMax);
+    }
+
+    /// <summary>Sharing is one way: the linked axes keeps the scale its own series give it, whatever the sharing axes holds.</summary>
+    [Fact]
+    public void TheLinkedAxes_IsNotChangedByTheAxesThatSharesItsScale()
+    {
+        var target = new Axes();
+        target.Plot([0.0, 3.0], [1.0, 2.0]);
+        var alone = BuildRenderer(target).ComputeDataRanges();
+        var sharing = new Axes();
+        sharing.Bar(["A", "B", "C"], [3.0, 7.0, 5.0]);
+        sharing.ShareXWith = target;
+
+        var after = BuildRenderer(target).ComputeDataRanges();
+
+        Assert.Equal(alone, after);
+    }
+
+    /// <summary>
     /// A cyclic share chain (A → B → A) must not send <see cref="CartesianAxesRenderer.ComputeDataRanges"/>
     /// into an infinite loop. The engine uses a <c>HashSet&lt;Axes&gt;</c> visited guard;
     /// this test exercises it.

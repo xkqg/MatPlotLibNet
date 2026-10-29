@@ -26,7 +26,7 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
         double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
 
         var cmap = series.ColorMap;
-        var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
+        var normalizer = series.NormalizerOrLinear();
         bool useColorMap = cmap is not null;
 
         // Generate triangles using simple sequential triplets. A full Delaunay triangulation

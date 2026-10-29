@@ -23,8 +23,14 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
 
     public INormalizer? Normalizer { get; set; }
 
+    /// <summary>The short-time spectrum the cells are drawn from and the colour bar is read from: one place the signal's
+    /// magnitudes are worked out, so the picture and its bar cannot disagree about them.</summary>
+    internal StftResult Spectrum() => Fft.Stft(Signal, WindowSize, Overlap, SampleRate);
+
     /// <inheritdoc />
-    public MinMaxRange GetColorBarRange() => new(0, 1);
+    /// <remarks>The range of the magnitudes the cells are coloured over, as for a heatmap of them (0 to 1 when there are none,
+    /// or they are all equal). It used to be 0 to 1 whatever the signal, a scale no cell was drawn on.</remarks>
+    public MinMaxRange GetColorBarRange() => Spectrum().Magnitudes.ScanColorBarRange();
 
     /// <summary>Initializes a new instance of <see cref="SpectrogramSeries"/> with the specified signal.</summary>
     /// <param name="signal">The input signal values.</param>

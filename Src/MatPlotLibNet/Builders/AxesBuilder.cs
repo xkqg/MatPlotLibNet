@@ -31,10 +31,17 @@ namespace MatPlotLibNet;
 /// </example>
 public sealed class AxesBuilder
 {
-    private readonly Axes _axes = new();
+    private readonly Axes _axes;
     // True when the panel uses bar-slot X coordinates (slot [i,i+1], centre at i+0.5).
     // Set by UseBarSlotX() or inferred from a categorical series on the same axes.
     private bool _isBarSlotContext;
+
+    /// <summary>Creates a builder over a new, empty <see cref="Models.Axes"/>.</summary>
+    public AxesBuilder() : this(new Axes()) { }
+
+    /// <summary>Creates a builder that configures an axes that already exists, in place: an inset is configured where it
+    /// stands, so nothing configured through the builder has to be carried across to it afterwards.</summary>
+    internal AxesBuilder(Axes axes) => _axes = axes;
 
     /// <summary>Sets the axes title.</summary>
     public AxesBuilder WithTitle(string title) { _axes.Title = title; return this; }
@@ -681,8 +688,10 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Toggles grid line visibility on the axes.</summary>
-    public AxesBuilder ShowGrid(bool visible = true) { _axes.Grid = _axes.Grid with { Visible = visible }; return this; }
+    /// <summary>Shows or hides the grid lines of the axes. It is the same change as <c>WithGrid(g =&gt; g with { Visible = visible })</c>:
+    /// <c>true</c> draws the grid of the theme the figure is drawn under, <c>false</c> draws none even under a theme that
+    /// draws one.</summary>
+    public AxesBuilder ShowGrid(bool visible = true) => WithGrid(g => g with { Visible = visible });
 
     /// <summary>Adds a discontinuous region to the X-axis.</summary>
     /// <param name="from">Data-space start of the hidden region (inclusive).</param>
@@ -704,16 +713,18 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Configures the grid style using a transform function, preserving all other properties.</summary>
+    /// <summary>Configures the grid style using a transform function, preserving all other properties.
+    /// <para>What a caller means by this on a themed chart is "the theme's grid, but ...", so the properties the function sets
+    /// are kept as a change over the grid of whatever theme the figure is drawn under, a second call adds to the first, and
+    /// the change survives the JSON. The function should name values (<c>g with { Alpha = 0.4 }</c>); one that computes a
+    /// property from the grid it is handed is kept as what it makes of a plain grid. It is run three times.</para></summary>
     public AxesBuilder WithGrid(Func<GridStyle, GridStyle> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
         _axes.Grid = configure(_axes.Grid);
-        // The CHANGE is kept as well as its result, because what a caller means by this on a themed chart is
-        // "the theme's grid, but ...". Keeping only the result cost them the theme (the grid arrives with every
-        // unmentioned property back at its bare default), and reading only the result's Visible could not tell
-        // "no grid, please" from "nothing said" — so asking for no grid under a gridded theme drew one anyway.
-        _axes.GridOverride = configure;
+        // The CHANGE is kept as well as its result, because the result alone cost the author the theme (the grid arrives with
+        // every unmentioned property back at its bare default) and could not tell "no grid, please" from "nothing said".
+        _axes.GridChange = (_axes.GridChange ?? default).Then(GridChange.Of(configure));
         return this;
     }
 
@@ -1557,6 +1568,37 @@ public sealed class AxesBuilder
         return ApplyIndicator(indicator, configure);
     }
 
+    /// <summary>Adds a volume-weighted average price overlay, from the first bar or from an anchor bar: the average of the
+    /// typical price, (high + low + close) / 3, weighted by volume, summed from the anchor on. The line starts at the anchor bar;
+    /// before it the average has no value and nothing is drawn.</summary>
+    /// <param name="bars">High, Low, Close and Volume; built via <see cref="Indicators.OhlcvBars.Hlcv"/>.</param>
+    /// <param name="anchor">The index of the bar the average starts at, from 0 (the first bar, the default) to the last bar.</param>
+    /// <param name="configure">Optional styling of the indicator, run once before it is drawn.</param>
+    /// <returns>The same builder, for chaining.</returns>
+    /// <exception cref="ArgumentException">The arrays of <paramref name="bars"/> differ in number.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="anchor"/> is below 0 or not before the end of the bars.</exception>
+    public AxesBuilder Vwap(Indicators.OhlcvBars bars, int anchor = 0,
+        Action<Indicators.Vwap>? configure = null)
+    {
+        var indicator = new Indicators.Vwap(bars, anchor);
+        return ApplyIndicator(indicator, configure);
+    }
+
+    /// <summary>Adds a volume profile ("volume by price") overlay: horizontal bars on the secondary X axis, one for each equal
+    /// price bin of the closes, as long as the volume that traded in it, growing from the right edge of the plot. The longest bar
+    /// covers a quarter of the plot. It takes the secondary X axis (the top edge) for itself.</summary>
+    /// <param name="bars">Close and Volume; built via <see cref="Indicators.OhlcvBars.Cv"/>.</param>
+    /// <param name="bins">The number of equal price bins, 1 or more. Default 12.</param>
+    /// <param name="configure">Optional styling of the indicator, run once before it is drawn.</param>
+    /// <returns>The same builder, for chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="bins"/> is below 1.</exception>
+    public AxesBuilder VolumeProfile(Indicators.OhlcvBars bars, int bins = 12,
+        Action<Indicators.VolumeProfile>? configure = null)
+    {
+        var indicator = new Indicators.VolumeProfile(bars, bins);
+        return ApplyIndicator(indicator, configure);
+    }
+
     /// <summary>Adds a VWAP Z-Score panel indicator — standardised deviation from the rolling
     /// volume-weighted average price. Mean-reversion signal; extremes beyond ±2σ mark
     /// dislocations from fair value.</summary>
@@ -1722,13 +1764,14 @@ public sealed class AxesBuilder
     /// the supplied builder. This is the canonical form; the loose-doubles
     /// <see cref="AddInset(double,double,double,double,System.Action{AxesBuilder})"/> overload forwards here.</summary>
     /// <param name="bounds">The fractional position and size of the inset within this axes.</param>
-    /// <param name="configure">Configures the inset's series and axes.</param>
+    /// <param name="configure">Configures the inset's series and axes. The callback's builder works on the inset itself,
+    /// so everything it sets is what the inset draws with: a tick formatter of your own, a grid change over the grid of
+    /// whatever theme the figure is drawn under, and an inset of its own. A share key set on it joins no group, because
+    /// an inset is not a subplot of the figure.</param>
     public AxesBuilder AddInset(InsetBounds bounds, Action<AxesBuilder> configure)
     {
-        var insetBuilder = new AxesBuilder();
-        configure(insetBuilder);
-        var inset = _axes.AddInset(bounds);
-        inset.CopyAxesState(insetBuilder._axes, Theme.Default);
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(new AxesBuilder(_axes.AddInset(bounds)));
         return this;
     }
 

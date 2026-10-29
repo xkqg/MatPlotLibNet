@@ -145,12 +145,147 @@ public class ComposedChartDataTablesTests
         DateTime[] days = [.. Enumerable.Range(0, 10).Select(d => first.AddDays(d))];
         var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap(days, [.. days.Select(d => (double)d.Day)])));
 
-        Assert.Equal(["row", "column", "value"], Headers(table));
-        Assert.Equal([DataColumnKind.Text, DataColumnKind.Number, DataColumnKind.Number], table.Columns.Select(c => c.Kind));
-        var wednesday = Assert.Single(table.Rows, row => row[2].Number == 1);
+        Assert.Equal(["row", "column", "date", "value"], Headers(table));
+        Assert.Equal([DataColumnKind.Text, DataColumnKind.Number, DataColumnKind.Date, DataColumnKind.Number], table.Columns.Select(c => c.Kind));
+        var wednesday = Assert.Single(table.Rows, row => row[3].Number == 1);
         Assert.Equal("Wed", wednesday[0].Text);
         Assert.Equal(0, wednesday[1].Number);
         Assert.Equal(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], table.Rows.Select(row => row[0].Text).Distinct());
+    }
+
+    private static DateTime DateOf(DataCell cell) => DateTime.FromOADate(cell.Number);
+
+    /// <summary>Measured before the change: the table of a calendar heatmap named each cell's weekday and numbered its week but not
+    /// its date, because the chart travels as a heatmap of its cells. A reader had to work a date out from the week number, the
+    /// weekday and the first day shown, which the table did not say. The heatmap now carries the date of its first cell, and the
+    /// table gives every cell the date it stands for: the first cell plus 7 days for each column plus one for each row.</summary>
+    [Fact]
+    public void ACalendarHeatmap_NamesTheDateOfEveryCell()
+    {
+        var first = new DateTime(2025, 1, 1);          // a Wednesday: row 2 of week 0 from Monday
+        DateTime[] days = [.. Enumerable.Range(0, 10).Select(d => first.AddDays(d))];
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap(days, [.. days.Select(d => (double)d.Day)])));
+
+        var wednesday = Assert.Single(table.Rows, row => row[3].Number == 1);
+        Assert.Equal(first, DateOf(wednesday[2]));
+        foreach (var row in table.Rows)
+        {
+            // The date of a cell is where it stands: Monday 30 December 2024 is cell (0, 0), a day later one row down.
+            var cell = new DateTime(2024, 12, 30).AddDays(7 * row[1].Number + Array.IndexOf(new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" }, row[0].Text));
+            Assert.Equal(cell, DateOf(row[2]));
+        }
+    }
+
+    /// <summary>The days of the first week before the earliest date, and of the last week after the latest, are cells of the grid
+    /// with a value that is missing: they keep the date they stand for.</summary>
+    [Fact]
+    public void ThePaddingOfACalendar_KeepsItsDate_WithAMissingValue()
+    {
+        DateTime[] days = [new(2025, 1, 1), new(2025, 1, 2)];
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap(days, [5, 6])));
+
+        // One week is one column, and the axis names it (the month that begins in it), so the column cell reads as that name.
+        var monday = table.Rows.Single(row => row[0].Text == "Mon");
+        Assert.Equal(new DateTime(2024, 12, 30), DateOf(monday[2]));
+        Assert.True(double.IsNaN(monday[3].Number));
+        Assert.Equal(new DateTime(2025, 1, 5), DateOf(table.Rows.Single(row => row[0].Text == "Sun")[2]));
+        Assert.Equal(7, table.RowCount);
+    }
+
+    [Fact]
+    public void ADayInTheMiddleWithNoValue_KeepsItsDate()
+    {
+        DateTime[] days = [new(2025, 3, 3), new(2025, 3, 5)];
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap(days, [1, 3])));
+
+        var tuesday = table.Rows.Single(row => row[0].Text == "Tue");
+        Assert.Equal(new DateTime(2025, 3, 4), DateOf(tuesday[2]));
+        Assert.True(double.IsNaN(tuesday[3].Number));
+    }
+
+    [Theory]
+    [InlineData(DayOfWeek.Monday)]
+    [InlineData(DayOfWeek.Sunday)]
+    [InlineData(DayOfWeek.Saturday)]
+    public void TheDateOfACell_FollowsTheDayTheWeekStartsOn(DayOfWeek firstDay)
+    {
+        DateTime[] days = [.. Enumerable.Range(0, 20).Select(d => new DateTime(2025, 1, 1).AddDays(d))];
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap(days, [.. days.Select(d => (double)d.Day)], firstDay)));
+
+        // The cell that holds the 1st of January holds the value 1, whatever day the week starts on.
+        var cell = table.Rows.Single(row => row[3].Number == 1);
+        Assert.Equal(new DateTime(2025, 1, 1), DateOf(cell[2]));
+        // Every cell's weekday name is the weekday of its date.
+        foreach (var row in table.Rows)
+        {
+            Assert.StartsWith(row[0].Text!, DateOf(row[2]).DayOfWeek.ToString());
+        }
+    }
+
+    /// <summary>A whole year is 53 week columns: the last cell is the 31st of December, in its week, and the date of every cell
+    /// is one more than the cell before it, down a column and on to the next.</summary>
+    [Fact]
+    public void AYearOfDays_HasEveryDateOnce_InOrder()
+    {
+        DateTime[] days = [.. Enumerable.Range(0, 365).Select(d => new DateTime(2025, 1, 1).AddDays(d))];
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap(days, [.. days.Select(d => 1.0)])));
+
+        var dates = table.Rows.OrderBy(row => row[1].Number).ThenBy(row => Array.IndexOf(new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" }, row[0].Text))
+            .Select(row => DateOf(row[2])).ToList();
+        Assert.Equal(53 * 7, dates.Count);
+        for (int i = 1; i < dates.Count; i++) Assert.Equal(dates[i - 1].AddDays(1), dates[i]);
+        Assert.Equal(new DateTime(2025, 12, 31), table.Rows.Where(row => !double.IsNaN(row[3].Number)).Max(row => DateOf(row[2])));
+    }
+
+    /// <summary>A heatmap that is no calendar has no first cell date and keeps its three columns.</summary>
+    [Fact]
+    public void APlainHeatmap_HasNoDateColumn()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })));
+
+        Assert.Equal(["row", "column", "value"], Headers(table));
+    }
+
+    /// <summary>The first cell date travels with the heatmap: read back from JSON, the table gives the same dates.</summary>
+    [Fact]
+    public void ACalendarHeatmapReadBackFromJson_StillNamesTheDates()
+    {
+        DateTime[] days = [.. Enumerable.Range(0, 30).Select(d => new DateTime(2025, 2, 10).AddDays(d))];
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarHeatmap(days, [.. days.Select(d => (double)d.Day)])).Build();
+
+        var written = Assert.Single(figure.ToDataTables());
+        var read = Assert.Single(new MatPlotLibNet.Serialization.ChartSerializer().FromJson(figure.ToJson()).ToDataTables());
+
+        Assert.Equal(written.Rows.Select(row => row[2].Number), read.Rows.Select(row => row[2].Number));
+        Assert.Contains("\"firstCellDate\"", figure.ToJson());
+    }
+
+    [Fact]
+    public void APlainHeatmap_WritesNoFirstCellDate()
+    {
+        var json = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })).Build().ToJson();
+
+        Assert.DoesNotContain("firstCellDate", json);
+    }
+
+    /// <summary>The ends of the calendar a <see cref="DateTime"/> can hold: a cell past the last day it holds, or a first cell
+    /// before the first, has no date to name, and the table still reads.</summary>
+    [Fact]
+    public void TheEndsOfTheCalendar_NameTheDatesTheyHaveAndLeaveTheRestEmpty()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap([DateTime.MaxValue.Date], [1])));
+
+        Assert.Equal(7, table.RowCount);
+        Assert.Contains(table.Rows, row => row[2].Kind == DataCellKind.Empty);
+        Assert.Contains(table.Rows, row => row[2].Kind == DataCellKind.Number);
+    }
+
+    [Fact]
+    public void TheFirstDayOfTheCalendar_StillTables()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.CalendarHeatmap([DateTime.MinValue], [1])));
+
+        Assert.Equal(7, table.RowCount);
     }
 
     [Fact]
@@ -167,17 +302,91 @@ public class ComposedChartDataTablesTests
         Assert.Equal(["Sepal", "Petal"], FirstColumn(tables[1]));
     }
 
-    [Fact]
-    public void AMarimekko_KeepsTheEdgesOfItsColumns_BecauseTheirWidthsAreItsData()
-    {
-        // The names stand under the centres of the columns, where no point of an area stands; the points stand on the
-        // edges, which give each column's share of the total. The edges stay numbers, and the segments name the columns.
-        var table = Assert.Single(TablesOf(ax => ax.Marimekko(["Retail", "Online"],
-            [new BarGroup("Brand A", [30, 15]), new BarGroup("Brand B", [20, 25])])));
+    private static readonly string[] Channels = ["Retail", "Online"];
 
-        Assert.Equal(["x", "Brand A", "y2", "Brand B", "y2"], Headers(table));
-        Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
-        Assert.Equal(100.0, table.Rows[^1][0].Number);
+    private static BarGroup[] Brands => [new("Brand A", [30, 15]), new("Brand B", [20, 25])];
+
+    /// <summary>Measured before the change: the table of a Marimekko chart was the points the chart draws, eight rows of x, Brand A,
+    /// y2, Brand B, y2 for three channels, with the edges of the columns as its x. The names of the columns stand under their
+    /// centres, where no point stands, so no row said which edges bound which channel. A Marimekko chart now tables as it is
+    /// read: a row for each column, named, with the edges it stands between and the height of each segment's cell in it.</summary>
+    [Fact]
+    public void AMarimekko_NamesItsColumns_OneRowEach()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Marimekko(Channels, Brands)));
+
+        Assert.Equal(["category", "left", "right", "Brand A", "Brand B"], Headers(table));
+        Assert.Equal(DataColumnKind.Text, table.Columns[0].Kind);
+        Assert.Equal(Channels, FirstColumn(table));
+        // Retail is 50 of 90 and Online 40 of 90: the edges are 0, 55.6 and 100, in percent of the whole.
+        Assert.Equal(50.0 / 90 * 100, table.Rows[0][2].Number, 9);
+        Assert.Equal(0.0, table.Rows[0][1].Number);
+        Assert.Equal(table.Rows[0][2].Number, table.Rows[1][1].Number);
+        Assert.Equal(100.0, table.Rows[1][2].Number);
+        // A cell's height is its share of its column, in percent: Brand A is 30 of Retail's 50 and 15 of Online's 40.
+        Assert.Equal([60.0, 37.5], table.Rows.Select(row => row[3].Number));
+        Assert.Equal([40.0, 62.5], table.Rows.Select(row => row[4].Number));
+    }
+
+    /// <summary>A column with no share has no width and no name; it is no row, and the columns after it are not named by their
+    /// position in the list.</summary>
+    [Fact]
+    public void AMarimekkoColumnWithNoShare_IsNoRow_AndTheOthersKeepTheirNames()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Marimekko(["Retail", "Dead", "Online"],
+            [new BarGroup("Brand A", [30, 0, 15]), new BarGroup("Brand B", [20, 0, 25])])));
+
+        Assert.Equal(["Retail", "Online"], FirstColumn(table));
+        Assert.Equal(2, table.RowCount);
+    }
+
+    [Fact]
+    public void AMarimekkoOfOneColumn_IsOneRow()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Marimekko(["Only"], [new BarGroup("Brand A", [5]), new BarGroup("Brand B", [15])])));
+
+        Assert.Equal(["Only"], FirstColumn(table));
+        Assert.Equal([0.0], table.Rows.Select(row => row[1].Number));
+        Assert.Equal([100.0], table.Rows.Select(row => row[2].Number));
+        Assert.Equal([25.0], table.Rows.Select(row => row[3].Number));
+        Assert.Equal([75.0], table.Rows.Select(row => row[4].Number));
+    }
+
+    /// <summary>An area with a gap on an axis that names nothing keeps the table of its points: only a run the axis names is a
+    /// column.</summary>
+    [Fact]
+    public void AGappedAreaOnANumericAxis_KeepsTheTableOfItsPoints()
+    {
+        double[] x = [0, 1, double.NaN, 2, 3];
+        double[] y = [1, 2, double.NaN, 3, 4];
+
+        var table = Assert.Single(TablesOf(ax => ax.AddSeries(new AreaSeries(x, y) { Label = "gappy" })));
+
+        Assert.Equal(["x", "gappy"], Headers(table));
+        Assert.Equal(5, table.RowCount);
+    }
+
+    /// <summary>A column that is the same in two fragments, header and every cell, is one column of the merged table.</summary>
+    [Fact]
+    public void TwoSeriesThatShareAColumn_ShareItInTheMergedTable()
+    {
+        double[] x = [1, 2, 3];
+        var table = Assert.Single(TablesOf(ax => ax
+            .AddSeries(new LineSeries(x, [1, 2, 3]) { Label = "a" })
+            .AddSeries(new LineSeries(x, [1, 2, 3]) { Label = "a" })));
+
+        Assert.Equal(["x", "a"], Headers(table));
+    }
+
+    [Fact]
+    public void TwoSeriesWithDifferentColumns_KeepBoth_EvenUnderTheSameHeader()
+    {
+        double[] x = [1, 2, 3];
+        var table = Assert.Single(TablesOf(ax => ax
+            .AddSeries(new LineSeries(x, [1, 2, 3]) { Label = "a" })
+            .AddSeries(new LineSeries(x, [3, 2, 1]) { Label = "a" })));
+
+        Assert.Equal(["x", "a", "a"], Headers(table));
     }
 
     [Fact]

@@ -34,6 +34,7 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
         bool drawXMax = ExtendMax;
         double gradX = barX + (drawXMin ? extW : 0);
         double gradW = fullW - (drawXMin ? extW : 0) - (drawXMax ? extW : 0);
+        var scale = ScaleAlong(fullW, vertical: false);
 
         if (drawXMin)
         {
@@ -44,7 +45,7 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
         for (int i = 0; i < Steps; i++)
         {
             double frac = (double)i / Steps;
-            var color = ColorMap.GetColor(frac);
+            var color = ColorMap.GetColor(scale.GradientFraction(frac, (i + 0.5) / Steps));
             double stepX = gradX + gradW * i / Steps;
             double stepW = gradW / Steps + 1;
             Ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), new ShapeStyle(color, null, 0));
@@ -62,9 +63,8 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
 
         var tickFont = ThemedFontProvider.TickFont(Theme);
         double labelY = barY + barH + 4 + tickFont.Size;
-        var scale = ScaleAlong(fullW, vertical: false);
         for (int i = 0; i < scale.Ticks.Length; i++)
-            Ctx.DrawText(scale.Labels[i], new Point(gradX + gradW * scale.FractionOf(scale.Ticks[i]), labelY), tickFont, TextAlignment.Center);
+            Ctx.DrawText(scale.Labels[i], new Point(gradX + gradW * scale.Fractions[i], labelY), tickFont, TextAlignment.Center);
 
         if (Cb.Label is not null)
             Ctx.DrawText(Cb.Label, new Point(barX + fullW / 2, labelY + tickFont.Size + 4), ThemedFontProvider.LabelFont(Theme), TextAlignment.Center);

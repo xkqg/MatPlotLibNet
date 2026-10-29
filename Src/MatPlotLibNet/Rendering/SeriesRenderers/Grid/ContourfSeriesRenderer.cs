@@ -35,7 +35,7 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
         if (bands.Length == 0) return;
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.Normalizer ?? LinearNormalizer.Instance;
+        var norm = series.NormalizerOrLinear();
 
         double zMin = bands[0].LevelLow;
         double zMax = bands[^1].LevelHigh;

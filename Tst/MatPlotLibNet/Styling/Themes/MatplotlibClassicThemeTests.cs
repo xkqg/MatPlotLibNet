@@ -59,6 +59,32 @@ public class MatplotlibClassicThemeTests
         Assert.False(Theme.MatplotlibClassic.DefaultGrid.Visible);
     }
 
+    /// <summary>The grid classic matplotlib draws when it is asked for (<c>grid.color: black</c>, <c>grid.linestyle: :</c>,
+    /// <c>grid.linewidth: 0.5</c>), which is the grid the theme keeps hidden until then. It was the 0.8 point grey solid line
+    /// the later styles draw, so a polar chart, whose rings are always drawn, wore the wrong grid under this theme.</summary>
+    [Fact]
+    public void MatplotlibClassic_GridWhenShown_IsClassicMatplotlibs()
+    {
+        var grid = Theme.MatplotlibClassic.DefaultGrid;
+
+        Assert.Equal(Color.FromHex("#000000"), grid.Color);
+        Assert.Equal(LineStyle.Dotted, grid.LineStyle);
+        Assert.Equal(0.5, grid.LineWidth);
+    }
+
+    /// <summary>A polar chart draws its rings in the theme's grid: black, thin and dotted under the classic theme, so dotted
+    /// polylines and no circles.</summary>
+    [Fact]
+    public void APolarChart_UnderClassic_DrawsItsRings_InTheClassicGrid()
+    {
+        string svg = Plt.Create().WithTheme(Theme.MatplotlibClassic)
+            .AddSubPlot(1, 1, 1, ax => ax.PolarScatter([0.2, 0.5, 0.9], [0.3, 1.2, 2.5]))
+            .ToSvg();
+
+        Assert.DoesNotContain("<ellipse ", svg);
+        Assert.Matches("""<polyline [^>]*stroke="#000000" stroke-width="0.5" stroke-dasharray=""", svg);
+    }
+
     [Fact]
     public void MatplotlibClassic_HasSevenClassicCycleColors()
     {

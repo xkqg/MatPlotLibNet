@@ -11,6 +11,13 @@ internal static class SurvivalGroupExtensions
 {
     extension(SurvivalGroup group)
     {
+        /// <summary>The number of subjects at risk at <paramref name="time"/>: those followed to that time or longer, counted just
+        /// before the events of that time (the subjects whose duration is <paramref name="time"/> are at risk at it, censored or
+        /// not). The one count the curve estimates with (<see cref="ProductLimit"/> keeps it as a running total), the risk table
+        /// under the plot reads, and the log-rank test weighs the groups by.</summary>
+        /// <param name="time">A time, in the unit of the durations.</param>
+        internal int AtRiskAt(double time) => group.Durations.Count(duration => duration >= time);
+
         /// <summary>The product-limit (Kaplan-Meier) estimate of this group: S(t) is the product, over the event
         /// times t_i at or before t, of (1 - d_i / n_i), where d_i is the number of events at t_i and n_i the number of subjects
         /// at risk just before t_i (those whose duration is t_i or later).
@@ -83,7 +90,7 @@ internal static class SurvivalGroupExtensions
         /// risk).</summary>
         /// <returns>The group's durations, for chaining.</returns>
         /// <exception cref="ArgumentException">The group is not survival data; the message names the group.</exception>
-        private double[] ThrowIfNotSurvivalData(string paramName)
+        internal double[] ThrowIfNotSurvivalData(string paramName)
         {
             var (label, durations, observed) = group;
             ArgumentException Refused(string message) => new($"Group '{label}' {message}", paramName);

@@ -149,21 +149,22 @@ public class ViolinSeriesTests
         Assert.Equal(3.5, range.XMax!.Value, 12);
     }
 
-    /// <summary>The median and the mean are lines across half a width on either side: wider than a narrow body.</summary>
+    /// <summary>The body reaches a whole width at its widest (the density is scaled by its peak), and the median and mean lines
+    /// are half a width across: they lie inside the body, so they never widen the room a violin is drawn in. Before the body was a
+    /// density, a sample with nothing near any one height had a body of a tenth of the width and the lines (a quarter) were wider.</summary>
     [Theory]
-    [InlineData(false, false, 0.1)]
-    [InlineData(true, false, 0.25)]
-    [InlineData(false, true, 0.25)]
-    public void ComputeDataRange_WithPositions_ReachesTheMedianAndMeanLines(bool medians, bool means, double reach)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void ComputeDataRange_WithPositions_ReachesTheBodyAtItsWidest_WhichTheMedianAndMeanLinesLieInside(bool medians, bool means)
     {
-        // 1..5: no window holds more than one observation, so the body is 0.2 of the width (0.1) on each side.
         var series = new ViolinSeries([[1.0, 2, 3, 4, 5]])
             { Positions = [3], ShowExtrema = false, ShowMedians = medians, ShowMeans = means };
 
         var range = series.ComputeDataRange(NoLimits);
 
-        Assert.Equal(3 - reach, range.XMin!.Value, 12);
-        Assert.Equal(3 + reach, range.XMax!.Value, 12);
+        Assert.Equal(3 - 0.5, range.XMin!.Value, 12);
+        Assert.Equal(3 + 0.5, range.XMax!.Value, 12);
     }
 
     /// <summary>A violin the position array does not reach stands at its index, as it is drawn.</summary>

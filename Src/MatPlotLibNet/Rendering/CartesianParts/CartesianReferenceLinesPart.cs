@@ -29,7 +29,7 @@ internal sealed class CartesianReferenceLinesPart : CartesianAxesPart
         var refLabelFont = TickFont();
         foreach (var refLine in Axes.ReferenceLines)
         {
-            var lineColor = refLine.Color ?? Colors.Gray;
+            var lineColor = refLine.Color ?? Theme.Neutral;
             // A line at a value its axis cannot place is skipped with its label. It spans the plot area, so only the
             // one coordinate it is placed at decides. The automatic range holds every line; a line beyond a limit the
             // caller set lies outside the plot and is not drawn either, nor its label.

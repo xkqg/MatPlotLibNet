@@ -40,14 +40,10 @@ public sealed class VwapZScore : CandleIndicator<SignalResult>
             int end = w + _window;                                // exclusive
 
             // 1) Window VWAP at the current window end.
-            double sumPv = 0, sumV = 0;
-            for (int i = start; i < end; i++)
-            {
-                sumPv += Close[i] * Volume[i];
-                sumV += Volume[i];
-            }
-            if (sumV <= 0) { result[w] = 0; continue; }
-            double vwap = sumPv / sumV;
+            var windowMean = new VolumeWeightedMean();
+            for (int i = start; i < end; i++) windowMean.Add(Close[i], Volume[i]);
+            if (windowMean.Volume <= 0) { result[w] = 0; continue; }
+            double vwap = windowMean.Value(0);
             double deviation = Close[end - 1] - vwap;
 
             // 2) Rolling std of per-bar VWAP deviations within the same window.
@@ -59,13 +55,9 @@ public sealed class VwapZScore : CandleIndicator<SignalResult>
             for (int i = start; i < end; i++)
             {
                 if (i < _window - 1) continue;                    // not enough history for a full VWAP window
-                double sPv = 0, sV = 0;
-                for (int j = i - _window + 1; j <= i; j++)
-                {
-                    sPv += Close[j] * Volume[j];
-                    sV += Volume[j];
-                }
-                double localVwap = sV > 0 ? sPv / sV : Close[i];
+                var localMean = new VolumeWeightedMean();
+                for (int j = i - _window + 1; j <= i; j++) localMean.Add(Close[j], Volume[j]);
+                double localVwap = localMean.Value(Close[i]);
                 devs[count] = Close[i] - localVwap;
                 mean += devs[count];
                 count++;

@@ -14,7 +14,7 @@ that needs a row is what moves it up.
 | **Done** | Blazor and ASP.NET Core | `<MplChart>` and `<MplLiveChart>`, a SignalR hub, REST endpoints, and clients for Angular, React and Vue. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
 | **Done** | The chart types | 83 series types: lines and bars, statistical, financial, grid, 3-D, polar, hierarchical, flow and the control room's. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | PNG, PDF and GIF | `MatPlotLibNet.Skia`: the same figure as a PNG, a PDF of one page or several, and an animated GIF. See [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started). |
-| **Done** | Technical indicators | 58 indicators computed from a price series and drawn on it, from a moving average to transfer entropy. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
+| **Done** | Technical indicators | 59 indicators computed from a price series and drawn on it, from a moving average to transfer entropy. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | GraphQL | `MatPlotLibNet.GraphQL`: charts as HotChocolate queries and subscriptions. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
 | **Done** | 3-D and polar axes | Surfaces, bars and points in 3-D under a camera that turns, and charts on polar axes. See [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced). |
 | **Done** | Axes, scales and ticks | Linear, log, symlog, date and broken axes, limits drawn exactly as set, reversed ones too, a second axis on the right or on top, and tick locators and formatters of your own. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
@@ -41,7 +41,7 @@ that needs a row is what moves it up.
 | **Done** | A spine's line style kept in JSON | A spine's line style travels with its colour and width; a spine written without one reads back solid. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
 | **Done** | Missing values | NaN is the one missing value: a line breaks at a gap, nothing is drawn at NaN, and ranges, colour maps and JSON leave it out or carry it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | Save settings that reach the file | `WithDpi` and `SaveOptions` reach the file: a PNG is drawn at the figure's dpi, and a title and an author go into the SVG, the PDF and the PNG. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
-| **Done** | Charts in one call | Seventeen verbs, from `Pareto` and `Ridgeline` to `Raincloud` and `Horizon`, draw a chart from the data as you hold it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Charts in one call | Twenty verbs, from `Pareto` and `Ridgeline` to `Raincloud` and `Horizon`, draw a chart from the data as you hold it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | Every series kind and every axes setting back from JSON | A Sankey's nodes and links, a treemap's, sunburst's, dendrogram's and clustermap's trees, a tree grid's rows, a polar chart's data, a streaming chart's current points and a planar 3-D bar's data all come back from JSON as themselves, not a placeholder. An axes' Z axis, its 3-D pane colours and its tooltip switch come back too. See [MCP Server](https://github.com/xkqg/MatPlotLibNet/wiki/MCP-Server). |
 | **Done** | Series that share one colour | A series' `ColorGroup` puts it in the same rendered colour as every other series holding the group, as long as the run is contiguous; a Kaplan-Meier curve's band and censor marks, a `Raincloud`'s violin/box/points and a `Horizon`'s folds all use it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | Raincloud | `Raincloud` draws a half violin, a narrow box and a group's raw, jittered points side by side, all sharing one colour, with one legend entry for the group. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
@@ -65,18 +65,21 @@ that needs a row is what moves it up.
 | **Done** | Bars stacked on both sides of zero | Layers at or above zero grow up from zero and layers below it grow down, so a Likert scale is a stacked bar chart. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | Map regions coloured by value | `Choropleth` colours each country by a value through a colour map, with a colour bar. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | Bubble, flow and cartogram maps | `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram` and `Dorling` put data on a projection. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
-| **Later** | A colour bar that follows the normaliser | A colour bar spaces its gradient and its ticks evenly in the value, whatever normaliser the series has. |
-| **Later** | A neutral colour the theme owns | Reference lines, levels, trendlines and the connectors of the composed charts share one fixed grey, below 3 : 1 on five themes. |
-| **Later** | A grid changed with WithGrid that follows the theme after JSON | A changed grid is written as it draws under the theme of that moment, so a theme set later does not restyle it. |
-| **Later** | A relative rotation graph that always shows its centre | The plot ranges over the tail points only, so with data away from 100 it shows one quadrant and no crosshair. |
-| **Later** | An inset built with the builder that keeps its axes settings | `AddInset` copies the series, title, labels, limits, spines and grid; the legend, tick locators, scales, overlays and colour bar stay behind. |
-| **Later** | A PNG saved without the Skia package | Without `MatPlotLibNet.Skia`, `Save("chart.png")` writes SVG text into the file. |
-| **Later** | A Marimekko chart's table that names its columns | The table keeps each column's edges and names its segments; the column names stand under the centres of the columns, where no point of the chart stands, so no row is named by them. |
-| **Later** | A calendar heatmap's table that gives each day's date | The table names each cell's weekday and numbers its week column; the chart travels as a heatmap of its cells, which does not keep the dates it was laid out from. |
-| **Later** | Violin density from a kernel estimate | A violin's outline counts the observations in a window around each of 21 heights; it is not a density estimate. |
-| **Later** | A survival chart's risk table and log-rank test | `KaplanMeier` draws the curve, its confidence band and its censor marks; the number at risk under the plot and a test between the groups are not drawn. |
-| **Later** | More control charts | The run rules beyond the first, the moving-range chart, and charts of subgroups (X-bar and R, p, c). |
-| **Later** | A Q-Q plot against other distributions | `QQPlot` compares a sample with the normal distribution only. |
+| **Done** | A PNG saved without the Skia package | Without `MatPlotLibNet.Skia`, `Save("chart.png")` and `Save("chart.pdf")` are refused and name the package, instead of writing SVG text under a raster name. See [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started). |
+| **Done** | An inset built with the builder that keeps its axes settings | `AddInset` configures the inset where it stands, so its legend, tick locators and formatters, scales, overlays and colour bar are the ones you set. See [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced). |
+| **Done** | A grid changed with WithGrid that follows the theme after JSON | `WithGrid` is kept as a change over the theme's grid, so a theme set later or after JSON is read restyles the rest of the grid and keeps the change. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
+| **Done** | A neutral colour the theme owns | Reference lines, levels, trendlines and the connectors of the composed charts wear a grey that each theme holds and that reaches 3 : 1 against its plot. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
+| **Done** | A colour bar that follows the normaliser | A colour bar puts its ticks where the series' normaliser puts their colours, and a banded normaliser has them on its band boundaries. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Light with a strength of its own | The ambient and diffuse arguments of `WithLighting` set how strongly a surface or a 3-D bar is lit. See [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced). |
+| **Done** | A relative rotation graph that always shows its centre | The range of a relative rotation graph holds 100/100, so the four quadrants and the crosshair stay in view. See [RelativeRotationSeries](https://github.com/xkqg/MatPlotLibNet/wiki/RelativeRotationSeries). |
+| **Done** | A Marimekko chart's table that names its columns | The table has a row for each column with its name, its two edges and the height of each segment's cell. See [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility). |
+| **Done** | A calendar heatmap's table that gives each day's date | The table has a date for every cell, kept as the date of the first cell. See [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility). |
+| **Done** | Violin density from a kernel estimate | A violin's outline is the sample's Gaussian kernel density, the estimator the density plot and the ridgeline use. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
+| **Done** | A Q-Q plot against other distributions | `ProbabilityPlot` compares a sample with an exponential, uniform, log-normal or Student t distribution, or one of your own. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | A survival chart's risk table and log-rank test | `RiskTable` writes the number at risk under the curve and the log-rank test between the groups. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | More control charts | `ShewhartChart` draws the moving-range, X-bar, R, p and c charts and marks the points Nelson's eight tests flag. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Anchored VWAP | `Vwap(bars, anchor)` counts the volume-weighted price from a bar you pick; the streaming form restarts with `AnchorHere()`. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
+| **Done** | Volume profile | `VolumeProfile` draws the volume traded at each price as bars beside the price chart. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Later** | Parallel coordinates in each axis's own units | Each column is scaled to 0..1; an axis per column with its own ticks needs a scale per column. |
 | **Later** | A waterfall's target | A budget marker beside each step; totals are marked with `TotalIndices`. |
 | **Later** | Two plots matplotlib has | `fill_betweenx`, and `matshow`, whose square cells need an aspect setting. |
@@ -92,18 +95,15 @@ that needs a row is what moves it up.
 | **Later** | Icicle chart | A hierarchy in rows by depth; a layout beside the treemap and sunburst. |
 | **Later** | Ternary plot | Three parts that sum to one, on triangular axes. |
 | **Later** | Piper diagram | Two ternary triangles and a diamond; it needs ternary axes first. |
-| **Later** | Anchored VWAP | The volume-weighted price counted from a bar you pick; `Vwap` and its streaming form start at the first bar. |
-| **Later** | Volume profile | Volume per price as bars beside the price; a bar on a second axis is not kept. |
 | **Later** | Renko | Bricks of a fixed price step, in columns that rise and fall. |
 | **Later** | Kagi | One line that thickens and thins at each reversal; a line has one width. |
 | **Later** | Point and Figure | Columns of X and O boxes; markers are sized in points, so boxes do not tile. |
 | **Later** | Linked selection | Choose points in one chart and see the same rows lit in the others. |
 | **Later** | Step-through SVG | One SVG file with a slider or a play button that steps through frames without a server. |
 | **Later** | A live chart that sends its own gestures | `MplLiveChart` shows the server's redraws; the page still has to hand its script a SignalR connection. |
-| **Later** | Light with a strength of its own | The ambient and diffuse arguments of `WithLighting` change nothing in the picture yet. |
 | **Later** | Home that returns to the first view in the native controls | After a zoom and a repaint, Home returns to the view on screen, not the one first drawn. |
 | **Later** | The MAUI view on a par with the others | It draws and streams a chart, and does not pan, zoom or select, nor draw a hatch. |
-| **Later** | Streaming forms of more indicators | 11 of the 58 indicators have a streaming form that follows each new bar. |
+| **Later** | Streaming forms of more indicators | 11 of the 59 indicators have a streaming form that follows each new bar. |
 | **Later** | Transfer entropy over time | A rolling window, a continuous estimator and a conditional form beside the scalar that ships. |
 | **Later** | A handler of your own for a chart's gestures | One interface a chart's events go to, beyond the callbacks a chart session takes today. |
 | **Later** | Several viewers as a designed feature | Viewers of one chart that see each other's gestures by design, not as a side effect where the last one wins. |

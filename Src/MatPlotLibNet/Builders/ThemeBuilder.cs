@@ -32,6 +32,7 @@ public sealed class ThemeBuilder
     private GridStyle _defaultGrid;
     private PropCycler? _propCycler;
     private Color? _pane3DColor;
+    private Color? _neutralColor;
     private AlarmPalette _alarm;
     private string _name;
 
@@ -48,6 +49,7 @@ public sealed class ThemeBuilder
         _name = $"custom-{baseTheme.Name}";
         _alarm = baseTheme.Alarm;
         _pane3DColor = baseTheme.Pane3DColor;
+        _neutralColor = baseTheme.NeutralColor;
         _background = baseTheme.Background;
         _foregroundText = baseTheme.ForegroundText;
         _axesBackground = baseTheme.AxesBackground;
@@ -105,6 +107,14 @@ public sealed class ThemeBuilder
     /// <returns>This builder for chaining.</returns>
     public ThemeBuilder WithPane3DColor(Color? color) { _pane3DColor = color; return this; }
 
+    /// <summary>Names the grey that reference graphics wear over the plot (reference lines, trendlines, levels, a map's
+    /// outlines and the like). Without this the theme derives it from its plot: #808080 where that reaches the 3 : 1 contrast
+    /// WCAG asks of a graphic, otherwise the nearest grey that does, so a theme whose plot is changed afterwards keeps a grey
+    /// that can be seen. Pass <see langword="null"/> to go back to deriving it.</summary>
+    /// <param name="color">The neutral colour, or <see langword="null"/> to let the theme derive it.</param>
+    /// <returns>This builder for chaining.</returns>
+    public ThemeBuilder WithNeutralColor(Color? color) { _neutralColor = color; return this; }
+
     /// <summary>Names the theme. Without this a derived theme is called <c>custom-&lt;base&gt;</c>, which makes
     /// four sibling presets indistinguishable in a style sheet.</summary>
     /// <param name="name">The theme name.</param>
@@ -135,6 +145,7 @@ public sealed class ThemeBuilder
         DefaultGrid = _defaultGrid,
         PropCycler = _propCycler,
         Pane3DColor = _pane3DColor,
+        NeutralColor = _neutralColor,
         Alarm = _alarm
     };
 }

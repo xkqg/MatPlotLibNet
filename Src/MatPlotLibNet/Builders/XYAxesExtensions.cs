@@ -113,8 +113,8 @@ public static class XYAxesExtensions
         /// stands out beyond the limits, where a standard deviation would widen around it. Limits that are given are drawn as
         /// they are and nothing is estimated: the limits of an earlier period the process is held to, say.</para>
         /// <para>Only rule 1 of the Western Electric rules is marked: a value strictly beyond a limit is a violation; a value on
-        /// a limit is not. The other rules (two of three beyond two sigma, eight in a row on one side, and the rest) are not
-        /// checked.</para>
+        /// a limit is not. <see cref="ShewhartChart"/> marks the other tests as well (two of three beyond two sigma, nine in a row
+        /// on one side, and the rest).</para>
         /// <para>The values are ONE <see cref="LineSeries"/> with a circle on each value, in the theme's first colour; the
         /// violations are ONE <see cref="ScatterSeries"/> over those values, in the theme's second colour, so each stands out as
         /// a larger dot that covers the line's marker. The centre is a solid reference line, the limits dashed ones, named CL,
@@ -159,18 +159,83 @@ public static class XYAxesExtensions
             Action<ControlChartParts>? configure = null)
         {
             ArgumentNullException.ThrowIfNull(axes);
-            ArgumentNullException.ThrowIfNull(x);
-            values.ThrowIfMisaligned(x.Length, nameof(values), "x positions", "x position");
+            return axes.ShewhartChart(ControlChartData.Individuals(x, values), ControlRules.Nelson1, limits, configure);
+        }
+
+        /// <summary>Draws a Shewhart control chart of any kind: the plotted statistic as a marked line, the centre line and the
+        /// two control limits across the plot, and every point the rules asked for flag marked, so a reader sees at a glance
+        /// where the process left its usual variation. What is plotted, and how the centre and the limits are estimated from the
+        /// data, is the <paramref name="data"/>'s: the individuals chart (<see cref="ControlChartData.Individuals"/>) is the chart
+        /// <see cref="ControlChart"/> draws.
+        /// <para>Unless <paramref name="limits"/> are given, they are the data's estimate, three sigma either side of the
+        /// centre. Limits that are given are drawn as they are and nothing is estimated: the limits of an earlier period the
+        /// process is held to, say. The zones of the rules stand on the limits the chart is drawn with, given or estimated: one
+        /// sigma is a third of the way from the centre line to the upper limit.</para>
+        /// <para>The <paramref name="rules"/> are Nelson's eight tests (<see cref="ControlRules"/>), alone or combined with
+        /// <c>|</c>; the default, rule 1, marks a value strictly beyond a limit (a value on a limit is not). A pattern is flagged
+        /// at the point that completes it and at every later point that keeps it complete. A value that is missing (NaN) or
+        /// infinite breaks the line and every pattern through it, and is never flagged.</para>
+        /// <para>The values are ONE <see cref="LineSeries"/> with a circle on each value, in the theme's first colour; the flagged
+        /// points are ONE <see cref="ScatterSeries"/> over those values, in the theme's second colour, so each stands out as a
+        /// larger dot that covers the line's marker; a point flagged by several rules is one dot. The centre is a solid reference
+        /// line, the limits dashed ones, named CL, LCL and UCL at their right ends and drawn in the colour a reference line has
+        /// when none is set. The automatic range holds the limits, so they are drawn inside the plot even when every value lies
+        /// between them; the verb sets no axis limits, and a limit of your own stays yours. Nothing is named in the legend until
+        /// <paramref name="configure"/> names the values or the flagged points.</para>
+        /// <para>The chart is its parts: written to JSON it is a line series, a scatter series and three reference lines, and
+        /// read back it draws the same picture. It is not estimated again; change the data and call the verb again.</para></summary>
+        /// <param name="data">What to plot and how to estimate its limits: made by a <see cref="ControlChartData"/> factory.</param>
+        /// <param name="rules">The tests to mark points by; <see cref="ControlRules.Nelson1"/> by default, <see cref="ControlRules.None"/>
+        /// to mark nothing.</param>
+        /// <param name="limits">The centre and the limits to draw; <see langword="null"/> (the default) to use the data's
+        /// estimate.</param>
+        /// <param name="configure">Optional styling of the five parts, run once after the verb has built and styled them, so what
+        /// it sets wins: the line's and the flagged points' colour, marker and legend label; a reference line's colour, style,
+        /// width or name. The reference lines also tell the limits the chart was drawn with.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentException"><paramref name="data"/> was not made by a factory (<c>default</c>);
+        /// <paramref name="limits"/> are not three finite numbers with Lower &lt;= Center &lt;= Upper; or the data cannot be
+        /// estimated from (the message names what it needs).</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="rules"/> holds a bit that is no rule.</exception>
+        /// <example>
+        /// <code>
+        /// double[] day = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        /// double[] fill = [49.8, 49.9, 50.1, 50.2, 50.1, 50.3, 50.2, 50.4, 50.1, 50.3, 50.2, 50.4];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Fill weight")
+        ///     .AddSubPlot(1, 1, 1, ax => ax
+        ///         .ShewhartChart(ControlChartData.Individuals(day, fill), ControlRules.Nelson1 | ControlRules.Nelson2,
+        ///             new ControlLimits(Center: 50, Lower: 49, Upper: 51),
+        ///             parts => parts.Violations.Label = "out of control")
+        ///         .SetXLabel("Day")
+        ///         .SetYLabel("Weight (g)"))
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder ShewhartChart(ControlChartData data, ControlRules rules = ControlRules.Nelson1,
+            ControlLimits? limits = null, Action<ControlChartParts>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+            if (!data.IsMade)
+            {
+                throw new ArgumentException(
+                    "The control chart data holds nothing to draw; make it with one of the ControlChartData factories (Individuals, ...).",
+                    nameof(data));
+            }
+
+            if ((rules & ~ControlRules.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(rules), rules, "A rule is one of Nelson's eight tests (ControlRules.Nelson1 to Nelson8), alone or combined.");
+            }
 
             // Everything is checked (and estimated) before the first part is added, so a refused call leaves the axes as it was.
-            var drawn = limits is { } given ? given.ThrowIfNotOrdered() : values.IndividualsLimits();
+            var drawn = limits is { } given ? given.ThrowIfNotOrdered() : data.Estimate();
+            int[] flagged = NelsonRules.Flagged(rules, data.Values, drawn);
 
-            // Rule 1: a value strictly beyond a limit. A missing or infinite value is never one: it cannot be placed.
-            int[] beyond = [.. Enumerable.Range(0, values.Length).Where(i => double.IsFinite(values[i]) && (values[i] > drawn.Upper || values[i] < drawn.Lower))];
-
-            // The line first (the theme's first colour), the violations after it (the second, drawn over the line's markers).
-            var line = new LineSeries([.. x], [.. values]) { Marker = MarkerStyle.Circle };
-            var violations = new ScatterSeries([.. beyond.Select(i => x[i])], [.. beyond.Select(i => values[i])]);
+            // The line first (the theme's first colour), the flagged points after it (the second, drawn over the line's markers).
+            var line = new LineSeries([.. data.X], [.. data.Values]) { Marker = MarkerStyle.Circle };
+            var violations = new ScatterSeries([.. flagged.Select(i => data.X[i])], [.. flagged.Select(i => data.Values[i])]);
             ReferenceLine center = null!, lower = null!, upper = null!;
             axes.AddSeries(line)
                 .AddSeries(violations)
@@ -388,29 +453,6 @@ public static class XYAxesExtensions
         }
     }
 
-    extension(double[] values)
-    {
-        /// <summary>The limits of the individuals chart estimated from this array: the centre is the mean of the
-        /// values that can be drawn, in their order; sigma is the average moving range between neighbouring ones (a missing value
-        /// is left out, so the range spans its gap) over <see cref="MovingRangeD2"/>; the limits stand
-        /// <see cref="ControlSigmas"/> sigma either side of the centre.</summary>
-        /// <exception cref="ArgumentException">Fewer than two values can be drawn: a moving range is the distance between two.</exception>
-        private ControlLimits IndividualsLimits()
-        {
-            double[] there = values.Observations(MovingRangeObservations, "The sample", "the limits of a control chart are estimated from", nameof(values));
-            double sum = 0, ranges = 0;
-            for (int i = 0; i < there.Length; i++)
-            {
-                sum += there[i];
-                if (i > 0) ranges += Math.Abs(there[i] - there[i - 1]);
-            }
-
-            double center = sum / there.Length;
-            double sigma = ranges / (there.Length - 1) / MovingRangeD2;
-            return new ControlLimits(center, center - ControlSigmas * sigma, center + ControlSigmas * sigma);
-        }
-    }
-
     extension(ControlLimits limits)
     {
         /// <summary>Refuses limits that are not three finite numbers with Lower &lt;= Center &lt;= Upper: a centre outside its limits,
@@ -430,17 +472,6 @@ public static class XYAxesExtensions
             return limits;
         }
     }
-
-    /// <summary>d2 for ranges of two values: the expected range of two standard normal observations (2 / sqrt(pi), to the
-    /// three decimals the control-chart tables give), by which the average moving range of an individuals chart is divided
-    /// to estimate sigma.</summary>
-    private const double MovingRangeD2 = 1.128;
-
-    /// <summary>How many sigma the control limits stand from the centre: three, Shewhart's limits.</summary>
-    private const double ControlSigmas = 3;
-
-    /// <summary>How many values the limits are estimated from at the least: a moving range is the distance between two.</summary>
-    private const int MovingRangeObservations = 2;
 
     /// <summary>The name of a control chart's centre line, at its right end.</summary>
     private const string CenterLineName = "CL";

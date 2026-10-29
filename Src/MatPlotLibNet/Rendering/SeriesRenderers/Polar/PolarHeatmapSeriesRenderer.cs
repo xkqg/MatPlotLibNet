@@ -22,7 +22,7 @@ internal sealed class PolarHeatmapSeriesRenderer : SeriesRenderer<PolarHeatmapSe
 
         var (min, max) = series.GetColorBarRange();
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.Normalizer ?? LinearNormalizer.Instance;
+        var norm = series.NormalizerOrLinear();
 
         double thetaStep = 2 * Math.PI / series.ThetaBins;
         double rStep = series.RMax / series.RBins;

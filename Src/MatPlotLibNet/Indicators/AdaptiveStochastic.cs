@@ -43,7 +43,7 @@ public sealed class AdaptiveStochastic : CandleIndicator<SignalResult>
 
         // Typical price for Hilbert input — Ehlers' recommendation for stochastics.
         var typical = new double[n];
-        for (int t = 0; t < n; t++) typical[t] = (High[t] + Low[t] + Close[t]) / 3.0;
+        for (int t = 0; t < n; t++) typical[t] = PriceSources.TypicalPrice(High[t], Low[t], Close[t]);
 
         var hilbert = ((ReadOnlySpan<double>)typical).HilbertDiscriminate();
 

@@ -83,6 +83,21 @@ public sealed class Theme
     /// dark-mode 3D charts.</summary>
     public Color? Pane3DColor { get; init; }
 
+    /// <summary>The grey that reference graphics drawn over the plot wear (reference lines, trendlines, price levels,
+    /// Fibonacci retracements, a waterfall's connectors, a stem's baseline, the lines of a contour without a colour map, a
+    /// dumbbell's connector, a map's outlines), when the theme names one. <see langword="null"/> (the default) lets the
+    /// theme derive it from its plot: #808080 where that stands at 3 : 1 or more against the plot, as WCAG asks of a
+    /// graphic, and otherwise the nearest grey that does. A colour set on the graphic itself always wins.</summary>
+    public Color? NeutralColor { get; init; }
+
+    /// <summary>The neutral grey reference graphics wear under this theme: <see cref="NeutralColor"/> when one is named,
+    /// otherwise the grey derived from the plot (the axes background laid over the figure background when it is translucent).
+    /// Derived at the moment of drawing from the theme's final colours, so it follows a background changed after the theme was
+    /// derived from another.
+    /// <para>This is not <see cref="AlarmPalette.Resting"/>: that is the fill of a status that is fine, this is the ink of a
+    /// graphic drawn over the plot, measured against the plot. They answer two questions.</para></summary>
+    internal Color Neutral => NeutralColor ?? AxesBackground.CompositedOver(Background).NeutralGrey();
+
     /// <summary>Initializes a new <see cref="Theme"/> with all visual properties.</summary>
     internal Theme(string name, Color background, Color foregroundText, Color axesBackground,
         Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null,
@@ -101,8 +116,8 @@ public sealed class Theme
 
     /// <summary>Copy constructor: clones every property of <paramref name="other"/> under a new name.
     /// <para>This exists because a hand-maintained argument list is a bug waiting to happen. <see cref="Theme"/>
-    /// carries 15 settable properties; <c>ThemeBuilder.Build()</c> used to construct a fresh instance from 8 of
-    /// them, so deriving a theme from <see cref="Dark"/> silently reset its spacing, its patch edge colour, its
+    /// carries a settable property for every setting (the neutral colour among them); <c>ThemeBuilder.Build()</c> used to construct
+    /// a fresh instance from 8 of them, so deriving a theme from <see cref="Dark"/> silently reset its spacing, its patch edge colour, its
     /// violin colours and its axis margins to library defaults. Cloning cannot drift: a property added tomorrow
     /// is copied without anyone remembering to update a list.</para></summary>
     /// <param name="name">The name of the clone.</param>
@@ -125,6 +140,7 @@ public sealed class Theme
         AxisYMargin = other.AxisYMargin;
         DefaultLegendPosition = other.DefaultLegendPosition;
         Pane3DColor = other.Pane3DColor;
+        NeutralColor = other.NeutralColor;
         Alarm = other.Alarm;
     }
 

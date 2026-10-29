@@ -27,6 +27,13 @@ public enum PriceSource
 /// <summary>Resolves a <see cref="PriceSource"/> enum to a computed price array from OHLC data.</summary>
 public static class PriceSources
 {
+    /// <summary>The typical price of one bar, (high + low + close) / 3: the one place that formula is written, read by the HLC3
+    /// source, the indicators that take a typical price and the DataFrame bridge.</summary>
+    /// <param name="high">The bar's high.</param>
+    /// <param name="low">The bar's low.</param>
+    /// <param name="close">The bar's close.</param>
+    internal static double TypicalPrice(double high, double low, double close) => (high + low + close) / 3.0;
+
     /// <summary>Computes the price array for the given source from OHLC data.</summary>
     public static double[] Resolve(PriceSource source, double[] open, double[] high, double[] low, double[] close)
     {
@@ -38,7 +45,7 @@ public static class PriceSources
             PriceSource.High => high,
             PriceSource.Low => low,
             PriceSource.HL2 => Compute(n, i => (high[i] + low[i]) / 2),
-            PriceSource.HLC3 => Compute(n, i => (high[i] + low[i] + close[i]) / 3),
+            PriceSource.HLC3 => Compute(n, i => TypicalPrice(high[i], low[i], close[i])),
             PriceSource.OHLC4 => Compute(n, i => (open[i] + high[i] + low[i] + close[i]) / 4),
             _ => close
         };

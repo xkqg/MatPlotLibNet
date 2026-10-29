@@ -135,6 +135,7 @@ internal sealed partial class ChartSpecReader
         NormaliseFields(axes, "legend", path, SpecNodeKind.Legend, "position");
         NormaliseColorBar(axes, "colorBar", path);
         NormaliseFields(axes, "grid", path, SpecNodeKind.Grid, "lineStyle", "which", "axis");
+        NormaliseFields(axes, "gridChange", path, SpecNodeKind.Grid, "lineStyle", "which", "axis");
         if (axes["spines"] is JsonObject spines)
         {
             foreach (var side in new[] { "top", "bottom", "left", "right" })

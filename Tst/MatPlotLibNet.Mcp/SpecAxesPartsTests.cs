@@ -6,6 +6,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Tests.Serialization;
 
@@ -49,6 +50,9 @@ public class SpecAxesPartsTests
     [InlineData("""{"grid":{"visible":true,"axis":"z"}}""", "z", "Both")]
     [InlineData("""{"grid":{"visible":true,"which":"all"}}""", "all", "Minor")]
     [InlineData("""{"grid":{"visible":true,"lineStyle":"wavy"}}""", "wavy", "Dotted")]
+    [InlineData("""{"gridChange":{"axis":"z"}}""", "z", "Both")]
+    [InlineData("""{"gridChange":{"which":"all"}}""", "all", "Minor")]
+    [InlineData("""{"gridChange":{"lineStyle":"wavy"}}""", "wavy", "Dotted")]
     [InlineData("""{"spines":{"left":{"lineStyle":"wavy"}}}""", "wavy", "Dashed")]
     [InlineData("""{"titleLoc":"middle"}""", "middle", "Center")]
     [InlineData("""{"titleStyle":{"fontWeight":"heavy"}}""", "heavy", "Bold")]
@@ -67,6 +71,60 @@ public class SpecAxesPartsTests
 
         Assert.Contains($"'{wrong}'", refusal.Message);
         Assert.Contains(accepted, refusal.Message);
+    }
+
+    /// <summary>A grid change is the properties an agent names over the theme's grid. Read through the spec reader and written
+    /// back it is the same change: the properties it named, spelt as the library writes them, and no others.</summary>
+    [Fact]
+    public void AGridChange_PassesTheSpecReader_AndIsWrittenBackAsTheChangeItWas()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"gridChange":{"visible":true,"alpha":0.4,"lineStyle":"Dashed"}}""")));
+
+        using var written = System.Text.Json.JsonDocument.Parse(figure.ToJson());
+        var change = written.RootElement.GetProperty("subPlots")[0].GetProperty("gridChange");
+
+        Assert.True(change.GetProperty("visible").GetBoolean());
+        Assert.Equal(0.4, change.GetProperty("alpha").GetDouble());
+        Assert.Equal("dashed", change.GetProperty("lineStyle").GetString()!.ToLowerInvariant());
+        Assert.False(change.TryGetProperty("color", out _));
+        Assert.False(change.TryGetProperty("lineWidth", out _));
+    }
+
+    /// <summary>The neutral grey a theme names, and the role of a series that wears it, travel through the spec reader as the
+    /// colour and the flag they are, and the chart draws the theme's grey.</summary>
+    [Fact]
+    public void ANeutralColourAndANeutralRole_PassTheSpecReader_AndDraw()
+    {
+        const string spec = """
+            {"width":400,"height":300,"theme":{"neutralColor":"#112233"},
+             "subPlots":[{"series":[{"type":"line","xData":[1,2],"yData":[1,2]},{"type":"errorbar","xData":[1,2],"yData":[1,2],"yErrorLow":[0,0],"yErrorHigh":[1,1],"wearsNeutral":true}],
+             "referenceLines":[{"value":1.5,"orientation":"horizontal"}]}]}
+            """;
+
+        var figure = Reader.Read(new ChartSpec(spec));
+        string svg = figure.ToSvg();
+
+        Assert.Equal(Color.FromHex("#112233"), figure.Theme.NeutralColor);
+        Assert.Contains("stroke=\"#112233\"", svg);
+        Assert.Contains("\"wearsNeutral\":true", figure.ToJson());
+    }
+
+    /// <summary>A heatmap that says where its calendar begins passes the spec reader, and the table of the chart gives each
+    /// cell the date it stands for.</summary>
+    [Fact]
+    public void AHeatmapWithAFirstCellDate_PassesTheSpecReader_AndItsTableNamesTheDates()
+    {
+        const string spec = """
+            {"width":400,"height":300,"subPlots":[{"series":[{"type":"heatmap","heatmapData":[[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[13,14]],"firstCellDate":"2025-03-03"}]}]}
+            """;
+
+        var figure = Reader.Read(new ChartSpec(spec));
+
+        var table = Assert.Single(figure.ToDataTables());
+        Assert.Equal(["row", "column", "date", "value"], table.Columns.Select(c => c.Header));
+        Assert.Equal(new DateTime(2025, 3, 3), DateTime.FromOADate(table.Rows[0][2].Number));
+        Assert.Equal(new DateTime(2025, 3, 10), DateTime.FromOADate(table.Rows[1][2].Number));    // row 0, column 1: a week later
+        Assert.Equal(new DateTime(2025, 3, 13), DateTime.FromOADate(table.Rows[7][2].Number));    // row 3, column 1
     }
 
     [Fact]

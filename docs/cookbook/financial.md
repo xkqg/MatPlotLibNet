@@ -1,6 +1,6 @@
 ---
 title: "Candlestick and OHLC charts in C#"
-description: "Draw financial charts in C#: candlesticks, OHLC bars, volume panels, Bollinger Bands, RSI and other technical indicators."
+description: "Draw financial charts in C#: candlesticks, OHLC bars, volume panels, Bollinger Bands, RSI and other technical indicators, an anchored VWAP and a volume profile."
 ---
 
 # Financial Charts
@@ -66,10 +66,72 @@ Plt.Create()
 
 ![Technical indicators](../images/phase_f_indicators.png)
 
+### Anchored VWAP and volume profile
+
+`Vwap(bars, anchor)` averages the typical price, (high + low + close) / 3, weighted by volume, from the anchor bar on:
+the average price paid since a swing, a gap or an earnings day. Before the anchor there is no value and the line starts at
+the anchor bar; with the default anchor 0 it is the cumulative VWAP. `VolumeProfile(bars, bins)` cuts the range of the
+closes into equal price bins (12 by default) and adds each bar's volume to the bin its close falls in, drawn as horizontal
+bars on the secondary X axis, growing from the right edge, the longest covering a quarter of the plot. A bin takes the
+closes from its lower edge up to, but not including, its upper edge; the last bin includes its upper edge.
+
+```csharp
+Plt.Create()
+    .WithTitle("Volume by price, and the VWAP since bar 30")
+    .WithSize(900, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(barIndex, closes, line => line.Label = "Close")
+        .Vwap(MatPlotLibNet.Indicators.OhlcvBars.Hlcv(highs, lows, closes, volumes), anchor: 30, vwap => vwap.Label = "VWAP from bar 30")
+        .VolumeProfile(MatPlotLibNet.Indicators.OhlcvBars.Cv(closes, volumes))
+        .SetXLabel("Bar")
+        .SetYLabel("Price")
+        .WithLegend())
+    .Save("volume_profile.svg");
+```
+
+![Volume by price and a VWAP anchored at bar 30](../images/volume_profile.png)
+
+The streaming form is `StreamingVwap`, whose `AnchorHere()` forgets the sums so the average restarts at the next bar, and
+`df.Vwap(highCol, lowCol, closeCol, volumeCol, anchor)` is the DataFrame bridge. `Vwap(prices, volumes)` refuses arrays of
+different lengths, and the profile skips a bar whose close or volume is missing.
+
 ## Relative Rotation Graph (RRG)
 
 The `RelativeRotation` method renders a JdK-style 2D scatter of (RS-Ratio, RS-Momentum) per asset
 against a benchmark. It adds a fading tail and a 100/100 quadrant grid.
+
+While the quadrant grid is on, the range of the plot always includes the 100/100 centre, so the four quadrants and the crosshair
+are in view even when every asset leads or every asset lags:
+
+```csharp
+using MatPlotLibNet;
+
+int rotationWeeks = 80;
+var rotationNoise = new Random(3);
+double[] rotationBenchmark = new double[rotationWeeks];
+double rotationLevel = 100;
+for (int week = 0; week < rotationWeeks; week++)
+{
+    rotationLevel *= 1 + (rotationNoise.NextDouble() - 0.5) * 0.004;
+    rotationBenchmark[week] = rotationLevel;
+}
+
+double[] Leader(double pull) =>
+    [.. rotationBenchmark.Select((b, week) => b * (1 + pull * Math.Pow(week / (double)rotationWeeks, 2)))];
+
+Plt.Create()
+    .WithTitle("Three assets that all lead their benchmark")
+    .WithSize(800, 650)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .SetXLabel("RS-Ratio")
+        .SetYLabel("RS-Momentum")
+        .RelativeRotation([Leader(0.6), Leader(0.4), Leader(0.25)], rotationBenchmark, ["Alpha", "Beta", "Gamma"],
+            s => s.TailLength = 12))
+    .Save("rrg_centre.svg");
+```
+
+![A relative rotation graph of three assets in the upper right quadrant, with the 100/100 centre and the three other quadrants in the lower left corner](../images/rrg_centre.png)
+
 
 ### Basic usage
 

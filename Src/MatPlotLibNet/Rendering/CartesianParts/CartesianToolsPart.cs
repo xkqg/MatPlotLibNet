@@ -28,7 +28,7 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
         var labelFont = TickFont();
         foreach (var t in Axes.Trendlines)
         {
-            var color = t.Color ?? Colors.Gray;
+            var color = t.Color ?? Theme.Neutral;
             Point p1, p2;
 
             if (t.IsExtended)
@@ -68,7 +68,7 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
         var labelFont = TickFont();
         foreach (var l in Axes.HorizontalLevels)
         {
-            var color = l.Color ?? Colors.Gray;
+            var color = l.Color ?? Theme.Neutral;
             var pt = Transform.DataToPixel(0, l.Value);
             // A level the Y axis cannot place is skipped with its label; only its height decides, it spans the plot. The
             // automatic range holds every level; one beyond a limit the caller set lies outside the plot and is not drawn.
@@ -88,7 +88,7 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
         var labelFont = TickFont();
         foreach (var fib in Axes.FibonacciRetracements)
         {
-            var color = fib.Color ?? Colors.Gray;
+            var color = fib.Color ?? Theme.Neutral;
             foreach (var level in fib.Levels)
             {
                 var pt = Transform.DataToPixel(0, level.Price);

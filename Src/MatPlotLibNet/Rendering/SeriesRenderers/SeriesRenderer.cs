@@ -201,7 +201,7 @@ internal abstract class SeriesRenderer
         var range = data.DrawableRange() ?? new Range1D(0, 1);
         double min = range.Lo, max = range.Hi;
         if (min == max) max = min + 1;
-        return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.Normalizer ?? LinearNormalizer.Instance, min, max);
+        return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.NormalizerOrLinear(), min, max);
     }
 
     /// <inheritdoc cref="ResolveColormapping(double[,],IColormappable,INormalizable)"/>
@@ -214,7 +214,7 @@ internal abstract class SeriesRenderer
             if (v > max) max = v;
         }
         if (min == max) max = min + 1;
-        return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.Normalizer ?? LinearNormalizer.Instance, min, max);
+        return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.NormalizerOrLinear(), min, max);
     }
 }
 

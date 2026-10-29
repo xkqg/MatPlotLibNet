@@ -6,14 +6,15 @@ using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
-/// <summary>Phase 6 of the v1.7.2 plan — when interactive 3D rotation is on AND the
-/// figure has a <see cref="DirectionalLight"/>, the scene group must carry
-/// <c>data-light-dir</c>/<c>data-light-ambient</c>/<c>data-light-diffuse</c> attributes
-/// so the JS reproject script can recompute face shading on rotation.</summary>
+/// <summary>A lit figure with interactive 3-D rotation carries no recipe for shading in its SVG. The scene group once carried
+/// <c>data-light-dir</c>, <c>data-light-ambient</c> and <c>data-light-diffuse</c>, and every face <c>data-face-normal</c> and
+/// <c>data-base-color</c>, for a script to recompute the shading on rotation; no script reads them. The shading of a face is
+/// worked out in data space, which a rotation does not change, so nothing needs recomputing, and a picture should not carry
+/// what nothing reads.</summary>
 public class LightingRotationTests
 {
     [Fact]
-    public void SceneGroup_CarriesLightDirAttribute_WhenLightingEnabled()
+    public void SceneGroup_CarriesNoLightAttribute_WhenLightingEnabled()
     {
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax =>
@@ -25,11 +26,12 @@ public class LightingRotationTests
             .Build();
 
         var svg = new SvgTransform().Render(figure);
-        Assert.Matches(@"<g class=""mpl-3d-scene""[^>]*\bdata-light-dir=", svg);
+        Assert.Contains("<g class=\"mpl-3d-scene\"", svg);
+        Assert.DoesNotContain("data-light", svg);
     }
 
     [Fact]
-    public void Script_ContainsLightingRecomputationBranch()
+    public void Faces_CarryNoShadingRecipe_WhenLightingEnabled()
     {
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax =>
@@ -41,9 +43,8 @@ public class LightingRotationTests
             .Build();
 
         var svg = new SvgTransform().Render(figure);
-        // The rotation script's reprojectAll loop must now ALSO call a shadeColor helper
-        // when the element has data-face-normal + data-base-color set by the renderer.
-        Assert.Contains("data-face-normal", svg);
-        Assert.Contains("data-base-color", svg);
+        Assert.Contains("data-v3d", svg);
+        Assert.DoesNotContain("data-face-normal", svg);
+        Assert.DoesNotContain("data-base-color", svg);
     }
 }

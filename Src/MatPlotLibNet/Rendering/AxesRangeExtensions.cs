@@ -71,34 +71,20 @@ internal static class AxesRangeExtensions
             Range1D.Empty.Including(x, axes.XAxis.Scale).OrNone() is { } r ? new(r.Lo, r.Hi, null, null) : default;
 
         /// <summary>
-        /// Aggregates the X range from this axes' own series AND every linked axes in its
-        /// <see cref="Axes.ShareXWith"/> chain. Cycle-safe via a visited set — a reciprocal
+        /// The contributions of every axes linked to this one through <paramref name="link"/>
+        /// (<see cref="Axes.ShareXWith"/> or <see cref="Axes.ShareYWith"/>), nearest first, each axes once. They are what an
+        /// axes that shares a scale adds to its own to range, pad and clamp that scale: the range AND the sticky edges, so
+        /// two axes that share a scale have the same one. Cycle-safe via a visited set — a reciprocal
         /// <c>ax1.ShareXWith = ax2; ax2.ShareXWith = ax1</c> pair will not infinite-loop.
         /// </summary>
-        public Range1D AggregateXRangeWithSharedAxes(Range1D seed)
+        /// <param name="link">Which link to follow from an axes: the one it shares its X scale with, or its Y scale.</param>
+        public DataRangeContribution[] LinkedContributions(Func<Axes, Axes?> link)
         {
-            var running = axes.SnapshotContributions().FoldXRange(seed);
-            if (axes.ShareXWith is null) return running;
-
+            var result = new List<DataRangeContribution>();
             var visited = new HashSet<Axes> { axes };
-            for (var cur = axes.ShareXWith; cur is not null && visited.Add(cur); cur = cur.ShareXWith)
-                running = cur.SnapshotContributions().FoldXRange(running);
-            return running;
-        }
-
-        /// <summary>
-        /// Aggregates the Y range from this axes' own series AND every linked axes in its
-        /// <see cref="Axes.ShareYWith"/> chain. Cycle-safe.
-        /// </summary>
-        public Range1D AggregateYRangeWithSharedAxes(Range1D seed)
-        {
-            var running = axes.SnapshotContributions().FoldYRange(seed);
-            if (axes.ShareYWith is null) return running;
-
-            var visited = new HashSet<Axes> { axes };
-            for (var cur = axes.ShareYWith; cur is not null && visited.Add(cur); cur = cur.ShareYWith)
-                running = cur.SnapshotContributions().FoldYRange(running);
-            return running;
+            for (var cur = link(axes); cur is not null && visited.Add(cur); cur = link(cur))
+                result.AddRange(cur.SnapshotContributions());
+            return [.. result];
         }
     }
 

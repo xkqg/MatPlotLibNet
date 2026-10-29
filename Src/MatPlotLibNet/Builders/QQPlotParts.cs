@@ -14,7 +14,7 @@ namespace MatPlotLibNet;
 public readonly record struct QQPlotParts
 {
     /// <summary>Makes the parts of one Q-Q plot.</summary>
-    /// <param name="points">The points: the sorted sample against the normal quantiles.</param>
+    /// <param name="points">The points: the sorted sample against the reference's quantiles.</param>
     /// <param name="reference">The least-squares line through the points.</param>
     internal QQPlotParts(ScatterSeries points, Trendline reference)
     {
@@ -22,8 +22,8 @@ public readonly record struct QQPlotParts
         Reference = reference;
     }
 
-    /// <summary>The points: one for each observation, the sample sorted up the Y axis against the standard normal quantiles
-    /// of Filliben's plotting positions along the X axis. They wear the theme's colour for the chart's one series and have no
+    /// <summary>The points: one for each observation, the sample sorted up the Y axis against the quantiles of the reference
+    /// distribution (the standard normal one for a Q-Q plot) at Filliben's plotting positions along the X axis. They wear the theme's colour for the chart's one series and have no
     /// legend label until one is given here.</summary>
     public ScatterSeries Points { get; }
 

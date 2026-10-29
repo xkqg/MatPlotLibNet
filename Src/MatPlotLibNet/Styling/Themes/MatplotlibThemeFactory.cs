@@ -93,7 +93,8 @@ internal static class MatplotlibThemeFactory
         axisXMargin: 0.0,
         axisYMargin: 0.0,
         // matplotlib classic style: legend.loc = 'upper right' (v2+ is 'best').
-        legendPosition: LegendPosition.UpperRight);
+        legendPosition: LegendPosition.UpperRight,
+        grid: ClassicGrid);
 
     internal static Theme CreateV2() => Build(
         name: "matplotlib-v2",
@@ -103,11 +104,13 @@ internal static class MatplotlibThemeFactory
         fontStack: V2FontStack,
         // matplotlib v2+ default: axes.xmargin = 0.05, axes.ymargin = 0.05
         axisXMargin: 0.05,
-        axisYMargin: 0.05);
+        axisYMargin: 0.05,
+        grid: V2Grid);
 
     private static Theme Build(string name, Color background, Color foreground, Color[] cycleColors, MatplotlibFontStack fontStack,
         Color? patchEdgeColor = null, Color? violinBodyColor = null, Color? violinStatsColor = null,
-        double axisXMargin = 0.05, double axisYMargin = 0.05, LegendPosition legendPosition = LegendPosition.Best) =>
+        double axisXMargin = 0.05, double axisYMargin = 0.05, LegendPosition legendPosition = LegendPosition.Best,
+        GridStyle grid = default!) =>
         new(
             name: name,
             background: background,
@@ -115,7 +118,7 @@ internal static class MatplotlibThemeFactory
             axesBackground: Colors.White,
             cycleColors: cycleColors,
             defaultFont: BuildFont(fontStack, foreground),
-            defaultGrid: BuildHiddenGrid(),
+            defaultGrid: grid,
             defaultSpacing: MatplotlibSpacing)
         {
             PatchEdgeColor   = patchEdgeColor,
@@ -136,8 +139,20 @@ internal static class MatplotlibThemeFactory
     };
 
     // Matplotlib historically ships with the grid OFF; users opt in via plt.grid(True).
-    // We mirror that opt-in behaviour so themes are visually faithful out of the box.
-    private static GridStyle BuildHiddenGrid() => new()
+    // We mirror that opt-in behaviour so themes are visually faithful out of the box. What each draws when asked for is that
+    // style's own grid, which a polar chart's always-drawn rings and spokes wear as well.
+
+    // classic rcParams: grid.color black, grid.linestyle ':', grid.linewidth 0.5.
+    private static readonly GridStyle ClassicGrid = new()
+    {
+        Visible = false,
+        Color = Color.FromHex("#000000"),
+        LineStyle = LineStyle.Dotted,
+        LineWidth = 0.5,
+    };
+
+    // v2 rcParams: grid.color '#b0b0b0', grid.linestyle '-', grid.linewidth 0.8.
+    private static readonly GridStyle V2Grid = new()
     {
         Visible = false,
         Color = Color.FromHex("#B0B0B0"),

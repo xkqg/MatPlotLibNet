@@ -59,7 +59,7 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
             if (step.Bar.IsDrawable())
                 Ctx.DrawRectangle(step.Bar, new ShapeStyle(step.Colour, null, 0));
             if (step.ConnectorFrom is { } ls && step.ConnectorTo is { } le && ls.CanDrawLineTo(le))
-                Ctx.DrawLine(ls, le, new StrokeStyle(Colors.Gray, 0.5, LineStyle.Dashed));
+                Ctx.DrawLine(ls, le, new StrokeStyle(Context.Theme.Neutral, 0.5, LineStyle.Dashed));
         }
     }
 }

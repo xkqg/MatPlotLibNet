@@ -322,6 +322,7 @@ public sealed class ChartRenderer : IChartRenderer
         var provider = figure.SubPlots.SelectMany(axes => axes.Series).ColorBarProvider();
         IColorMap colorMap = cb.ColorMap ?? provider?.ColorMap ?? ColorMaps.Viridis;
         var (min, max) = cb.RangeOf(provider);
+        var normalizer = provider.ColorBarNormalizer();
 
         // Compute bounding rect of all subplot plot areas
         double allLeft   = plotAreas.Count > 0 ? plotAreas.Min(r => r.X)             : sp.MarginLeft;
@@ -343,20 +344,21 @@ public sealed class ChartRenderer : IChartRenderer
             double barH   = cb.Aspect > 0 ? totalW / cb.Aspect : cb.Width;
             double barX   = allLeft + (allRight - allLeft - totalW) / 2;
             double barY   = allBottom + cb.Padding;
+            var scale = ColorBarScale.For(min, max, totalW, vertical: false, normalizer, ctx, tickFont);
 
             for (int i = 0; i < steps; i++)
             {
                 double frac  = (double)i / steps;
                 double stepX = barX + totalW * i / steps;
                 double stepW = totalW / steps + 1;
-                ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), new ShapeStyle(colorMap.GetColor(frac), null, 0));
+                ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH),
+                    new ShapeStyle(colorMap.GetColor(scale.GradientFraction(frac, (i + 0.5) / steps)), null, 0));
             }
             ctx.DrawRectangle(new Rect(barX, barY, totalW, barH), new ShapeStyle(null, theme.ForegroundText, 0.5));
 
             double labelY = barY + barH + 4 + tickFont.Size;
-            var scale = ColorBarScale.For(min, max, totalW, tickFont.Size, vertical: false);
             for (int i = 0; i < scale.Ticks.Length; i++)
-                ctx.DrawText(scale.Labels[i], new Point(barX + totalW * scale.FractionOf(scale.Ticks[i]), labelY), tickFont, TextAlignment.Center);
+                ctx.DrawText(scale.Labels[i], new Point(barX + totalW * scale.Fractions[i], labelY), tickFont, TextAlignment.Center);
             if (cb.Label is not null)
                 ctx.DrawText(cb.Label, new Point(barX + totalW / 2, labelY + tickFont.Size + 4), labelFont, TextAlignment.Center);
         }
@@ -370,20 +372,21 @@ public sealed class ChartRenderer : IChartRenderer
             double rightEdge = figure.Width - 4; // 4px from figure edge
             double barX = Math.Min(allRight + cb.Padding, rightEdge - barW - tickAreaW - labelAreaW);
             double barY = allTop + (allBottom - allTop - totalH) / 2;
+            var scale = ColorBarScale.For(min, max, totalH, vertical: true, normalizer, ctx, tickFont);
 
             for (int i = 0; i < steps; i++)
             {
                 double frac  = 1.0 - (double)i / steps;
                 double stepY = barY + totalH * i / steps;
                 double stepH = totalH / steps + 1;
-                ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH), new ShapeStyle(colorMap.GetColor(frac), null, 0));
+                ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH),
+                    new ShapeStyle(colorMap.GetColor(scale.GradientFraction(frac, 1.0 - (i + 0.5) / steps)), null, 0));
             }
             ctx.DrawRectangle(new Rect(barX, barY, barW, totalH), new ShapeStyle(null, theme.ForegroundText, 0.5));
 
             double labelX = barX + barW + 4;
-            var scale = ColorBarScale.For(min, max, totalH, tickFont.Size, vertical: true);
             for (int i = 0; i < scale.Ticks.Length; i++)
-                ctx.DrawText(scale.Labels[i], new Point(labelX, barY + totalH * (1 - scale.FractionOf(scale.Ticks[i])) + 4), tickFont, TextAlignment.Left);
+                ctx.DrawText(scale.Labels[i], new Point(labelX, barY + totalH * (1 - scale.Fractions[i]) + 4), tickFont, TextAlignment.Left);
             if (cb.Label is not null)
                 ctx.DrawText(cb.Label, new Point(labelX + tickAreaW, barY + totalH / 2),
                     labelFont, TextAlignment.Center, 90);

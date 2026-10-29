@@ -358,6 +358,12 @@ public static class DrawnSeriesFixtures
             return Enum.GetValues(type).Cast<object>().Last(member => !member.Equals(current));
         }
 
+        if (type == typeof(DateTime))
+        {
+            // A day, not a moment: the properties that hold one (a calendar's first cell) are written as their date.
+            return new DateTime(2024, 1, 1).AddDays(k);
+        }
+
         if (type == typeof(Color))
         {
             return Colour(k, 0);

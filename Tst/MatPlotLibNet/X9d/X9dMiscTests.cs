@@ -154,11 +154,13 @@ public class X9dMiscCoverageTests
     }
 
     /// <summary>RegisterTransform with various extension formats — covers
-    /// NormalizeExtension's `StartsWith('.')` ternary (line 67).</summary>
+    /// NormalizeExtension's `StartsWith('.')` ternary (line 67). The extension is made up on purpose:
+    /// the registry is process-global, and a test that registered a real one (".png") would replace
+    /// the transform every later Save of that extension reads.</summary>
     [Theory]
-    [InlineData(".png")]   // already-prefixed
-    [InlineData("png")]    // unprefixed
-    [InlineData(".PNG")]   // upper-case
+    [InlineData(".x9dnorm")]   // already-prefixed
+    [InlineData("x9dnorm")]    // unprefixed
+    [InlineData(".X9DNORM")]   // upper-case
     public void RegisterTransform_NormalisesExtension(string ext)
     {
         var dummy = new MatPlotLibNet.Transforms.SvgTransform();

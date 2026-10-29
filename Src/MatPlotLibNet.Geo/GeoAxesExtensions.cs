@@ -169,8 +169,8 @@ public static class GeoAxesExtensions
         /// A country with no value is drawn in the colour map's bad colour; a code no country has is ignored (the 110m data
         /// holds 177 countries and leaves the smallest states out).</param>
         /// <param name="colorMap">The colour map; viridis when none is given.</param>
-        /// <param name="configure">Sets the series (the outline colour and width, the label, the normaliser); the outline is gray
-        /// and 0.3 wide until it does.</param>
+        /// <param name="configure">Sets the series (the outline colour and width, the label, the normaliser); the outline wears the
+        /// theme's neutral grey and is 0.3 wide until it does.</param>
         /// <exception cref="InvalidOperationException">The axes was given no projection.</exception>
         public AxesBuilder Choropleth(IReadOnlyDictionary<string, double> valueOf, IColorMap? colorMap = null,
             Action<GeoPolygonSeries>? configure = null) =>
@@ -181,7 +181,7 @@ public static class GeoAxesExtensions
         /// is missing or not a number is drawn in the colour map's bad colour.</summary>
         /// <param name="property">The name of the property.</param>
         /// <param name="colorMap">The colour map; viridis when none is given.</param>
-        /// <param name="configure">Sets the series; the outline is gray and 0.3 wide until it does.</param>
+        /// <param name="configure">Sets the series; the outline wears the theme's neutral grey and is 0.3 wide until it does.</param>
         /// <exception cref="InvalidOperationException">The axes was given no projection.</exception>
         public AxesBuilder Choropleth(string property, IColorMap? colorMap = null, Action<GeoPolygonSeries>? configure = null) =>
             ax.Choropleth(OfTheAxes(ax), property, colorMap, configure);
@@ -191,7 +191,7 @@ public static class GeoAxesExtensions
         /// <param name="projection">The map projection.</param>
         /// <param name="valueOf">The value of each country by its three-letter code.</param>
         /// <param name="colorMap">The colour map; viridis when none is given.</param>
-        /// <param name="configure">Sets the series; the outline is gray and 0.3 wide until it does.</param>
+        /// <param name="configure">Sets the series; the outline wears the theme's neutral grey and is 0.3 wide until it does.</param>
         public AxesBuilder Choropleth(IGeoProjection projection, IReadOnlyDictionary<string, double> valueOf,
             IColorMap? colorMap = null, Action<GeoPolygonSeries>? configure = null) =>
             ax.ChoroplethOfCountries(projection, country => country.Properties.TryGetValue("ADM0_A3", out var code)
@@ -202,7 +202,7 @@ public static class GeoAxesExtensions
         /// <param name="projection">The map projection.</param>
         /// <param name="property">The name of the property.</param>
         /// <param name="colorMap">The colour map; viridis when none is given.</param>
-        /// <param name="configure">Sets the series; the outline is gray and 0.3 wide until it does.</param>
+        /// <param name="configure">Sets the series; the outline wears the theme's neutral grey and is 0.3 wide until it does.</param>
         public AxesBuilder Choropleth(IGeoProjection projection, string property, IColorMap? colorMap = null,
             Action<GeoPolygonSeries>? configure = null) =>
             ax.ChoroplethOfCountries(projection, country => country.NumberOf(property), colorMap, configure);
@@ -216,7 +216,7 @@ public static class GeoAxesExtensions
             {
                 Values = [.. countries.Select(valueOf)],
                 ColorMap = colorMap,
-                StrokeColor = Colors.Gray,
+                WearsNeutral = true,
                 StrokeWidth = 0.3,
                 Label = "Choropleth",
                 ZOrder = -1,
@@ -316,7 +316,7 @@ public static class GeoAxesExtensions
             {
                 IsRawProjected = true,
                 Color = Colors.Tab10Blue,
-                StrokeColor = Colors.Gray,
+                WearsNeutral = true,
                 StrokeWidth = 0.3,
                 Label = "Cartogram",
                 ZOrder = -1,
@@ -353,7 +353,7 @@ public static class GeoAxesExtensions
         }
 
         /// <summary>Adds Natural Earth 110m country borders to the axes. <paramref name="color"/>
-        /// sets the stroke color (default: gray).</summary>
+        /// sets the stroke color (default: the theme's neutral grey).</summary>
         public AxesBuilder Borders(IGeoProjection projection,
             Color? color = null, double lineWidth = 0.3)
         {
@@ -361,7 +361,8 @@ public static class GeoAxesExtensions
             var features = NaturalEarth110m.Countries();
             var series = new GeoPolygonSeries(features, projection)
             {
-                StrokeColor = color ?? Colors.Gray,
+                StrokeColor = color,
+                WearsNeutral = color is null,
                 StrokeWidth = lineWidth,
                 Label = "Borders"
             };

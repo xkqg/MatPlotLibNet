@@ -181,11 +181,14 @@ Every `Src/` package packs on build (`GeneratePackageOnBuild`) and is checked fo
 and the Mcp .NET-tool package opt out; nothing else does. The SourceLink version is pinned once, in the same file
 (`$(SourceLinkVersion)`), to dodge a CVE band in `Microsoft.Build.Tasks.Git` — never restate it per project.
 
-**Tests that fail only on the ubuntu runner.** Five separated process-global statics — `ChartSerializerDefault`,
+**Tests that fail only on the ubuntu runner.** Six separated process-global statics — `ChartSerializerDefault`,
 `ChartRendererDefault`, `SvgRendererDefault`, `FontMetricsDefault`, `GlyphPathProviderDefault`, each a single
-replaceable `Current` slot — are read by every render test. A test that swaps one must join a `*GlobalState`
-collection (`ChartServicesGlobalStateCollection`, `DisableParallelization = true`), or it
-races the render tests under the runner's slower scheduling and never on a fast Windows box. Fixture data has to be
+replaceable `Current` slot, and the registry of file transforms in `FigureExtensions` (extension to exporter, seeded with a
+refusal for `.png`, `.pdf` and `.gif`) — are read by every render test and by every `Save`. A test that swaps one must join a
+`*GlobalState` collection (`ChartServicesGlobalStateCollection`, `DisableParallelization = true`), or it
+races the render tests under the runner's slower scheduling and never on a fast Windows box; and no test may register
+`.png`, `.pdf`, `.gif`, `.svg` or `.json` over the registry, which would change what every other `Save` writes (register a
+made-up extension instead). Fixture data has to be
 platform-deterministic too: no `Math.Sin/Cos/Exp/Log/Pow` in byte-compared goldens (Windows and glibc differ by one
 ulp), no `new Uri("/x")` (Linux accepts it, Windows rejects it), `InvariantCulture` for anything formatted.
 `MPL_REGEN_GOLDEN=1` makes `ChartSerializerGoldenCorpusTests` write its golden files instead of asserting on them.

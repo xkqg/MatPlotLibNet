@@ -19,12 +19,15 @@ internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeri
     {
         if (series.Signal.Length == 0) return;
 
-        var stft = Fft.Stft(series.Signal, series.WindowSize, series.Overlap, series.SampleRate);
+        var stft = series.Spectrum();
         int nBins = stft.Magnitudes.GetLength(0);
         int nFrames = stft.Magnitudes.GetLength(1);
         if (nBins == 0 || nFrames == 0) return;
 
-        var (cmap, norm, min, max) = ResolveColormapping(stft.Magnitudes, series, series);
+        // The cells are coloured over the range the colour bar names, worked out from the same magnitudes.
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
+        var norm = series.NormalizerOrLinear();
+        var (min, max) = stft.Magnitudes.ScanColorBarRange();
 
         double duration = series.Signal.Length / (double)series.SampleRate;
         double maxFreq = series.SampleRate / 2.0;

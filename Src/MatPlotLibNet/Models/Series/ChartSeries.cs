@@ -78,7 +78,14 @@ public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
     /// stacked area, the slices of a pie or a donut, the stages of a funnel), which then take one slot each from the series'
     /// first slot on. The series that follows takes the slot past them, so a line drawn after a stack of three layers wears
     /// the fourth colour of the cycle, as matplotlib's does, and not one a layer already wears.</summary>
-    internal virtual int ColorSlotSpan => 1;
+    internal virtual int ColorSlotSpan => WearsNeutral ? 0 : 1;
+
+    /// <summary>Whether this series wears the theme's neutral grey (<see cref="Styling.Theme.NeutralColor"/>) in the place it
+    /// would wear its own colour, until it names one: a dumbbell's connector, the outline of a map. A verb sets it instead of
+    /// fixing a grey when it runs, because the theme is not known then and a fixed grey follows none; the series then holds
+    /// no colour slot, since it wears no colour of the cycle. What the neutral is worn as is the series type's own: the line of
+    /// an error bar, the outline of a map polygon. A colour the series names itself wins. Written as <c>wearsNeutral</c>.</summary>
+    internal bool WearsNeutral { get; set; }
 
     /// <summary>How far out this series reaches on a polar axes, for the radial scale the grid and every series read; none
     /// for a series that draws no radius (every kind but the polar ones). A series on a polar axes says so here and never

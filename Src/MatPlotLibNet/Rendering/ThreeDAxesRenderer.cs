@@ -106,9 +106,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             // Pass cubeBounds (the square inscribed in the subplot region) — NOT PlotArea —
             // because Projection3D was constructed with cubeBounds, so the JS reproject must
             // use the same rectangle for fit-to-plot. Phase B.4 of v1.7.2 follow-on plan.
-            svgCtx!.Begin3DSceneGroup(
-                elevation, azimuth, distance, cubeBounds, proj.Faces,
-                Axes.LightSource as Rendering.Lighting.DirectionalLight);
+            svgCtx!.Begin3DSceneGroup(elevation, azimuth, distance, cubeBounds, proj.Faces);
 
         // Phase F of v1.7.2 follow-on plan — three-tier subgroup structure mirrors
         // matplotlib's draw order (axes3d.py:458-470). Axis infra goes in mpl-3d-back,
@@ -416,12 +414,15 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
 
     /// <summary>
     /// Renders grid lines on the three cube faces the camera puts at the back, at every major tick.
-    /// Grid is always drawn, independent of <see cref="GridStyle.Visible"/>, matching matplotlib's
-    /// <c>rcParams['axes3d.grid'] = True</c>.
+    /// The grid is drawn unless the author switched it off, independent of the theme's own
+    /// <see cref="GridStyle.Visible"/>, matching matplotlib's <c>rcParams['axes3d.grid'] = True</c>; its style is the grid of
+    /// the theme this is drawn under with the author's change on top (<see cref="Axes.ShapeGridUnder"/>).
     /// </summary>
     private void Render3DGrid(Projection3D proj, CubeFaceSelection faces, Box3D box)
     {
-        var grid = Theme.DefaultGrid;
+        var grid = Axes.ShapeGridUnder(Theme);
+        if (!grid.Visible) return;
+
         var majorColor = grid.Color;
         double majorWidth = Math.Max(1.0, grid.LineWidth);
 

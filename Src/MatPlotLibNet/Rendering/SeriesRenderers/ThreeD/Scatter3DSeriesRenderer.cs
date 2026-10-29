@@ -30,7 +30,7 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
 
         // Colormap support: when a colormap is set, map each Z value to a color
         var cmap = series.ColorMap;
-        var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
+        var normalizer = series.NormalizerOrLinear();
 
         // Build indexed depth list for sorting; a point that cannot be placed is skipped, as matplotlib masks it.
         var indexed = new List<IndexedDepth>(series.X.Length);

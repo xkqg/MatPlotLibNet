@@ -15,7 +15,7 @@ public class PolarChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // polar grid labels + different RNG
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 150)]   // polar grid labels + different RNG; ΔE: classic's dotted black grid now antialiases to greys that outrank the blue markers in the top-5 palette (1 -> 137) while RMS and SSIM stay where they were
     public void PolarScatter_RandomPoints_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);

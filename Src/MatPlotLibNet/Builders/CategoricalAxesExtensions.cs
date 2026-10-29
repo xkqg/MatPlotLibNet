@@ -115,13 +115,13 @@ public static class CategoricalAxesExtensions
             var fromDots = new ScatterSeries(x, from.Values) { Marker = MarkerStyle.Circle, MarkerSize = DumbbellDotSize, Label = from.Label };
             var toDots = new ScatterSeries(x, to.Values) { Marker = MarkerStyle.Circle, MarkerSize = DumbbellDotSize, Label = to.Label };
 
-            // Added last: the dots take colour slots 0 and 1, and the connector's explicit grey takes none. ZOrder -1 draws it
-            // first, behind the dots. The grey is the library's neutral (every reference line, level and trendline wears it):
-            // a colour fixed here is read against whatever theme is set later, and this one stands at 3 : 1 or more against the
-            // plot of 25 of the 30 shipped themes, where a lighter #AAAAAA reached it on 12.
+            // Added last: the dots take colour slots 0 and 1, and the connector wears the theme's neutral grey, which is no
+            // slot of the cycle. ZOrder -1 draws it first, behind the dots. It names no colour: a grey fixed here would be
+            // read against whatever theme is set later, and the neutral is the one the theme chooses to stand at 3 : 1 or
+            // more against its own plot (every reference line, level and trendline wears it too).
             var connector = new ErrorBarSeries(x, low, new double[x.Length], span)
             {
-                Color = Colors.Gray, LineWidth = 3, CapSize = 0, ZOrder = -1,
+                WearsNeutral = true, LineWidth = 3, CapSize = 0, ZOrder = -1,
             };
 
             axes.AddSeries(fromDots).AddSeries(toDots).AddSeries(connector).SetXCategoryTicks(categories);

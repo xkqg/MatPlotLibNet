@@ -29,7 +29,7 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
         double zMin = z.Lo, zMax = z.Hi;
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.Normalizer ?? LinearNormalizer.Instance;
+        var norm = series.NormalizerOrLinear();
 
         foreach (double levelValue in ContourLevels.Spanning(zMin, zMax, Math.Max(2, series.Levels)))
         {

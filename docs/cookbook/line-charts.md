@@ -1,6 +1,6 @@
 ---
 title: "Line charts in C# and .NET"
-description: "Draw line charts in C# and .NET: multiple series, markers, dashed lines, gaps, legends and themes, and in one call each a bump chart, a control chart, a stream graph and a horizon chart."
+description: "Draw line charts in C# and .NET: multiple series, markers, dashed lines, gaps, legends and themes, and in one call each a bump chart, a control chart (and the other Shewhart charts with Nelson's tests), a stream graph and a horizon chart."
 ---
 
 # Line Charts
@@ -497,12 +497,55 @@ sigma is the average moving range (the mean distance between each value and the 
 The limits stand three sigma below and above the centre. Limits from an earlier period are drawn as given, with
 nothing estimated: `ax.ControlChart(day, fill, new ControlLimits(Center: 50.1, Lower: 48.9, Upper: 51.3))`.
 
-Only the first of the Western Electric rules is checked: a value strictly beyond a limit is a violation. The values
+`ControlChart` marks only the first of Nelson's tests: a value strictly beyond a limit is a violation (`ShewhartChart`, below,
+marks the others). The values
 are one line with a marker on each; the violations are a scatter series in the theme's second colour, drawn over
 them. The centre line (CL) and the limits (LCL, UCL) are reference lines across the plot, and the automatic range
 takes them in, so they are drawn inside the plot even when every value lies between them. A missing value breaks
 the line, is left out of the estimate and is never a violation; the moving range spans the gap. Nothing is in the
 legend until you name a part: `ControlChartParts` hands you the values, the violations and the three lines.
+
+### Other control charts and Nelson's tests
+
+`ShewhartChart(data, rules, limits)` draws the same parts (a marked line, the centre and the two limits, the flagged
+points) for any of six kinds of data, each a factory of `ControlChartData` that owns its estimator:
+
+| Data | Plots | Limits |
+|---|---|---|
+| `Individuals(x, values)` | the values (what `ControlChart` draws) | mean, and three sigma from the average moving range over 1.128 |
+| `MovingRange(x, values)` | the distance to the value before | the average range, 3.267 times it, and 0 |
+| `XBar(subgroups)` | the mean of each subgroup | the grand mean, and A2 times the average range either side |
+| `Range(subgroups)` | the range of each subgroup | the average range, and D4 and D3 times it |
+| `P(defectives, sampleSize)` | the proportion defective | the pooled proportion, and three binomial sigma (the lower at 0) |
+| `C(counts)` | the number of defects | the average, and three Poisson sigma (the lower at 0) |
+
+Subgroups are all of one size from 2 to 10 (the constants are tabulated for those), and a subgroup with a missing
+observation is missing as a whole. `rules` is a set of Nelson's eight tests, combined with `|`: `Nelson1` a point beyond a
+limit, `Nelson2` nine on one side of the centre, `Nelson3` six rising or falling, `Nelson4` fourteen alternating,
+`Nelson5` two of three beyond two sigma, `Nelson6` four of five beyond one sigma, `Nelson7` fifteen within one sigma and
+`Nelson8` eight beyond one sigma; `ControlRules.All` asks for every one. A pattern is flagged at the point that completes
+it and at each later point that keeps it, and the zones stand on the limits drawn: one sigma is a third of the way from the
+centre to the upper limit. Here the limits are those of an earlier period, and the process drifts up from the eleventh
+subgroup:
+
+```csharp
+Plt.Create()
+    .WithTitle("Fill weight, mean of five")
+    .WithSize(800, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .ShewhartChart(ControlChartData.XBar(subgroups), ControlRules.Nelson1 | ControlRules.Nelson2,
+            new ControlLimits(Center: 50, Lower: 49.2, Upper: 50.8),
+            parts => { parts.Values.Label = "subgroup mean"; parts.Violations.Label = "out of control"; })
+        .SetXLabel("Subgroup")
+        .SetYLabel("Weight (g)")
+        .WithLegend())
+    .Save("xbar_chart.svg");
+```
+
+![An X-bar chart marked by Nelson's tests](../images/xbar_chart.png)
+
+Subgroups 19 and 20, the ninth and tenth of the run above the centre, are flagged by test 2, and subgroup 12 is beyond the upper limit.
+A value on a limit is not beyond it, so a count of 0 on a lower limit of 0 is not flagged.
 
 ## Stacked area with named layers
 

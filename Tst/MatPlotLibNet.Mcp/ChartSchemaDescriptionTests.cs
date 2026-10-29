@@ -146,6 +146,9 @@ public class ChartSchemaDescriptionTests
     [InlineData("Legend fields", "position: string (enum)")]
     [InlineData("Colour bar fields", "orientation: string (enum)")]
     [InlineData("Grid fields", "axis: string (enum)")]
+    [InlineData("Grid change fields", "axis: string (enum)")]
+    [InlineData("Grid change fields", "alpha: number")]
+    [InlineData("Grid change fields", "visible: boolean")]
     [InlineData("Tick fields", "direction: string (enum)")]
     public void TheSchema_ListsThePartsAnAxesDraws(string section, string field)
     {

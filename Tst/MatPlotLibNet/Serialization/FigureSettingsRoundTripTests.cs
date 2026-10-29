@@ -95,6 +95,135 @@ public class FigureSettingsRoundTripTests
         Assert.Equal(drawn, readBack);
     }
 
+    // ── a grid the author changed is a change over the grid of the theme the figure is drawn under ──────────────────
+
+    /// <summary>What an author does to the grid of a themed chart, each as the change they wrote: one property, several, the
+    /// grid on over a theme that draws none, the grid off over one that does.</summary>
+    private static Func<GridStyle, GridStyle> GridChangeNamed(string name) => name switch
+    {
+        "alpha" => g => g with { Alpha = 0.4 },
+        "style" => g => g with { Color = Colors.Red, LineStyle = LineStyle.Dashed, LineWidth = 2 },
+        "on" => g => g with { Visible = true },
+        _ => g => g with { Visible = false },
+    };
+
+    private static readonly string[] GridChangeNames = ["alpha", "style", "on", "off"];
+
+    public static TheoryData<string, string> ThemesAndGridChanges { get; } = WithEveryGridChange();
+
+    private static TheoryData<string, string> WithEveryGridChange()
+    {
+        var rows = new TheoryData<string, string>();
+        foreach (var theme in typeof(Theme).GetProperties(BindingFlags.Public | BindingFlags.Static).Where(p => p.PropertyType == typeof(Theme)))
+            foreach (var change in GridChangeNames)
+                rows.Add(theme.Name, change);
+        return rows;
+    }
+
+    private static Figure GridChart(Theme theme, params Func<GridStyle, GridStyle>[] changes) => Plt.Create()
+        .WithTheme(theme)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.Plot([1.0, 2, 3], [1.0, 3, 2]);
+            foreach (var change in changes) ax.WithGrid(change);
+        })
+        .Build();
+
+    /// <summary>Measured before the change: the JSON wrote the grid the change had produced under the figure's own theme and
+    /// read it back as a constant, so a figure written under one theme and drawn under another kept the first theme's grid
+    /// colour and line width. The change is the author's; the grid it changes is the theme's at the moment of drawing.</summary>
+    [Theory]
+    [MemberData(nameof(ThemesAndGridChanges))]
+    public void AGridChangedUnderOneTheme_ReadBackFromJson_FollowsTheThemeItIsDrawnUnder(string theme, string change)
+    {
+        var figure = GridChart(BuiltIn(theme), GridChangeNamed(change));
+        var readBack = RoundTrip(figure);
+        var other = theme == nameof(Theme.Dark) ? Theme.Ggplot : Theme.Dark;
+
+        figure.Theme = other;
+        readBack.Theme = other;
+
+        Assert.Equal(figure.ToSvg(), readBack.ToSvg());
+    }
+
+    /// <summary>"Visible" said under a theme that draws a grid equals the theme's value, and is still the author's choice: it
+    /// must survive a theme that draws none. A change kept as the properties that differ from the theme's would lose it.</summary>
+    [Fact]
+    public void AFieldSetEqualToTheThemesValue_StillFollowsTheAuthorsChoice()
+    {
+        var figure = GridChart(Theme.Ggplot, g => g with { Visible = true });
+        var readBack = RoundTrip(figure);
+
+        figure.Theme = Theme.MatplotlibV2;
+        readBack.Theme = Theme.MatplotlibV2;
+
+        Assert.True(figure.SubPlots[0].GridUnder(Theme.MatplotlibV2).Visible);
+        Assert.True(readBack.SubPlots[0].GridUnder(Theme.MatplotlibV2).Visible);
+        Assert.Equal(figure.ToSvg(), readBack.ToSvg());
+    }
+
+    /// <summary>Measured before the change: the second <c>WithGrid</c> replaced the change of the first, so the colour the
+    /// first asked for was gone from the grid the chart drew under a theme.</summary>
+    [Fact]
+    public void ASecondWithGrid_KeepsTheFirstChange()
+    {
+        var figure = GridChart(Theme.Ggplot, g => g with { Color = Colors.Red }, g => g with { Alpha = 0.3 });
+        var readBack = RoundTrip(figure);
+
+        foreach (var axes in new[] { figure.SubPlots[0], readBack.SubPlots[0] })
+        {
+            var drawn = axes.GridUnder(Theme.Dark);
+            Assert.Equal(Colors.Red, drawn.Color);
+            Assert.Equal(0.3, drawn.Alpha);
+            Assert.True(drawn.Visible);
+        }
+    }
+
+    /// <summary>Measured before the change: <c>ShowGrid(false)</c> under a theme that draws a grid drew it anyway (22 lines
+    /// under Ggplot), because it set the axes' own grid without saying it was a change over the theme's. Showing and hiding
+    /// the grid are the same change as <c>WithGrid</c> makes.</summary>
+    [Fact]
+    public void ShowGridFalse_UnderAGriddedTheme_DrawsNoGrid()
+    {
+        var shown = Plt.Create().WithTheme(Theme.Ggplot).AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2, 3], [1.0, 3, 2])).Build();
+        var hidden = Plt.Create().WithTheme(Theme.Ggplot).AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2, 3], [1.0, 3, 2]).ShowGrid(false)).Build();
+        var viaWithGrid = GridChart(Theme.Ggplot, g => g with { Visible = false });
+
+        Assert.False(hidden.SubPlots[0].GridUnder(Theme.Ggplot).Visible);
+        Assert.NotEqual(shown.ToSvg(), hidden.ToSvg());
+        Assert.Equal(viaWithGrid.ToSvg(), hidden.ToSvg());
+        Assert.Equal(hidden.ToSvg(), RoundTrip(hidden).ToSvg());
+    }
+
+    /// <summary>The same verb the other way: <c>ShowGrid()</c> is the theme's grid switched on, as <c>WithGrid</c> says it.</summary>
+    [Fact]
+    public void ShowGrid_UnderAThemeWithoutOne_IsTheThemesGridSwitchedOn()
+    {
+        var viaShow = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2, 3], [1.0, 3, 2]).ShowGrid()).Build();
+        var viaWithGrid = GridChart(Theme.MatplotlibV2, g => g with { Visible = true });
+
+        Assert.Equal(viaWithGrid.ToSvg(), viaShow.ToSvg());
+    }
+
+    /// <summary>JSON written before the change: a grid marked as the axes' own is the grid it draws whatever the theme is
+    /// (the constant it always was), one that is not is read as it stands. Neither carries a <c>gridChange</c>.</summary>
+    [Fact]
+    public void AJsonWrittenBeforeTheGridChange_ReadsBackAsItAlwaysDid()
+    {
+        const string own = """{"width":400,"height":300,"subPlots":[{"grid":{"visible":true,"color":"#FF0000","lineWidth":2},"gridOverridesTheme":true,"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}]}""";
+        const string plain = """{"width":400,"height":300,"subPlots":[{"grid":{"visible":true},"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}]}""";
+        const string off = """{"width":400,"height":300,"subPlots":[{"grid":{"visible":false},"gridOverridesTheme":true,"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}]}""";
+
+        var ownGrid = Serializer.FromJson(own).SubPlots[0];
+        foreach (var theme in new[] { Theme.Ggplot, Theme.MatplotlibV2, Theme.Dark })
+        {
+            Assert.Equal(new GridStyle { Visible = true, Color = Colors.Red, LineWidth = 2 }, ownGrid.GridUnder(theme));
+            Assert.False(Serializer.FromJson(off).SubPlots[0].GridUnder(theme).Visible);
+        }
+
+        Assert.Equal(new GridStyle { Visible = true }, Serializer.FromJson(plain).SubPlots[0].GridUnder(Theme.Dark));
+    }
+
     /// <summary>The figure's spacing (here the tight layout) decides where every subplot sits.</summary>
     [Fact]
     public void AFigureWithItsOwnSpacing_ReadBackFromJson_DrawsTheSameSvg()
@@ -150,7 +279,8 @@ public class FigureSettingsRoundTripTests
 
         foreach (var field in new[] { "theme", "spacing", "chartId", "serverInteraction", "enableZoomPan", "enableLegendToggle",
                      "enableRichTooltips", "enableHighlight", "enableSelection", "enableDataCursor", "enable3DRotation",
-                     "enableTreemapDrilldown", "enableSankeyHover", "interactionTheme", "responsiveSvg", "gridOverridesTheme" })
+                     "enableTreemapDrilldown", "enableSankeyHover", "interactionTheme", "responsiveSvg", "gridOverridesTheme",
+                     "gridChange" })
         {
             Assert.False(Regex.IsMatch(json, $"\"{field}\":"), $"'{field}' was written for a figure that never set it: {json}");
         }
@@ -220,7 +350,7 @@ public class FigureSettingsRoundTripTests
     public void AFigureWithEveryFigureSettingSet_IsAFixedPointOfTheRoundTrip()
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        figure.SubPlots[0].GridOverride = g => g with { Visible = false };
+        figure.SubPlots[0].GridChange = new GridChange(Visible: false, Alpha: 0.3);
         string json = Serializer.ToJson(figure);
 
         Assert.Equal(json, Serializer.ToJson(Serializer.FromJson(json)));

@@ -107,11 +107,16 @@ public class ToolEdgeTests : IDisposable
     [InlineData("chart.pdf", ChartFormat.Pdf)]
     [InlineData("chart.svg", ChartFormat.Svg)]
     [InlineData("chart.png", ChartFormat.Png)]
+    [InlineData("chart.PNG", ChartFormat.Png)]
+    [InlineData("dir.pdf/chart.Svg", ChartFormat.Svg)]
     public void AKnownExtension_NamesItsFormat(string path, ChartFormat format) =>
         Assert.Equal(format, ChartRendering.FormatOfExtension(path));
 
+    /// <summary>The library knows .gif (it refuses it on a figure save), but the server has no animation format, so the
+    /// extension names none.</summary>
     [Theory]
     [InlineData("chart.jpg")]
+    [InlineData("chart.gif")]
     [InlineData("chart")]
     public void AnExtensionTheServerCannotWrite_NamesNoFormat(string path) =>
         Assert.Null(ChartRendering.FormatOfExtension(path));

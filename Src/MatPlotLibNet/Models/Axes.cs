@@ -37,17 +37,26 @@ public sealed class Axes
 
     public GridStyle Grid { get; set; } = new();
 
-    /// <summary>What this axes asked to change about the grid, if anything. It is the CHANGE rather than the
-    /// result, because the thing being changed is the theme's grid and the theme is not known when the subplot
-    /// is built. An axes that asked nothing takes the theme's grid whole.</summary>
-    internal Func<GridStyle, GridStyle>? GridOverride { get; set; }
+    /// <summary>What this axes asked to change about the grid, if anything: the properties it set, with their values. It is
+    /// the CHANGE rather than the result, because the thing being changed is the theme's grid and the theme is not known
+    /// when the subplot is built. It is data, so it is what the JSON carries and what a figure drawn under another theme
+    /// applies over that theme's grid. An axes that asked nothing takes the theme's grid whole.</summary>
+    internal GridChange? GridChange { get; set; }
 
     /// <summary>The grid this axes draws under <paramref name="theme"/>: the theme's grid with the axes' change when it
-    /// asked for one (<see cref="GridOverride"/>), its own <see cref="Grid"/> when that is switched on, and the theme's
-    /// grid otherwise. The one rule the renderer draws by and the JSON writer resolves a change with.</summary>
+    /// asked for one (<see cref="GridChange"/>), its own <see cref="Grid"/> when that is switched on, and the theme's
+    /// grid otherwise. The one rule every renderer draws a grid by and the JSON writer resolves a change with.</summary>
     /// <param name="theme">The theme the axes is drawn in.</param>
     internal GridStyle GridUnder(Theme theme) =>
-        GridOverride is { } change ? change(theme.DefaultGrid) : Grid.Visible ? Grid : theme.DefaultGrid;
+        GridChange is { } change ? change.ApplyTo(theme.DefaultGrid) : Grid.Visible ? Grid : theme.DefaultGrid;
+
+    /// <summary>The grid of an axes whose grid is part of its shape (the rings and spokes of a polar axes, the three back
+    /// walls of a 3-D box): <see cref="GridUnder"/>, but drawn unless the axes said otherwise, whatever the theme's grid says.
+    /// A chart read by its rings, or standing in a box, is not a chart under a theme that draws no grid; only an explicit
+    /// "no grid" (a change that sets <see cref="GridStyle.Visible"/> to false) removes it.</summary>
+    /// <param name="theme">The theme the axes is drawn in.</param>
+    internal GridStyle ShapeGridUnder(Theme theme) =>
+        GridUnder(theme) with { Visible = GridChange?.Visible ?? true };
 
     public SpinesConfig Spines { get; set; } = new();
 

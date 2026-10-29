@@ -5,7 +5,7 @@ MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
 straight from your server code. It does not need a JavaScript framework, a WebView or a hosted service.
 
 It has a fluent API and it works with dependency injection. It ships with 148 colormaps, 30 themes, 13 map
-projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 58
+projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 59
 technical indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
 and an MCP server so an AI agent can draw with it. Charts render natively in Blazor, WPF, MAUI, Avalonia, Uno and
 ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for Angular, React and Vue.
@@ -17,6 +17,18 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
 ## Where this is going
+
+**1.25.0** gives each value a chart resolves one owner that every reader asks. The colour bar puts its ticks where the
+chart's normaliser puts its colours, a theme owns the neutral grey that reference lines and outlines wear, a grid the
+author changed stays a change over whichever theme the figure is drawn under (a polar chart's rings and a 3-D chart's
+walls included), and a light's strength reaches the surfaces and bars it lights. Saving to `.png`, `.pdf` or `.gif`
+without the Skia package is refused rather than written as SVG, and axes that share a scale share its margins, so a table
+stands directly under the curve it counts. The statistics grow: the violin reads the same Gaussian estimator as the
+density plot, `ProbabilityPlot` draws a Q-Q plot against an exponential, uniform, log-normal or Student t distribution (or
+one of your own), `RiskTable` puts the numbers at risk and the log-rank test under a survival plot, and `ShewhartChart`
+draws the individuals, moving range, X-bar, range, p and c charts and marks points by Nelson's eight tests. The volume
+tools gain an anchored VWAP (`Vwap(bars, anchor)`) and a volume profile (`VolumeProfile`). There are now 20 chart verbs
+and 59 indicators.
 
 **1.24.0** gathers every Y axis of a chart into one container. The primary axis is the first axis of the left side,
 and each further axis stacks outward past the one before it, on either side and as many times as the chart needs one:
@@ -166,7 +178,7 @@ Plt.Create()
 
 ## Features
 
-**83 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, fifteen one-call charts (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `KaplanMeier`, `BumpChart`, `ControlChart`, `StreamGraph`, `CalendarHeatmap`, `Spy`) are built from those series, so they add none to the count and travel through JSON as their parts.
+**83 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, twenty one-call chart verbs (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `CalendarHeatmap`, `Spy`) are built from those series, so they add none to the count and travel through JSON as their parts.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over
@@ -199,7 +211,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool, which returns it as markdown to read and as structured values to compute with. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette, the three Petroff accessible colour sequences and a high-contrast theme.
 
-**148 colormaps** — viridis, plasma, turbo, coolwarm, and 144 more (74 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **58 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
+**148 colormaps** — viridis, plasma, turbo, coolwarm, and 144 more (74 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **59 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

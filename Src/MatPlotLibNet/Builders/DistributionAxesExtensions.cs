@@ -1,9 +1,12 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet;
@@ -132,7 +135,7 @@ public static class DistributionAxesExtensions
         /// <see cref="Trendline"/>, a solid red line 1.5 points wide as probplot draws it; it takes no colour slot and has no
         /// legend entry, and where it runs past the range of the points it is cut at the edge of the plot. The axes are titled
         /// "Theoretical quantiles" and "Sample quantiles"; a title of your own set after the call replaces either.</para>
-        /// <para>The sample is compared with the normal distribution only; a plot against other distributions is not drawn yet.
+        /// <para>The sample is compared with the normal distribution; <see cref="ProbabilityPlot"/> compares it with another one.
         /// A missing observation (NaN) and an infinity are left out, so the plot is that of the other observations. The verb sets
         /// no axis limits.</para>
         /// <para>The chart is its parts: written to JSON it is a scatter series and a trendline, and read back it draws the same
@@ -157,30 +160,87 @@ public static class DistributionAxesExtensions
         ///     .ToSvg();
         /// </code>
         /// </example>
-        public AxesBuilder QQPlot(double[] sample, Action<QQPlotParts>? configure = null)
+        public AxesBuilder QQPlot(double[] sample, Action<QQPlotParts>? configure = null) =>
+            axes.ProbabilityPlot(sample, QQReference.Normal, configure);
+
+        /// <summary>Draws a probability plot: the sample sorted up the Y axis against the quantiles a reference distribution has
+        /// at the same ranks along the X axis, with a reference line, so a reader sees at a glance how the sample differs from
+        /// that distribution. It is the Q-Q plot (<see cref="QQPlot"/>) for any distribution: against the normal one the two
+        /// draw the same picture, byte for byte.
+        /// <para>On the line the sample follows the reference, up to location and scale: the line is the least-squares fit, so
+        /// its slope estimates the sample's scale and its height at 0 the location. A curve away from the line at the ends means
+        /// tails heavier or lighter than the reference's, a bow a skew the reference does not have.</para>
+        /// <para>The conventions are scipy's (<c>scipy.stats.probplot</c> with <c>dist</c> and <c>sparams</c>). The k-th smallest of
+        /// n observations stands at the reference's quantile of Filliben's plotting position for rank k: the median of the k-th
+        /// smallest of n uniform observations, 0.5^(1/n) for the last, one minus that for the first, and (k - 0.3175) / (n + 0.365)
+        /// for the others. The reference line is the least-squares line through the points, drawn from the first theoretical
+        /// quantile to the last.</para>
+        /// <para>The parts are those of the Q-Q plot: the points are ONE <see cref="ScatterSeries"/> wearing the theme's colour, the
+        /// reference a <see cref="Trendline"/>, a solid red line 1.5 points wide that takes no colour slot and has no legend
+        /// entry. The Y axis is titled "Sample quantiles"; the X axis "Theoretical quantiles" and, unless the reference is the
+        /// normal distribution, its name in brackets ("Theoretical quantiles (exponential)"). A title of your own set after the
+        /// call replaces either. A missing observation (NaN) and an infinity are left out, so the plot is that of the other
+        /// observations. The verb sets no axis limits.</para>
+        /// <para>The chart is its parts: written to JSON it is a scatter series and a trendline, and read back it draws the same
+        /// picture. It is not fitted again; change the sample or the reference and call the verb again.</para></summary>
+        /// <param name="sample">The observations, in any order; at least two that can be drawn.</param>
+        /// <param name="reference">The distribution to compare the sample with: <see cref="QQReference.Normal"/>,
+        /// <see cref="QQReference.Exponential"/>, <see cref="QQReference.Uniform"/>, <see cref="QQReference.LogNormal"/>,
+        /// <see cref="QQReference.FittedLogNormal"/>, <see cref="QQReference.StudentT"/>, or one of your own made with
+        /// <see cref="QQReference.Of"/>.</param>
+        /// <param name="configure">Optional styling of the two parts, run once after the verb has built and styled them, so what
+        /// it sets wins: the points' colour, marker, transparency and legend label; the reference line's colour, width, style,
+        /// or <see cref="Trendline.IsExtended"/> to run it across the whole plot.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="sample"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException">The sample has fewer than two observations that can be drawn, or the reference has
+        /// no finite quantile at one of the plotting positions.</exception>
+        /// <example>
+        /// <code>
+        /// double[] waits = [2.1, 0.4, 5.6, 1.3, 0.9, 3.8, 0.2, 1.7, 2.6, 0.6, 8.4, 1.1];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Minutes between arrivals against the exponential distribution")
+        ///     .AddSubPlot(1, 1, 1, ax => ax
+        ///         .ProbabilityPlot(waits, QQReference.Exponential, parts => parts.Points.Alpha = 0.7)
+        ///         .SetYLabel("Minutes between arrivals"))
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder ProbabilityPlot(double[] sample, QQReference reference, Action<QQPlotParts>? configure = null)
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(sample);
             double[] ordered = sample.SortedObservations(LineObservations, "The sample", "a Q-Q plot is drawn from", nameof(sample));
 
-            // The k-th smallest observation against the normal quantile of its rank, and the least-squares line through them
-            // (scipy's linregress of osr on osm), evaluated at the first and the last quantile.
-            double[] theoretical = [.. FillibenPositions(ordered.Length).Select(StandardNormal.Quantile)];
+            // The k-th smallest observation against the reference's quantile of its rank, and the least-squares line through
+            // them (scipy's linregress of osr on osm), evaluated at the first and the last quantile.
+            double[] positions = FillibenPositions(ordered.Length);
+            double[] theoretical = [.. positions.Select(reference.Quantile)];
+            int unfinite = Array.FindIndex(theoretical, quantile => !double.IsFinite(quantile));
+            if (unfinite >= 0)
+            {
+                throw new ArgumentException(
+                    $"The reference '{reference.Name}' has no finite quantile at the plotting position {positions[unfinite].ToString(CultureInfo.InvariantCulture)}; a Q-Q plot is drawn from the quantiles of its reference.",
+                    nameof(reference));
+            }
+
             double[] fit = LeastSquares.PolyFit(theoretical, ordered, 1);
             double[] ends = LeastSquares.PolyEval(fit, [theoretical[0], theoretical[^1]]);
 
             var points = new ScatterSeries(theoretical, ordered);
-            Trendline reference = null!;
+            Trendline line = null!;
             axes.AddSeries(points)
                 .AddTrendline(theoretical[0], ends[0], theoretical[^1], ends[1], t =>
                 {
-                    reference = t;
+                    line = t;
                     t.Color = ReferenceColor; t.LineWidth = ReferenceLineWidth;
                 })
-                .SetXLabel(TheoreticalQuantilesTitle)
+                .SetXLabel(reference.XAxisTitle)
                 .SetYLabel(SampleQuantilesTitle);
 
-            configure?.Invoke(new QQPlotParts(points, reference));
+            configure?.Invoke(new QQPlotParts(points, line));
             return axes;
         }
 
@@ -209,8 +269,8 @@ public static class DistributionAxesExtensions
         /// package documents all three forms; <c>conf.type = "plain"</c> is this one). The only transcendental this band costs is
         /// <see cref="Math.Sqrt"/>, which every conformant platform rounds to the same bit (IEEE 754), so the band is the same
         /// on every platform too.</para>
-        /// <para>No risk table and no log-rank test: a risk table is a table of counts laid out under the plot, and a log-rank
-        /// test is a statistic to compute, neither a mark to draw.</para>
+        /// <para>No risk table and no log-rank test: they are the table under the plot, drawn on an axes of its own by
+        /// <see cref="RiskTable"/>.</para>
         /// <para>The chart is its parts: written to JSON it is the curve, band and marks of each group, and read back it draws
         /// the same picture. It is not estimated again; change the groups and call the verb again.</para></summary>
         /// <param name="groups">The groups, in the order they take colours; each with at least one subject, a finite duration
@@ -265,8 +325,8 @@ public static class DistributionAxesExtensions
                 curve.ColorGroup = colorGroup;
                 axes.AddSeries(curve, configure);
 
-                var (lower, upper) = GreenwoodBand(curves[g]);
-                var band = new AreaSeries(curves[g].Times, upper) { YData2 = lower, Alpha = 0.2 };
+                var greenwood = GreenwoodBand(curves[g]);
+                var band = new AreaSeries(curves[g].Times, greenwood.Upper) { YData2 = greenwood.Lower, Alpha = 0.2 };
                 band.ColorGroup = colorGroup;
                 axes.AddSeries(band);
 
@@ -281,6 +341,125 @@ public static class DistributionAxesExtensions
             }
 
             return axes.SetYLabel(SurvivalProbabilityTitle);
+        }
+
+        /// <summary>Draws the risk table of a Kaplan-Meier chart: a row for each group and, in it, at each time, the number of
+        /// subjects still at risk (followed to that time or longer: the count the survival curve is estimated with, R's
+        /// <c>n.risk</c>), and below the rows one line stating the log-rank test of whether the groups' survival differs.
+        /// <para>The table is an axes of its own: stack it under the survival axes and share the X axis with
+        /// <see cref="AxesBuilder.ShareX"/>, so a count stands directly under its time on the survival curve, and the two plot
+        /// areas have the same width (see the example). Without the shared X axis the table has no range of its own to place the
+        /// times in.</para>
+        /// <para>Each count is an <see cref="Annotation"/> at its time along the X axis and on the row of its group, centred, with
+        /// the first group on the top row; a count at time 0, the left edge of the plot, stands just inside it and left-aligned, so
+        /// it does not run into the names of the rows. The rows are named by the groups along the Y axis, which is titled "Number at risk" (a
+        /// title of your own set after the call replaces it) and spans the rows: the verb sets these limits, since the table has
+        /// no data to range over. The test is one more annotation, pinned to the right end of a slot of its own below the last row
+        /// (a share of the axes, not of the data), so it never stands on a count: <c>Log-rank χ²(1) = 16.79, p &lt; 0.0001</c>,
+        /// the statistic to two decimals and the p-value to four, or <c>Log-rank test: no events to compare</c> when there is
+        /// nothing to compare. A single group has nothing to be compared with: no test, and no slot for it.</para>
+        /// <para>The log-rank test is the Mantel-Cox form (R's <c>survdiff</c> with <c>rho = 0</c>, lifelines'
+        /// <c>multivariate_logrank_test</c>): at every time an event happens, each group is expected to have its share of the
+        /// events, its share of the subjects at risk; the statistic compares the events seen with those expected, with a
+        /// variance that allows for ties, and has the number of groups less one degrees of freedom. A subject censored at an
+        /// event time counts as at risk at it, as everywhere in the survival chart.</para>
+        /// <para>The chart is its parts: written to JSON it is the annotations and the row names, and read back it draws the same
+        /// picture. It is not counted again; change the groups and call the verb again.</para></summary>
+        /// <param name="groups">The groups, in the order of the rows and of the curves they sit under; each with at least one
+        /// subject, a finite duration at or above 0 and a flag for every subject (the same groups as the survival chart's).</param>
+        /// <param name="times">The times to count at, in the unit of the durations, in the order they stand along the X axis. When
+        /// left out, the ticks the automatic locator gives on 0 to the longest follow-up (at most nine).</param>
+        /// <param name="configure">Optional styling of the parts, run once after the verb has built them, so what it sets wins:
+        /// the counts' font and colour, the test line's position and box.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="groups"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException">No groups are given; or a group carries no durations or no flags, its durations
+        /// and flags differ in number, it has no subjects, or a duration is missing (NaN), negative or infinite (the message
+        /// names the group); or <paramref name="times"/> is empty or holds a number that is not finite.</exception>
+        /// <example>
+        /// <code>
+        /// using MatPlotLibNet.Models;
+        /// using MatPlotLibNet.Models.Series;
+        ///
+        /// SurvivalGroup[] arms =
+        /// [
+        ///     new("Treatment", [6, 7, 10, 15, 19, 25, 32, 34], [true, true, false, true, false, true, false, false]),
+        ///     new("Placebo", [1, 2, 3, 4, 5, 8, 8, 11], [true, true, true, false, true, true, true, true]),
+        /// ];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithSize(800, 600)
+        ///     .WithGridSpec(2, 1, heightRatios: [4, 1])
+        ///     .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(arms).WithLegend(), key: "survival")
+        ///     .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(arms).SetXLabel("Weeks"))
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder RiskTable(IReadOnlyList<SurvivalGroup> groups, double[]? times = null,
+            Action<RiskTableParts>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+            ArgumentNullException.ThrowIfNull(groups);
+            if (groups.Count == 0)
+            {
+                throw new ArgumentException("No groups were given; a risk table counts one row per group.", nameof(groups));
+            }
+
+            // Everything is checked before the first annotation is added, so a refused call leaves the axes as it was.
+            double[][] followed = [.. groups.Select(g => g.ThrowIfNotSurvivalData(nameof(groups)))];
+            double[] readAt = times ?? [.. new Rendering.TickLocators.MaxNLocator(Rendering.TickLocators.MaxNLocator.MostTicks).Locate(0, followed.Max(d => d.Max()))];
+            if (readAt.Length == 0 || readAt.Any(time => !double.IsFinite(time)))
+            {
+                throw new ArgumentException("The times of a risk table are one or more finite numbers.", nameof(times));
+            }
+
+            // The groups take the rows from the top; one slot below them holds the test, when there is anything to compare.
+            var logRank = LogRank.Test(groups);
+            bool compared = groups.Count > 1;
+            string[] names = [.. groups.Select(g => g.Label ?? string.Empty), .. compared ? new[] { string.Empty } : []];
+            int rows = names.Length;
+
+            var counts = new List<Annotation>(groups.Count * readAt.Length);
+            for (int g = 0; g < groups.Count; g++)
+            {
+                double row = CategorySlot.Of(rows - 1 - g).Centre;
+                foreach (double time in readAt)
+                {
+                    axes.Annotate(groups[g].AtRiskAt(time).ToString(CultureInfo.InvariantCulture), time, row, count =>
+                    {
+                        // The start of follow-up is the left edge of the plot, where a centred number would run into the row names.
+                        bool atStart = time <= 0;
+                        count.Alignment = atStart ? TextAlignment.Left : TextAlignment.Center;
+                        count.OffsetX = atStart ? StartCountInset : 0;
+                        count.VerticalAlignment = TextVerticalAlignment.Center;
+                        counts.Add(count);
+                    });
+                }
+            }
+
+            Annotation? test = null;
+            if (compared)
+            {
+                axes.Annotate(logRank.Describe(), 1, CategorySlot.Of(0).Centre / rows, line =>
+                {
+                    line.Coordinates = AnnotationCoordinates.AxesFraction;
+                    line.Alignment = TextAlignment.Right;
+                    line.VerticalAlignment = TextVerticalAlignment.Center;
+                    line.OffsetX = -TestInset;
+                    test = line;
+                });
+            }
+
+            // The names stand on the rows of the groups; the slot of the test below them has no tick, so no mark stands without a name.
+            double[] rowCentres = [.. Enumerable.Range(0, groups.Count).Select(g => CategorySlot.Of(rows - 1 - g).Centre)];
+            axes.SetYTickLocator(new Rendering.TickLocators.FixedLocator(rowCentres))
+                .SetYTickFormatter(names.AsCategoryTicks(topDown: true).Formatter)
+                .SetYLim(0, rows)
+                .SetYLabel(NumberAtRiskTitle);
+
+            configure?.Invoke(new RiskTableParts(counts, test, logRank));
+            return axes;
         }
 
         /// <summary>Draws a raincloud chart: a half violin, a narrow box and the raw observations of each group, side by
@@ -363,6 +542,15 @@ public static class DistributionAxesExtensions
     /// <summary>The title of a Kaplan-Meier chart's Y axis.</summary>
     private const string SurvivalProbabilityTitle = "Survival probability";
 
+    /// <summary>The title of a risk table's Y axis.</summary>
+    private const string NumberAtRiskTitle = "Number at risk";
+
+    /// <summary>How far the log-rank line stands in from the right edge of the risk table, in pixels.</summary>
+    private const double TestInset = 6;
+
+    /// <summary>How far a count at time 0 stands in from the left edge of the risk table, in pixels.</summary>
+    private const double StartCountInset = 3;
+
     /// <summary>Greenwood's confidence band around <paramref name="curve"/>, PLAIN form (<see cref="KaplanMeier"/>'s
     /// own doc explains why not the log or log-log transform): the variance accumulates only at a point with an event
     /// (<see cref="SurvivalCurve.Events"/> above 0) and only while every subject at risk there did not all have the event
@@ -370,7 +558,7 @@ public static class DistributionAxesExtensions
     /// stopping the sum there).</summary>
     /// <param name="curve">The curve the band surrounds.</param>
     /// <returns>The lower and the upper bound, one pair per point of <paramref name="curve"/>, each clamped to [0, 1].</returns>
-    private static (double[] Lower, double[] Upper) GreenwoodBand(SurvivalCurve curve)
+    private static ConfidenceBand GreenwoodBand(SurvivalCurve curve)
     {
         int n = curve.Times.Length;
         var lower = new double[n];
@@ -389,8 +577,13 @@ public static class DistributionAxesExtensions
             upper[i] = Math.Clamp(s + Z95 * se, 0, 1);
         }
 
-        return (lower, upper);
+        return new ConfidenceBand(lower, upper);
     }
+
+    /// <summary>The two edges of a confidence band, one value for each point of its curve.</summary>
+    /// <param name="Lower">The lower bound.</param>
+    /// <param name="Upper">The upper bound.</param>
+    private readonly record struct ConfidenceBand(double[] Lower, double[] Upper);
 
     /// <summary>The standard normal distribution's 97.5th percentile: a two-sided 95 % confidence band is the estimate
     /// plus and minus this many standard errors.</summary>
@@ -442,9 +635,6 @@ public static class DistributionAxesExtensions
 
     /// <summary>The width of a Q-Q plot's reference line, in points: matplotlib's line width.</summary>
     private const double ReferenceLineWidth = 1.5;
-
-    /// <summary>The title of a Q-Q plot's X axis.</summary>
-    private const string TheoreticalQuantilesTitle = "Theoretical quantiles";
 
     /// <summary>The title of a Q-Q plot's Y axis.</summary>
     private const string SampleQuantilesTitle = "Sample quantiles";

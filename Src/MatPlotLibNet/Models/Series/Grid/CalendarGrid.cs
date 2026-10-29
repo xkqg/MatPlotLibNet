@@ -44,6 +44,12 @@ internal sealed class CalendarGrid
     /// <summary>The day a week starts on: the day of the top row.</summary>
     internal DayOfWeek FirstDayOfWeek { get; }
 
+    /// <summary>The date of the cell in row 0, column 0: the first day of the week that holds <see cref="First"/>. It lies up to
+    /// six days before the first date, and is <see langword="null"/> only when that is before the first day a
+    /// <see cref="DateTime"/> holds. The table of the heatmap gives every cell its date from this one.</summary>
+    internal DateTime? FirstCellDate =>
+        RowOf(First) is var back && First.Ticks >= back * TimeSpan.TicksPerDay ? First.AddDays(-back) : null;
+
     /// <summary>The cells, <c>[row, column]</c>: the sum of the values of the day that stands there, NaN where no value
     /// was given (the days before the first date and after the last included).</summary>
     internal double[,] Cells { get; }

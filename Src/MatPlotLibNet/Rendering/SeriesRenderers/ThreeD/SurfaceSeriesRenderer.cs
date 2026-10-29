@@ -26,7 +26,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
         var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), z);
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
+        var normalizer = series.NormalizerOrLinear();
 
         int rowStride = Math.Max(1, series.RowStride);
         int colStride = Math.Max(1, series.ColStride);
@@ -85,29 +85,11 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         foreach (var q in quads)
         {
+            // A lit face is shaded by the light it is lit by, whichever light that is.
             var baseColor = cmap.ColorOf(q.AvgZ, normalizer, zMin, zMax);
-            var color = baseColor;
-            if (Context.LightSource is { } light)
-            {
-                double intensity = light.ComputeIntensity(q.Nx, q.Ny, q.Nz);
-                if (Context.LightSource is DirectionalLight dl)
-                    color = color.Shade(q.Nx, q.Ny, q.Nz, dl.Dx, dl.Dy, dl.Dz);
-                else
-                    color = color.Modulate(intensity);
-            }
+            var color = Context.LightSource is { } light ? light.Shade(baseColor, q.Nx, q.Ny, q.Nz) : baseColor;
             if (q.V3d is not null)
                 Ctx.SetNextElementData("v3d", q.V3d);
-            // Phase 6 of v1.7.2 plan — emit the un-shaded base color + face normal so the
-            // JS reproject can recompute shading on rotation. Skipped when there's no light
-            // (no shading to recompute).
-            if (Context.LightSource is DirectionalLight && q.V3d is not null)
-            {
-                Ctx.SetNextElementData("face-normal",
-                    $"{q.Nx.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
-                    $"{q.Ny.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
-                    $"{q.Nz.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}");
-                Ctx.SetNextElementData("base-color", baseColor.ToHex());
-            }
             Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
             Ctx.DrawPolygon(q.Vertices, new ShapeStyle(color, stroke, strokeWidth));

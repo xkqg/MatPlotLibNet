@@ -15,8 +15,9 @@ public static class FigureSkiaExtensions
 
     /// <summary>
     /// Module initializer — runs once on assembly load. Registers `.png` and `.pdf` with the
-    /// global `FigureExtensions.TransformRegistry` so that <c>figure.Save("chart.png")</c>
-    /// routes through the Skia backend automatically when this assembly is referenced.
+    /// global `FigureExtensions.TransformRegistry` (over the refusals core seeds there) so that
+    /// <c>figure.Save("chart.png")</c> routes through the Skia backend once this assembly is loaded. `.gif` is not
+    /// registered: an animation is saved from its builder with <c>SaveGif</c>.
     /// Also loads the bundled DejaVu Sans faces into <see cref="SkiaFonts"/> and installs the Skia-backed
     /// text measurement and glyph outlines on <see cref="MatPlotLibNet.FontMetricsDefault"/> and
     /// <see cref="MatPlotLibNet.GlyphPathProviderDefault"/>.
@@ -27,9 +28,8 @@ public static class FigureSkiaExtensions
     [ModuleInitializer]
     public static void Initialize()
     {
-        global::MatPlotLibNet.FigureExtensions.RegisterTransform(".png", Png);
-        global::MatPlotLibNet.FigureExtensions.RegisterTransform(".pdf", Pdf);
-        SkiaFonts.LoadBundled();
+        global::MatPlotLibNet.FigureExtensions.RegisterTransform(ExportExtension.Png, Png);
+        global::MatPlotLibNet.FigureExtensions.RegisterTransform(ExportExtension.Pdf, Pdf);        SkiaFonts.LoadBundled();
 
         // Install Skia-backed font metrics — the same shaped glyph advances as the PNG pipeline, so layout
         // (margins, tick positions, legend sizing) is identical across SVG and PNG outputs.

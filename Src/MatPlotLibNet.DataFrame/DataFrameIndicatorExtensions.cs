@@ -200,18 +200,26 @@ public static class DataFrameIndicatorExtensions
         public double[] Vwap(
             string highCol, string lowCol, string closeCol, string volumeCol)
         {
-            // VWAP uses the typical price ((H+L+C)/3) as its price input and volume separately.
-            // The Vwap indicator takes prices (typical) and volumes.
-            var high   = df.DoubleCol(highCol);
-            var low    = df.DoubleCol(lowCol);
-            var close  = df.DoubleCol(closeCol);
-            var volume = df.DoubleCol(volumeCol);
+            // VWAP uses the typical price ((H+L+C)/3) as its price input and volume separately: the indicator works the
+            // typical price out of the bars.
+            var bars = Indicators.OhlcvBars.Hlcv(df.DoubleCol(highCol), df.DoubleCol(lowCol), df.DoubleCol(closeCol), df.DoubleCol(volumeCol));
+            return new Indicators.Vwap(bars).Compute();
+        }
 
-            var typical = new double[high.Length];
-            for (int i = 0; i < high.Length; i++)
-                typical[i] = (high[i] + low[i] + close[i]) / 3.0;
-
-            return new Indicators.Vwap(typical, volume).Compute();
+        /// <summary>Computes the Volume-Weighted Average Price anchored at a bar: the average of the typical price
+        /// ((H+L+C)/3) weighted by volume, summed from <paramref name="anchor"/> on. There is no value (NaN) before the anchor.</summary>
+        /// <param name="highCol">Name of the numeric high-price column.</param>
+        /// <param name="lowCol">Name of the numeric low-price column.</param>
+        /// <param name="closeCol">Name of the numeric close-price column.</param>
+        /// <param name="volumeCol">Name of the numeric volume column.</param>
+        /// <param name="anchor">The row the average starts at, from 0 to the last row.</param>
+        /// <returns>VWAP values — same length as the column, NaN before the anchor.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="anchor"/> is below 0 or not before the end of the rows.</exception>
+        public double[] Vwap(
+            string highCol, string lowCol, string closeCol, string volumeCol, int anchor)
+        {
+            var bars = Indicators.OhlcvBars.Hlcv(df.DoubleCol(highCol), df.DoubleCol(lowCol), df.DoubleCol(closeCol), df.DoubleCol(volumeCol));
+            return new Indicators.Vwap(bars, anchor).Compute();
         }
 
         // ── Price-column indicators ───────────────────────────────────────────────

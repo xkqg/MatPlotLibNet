@@ -53,14 +53,29 @@ public class CartesianToolsPartUnitTests
     }
 
     [Fact]
-    public void Render_Trendline_NoColor_FallsBackToGray()
+    public void Render_Trendline_NoColor_FallsBackToTheThemesNeutral()
     {
         var ax = new Axes();
         ax.AddTrendline(0, 0, 5, 5);
         var ctx = new RecordingRenderContext();
         Build(ax, ctx).Render();
-        Assert.Equal(Colors.Gray,
+        Assert.Equal(DefaultTheme.Neutral,
             (Color)((dynamic)ctx.OfKind("DrawLine")[0].Args!).color);
+        Assert.Equal(Colors.Gray, DefaultTheme.Neutral);
+    }
+
+    /// <summary>A trendline, a level and a Fibonacci retracement without a colour of their own all wear Nord's neutral.</summary>
+    [Fact]
+    public void Render_ToolsWithoutColour_UnderNord_WearNordsNeutral()
+    {
+        var ax = new Axes();
+        ax.AddTrendline(0, 0, 5, 5);
+        ax.AddLevel(2);
+        ax.AddFibonacci(5, 1);
+        var ctx = new RecordingRenderContext();
+        new CartesianToolsPart(ax, Plot, ctx, Theme.Nord, Transform()).Render();
+        Assert.All(ctx.OfKind("DrawLine"), call => Assert.Equal(Color.FromHex("#8D8D8D"), (Color)((dynamic)call.Args!).color));
+        Assert.True(ctx.CountOf("DrawLine") >= 3);
     }
 
     [Fact]

@@ -4,6 +4,150 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.25.0]
+
+A value a chart resolves now has one owner that every reader asks: the colour bar places its ticks the way the
+chart's normaliser places colours, a theme owns the neutral grey that reference lines and outlines wear, a grid changed
+by the author stays a change over whichever theme the figure is drawn under, an inset is built where it stands, a light's
+strength reaches the surfaces and bars it lights, and a relative rotation graph always shows its centre. Saving to
+`.png` or `.pdf` without the Skia package is refused instead of writing SVG under a raster name. The data tables of a
+Marimekko chart and of a calendar heatmap name their columns and their dates, the violin reads the same Gaussian
+estimator as the density plot, the Q-Q plot compares a sample with more distributions, a survival plot gets a risk
+table with the log-rank test, the control chart gains the other Nelson rules and chart kinds, and the volume tools gain
+an anchored VWAP and a volume profile. The sections below list each change with what it replaces.
+
+### Added
+
+- **`ProbabilityPlot` and `QQReference`: a Q-Q plot against any distribution.** `ProbabilityPlot(sample, reference)` is
+  `QQPlot` for a reference you choose: the sorted sample against that distribution's quantiles at Filliben's plotting
+  positions, with the least-squares line, as scipy's `probplot(x, dist=...)` draws it. `QQReference` names the reference:
+  `Normal` (what `default` means, and what `QQPlot` uses), `Exponential`, `Uniform`, `LogNormal(sigma)`,
+  `FittedLogNormal(sample)` (the standard deviation of the logarithms, divided by n), `StudentT(degreesOfFreedom)`, and
+  `Of(name, quantile)` for a distribution of your own. The X axis names a reference other than the normal one
+  ("Theoretical quantiles (exponential)"). `QQPlot` draws the picture it always did, byte for byte. Checked against scipy
+  1.18.1 for the exponential, uniform, log-normal (shape 1 and fitted) and Student t (5 and 1 degrees of freedom).
+
+  ```csharp
+  ax.ProbabilityPlot(waits, QQReference.Exponential, parts => parts.Points.Alpha = 0.7);
+  ```
+
+- **`RiskTable`: the numbers at risk under a survival curve, with the log-rank test.** On an axes you stack under
+  `KaplanMeier` and share the X axis with (`ShareX`), `RiskTable(groups)` writes, for each group and each time, the number of
+  subjects still at risk (followed to that time or longer, the count the curve is estimated with), directly under that time
+  on the curve, and one line below the rows that states the test of whether the groups' survival differs:
+  `Log-rank χ²(1) = 16.79, p < 0.0001`. The test is the Mantel-Cox form (R's `survdiff`, lifelines'
+  `multivariate_logrank_test`): Freireich's trial gives 16.79 on one degree of freedom, as R and lifelines give it. `times`
+  chooses the columns (by default the automatic ticks from 0 to the longest follow-up); a single group has no test.
+  `RiskTableParts` hands out the counts, the test line and the `LogRankResult` (statistic, degrees of freedom, p-value).
+
+  ```csharp
+  Plt.Create().WithGridSpec(2, 1, heightRatios: [4, 1])
+      .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(arms), key: "survival")
+      .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(arms));
+  ```
+
+- **`ShewhartChart`, `ControlChartData` and `ControlRules`: the other control charts and Nelson's eight tests.**
+  `ShewhartChart(data, rules, limits)` draws the parts of a control chart (a marked line, a centre line, two limits, the
+  flagged points) for what `ControlChartData` plots: `Individuals(x, values)` (what `ControlChart` draws, unchanged),
+  `MovingRange(x, values)` (limits 0 and 3.267 times the average range), `XBar(subgroups)` and `Range(subgroups)` (A2, D3 and
+  D4 for subgroups of 2 to 10, to five decimals), `P(defectives, sampleSize)` (binomial limits) and `C(counts)` (Poisson
+  limits); the lower limit of a p or c chart stands at 0 when three sigma would put it below. `ControlRules` is a `[Flags]`
+  enum numbered as Nelson numbers his tests (1 to 8, `None`, `All`): a point beyond a limit, nine on one side, six rising or
+  falling, fourteen alternating, two of three beyond two sigma, four of five beyond one sigma, fifteen within one sigma and
+  eight beyond one sigma. A pattern is flagged at the point that completes it and at each later point that keeps it. The
+  zones stand on the limits drawn, given or estimated.
+
+  ```csharp
+  ax.ShewhartChart(ControlChartData.XBar(subgroups), ControlRules.Nelson1 | ControlRules.Nelson2);
+  ```
+
+- **`Vwap(bars, anchor)`: a VWAP anchored at a bar.** The indicator, `StreamingVwap.AnchorHere()`, the `AxesBuilder.Vwap`
+  shortcut and the DataFrame bridge average the typical price, weighted by volume, from the anchor bar on; before it there is
+  no value. Anchored at the first bar it is the cumulative VWAP, to the bit.
+
+- **`VolumeProfile`: where the volume traded.** The range of the closes is cut into equal price bins (12 by default) and each
+  bar's volume goes to the bin its close falls in. It is drawn as horizontal bars on the secondary X axis, as thick as the
+  bins, growing from the right edge of the plot, the longest covering a quarter of its width. The indicator count is 59.
+
+- **`Theme.NeutralColor` and `ThemeBuilder.WithNeutralColor`.** The grey that reference lines, trendlines, price levels,
+  Fibonacci levels, a dumbbell's connector and a map's outlines wear. Without one, a theme derives it from its plot: the
+  library's grey where it reaches a 3 : 1 contrast, else the nearest grey that does. Nord, Dracula, Monokai, Gruvbox and
+  OpsPanel, where the old grey stood at 2.3 to 2.9 : 1, now get a grey of their own.
+
+- **`HeatmapSeries.FirstCellDate`.** The date of the first cell of a calendar heatmap, which `CalendarHeatmap` sets.
+
+- **JSON.** `gridChange`, `neutralColor`, `wearsNeutral` and `firstCellDate` are new, each written only when set; a reader
+  that does not know them ignores them.
+
+### Changed
+
+- **Saving to `.png`, `.pdf` or `.gif` with no exporter loaded is refused.** `Save("chart.png")` without
+  `MatPlotLibNet.Skia` used to write an SVG document under the raster name and report success. It now throws
+  `InvalidOperationException` naming the package (or `SaveGif` for an animation) before the file is opened, so a file that
+  was there stays. Any other unknown extension still writes SVG.
+
+- **A colour bar puts its ticks where the chart's normaliser puts their colours.** Under a log normaliser a heatmap of 1 to
+  1000 had its tick 200 at 0.199 of the bar while its cells are drawn in the colour at 0.767; the tick now stands there. A
+  bar for a banded normaliser has its ticks on the band boundaries. A spectrogram's bar names the range of its magnitudes
+  instead of 0 to 1. A linear bar draws as it did.
+
+- **The strength of a light reaches what it lights.** `WithLighting`'s ambient and diffuse strengths changed nothing on a
+  surface or a 3-D bar, which shaded by two constants. The intensity is now `ambient + diffuse * (dot + 1) / 2` held to
+  0 to 1, which at 0.3 and 0.7 is matplotlib's own shading; a light of your own shades a bar as it shades a surface. The
+  scene group no longer carries `data-light-*`, `data-face-normal` and `data-base-color` attributes (no script read them).
+
+- **A grid change stays a change over the theme's grid.** `WithGrid` is kept as a value, so a figure written under one theme and
+  drawn under another keeps the author's change and not the first theme's grid, a second `WithGrid` adds to the first, and
+  `ShowGrid(false)` under a theme that draws a grid now hides it (it drew it anyway). A polar chart's rings and spokes and a
+  3-D chart's walls follow the same grid, in colour, width and line style, instead of a fixed light grey half a pixel wide.
+  The classic theme's grid, when shown, is matplotlib classic's own (black, dotted, 0.5) where it was the later styles'
+  grey line, and a dotted or dashed polar ring is drawn as a closed polyline, since a circle has no dash.
+
+- **The violin is drawn from the Gaussian kernel density.** Its width at a height was a count of observations in a window; it is
+  now the sample's Gaussian density (Silverman's bandwidth, the estimator the density plot and the ridgeline use) at 100
+  heights, scaled so the widest point is the violin's width. On twelve observations the outline had five bumps and pinched to
+  nothing; it is one hump. A sample without spread is the spike matplotlib draws.
+
+- **A regression band uses the exact Student t quantile.** A 90 % band was drawn as wide as a 95 % one (the quantile came
+  from a table of five values); at 121 degrees of freedom the band used the normal quantile.
+
+- **Axes that share a scale share its sticky edges.** An axes sharing X or Y with another read only its own series for its
+  margins, so the same value stood at two pixels: a count 3.3 px off its curve on a risk table. Both now range, pad and clamp
+  from the same series. A figure that shares a scale with an axes that has sticky edges (bars, an area, a histogram) and has
+  none itself loses its margin on that side.
+
+- **A relative rotation graph shows its centre.** With every asset leading, or every asset lagging, the plot ended before the
+  100/100 crosshair; the range now holds it (with the quadrant grid on).
+
+- **A dumbbell's connector and a map's outlines wear the theme's neutral grey and take no colour slot**, so the next series
+  takes the colour it would have taken without them; an inset is configured where it stands, keeping an `ITickFormatter` of
+  your own and drawing the grid of the theme the figure is drawn under.
+
+- **The tables of two charts say more.** A Marimekko chart's table has a row for each column (its name, its edges and its
+  share) where it listed the points; a calendar heatmap's table has a date for every cell.
+
+- **`Vwap(prices, volumes)` refuses arrays of different lengths** instead of silently cutting to the shorter, as every other
+  indicator has since 1.24.0.
+
+### Fixed
+
+- A user `ITickFormatter` was dropped from an inset, and an inset in a figure on a theme without a grid drew one.
+- `ShowGrid(false)` was ignored under a theme that draws a grid (the Medium cover sample drew its seaborn grid despite it).
+- `Figure.Save` with `.png`, `.pdf` or `.gif` and no exporter wrote an SVG under a raster name and reported success.
+- A colour bar's ticks stood at the value's share of the range instead of the colour's, and a spectrogram's bar read 0 to 1.
+- A 90 % regression band was as wide as a 95 % one.
+- A relative rotation graph could end before its 100/100 centre, and the same time stood at two pixels on two axes that share X.
+
+### Upgrading
+
+Nothing you can call is removed from the public API. Package validation against 1.24.0 reports one removed type, the
+compiler-generated holder of an internal helper that `XYAxesExtensions` no longer needs; it is named by a hash, so no code can
+refer to it, and the release records it in `CompatibilitySuppressions.xml`. The changes that can show up
+in your output: `Save` to `.png`, `.pdf` or `.gif` throws when `MatPlotLibNet.Skia` is not loaded; the light attributes are gone
+from a lit 3-D scene's SVG; a violin, a raincloud, a polar chart's grid, a 90 % regression band and a figure that shares a
+scale with bars or an area draw differently, as listed above; `Vwap` with arrays of different lengths throws. JSON written by
+1.24.0 reads back as before, and a figure that sets none of the new properties writes the same file.
+
 ## [1.24.0]
 
 Every Y axis of a chart now belongs to one container, and the left side no longer treats the primary axis as a special

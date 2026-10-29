@@ -7,6 +7,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -64,7 +65,8 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
             ? new(range.Lo, range.Lo == range.Hi ? range.Lo + 1 : range.Hi)
             : new(0, 1);
 
-    /// <summary>Stroke color for polygon outlines.</summary>
+    /// <summary>Stroke color for polygon outlines. <see langword="null"/> draws no outline, unless the series wears the theme's
+    /// neutral grey in its place (the outline of <c>Borders</c>, a choropleth and a cartogram until a colour is named).</summary>
     public Color? StrokeColor { get; set; }
 
     /// <summary>Stroke width. Default 0.5.</summary>
@@ -145,6 +147,8 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
         // Self-rendering: project features and draw directly on the render context.
         // Uses PlotBounds + ComputeDataRange to map projected coords to pixels.
         var bounds = Projection.Bounds;
+        // The outline: the colour named, or the theme's neutral grey when the series wears it in that place.
+        var outline = StrokeColor ?? (WearsNeutral ? (visitor as SvgSeriesRenderer)?.Theme.Neutral : null);
         var plot = area.PlotBounds;
 
         // A ring as pixels; a position the projection cannot place (NaN) is left out.
@@ -168,7 +172,7 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
         // The colour of each region: the colour map's colour for its value, over the range of the values that can be drawn.
         var values = Values;
         var map = ColorMap ?? ColorMaps.Viridis;
-        var normalizer = Normalizer ?? LinearNormalizer.Instance;
+        var normalizer = this.NormalizerOrLinear();
         var (min, max) = GetColorBarRange();
 
         for (int index = 0; index < Features.Count; index++)
@@ -193,7 +197,7 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
                         if (pixels.Count >= 3) AddRing(segments, pixels);
                     }
 
-                    area.Context.DrawPath(segments, new ShapeStyle(fill, StrokeColor, StrokeWidth));
+                    area.Context.DrawPath(segments, new ShapeStyle(fill, outline, StrokeWidth));
                 }
             }
             else
@@ -202,7 +206,7 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
                 {
                     var points = Pixels(ring);
                     if (points.Count < 2) continue;
-                    area.Context.DrawLines(points, new StrokeStyle(StrokeColor ?? Color ?? Colors.Black, StrokeWidth, LineStyle.Solid));
+                    area.Context.DrawLines(points, new StrokeStyle(outline ?? Color ?? Colors.Black, StrokeWidth, LineStyle.Solid));
                 }
             }
         }

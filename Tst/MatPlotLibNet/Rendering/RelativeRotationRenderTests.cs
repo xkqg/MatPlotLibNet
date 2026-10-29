@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -76,6 +78,32 @@ public class RelativeRotationRenderTests
         int linesOff = CountOccurrences(svgOff, "<line ");
         Assert.True(linesOn > linesOff,
             $"ShowQuadrantGrid=true ({linesOn} lines) must exceed off ({linesOff}).");
+    }
+
+    // ── the centre of a chart whose assets all stand on one side of it ───────
+
+    /// <summary>The quadrants and the crosshair are what a relative rotation graph is read by. With every asset above 100 the
+    /// plot used to end before the centre: no crosshair, and the quadrants on that side had no area. Now the centre is in the
+    /// plot, so there are two crosshair lines and four quadrants with an area.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ARrgOfAssetsOnOneSideOfTheCentre_StillDrawsTheCrosshairAndFourQuadrants(bool above)
+    {
+        double[] asset = [.. Enumerable.Range(0, 60).Select(i => 100 + (above ? 1 : -1) * i * i * 0.02)];
+        var figure = Plt.Create().WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation([asset], Flat(60), ["ONE"], s => { s.ShortPeriod = 3; s.LongPeriod = 5; }))
+            .Build();
+        var ctx = new RecordingRenderContext();
+
+        new ChartRenderer().Render(figure, ctx);
+
+        var quadrants = ctx.OfKind("DrawRectangle")
+            .Where(c => ((Color?)((dynamic)c.Args!).fill) is { A: 20 })
+            .Select(c => (Rect)((dynamic)c.Args!).rect).ToList();
+        Assert.Equal(4, quadrants.Count);
+        Assert.All(quadrants, r => Assert.True(r.Width > 0 && r.Height > 0, $"a quadrant of no area: {r}"));
+        Assert.Equal(2, ctx.OfKind("DrawLine").Count(c => ((Color)((dynamic)c.Args!).color) == new Color(100, 100, 100, 120)));
     }
 
     // ── Asset heads ──────────────────────────────────────────────────────────
