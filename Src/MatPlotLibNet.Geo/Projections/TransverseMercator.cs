@@ -10,8 +10,11 @@ public sealed class TransverseMercator : IGeoProjection, IProjectionParameters
     private readonly double _lam0;
     private readonly Dictionary<string, double> _parameters;
 
+    /// <inheritdoc />
     public string Name => "TransverseMercator";
 
+    /// <summary>Creates a Transverse Mercator projection around the given central meridian.</summary>
+    /// <param name="centerLon">Central meridian in degrees, the line along which scale is true. Default 0.</param>
     public TransverseMercator(double centerLon = 0)
     {
         _parameters = new() { ["lon_0"] = centerLon };
@@ -24,6 +27,7 @@ public sealed class TransverseMercator : IGeoProjection, IProjectionParameters
     IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
         new TransverseMercator(parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]));
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = latitude.ToRadians(), lam = longitude.ToRadians();
@@ -34,6 +38,8 @@ public sealed class TransverseMercator : IGeoProjection, IProjectionParameters
         return new(x.ToDegrees(), y.ToDegrees());
     }
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
+    /// <inheritdoc />
     public GeoBounds Bounds => new(-180, 180, -90, 90);
 }

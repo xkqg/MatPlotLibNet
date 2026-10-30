@@ -11,16 +11,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a pseudocolor series on a triangular mesh, coloring each triangle by the mean Z value.</summary>
 public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
+    /// <summary>The x coordinate of each mesh point, in data units.</summary>
     public Vec X { get; }
 
+    /// <summary>The y coordinate of each mesh point, in data units; one value per <see cref="X"/> entry.</summary>
     public Vec Y { get; }
 
+    /// <summary>The value at each mesh point, one per <see cref="X"/> entry. A triangle is coloured by the mean of its
+    /// three corner values.</summary>
     public Vec Z { get; }
 
+    /// <summary>The triangles as a flat list of point indices, three per triangle (into <see cref="X"/>, <see cref="Y"/>
+    /// and <see cref="Z"/>). When null, the mesh is built by Delaunay triangulation of the points.</summary>
     public int[]? Triangles { get; set; }
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />

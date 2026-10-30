@@ -7,5 +7,7 @@ namespace MatPlotLibNet.Models.Series;
 /// down (<see cref="BarOrientation.Horizontal"/>).</summary>
 public interface ICategoryLabeled
 {
+    /// <summary>The name of each category, in drawing order, shown as the tick labels of the category axis; null when
+    /// the series has none.</summary>
     string[]? CategoryLabels { get; }
 }

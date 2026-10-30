@@ -58,9 +58,8 @@ public sealed class StreamingBollinger : StreamingIndicator
         double upper = mean + _numStdDev * stdDev;
         double lower = mean - _numStdDev * stdDev;
 
-        double x = ProcessedCount - 1;
-        AppendToOutput(1, x, upper);
-        AppendToOutput(2, x, lower);
+        SetOutput(1, upper);
+        SetOutput(2, lower);
 
         return mean; // base class appends this to output[0]
     }

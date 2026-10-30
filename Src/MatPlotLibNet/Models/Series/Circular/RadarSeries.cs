@@ -13,18 +13,29 @@ public sealed class RadarSeries : ChartSeries, IHasColor, IHasAlpha
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The name of each spoke of the radar, printed at its tip. The chart needs at least three to be
+    /// drawn.</summary>
     public string[] Categories { get; }
 
+    /// <summary>The value on each spoke, in the order of <see cref="Categories"/>. A value that cannot be drawn (NaN or
+    /// infinite) is skipped, and one above <see cref="MaxValue"/> is held at the outer ring.</summary>
     public double[] Values { get; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The fill of the polygon that joins the values; <see langword="null"/> (the default) fills it with the
+    /// series colour at <see cref="Alpha"/>, and a colour set here is used as given.</summary>
     public Color? FillColor { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.25;
 
+    /// <summary>Width of the outline of the polygon, in pixels. Default 2.</summary>
     public double LineWidth { get; set; } = 2.0;
 
+    /// <summary>The value that reaches the outer ring; <see langword="null"/> (the default) uses the largest value of
+    /// the series.</summary>
     public double? MaxValue { get; set; }
 
     /// <summary>Creates a new radar series from the given categories and values.</summary>

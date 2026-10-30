@@ -47,6 +47,56 @@ public class FuncAnimationTests
     }
 
     [Fact]
+    public void Save_ToASvgPath_WritesAnSvgThatStepsThroughItsFrames()
+    {
+        var anim = TwoFrameAnim();
+        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".svg");
+        try
+        {
+            anim.Save(path);
+
+            string svg = File.ReadAllText(path);
+            Assert.StartsWith("<svg", svg, StringComparison.Ordinal);
+            Assert.Contains("data-frame=\"0\"", svg, StringComparison.Ordinal);
+            Assert.Contains("data-frame=\"1\"", svg, StringComparison.Ordinal);
+            Assert.Contains("data-interval-ms=\"50\"", svg, StringComparison.Ordinal);   // the delay the animation was made with
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Save_ToAnyOtherPath_StillWritesAGif()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".animation");
+        try
+        {
+            TwoFrameAnim().Save(path);
+
+            Assert.Equal("GIF", System.Text.Encoding.ASCII.GetString(File.ReadAllBytes(path).AsSpan(0, 3)));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void SaveStepThroughSvg_WritesToAStream_WithTheLoopOfTheAnimation()
+    {
+        var anim = new FuncAnimation(2, i => new FigureBuilder().WithSize(20, 20).Plot([0.0, 1.0], [0.0, i + 1.0]).Build(), delayMs: 120, loop: false);
+        using var ms = new MemoryStream();
+
+        anim.SaveStepThroughSvg(ms);
+
+        string svg = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+        Assert.Contains("data-interval-ms=\"120\"", svg, StringComparison.Ordinal);
+        Assert.Contains("data-loop=\"false\"", svg, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SaveFrames_WritesOnePngPerFrame()
     {
         var anim = TwoFrameAnim();

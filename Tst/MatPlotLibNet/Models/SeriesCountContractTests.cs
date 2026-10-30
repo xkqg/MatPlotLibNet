@@ -30,7 +30,7 @@ public class SeriesCountContractTests
 
     /// <summary>The number the documents publish. Changing a series count is a DOCUMENTED change: bump this,
     /// and the list in the failure message tells you which document to bump with it.</summary>
-    private const int PublishedSeriesTypes = 86;
+    private const int PublishedSeriesTypes = 91;
 
     /// <summary>Of those, the streaming family — called out separately wherever the count appears, because a
     /// streaming series is fed rather than plotted.</summary>

@@ -60,7 +60,7 @@ public static class DrawnSeriesFixtures
         typeof(CandlestickSeries), typeof(Contour3DSeries), typeof(ContourSeries), typeof(CountSeries), typeof(DonutSeries),
         typeof(EcdfSeries), typeof(EventplotSeries), typeof(FunnelSeries), typeof(GanttSeries), typeof(GaugeSeries),
         typeof(HistogramSeries), typeof(Line3DSeries), typeof(NetworkGraphSeries), typeof(OhlcBarSeries), typeof(PairGridSeries),
-        typeof(PieSeries), typeof(WaffleSeries), typeof(PointAndFigureSeries), typeof(IcicleSeries), typeof(PointplotSeries), typeof(PolarBarSeries), typeof(PolarLineSeries), typeof(PolarScatterSeries),
+        typeof(PieSeries), typeof(WaffleSeries), typeof(PointAndFigureSeries), typeof(IcicleSeries), typeof(PointplotSeries), typeof(PolarBarSeries), typeof(PolarLineSeries), typeof(PolarScatterSeries), typeof(TernaryLineSeries), typeof(TernaryScatterSeries), typeof(PiperSeries), typeof(ChordSeries), typeof(WordCloudSeries),
         typeof(ProgressBarSeries), typeof(Quiver3DSeries), typeof(QuiverKeySeries), typeof(QuiverSeries), typeof(RadarSeries),
         typeof(RegressionSeries), typeof(RelativeRotationSeries), typeof(ResidualSeries), typeof(RugplotSeries),
         typeof(SankeySeries), typeof(SignalSeries), typeof(SignalXYSeries), typeof(SparklineSeries), typeof(StatTileSeries),
@@ -200,6 +200,11 @@ public static class DrawnSeriesFixtures
             (nameof(PolarBarSeries), _) => ax.AddSeries(new PolarBarSeries([5.0, 10.0, 7.0], [0.0, 1.0, 2.0]), Set),
             (nameof(PolarLineSeries), _) => ax.AddSeries(new PolarLineSeries([1.0, 2.0, 3.0], [0.0, 1.0, 2.0]), Set),
             (nameof(PolarScatterSeries), _) => ax.AddSeries(new PolarScatterSeries([1.0, 2.0, 3.0], [0.0, 1.0, 2.0]), Set),
+            (nameof(TernaryScatterSeries), _) => ax.AddSeries(new TernaryScatterSeries([0.2, 0.5, 0.1], [0.5, 0.3, 0.6], [0.3, 0.2, 0.3]), Set),
+            (nameof(WordCloudSeries), _) => ax.AddSeries(new WordCloudSeries(["data", "chart", "plot"], [10.0, 4.0, 1.0]), Set),
+            (nameof(ChordSeries), _) => ax.AddSeries(new ChordSeries(["a", "b"], new double[,] { { 1, 2 }, { 3, 4 } }), Set),
+            (nameof(PiperSeries), _) => ax.AddSeries(new PiperSeries([new WaterSample { Ca = 60, Mg = 10, Na = 8, K = 2, HCO3 = 200, SO4 = 20, Cl = 10, Label = "a" }]), Set),
+            (nameof(TernaryLineSeries), _) => ax.AddSeries(new TernaryLineSeries([0.2, 0.5, 0.1], [0.5, 0.3, 0.6], [0.3, 0.2, 0.3]), Set),
             (nameof(ProgressBarSeries), _) => ax.AddSeries(new ProgressBarSeries(0.5), Set),
             (nameof(Quiver3DSeries), _) => ax.AddSeries(new Quiver3DSeries(x, y, low, low, low, low), Set),
             (nameof(QuiverKeySeries), _) => ax.AddSeries(new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s"), Set),
@@ -416,6 +421,12 @@ public static class DrawnSeriesFixtures
             return Enumerable.Range(0, Points).Select(i => $"layer {k}.{i}").ToArray();
         }
 
+        if (type == typeof(IReadOnlyList<string>))
+        {
+            // Keys of rows: distinct, none blank, the shape the selected rows of a figure take.
+            return Enumerable.Range(0, Points).Select(i => $"row {k}.{i}").ToArray();
+        }
+
         if (type == typeof(IColorMap))
         {
             // A map built in code, which no other reader knows by a name: it travels as what it is made of. Its bad
@@ -452,6 +463,12 @@ public static class DrawnSeriesFixtures
         if (type == typeof(IReadOnlyList<double>))
         {
             return Enumerable.Range(0, Points).Select(i => k + i + 0.5).ToArray();
+        }
+
+        if (type == typeof(Range1D))
+        {
+            // A range above zero that is not the 12 to 60 a word cloud rests at, narrower at the top and distinct for every k.
+            return new Range1D(8 + k / 64.0, 40 + k / 32.0);
         }
 
         if (type == typeof(OpsCondition))

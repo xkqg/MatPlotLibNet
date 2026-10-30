@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>A ROW OF TILES HAS ONE ANATOMY. The number, its label and its caption sit at the same height in every
 /// tile of a row, whether or not that tile carries a sparkline — a tile system whose stack moves when a trend is
 /// added is not a system, and on a wall the eye reads the row as a line of numbers, not as eight separate
-/// pictures (reported from the Ait ops wall 2026-08-31: the two tiles without a trend sat visibly lower).
+/// pictures (reported from an operations wall 2026-08-31: the two tiles without a trend sat visibly lower).
 /// So the trend strip is ALWAYS reserved; a tile without one leaves it empty rather than growing into it.</summary>
 public class StatTileRowAlignmentTests
 {
@@ -50,7 +50,7 @@ public class StatTileRowAlignmentTests
     }
 
     /// <summary>And a tile with a two-line caption puts its number where a tile with none does. Measured on the
-    /// Ait wall 2026-08-31 the row's numbers sat at y=65, 72 and 79 depending on how many caption lines each
+    /// operations wall 2026-08-31 the row's numbers sat at y=65, 72 and 79 depending on how many caption lines each
     /// tile carried, because the stack was CENTRED in the tile: the owner reads the row as one line of numbers
     /// (*"ik zou de getallen en de tekst daaronder op dezelfde hoogte plaatsen"*), so the stack is anchored at
     /// the top and the captions grow downward into the room that is left.</summary>

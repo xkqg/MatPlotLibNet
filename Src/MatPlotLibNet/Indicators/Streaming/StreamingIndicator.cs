@@ -7,21 +7,23 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Abstract base for streaming indicators. Manages output series, warmup, and the
-/// candlestick subscription pattern. Subclasses implement <see cref="ComputeNext"/> for O(1) incremental logic.</summary>
+/// <summary>Abstract base for streaming indicators that are fed a price. Manages output series, warmup, and the
+/// candlestick subscription pattern. Subclasses implement <see cref="ComputeNext"/> for O(1) incremental logic. An indicator
+/// written today derives from <see cref="StreamingIndicator{TInput}"/>, which also reads a bar with its volume or a row of
+/// series.</summary>
 public abstract class StreamingIndicator : IStreamingIndicator
 {
-    private readonly StreamingLineSeries _output;
-    private double _xCounter;
+    private readonly StreamingOutputs _outputs;
+    private readonly double[] _row;
 
     /// <summary>Display label for the indicator line.</summary>
-    public string? Label { get => _output.Label; set => _output.Label = value; }
+    public string? Label { get => _outputs.Label; set => _outputs.Label = value; }
 
     /// <summary>Line color.</summary>
-    public Color? Color { get => _output.Color; set => _output.Color = value; }
+    public Color? Color { get => _outputs.Color; set => _outputs.Color = value; }
 
     /// <summary>Line width in pixels.</summary>
-    public double LineWidth { get => _output.LineWidth; set => _output.LineWidth = value; }
+    public double LineWidth { get => _outputs.LineWidth; set => _outputs.LineWidth = value; }
 
     /// <inheritdoc />
     public int ProcessedCount { get; protected set; }
@@ -33,46 +35,54 @@ public abstract class StreamingIndicator : IStreamingIndicator
     public bool IsWarmedUp => ProcessedCount >= WarmupPeriod;
 
     /// <inheritdoc />
-    public IReadOnlyList<StreamingLineSeries> OutputSeries { get; }
+    public IReadOnlyList<StreamingLineSeries> OutputSeries => _outputs.Series;
 
     /// <summary>Initializes the indicator with a shared output series capacity.</summary>
-    protected StreamingIndicator(int capacity = 10_000)
-    {
-        _output = new StreamingLineSeries(capacity);
-        OutputSeries = [_output];
-    }
+    protected StreamingIndicator(int capacity = 10_000) : this(new StreamingOutputs(capacity)) { }
 
     /// <summary>Initializes with multiple output series (for bands/MACD).</summary>
-    protected StreamingIndicator(StreamingLineSeries[] outputs)
+    protected StreamingIndicator(StreamingLineSeries[] outputs) : this(new StreamingOutputs(outputs)) { }
+
+    private StreamingIndicator(StreamingOutputs outputs)
     {
-        _output = outputs[0];
-        OutputSeries = outputs;
+        _outputs = outputs;
+        _row = new double[outputs.Count];
     }
 
     /// <inheritdoc />
     public void Append(double price)
     {
         ProcessedCount++;
-        double value = ComputeNext(price);
-        _output.AppendPoint(_xCounter, value);
-        _xCounter++;
+        Array.Fill(_row, double.NaN);
+        _row[0] = ComputeNext(price);
+        _outputs.AppendRow(ProcessedCount - 1, _row);
     }
 
     /// <inheritdoc />
     public virtual void AppendCandle(OhlcBar bar) => Append(bar.Close);
 
     /// <inheritdoc />
-    public double GetLatest() => ProcessedCount > 0 && _output.Count > 0
-        ? _output.CreateSnapshot().YData[^1]
-        : double.NaN;
+    /// <remarks>An indicator that reads the volume overrides this; every other one takes the candle.</remarks>
+    public virtual void AppendBar(OhlcvBar bar) => AppendCandle(bar.Ohlc);
+
+    /// <inheritdoc />
+    public double GetLatest() => _outputs.Latest();
 
     /// <summary>Compute the next indicator value from the incoming price. O(1) per call.
     /// Return <see cref="double.NaN"/> during warmup.</summary>
     protected abstract double ComputeNext(double price);
 
+    /// <summary>Sets an output other than the first for the input being computed, from inside <see cref="ComputeNext"/>. Every
+    /// output is written together once <see cref="ComputeNext"/> returns, so no line is a point ahead of another. An output that
+    /// is not set is NaN for that input.</summary>
+    /// <param name="index">The output, from 0 (the first output is the value <see cref="ComputeNext"/> returns).</param>
+    /// <param name="value">Its value for this input.</param>
+    protected void SetOutput(int index, double value) => _row[index] = value;
+
     /// <summary>Appends a value to a specific output series (for multi-output indicators).</summary>
+    [Obsolete("Use SetOutput, which writes every output of an input together once ComputeNext returns.")]
     protected void AppendToOutput(int index, double x, double value)
     {
-        ((StreamingLineSeries)OutputSeries[index]).AppendPoint(x, value);
+        OutputSeries[index].AppendPoint(x, value);
     }
 }

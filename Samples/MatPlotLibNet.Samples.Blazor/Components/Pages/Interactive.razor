@@ -1,81 +1,42 @@
 @page "/interactive"
 @using MatPlotLibNet.AspNetCore
-@using MatPlotLibNet.Rendering.Svg
-@using MatPlotLibNet.Transforms
 @inject FigureRegistry Registry
-@inject IChartPublisher Publisher
 @implements IDisposable
 
 <h1>Bidirectional SignalR Demo</h1>
 <p>
     Scroll wheel over the chart to zoom. Drag to pan. Click the chart and press
-    <kbd>Home</kbd> to reset. Every gesture round-trips to the .NET server via
-    <code>ChartHub.OnZoom</code> / <code>OnPan</code> / <code>OnReset</code>, which mutates the
-    authoritative <code>Figure</code> via <code>FigureRegistry</code> and publishes the updated
-    SVG back through the existing broadcast pipeline.
+    <kbd>Home</kbd> to go back to the view the chart started with. Every gesture round-trips to the .NET server
+    through the chart's own connection (<code>ChartHub.OnZoom</code> / <code>OnPan</code> / <code>OnReset</code>), which
+    mutates the authoritative <code>Figure</code> via <code>FigureRegistry</code> and publishes the updated
+    SVG back. Open the page in a second window to see the other viewer's pointer.
 </p>
 
-<div id="mpl-interactive-host">@((MarkupString)_svg)</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-<script>
-    (function () {
-        if (window.__mplBootstrapped) return;
-        window.__mplBootstrapped = true;
-
-        // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
-        // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
-        function mplMountSvg(host, svgMarkup) {
-            host.innerHTML = svgMarkup;
-            host.querySelectorAll('script').forEach(function (inert) {
-                var live = document.createElementNS(inert.namespaceURI, 'script');
-                for (var i = 0; i < inert.attributes.length; i++)
-                    live.setAttribute(inert.attributes[i].name, inert.attributes[i].value);
-                live.textContent = inert.textContent;
-                inert.parentNode.replaceChild(live, inert);
-            });
-        }
-
-        var conn = new signalR.HubConnectionBuilder()
-            .withUrl('/charts-hub')
-            .withAutomaticReconnect()
-            .build();
-        window.__mpl_signalr_connection = conn;
-        conn.on('UpdateChartSvg', function (id, svg) {
-            if (id !== 'blazor-interactive') return;
-            var host = document.getElementById('mpl-interactive-host');
-            if (host) mplMountSvg(host, svg);
-        });
-        conn.start().then(function () { return conn.invoke('Subscribe', 'blazor-interactive'); });
-    })();
-</script>
+<MplLiveChart ChartId="@ChartId" InitialFigure="_figure" />
 
 @code {
     private const string ChartId = "blazor-interactive";
-    private string _svg = string.Empty;
+    private Figure _figure = default!;
 
     protected override void OnInitialized()
     {
         var xs = Enumerable.Range(0, 150).Select(i => i * 0.05).ToArray();
         var ys = xs.Select(x => Math.Sin(x) * Math.Exp(-0.1 * x)).ToArray();
 
-        var figure = Plt.Create()
+        _figure = Plt.Create()
             .WithTitle("Damped sine — server-authoritative zoom/pan")
             .WithSize(900, 450)
             .WithTheme(Theme.MatplotlibV2)
             .Plot(xs, ys, line => { line.Color = Css4Colors.Crimson; line.Label = "sin(x)·e^(-0.1x)"; })
-            .WithServerInteraction(ChartId, i => i.All())
+            .WithServerInteraction(ChartId, i => i.All().EnableViewerCursors())
             .Build();
 
-        figure.SubPlots[0].XAxis.Min = xs[0];
-        figure.SubPlots[0].XAxis.Max = xs[^1];
-        figure.SubPlots[0].YAxis.Min = -1.0;
-        figure.SubPlots[0].YAxis.Max = 1.0;
+        _figure.SubPlots[0].XAxis.Min = xs[0];
+        _figure.SubPlots[0].XAxis.Max = xs[^1];
+        _figure.SubPlots[0].YAxis.Min = -1.0;
+        _figure.SubPlots[0].YAxis.Max = 1.0;
 
-        Registry.Register(ChartId, figure);
-
-        var renderer = new SvgTransform();
-        _svg = renderer.Render(figure);
+        Registry.Register(ChartId, _figure);
     }
 
     public void Dispose()

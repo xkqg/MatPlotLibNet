@@ -4,3 +4,4 @@ seaborn==0.13.*
 squarify==0.4.*
 pandas==3.*
 pandas-ta>=0.3.14b
+mpltern==1.0.*

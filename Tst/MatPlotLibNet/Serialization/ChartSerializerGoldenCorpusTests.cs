@@ -198,6 +198,11 @@ public class ChartSerializerGoldenCorpusTests
             case "polarline": ax.PolarPlot([1.0, 2], [0.0, 1.5]); break;
             case "polarscatter": ax.PolarScatter([1.0, 2], [0.0, 1.5]); break;
             case "polarbar": ax.PolarBar([1.0, 2], [0.0, 1.5]); break;
+            case "ternaryscatter": ax.TernaryScatter([0.2, 0.5], [0.5, 0.3], [0.3, 0.2]); break;
+            case "wordcloud": ax.WordCloud(["data", "chart", "plot"], [10.0, 4.0, 1.0]); break;
+            case "chord": ax.Chord(["A", "B", "C"], new double[,] { { 0, 5, 2 }, { 3, 0, 0 }, { 0, 4, 6 } }); break;
+            case "piper": ax.Piper([new WaterSample { Ca = 60, Mg = 10, Na = 8, K = 2, HCO3 = 200, SO4 = 20, Cl = 10 }]); break;
+            case "ternaryline": ax.TernaryPlot([0.2, 0.5], [0.5, 0.3], [0.3, 0.2]); break;
             case "surface": ax.Surface([0.0, 1.0], [0.0, 1.0], Grid2X2Alt); break;
             case "wireframe": ax.Wireframe([0.0, 1.0], [0.0, 1.0], Grid2X2Alt); break;
             case "scatter3d": ax.Scatter3D([1.0, 2], [3.0, 4], [5.0, 6]); break;

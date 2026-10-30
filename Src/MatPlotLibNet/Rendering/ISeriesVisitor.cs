@@ -296,6 +296,28 @@ public interface ISeriesVisitor
     /// Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(WaffleSeries series, RenderArea area) { }
 
+    // ── v1.27 Ternary (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a ternary scatter series (a marker on each composition of three parts).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(TernaryScatterSeries series, RenderArea area) { }
+
+    /// <summary>Renders a ternary line series (a polyline through compositions of three parts).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(TernaryLineSeries series, RenderArea area) { }
+
+    /// <summary>Renders a Piper diagram (two triangles and a diamond, a marker for each water on each).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(PiperSeries series, RenderArea area) { }
+
+    /// <summary>Renders a chord diagram (arcs for the groups, ribbons for the flows between them).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(ChordSeries series, RenderArea area) { }
+
+    /// <summary>Renders a word cloud (each word set in a size that follows its weight, packed into the plot).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(WordCloudSeries series, RenderArea area) { }
+
     // ── v1.26 Point and Figure (default no-op for ISP compatibility) ──
 
     /// <summary>Renders a Point and Figure chart (columns of Xs and Os).

@@ -17,6 +17,13 @@ public interface IStreamingIndicator
     /// <summary>Processes a new OHLC bar and updates internal state.</summary>
     void AppendCandle(OhlcBar bar);
 
+    /// <summary>Processes a new bar with its volume and updates internal state. It is the one call a candle series makes on an
+    /// attached indicator, so an indicator that reads the volume gets it and one that does not never sees it. The default hands
+    /// the prices to <see cref="AppendCandle"/>, which is what every indicator written before the volume existed does.</summary>
+    /// <remarks>Default body excluded from coverage — every concrete streaming indicator answers through its own base class.</remarks>
+    [ExcludeFromCodeCoverage]
+    void AppendBar(OhlcvBar bar) => AppendCandle(bar.Ohlc);
+
     /// <summary>Most recently computed indicator value.</summary>
     double GetLatest();
 

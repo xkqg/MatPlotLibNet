@@ -10,10 +10,17 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a Gantt chart showing task durations as horizontal bars on a timeline.</summary>
 public sealed class GanttSeries : ChartSeries, IHasColor
 {
+    /// <summary>The name of each task; task <c>i</c> is drawn on row <c>i</c> of the Y axis.</summary>
     public string[] Tasks { get; }
+    /// <summary>Where each task's bar begins along the X axis, one value per task.</summary>
     public double[] Starts { get; }
+    /// <summary>Where each task's bar ends along the X axis, one value per task; a task whose start or end is missing
+    /// (NaN) or infinite draws no bar.</summary>
     public double[] Ends { get; }
+    /// <inheritdoc />
     public Color? Color { get; set; }
+    /// <summary>Height of each task bar in data units of the row axis, where rows are 1 apart; 1 makes neighbouring
+    /// bars touch. Default 0.6.</summary>
     public double BarHeight { get; set; } = 0.6;
 
     /// <summary>Initializes a new <see cref="GanttSeries"/> with task names and their start/end data positions.</summary>

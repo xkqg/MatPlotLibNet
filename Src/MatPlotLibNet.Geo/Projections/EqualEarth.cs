@@ -10,8 +10,10 @@ public sealed class EqualEarth : IGeoProjection
     private const double A1 = 1.340264, A2 = -0.081106, A3 = 0.000893, A4 = 0.003796;
     private const double M = 0.8660254037844386; // sqrt(3) / 2
 
+    /// <inheritdoc />
     public string Name => "EqualEarth";
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = latitude.ToRadians();
@@ -30,8 +32,10 @@ public sealed class EqualEarth : IGeoProjection
         return new(x, y);
     }
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
 
+    /// <inheritdoc />
     public GeoBounds Bounds
     {
         get

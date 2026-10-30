@@ -45,7 +45,7 @@ public sealed class BrushSelectModifier : IInteractionModifier
     public void OnPointerPressed(PointerInputArgs args)
     {
         int axesIndex = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
+        var coords = _layout.PixelToData(args.X, args.Y, axesIndex);
         if (coords is null) return;
 
         _active       = true;
@@ -72,7 +72,7 @@ public sealed class BrushSelectModifier : IInteractionModifier
         if (!_active) return;
         _active = false;
 
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, _activeAxes);
+        var coords = _layout.PixelToData(args.X, args.Y, _activeAxes);
         if (coords is null) return;
 
         double endDataX = coords.Value.DataX;

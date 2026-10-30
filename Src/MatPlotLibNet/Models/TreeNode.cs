@@ -8,10 +8,15 @@ namespace MatPlotLibNet.Models;
 /// <summary>Represents a node in a hierarchical tree structure, used by Treemap and Sunburst series.</summary>
 public sealed record TreeNode
 {
+    /// <summary>The name drawn on the node's rectangle or slice. Empty by default.</summary>
     public string Label { get; init; } = "";
 
+    /// <summary>The node's size, which sets the area of its rectangle or the angle of its slice. Read for a leaf; a node
+    /// with children is sized by the sum of theirs (see <see cref="TotalValue"/>).</summary>
     public double Value { get; init; }
 
+    /// <summary>The fill colour of the node. <see langword="null"/> (the default) takes a colour by the node's position
+    /// among its siblings, unless <see cref="ColorValue"/> asks for one by value.</summary>
     public Color? Color { get; init; }
 
     /// <summary>A SECOND value the node's colour is read from, through the series' normalizer and colour map —
@@ -48,6 +53,7 @@ public sealed record TreeNode
     /// <summary>The hatch strokes' colour, or null to contrast automatically.</summary>
     public Color? HatchColor { get; init; }
 
+    /// <summary>The nodes nested under this one. Empty by default, which makes this node a leaf.</summary>
     public IReadOnlyList<TreeNode> Children { get; init; } = Array.Empty<TreeNode>();
 
     /// <summary>Computes the total value: own value if leaf, sum of children if branch.</summary>

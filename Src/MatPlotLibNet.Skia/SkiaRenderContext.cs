@@ -276,7 +276,7 @@ public sealed class SkiaRenderContext : IRenderContext
 
     /// <summary>Tile size in layout units — the same 6 the SVG hatch registry uses, so the two backends
     /// produce the same hatch density at the same scale.</summary>
-    private const float HatchTile = 6f;
+    private const float HatchTileSize = (float)MatPlotLibNet.Styling.HatchTile.Size;
 
     /// <summary>The most a hatch tile is enlarged for a canvas that is scaled up (a PNG at a high resolution): beyond
     /// this the tile is stretched, since a tile is built for every hatched shape drawn.</summary>
@@ -292,8 +292,8 @@ public sealed class SkiaRenderContext : IRenderContext
     {
         Color strokes = shape.HatchColor ?? shape.Fill!.Value.ContrastingTextColor();
 
-        int tilePixels = (int)MathF.Round(HatchTile * DeviceScale());
-        float pixelsPerUnit = tilePixels / HatchTile;
+        int tilePixels = (int)MathF.Round(HatchTileSize * DeviceScale());
+        float pixelsPerUnit = tilePixels / HatchTileSize;
 
         using var tile = new SKBitmap(tilePixels, tilePixels);
         using (var canvas = new SKCanvas(tile))
@@ -329,64 +329,27 @@ public sealed class SkiaRenderContext : IRenderContext
         return Math.Clamp(MathF.Max(across, down), 1f, MostHatchTileScale);
     }
 
-    /// <summary>Draws one tile of the hatch. Mirrors <c>SvgHatchRegistry.AppendStrokes</c> geometry so the SVG
-    /// and PNG of the same figure carry the same marks.</summary>
+    /// <summary>Draws one tile of the hatch: the marks <see cref="HatchTile"/> says, the same the SVG pattern and the MAUI
+    /// pattern paint draw, so the PNG and the SVG of one figure carry the same marks.</summary>
     private static void DrawHatchTile(SKCanvas canvas, HatchPattern hatch, SKPaint stroke, SKColor color)
     {
-        const float T = HatchTile;
-        switch (hatch)
+        foreach (var mark in HatchTile.MarksOf(hatch))
         {
-            case HatchPattern.ForwardDiagonal:
-                canvas.DrawLine(0, T, T, 0, stroke);
-                canvas.DrawLine(-1, 1, 1, -1, stroke);
-                canvas.DrawLine(T - 1, T + 1, T + 1, T - 1, stroke);
-                break;
-
-            case HatchPattern.BackDiagonal:
-                canvas.DrawLine(0, 0, T, T, stroke);
-                canvas.DrawLine(-1, T - 1, 1, T + 1, stroke);
-                canvas.DrawLine(T - 1, -1, T + 1, 1, stroke);
-                break;
-
-            case HatchPattern.Horizontal:
-                canvas.DrawLine(0, T / 2, T, T / 2, stroke);
-                break;
-
-            case HatchPattern.Vertical:
-                canvas.DrawLine(T / 2, 0, T / 2, T, stroke);
-                break;
-
-            case HatchPattern.Cross:
-                canvas.DrawLine(0, T / 2, T, T / 2, stroke);
-                canvas.DrawLine(T / 2, 0, T / 2, T, stroke);
-                break;
-
-            case HatchPattern.DiagonalCross:
-                canvas.DrawLine(0, T, T, 0, stroke);
-                canvas.DrawLine(0, 0, T, T, stroke);
-                break;
-
-            case HatchPattern.Dots:
+            if (mark.Kind == HatchMarkKind.Dot)
+            {
                 DrawHatchDot(canvas, color);
-                break;
-
-            case HatchPattern.Stars:
-                DrawHatchDot(canvas, color);
-                canvas.DrawLine(0, T, T, 0, stroke);
-                canvas.DrawLine(0, 0, T, T, stroke);
-                break;
-
-            default:
-                // An out-of-range cast leaves the tile empty: an undefined hatch draws nothing rather than
-                // throwing inside a render pass. HatchPattern.None never reaches here (HasVisibleHatch guards it).
-                break;
+            }
+            else
+            {
+                canvas.DrawLine((float)mark.X1, (float)mark.Y1, (float)mark.X2, (float)mark.Y2, stroke);
+            }
         }
     }
 
     private static void DrawHatchDot(SKCanvas canvas, SKColor color)
     {
         using var dot = new SKPaint { Color = color, Style = SKPaintStyle.Fill, IsAntialias = true };
-        canvas.DrawCircle(HatchTile / 2, HatchTile / 2, 1f, dot);
+        canvas.DrawCircle(HatchTileSize / 2, HatchTileSize / 2, 1f, dot);
     }
 
     /// <summary>Creates a filled SKPaint from the given color, modulated by the current group opacity.</summary>

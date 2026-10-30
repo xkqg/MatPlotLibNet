@@ -3,3 +3,5 @@ export { ChartService } from './lib/chart.service';
 export { MplChartComponent } from './lib/mpl-chart.component';
 export { MplLiveChartComponent } from './lib/mpl-live-chart.component';
 export { MatPlotLibNetModule } from './lib/matplotlibnet.module';
+export { mountSvg } from './lib/mount-svg';
+export type { MplHub } from './lib/mount-svg';

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -44,89 +45,14 @@ public sealed class Bocpd : PriceIndicator<SignalResult>
         int n = Prices.Length;
         if (n < 2) return Array.Empty<double>();
 
-        int maxR = _maxRunLength;
-        int size = maxR + 1;
-
-        // State per run length r: probability, sample count, running mean, running sum-of-squared-deviations (M2).
-        var runProb = new double[size];
-        var runCount = new int[size];
-        var runMean = new double[size];
-        var runM2 = new double[size];
-        var newProb = new double[size];
-
-        // Bar 0 — initialize the r=0 run with the first observation.
-        runProb[0] = 1.0;
-        runCount[0] = 1;
-        runMean[0] = Prices[0];
-
-        double sqrt2pi = Math.Sqrt(2 * Math.PI);
         var result = new double[n - 1];
-
-        for (int t = 1; t < n; t++)
+        var step = new BocpdStep(_hazard, _priorVariance, _maxRunLength);
+        for (int t = 0; t < n; t++)
         {
-            double xt = Prices[t];
-            Array.Clear(newProb, 0, size);
-
-            // Predictive + mass redistribution.
-            for (int r = 0; r < size; r++)
-            {
-                if (runCount[r] == 0) continue;
-
-                double variance = (runCount[r] > 1 ? runM2[r] / (runCount[r] - 1) : 0.0) + _priorVariance;
-                double diff = xt - runMean[r];
-                double pred = Math.Exp(-0.5 * diff * diff / variance) / (sqrt2pi * Math.Sqrt(variance));
-                double weight = runProb[r] * pred;
-
-                // Growth: r → r+1, or absorbed at r=maxR.
-                if (r < maxR)
-                    newProb[r + 1] += weight * (1 - _hazard);
-                else
-                    newProb[r] += weight * (1 - _hazard);
-
-                // Changepoint contribution.
-                newProb[0] += weight * _hazard;
-            }
-
-            // Normalize — if sum underflowed to 0 (extreme surprise), force full changepoint.
-            double sum = 0;
-            for (int r = 0; r < size; r++) sum += newProb[r];
-            if (sum > 0)
-            {
-                for (int r = 0; r < size; r++) newProb[r] /= sum;
-            }
-            else
-            {
-                Array.Clear(newProb, 0, size);
-                newProb[0] = 1.0;
-            }
-
-            // Advance sufficient statistics: r+1's stats are (old r's stats) with xt appended.
-            // Iterate high-to-low to avoid overwriting.
-            for (int r = maxR - 1; r >= 0; r--)
-            {
-                if (runCount[r] == 0)
-                {
-                    runCount[r + 1] = 0;
-                    runMean[r + 1] = 0;
-                    runM2[r + 1] = 0;
-                    continue;
-                }
-                int newCount = runCount[r] + 1;
-                double delta = xt - runMean[r];
-                double newMean = runMean[r] + delta / newCount;
-                double delta2 = xt - newMean;
-                runCount[r + 1] = newCount;
-                runMean[r + 1] = newMean;
-                runM2[r + 1] = runM2[r] + delta * delta2;
-            }
-            // r=0 starts fresh with xt as sole observation.
-            runCount[0] = 1;
-            runMean[0] = xt;
-            runM2[0] = 0;
-
-            Array.Copy(newProb, runProb, size);
-            result[t - 1] = newProb[0];
+            double changePoint = step.Next(Prices[t]);
+            if (t >= 1) result[t - 1] = changePoint;
         }
+
         return result;
     }
 

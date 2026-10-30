@@ -11,7 +11,15 @@ namespace MatPlotLibNet.Rendering;
 /// <summary>Specifies the horizontal alignment of rendered text.</summary>
 /// <remarks><b>Append-only ordinal contract:</b> never reorder,
 /// remove, or renumber.</remarks>
-public enum TextAlignment { Left = 0, Center = 1, Right = 2 }
+public enum TextAlignment
+{
+    /// <summary>The text starts at the given position and runs to its right.</summary>
+    Left = 0,
+    /// <summary>The text is centred on the given position.</summary>
+    Center = 1,
+    /// <summary>The text ends at the given position and runs to its left.</summary>
+    Right = 2
+}
 
 /// <summary>Defines the rendering surface abstraction for drawing chart primitives.</summary>
 public interface IRenderContext
@@ -89,6 +97,13 @@ public interface IRenderContext
 
     /// <summary>Attaches a data attribute on the next drawn SVG element. No-op for non-SVG contexts.</summary>
     void SetNextElementData(string key, string value) { }
+
+    /// <summary>Asks that the next text drawn be set exactly <paramref name="width"/> wide, whatever font the viewer finds for it:
+    /// SVG writes <c>textLength</c> with <c>lengthAdjust="spacingAndGlyphs"</c>, so a line that was measured and packed in one font
+    /// does not run into its neighbour in a wider one. It applies to the next text only; a width that is not a positive number is
+    /// ignored. No-op for a context that sets no markup text.</summary>
+    /// <param name="width">The width the text is to be set to, in pixels.</param>
+    void SetNextTextLength(double width) { }
 
     /// <summary>Ends the current group. Default is a no-op.</summary>
     void EndGroup() { }

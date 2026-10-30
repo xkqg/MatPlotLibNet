@@ -19,11 +19,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
-  </ItemGroup>
-
-  <!-- Include Avalonia source files directly to avoid multi-target dependency -->
-  <ItemGroup>
-    <Compile Include="..\..\Src\MatPlotLibNet.Avalonia\*.cs" LinkBase="AvaloniaSrc" />
+    <!-- The package itself, not its sources linked in: the coverage collector records a module only while the process
+         loads it, and a linked copy lives in this suite's own *.Tests.dll, which the runsettings leaves out. -->
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Avalonia\MatPlotLibNet.Avalonia.csproj" />
   </ItemGroup>
 
   <ItemGroup>

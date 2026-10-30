@@ -10,14 +10,14 @@ namespace MatPlotLibNet.Data;
 /// folds it — one pass, one consistent state, nothing
 /// materialised. <see cref="ToArray"/> exists for the callers that genuinely need an array (a snapshot DTO, a
 /// renderer's point list) and should not be reached for to answer a question about the window. Measured on a
-/// window of 1024, 20 000 reads: asking cost <b>0,5 MB</b>, copying cost <b>625 MB</b>.</para>
+/// window of 1024, 20 000 reads: asking cost <b>0.5 MB</b>, copying cost <b>625 MB</b>.</para>
 ///
 /// <para><b>Why a fixed array behind a lock and not a concurrent collection.</b> Measured, four shapes, same
 /// machine, 4-field struct, window 1024: this one appends at 41 M/s with zero allocation and snapshots at
 /// 941 k/s; <c>ConcurrentQueue</c> + trim at 25 M/s and 273 k/s; a <c>ConcurrentDictionary</c> keyed by ordinal
-/// at 11 M/s and 145 k/s while allocating per append; Core's bucketed shape at 12 M/s and 41 k/s, because a
+/// at 11 M/s and 145 k/s while allocating per append; a bucketed alternative at 12 M/s and 41 k/s, because a
 /// bucket is a SET and restoring the order means sorting. Order is free in an array and expensive in every
-/// keyed store — which is exactly why Core's ring is right for "is this key in the window" and wrong here.</para>
+/// keyed store — which is exactly why a bucketed ring is right for "is this key in the window" and wrong here.</para>
 ///
 /// <para>Thread-safe for one writer and many readers; it never allocates on <see cref="Append"/>.</para>
 ///

@@ -18,33 +18,55 @@ namespace MatPlotLibNet.Playground;
 /// See <c>EnumOrdinalContractTests</c> for the enforcement gate.</remarks>
 public enum PlaygroundExample
 {
+    /// <summary>A single line over x and y values, styled by the line-style, width and marker options.</summary>
     [Description("Line Chart")]    LineChart    = 0,
+    /// <summary>Vertical bars, one per category, each labelled with its value.</summary>
     [Description("Bar Chart")]     BarChart     = 1,
+    /// <summary>Individual points plotted at x and y positions, with no line between them.</summary>
     [Description("Scatter Plot")]  ScatterPlot  = 2,
+    /// <summary>Several curves on one set of axes, told apart by a legend.</summary>
     [Description("Multi-Series")]  MultiSeries  = 3,
+    /// <summary>A matrix of values drawn as coloured cells, coloured by the chosen colour map.</summary>
     [Description("Heatmap")]       Heatmap      = 4,
+    /// <summary>A circle cut into wedges whose angles are each part's share of the total, with percentage labels.</summary>
     [Description("Pie Chart")]     PieChart     = 5,
+    /// <summary>The distribution of a set of values, counted into 20 equal-width bins.</summary>
     [Description("Histogram")]     Histogram    = 6,
+    /// <summary>Lines of equal value across an x-y grid, coloured by the chosen colour map.</summary>
     [Description("Contour Plot")]  ContourPlot  = 7,
+    /// <summary>A height field drawn as a shaded surface on three-dimensional axes, seen from a tilted camera.</summary>
     [Description("3D Surface")]    Surface3D    = 8,
+    /// <summary>Two sets of scores on the same categories, each drawn as a translucent polygon around a common centre.</summary>
     [Description("Radar Chart")]   RadarChart   = 9,
+    /// <summary>The shape of several groups' distributions, each mirrored around its own centre line.</summary>
     [Description("Violin Plot")]   ViolinPlot   = 10,
+    /// <summary>Open, high, low and close prices per date, drawn as candles that are green when the price rose and red when it fell.</summary>
     [Description("Candlestick")]   Candlestick  = 11,
+    /// <summary>A hierarchy drawn as nested rectangles whose areas are proportional to each node's value.</summary>
     [Description("Treemap")]       Treemap      = 12,
+    /// <summary>Flows between nodes drawn as bands whose widths are proportional to the amount moved.</summary>
     [Description("Sankey Flow")]   SankeyFlow   = 13,
+    /// <summary>A curve given as radius against angle, drawn on polar axes.</summary>
     [Description("Polar Line")]    PolarLine    = 14,
+    /// <summary>One figure holding two subplots side by side, a line chart and a bar chart, each with its own title.</summary>
     [Description("Multi-Subplot")] MultiSubplot = 15,
+    /// <summary>A line whose Y axis skips an empty stretch of values (20 to 80), so the data on either side stays readable.</summary>
     [Description("Axis Breaks")]   AxisBreaks   = 16,
+    /// <summary>A line with minor ticks, and grid lines drawn at both the major and the minor ticks.</summary>
     [Description("Minor Grid")]    MinorGrid    = 17,
 
     // Dashboard-oriented examples (StatTile/StateTimeline, Threshold + LegendValues).
+    /// <summary>A row of KPI tiles above a timeline of a service's state over 24 hours; a tile is a number with a label, so its axes are hidden.</summary>
     [Description("Dashboard Tiles")] DashboardTiles = 18,
+    /// <summary>A line with a dashed alarm level and a shaded span where it is exceeded, and the legend showing the line's current reading.</summary>
     [Description("Threshold Line")]  ThresholdLine  = 19,
 
     // Lines named at their end on a dual axis whose axes wear their line's colour.
+    /// <summary>Temperature and humidity on two Y axes, each line named at its end and each axis coloured like its line, so no legend is needed.</summary>
     [Description("Direct Labels")]   DirectLabels   = 20,
 
     // A chart drawn by one verb call: bars largest first and their running share on a second axis.
+    /// <summary>Defect counts as bars, largest first, with their running share of the total as a line on a second axis that ends at 100 %.</summary>
     [Description("Pareto Chart")]    ParetoChart    = 21,
 }
 

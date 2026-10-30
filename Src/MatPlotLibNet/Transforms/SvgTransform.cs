@@ -102,7 +102,8 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 sb.AppendLine(SvgSignalRInteractionScript.GetScript(
                     enableBrushSelect: figure.EnableSelection,
                     enableHover: figure.EnableRichTooltips,
-                    enableDataCursor: figure.EnableDataCursor));
+                    enableDataCursor: figure.EnableDataCursor,
+                    enableViewerCursors: figure.EnableViewerCursors));
             }
             else
             {
@@ -127,6 +128,8 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 sb.AppendLine(SvgHighlightScript.GetScript());
             if (!figure.ServerInteraction && figure.EnableSelection)
                 sb.AppendLine(SvgSelectionScript.GetScript());
+            if (figure.SelectionGroup is not null)
+                sb.AppendLine(SvgRowSelectionScript.GetScript());
             if (figure.Enable3DRotation)
                 sb.AppendLine(Svg3DRotationScript.GetScript());
             if (figure.EnableTreemapDrilldown)
@@ -199,6 +202,13 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         // A plot with an aspect must not be stretched by zooming the picture: the zoom script reads this to keep the view isotropic.
         if (figure.SubPlots.Any(axes => axes.Aspect.HasValue))
             sb.Append(" data-aspect-lock=\"true\"");
+        // The link to the other charts of the same data: the group's name, and the rows the chart starts with selected.
+        if (figure.SelectionGroup is { } selectionGroup)
+        {
+            sb.Append(" data-selection-group=\"").Append(selectionGroup.EscapeForXml()).Append('"');
+            if (figure.SelectedRows is { Count: > 0 } selectedRows)
+                sb.Append(" data-selected-rows=\"").Append(System.Text.Json.JsonSerializer.Serialize(selectedRows).EscapeForXml()).Append('"');
+        }
         if (figure.ServerInteraction && figure.ChartId is { } chartId)
         {
             sb.Append(" data-chart-id=\"").Append(chartId.EscapeForXml()).Append('"');

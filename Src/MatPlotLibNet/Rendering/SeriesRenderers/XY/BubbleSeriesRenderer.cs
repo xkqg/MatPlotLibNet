@@ -13,7 +13,7 @@ internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
     public BubbleSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <summary>One bubble as it stands on the plot: its centre and its radius in pixels.</summary>
-    private readonly record struct Bubble(Point Centre, double Radius);
+    private readonly record struct Bubble(Point Centre, double Radius, int Row);
 
     /// <summary>The bubbles that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to
     /// a legend. A bubble at a point the axes cannot place, or whose size is no area (missing, infinite, negative), is left
@@ -24,7 +24,7 @@ internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
         for (int i = 0; i < pts.Length; i++)
         {
             double radius = Math.Sqrt(series.Sizes[i]) / 2;
-            if (pts[i].IsDrawable() && radius.IsDrawable()) yield return new Bubble(pts[i], radius);
+            if (pts[i].IsDrawable() && radius.IsDrawable()) yield return new Bubble(pts[i], radius, i);
         }
     }
 
@@ -40,6 +40,10 @@ internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
         var color = ResolveColor(series.Color);
         var fill = ApplyAlpha(color, series.Alpha);
         foreach (var bubble in Bubbles(series))
+        {
+            // The bubble is one row of the data: say which, so a script can find the same row in another chart.
+            if (series.RowKeys is { } keys) Ctx.SetNextElementData("row", keys[bubble.Row]);
             Ctx.DrawCircle(bubble.Centre, bubble.Radius, new ShapeStyle(fill, color, 1));
+        }
     }
 }

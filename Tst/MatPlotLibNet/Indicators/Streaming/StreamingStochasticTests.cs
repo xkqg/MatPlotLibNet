@@ -8,14 +8,14 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
 /// <summary>Phase 8 — full coverage for <see cref="StreamingStochastic"/> (was 30.5%).
 /// Tests cover the warmup phase (NaN until ProcessedCount >= kPeriod), the high==low
-/// degenerate case (returns 50), %D's SMA→EMA transition, and ring-buffer wraparound.</summary>
+/// degenerate case (returns 50), %D as the simple mean of the last d values of %K, and ring-buffer wraparound.</summary>
 public class StreamingStochasticTests
 {
     [Fact]
     public void Construction_DefaultsAreCorrect()
     {
         var s = new StreamingStochastic();
-        Assert.Equal(14, s.WarmupPeriod);
+        Assert.Equal(16, s.WarmupPeriod);   // %K from bar 14, %D two bars later
         Assert.Equal("Stoch(14,3)", s.Label);
         Assert.Equal(2, s.OutputSeries.Count);   // %K and %D
     }
@@ -24,7 +24,7 @@ public class StreamingStochasticTests
     public void Construction_CustomParams_PropagateLabel()
     {
         var s = new StreamingStochastic(kPeriod: 5, dPeriod: 2);
-        Assert.Equal(5, s.WarmupPeriod);
+        Assert.Equal(6, s.WarmupPeriod);
         Assert.Equal("Stoch(5,2)", s.Label);
     }
 

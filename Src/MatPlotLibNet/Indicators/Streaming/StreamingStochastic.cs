@@ -2,25 +2,24 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Stochastic Oscillator (%K and %D). Uses rolling min/max deque. O(1) amortized.</summary>
+/// <summary>Streaming Stochastic Oscillator (%K and %D). %K scans the last <c>k</c> highs and lows, O(k) per candle; %D is the
+/// <see cref="RollingMeanStep"/> of the last <c>d</c> values of %K, the simple mean the batch <see cref="Stochastic"/> takes.</summary>
 public sealed class StreamingStochastic : StreamingIndicator
 {
     private readonly int _kPeriod;
     private readonly int _dPeriod;
     private readonly double[] _highs;
     private readonly double[] _lows;
-    private readonly double[] _closes;
     private int _ringIndex;
-    private double _dSum;
-    private int _dCount;
-    private double _dEma;
+    private RollingMeanStep _d;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => _kPeriod;
+    public override int WarmupPeriod => _kPeriod + _dPeriod - 1;
 
     /// <summary>Creates streaming Stochastic. Two output series: %K and %D.</summary>
     public StreamingStochastic(int kPeriod = 14, int dPeriod = 3, int capacity = 10_000)
@@ -33,7 +32,7 @@ public sealed class StreamingStochastic : StreamingIndicator
         _dPeriod = dPeriod;
         _highs = new double[kPeriod];
         _lows = new double[kPeriod];
-        _closes = new double[kPeriod];
+        _d = new RollingMeanStep(dPeriod);
         Label = $"Stoch({kPeriod},{dPeriod})";
     }
 
@@ -44,36 +43,27 @@ public sealed class StreamingStochastic : StreamingIndicator
 
         _highs[_ringIndex] = bar.High;
         _lows[_ringIndex] = bar.Low;
-        _closes[_ringIndex] = bar.Close;
         _ringIndex = (_ringIndex + 1) % _kPeriod;
 
+        double k = double.NaN;
+        double d = double.NaN;
+        if (ProcessedCount >= _kPeriod)
+        {
+            double high = double.MinValue, low = double.MaxValue;
+            for (int i = 0; i < _kPeriod; i++)
+            {
+                high = Math.Max(high, _highs[i]);
+                low = Math.Min(low, _lows[i]);
+            }
+
+            double range = high - low;
+            k = range > 0 ? (bar.Close - low) / range * 100 : 50;
+            d = _d.Next(k);
+        }
+
         double x = ProcessedCount - 1;
-
-        if (ProcessedCount < _kPeriod)
-        {
-            OutputSeries[0].AppendPoint(x, double.NaN);
-            OutputSeries[1].AppendPoint(x, double.NaN);
-            return;
-        }
-
-        int count = Math.Min(ProcessedCount, _kPeriod);
-        double high = double.MinValue, low = double.MaxValue;
-        for (int i = 0; i < count; i++)
-        {
-            high = Math.Max(high, _highs[i]);
-            low = Math.Min(low, _lows[i]);
-        }
-
-        double k = high == low ? 50 : (bar.Close - low) / (high - low) * 100;
         OutputSeries[0].AppendPoint(x, k);
-
-        // %D = SMA of %K
-        _dCount++;
-        if (_dCount <= _dPeriod) _dSum += k;
-        if (_dCount == _dPeriod) _dEma = _dSum / _dPeriod;
-        else if (_dCount > _dPeriod) _dEma = (_dEma * (_dPeriod - 1) + k) / _dPeriod;
-
-        OutputSeries[1].AppendPoint(x, _dCount >= _dPeriod ? _dEma : double.NaN);
+        OutputSeries[1].AppendPoint(x, d);
     }
 
     /// <inheritdoc />

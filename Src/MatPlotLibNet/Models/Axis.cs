@@ -10,27 +10,41 @@ namespace MatPlotLibNet.Models;
 /// <summary>Represents the configuration of a single axis (X or Y) on an axes.</summary>
 public class Axis
 {
+    /// <summary>The axis title drawn beside the axis. <see langword="null"/> (the default) draws none.</summary>
     public string? Label { get; set; }
 
+    /// <summary>Overrides of the axis title's font (size, weight, family, slant, colour) and its extra distance from the
+    /// tick labels (<see cref="TextStyle.Pad"/>); whatever it leaves unset follows the theme. <see langword="null"/> (the
+    /// default) draws the title in the theme's label font.</summary>
     public TextStyle? LabelStyle { get; set; }
 
+    /// <summary>The lower limit of the axis in data units. <see langword="null"/> (the default) lets the axis scale itself
+    /// to the data; a value pins that end exactly, so data past it is clipped.</summary>
     public double? Min { get; set; }
 
+    /// <summary>The upper limit of the axis in data units. <see langword="null"/> (the default) lets the axis scale itself
+    /// to the data; a value pins that end exactly, so data past it is clipped.</summary>
     public double? Max { get; set; }
 
     /// <summary>True when <see cref="Min"/> or <see cref="Max"/> is set: that side is drawn exactly as set.</summary>
     internal bool HasLimit => Min.HasValue || Max.HasValue;
 
+    /// <summary>How values are spread along the axis: linearly by default, or logarithmically, symmetric-logarithmically,
+    /// by logit or as dates.</summary>
     public AxisScale Scale { get; set; } = AxisScale.Linear;
 
     /// <summary>Linear threshold for <see cref="AxisScale.SymLog"/>. Values within
     /// [-SymLogLinThresh, SymLogLinThresh] are mapped linearly. Default 1.0.</summary>
     public double SymLogLinThresh { get; set; } = 1.0;
 
+    /// <summary>The main ticks of the axis: the marks that carry labels. Shown by default.</summary>
     public TickConfig MajorTicks { get; set; } = new();
 
     // matplotlib minor tick defaults: xtick.minor.size = 2.0 pt, xtick.minor.width = 0.6 pt,
     // and minor ticks are OFF by default (ax.minorticks_on() / WithMinorTicks() enables them).
+    /// <summary>The minor ticks of the axis: the short unlabelled marks between the major ones. Hidden by default, and
+    /// shorter and thinner than the major ticks when switched on; unless <see cref="TickConfig.Spacing"/> is set they divide
+    /// each major interval into five.</summary>
     public TickConfig MinorTicks { get; set; } = new TickConfig
     {
         Visible = false,
@@ -109,28 +123,43 @@ public enum AxisScale
 /// <summary>Configures the appearance and spacing of axis tick marks.</summary>
 public sealed record TickConfig
 {
+    /// <summary>Whether these ticks are drawn, marks and labels both. On by default; off draws nothing and reserves no room
+    /// for them.</summary>
     public bool Visible { get; init; } = true;
 
+    /// <summary>The distance between neighbouring ticks, in data units. <see langword="null"/> (the default) places the
+    /// ticks automatically; for minor ticks it replaces the default of five divisions per major interval.</summary>
     public double? Spacing { get; init; }
 
+    /// <summary>A format string for the tick labels, kept with the tick settings and written to the JSON. The labels drawn
+    /// come from the axis' <see cref="Axis.TickFormatter"/>, or are plain numbers when it is <see langword="null"/>.</summary>
     public string? Format { get; init; }
 
+    /// <summary>Which way the tick marks point: out of the plot (the default), into it, or across the axis line.</summary>
     public TickDirection Direction { get; init; } = TickDirection.Out;
 
     // matplotlib `xtick.major.size = 3.5` POINTS → at 100 DPI = 4.861 px.
     // We store in pixels (the unit Skia and SVG render in), pre-converted.
+    /// <summary>The length of a tick mark, in pixels. Default 4.86 (matplotlib's 3.5 points at 100 dpi).</summary>
     public double Length { get; init; } = 3.5 * 100.0 / 72.0;
 
     // matplotlib `xtick.major.width = 0.8` POINTS → at 100 DPI = 1.111 px.
+    /// <summary>The line width of a tick mark, in pixels. Default 1.11 (matplotlib's 0.8 points at 100 dpi).</summary>
     public double Width { get; init; } = 0.8 * 100.0 / 72.0;
 
+    /// <summary>The colour of the tick marks. <see langword="null"/> (the default) takes the theme's foreground colour.</summary>
     public Color? Color { get; init; }
 
+    /// <summary>The size of the tick labels, in the units of the theme's font sizes. <see langword="null"/> (the default)
+    /// takes the theme's tick-label size.</summary>
     public double? LabelSize { get; init; }
 
+    /// <summary>The colour of the tick labels. <see langword="null"/> (the default) takes the theme's tick-label colour.</summary>
     public Color? LabelColor { get; init; }
 
     // matplotlib `xtick.major.pad = 3.5` POINTS → at 100 DPI = 4.861 px.
+    /// <summary>The gap between the end of a tick mark and its label, in pixels. Default 4.86 (matplotlib's 3.5 points at
+    /// 100 dpi).</summary>
     public double Pad { get; init; } = 3.5 * 100.0 / 72.0;
 
     /// <summary>When <c>true</c>, ticks and labels are drawn on both sides of the axes

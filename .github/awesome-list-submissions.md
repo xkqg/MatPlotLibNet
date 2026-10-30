@@ -24,7 +24,7 @@ entry goes at the end of the section. Entries there carry no closing period.
 **Status:** not to be submitted on the owner's behalf. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - matplotlib-inspired charting for .NET: 86 chart types, server-rendered SVG/PNG/PDF/GIF, and native controls for Blazor, WPF, MAUI, Avalonia and Uno
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - matplotlib-inspired charting for .NET: 91 chart types, server-rendered SVG/PNG/PDF/GIF, and native controls for Blazor, WPF, MAUI, Avalonia and Uno
 ```
 
 **PR title:** Add MatPlotLibNet to Graphics
@@ -94,7 +94,7 @@ like the four list entries above. Text only, for him.
 
 MatPlotLibNet is a new MIT-licensed charting library for .NET 10 that brings matplotlib's code-first philosophy to the .NET ecosystem. Key features:
 
-- 86 series types covering line, bar, scatter, heatmap, contour, candlestick, Sankey, treemap, sunburst, polar, and 12 3D chart types
+- 91 series types covering line, bar, scatter, heatmap, contour, candlestick, Sankey, treemap, sunburst, polar, and 12 3D chart types
 - 148 colormaps (viridis, plasma, turbo, etc.)
 - LaTeX-like MathText for publication-quality labels
 - Native UI controls for Avalonia 12, Uno Platform, and MAUI
@@ -118,7 +118,7 @@ Cookbook: https://xkqg.github.io/MatPlotLibNet/cookbook/
 I've been building a charting library for .NET that takes matplotlib's code-first approach and brings it to C#.
 Where it stands now:
 
-- **86 series types** — everything from line/bar/scatter to Sankey diagrams, treemaps, and 12 3D chart types
+- **91 series types** — everything from line/bar/scatter to Sankey diagrams, treemaps, and 12 3D chart types
 - **Native UI controls** — Avalonia 12 (`MplChartControl`) and Uno Platform (`MplChartElement`) render via SkiaSharp with local pan/zoom/brush-select
 - **MathText** — LaTeX-like labels with fractions, square roots, accents, Greek letters (96 symbol mappings)
 - **Text in any script** — Arabic and Hebrew read the right way round, because the Unicode bidirectional algorithm and HarfBuzz shaping are both in there
@@ -156,7 +156,7 @@ tools sit.
 |---|---|
 | Server Name | `MatPlotLibNet` |
 | Category | `Development` |
-| Short Description | `Hand it the JSON for a chart and it renders a PNG the model can actually look at — 86 chart types, SVG and PDF written to file, running locally as a .NET tool.` |
+| Short Description | `Hand it the JSON for a chart and it renders a PNG the model can actually look at — 91 chart types, SVG and PDF written to file, running locally as a .NET tool.` |
 | Repository, Website or Documentation | `https://github.com/xkqg/MatPlotLibNet` |
 | Contact Email | the maintainer's own address |
 | Premium Submit (€/$39) | leave unticked — it buys a queue jump, a badge and a dofollow link, none of which the listing needs |
@@ -169,7 +169,7 @@ The longer description below is for anywhere that takes more than one line.
 
 ```
 Charts an agent can look at. Hand it the JSON for a figure and it renders a PNG and describes what it drew;
-ask for SVG or PDF and it writes the file and tells you where. It knows 86 chart types — line, bar, scatter,
+ask for SVG or PDF and it writes the file and tells you where. It knows 91 chart types — line, bar, scatter,
 heatmap, candlestick, treemap, and a dozen 3-D ones — and it checks the spec before it draws, so a typo comes
 back as "unknown field 'x', did you mean 'xData'" instead of a blank picture. Runs on your machine as a .NET
 tool; no browser, no service, nothing leaves the box.
@@ -180,7 +180,7 @@ tool; no browser, no service, nothing leaves the box.
 **Section:** Data Visualization · **Format:** `[owner/repo](url) <emoji> - description`, `#️⃣` marks a C# codebase.
 
 ```markdown
-* [xkqg/MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) #️⃣ 🏠 🍎 🪟 🐧 - Charts an agent can look at: hand it the JSON for a figure and it returns a PNG with a short description of what it drew, or writes SVG/PDF to a file. 86 chart types, from a line plot to a candlestick to a 3-D surface, and the spec is checked before anything is drawn so a typo comes back named instead of blank. Runs locally as a .NET tool.
+* [xkqg/MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) #️⃣ 🏠 🍎 🪟 🐧 - Charts an agent can look at: hand it the JSON for a figure and it returns a PNG with a short description of what it drew, or writes SVG/PDF to a file. 91 chart types, from a line plot to a candlestick to a 3-D surface, and the spec is checked before anything is drawn so a typo comes back named instead of blank. Runs locally as a .NET tool.
 ```
 
 **Status:** opened as [punkpeye/awesome-mcp-servers#14213](https://github.com/punkpeye/awesome-mcp-servers/pull/14213).

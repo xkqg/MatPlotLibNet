@@ -18,15 +18,19 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering;
 
-/// <summary>Abstract base for coordinate-system-specific axes rendering. Subclass for Cartesian, Polar, or 3D.</summary>
+/// <summary>Abstract base for coordinate-system-specific axes rendering. Subclass for Cartesian, Polar, 3D or Ternary.</summary>
 public abstract class AxesRenderer
 {
+    /// <summary>The axes model this renderer draws.</summary>
     protected Axes Axes { get; }
 
+    /// <summary>The pixel rectangle that bounds the plot, inside the spines.</summary>
     protected Rect PlotArea { get; }
 
+    /// <summary>The drawing surface the renderer emits its lines, shapes and text onto.</summary>
     protected IRenderContext Ctx { get; }
 
+    /// <summary>The active visual theme that supplies the default colours, fonts and line styles.</summary>
     protected Theme Theme { get; }
 
     /// <summary>Maximum rendered width of Y-axis tick labels. Set by subclasses during tick rendering; consumed by
@@ -148,6 +152,7 @@ public abstract class AxesRenderer
             : new CartesianInsetAxesRenderer(a, p, c, t),
         [CoordinateSystem.Polar] = (a, p, c, t) => new PolarAxesRenderer(a, p, c, t),
         [CoordinateSystem.ThreeD] = (a, p, c, t) => new ThreeDAxesRenderer(a, p, c, t),
+        [CoordinateSystem.Ternary] = (a, p, c, t) => new TernaryAxesRenderer(a, p, c, t),
     };
 
     /// <summary>Registers a custom renderer factory for a coordinate system.</summary>

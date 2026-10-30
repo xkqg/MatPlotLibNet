@@ -23,6 +23,7 @@ public sealed class WpfAnimationTimer : IAnimationTimer
     /// <inheritdoc />
     public event EventHandler? Tick;
 
+    /// <summary>Creates a timer that ticks every 16 milliseconds (about 60 times a second) on the dispatcher, once it is started.</summary>
     public WpfAnimationTimer()
     {
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };

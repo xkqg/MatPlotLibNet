@@ -37,17 +37,27 @@ public sealed class ReferenceLine
     /// reader's zoom.</summary>
     public double Value { get; set; }
 
+    /// <summary>Whether the line runs across the plot horizontally, at a constant Y value, or vertically, at a constant X
+    /// value. Fixed when the line is created.</summary>
     public Orientation Orientation { get; }
 
+    /// <summary>The colour of the line and its label. <see langword="null"/> (the default) takes the theme's neutral
+    /// colour.</summary>
     public Color? Color { get; set; }
 
+    /// <summary>The dash pattern of the line. Dashed by default.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Dashed;
 
+    /// <summary>The width of the line, in pixels. Default 1.</summary>
     public double LineWidth { get; set; } = 1.0;
 
+    /// <summary>Text drawn beside the line, at the right end of a horizontal line and the top of a vertical one, in the
+    /// line's colour. <see langword="null"/> (the default) draws none.</summary>
     public string? Label { get; set; }
 
     /// <summary>Creates a new reference line at the given value and orientation.</summary>
+    /// <param name="value">The data value the line sits at: a Y value for a horizontal line, an X value for a vertical one.</param>
+    /// <param name="orientation">Whether the line is horizontal (constant Y) or vertical (constant X).</param>
     public ReferenceLine(double value, Orientation orientation)
     {
         Value = value;

@@ -15,16 +15,25 @@ public sealed class FibonacciRetracement
 {
     private static readonly double[] Ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0];
 
+    /// <summary>The price at the top of the retracement, where the 0 % level stands.</summary>
     public double PriceHigh { get; }
+    /// <summary>The price at the bottom of the retracement, where the 100 % level stands.</summary>
     public double PriceLow { get; }
 
+    /// <summary>The colour of the level lines and their labels. <see langword="null"/> (the default) takes the theme's
+    /// neutral colour.</summary>
     public Color? Color { get; set; }
+    /// <summary>The width of the level lines, in pixels. Default 1; the lines are always dashed.</summary>
     public double LineWidth { get; set; } = 1.0;
+    /// <summary>Whether each level line carries a label with its percentage and price at the right end. On by default.</summary>
     public bool ShowLabels { get; set; } = true;
 
     /// <summary>The seven computed retracement levels (0 %, 23.6 %, 38.2 %, 50 %, 61.8 %, 78.6 %, 100 %).</summary>
     public IReadOnlyList<FibonacciLevel> Levels { get; }
 
+    /// <summary>Creates a retracement between a high and a low price and computes its seven levels.</summary>
+    /// <param name="priceHigh">The price at the top of the move, where the 0 % level stands.</param>
+    /// <param name="priceLow">The price at the bottom of the move, where the 100 % level stands.</param>
     public FibonacciRetracement(double priceHigh, double priceLow)
     {
         PriceHigh = priceHigh;

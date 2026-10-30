@@ -34,6 +34,14 @@ public static class PriceSources
     /// <param name="close">The bar's close.</param>
     internal static double TypicalPrice(double high, double low, double close) => (high + low + close) / 3.0;
 
+    /// <summary>The true range of one bar: the largest of its own range and its distance from the close before it, so a gap counts.
+    /// The one place that formula is written, read by <see cref="CandleIndicator{TResult}"/> and the average true range step.</summary>
+    /// <param name="high">The bar's high.</param>
+    /// <param name="low">The bar's low.</param>
+    /// <param name="previousClose">The close of the bar before.</param>
+    internal static double TrueRange(double high, double low, double previousClose) =>
+        Math.Max(high - low, Math.Max(Math.Abs(high - previousClose), Math.Abs(low - previousClose)));
+
     /// <summary>Computes the price array for the given source from OHLC data.</summary>
     public static double[] Resolve(PriceSource source, double[] open, double[] high, double[] low, double[] close)
     {

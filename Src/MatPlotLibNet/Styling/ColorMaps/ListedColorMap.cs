@@ -16,14 +16,18 @@ public sealed class ListedColorMap : IColorMap, IJsonDescribed<ColorMapDto>
     /// <inheritdoc />
     ColorMapDto IJsonDescribed<ColorMapDto>.Describe() => new ListedColorMapDto(Name, _colors, UnderColor, OverColor, BadColor);
 
+    /// <inheritdoc />
     public string Name { get; }
 
     private readonly Color[] _colors;
 
+    /// <summary>The colour of values below the scale; <see langword="null"/> draws them in the first colour.</summary>
     public Color? UnderColor { get; init; }
 
+    /// <summary>The colour of values above the scale; <see langword="null"/> draws them in the last colour.</summary>
     public Color? OverColor { get; init; }
 
+    /// <summary>The colour of missing (NaN) values; <see langword="null"/> draws them transparent.</summary>
     public Color? BadColor { get; init; }
 
     /// <summary>Creates a listed colormap with the specified discrete colors.</summary>

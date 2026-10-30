@@ -92,7 +92,7 @@ public static class EnumOrdinalSnapshot
                 ["Nelson5"] = 16, ["Nelson6"] = 32, ["Nelson7"] = 64, ["Nelson8"] = 128, ["All"] = 255,
             },
             [typeof(CoordinateSystem)] = new Dictionary<string, int> {
-                ["Cartesian"] = 0, ["Polar"] = 1, ["ThreeD"] = 2,
+                ["Cartesian"] = 0, ["Polar"] = 1, ["ThreeD"] = 2, ["Ternary"] = 3,
             },
             [typeof(CubeAxis)] = new Dictionary<string, int> {
                 ["X"] = 0, ["Y"] = 1, ["Z"] = 2,
@@ -106,6 +106,9 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(DisplayMode)] = new Dictionary<string, int> {
                 ["Inline"] = 0, ["Expandable"] = 1, ["Popup"] = 2,
+            },
+            [typeof(DragGestureAction)] = new Dictionary<string, int> {
+                ["Pan"] = 0, ["RectangleZoom"] = 1, ["BrushSelect"] = 2, ["SpanSelect"] = 3, ["Rotate"] = 4,
             },
             [typeof(DrawStyle)] = new Dictionary<string, int> {
                 ["Default"] = 0, ["StepsPre"] = 1, ["StepsMid"] = 2, ["StepsPost"] = 3,
@@ -129,6 +132,12 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(GridWhich)] = new Dictionary<string, int> {
                 ["Major"] = 0, ["Minor"] = 1, ["Both"] = 2,
+            },
+            [typeof(HatchMarkKind)] = new Dictionary<string, int> {
+                ["Line"] = 0, ["Dot"] = 1,
+            },
+            [typeof(TransferEntropyEstimator)] = new Dictionary<string, int> {
+                ["Binned"] = 0, ["Kraskov"] = 1,
             },
             [typeof(HatchPattern)] = new Dictionary<string, int> {
                 ["None"] = 0, ["ForwardDiagonal"] = 1, ["BackDiagonal"] = 2,

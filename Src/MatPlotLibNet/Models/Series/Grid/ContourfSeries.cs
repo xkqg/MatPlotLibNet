@@ -13,10 +13,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a filled contour plot that fills the regions between iso-levels using a painter's algorithm.</summary>
 public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable, IColorBarDataProvider, IHasAlpha
 {
+    /// <summary>The X coordinate of each grid column, one per column of <see cref="ZData"/>.</summary>
     public double[] XData { get; }
 
+    /// <summary>The Y coordinate of each grid row, one per row of <see cref="ZData"/>.</summary>
     public double[] YData { get; }
 
+    /// <summary>The height of the surface at each grid point, indexed [row, column] with rows along Y; the bands are
+    /// cut from these values.</summary>
     public double[,] ZData { get; }
 
     /// <summary>How many levels bound the bands when <see cref="LevelValues"/> names none: this many levels, evenly spaced
@@ -33,16 +37,24 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     /// colour. Fewer than two levels that can be drawn leave no band, and the series draws nothing.</summary>
     public double[]? LevelValues { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 1.0;
 
+    /// <summary>When <see langword="true"/> (the default) iso-lines are drawn on top of the fill, along the edges of
+    /// the bands.</summary>
     public bool ShowLines { get; set; } = true;
 
+    /// <summary>Width of the iso-lines, in pixels. Default 0.5.</summary>
     public double LineWidth { get; set; } = 0.5;
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
+    /// <summary>The hatch pattern of each band, from the lowest band up; a band past the end of the array, or every
+    /// band when this is <see langword="null"/>, is left plain.</summary>
     public HatchPattern[]? Hatches { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="ContourfSeries"/> with grid data.</summary>

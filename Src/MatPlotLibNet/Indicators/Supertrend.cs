@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -40,60 +41,19 @@ public sealed class Supertrend : CandleIndicator<SupertrendResult>
             return new SupertrendResult(
                 Array.Empty<double>(), Array.Empty<int>(), Array.Empty<bool>());
 
-        // ATR series — length n - period, aligned so atr[i] corresponds to global bar index period+i.
-        var atr = new Atr(OhlcvBars.Hlc(High, Low, Close), _period).Compute().Values;
-
+        // The first value comes with bar `period`, the first bar the average true range has a value for.
         int outLen = n - _period;
         var line = new double[outLen];
         var direction = new int[outLen];
         var flipped = new bool[outLen];
-
-        double prevFinalUpper = 0;
-        double prevFinalLower = 0;
-        int prevDirection = +1;
-
-        for (int i = 0; i < outLen; i++)
+        var step = new SupertrendStep(_period, _multiplier);
+        for (int t = 0; t < n; t++)
         {
-            int t = _period + i;
-            double mid = (High[t] + Low[t]) / 2.0;
-            double basicUpper = mid + _multiplier * atr[i];
-            double basicLower = mid - _multiplier * atr[i];
-
-            double finalUpper;
-            double finalLower;
-            int dir;
-            bool flip;
-
-            if (i == 0)
-            {
-                finalUpper = basicUpper;
-                finalLower = basicLower;
-                dir = +1;
-                flip = false;
-            }
-            else
-            {
-                // Seban's outward-only clamp: band tightens when it moves inward, otherwise holds.
-                finalUpper = (basicUpper < prevFinalUpper || Close[t - 1] > prevFinalUpper)
-                    ? basicUpper : prevFinalUpper;
-                finalLower = (basicLower > prevFinalLower || Close[t - 1] < prevFinalLower)
-                    ? basicLower : prevFinalLower;
-
-                // Direction flips at the opposite previous-bar band.
-                if (Close[t] > prevFinalUpper) dir = +1;
-                else if (Close[t] < prevFinalLower) dir = -1;
-                else dir = prevDirection;
-
-                flip = dir != prevDirection;
-            }
-
-            line[i] = dir > 0 ? finalLower : finalUpper;
-            direction[i] = dir;
-            flipped[i] = flip;
-
-            prevFinalUpper = finalUpper;
-            prevFinalLower = finalLower;
-            prevDirection = dir;
+            var point = step.Next(High[t], Low[t], Close[t]);
+            if (t < _period) continue;
+            line[t - _period] = point.Line;
+            direction[t - _period] = point.Direction;
+            flipped[t - _period] = point.Flipped;
         }
 
         return new SupertrendResult(line, direction, flipped);

@@ -38,7 +38,7 @@ public sealed class Ichimoku : CandleIndicator<IchimokuResult>
         // Senkou Span A = (Tenkan + Kijun) / 2
         int spanLen = Math.Min(tenkan.Length, kijun.Length);
         int kijunOffset = _kijunPeriod - _tenkanPeriod;
-        var spanA = new double[spanLen - kijunOffset];
+        var spanA = new double[Math.Max(0, spanLen - kijunOffset)];
         for (int i = 0; i < spanA.Length; i++)
             spanA[i] = (tenkan[i + kijunOffset] + kijun[i]) / 2;
 

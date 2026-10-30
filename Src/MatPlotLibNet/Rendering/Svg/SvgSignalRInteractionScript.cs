@@ -22,9 +22,12 @@ internal static class SvgSignalRInteractionScript
     /// data-cursor branches are appended when the caller sets the respective flags
     /// via <see cref="Builders.ServerInteractionBuilder.EnableBrushSelect"/> /
     /// <see cref="Builders.ServerInteractionBuilder.EnableHover"/> /
-    /// <see cref="Builders.ServerInteractionBuilder.EnableDataCursor"/>.</summary>
+    /// <see cref="Builders.ServerInteractionBuilder.EnableDataCursor"/>; the viewer-cursor branch (this viewer's
+    /// pointer sent to the others, the others' drawn here) when <paramref name="enableViewerCursors"/> is set.
+    /// Every run also marks the chart busy while a drag or a band is in progress and idle after it
+    /// (<c>data-mpl-busy</c>, <c>mpl:idle</c>), and raises <c>mpl:viewchanged</c> when another viewer moves the view.</summary>
     internal static string GetScript(bool enableBrushSelect = false, bool enableHover = false,
-        bool enableDataCursor = false)
+        bool enableDataCursor = false, bool enableViewerCursors = false)
     {
         var sb = new StringBuilder();
         sb.Append(V120Header);
@@ -37,6 +40,9 @@ internal static class SvgSignalRInteractionScript
 
         if (enableDataCursor)
             sb.Append(DataCursorBranch);
+
+        if (enableViewerCursors)
+            sb.Append(ViewerCursorBranch);
 
         sb.Append(V120Footer);
         return sb.ToString();
@@ -53,11 +59,22 @@ internal static class SvgSignalRInteractionScript
             if (!svg || !svg.getAttribute) return;
             var chartId = svg.getAttribute('data-chart-id');
 
-            function hub() { return (typeof window !== 'undefined') ? window.__mpl_signalr_connection : null; }
+            // The connection to send through: the one the chart's host element carries (a live chart component gives its
+            // chart a proxy to the connection its client holds, one per chart, so two live charts on a page cannot reach
+            // for the same global), else the page's own window.__mpl_signalr_connection.
+            function hub() {
+                var host = svg.closest ? svg.closest('[data-mpl-live]') : null;
+                if (host && host.__mplHub) return host.__mplHub;
+                return (typeof window !== 'undefined') ? window.__mpl_signalr_connection : null;
+            }
             function invoke(method, payload) {
                 var c = hub();
                 if (c && typeof c.invoke === 'function') {
-                    try { c.invoke(method, payload); } catch (e) { /* swallow */ }
+                    try {
+                        var sent = c.invoke(method, payload);
+                        // A connection that is down rejects the send; that must not surface as an unhandled rejection.
+                        if (sent && typeof sent.catch === 'function') sent.catch(function () { /* swallow */ });
+                    } catch (e) { /* swallow */ }
                 }
             }
 
@@ -240,6 +257,38 @@ internal static class SvgSignalRInteractionScript
             var dragging = false, dragView = null, dragLast = null;
             var brushRect = null, brushStart = null, brushView = null;
 
+            // A page that mounts a redrawn chart replaces this svg, and with it the gesture in progress on it. So the
+            // chart says when it is busy (a drag, a band): the code that mounts waits for data-mpl-busy to go and for
+            // the mpl:idle event, and mounts the latest chart then.
+            function busy(on) {
+                if (on) { svg.setAttribute('data-mpl-busy', 'true'); return; }
+                if (svg.getAttribute('data-mpl-busy') === null) return;
+                svg.removeAttribute('data-mpl-busy');
+                svg.dispatchEvent(new CustomEvent('mpl:idle', { bubbles: true }));
+            }
+
+            // What the connection says about the other viewers arrives on the page's connection: ONE handler per message
+            // on it, routing by chart id to the latest run of that chart (a page runs this script again for every
+            // redrawn chart, and what a run leaves on the connection outlives the svg it was wired to).
+            var peerHub = hub();
+            var peerRoutes = null;
+            if (peerHub && typeof peerHub.on === 'function') {
+                peerRoutes = peerHub.__mplPeerRoutes;
+                if (!peerRoutes) {
+                    peerRoutes = {};
+                    peerHub.__mplPeerRoutes = peerRoutes;
+                    peerHub.on('ViewChanged', function (id, viewerId, name) {
+                        var r = peerRoutes[id];
+                        if (r && r.changed) r.changed(viewerId, name);
+                    });
+                }
+                peerRoutes[chartId] = {
+                    changed: function (viewerId, name) {
+                        svg.dispatchEvent(new CustomEvent('mpl:viewchanged', { detail: { viewerId: viewerId, viewerName: name }, bubbles: true }));
+                    }
+                };
+            }
+
             // wheel: zoom the axes under the pointer about the data point under the pointer
             svg.addEventListener('wheel', function (e) {
                 var v = viewAt(e);
@@ -264,6 +313,7 @@ internal static class SvgSignalRInteractionScript
                 if (e.button !== 0 || e.shiftKey) return;
                 dragging = true; dragView = viewAt(e);
                 dragLast = { clientX: e.clientX, clientY: e.clientY };
+                busy(true);
                 svg.setPointerCapture(e.pointerId);
             });
             svg.addEventListener('pointermove', function (e) {
@@ -282,10 +332,14 @@ internal static class SvgSignalRInteractionScript
                     secondaryRanges: panSecondary(v, f1, f0)
                 });
             });
-            svg.addEventListener('pointerup', function (e) {
+            function endDrag(e) {
+                if (!dragging) return;
                 dragging = false; dragView = null;
+                busy(false);
                 try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
-            });
+            }
+            svg.addEventListener('pointerup', endDrag);
+            svg.addEventListener('pointercancel', endDrag);
 
             // Home: every axes back to the view it was first drawn with
             svg.addEventListener('keydown', function (e) {
@@ -351,6 +405,7 @@ internal static class SvgSignalRInteractionScript
                 brushRect.setAttribute('pointer-events', 'none');
                 brushRect.setAttribute('data-mpl-brush', 'true');
                 svg.appendChild(brushRect);
+                busy(true);
                 svg.setPointerCapture(e.pointerId);
             });
             svg.addEventListener('pointermove', function (e) {
@@ -371,12 +426,20 @@ internal static class SvgSignalRInteractionScript
                 });
                 svg.removeChild(brushRect);
                 brushRect = null; brushStart = null; brushView = null;
+                busy(false);
                 try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
+            });
+            svg.addEventListener('pointercancel', function () {
+                if (!brushRect) return;
+                svg.removeChild(brushRect);
+                brushRect = null; brushStart = null; brushView = null;
+                busy(false);
             });
             svg.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && brushRect) {
                     svg.removeChild(brushRect);
                     brushRect = null; brushStart = null; brushView = null;
+                    busy(false);
                 }
             });
 
@@ -508,6 +571,112 @@ internal static class SvgSignalRInteractionScript
                     }
                 });
             });
+
+        """;
+
+    // ── viewer cursors — this viewer's pointer to the others, theirs drawn here ──
+    //
+    // Opt-in (Figure.EnableViewerCursors). The pointer is sent at most once in CURSOR_INTERVAL, the last position of a
+    // burst by a trailing timer, so a still pointer is where the others see it. The others' pointers arrive as
+    // ReceiveCursor (never echoed to the sender) and ViewerLeft; each viewer has ONE marker in a layer that does not take
+    // the pointer, found by viewer id and moved, not added again.
+
+    private const string ViewerCursorBranch = """
+            // ── mplViewerCursors — my pointer out, theirs in ──
+            var CURSOR_INTERVAL = 50, lastCursorSent = 0, cursorTimer = null, cursorPending = null;
+            function sendCursor(p) {
+                lastCursorSent = Date.now(); cursorPending = null;
+                invoke('OnCursor', { chartId: chartId, axesIndex: p.axesIndex, x: p.x, y: p.y });
+            }
+            svg.addEventListener('pointermove', function (e) {
+                var v = viewAt(e);
+                if (!v || !v.mapped) return;
+                var d = dataAt(v, e), p = { axesIndex: v.axesIndex, x: d.x, y: d.y };
+                var wait = CURSOR_INTERVAL - (Date.now() - lastCursorSent);
+                if (wait <= 0) { sendCursor(p); return; }
+                cursorPending = p;
+                if (!cursorTimer) cursorTimer = setTimeout(function () {
+                    cursorTimer = null;
+                    if (cursorPending) sendCursor(cursorPending);
+                }, wait);
+            });
+
+            // the forward of unscale: data -> the drawn space of an axis (log, symlog or linear)
+            function scaleFwd(value, scale, t) {
+                if (scale === 'log') return Math.log(value) / Math.LN10;
+                if (scale === 'symlog') {
+                    if (!(t > 0)) t = 1;
+                    var a = Math.abs(value);
+                    return a <= t ? value : (value < 0 ? -1 : 1) * t * (Math.log(a / t) / Math.LN10 + 1);
+                }
+                return value;
+            }
+            function escapeText(s) {
+                return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+            function viewByIndex(index) {
+                for (var i = 0; i < views.length; i++) if (views[i].axesIndex === index) return views[i];
+                return null;
+            }
+            function peerLayer() {
+                var layer = svg.querySelector('[data-mpl-peers]');
+                if (layer) return layer;
+                layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                layer.setAttribute('data-mpl-peers', 'true');
+                layer.setAttribute('pointer-events', 'none');
+                layer.setAttribute('aria-hidden', 'true');
+                svg.appendChild(layer);
+                return layer;
+            }
+            function peerMarker(layer, viewerId) {
+                var all = layer.querySelectorAll('[data-mpl-peer]');
+                for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-mpl-peer') === viewerId) return all[i];
+                return null;
+            }
+            function showPeer(viewerId, name, axesIndex, x, y) {
+                var v = viewByIndex(axesIndex);
+                if (!v || !v.mapped) return;
+                var fx = (scaleFwd(x, v.xScale, v.xLinThresh) - v.xMin) / (v.xMax - v.xMin);
+                var fy = (scaleFwd(y, v.yScale, v.yLinThresh) - v.yMin) / (v.yMax - v.yMin);
+                if (!isFinite(fx) || !isFinite(fy)) return;
+                var px = v.x + fx * v.w, py = v.y + (1 - fy) * v.h;
+                var layer = peerLayer(), marker = peerMarker(layer, viewerId);
+                if (!marker) {
+                    marker = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    marker.setAttribute('data-mpl-peer', viewerId);
+                    var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    dot.setAttribute('r', 4); dot.setAttribute('fill', '#E4572E'); dot.setAttribute('stroke', '#ffffff');
+                    marker.appendChild(dot);
+                    var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    label.setAttribute('x', 7); label.setAttribute('y', -7);
+                    label.setAttribute('font-size', 11); label.setAttribute('fill', '#333333');
+                    label.innerHTML = escapeText(name);
+                    marker.appendChild(label);
+                    layer.appendChild(marker);
+                }
+                marker.setAttribute('transform', 'translate(' + px + ',' + py + ')');
+            }
+            function hidePeer(viewerId) {
+                var layer = svg.querySelector('[data-mpl-peers]');
+                if (!layer) return;
+                var marker = peerMarker(layer, viewerId);
+                if (marker) layer.removeChild(marker);
+            }
+            if (peerRoutes) {
+                if (!peerHub.__mplCursorWired) {
+                    peerHub.__mplCursorWired = true;
+                    peerHub.on('ReceiveCursor', function (id, viewerId, name, axesIndex, x, y) {
+                        var r = peerRoutes[id];
+                        if (r && r.cursor) r.cursor(viewerId, name, axesIndex, x, y);
+                    });
+                    peerHub.on('ViewerLeft', function (id, viewerId) {
+                        var r = peerRoutes[id];
+                        if (r && r.left) r.left(viewerId);
+                    });
+                }
+                peerRoutes[chartId].cursor = showPeer;
+                peerRoutes[chartId].left = hidePeer;
+            }
 
         """;
 

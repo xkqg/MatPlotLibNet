@@ -23,11 +23,16 @@ public sealed class AvaloniaAnimationTimer : IAnimationTimer
     /// <inheritdoc />
     public event EventHandler? Tick;
 
+    /// <summary>Creates a stopped timer on the Avalonia UI thread with a tick every 16 ms (about 60 frames a second);
+    /// call <see cref="Start"/> to begin ticking.</summary>
     public AvaloniaAnimationTimer()
     {
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _timer.Tick += (_, _) => Tick?.Invoke(this, EventArgs.Empty);
+        _timer.Tick += (_, _) => RaiseTick();
     }
+
+    /// <summary>Says to whoever listens that a frame is due.</summary>
+    internal void RaiseTick() => Tick?.Invoke(this, EventArgs.Empty);
 
     /// <inheritdoc />
     public void Start()

@@ -6,10 +6,13 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Base class for 3D grid series with X[], Y[], Z[,] data.</summary>
 public abstract class GridSeries3D : ChartSeries, I3DGridSeries
 {
+    /// <inheritdoc />
     public double[] X { get; }
 
+    /// <inheritdoc />
     public double[] Y { get; }
 
+    /// <inheritdoc />
     public double[,] Z { get; }
 
     /// <summary>Initializes with X, Y, and Z data.</summary>

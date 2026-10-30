@@ -6,8 +6,10 @@ namespace MatPlotLibNet.Rendering;
 /// <summary>Encapsulates the plot region bounds and render context for series rendering.</summary>
 public sealed class RenderArea
 {
+    /// <summary>The pixel rectangle of the plot region that the series draw into.</summary>
     public Rect PlotBounds { get; }
 
+    /// <summary>The drawing surface that series emit their lines, shapes and text onto.</summary>
     public IRenderContext Context { get; }
 
     /// <summary>Initializes a new render area with the specified bounds and context.</summary>

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
@@ -18,12 +19,13 @@ namespace MatPlotLibNet.Avalonia;
 /// Custom Avalonia draw operation that renders a <see cref="Figure"/> onto the Skia canvas
 /// provided by Avalonia's Skia rendering backend.
 /// </summary>
+[ExcludeFromCodeCoverage(Justification = "Runs on Avalonia's render thread, against a Skia lease only a running Avalonia application gives.")]
 internal sealed class MplChartDrawOperation : ICustomDrawOperation
 {
     private readonly Figure _figure;
-    private readonly MplChartControl? _owner;
+    private readonly IInteractiveChart? _owner;
 
-    internal MplChartDrawOperation(Rect bounds, Figure figure, MplChartControl? owner)
+    internal MplChartDrawOperation(Rect bounds, Figure figure, IInteractiveChart? owner)
     {
         Bounds = bounds;
         _figure = figure;
@@ -63,20 +65,6 @@ internal sealed class MplChartDrawOperation : ICustomDrawOperation
         // Draw rubber-band selection rectangle if a brush select drag is in progress.
         var brushState = _owner?.ActiveBrushSelect;
         if (brushState is { } bs)
-        {
-            var rect = new SKRect(
-                (float)Math.Min(bs.StartPixelX, bs.CurrentPixelX),
-                (float)Math.Min(bs.StartPixelY, bs.CurrentPixelY),
-                (float)Math.Max(bs.StartPixelX, bs.CurrentPixelX),
-                (float)Math.Max(bs.StartPixelY, bs.CurrentPixelY));
-
-            using var paint = new SKPaint { Color = new SKColor(30, 144, 255, 50), Style = SKPaintStyle.Fill };
-            lease.SkCanvas.DrawRect(rect, paint);
-
-            paint.Color = new SKColor(30, 144, 255, 180);
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 1.5f;
-            lease.SkCanvas.DrawRect(rect, paint);
-        }
+            lease.SkCanvas.DrawBrushSelect(bs);
     }
 }

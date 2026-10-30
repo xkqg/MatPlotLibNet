@@ -10,15 +10,23 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a count plot series that draws a bar chart from the frequency of raw categorical values.</summary>
 public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor, IHasBarOrientation
 {
+    /// <summary>The raw categorical observations: each distinct value becomes one bar, as high as the number of times
+    /// it occurs.</summary>
     public string[] Values { get; }
 
     /// <inheritdoc />
     string[]? ICategoryLabeled.CategoryLabels => Values.Distinct().ToArray();
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>Whether the bars stand up (<see cref="BarOrientation.Vertical"/>, the default) or lie down
+    /// (<see cref="BarOrientation.Horizontal"/>); it decides which axis carries the categories and which the
+    /// counts.</summary>
     public BarOrientation Orientation { get; set; } = BarOrientation.Vertical;
 
+    /// <summary>How wide each bar is, as a fraction of its category slot (1 makes neighbouring bars touch). Default
+    /// 0.8.</summary>
     public double BarWidth { get; set; } = 0.8;
 
     /// <summary>Initializes a new instance of <see cref="CountSeries"/> with the specified raw values.</summary>

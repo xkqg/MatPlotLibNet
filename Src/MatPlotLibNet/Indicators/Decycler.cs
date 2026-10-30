@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Ehlers;
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -33,10 +34,9 @@ public sealed class Decycler : PriceIndicator<SignalResult>
     {
         int n = Prices.Length;
         if (n < 3) return Array.Empty<double>();
-
-        var hp = ((ReadOnlySpan<double>)Prices).HighPass(_hpPeriod);
         var result = new double[n];
-        for (int i = 0; i < n; i++) result[i] = Prices[i] - hp[i];
+        var highPass = new HighPassStep(_hpPeriod);
+        for (int i = 0; i < n; i++) result[i] = Prices[i] - highPass.Next(Prices[i]);
         return result;
     }
 

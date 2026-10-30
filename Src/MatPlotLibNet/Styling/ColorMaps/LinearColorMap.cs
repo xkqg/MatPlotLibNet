@@ -14,15 +14,19 @@ public sealed class LinearColorMap : IColorMap, IJsonDescribed<ColorMapDto>
     /// <inheritdoc />
     ColorMapDto IJsonDescribed<ColorMapDto>.Describe() => new LinearColorMapDto(Name, _stops, _positions, UnderColor, OverColor, BadColor);
 
+    /// <inheritdoc />
     public string Name { get; }
 
     private readonly Color[] _stops;
     private readonly double[]? _positions; // null → evenly spaced
 
+    /// <summary>The colour of values below the scale; <see langword="null"/> draws them in the first stop's colour.</summary>
     public Color? UnderColor { get; init; }
 
+    /// <summary>The colour of values above the scale; <see langword="null"/> draws them in the last stop's colour.</summary>
     public Color? OverColor { get; init; }
 
+    /// <summary>The colour of missing (NaN) values; <see langword="null"/> draws them transparent.</summary>
     public Color? BadColor { get; init; }
 
     /// <summary>Creates a colormap that interpolates between evenly-spaced color stops.</summary>

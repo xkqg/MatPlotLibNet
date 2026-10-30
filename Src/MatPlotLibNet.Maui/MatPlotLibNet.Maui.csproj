@@ -11,7 +11,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Maui</PackageId>
-    <Version>1.26.0</Version>
+    <Version>1.27.0</Version>
     <Description>MAUI controls for MatPlotLibNet charting library. Renders charts via Microsoft.Maui.Graphics.</Description>
     <PackageTags>matplotlib;charting;plotting;visualization;maui;mobile;cross-platform</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.51" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.120" />
   </ItemGroup>
 
   <ItemGroup>

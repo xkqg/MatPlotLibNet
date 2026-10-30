@@ -80,6 +80,14 @@ public class DrawDownTests
         Assert.InRange(dd[4], 16, 17); // ~16.7% drawdown from 120
     }
 
+    /// <summary>An equity curve of no values has no drawdown. It used to throw an IndexOutOfRangeException (the first value was read
+    /// before the loop), which a streaming form compared against the batch indicator over every prefix would have met at its start.</summary>
+    [Fact]
+    public void Compute_OverNoEquity_HasNoValues_InsteadOfThrowing()
+    {
+        Assert.Empty(new DrawDown([]).Compute().Values);
+    }
+
     /// <summary>Verifies that all drawdown values are non-negative.</summary>
     [Fact]
     public void Compute_AllValuesNonNegative()

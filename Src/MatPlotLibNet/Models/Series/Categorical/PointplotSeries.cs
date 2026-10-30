@@ -10,14 +10,23 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a point plot series that shows the mean ± confidence interval for each category.</summary>
 public sealed class PointplotSeries : DatasetSeries, IHasColor
 {
+    /// <summary>The name of each category, in the order of the datasets; it names the rows of the series' data table.
+    /// <see langword="null"/> numbers the categories from 1.</summary>
     public string[]? Categories { get; set; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>Diameter of the dot that marks the mean of each category, in pixels. Default 8.</summary>
     public double MarkerSize { get; set; } = 8;
 
+    /// <summary>Width of the caps at the two ends of each interval, in category units (neighbouring categories are 1
+    /// apart). Default 0.2.</summary>
     public double CapSize { get; set; } = 0.2;
 
+    /// <summary>The share of the observations of each category that its interval covers, between 0 and 1: the default
+    /// 0.95 runs from the 2.5th to the 97.5th percentile. A category with fewer than two observations gets an interval
+    /// of zero length.</summary>
     public double ConfidenceLevel { get; set; } = 0.95;
 
     /// <summary>Initializes a new instance of <see cref="PointplotSeries"/> with the specified datasets.</summary>

@@ -13,10 +13,16 @@ public sealed class TableSeries : ChartSeries
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The text of the data cells, as an array of rows each holding an array of cell texts. A row shorter than
+    /// the longest one leaves its missing cells empty.</summary>
     public string[][] CellData { get; }
 
+    /// <summary>The text of the header cell above each data column, by position; null draws no header row. A column
+    /// past the end of the array gets no header cell.</summary>
     public string[]? ColumnHeaders { get; set; }
 
+    /// <summary>The text of the header cell at the start of each row, by position; null draws no row-header column.
+    /// A row past the end of the array has an empty header cell.</summary>
     public string[]? RowHeaders { get; set; }
 
     /// <summary>How the text of each data column is aligned in its cell, by position; <see langword="null"/> (the default), or a
@@ -46,16 +52,23 @@ public sealed class TableSeries : ChartSeries
         }
     }
 
+    /// <summary>The height of every row, header row included, in pixels. Default 25.</summary>
     public double CellHeight { get; set; } = 25;
 
+    /// <summary>The space, in pixels, between a left or right aligned text and the edge of its cell. Default 4; a
+    /// centred text ignores it.</summary>
     public double CellPadding { get; set; } = 4;
 
+    /// <summary>The fill of the column-header and row-header cells; null draws them light grey.</summary>
     public Color? HeaderColor { get; set; }
 
+    /// <summary>The fill of the data cells; null draws them white.</summary>
     public Color? CellColor { get; set; }
 
+    /// <summary>The colour of the lines around every cell; null draws them dark grey.</summary>
     public Color? BorderColor { get; set; }
 
+    /// <summary>The size of the text in every cell, in points. Default 11.</summary>
     public double FontSize { get; set; } = 11;
 
     /// <summary>Initializes a new instance of <see cref="TableSeries"/> with the specified cell data.</summary>

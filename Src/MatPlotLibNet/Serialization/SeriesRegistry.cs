@@ -27,12 +27,16 @@ public static class SeriesRegistry
     public static void Register(string typeDiscriminator, Func<Axes, SeriesDto, ISeries?> factory)
         => Factories[typeDiscriminator] = factory;
 
-    /// <summary>Creates a series from a DTO using the registered factory.</summary>
     /// <summary>The discriminators the registry can dispatch, sorted ordinally. A consumer that must SHOW the
     /// chart types (the MCP server's <c>list_chart_types</c>) reads this instead of keeping a second list that
     /// drifts from <see cref="Create"/>. Sorted on purpose: a hash collection has no order to lean on.</summary>
     public static IReadOnlyList<string> Discriminators => Factories.Keys.Order(StringComparer.Ordinal).ToArray();
 
+    /// <summary>Builds the series a DTO describes, through the factory registered under its discriminator.</summary>
+    /// <param name="typeDiscriminator">The discriminator the series type was registered under, such as <c>"line"</c>.</param>
+    /// <param name="axes">The axes the new series is built for.</param>
+    /// <param name="dto">The serialised series to read.</param>
+    /// <returns>The new series, or <see langword="null"/> when no factory is registered under the discriminator or the factory returns none.</returns>
     public static ISeries? Create(string typeDiscriminator, Axes axes, SeriesDto dto)
         => Factories.TryGetValue(typeDiscriminator, out var factory) ? factory(axes, dto) : null;
 
@@ -105,9 +109,14 @@ public static class SeriesRegistry
         Register("networkgraph", NetworkGraphSeries.FromSeriesDto);
         Register("relativerotation", RelativeRotationSeries.FromSeriesDto);
         Register("sankey", SankeySeries.FromSeriesDto);
+        Register("chord", ChordSeries.FromSeriesDto);
+        Register("wordcloud", WordCloudSeries.FromSeriesDto);
         Register("polarline", PolarLineSeries.FromSeriesDto);
         Register("polarscatter", PolarScatterSeries.FromSeriesDto);
         Register("polarbar", PolarBarSeries.FromSeriesDto);
+        Register("ternaryscatter", TernaryScatterSeries.FromSeriesDto);
+        Register("ternaryline", TernaryLineSeries.FromSeriesDto);
+        Register("piper", PiperSeries.FromSeriesDto);
         Register("surface", SurfaceSeries.FromSeriesDto);
         Register("wireframe", WireframeSeries.FromSeriesDto);
         Register("scatter3d", Scatter3DSeries.FromSeriesDto);

@@ -47,7 +47,7 @@ figure
 ## Every chart this library draws
 
 The extension does not draw anything itself — it hands the library's own SVG to the notebook. So a cell can show
-any of the 86 chart types, with any of the 148 colormaps, drawn exactly as they are on a server or in a file:
+any of the 91 chart types, with any of the 148 colormaps, drawn exactly as they are on a server or in a file:
 
 ```csharp
 #r "nuget: MatPlotLibNet"

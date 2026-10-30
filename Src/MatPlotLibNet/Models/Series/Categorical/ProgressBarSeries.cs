@@ -13,12 +13,17 @@ public sealed class ProgressBarSeries : ChartSeries
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The fraction of the track that the bar fills, from 0 to 1 (the constructor clamps what it is given to
+    /// that range); it is also printed on the bar as a percentage.</summary>
     public double Value { get; }
 
+    /// <summary>The colour of the filled part of the bar. Default Tab10 blue.</summary>
     public Color FillColor { get; set; } = Colors.Tab10Blue;
 
+    /// <summary>The colour of the unfilled track behind the bar. Default light gray.</summary>
     public Color TrackColor { get; set; } = Colors.LightGray;
 
+    /// <summary>Height of the bar as a fraction of the height of the plot, centred vertically. Default 0.3.</summary>
     public double BarHeight { get; set; } = 0.3;
 
     /// <summary>Creates a new progress bar series with the given value (0.0 to 1.0).</summary>

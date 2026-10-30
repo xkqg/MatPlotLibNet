@@ -11,8 +11,11 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D bar chart series — rectangular prisms rising from the XY-plane.</summary>
 public sealed class Bar3DSeries : XYZSeries, IHasColor
 {
+    /// <summary>The side length of each bar's square base, in data units. Each bar starts at its X and Y and
+    /// extends this far along both axes. Default 0.5.</summary>
     public double BarWidth { get; set; } = 0.5;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="Bar3DSeries"/>.</summary>

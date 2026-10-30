@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- A sample is a program to read and run, not API: the XML comment every package member carries (CS1591, a warning that
+       fails the build for a package) is not asked of its App and MainWindow. Everything else the root file sets still applies. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

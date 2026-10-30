@@ -30,6 +30,8 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
     private const double OneHourInOA   = 1.0 / 24;
     private const double OneMinuteInOA = 1.0 / (24 * 60);
 
+    /// <summary>The granularity (years, months, weeks, days, hours, minutes or seconds) that the latest <see cref="Locate"/> call
+    /// picked for the span it was given. Before the first call it holds the enum's default value.</summary>
     public DateInterval ChosenInterval { get; private set; }
 
     /// <inheritdoc />

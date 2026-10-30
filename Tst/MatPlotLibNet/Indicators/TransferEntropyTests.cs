@@ -151,4 +151,14 @@ public class TransferEntropyTests
         Assert.IsAssignableFrom<Indicator<SignalResult>>(te);
         Assert.IsAssignableFrom<IIndicator>(te);
     }
+
+    [Fact]
+    public void TheBinnedEstimate_ThroughTheOptions_RefusesSeriesTooShortToFormTriples()
+    {
+        var options = new TransferEntropyOptions(Estimator: TransferEntropyEstimator.Binned, Lag: 2);
+
+        var refused = Assert.Throws<ArgumentException>(() => new TransferEntropy([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], options));
+
+        Assert.Equal("source", refused.ParamName);
+    }
 }

@@ -16,7 +16,9 @@ public sealed class LegacyAnimationAdapter : IAnimation<int>
 
     /// <summary>Gets the total number of frames in the animation.</summary>
     public int FrameCount => _builder.FrameCount;
+    /// <inheritdoc />
     public TimeSpan Interval { get => _builder.Interval; set => _builder.Interval = value; }
+    /// <inheritdoc />
     public bool Loop { get => _builder.Loop; set => _builder.Loop = value; }
 
     /// <inheritdoc />

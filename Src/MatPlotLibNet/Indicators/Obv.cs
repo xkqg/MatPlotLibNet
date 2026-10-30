@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 
@@ -31,16 +32,9 @@ public sealed class Obv : Indicator<SignalResult>
         if (n == 0) return Array.Empty<double>();
 
         var result = new double[n];
-        result[0] = _volume[0];
-        for (int i = 1; i < n; i++)
-        {
-            if (_close[i] > _close[i - 1])
-                result[i] = result[i - 1] + _volume[i];
-            else if (_close[i] < _close[i - 1])
-                result[i] = result[i - 1] - _volume[i];
-            else
-                result[i] = result[i - 1];
-        }
+        var step = new ObvStep();
+        for (int i = 0; i < n; i++)
+            result[i] = step.Next(_close[i], _volume[i]);
         return result;
     }
 

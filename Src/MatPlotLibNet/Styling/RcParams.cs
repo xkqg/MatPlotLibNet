@@ -20,6 +20,7 @@ public sealed class RcParams
     // Thread-safe async-local scope stack
     private static readonly AsyncLocal<RcParams?> _current = new();
 
+    /// <summary>The global defaults every figure falls back on when no explicit setting, theme or scoped override applies; change them through <see cref="Plt.Style"/>.</summary>
     public static RcParams Default { get; } = CreateDefaults();
 
     /// <summary>Gets the current scoped <see cref="RcParams"/>, or <see cref="Default"/> when no scope is active.</summary>

@@ -215,6 +215,25 @@ public sealed class FigureBuilder
     public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
     private bool _enableSelection;
 
+    /// <summary>Links the chart to the others of the same data on a page: a brush on it lights the same rows (<c>RowKeys</c>) on every
+    /// chart that shares <paramref name="group"/>, and theirs light the rows on it. Switches the brush
+    /// (<see cref="WithSelection"/>) on, because the brush is how rows are selected.</summary>
+    /// <param name="group">The name the charts share.</param>
+    /// <param name="selectedRows">The rows the chart starts with selected; none by default.</param>
+    /// <exception cref="ArgumentException">The group is blank, or a row key is blank.</exception>
+    public FigureBuilder LinkSelection(string group, IReadOnlyList<string>? selectedRows = null)
+    {
+        if (string.IsNullOrWhiteSpace(group))
+            throw new ArgumentException("A selection group needs a name.", nameof(group));
+        _selectionGroup = group;
+        _selectedRows = selectedRows;
+        _enableSelection = true;
+        return this;
+    }
+
+    private string? _selectionGroup;
+    private IReadOnlyList<string>? _selectedRows;
+
     /// <summary>Controls whether the emitted SVG's root element carries an inline
     /// <c>style="max-width:100%;height:auto"</c> declaration so the chart resizes
     /// fluidly with its container. Default is <see langword="true"/>; set to
@@ -270,10 +289,14 @@ public sealed class FigureBuilder
             _enableRichTooltips = true;
         if (builder.DataCursor)
             _enableDataCursor = true;
+        if (builder.ViewerCursors)
+            _enableViewerCursors = true;
         return this;
     }
 
     private bool _enableDataCursor;
+
+    private bool _enableViewerCursors;
 
     private bool _enable3DRotation;
 
@@ -363,6 +386,14 @@ public sealed class FigureBuilder
     public FigureBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null) =>
         AddSeries(ax => ax.Sankey(nodes, links), configure);
 
+    /// <summary>Adds a word cloud to the default axes: each word set in a size that follows its weight.</summary>
+    public FigureBuilder WordCloud(string[] words, double[] weights, Action<WordCloudSeries>? configure = null) =>
+        AddSeries(ax => ax.WordCloud(words, weights), configure);
+
+    /// <summary>Adds a chord diagram of the flows between groups to the default axes.</summary>
+    public FigureBuilder Chord(string[] names, double[,] flows, Action<ChordSeries>? configure = null) =>
+        AddSeries(ax => ax.Chord(names, flows), configure);
+
     /// <summary>Adds a polar line series to the default axes.</summary>
     public FigureBuilder PolarPlot(double[] r, double[] theta, Action<PolarLineSeries>? configure = null) =>
         AddSeries(ax => ax.PolarPlot(r, theta), configure);
@@ -370,6 +401,18 @@ public sealed class FigureBuilder
     /// <summary>Adds a polar scatter series to the default axes.</summary>
     public FigureBuilder PolarScatter(double[] r, double[] theta, Action<PolarScatterSeries>? configure = null) =>
         AddSeries(ax => ax.PolarScatter(r, theta), configure);
+
+    /// <summary>Adds a line through compositions of three parts to the default axes, which becomes a ternary diagram.</summary>
+    public FigureBuilder TernaryPlot(double[] top, double[] left, double[] right, Action<TernaryLineSeries>? configure = null) =>
+        AddSeries(ax => ax.TernaryPlot(top, left, right), configure);
+
+    /// <summary>Adds a marker on each composition of three parts to the default axes, which becomes a ternary diagram.</summary>
+    public FigureBuilder TernaryScatter(double[] top, double[] left, double[] right, Action<TernaryScatterSeries>? configure = null) =>
+        AddSeries(ax => ax.TernaryScatter(top, left, right), configure);
+
+    /// <summary>Adds a Piper diagram of the given waters (in mg/L) to the default axes.</summary>
+    public FigureBuilder Piper(IReadOnlyList<WaterSample> samples, Action<PiperSeries>? configure = null) =>
+        AddSeries(ax => ax.Piper(samples), configure);
 
     /// <summary>Adds a polar bar series to the default axes.</summary>
     public FigureBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null) =>
@@ -608,7 +651,10 @@ public sealed class FigureBuilder
             EnableRichTooltips = _enableRichTooltips,
             EnableHighlight = _enableHighlight,
             EnableSelection = _enableSelection,
+            SelectionGroup = _selectionGroup,
+            SelectedRows = _selectedRows,
             EnableDataCursor = _enableDataCursor,
+            EnableViewerCursors = _enableViewerCursors,
             Enable3DRotation = _enable3DRotation,
             EnableTreemapDrilldown = _enableTreemapDrilldown,
             EnableSankeyHover = _enableSankeyHover,

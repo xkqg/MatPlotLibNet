@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class QualitativeColorMaps
 {
+    /// <summary>Ten distinct colours: matplotlib's default colour cycle (blue, orange, green, red, purple, brown, pink, grey, olive, cyan).</summary>
     public static IColorMap Tab10 { get; } = new ListedColorMap("tab10",
     [
         Color.FromHex("#1F77B4"),
@@ -23,6 +24,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#17BECF"),
     ]);
 
+    /// <summary>Twenty colours: the ten <see cref="Tab10"/> hues, each followed by a lighter tint of itself.</summary>
     public static IColorMap Tab20 { get; } = new ListedColorMap("tab20",
     [
         Color.FromHex("#1F77B4"),
@@ -47,6 +49,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#9EDAE5"),
     ]);
 
+    /// <summary>Nine strong, saturated colours (after matplotlib's <c>Set1</c>).</summary>
     public static IColorMap Set1 { get; } = new ListedColorMap("set1",
     [
         Color.FromHex("#E41A1C"),
@@ -60,6 +63,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#999999"),
     ]);
 
+    /// <summary>Eight softer, muted colours (after matplotlib's <c>Set2</c>).</summary>
     public static IColorMap Set2 { get; } = new ListedColorMap("set2",
     [
         Color.FromHex("#66C2A5"),
@@ -72,6 +76,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#B3B3B3"),
     ]);
 
+    /// <summary>Twelve light, low-saturation colours (after matplotlib's <c>Set3</c>).</summary>
     public static IColorMap Set3 { get; } = new ListedColorMap("set3",
     [
         Color.FromHex("#8DD3C7"),
@@ -88,6 +93,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#FFED6F"),
     ]);
 
+    /// <summary>Nine very light pastel colours (after matplotlib's <c>Pastel1</c>).</summary>
     public static IColorMap Pastel1 { get; } = new ListedColorMap("pastel1",
     [
         Color.FromHex("#FBB4AE"),
@@ -101,6 +107,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#F2F2F2"),
     ]);
 
+    /// <summary>Eight light pastel colours, a little more muted than <see cref="Pastel1"/> (after matplotlib's <c>Pastel2</c>).</summary>
     public static IColorMap Pastel2 { get; } = new ListedColorMap("pastel2",
     [
         Color.FromHex("#B3E2CD"),
@@ -113,6 +120,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#CCCCCC"),
     ]);
 
+    /// <summary>Eight dark, saturated colours that hold up on a light background (after matplotlib's <c>Dark2</c>).</summary>
     public static IColorMap Dark2 { get; } = new ListedColorMap("dark2",
     [
         Color.FromHex("#1B9E77"),
@@ -125,6 +133,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#666666"),
     ]);
 
+    /// <summary>Eight colours that open with four soft tones and end with four vivid ones (after matplotlib's <c>Accent</c>).</summary>
     public static IColorMap Accent { get; } = new ListedColorMap("accent",
     [
         Color.FromHex("#7FC97F"),
@@ -137,6 +146,7 @@ public static class QualitativeColorMaps
         Color.FromHex("#666666"),
     ]);
 
+    /// <summary>Twelve colours in light and dark pairs of the same hue, so neighbouring entries belong together (after matplotlib's <c>Paired</c>).</summary>
     public static IColorMap Paired { get; } = new ListedColorMap("paired",
     [
         Color.FromHex("#A6CEE3"),

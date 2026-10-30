@@ -586,10 +586,20 @@ public static class DataFrameIndicatorExtensions
         /// <param name="targetCol">Name of the numeric target column.</param>
         /// <param name="bins">Number of histogram bins for probability estimation (default 8).</param>
         /// <param name="lag">Prediction lag in bars (default 1).</param>
-        /// <returns>Transfer Entropy values — same length as the column.</returns>
+        /// <returns>The binned transfer entropy of the whole columns: one value, in an array of one.</returns>
         public double[] TransferEntropy(
             string sourceCol, string targetCol, int bins = 8, int lag = 1) =>
             new Indicators.TransferEntropy(
                 df.DoubleCol(sourceCol), df.DoubleCol(targetCol), bins, lag).Compute();
+
+        /// <summary>Computes the Transfer Entropy from two named columns (source → target direction) as the options say.</summary>
+        /// <param name="sourceCol">Name of the numeric source column.</param>
+        /// <param name="targetCol">Name of the numeric target column.</param>
+        /// <param name="options">The estimator and its settings (the default is the Kraskov nearest-neighbour estimate).</param>
+        /// <returns>With a <see cref="TransferEntropyOptions.Window"/>, one value for each row: NaN until the first window is full, then the
+        /// entropy of the last rows. Without one, one value for the whole columns, in an array of one.</returns>
+        public double[] TransferEntropy(string sourceCol, string targetCol, TransferEntropyOptions options) =>
+            new Indicators.TransferEntropy(
+                df.DoubleCol(sourceCol), df.DoubleCol(targetCol), options).Compute();
     }
 }

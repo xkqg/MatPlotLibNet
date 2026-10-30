@@ -34,7 +34,7 @@ dotnet add package MatPlotLibNet.Blazor
               CssClass="live-chart" />
 ```
 
-The component connects to a `ChartHub` endpoint. It updates automatically when the server calls `IChartPublisher.PublishSvgAsync` for this chart id.
+The component connects to a `ChartHub` endpoint. It updates automatically when the server calls `IChartPublisher.PublishSvgAsync` for this chart id. When the figure has `.WithServerInteraction(...)` the component also sends the viewer's gestures: it hands the script inside the SVG the connection its client holds, so the page needs no JavaScript and sets no `window.__mpl_signalr_connection`, and a redraw that arrives in the middle of a drag is mounted when the chart is idle.
 
 ### Bidirectional interaction (v1.2.0)
 
@@ -57,7 +57,19 @@ For client-side-only interaction (no server round-trip), use `.WithBrowserIntera
     (function () {
         // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
         // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
+        // A chart the viewer is in the middle of a drag or a band on says so (data-mpl-busy): replacing it would cut
+        // the gesture off, so the latest picture waits for the chart's mpl:idle event.
         function mplMountSvg(host, svgMarkup) {
+            var busy = host.querySelector('svg[data-mpl-busy]');
+            if (busy) {
+                var first = !host.__mplHeldBack;
+                host.__mplHeldBack = svgMarkup;
+                if (first) busy.addEventListener('mpl:idle', function () {
+                    var held = host.__mplHeldBack; host.__mplHeldBack = null;
+                    if (held) mplMountSvg(host, held);
+                }, { once: true });
+                return;
+            }
             host.innerHTML = svgMarkup;
             host.querySelectorAll('script').forEach(function (inert) {
                 var live = document.createElementNS(inert.namespaceURI, 'script');
@@ -100,9 +112,9 @@ For client-side-only interaction (no server round-trip), use `.WithBrowserIntera
 }
 ```
 
-The dispatcher script looks up `window.__mpl_signalr_connection`, so the `<script>` block above only needs to run once per page. There is no per-chart wiring. `FigureRegistry.Register` installs a background reader task for each chart, so the hub method returns in microseconds and the rendering happens asynchronously, off the request thread.
+On a page of your own, as above, the dispatcher script looks up `window.__mpl_signalr_connection`, so the `<script>` block only needs to run once per page. There is no per-chart wiring. With `MplLiveChart` none of it is needed. `FigureRegistry.Register` installs a background reader task for each chart, so the hub method returns in microseconds and the rendering happens asynchronously, off the request thread.
 
-A runnable version ships in `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor`, on route `/interactive`.
+A runnable version ships in `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor`, on route `/interactive`; it is one `MplLiveChart`.
 
 ### Extension method
 

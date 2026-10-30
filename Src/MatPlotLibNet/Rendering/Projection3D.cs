@@ -47,8 +47,10 @@ public sealed class Projection3D
     // [0, ax] × [0, ay] × [0, az] world box. The renderer fits this bbox into _plotBounds.
     private readonly double _fitXMin, _fitXMax, _fitYMin, _fitYMax;
 
+    /// <summary>The camera elevation above the XY plane, in degrees.</summary>
     public double Elevation { get; }
 
+    /// <summary>The camera azimuth, its rotation around the Z axis, in degrees.</summary>
     public double Azimuth { get; }
 
     /// <summary>Camera distance for perspective projection. Null = orthographic. Clamped to minimum 2.0.</summary>

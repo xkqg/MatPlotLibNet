@@ -11,18 +11,28 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D surface plot rendered as colored quadrilaterals with optional wireframe.</summary>
 public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable, IHasAlpha, IHasEdgeColor
 {
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.8;
 
+    /// <summary>Whether a thin outline is drawn around every surface cell. True by default; false draws the cells as
+    /// plain filled patches.</summary>
     public bool ShowWireframe { get; set; } = true;
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
+    /// <inheritdoc />
     public Color? EdgeColor { get; set; }
 
+    /// <summary>How many grid rows are stepped over between one drawn cell and the next. Default 1 draws every row; a
+    /// larger value draws a coarser, faster surface. A value below 1 counts as 1.</summary>
     public int RowStride { get; set; } = 1;
 
+    /// <summary>How many grid columns are stepped over between one drawn cell and the next. Default 1 draws every column;
+    /// a larger value draws a coarser, faster surface. A value below 1 counts as 1.</summary>
     public int ColStride { get; set; } = 1;
 
     /// <summary>Initializes a new surface series with the specified grid data.</summary>

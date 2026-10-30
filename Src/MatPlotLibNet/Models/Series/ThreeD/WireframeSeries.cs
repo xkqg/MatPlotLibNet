@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D wireframe plot rendered as grid lines on a surface.</summary>
 public sealed class WireframeSeries : GridSeries3D, IHasColor
 {
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The thickness of the grid lines, in pixels. Default 0.5.</summary>
     public double LineWidth { get; set; } = 0.5;
 
     /// <summary>Initializes a new wireframe series with the specified grid data.</summary>

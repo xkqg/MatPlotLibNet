@@ -10,8 +10,10 @@ public sealed class Mollweide : IGeoProjection
     private const double R = 1.0;
     private const double Sqrt2 = 1.4142135623730951;
 
+    /// <inheritdoc />
     public string Name => "Mollweide";
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = latitude.ToRadians();
@@ -22,8 +24,10 @@ public sealed class Mollweide : IGeoProjection
         return new(x, y);
     }
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
 
+    /// <inheritdoc />
     public GeoBounds Bounds
     {
         get

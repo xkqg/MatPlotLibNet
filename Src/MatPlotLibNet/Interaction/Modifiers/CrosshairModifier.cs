@@ -31,12 +31,20 @@ public sealed class CrosshairModifier : IInteractionModifier
     }
 
     // Passive modifier — does not claim any events
+    /// <inheritdoc />
     public bool HandlesPointerPressed(PointerInputArgs args) => false;
+    /// <inheritdoc />
     public void OnPointerPressed(PointerInputArgs args) { }
+    /// <inheritdoc />
     public void OnPointerMoved(PointerInputArgs args) { }
+    /// <inheritdoc />
     public void OnPointerReleased(PointerInputArgs args) { }
+    /// <inheritdoc />
     public bool HandlesScroll(ScrollInputArgs args) => false;
+    /// <inheritdoc />
     public void OnScroll(ScrollInputArgs args) { }
+    /// <inheritdoc />
     public bool HandlesKeyDown(KeyInputArgs args) => false;
+    /// <inheritdoc />
     public void OnKeyDown(KeyInputArgs args) { }
 }

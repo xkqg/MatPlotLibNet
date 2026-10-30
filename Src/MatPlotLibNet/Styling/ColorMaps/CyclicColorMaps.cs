@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class CyclicColorMaps
 {
+    /// <summary>Pale lavender through blue-purple to a near-black purple, then brown and tan back to the pale start colour (after matplotlib's <c>twilight</c>).</summary>
     public static IColorMap Twilight { get; } = new LinearColorMap("twilight",
     [
         Color.FromHex("#E2D9E2"),
@@ -21,6 +22,7 @@ public static class CyclicColorMaps
         Color.FromHex("#E2D9E2"),
     ]);
 
+    /// <summary>The <see cref="Twilight"/> cycle rotated by half a turn: it starts and ends at the dark purple and is palest in the middle (after matplotlib's <c>twilight_shifted</c>).</summary>
     public static IColorMap TwilightShifted { get; } = new LinearColorMap("twilight_shifted",
     [
         Color.FromHex("#2D1E3E"),
@@ -33,6 +35,7 @@ public static class CyclicColorMaps
         Color.FromHex("#2D1E3E"),
     ]);
 
+    /// <summary>The hue wheel at full saturation: red, yellow, green, cyan, blue and magenta, then back to red (after matplotlib's <c>hsv</c>).</summary>
     public static IColorMap Hsv { get; } = new LinearColorMap("hsv",
     [
         Color.FromHex("#FF0000"),

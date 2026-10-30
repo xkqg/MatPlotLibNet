@@ -10,8 +10,14 @@ public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
     private readonly double _n, _c, _rho0, _lon0;
     private readonly Dictionary<string, double> _parameters;
 
+    /// <inheritdoc />
     public string Name => "AlbersEqualArea";
 
+    /// <summary>Creates an Albers Equal Area Conic projection. The defaults are the USGS parameters for a map of the contiguous United States.</summary>
+    /// <param name="sp1">First standard parallel in degrees. Default 29.5.</param>
+    /// <param name="sp2">Second standard parallel in degrees. Default 45.5.</param>
+    /// <param name="centerLon">Central meridian in degrees. Default -96.</param>
+    /// <param name="centerLat">Latitude of origin in degrees. Default 37.5.</param>
     public AlbersEqualArea(double sp1 = 29.5, double sp2 = 45.5, double centerLon = -96, double centerLat = 37.5)
     {
         _parameters = new() { ["lat_1"] = sp1, ["lat_2"] = sp2, ["lon_0"] = centerLon, ["lat_0"] = centerLat };
@@ -29,6 +35,7 @@ public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
         new AlbersEqualArea(parameters.GetValueOrDefault("lat_1", _parameters["lat_1"]), parameters.GetValueOrDefault("lat_2", _parameters["lat_2"]),
             parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]), parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]));
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = Math.Clamp(latitude, -89.99, 89.99).ToRadians();
@@ -38,6 +45,8 @@ public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
         return new((rho * Math.Sin(theta)).ToDegrees(), (_rho0 - rho * Math.Cos(theta)).ToDegrees());
     }
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
+    /// <inheritdoc />
     public GeoBounds Bounds => new(-200, 200, -200, 200);
 }

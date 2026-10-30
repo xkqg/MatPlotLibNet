@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 
@@ -26,29 +27,12 @@ public sealed class Rsi : PriceIndicator<SignalResult>
     public override SignalResult Compute()
     {
         if (Prices.Length <= _period) return Array.Empty<double>();
-        int n = Prices.Length - _period;
-        var result = new double[n];
-
-        double avgGain = 0, avgLoss = 0;
-        for (int i = 1; i <= _period; i++)
+        var result = new double[Prices.Length - _period];
+        var step = new RsiStep(_period);
+        for (int i = 0; i < Prices.Length; i++)
         {
-            double change = Prices[i] - Prices[i - 1];
-            if (change > 0) avgGain += change;
-            else avgLoss -= change;
-        }
-        avgGain /= _period;
-        avgLoss /= _period;
-
-        result[0] = avgLoss == 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-
-        for (int i = 1; i < n; i++)
-        {
-            double change = Prices[_period + i] - Prices[_period + i - 1];
-            double gain = change > 0 ? change : 0;
-            double loss = change < 0 ? -change : 0;
-            avgGain = (avgGain * (_period - 1) + gain) / _period;
-            avgLoss = (avgLoss * (_period - 1) + loss) / _period;
-            result[i] = avgLoss == 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+            double value = step.Next(Prices[i]);
+            if (i >= _period) result[i - _period] = value;
         }
         return result;
     }

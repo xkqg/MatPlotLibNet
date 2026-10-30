@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -29,20 +30,13 @@ public sealed class ForceIndex : CandleIndicator<SignalResult>
     {
         int n = BarCount;
         if (n < 2) return Array.Empty<double>();
-
-        int outLen = n - 1;
-        var raw = new double[outLen];
-        for (int i = 0; i < outLen; i++)
-            raw[i] = Volume[i + 1] * (Close[i + 1] - Close[i]);
-
-        if (_period == 1) return raw;
-
-        // EMA with adjust=false convention: seed at raw[0], then recurse.
-        double k = 2.0 / (_period + 1);
-        var result = new double[outLen];
-        result[0] = raw[0];
-        for (int i = 1; i < outLen; i++)
-            result[i] = k * raw[i] + (1 - k) * result[i - 1];
+        var result = new double[n - 1];
+        var step = new ForceIndexStep(_period);
+        for (int i = 0; i < n; i++)
+        {
+            double value = step.Next(Close[i], Volume[i]);
+            if (i >= 1) result[i - 1] = value;
+        }
         return result;
     }
 

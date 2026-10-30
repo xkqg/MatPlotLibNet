@@ -78,7 +78,7 @@ public sealed class RelativeVigorIndex : CandleIndicator<RviResult>
         Array.Copy(rviFull, rviStart, rvi, 0, rviLen);
 
         // Signal output: bars [period + 5 .. n-1], length = n - period - 5.
-        int sigLen = n - sigStart;
+        int sigLen = Math.Max(0, n - sigStart);
         var signal = new double[sigLen];
         for (int t = sigStart; t < n; t++)
         {

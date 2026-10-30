@@ -12,8 +12,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>Similar to matplotlib's <c>hist2d</c>. Takes raw scatter data and computes bin counts at render time.</remarks>
 public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
+    /// <summary>The X coordinate of each observation, paired by index with <see cref="Y"/>.</summary>
     public double[] X { get; }
 
+    /// <summary>The Y coordinate of each observation, paired by index with <see cref="X"/>.</summary>
     public double[] Y { get; }
 
     /// <summary>The number of bins along the X axis: at least one.</summary>
@@ -37,8 +39,10 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
     private static int AtLeastOneBin(int bins, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(bins))] string? paramName = null) =>
         bins >= 1 ? bins : throw new ArgumentOutOfRangeException(paramName, bins, "A 2-D histogram has at least one bin along each axis.");
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="Histogram2DSeries"/> with the specified scatter data.</summary>

@@ -6,20 +6,32 @@ namespace MatPlotLibNet.Models;
 /// <summary>Configures the margins and gaps between subplots in a figure.</summary>
 public sealed record SubPlotSpacing
 {
+    /// <summary>The space between the left edge of the figure and the subplots, in pixels. Default 60.</summary>
     public double MarginLeft { get; init; } = 60;
 
+    /// <summary>The space between the right edge of the figure and the subplots, in pixels. Default 20.</summary>
     public double MarginRight { get; init; } = 20;
 
+    /// <summary>The space between the top edge of the figure and the subplots, in pixels; a figure title that needs more
+    /// room pushes the subplots further down. Default 40.</summary>
     public double MarginTop { get; init; } = 40;
 
+    /// <summary>The space between the bottom edge of the figure and the subplots, in pixels. Default 50.</summary>
     public double MarginBottom { get; init; } = 50;
 
+    /// <summary>The space between neighbouring columns of subplots, in pixels. Default 40.</summary>
     public double HorizontalGap { get; init; } = 40;
 
+    /// <summary>The space between neighbouring rows of subplots, in pixels. Default 40.</summary>
     public double VerticalGap { get; init; } = 40;
 
+    /// <summary>When true, the margins and gaps are worked out from the measured size of the tick labels, axis titles and
+    /// legends instead of being taken from this record, so nothing is clipped and no space is wasted. Off by default.</summary>
     public bool TightLayout { get; init; }
 
+    /// <summary>When true, the margins and gaps are worked out from the measured size of the tick labels, axis titles and
+    /// legends instead of being taken from this record, so nothing overlaps or is clipped; inset axes are then placed within
+    /// the inner data area, clear of the labels and ticks. Off by default.</summary>
     public bool ConstrainedLayout { get; init; }
 
     // --- Fractional-margin support ---
@@ -31,9 +43,13 @@ public sealed record SubPlotSpacing
     /// </summary>
     public bool IsFractional { get; init; }
 
+    /// <summary>The left margin as a fraction of the figure width, from 0 to 1. Read only while <see cref="IsFractional"/> is on.</summary>
     public double FractLeft   { get; init; }
+    /// <summary>The right margin as a fraction of the figure width, from 0 to 1. Read only while <see cref="IsFractional"/> is on.</summary>
     public double FractRight  { get; init; }
+    /// <summary>The top margin as a fraction of the figure height, from 0 to 1. Read only while <see cref="IsFractional"/> is on.</summary>
     public double FractTop    { get; init; }
+    /// <summary>The bottom margin as a fraction of the figure height, from 0 to 1. Read only while <see cref="IsFractional"/> is on.</summary>
     public double FractBottom { get; init; }
 
     /// <summary>

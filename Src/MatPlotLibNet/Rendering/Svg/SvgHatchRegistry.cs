@@ -24,7 +24,7 @@ namespace MatPlotLibNet.Rendering.Svg;
 internal sealed class SvgHatchRegistry
 {
     /// <summary>Tile size in user units. Six pixels reads as a hatch at a glance without moiré at chart scale.</summary>
-    private const double Tile = 6.0;
+    private const double Tile = HatchTile.Size;
 
     private readonly StringBuilder _sb;
     private readonly SvgIdScope _scope;
@@ -74,57 +74,21 @@ internal sealed class SvgHatchRegistry
         return refId;
     }
 
-    /// <summary>Emits the line geometry of one tile. Diagonals are drawn twice, offset by a tile, so the
-    /// strokes meet seamlessly where adjacent tiles abut.</summary>
+    /// <summary>Emits the marks of one tile (<see cref="HatchTile"/>, the one place they are written; the raster and MAUI
+    /// backends draw the same ones). The diagonals are drawn twice, offset by a tile, so the strokes meet seamlessly where
+    /// adjacent tiles abut.</summary>
     private void AppendStrokes(HatchPattern hatch, Color color)
     {
-        switch (hatch)
+        foreach (var mark in HatchTile.MarksOf(hatch))
         {
-            case HatchPattern.ForwardDiagonal:
-                AppendLine(0, Tile, Tile, 0, color);
-                AppendLine(-1, 1, 1, -1, color);
-                AppendLine(Tile - 1, Tile + 1, Tile + 1, Tile - 1, color);
-                break;
-
-            case HatchPattern.BackDiagonal:
-                AppendLine(0, 0, Tile, Tile, color);
-                AppendLine(-1, Tile - 1, 1, Tile + 1, color);
-                AppendLine(Tile - 1, -1, Tile + 1, 1, color);
-                break;
-
-            case HatchPattern.Horizontal:
-                AppendLine(0, Tile / 2, Tile, Tile / 2, color);
-                break;
-
-            case HatchPattern.Vertical:
-                AppendLine(Tile / 2, 0, Tile / 2, Tile, color);
-                break;
-
-            case HatchPattern.Cross:
-                AppendLine(0, Tile / 2, Tile, Tile / 2, color);
-                AppendLine(Tile / 2, 0, Tile / 2, Tile, color);
-                break;
-
-            case HatchPattern.DiagonalCross:
-                AppendLine(0, Tile, Tile, 0, color);
-                AppendLine(0, 0, Tile, Tile, color);
-                break;
-
-            case HatchPattern.Dots:
-                AppendDot(Tile / 2, Tile / 2, color);
-                break;
-
-            case HatchPattern.Stars:
-                AppendDot(Tile / 2, Tile / 2, color);
-                AppendLine(0, Tile, Tile, 0, color);
-                AppendLine(0, 0, Tile, Tile, color);
-                break;
-
-            default:
-                // An out-of-range cast paints the background only — a hatch nobody defined draws nothing,
-                // rather than throwing inside a render pass. HatchPattern.None never reaches here (guarded
-                // by ShapeStyle.HasVisibleHatch).
-                break;
+            if (mark.Kind == HatchMarkKind.Dot)
+            {
+                AppendDot(mark.X1, mark.Y1, color);
+            }
+            else
+            {
+                AppendLine(mark.X1, mark.Y1, mark.X2, mark.Y2, color);
+            }
         }
     }
 

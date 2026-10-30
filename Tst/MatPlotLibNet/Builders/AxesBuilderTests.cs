@@ -2016,6 +2016,22 @@ public class AxesBuilderCoverageTests
         Assert.Empty(fig.SubPlots[0].Series);
     }
 
+    /// <summary>With a window the entropy is a line, drawn on the axes; the options overload hands the indicator to the same hooks.</summary>
+    [Fact]
+    public void TransferEntropy_WithAWindow_AddsALine_AndReachesTheConfigureHook()
+    {
+        var x = Enumerable.Range(0, 120).Select(i => Math.Round(Math.Sin(i * 0.37) * 8) / 8).ToArray();
+        var y = Enumerable.Range(0, 120).Select(i => Math.Round(Math.Cos(i * 0.23) * 8) / 8).ToArray();
+        bool configured = false;
+
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.TransferEntropy(x, y, new MatPlotLibNet.Indicators.TransferEntropyOptions(Neighbours: 3, Window: 40, Stride: 5), _ => configured = true))
+            .Build();
+
+        Assert.Single(fig.SubPlots[0].Series);
+        Assert.True(configured);
+    }
+
     [Fact]
     public void TransferEntropy_InBarSlotContext_SetsIndicatorOffset()
     {

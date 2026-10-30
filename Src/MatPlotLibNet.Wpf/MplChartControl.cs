@@ -29,8 +29,17 @@ public sealed class MplChartControl : SKElement
         DependencyProperty.Register(nameof(IsInteractive), typeof(bool), typeof(MplChartControl),
             new PropertyMetadata(false));
 
-    private InteractionController? _controller;
+    private readonly InteractionHost _host = new();
     private IAnimationSource? _animationSource;
+
+    /// <summary>When set, the host routes interaction events through this sink (typically created via
+    /// <see cref="SignalREventSink.Create"/>) instead of applying them locally. Set via
+    /// <see cref="ServerInteractionExtensions.WithServerInteraction"/>.</summary>
+    internal Action<FigureInteractionEvent>? ServerEventSink
+    {
+        get => _host.ServerEventSink;
+        set => _host.ServerEventSink = value;
+    }
 
     /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
     /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, select a row in a
@@ -66,9 +75,27 @@ public sealed class MplChartControl : SKElement
         set => SetValue(IsInteractiveProperty, value);
     }
 
+    /// <summary>Told of every gesture of the reader once it has reached the figure (or the server sink), whichever kind it
+    /// is: the same <see cref="IChartEventHandler"/> a server session takes, so one class reacts to a chart wherever it is
+    /// shown. It needs <see cref="IsInteractive"/>.</summary>
+    public IChartEventHandler? ChartEventHandler
+    {
+        get => _host.Handler;
+        set => _host.Handler = value;
+    }
+
+    /// <summary>Raised when <see cref="ChartEventHandler"/> fails. The gesture has been applied and the next one is taken as
+    /// usual, so the failure is reported here and never thrown into the control.</summary>
+    public event Action<Exception>? ChartEventHandlerFaulted;
+
+    /// <summary>Creates a chart control: it can take the keyboard focus (so the keys of the interaction work), repaints when the
+    /// interaction host asks it to, and raises <see cref="DataPointClicked"/> when a data point is clicked.</summary>
     public MplChartControl()
     {
         Focusable = true;
+        _host.InvalidateRequested += InvalidateVisual;
+        _host.HandlerFaulted += failure => ChartEventHandlerFaulted?.Invoke(failure);
+        _host.DataPointClicked += point => DataPointClicked?.Invoke(point);
     }
 
     /// <inheritdoc />
@@ -83,17 +110,13 @@ public sealed class MplChartControl : SKElement
         if (IsInteractive)
         {
             var layoutResult = ChartRendererDefault.Current.ComputeLayout(figure, ctx);
-            var layout = ChartLayout.Create(figure, layoutResult);
-            if (_controller is null)
-            {
-                _controller = InteractionController.CreateLocal(figure, layout);
-                _controller.InvalidateRequested += InvalidateVisual;
-                _controller.DataPointClicked += point => DataPointClicked?.Invoke(point);
-            }
-            else
-            {
-                _controller.UpdateLayout(layout);
-            }
+            _host.Update(figure, ChartLayout.Create(figure, layoutResult));
+        }
+
+        // The rubber band of a brush-select drag in progress.
+        if (_host.ActiveBrushSelect is { } band)
+        {
+            e.Surface.Canvas.DrawBrushSelect(band);
         }
     }
 
@@ -101,11 +124,8 @@ public sealed class MplChartControl : SKElement
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         base.OnMouseDown(e);
-        if (_controller is null || !IsInteractive) return;
-        var pos = e.GetPosition(this);
-        _controller.HandlePointerPressed(new PointerInputArgs(pos.X, pos.Y,
-            e.ChangedButton == MouseButton.Right ? PointerButton.Right : PointerButton.Left,
-            GetModifiers(), e.ClickCount));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandlePointerPressed(WpfInputAdapter.ToPressedArgs(e, this));
         Focus();
     }
 
@@ -113,30 +133,25 @@ public sealed class MplChartControl : SKElement
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        if (_controller is null || !IsInteractive) return;
-        var pos = e.GetPosition(this);
-        _controller.HandlePointerMoved(new PointerInputArgs(pos.X, pos.Y,
-            PointerButton.Left, GetModifiers()));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandlePointerMoved(WpfInputAdapter.ToMovedArgs(e, this));
+        ToolTip = _host.ActiveTooltip?.Text;
     }
 
     /// <inheritdoc />
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         base.OnMouseUp(e);
-        if (_controller is null || !IsInteractive) return;
-        var pos = e.GetPosition(this);
-        _controller.HandlePointerReleased(new PointerInputArgs(pos.X, pos.Y,
-            e.ChangedButton == MouseButton.Right ? PointerButton.Right : PointerButton.Left,
-            GetModifiers()));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandlePointerReleased(WpfInputAdapter.ToReleasedArgs(e, this));
     }
 
     /// <inheritdoc />
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
-        if (_controller is null || !IsInteractive) return;
-        var pos = e.GetPosition(this);
-        _controller.HandleScroll(new ScrollInputArgs(pos.X, pos.Y, 0, e.Delta / 120.0, GetModifiers()));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandleScroll(WpfInputAdapter.ToScrollArgs(e, this));
         e.Handled = true;
     }
 
@@ -144,30 +159,14 @@ public sealed class MplChartControl : SKElement
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (_controller is null || !IsInteractive) return;
-        _controller.HandleKeyDown(new KeyInputArgs(e.Key.ToString(), GetModifiers()));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandleKeyDown(WpfInputAdapter.ToKeyArgs(e));
     }
 
-    /// <summary>The interaction controller is aimed at one figure when it is built, so a control handed a different
-    /// figure drops it: the next paint builds one for the figure now on screen, and pan and zoom act on that one.</summary>
-    private void OnFigureChanged()
-    {
-        _controller = null;
-        InvalidateVisual();
-    }
+    /// <summary>A control handed a different figure repaints; the host sees the new figure with that paint and aims the
+    /// controller at it, so pan and zoom act on the figure now on screen.</summary>
+    private void OnFigureChanged() => InvalidateVisual();
 
     private void OnAnimationFrameReady(object? sender, Figure fig) =>
         Dispatcher.InvokeAsync(() => Figure = fig);
-
-    private static MatPlotLibNet.Interaction.ModifierKeys GetModifiers()
-    {
-        var mods = MatPlotLibNet.Interaction.ModifierKeys.None;
-        if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
-            mods |= MatPlotLibNet.Interaction.ModifierKeys.Shift;
-        if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
-            mods |= MatPlotLibNet.Interaction.ModifierKeys.Ctrl;
-        if (Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt))
-            mods |= MatPlotLibNet.Interaction.ModifierKeys.Alt;
-        return mods;
-    }
 }

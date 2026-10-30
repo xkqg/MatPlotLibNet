@@ -16,8 +16,13 @@ public sealed class FunnelSeries : ChartSeries
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The name of each stage, drawn centred on its bar, from the top stage to the bottom one.</summary>
     public string[] Labels { get; }
+    /// <summary>The size of each stage, from top to bottom: the width of a bar is its value relative to the largest
+    /// value. A stage whose value cannot be drawn (NaN or infinite) is skipped with its label.</summary>
     public double[] Values { get; }
+    /// <summary>The colour of each stage's bar, by position; a stage past the end of the array, or every stage when
+    /// this is <see langword="null"/>, takes the colour the figure's theme hands out at its position.</summary>
     public Color[]? Colors { get; set; }
 
     /// <summary>Initializes a new <see cref="FunnelSeries"/> with the given stage labels and values.</summary>

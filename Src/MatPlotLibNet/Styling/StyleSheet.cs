@@ -6,8 +6,10 @@ namespace MatPlotLibNet.Styling;
 /// <summary>An immutable named set of <see cref="RcParams"/> overrides that can be applied globally or in a scope.</summary>
 public sealed class StyleSheet
 {
+    /// <summary>The style sheet's name, such as <c>seaborn</c>; a sheet made from a theme carries the theme's name.</summary>
     public string Name { get; }
 
+    /// <summary>The rcParam overrides this sheet applies, keyed by the names in <see cref="RcParamKeys"/>.</summary>
     public IReadOnlyDictionary<string, object> Parameters { get; }
 
     /// <summary>Initializes a new <see cref="StyleSheet"/> with the given name and parameters.</summary>
@@ -37,10 +39,13 @@ public sealed class StyleSheet
 
     // ── Built-in style sheets ─────────────────────────────────────────────────
 
+    /// <summary>The style sheet of the default theme (<see cref="Theme.Default"/>).</summary>
     public static StyleSheet Default { get; } = FromTheme(Theme.Default);
 
+    /// <summary>The style sheet of the dark theme (<see cref="Theme.Dark"/>).</summary>
     public static StyleSheet Dark { get; } = FromTheme(Theme.Dark);
 
+    /// <summary>A seaborn-like look: a light blue-grey figure and axes background, white grid lines, 11-point text in dark grey.</summary>
     public static StyleSheet Seaborn { get; } = new("seaborn", new Dictionary<string, object>
     {
         [RcParamKeys.FigureFaceColor]  = Color.FromHex("#eaeaf2"),
@@ -53,6 +58,7 @@ public sealed class StyleSheet
         [RcParamKeys.TextColor]        = Color.FromHex("#262626"),
     });
 
+    /// <summary>A ggplot-like look: a light grey figure and axes background with white grid lines of width 0.5, data lines 1.75 wide and 10-point text.</summary>
     public static StyleSheet Ggplot { get; } = new("ggplot", new Dictionary<string, object>
     {
         [RcParamKeys.FigureFaceColor]  = Color.FromHex("#e5e5e5"),

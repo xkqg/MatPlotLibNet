@@ -437,4 +437,21 @@ public class DataFrameIndicatorExtensionsTests
 
     [Fact] public void TransferEntropy_ReturnsNonEmptyArray()
         => Assert.NotEmpty(MakeCandleDf().TransferEntropy("close", "high"));
+
+    /// <summary>The binned entropy of two whole columns is one number, in an array of one: not a value for each row.</summary>
+    [Fact] public void TransferEntropy_OfWholeColumns_IsOneValue()
+        => Assert.Single(MakeCandleDf().TransferEntropy("close", "high"));
+
+    /// <summary>With a window the options give a value for each row: NaN until the first window is full, then the entropy of the last rows.</summary>
+    [Fact] public void TransferEntropy_WithAWindow_IsOneValuePerRow_NaNUntilTheWindowIsFull()
+    {
+        var df = MakeCandleDf();
+        var options = new TransferEntropyOptions(Neighbours: 3, Window: 30, Stride: 4);
+
+        double[] te = df.TransferEntropy("close", "high", options);
+
+        Assert.Equal((int)df.Rows.Count, te.Length);
+        Assert.All(te[..29], v => Assert.True(double.IsNaN(v)));
+        Assert.False(double.IsNaN(te[29]));
+    }
 }

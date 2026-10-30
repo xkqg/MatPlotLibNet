@@ -19,4 +19,13 @@ public interface IChartPublisher
     /// <param name="figure">The figure to render and publish.</param>
     /// <param name="ct">Optional cancellation token.</param>
     Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default);
+
+    /// <summary>Tells every viewer of the chart which viewer moved the shared view, after the redrawn chart has been sent.
+    /// Default interface member: a publisher that only draws has nothing to say about authors.</summary>
+    /// <param name="chartId">The identifier of the chart.</param>
+    /// <param name="viewerId">The connection of the viewer who moved the view.</param>
+    /// <param name="viewerName">That viewer's name.</param>
+    /// <param name="ct">Optional cancellation token.</param>
+    Task PublishViewChangeAsync(string chartId, string viewerId, string viewerName, CancellationToken ct = default) =>
+        Task.CompletedTask;
 }

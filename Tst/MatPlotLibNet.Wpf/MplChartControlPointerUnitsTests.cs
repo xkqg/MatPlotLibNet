@@ -33,7 +33,7 @@ public class MplChartControlPointerUnitsTests
     }
 
     /// <summary>Paints the control once, as WPF does, and returns the controller it built and the plot area it drew.</summary>
-    private static InteractionController Painted(MplChartControl control, out MatPlotLibNet.Rendering.Rect area)
+    private static InteractionHost Painted(MplChartControl control, out MatPlotLibNet.Rendering.Rect area)
     {
         var figure = control.Figure!;
         using var surface = SKSurface.Create(new SKImageInfo((int)figure.Width, (int)figure.Height));
@@ -41,8 +41,8 @@ public class MplChartControlPointerUnitsTests
         paint.Invoke(control, [new SKPaintSurfaceEventArgs(surface, new SKImageInfo((int)figure.Width, (int)figure.Height))]);
         area = ChartLayout.Create(figure, ChartRendererDefault.Current.ComputeLayout(figure, new SkiaRenderContext(surface.Canvas)))
             .GetPlotArea(0);
-        return (InteractionController)typeof(MplChartControl)
-            .GetField("_controller", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;
+        return (InteractionHost)typeof(MplChartControl)
+            .GetField("_host", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;
     }
 
     /// <summary>Log X from 1 to 1000 (three decades), Y from 0 to 5; the points sit at 1, 10, 100, 1000.</summary>

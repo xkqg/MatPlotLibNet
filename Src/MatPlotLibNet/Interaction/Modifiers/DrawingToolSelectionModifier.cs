@@ -19,6 +19,12 @@ public sealed class DrawingToolSelectionModifier : IInteractionModifier
     private object? _selectedTool;
     private int _selectedAxesIndex;
 
+    /// <summary>Creates a modifier that removes the selected drawing tool when the Delete key is pressed.</summary>
+    /// <param name="chartId">The identifier of the chart that the emitted <see cref="RemoveDrawingToolEvent"/> is addressed to.</param>
+    /// <param name="layout">The chart layout of the rendered figure.</param>
+    /// <param name="figure">The figure being interacted with.</param>
+    /// <param name="sink">Receives the event this modifier emits when a selected tool is deleted.</param>
+    /// <param name="toolbar">The toolbar whose state the controller shares with its other modifiers.</param>
     public DrawingToolSelectionModifier(
         string chartId,
         IChartLayout layout,

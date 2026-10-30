@@ -13,6 +13,7 @@ public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
     /// <inheritdoc />
     internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, LineWidth, LineStyle, Marker: Marker, MarkerSize: MarkerSize);
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
     /// <inheritdoc />
@@ -21,26 +22,38 @@ public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
     /// <inheritdoc />
     LinePoints IHasLabelPlacement.LinePoints() => new(XData, YData);
 
+    /// <summary>The dash pattern of the line. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
+    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>The shape drawn at each data point. Null (the default) leaves the choice to the chart's property cycle,
+    /// which normally draws no markers; <see cref="MarkerStyle.None"/> draws none whatever the cycle says.</summary>
     public MarkerStyle? Marker { get; set; }
 
+    /// <summary>The size of each marker, in points. Default 6.</summary>
     public double MarkerSize { get; set; } = RestingMarkerSize;
 
+    /// <summary>The fill colour of the markers; null (the default) fills them with the line colour.</summary>
     public Color? MarkerFaceColor { get; set; }
 
+    /// <summary>The colour of the outline around each marker; null (the default) draws markers without an outline.</summary>
     public Color? MarkerEdgeColor { get; set; }
 
+    /// <summary>The thickness of the marker outline, in pixels. Default 1; it has an effect only when
+    /// <see cref="MarkerEdgeColor"/> is set.</summary>
     public double MarkerEdgeWidth { get; set; } = RestingMarkerEdgeWidth;
 
     /// <summary>The marker size a new line holds; a step, which has no marker size, draws its markers at this one.</summary>
     internal const double RestingMarkerSize = 6;
     private const double RestingMarkerEdgeWidth = 1.0;
 
+    /// <summary>How the line runs between data points: null or the default style joins them with
+    /// straight segments, while a step style holds each value flat until the next point, giving a staircase.</summary>
     public DrawStyle? DrawStyle { get; set; }
 
+    /// <summary>Draws a marker only at every N-th point, starting with the first; null (the default) marks every point.</summary>
     public int? MarkEvery { get; set; }
 
     /// <summary>When <see langword="true"/>, the renderer applies Fritsch-Carlson monotone cubic

@@ -23,16 +23,25 @@ public enum SpinePosition
 /// <summary>Configures a single axis spine (border line).</summary>
 public sealed record SpineConfig
 {
+    /// <summary>Whether the spine is drawn. On by default.</summary>
     public bool Visible { get; init; } = true;
 
+    /// <summary>How the spine is placed: at the edge of the plot area (the default), at a data coordinate, or at a
+    /// fraction of the axes. <see cref="PositionValue"/> says where for the last two.</summary>
     public SpinePosition Position { get; init; } = SpinePosition.Edge;
 
+    /// <summary>Where the spine stands when <see cref="Position"/> is not <see cref="SpinePosition.Edge"/>: a data value
+    /// on the axis the spine crosses (the Y value of a bottom or top spine, the X value of a left or right one), or a
+    /// fraction from 0 (left or bottom) to 1 (right or top) for <see cref="SpinePosition.Axes"/>. Ignored at the edge.</summary>
     public double PositionValue { get; init; }
 
+    /// <summary>The width of the spine line, in pixels. Default 0.8.</summary>
     public double LineWidth { get; init; } = 0.8;
 
+    /// <summary>The colour of the spine. <see langword="null"/> (the default) takes the theme's text colour.</summary>
     public Color? Color { get; init; }
 
+    /// <summary>The dash pattern of the spine. Solid by default.</summary>
     public LineStyle LineStyle { get; init; } = LineStyle.Solid;
 
     private readonly double? _boundsFrom;
@@ -75,11 +84,15 @@ internal static class SpineBoundExtensions
 /// <summary>Configures all four spines of a Cartesian axes.</summary>
 public sealed record SpinesConfig
 {
+    /// <summary>The spine along the top edge of the plot area. Drawn by default.</summary>
     public SpineConfig Top { get; init; } = new();
 
+    /// <summary>The spine along the bottom edge of the plot area, the X axis line. Drawn by default.</summary>
     public SpineConfig Bottom { get; init; } = new();
 
+    /// <summary>The spine along the left edge of the plot area, the Y axis line. Drawn by default.</summary>
     public SpineConfig Left { get; init; } = new();
 
+    /// <summary>The spine along the right edge of the plot area. Drawn by default.</summary>
     public SpineConfig Right { get; init; } = new();
 }

@@ -15,6 +15,32 @@ namespace MatPlotLibNet.Interaction;
 /// event written outside the library gets the same answer from <see cref="TryTargetAxes"/>.</remarks>
 public abstract record FigureInteractionEvent(string ChartId, int AxesIndex)
 {
+    /// <summary>The identity of the viewer who did this: for a browser, the connection the server received it on. The hub
+    /// writes it over whatever the payload carried (<see cref="StampedBy"/>), so a client cannot speak for another
+    /// viewer; <see langword="null"/> for an event that did not come over a connection, as on a native control.</summary>
+    public string? ViewerId { get; init; }
+
+    /// <summary>A short name for that viewer ("Viewer 2"), in the order the viewers joined the chart; written together with
+    /// <see cref="ViewerId"/>.</summary>
+    public string? ViewerName { get; init; }
+
+    /// <summary>Whether this event moves the view the viewers of a chart share (a zoom, a pan, a reset or a rotation),
+    /// as opposed to one that changes what the chart shows (a legend toggle, a drawing) or only observes. A server
+    /// names the author of the last event that did, because the others are looking at the view it left.</summary>
+    internal virtual bool ChangesView => false;
+
+    /// <summary>The viewer of this event as an <see cref="IChartEventHandler"/> is told of them.</summary>
+    internal ChartEventContext ViewerContext => new(ViewerId, ViewerName);
+
+    /// <summary>A copy of this event with the viewer set, over any viewer the event already named. The server calls it on
+    /// every event it receives from a connection, because the identity of the sender is the connection, not a field the
+    /// sender fills in.</summary>
+    /// <param name="viewerId">The connection the event was received on.</param>
+    /// <param name="viewerName">The name the chart gave that connection.</param>
+    /// <returns>The same kind of event, stamped.</returns>
+    internal FigureInteractionEvent StampedBy(string viewerId, string? viewerName) =>
+        this with { ViewerId = viewerId, ViewerName = viewerName };
+
     /// <summary>Mutates <paramref name="figure"/> to reflect this interaction.</summary>
     public abstract void ApplyTo(Figure figure);
 
@@ -49,10 +75,28 @@ public abstract record FigureInteractionEvent(string ChartId, int AxesIndex)
         return found;
     }
 
+    /// <summary>Resolves the target <see cref="Axes"/> of an event that moves the view (a zoom, a pan, a reset), without
+    /// throwing: <see langword="false"/> when there is no such subplot, and also when the axes has a fixed frame
+    /// (<see cref="Axes.HasFixedFrame"/>, the triangle of a ternary diagram), where there is nothing to move. The ONE place
+    /// that rule is applied, so a modifier, a server and a script all get the same answer and none of them asks the coordinate
+    /// system for itself.</summary>
+    /// <param name="figure">The figure the event is applied to.</param>
+    /// <param name="axes">The subplot at <see cref="AxesIndex"/>, or <see langword="null"/> when there is none or its frame is fixed.</param>
+    /// <returns><see langword="true"/> when <paramref name="axes"/> was found and its view can move.</returns>
+    protected bool TryTargetMovableAxes(Figure figure, [NotNullWhen(true)] out Axes? axes)
+    {
+        if (!TryTargetAxes(figure, out axes)) return false;
+        if (!axes.HasFixedFrame) return true;
+
+        axes = null;
+        return false;
+    }
+
     /// <summary>The target axes together with every axes linked to it by <c>ShareX</c>, in either direction and
     /// through any number of links. They show one stretch of the X axis, so a pan or zoom of one is a pan or zoom
     /// of all: before this, <c>ShareX</c> shared only the automatic scale and the lanes of a stacked timeline
-    /// drifted apart at the first scroll. Empty when the event names no subplot.</summary>
+    /// drifted apart at the first scroll. An axes whose frame is fixed (<see cref="Axes.HasFixedFrame"/>) is not carried
+    /// along. Empty when the event names no subplot.</summary>
     protected IReadOnlyList<Axes> XLinkedAxes(Figure figure)
     {
         if (!TryTargetAxes(figure, out var target)) return [];
@@ -62,7 +106,7 @@ public abstract record FigureInteractionEvent(string ChartId, int AxesIndex)
         {
             foreach (var other in figure.SubPlots)
             {
-                if (!group.Contains(other) && (other.ShareXWith == group[i] || group[i].ShareXWith == other))
+                if (!other.HasFixedFrame && !group.Contains(other) && (other.ShareXWith == group[i] || group[i].ShareXWith == other))
                 {
                     group.Add(other);
                 }

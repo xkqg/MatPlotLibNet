@@ -114,6 +114,54 @@ signal.AppendSample(amplitude);
 signal.AppendSamples(audioBuffer);
 ```
 
+## Any indicator on a live chart
+
+57 of the 59 indicators have a streaming form. The eleven named verbs (`WithStreamingSma`, `WithStreamingEma`, `WithStreamingRsi` and so
+on, up to `WithStreamingObv` and `WithStreamingVwap`) make the indicator for you; `WithStreaming(axes, indicator)` attaches any other, and
+a bar can carry its volume with `OhlcvBar`:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Data;
+using MatPlotLibNet.Indicators.Streaming;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series.Streaming;
+
+var figure = new Figure { Title = "Candles with a streaming average and on-balance volume", Width = 760, Height = 520 };
+var price = figure.AddSubPlot(2, 1, 1);
+var volume = figure.AddSubPlot(2, 1, 2);
+var candles = price.AddSeries(new StreamingCandlestickSeries(200));
+candles.WithStreamingSma(price, 5);
+candles.WithStreamingObv(volume);
+
+double close = 100;
+ulong state = 7;
+for (int i = 0; i < 60; i++)
+{
+    state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+    double step = ((state >> 11) / (double)(1UL << 53) - 0.5) * 6;
+    state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+    double traded = 800 + (state >> 11) / (double)(1UL << 53) * 600;
+    double open = close;
+    close = Math.Max(1, close + step);
+    candles.AppendBar(new OhlcvBar(open, Math.Max(open, close) + 1, Math.Min(open, close) - 1, close, traded));
+}
+
+figure.Save("streaming_obv.svg");
+```
+
+![Sixty candles with an orange five-bar average over them and a line of on-balance volume below](../images/streaming_obv.png)
+
+After the bar at index *i*, the value of every form is the last value of the batch indicator over the bars up to *i*, to 1e-9, so a live
+chart and a chart drawn from the same history agree. `FibonacciRetracement` and `VolumeProfile` have no streaming form: neither has a
+value per bar for a stream to say.
+
+Transfer entropy follows a window too. `TransferEntropyOptions(Neighbours: 4, Window: 100, Stride: 5)` makes the batch indicator one
+value for each bar, from the last 100 bars, with the Kraskov nearest-neighbour estimate (no bins), and `StreamingTransferEntropy` says the
+same as bars arrive:
+
+![A line near zero until bar 200 that climbs to about 0.35 nats, where the target starts to follow the source](../images/rolling_transfer_entropy.png)
+
 ## Axis scale modes
 
 ```csharp

@@ -37,6 +37,39 @@ internal static class Gamma
         return HalfLogTwoPi + (x + 0.5) * Math.Log(t) - t + Math.Log(a);
     }
 
+    private const double EulerMascheroni = 0.57721566490153286;
+    private const int MaxHarmonic = 4096;
+
+    /// <summary>The digamma function, ψ(x) = d/dx ln Γ(x). At a whole number up to 4096 it is the harmonic sum
+    /// <c>-γ + 1 + 1/2 + … + 1/(x-1)</c>, which needs no logarithm and so does not depend on the platform's libm (the Kraskov estimator
+    /// reads it at whole numbers only). Elsewhere it is shifted up to 10 by ψ(x) = ψ(x + 1) - 1/x and read off the asymptotic series.</summary>
+    /// <param name="x">The argument; above 0.</param>
+    /// <returns>ψ(x), or NaN for a <paramref name="x"/> that is not above 0 (or not a number).</returns>
+    internal static double Digamma(double x)
+    {
+        if (double.IsNaN(x) || x <= 0) return double.NaN;
+        if (double.IsPositiveInfinity(x)) return x;
+        if (x <= MaxHarmonic && x == Math.Floor(x))
+        {
+            double sum = -EulerMascheroni;
+            for (int k = 1; k < (int)x; k++) sum += 1.0 / k;
+            return sum;
+        }
+
+        double shift = 0;
+        while (x < 10)
+        {
+            shift -= 1 / x;
+            x += 1;
+        }
+
+        double inverse = 1 / x;
+        double square = inverse * inverse;
+        double series = square * (1.0 / 12 - square * (1.0 / 120 - square * (1.0 / 252 - square * (1.0 / 240
+                      - square * (1.0 / 132 - square * (691.0 / 32760 - square / 12))))));
+        return shift + Math.Log(x) - 0.5 * inverse - series;
+    }
+
     /// <summary>The regularised upper incomplete gamma function Q(a, x) = Γ(a, x) / Γ(a): the chance that a gamma variable of
     /// shape <paramref name="a"/> exceeds <paramref name="x"/> (scipy's <c>gammaincc</c>). It runs from 1 at x = 0 down to 0.
     /// Below a + 1 it is one minus the lower function's series; above, a continued fraction (modified Lentz) for it directly, so

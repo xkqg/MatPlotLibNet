@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChartSubscriptionClient } from '../lib/chart-subscription.client';
@@ -109,5 +109,34 @@ describe('ChartSubscriptionClient', () => {
   it('is safe to dispose without connecting', async () => {
     const client = new ChartSubscriptionClient();
     await expect(client.dispose()).resolves.toBeUndefined();
+  });
+});
+
+describe('ChartSubscriptionClient after a reconnect', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('exposes the connection the chart script sends through', async () => {
+    const client = new ChartSubscriptionClient();
+    expect(client.hub).toBeNull();
+
+    await client.connect('/charts-hub');
+
+    expect(client.hub).not.toBeNull();
+    expect(typeof client.hub!.invoke).toBe('function');
+  });
+
+  it('subscribes to every chart it had subscribed to again, because a reconnect is a new connection', async () => {
+    const client = new ChartSubscriptionClient();
+    await client.connect('/charts-hub');
+    await client.subscribe('a');
+    await client.subscribe('b');
+    await client.unsubscribe('b');
+    mockInvoke.mockClear();
+
+    await mockOnReconnected.mock.calls[0][0]();
+
+    expect(mockInvoke.mock.calls).toEqual([['Subscribe', 'a']]);
   });
 });

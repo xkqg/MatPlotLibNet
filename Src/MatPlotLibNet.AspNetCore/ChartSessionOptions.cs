@@ -16,15 +16,28 @@ namespace MatPlotLibNet.AspNetCore;
 /// session's drain task — same thread-model guarantee as mutation events (one session =
 /// one reader, no locking needed).</para>
 ///
-/// <para>This options type is the only public surface a user needs to learn to react to
-/// browser events in .NET code. No handler registry, no interface to implement, no reflection —
-/// just two callbacks.</para>
+/// <para>This options type is the public surface a user needs to react to browser events in .NET code. Two callbacks
+/// (a brush, a hover) are the short way; <see cref="Handle"/> takes an <see cref="Interaction.IChartEventHandler"/> that
+/// receives every interaction event (a zoom, a pan, a legend toggle, a reset, the rows a brush covers), with the viewer it came
+/// from, so one class can react to a chart wherever it is shown. No handler registry and no reflection.</para>
 /// </remarks>
 public sealed class ChartSessionOptions
 {
     internal Func<BrushSelectEvent, ValueTask>? BrushSelectHandler { get; private set; }
     internal Func<HoverEvent, ValueTask<string?>>? HoverHandler { get; private set; }
     internal Func<DataCursorEvent, ValueTask>? DataCursorHandler { get; private set; }
+    internal IChartEventHandler? EventHandler { get; private set; }
+
+    /// <summary>Register one handler for everything a viewer does to the chart: every event, whichever kind, once, after
+    /// the callback written for its kind (<see cref="OnBrushSelect"/>, <see cref="OnHover"/>, <see cref="OnDataCursor"/>)
+    /// has run. Unlike those three it also sees the events that change the figure: a zoom, a pan, a legend toggle, a
+    /// reset. It runs inline, so the next event waits for it; a handler that throws costs only its event, which is counted
+    /// in the session's fault count.</summary>
+    public ChartSessionOptions Handle(IChartEventHandler handler)
+    {
+        EventHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+        return this;
+    }
 
     /// <summary>Register a callback invoked when the user Shift+drags a rubber-band rectangle
     /// over the plot area. The callback receives the data-space rectangle and runs fire-and-forget

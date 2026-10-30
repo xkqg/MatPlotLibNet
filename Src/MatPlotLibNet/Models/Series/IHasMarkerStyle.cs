@@ -8,5 +8,6 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Series that supports marker shape assignment.</summary>
 public interface IHasMarkerStyle
 {
+    /// <summary>The shape drawn at each data point, such as a circle, square or triangle.</summary>
     MarkerStyle MarkerStyle { get; set; }
 }

@@ -10,16 +10,26 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a stem plot series displaying data as vertical lines with markers at the tips.</summary>
 public sealed class StemSeries : ChartSeries
 {
+    /// <summary>The X position of each stem.</summary>
     public double[] XData { get; }
 
+    /// <summary>The height of each stem: it runs from the baseline at Y = 0 to this value and carries a dot there. A
+    /// stem whose head is missing (NaN) or infinite is skipped.</summary>
     public double[] YData { get; }
 
+    /// <summary>The colour of the dot at the head of each stem; <see langword="null"/> uses the series colour.</summary>
     public Color? MarkerColor { get; set; }
 
+    /// <summary>The colour of the vertical line of each stem; <see langword="null"/> uses the series colour.</summary>
     public Color? StemColor { get; set; }
 
+    /// <summary>The colour of the horizontal baseline at Y = 0; <see langword="null"/> uses the theme's neutral
+    /// colour.</summary>
     public Color? BaselineColor { get; set; }
 
+    /// <summary>The marker style of the stem heads, saved with the series; the default is
+    /// <see cref="MarkerStyle.Circle"/>. The stem renderer draws round dots whatever style is set, so changing it does
+    /// not alter the picture.</summary>
     public MarkerStyle Marker { get; set; } = RestingMarker;
 
     private const MarkerStyle RestingMarker = MarkerStyle.Circle;

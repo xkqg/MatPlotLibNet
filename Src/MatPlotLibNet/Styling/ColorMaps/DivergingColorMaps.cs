@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class DivergingColorMaps
 {
+    /// <summary>Dark red for low values, a pale centre, dark blue for high ones (after matplotlib's <c>RdBu</c>).</summary>
     public static IColorMap RdBu { get; } = new LinearColorMap("rdbu",
     [
         Color.FromHex("#67001F"),
@@ -23,6 +24,7 @@ public static class DivergingColorMaps
         Color.FromHex("#053061"),
     ]);
 
+    /// <summary>Red for low values, yellow in the middle, green for high ones; reads as bad to good (after matplotlib's <c>RdYlGn</c>).</summary>
     public static IColorMap RdYlGn { get; } = new LinearColorMap("rdylgn",
     [
         Color.FromHex("#A50026"),
@@ -37,6 +39,7 @@ public static class DivergingColorMaps
         Color.FromHex("#006837"),
     ]);
 
+    /// <summary>Red for low values, yellow in the middle, blue for high ones (after matplotlib's <c>RdYlBu</c>).</summary>
     public static IColorMap RdYlBu { get; } = new LinearColorMap("rdylbu",
     [
         Color.FromHex("#A50026"),
@@ -51,6 +54,7 @@ public static class DivergingColorMaps
         Color.FromHex("#313695"),
     ]);
 
+    /// <summary>Brown for low values, a pale centre, blue-green for high ones (after matplotlib's <c>BrBG</c>).</summary>
     public static IColorMap BrBG { get; } = new LinearColorMap("brbg",
     [
         Color.FromHex("#543005"),
@@ -65,6 +69,7 @@ public static class DivergingColorMaps
         Color.FromHex("#003C30"),
     ]);
 
+    /// <summary>Magenta-pink for low values, a pale centre, green for high ones (after matplotlib's <c>PiYG</c>).</summary>
     public static IColorMap PiYG { get; } = new LinearColorMap("piyg",
     [
         Color.FromHex("#8E0152"),
@@ -79,6 +84,7 @@ public static class DivergingColorMaps
         Color.FromHex("#276419"),
     ]);
 
+    /// <summary>Red for low values, then orange, yellow and green, ending in blue and violet for high ones (after matplotlib's <c>Spectral</c>).</summary>
     public static IColorMap Spectral { get; } = new LinearColorMap("spectral",
     [
         Color.FromHex("#9E0142"),
@@ -93,6 +99,7 @@ public static class DivergingColorMaps
         Color.FromHex("#5E4FA2"),
     ]);
 
+    /// <summary>Dark purple for low values, a pale centre, dark orange-brown for high ones.</summary>
     public static IColorMap PuOr { get; } = new LinearColorMap("puor",
     [
         Color.FromHex("#2D004B"),
@@ -107,6 +114,7 @@ public static class DivergingColorMaps
         Color.FromHex("#7F3B08"),
     ]);
 
+    /// <summary>Dark blue for low values, white in the middle, dark red for high ones; suits data centred on zero (after matplotlib's <c>seismic</c>).</summary>
     public static IColorMap Seismic { get; } = new LinearColorMap("seismic",
     [
         Color.FromHex("#00004C"),
@@ -122,6 +130,7 @@ public static class DivergingColorMaps
         Color.FromHex("#800000"),
     ]);
 
+    /// <summary>Saturated blue for low values, white in the middle, saturated red for high ones (after matplotlib's <c>bwr</c>).</summary>
     public static IColorMap Bwr { get; } = new LinearColorMap("bwr",
     [
         Color.FromHex("#0000FF"),

@@ -11,18 +11,20 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="4.*" />
     <PackageReference Include="NSubstitute" Version="6.*" />
-    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.51" />
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.51" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.120" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.120" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
   </ItemGroup>
 
-  <!-- Include MAUI source files directly to avoid multi-target dependency -->
+  <!-- Include MAUI source files directly to avoid multi-target dependency. Every source file of the package, in whatever
+       folder, so a folder added to the package is under test and under the coverage gate without anyone remembering to
+       list it: MatPlotLibNet.Maui itself has platform target frameworks and needs the MAUI workload to build, and this plain
+       net10.0 suite does not. -->
   <ItemGroup>
-    <Compile Include="..\..\Src\MatPlotLibNet.Maui\*.cs" LinkBase="MauiSrc" />
-    <Compile Include="..\..\Src\MatPlotLibNet.Maui\Extensions\*.cs" LinkBase="MauiSrc\Extensions" />
+    <Compile Include="..\..\Src\MatPlotLibNet.Maui\**\*.cs" Exclude="..\..\Src\MatPlotLibNet.Maui\obj\**;..\..\Src\MatPlotLibNet.Maui\bin\**" LinkBase="MauiSrc" />
   </ItemGroup>
 
   <ItemGroup>

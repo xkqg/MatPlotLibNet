@@ -17,7 +17,7 @@ public class IndicatorCountContractTests
     /// <summary>An indicator is a thing a caller can CALCULATE. The namespace also holds the records that carry a
     /// result (<c>MacdResult</c>, <c>AdxResult</c>, …), the interfaces and the generic bases; those are
     /// scaffolding around an indicator, never one themselves, and no document ever meant to count them.</summary>
-    private static Type[] Calculators() =>
+    internal static Type[] Calculators() =>
         [.. typeof(MatPlotLibNet.Indicators.Sma).Assembly
             .GetTypes()
             .Where(t => t.IsPublic && t.Namespace == "MatPlotLibNet.Indicators" && !t.IsGenericTypeDefinition
@@ -40,7 +40,7 @@ public class IndicatorCountContractTests
     private const int PublishedIndicators = 59;
 
     /// <summary>Of those, the ones that also run incrementally.</summary>
-    private const int PublishedStreamingIndicators = 11;
+    private const int PublishedStreamingIndicators = 57;
 
     [Fact]
     public void TheCorePackageShips_ExactlyTheNumberOfIndicatorsTheDocumentsClaim()

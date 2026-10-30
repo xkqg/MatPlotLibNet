@@ -36,6 +36,12 @@
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Verso\MatPlotLibNet.Verso.csproj" />
   </ItemGroup>
 
+  <!-- The one reader of "86 chart types" and its kin: the repository's documents and the wiki's pages are held to the same
+       wording, so the file is shared with the core suite rather than copied. -->
+  <ItemGroup>
+    <Compile Include="..\MatPlotLibNet\Models\SeriesCountPhrases.cs" LinkBase="Shared" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

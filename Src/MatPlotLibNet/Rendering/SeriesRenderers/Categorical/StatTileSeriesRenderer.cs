@@ -144,7 +144,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         string[] captionLines = WrapCaption(series.Caption, captionFont, bounds.Width - 2 * CaptionMargin);
         // ALWAYS reserved, trend or no trend: a ROW of tiles has ONE anatomy, and a stack that drops by the
         // strip's height the moment a tile has no sparkline breaks the line of numbers the eye reads across the
-        // row (reported from the Ait ops wall 2026-08-31 — the two tiles without a trend sat visibly lower).
+        // row (reported from an operations wall — the two tiles without a trend sat visibly lower).
         // A tile without one leaves the strip empty rather than growing into it.
         double bodyHeight = bounds.Height * (1 - TrendShare);
 
@@ -162,7 +162,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         double headlineDrop = HeadlineDrop * scale;
         double stackHeight = headlineDrop + belowHeadline;
         // ANCHORED AT THE TOP, not centred. A row is read as ONE LINE of numbers, and a centred stack moves the
-        // number by half of whatever each tile happens to carry under it: measured on the Ait wall 2026-08-31 the
+        // number by half of whatever each tile happens to carry under it: measured on an operations wall the
         // row's numbers sat at y = 65, 72 and 79 depending on how many caption lines a tile had. Anchoring puts
         // every number and every label at one height and lets the captions grow down into the room that is left.
         double cy = bounds.Y + (bodyHeight * TopPadShare) + headlineDrop;
@@ -177,7 +177,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         {
             // The theme's ink, like the value above and the caption below. Without a Color the SVG text
             // carries no fill at all and inherits BLACK — invisible on any operator ground, which is
-            // exactly where a tile lives (reported from the Ait console: unreadable tile names).
+            // exactly where a tile lives (reported from an operations console: unreadable tile names).
             Ctx.DrawText(series.Label, new Point(cx, below),
                 new Font { Size = 14, Color = Context.Theme.ForegroundText }, TextAlignment.Center);
             below += LabelLineHeight;

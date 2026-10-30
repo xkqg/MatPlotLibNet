@@ -30,6 +30,22 @@ public interface IChartLayout
     /// report, so every existing <see cref="IChartLayout"/> implementer keeps working unchanged.</summary>
     IReadOnlyList<SecondaryAxisRange> GetSecondaryDataRanges(int axesIndex) => [];
 
+    /// <summary>Converts a pixel position to the data point under it for the given axes, or <c>null</c> when the pixel
+    /// lies outside that axes' plot area. Converting a pixel is the layout's job, so a modifier asks the layout it holds
+    /// and never needs to know which implementation that is.
+    /// <para>Default interface member: a host that states nothing but a plot area and a range gets the linear reading of
+    /// them; <see cref="ChartLayout"/> answers with the view the renderer draws, on every scale.</para></summary>
+    DataPoint? PixelToData(double pixelX, double pixelY, int axesIndex)
+    {
+        var area = GetPlotArea(axesIndex);
+        if (pixelX < area.X || pixelX > area.X + area.Width ||
+            pixelY < area.Y || pixelY > area.Y + area.Height)
+            return null;
+
+        var data = this.ViewOf(axesIndex).PixelToData(new Point(pixelX, pixelY));
+        return new DataPoint(data.X, data.Y);
+    }
+
     /// <summary>Returns the axes index whose plot area contains the given pixel position,
     /// or <c>null</c> if the point is outside every plot area.</summary>
     int? HitTestAxes(double pixelX, double pixelY);

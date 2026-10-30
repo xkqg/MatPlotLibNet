@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.26.0)
+# MatPlotLibNet Core -- Architecture (v1.27.0)
 
 ## Package dependency graph
 
@@ -248,7 +248,7 @@ MatPlotLibNet/
                                       shape (an OHLC row has no volume) and an empty cell says so without a
                                       sentinel number
 
-    Series/                           86 series types across 14 categories (Streaming is one of them)
+    Series/                           91 series types across 16 categories (Streaming is one of them)
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept(), ToDataTable() (default
                                       interface method returning null — a series with no tabular form, like a
                                       quiver key, says so by not overriding it)
@@ -456,6 +456,16 @@ MatPlotLibNet/
       Graph/GraphEdge.cs              readonly record struct: From, To, Weight, IsDirected
       Graph/GraphLayout.cs            enum: Manual=0, ForceDirected=1, Circular=2, Hierarchical=3, Arc=4 (the nodes in a row, every edge a semicircle above it)
       SankeySeries.cs                 Nodes, Links (Flow/)
+      Flow/ChordLayout.cs             pure geometry of a chord diagram in radians (the d3-chord rule: an arc as long as its row, gaps shared out,
+                                      ribbons ordered inside an arc so a complete graph crosses least: C(n, 4)); refuses a matrix that cannot be drawn by name
+      Flow/ChordSeries.cs             ChartSeries: Names, Flows, Padding, RibbonAlpha — a sibling of Sankey for flows that go round; no axes around it
+      Text/WordCloudSeries.cs         ChartSeries: Words, Weights, Sizes (a Range1D) — each word set in a size that follows the square root of its weight
+      Text/AxesTextVerbs.cs           extension block: Axes.WordCloud(words, weights) refuses a weight that is not above zero, an empty or repeated word
+      Ternary/TernarySeries.cs        abstract base of the ternary series: Top, Left, Right as the author gave them, closed to fractions only to be placed
+      Ternary/TernaryScatterSeries.cs, Ternary/TernaryLineSeries.cs   a marker, or a polyline, on each composition of three parts
+      Ternary/PiperSeries.cs          ChartSeries: Samples (WaterSample, mg/L), Colors, MarkerSize — two triangles and a diamond; axis-less; the table has the percentages and the charge balance
+      Ternary/WaterSample.cs          readonly record struct: Label, Ca, Mg, Na, K, HCO3, CO3, Cl, SO4 in mg/L; WaterSampleExtensions turn it into shares of milliequivalents
+      Ternary/AxesTernaryVerbs.cs     extension block: TernaryPlot, TernaryScatter, Piper — set the coordinate system and refuse what cannot be placed
       KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle; the curve is evaluated from three bandwidths below
                                       the smallest value to three above the largest, and its data range is that extent; a bandwidth that is not a
                                       positive finite number falls back to Silverman's (Distribution/)
@@ -552,7 +562,25 @@ MatPlotLibNet/
     EhlersITrend.cs                                        PriceIndicator: adaptive MA; reuses Ehlers/HilbertDiscriminator
     Decycler.cs                                            PriceIndicator: price − HP; reuses Ehlers/HighPassFilter
     EhlersSuperSmoother.cs                                 Indicator<T>: public wrapper over Ehlers/SuperSmoother
-    TransferEntropy.cs                                     Indicator<T>: Schreiber 2000 directional info flow (scalar, histogram-based)
+    TransferEntropy.cs                                     Indicator<T>: Schreiber 2000 directional info flow, as the options say: the Kraskov nearest-neighbour estimate
+                                                           (the default) or the binned one; one value for the whole series, or with a Window one for each bar,
+                                                           stamped at the right edge of its window; EstimateWindow is the one place a window is worked out
+    TransferEntropyOptions.cs, TransferEntropyEstimator.cs   readonly record struct (Estimator, Neighbours, Bins, Lag, Window, Stride, Condition; new() means the
+                                                           defaults) and the pinned enum Binned = 0, Kraskov = 1
+    Steps/                                                 internal step structs: the recursion of an indicator, taken out of its batch loop. The batch indicator folds
+                                                           over the step with the order of the arithmetic unchanged, and the streaming form takes the same step one input
+                                                           at a time, so the arithmetic exists once (EmaStep, RollingMeanStep, SeededEmaStep, RsiStep, AtrStep, ObvStep, HilbertStep,
+                                                           SuperSmootherStep, HighPassStep, CyberCycleStep, LaguerreRsiStep, ForceIndexStep, TwiggsMoneyFlowStep, MamaFamaStep, EhlersITrendStep,
+                                                           EhlersSineWaveStep, AdaptiveStochasticStep, AdxStep, KlingerStep, CusumStep, SupertrendStep, ParabolicSarStep, BocpdStep,
+                                                           DrawDownStep, EquityCurveStep); DispersionIndex.Of and TurbulenceIndex.Score are the same idea for the two multivariate indicators
+    Streaming/                                             57 of the 59 indicators have a streaming form (FibonacciRetracement and VolumeProfile have none). StreamingIndicator<TInput> is
+                                                           the root of every form written in 1.27.0: a subclass says what one input does in Step, the root owns the count, the warm-up, the output lines (written together,
+                                                           so a step that throws leaves every line as it was) and the way a bar or a price reaches an input. WindowedStreamingIndicator<TInput>
+                                                           keeps the last inputs and lets the batch indicator say the value over them (24 forms); 22 more carry a step the batch indicator
+                                                           folds over too. The 11 forms older than that (SMA, EMA, RSI, Bollinger, MACD, ATR, Stochastic, Williams %R, CCI, OBV, VWAP) keep their
+                                                           own state on the older StreamingIndicator (a price or a bar in), as they did. StreamingIndicatorExtensions.WithStreaming attaches any IStreamingIndicator to a
+                                                           StreamingCandlestickSeries through OhlcvBarAppended. The rule every form is held to: after the input at index i its value is the last
+                                                           value of the batch indicator over the inputs 0..i (to 1e-9), tested over every prefix against the classification map
     Ehlers/                                                internal DSP helpers (v1.8.0): HilbertDiscriminator + HilbertResult, SuperSmoother, HighPassFilter
     Wavelet/                                               internal DSP helpers (v1.8.0): HaarDwt + DwtResult
 
@@ -564,11 +592,13 @@ MatPlotLibNet/
     SvgTransform.cs                   FigureTransform + ISvgRenderer: parallel SVG rendering; applies the SVG settings of SaveOptions
                                       (SvgDocumentExtensions)
     TransformResult.cs                fluent record: ToStream(), ToFile(), ToBytes()
+    StepThroughSvgTransform.cs        an animation as one SVG that steps through its frames: every frame a nested SVG under ids of its own (f0-, f1-, …), one shown at a time, a slider, a
+                                      play button and the arrow keys (SvgStepThroughScript); without its script the file is its first frame
 
   Animation/
     IAnimation<TState>.cs             interface: typed animation state pipeline
     AnimationController<TState>.cs    controller: runs animation loop with ConfigureAwait(false)
-    AnimationBuilder.cs               legacy: frame-based animation (FrameCount, Interval, Loop)
+    AnimationBuilder.cs               legacy: frame-based animation (FrameCount, Interval, Loop); ToStepThroughSvg / SaveStepThroughSvg (AnimationStepThroughExtensions)
     LegacyAnimationAdapter.cs         adapter: bridges AnimationBuilder to IAnimation<TState>
 
   Rendering/
@@ -754,6 +784,16 @@ MatPlotLibNet/
                                         formatter); Feet = where each polar bar series starts when BarMode is Stacked (StackableExtensions, a radius
                                         that is not drawn adds nothing). The grid and every series read it, so a ring labelled 10 stands where a
                                         radius of 10 is drawn; nothing in it is written into a series or its JSON
+    TernaryAxesRenderer.cs            Ternary: the triangle, a grid at every fifth, ticks that run counter-clockwise (the right part along the base, the top part up
+                                        the right edge, the left part down the left edge) and the three corners named by the labels the axes already has
+                                        (SetYLabel the apex, SetZLabel bottom left, SetXLabel bottom right). The plot area is the triangle's own box, the view
+                                        transform a fixed frame one unit wide and sqrt(3)/2 high, so nothing zooms into it and the hit test reads it like any other
+    TernaryPoint.cs                   readonly record struct TernaryPoint(Top, Left, Right), TernaryFrame (the frame) and TernaryPointExtensions: the ONE owner of the
+                                        conversion between a composition and its place in the frame (InFrame, Closed, and back); the axes renderer, the hit test, the
+                                        table and the Piper diagram stand on it. The amounts stay as the author gave them and are closed to fractions only to be placed
+    WordCloudLayout.cs                internal static: each word's size (the square root of its weight between two limits), then a spiral that puts the heaviest word at the
+                                        centre and every other word at the first place it fits with two pixels clear; when they do not all fit every size shrinks together
+                                        toward the smallest, and a word that still has no room is announced on ChartDiagnostics
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting.
                                         Panes / the 9 drawn cube edges / wall grids / tick rows / axis titles all
                                         read Projection3D.Faces (v1.14.1) instead of literal planes, so the axis
@@ -767,7 +807,7 @@ MatPlotLibNet/
                                         / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
                                         centralizes the Thickness<=0 visibility guard across every backend);
                                         DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 86 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 91 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment; internal Rect.FromCorners(a, b) is the
@@ -956,7 +996,9 @@ MatPlotLibNet/
       Field/                            Quiver, Stem, Streamplot, QuiverKey (reference arrow), Barbs (meteorological wind barbs)
       Hierarchical/                     Treemap, Sunburst, Dendrogram (shared HierarchicalSeries base; tree-of-U-shape segments with optional cut-height clustering)
                                         HierarchicalLayout.cs — nested Dendrogram/Treemap/Sunburst/Clustermap constant classes (LabelOffsetPx, HeaderHeightPx, OuterRingInsetPx, MinPanelPx, …)
-      Flow/                             Sankey
+      Flow/                             Sankey, Chord (a ring of arcs and one closed path for each ribbon, bent through the centre)
+      Text/                             WordCloud (the boxes WordCloudLayout packs, each with a title and a requested text length)
+      Ternary/                          TernaryScatter and TernaryLine (through the frame, no clip), Piper (two triangles and a diamond fitted at one scale)
       Special/                          Table (measured column widths, header+data rows, borders)
       ThreeD/                           Stem3D (vertical stems via Projection3D), Bar3D (prism faces, painter's depth sort)
 
@@ -1024,6 +1066,13 @@ MatPlotLibNet/
     IInteractionController.cs         what a host talks to: five Handle* methods, three read-only state
                                       properties, UpdateLayout, and InvalidateRequested
     InteractionController.cs          the one implementation. It builds the fifteen modifiers in a fixed order
+    InteractionHost.cs                the one place a native control's wiring lives: it is handed the figure and the layout of every paint, builds a controller for a
+                                      new figure, only replaces the layout for the same one, and carries the server sink, the handler and the tooltip
+    LayoutSlot.cs                     the holder the modifiers read the current layout through: a repaint replaces it, so they are built once
+    IChartEventHandler.cs, ChartEventContext.cs   one handler that receives every FigureInteractionEvent once, with the viewer it came from
+    HubMethodNames.cs                 the name of the hub method that carries each event, written once for the hub, the sink of a native control and the page script
+    RowSelectionEvent.cs              the keys of the points a brush covers (a notification; worked out where the figure is, never sent by a client)
+    TouchGestureTranslator.cs         what a touch surface reports (drag, pinch, tap, double tap, hover) as the pointer input the controller understands; DragGestureAction says what a drag does
                                       and gives the first one whose Handles* returns true the event. Two
                                       factories: CreateLocal applies events to the figure in-process,
                                       Create takes any sink (a SignalR publisher, say). BOTH are wrapped in the
@@ -1113,6 +1162,7 @@ MatPlotLibNet/
                                       carries and what DataPointClicked hands the application
 
   Data/
+    OhlcBar.cs, OhlcvBar.cs           a bar of four prices, and the same with the volume (NaN when the bar came without one)
     RingBuffer.cs                     public sealed RingBuffer<T> — fixed-capacity circular SEQUENCE, oldest
                                       first; one writer / many readers (ReaderWriterLockSlim), never allocates
                                       on Append. The append IS the eviction: nothing is paid per item to keep
@@ -1131,7 +1181,9 @@ MatPlotLibNet/
                                       unpayable. Read by AxesBuilder.DensityScatter
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage, the quantile from StudentT at any level)
     StandardNormal.cs                 internal static: Quantile(p) — the one inverse of the normal CDF (Wichura AS 241, ~1e-16); saturates to ±∞ outside (0, 1), NaN → NaN
-    Gamma.cs, Beta.cs                 internal static: LogGamma (Lanczos) and the regularised upper incomplete gamma; the regularised incomplete beta
+    KraskovEstimator.cs               internal static: the Kraskov-Stoegbauer-Grassberger conditional mutual information (Frenzel-Pompe form, maximum norm, strict counts, O(n^2)),
+                                      read by TransferEntropy
+    Gamma.cs, Beta.cs                 internal static: LogGamma (Lanczos), Digamma (a harmonic sum at whole numbers, so no libm) and the regularised upper incomplete gamma; the regularised incomplete beta
     LentzExtensions.cs                internal static: Tiny (1e-300) and double.AwayFromZero() — the one guard of the modified Lentz continued fractions, read by Gamma and Beta
     StudentT.cs                       internal static: Cdf (through the incomplete beta) and Quantile (bisection in the lower tail, mirrored above a half) — the one
                                       Student t, read by the regression band and by QQReference.StudentT
@@ -1596,10 +1648,10 @@ Things a reader may expect that the library does not do, with the reason:
 |---------|-------|-----|
 | Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, YAxisSlotBuilder | matplotlib-style method chaining |
 | Visitor | ISeriesVisitor + ChartSeries.Accept() | extensible per-series rendering without switch |
-| Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
+| Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D, Ternary) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 86 series | each series knows how to both serialize and deserialize itself (v1.13.0: no central switch on either side) |
+| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 91 series | each series knows how to both serialize and deserialize itself (v1.13.0: no central switch on either side) |
 | One value, not N fields | StreamingSeries → RingBuffer&lt;StreamingPoint&gt;; StreamingCandlestickSeries → RingBuffer&lt;OhlcBar&gt;; StreamingSignalSeries → RingBuffer&lt;SignalSample&gt; (the sample carries its own ordinal) | a value that must stay consistent is stored as one object, so a reader running beside the writer never sees fields from different samples. Locking a separate buffer per field keeps each buffer safe, but not the invariant across the buffers. A measured run showed that invariant failing |
 | Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions groups the tables, writes their captions and reads a position the axes names as that name (the axes owns the names, through the rule its ticks are drawn by) | this follows the same principle as self-serialization: the type that owns the data also owns its column names, so a new series type needs no change in any central file |
 | One shaped text, three readers | Skia: TextShaper → ShapedText, read by SkiaFontMetrics (width), SkiaGlyphPathProvider (SVG outlines) and SkiaRenderContext (pixels) | the renderer draws text at the same width the layout measured for it; bidi levels come from Core's BidiAlgorithm and scripts from HarfBuzz, so Arabic letters join and Hebrew runs reverse the same way in every output |

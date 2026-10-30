@@ -17,7 +17,8 @@
 #     csproj property, or to docs/docfx.json shows nothing in this script. A Linux container does see it: run the
 #     steps of ci.yml and pages.yml in mcr.microsoft.com/dotnet/sdk:10.0-noble (CLAUDE.md, "The ubuntu half runs
 #     locally in docker") before the push. Do not push a probe to find out -- one push per finished strand.
-#   * The MAUI projects (no workload on this box) and anything the workload would resolve.
+#   * The MAUI projects (no workload on this box) and anything the workload would resolve. The windows-heads job of
+#     ci.yml builds them on every push; their suite runs below through the coverage gate.
 
 [CmdletBinding()]
 param(
@@ -88,11 +89,11 @@ if (-not $SkipCoverage) {
     Write-Host "==> Tests + coverage gate SKIPPED (-SkipCoverage)" -ForegroundColor Yellow
 }
 
-# --- 2b. The Windows-only suite the runners cannot reach -----------------------------------------------------
-# MatPlotLibNet.Wpf is not in the CI filter and not in the coverage runsettings, because the CI runners are
-# ubuntu. Its suite therefore runs in exactly one place: here. Building it is not the same as running it, and a
-# test nothing runs is a comment.
-Step "WPF suite (Windows only, runs nowhere else)" {
+# --- 2b. The Windows-only suite the Linux runners cannot reach -----------------------------------------------
+# MatPlotLibNet.Wpf is not in the CI filter and not in the coverage runsettings, because the Linux runners cannot
+# build it; the windows-heads job of ci.yml runs its suite after the push, and this step runs it before. Building
+# it is not the same as running it, and a test nothing runs is a comment.
+Step "WPF suite (Windows only)" {
     $exe = Get-ChildItem "Tst/MatPlotLibNet.Wpf/bin/$Configuration" -Recurse -Filter "MatPlotLibNet.Wpf.Tests.exe" -ErrorAction SilentlyContinue |
            Select-Object -First 1
     if (-not $exe) { throw "the WPF suite was not built; nothing to run" }

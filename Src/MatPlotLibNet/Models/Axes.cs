@@ -16,12 +16,20 @@ namespace MatPlotLibNet.Models;
 /// extension member there, never a change here.</summary>
 public sealed class Axes
 {
+    /// <summary>The title drawn above the plot area. <see langword="null"/> (the default) draws none. A title with a pair of
+    /// <c>$</c> delimiters is typeset as math, as matplotlib's mathtext is.</summary>
     public string? Title { get; set; }
 
+    /// <summary>Overrides of the title's font (size, weight, family, slant, colour) and its extra distance from the plot
+    /// area (<see cref="TextStyle.Pad"/>); whatever it leaves unset follows the theme. <see langword="null"/> (the
+    /// default) draws the title in the theme's title font.</summary>
     public TextStyle? TitleStyle { get; set; }
 
+    /// <summary>Where the title stands along the top of the plot area: centred by default, or flush with its left or right
+    /// edge.</summary>
     public TitleLocation TitleLoc { get; set; } = TitleLocation.Center;
 
+    /// <summary>The X axis: its label, limits, scale, tick settings and tick formatter or locator.</summary>
     public Axis XAxis { get; } = new();
 
     /// <summary>The primary Y axis: slot 0 of the left side of <see cref="YAxes"/>.</summary>
@@ -31,10 +39,16 @@ public sealed class Axes
     /// further axis stacked outward past the one before it on its side, as many as wanted.</summary>
     public YAxisContainer YAxes { get; } = new();
 
+    /// <summary>The Z axis of a three-dimensional axes: its label, limits and ticks. A flat axes never reads it.</summary>
     public Axis3D ZAxis { get; } = new();
 
+    /// <summary>The legend settings: whether it is drawn, where it stands, how its entries are laid out and how its frame
+    /// looks. The default is a visible legend at <see cref="LegendPosition.Best"/>; a legend with no labelled series draws
+    /// nothing either way.</summary>
     public Legend Legend { get; set; } = new();
 
+    /// <summary>The grid this axes asks for. It takes effect only when its <see cref="GridStyle.Visible"/> is on; an axes
+    /// that does not switch it on draws the theme's grid (see <see cref="GridUnder"/>).</summary>
     public GridStyle Grid { get; set; } = new();
 
     /// <summary>What this axes asked to change about the grid, if anything: the properties it set, with their values. It is
@@ -58,24 +72,46 @@ public sealed class Axes
     internal GridStyle ShapeGridUnder(Theme theme) =>
         GridUnder(theme) with { Visible = GridChange?.Visible ?? true };
 
+    /// <summary>The four spines (the border lines of the plot area): which are drawn, where each stands and how it looks.
+    /// Read by Cartesian axes.</summary>
     public SpinesConfig Spines { get; set; } = new();
 
+    /// <summary>The number of rows of the rows-by-columns grid this axes was added to with
+    /// <c>AddSubPlot(rows, cols, index)</c>. 0 when the axes was placed another way, by a <see cref="GridSpec"/> or not
+    /// at all.</summary>
     public int GridRows { get; internal set; }
 
+    /// <summary>The number of columns of the rows-by-columns grid this axes was added to; 0 when it was placed another
+    /// way. See <see cref="GridRows"/>.</summary>
     public int GridCols { get; internal set; }
 
+    /// <summary>The one-based cell of that grid this axes occupies, counted along the rows from the top left (1 is the
+    /// top-left cell); 0 when the axes was placed another way. See <see cref="GridRows"/>.</summary>
     public int GridIndex { get; internal set; }
 
+    /// <summary>The cells of the figure's <see cref="Models.GridSpec"/> this axes occupies, which can span several rows
+    /// or columns. <see langword="null"/> when the axes was not placed through a grid specification.</summary>
     public GridPosition? GridPosition { get; internal set; }
 
+    /// <summary>Another axes whose X scale this one shares: the two draw the same X range, each contributing its data to it.
+    /// <see langword="null"/> (the default) leaves the X range to this axes alone.</summary>
     public Axes? ShareXWith { get; internal set; }
 
+    /// <summary>Another axes whose Y scale this one shares: the two draw the same Y range, each contributing its data to it.
+    /// <see langword="null"/> (the default) leaves the Y range to this axes alone.</summary>
     public Axes? ShareYWith { get; internal set; }
 
+    /// <summary>A name that identifies this axes within its figure, so that another axes can name it to share a scale with
+    /// it and the JSON can restore that sharing. <see langword="null"/> (the default) names nothing.</summary>
     public string? Key { get; set; }
 
+    /// <summary>Whether the data elements of this axes carry native SVG tooltips that show their values on hover.
+    /// Off by default.</summary>
     public bool EnableTooltips { get; set; }
 
+    /// <summary>Whether each series is drawn in an SVG group that carries its series index and label as attributes, so the
+    /// interaction scripts (such as the legend toggle and the highlight) can find it. The SVG transform switches it on for a figure
+    /// that asked for any interactivity; off by default, which leaves the output plain.</summary>
     public bool EnableInteractiveAttributes { get; set; }
 
     /// <summary>When true (set by the SVG transform for a figure with the server data cursor), every interactive series
@@ -89,10 +125,18 @@ public sealed class Axes
     /// axes under the pointer and names that axes in what it sends.</summary>
     internal int? ServerViewIndex { get; set; }
 
+    /// <summary>How bar series that share these axes are laid out: side by side (<see cref="Models.BarMode.Grouped"/>, the
+    /// default) or piled on top of each other (<see cref="Models.BarMode.Stacked"/>).</summary>
     public BarMode BarMode { get; set; } = BarMode.Grouped;
 
+    /// <summary>The kind of coordinate system the axes is drawn in, which decides which renderer draws it: Cartesian by
+    /// default, or polar, three-dimensional or ternary.</summary>
     public CoordinateSystem CoordinateSystem { get; set; } = CoordinateSystem.Cartesian;
 
+    /// <summary>The projection a three-dimensional axes is currently drawn through. When set, its elevation and azimuth
+    /// win over <see cref="Elevation"/> and <see cref="Azimuth"/>; <see langword="null"/> (the default) builds the
+    /// projection from those two. A rotation or a Home resets it to <see langword="null"/> so the next draw builds it
+    /// again.</summary>
     public Projection3D? Projection { get; set; }
 
     /// <summary>Configuration for the three back-facing cube panes (floor, left wall, right wall) in 3D plots.</summary>
@@ -121,6 +165,8 @@ public sealed class Axes
     /// <summary>When true, 3D renderers emit normalized vertex data as data-v3d attributes for interactive rotation.</summary>
     public bool Emit3DVertexData { get; set; }
 
+    /// <summary>The colour bar drawn beside this axes' plot area, or <see langword="null"/> (the default) for none. It is
+    /// drawn only when its <see cref="Models.ColorBar.Visible"/> is on.</summary>
     public ColorBar? ColorBar { get; set; }
 
     /// <summary>Gets the collection of data series plotted on this axes: the series of the primary <see cref="YAxis"/>,
@@ -171,6 +217,11 @@ public sealed class Axes
     /// <summary>Gets the collection of text annotations on this axes.</summary>
     public IReadOnlyList<Annotation> Annotations => _annotations;
     private readonly List<Annotation> _annotations = [];
+
+    /// <summary>True when the frame of these axes is fixed by what it draws, so a zoom or a pan has nothing to move: the
+    /// triangle of a ternary diagram holds every composition there is. The events that move a view leave such an axes alone
+    /// (<see cref="Interaction.FigureInteractionEvent"/>), whoever sent them and by whichever route they came.</summary>
+    internal bool HasFixedFrame => CoordinateSystem == CoordinateSystem.Ternary;
 
     /// <summary>True when every series on this axes fixes the vertical range itself (a state timeline), so pan and
     /// zoom have nothing to move vertically. An axes with no series, or with one series that does not, is free.</summary>
@@ -235,6 +286,8 @@ public sealed class Axes
         return this;
     }
 
+    /// <summary>Where this axes stands inside its parent, as fractions of the parent's plot area, when it is an inset
+    /// (<see cref="AddInset(InsetBounds)"/> sets it). <see langword="null"/> for an axes that is not an inset.</summary>
     public InsetBounds? InsetBounds { get; internal set; }
 
     /// <summary>Adds an inset axes at the specified bounds within this axes. This is the
@@ -341,6 +394,8 @@ public sealed class Axes
 
     // ── TwinY — secondary X-axis (top edge) ─────────────────────────────────
 
+    /// <summary>The secondary X axis along the top edge, or <see langword="null"/> until <see cref="TwinY"/> (or adding a
+    /// series to it) creates it.</summary>
     public Axis? SecondaryXAxis { get; private set; }
 
     /// <summary>Gets the collection of data series plotted against the secondary X-axis.</summary>
@@ -508,34 +563,61 @@ public sealed class Axes
 /// <summary>Configures the legend display for an axes.</summary>
 public sealed record Legend
 {
+    /// <summary>Whether the legend is drawn. On by default; a legend whose axes has no labelled series draws nothing
+    /// whatever this says.</summary>
     public bool Visible { get; init; } = true;
 
+    /// <summary>Where the legend box stands. <see cref="LegendPosition.Best"/> by default, which picks the corner or edge
+    /// that covers the fewest marks.</summary>
     public LegendPosition Position { get; init; } = LegendPosition.Best;
 
+    /// <summary>The number of columns the entries are laid out in, filled row by row. Default 1; a value below 1 is
+    /// treated as 1.</summary>
     public int NCols { get; init; } = 1;
 
+    /// <summary>The size of the entry text, in the units of the theme's font sizes. <see langword="null"/> (the default)
+    /// uses the theme's tick-label size.</summary>
     public double? FontSize { get; init; }
 
+    /// <summary>A heading drawn in bold above the entries. <see langword="null"/> or empty (the default) draws none.</summary>
     public string? Title { get; init; }
 
+    /// <summary>The size of the <see cref="Title"/> text, in the units of the theme's font sizes. <see langword="null"/>
+    /// (the default) makes it one unit larger than the theme's tick-label size.</summary>
     public double? TitleFontSize { get; init; }
 
+    /// <summary>Whether a box (background fill and outline) is drawn around the entries. On by default.</summary>
     public bool FrameOn { get; init; } = true;
 
+    /// <summary>The opacity of the frame's background fill, from 0 (clear) to 1 (opaque), so the marks behind the legend
+    /// show through at less than 1. Default 0.8; read only while <see cref="FrameOn"/> is on.</summary>
     public double FrameAlpha { get; init; } = 0.8;
 
+    /// <summary>Asks for a rounded legend frame, as matplotlib's <c>fancybox</c> does. It is kept and written to the JSON,
+    /// but the frame is currently drawn with square corners either way. Off by default.</summary>
     public bool FancyBox { get; init; }
 
+    /// <summary>Whether the frame casts a drop shadow, a darker copy of the box offset a few pixels down and to the right.
+    /// Off by default; read only while <see cref="FrameOn"/> is on.</summary>
     public bool Shadow { get; init; }
 
+    /// <summary>The colour of the frame's outline. <see langword="null"/> (the default) draws it in light grey.</summary>
     public Color? EdgeColor { get; init; }
 
+    /// <summary>The colour of the frame's background fill, before <see cref="FrameAlpha"/> is applied. <see langword="null"/>
+    /// (the default) takes the theme's background colour.</summary>
     public Color? FaceColor { get; init; }
 
+    /// <summary>A factor on the size of the sample swatch drawn beside each entry's label: 2 makes it twice as long and
+    /// twice as tall, 0.5 half. Default 1.</summary>
     public double MarkerScale { get; init; } = 1.0;
 
+    /// <summary>The vertical gap between entries, as a fraction of the entry text size. Default 0.5; a negative value is
+    /// treated as 0.</summary>
     public double LabelSpacing { get; init; } = 0.5;
 
+    /// <summary>The horizontal gap between columns of entries, as a multiple of the entry text size. Default 2; it matters
+    /// only when <see cref="NCols"/> is above 1.</summary>
     public double ColumnSpacing { get; init; } = 2.0;
 
     /// <summary>When <see langword="true"/>, each legend entry's label is suffixed with the

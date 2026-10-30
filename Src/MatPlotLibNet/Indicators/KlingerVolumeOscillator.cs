@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
 
@@ -45,34 +46,16 @@ public sealed class KlingerVolumeOscillator : CandleIndicator<KlingerResult>
         if (n < 2) return new KlingerResult(Array.Empty<double>(), Array.Empty<double>());
 
         int outLen = n - 1;
-        var vf = new double[outLen];
-        int prevTrend = 0;
-        double cm = 0;
-        double prevHlc = (High[0] + Low[0] + Close[0]) / 3.0;
-
-        for (int i = 0; i < outLen; i++)
-        {
-            int b = i + 1;
-            double hlc = (High[b] + Low[b] + Close[b]) / 3.0;
-            int trend = hlc > prevHlc ? 1 : (hlc < prevHlc ? -1 : 0);
-            double range = High[b] - Low[b];
-            double prevRange = High[b - 1] - Low[b - 1];
-
-            cm = (i == 0 || trend != prevTrend) ? prevRange + range : cm + range;
-
-            vf[i] = cm > 0
-                ? Volume[b] * Math.Abs(2.0 * range / cm - 1.0) * trend * 100.0
-                : 0.0;
-
-            prevHlc = hlc;
-            prevTrend = trend;
-        }
-
-        var fastEma = EmaAdjustFalse(vf, _fastPeriod);
-        var slowEma = EmaAdjustFalse(vf, _slowPeriod);
         var kvo = new double[outLen];
-        for (int i = 0; i < outLen; i++) kvo[i] = fastEma[i] - slowEma[i];
-        var signal = EmaAdjustFalse(kvo, _signalPeriod);
+        var signal = new double[outLen];
+        var step = new KlingerStep(_fastPeriod, _slowPeriod, _signalPeriod);
+        for (int b = 0; b < n; b++)
+        {
+            var point = step.Next(High[b], Low[b], Close[b], Volume[b]);
+            if (b == 0) continue;
+            kvo[b - 1] = point.Kvo;
+            signal[b - 1] = point.Signal;
+        }
 
         return new KlingerResult(kvo, signal);
     }
@@ -80,17 +63,6 @@ public sealed class KlingerVolumeOscillator : CandleIndicator<KlingerResult>
     /// <summary>Exponential moving average, <c>adjust=False</c> (pandas convention): seeds with
     /// the first input sample, then applies <c>α·x_t + (1−α)·y_{t−1}</c> where <c>α = 2/(span+1)</c>.
     /// Matches the Python reference <c>pd.Series(x).ewm(span=span, adjust=False).mean()</c>.</summary>
-    private static double[] EmaAdjustFalse(double[] values, int span)
-    {
-        // values.Length is always >= 1 here: Compute() returns early for BarCount < 2, so outLen = n-1 >= 1
-        // on every call this private helper ever receives.
-        var y = new double[values.Length];
-        double alpha = 2.0 / (span + 1);
-        double oneMinusAlpha = 1.0 - alpha;
-        y[0] = values[0];
-        for (int i = 1; i < y.Length; i++) y[i] = alpha * values[i] + oneMinusAlpha * y[i - 1];
-        return y;
-    }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)

@@ -14,20 +14,33 @@ namespace MatPlotLibNet.Models.Series;
 /// and supports explicit VMin/VMax for color scaling.</remarks>
 public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, IHasAlpha
 {
+    /// <summary>The pixel values, indexed [row, column]; each becomes one coloured pixel.</summary>
     public double[,] Data { get; }
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
+    /// <summary>The name of the resampling used when the image is scaled to the plot: <c>"nearest"</c> (also used when
+    /// this is <see langword="null"/>), <c>"bilinear"</c>, <c>"bicubic"</c>, or any engine registered with
+    /// <see cref="MatPlotLibNet.Rendering.Interpolation.InterpolationRegistry"/>.</summary>
     public string? Interpolation { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 1.0;
 
+    /// <summary>How the image is combined with what lies behind it: <c>Normal</c> (the default) is plain alpha
+    /// compositing, and the other blend modes combine the colours of the image and its background.</summary>
     public BlendMode BlendMode { get; set; } = BlendMode.Normal;
 
+    /// <summary>The data value at the bottom of the colour range; <see langword="null"/> (the default) uses the
+    /// smallest drawable value of <see cref="Data"/>.</summary>
     public double? VMin { get; set; }
 
+    /// <summary>The data value at the top of the colour range; <see langword="null"/> (the default) uses the largest
+    /// drawable value of <see cref="Data"/>.</summary>
     public double? VMax { get; set; }
 
     /// <inheritdoc />

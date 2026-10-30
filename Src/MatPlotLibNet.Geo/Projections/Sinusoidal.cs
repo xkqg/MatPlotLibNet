@@ -7,11 +7,14 @@ namespace MatPlotLibNet.Geo.Projections;
 /// Simplest equal-area projection. Meridians are sinusoidal curves.</summary>
 public sealed class Sinusoidal : IGeoProjection
 {
+    /// <inheritdoc />
     public string Name => "Sinusoidal";
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude) =>
         new(longitude * Math.Cos(latitude.ToRadians()), latitude);
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y)
     {
         if (Math.Abs(y) > 90) return null;
@@ -19,5 +22,6 @@ public sealed class Sinusoidal : IGeoProjection
         return Math.Abs(cosLat) < 1e-10 ? null : new GeoCoordinate(y, x / cosLat);
     }
 
+    /// <inheritdoc />
     public GeoBounds Bounds => new(-180, 180, -90, 90);
 }

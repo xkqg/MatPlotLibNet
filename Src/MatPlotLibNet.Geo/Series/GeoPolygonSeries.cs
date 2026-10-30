@@ -77,6 +77,9 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
     /// projection bounds rectangle directly.</summary>
     public bool IsRawProjected { get; init; }
 
+    /// <summary>Creates a map series that draws the given features through the given projection.</summary>
+    /// <param name="features">The geographic features to draw; the list is kept, not copied.</param>
+    /// <param name="projection">The map projection that places each feature's coordinates on the plot.</param>
     public GeoPolygonSeries(List<GeoFeature> features, IGeoProjection projection)
     {
         Features = features;

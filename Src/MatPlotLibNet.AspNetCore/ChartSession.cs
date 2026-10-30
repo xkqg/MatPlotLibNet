@@ -15,13 +15,16 @@ namespace MatPlotLibNet.AspNetCore;
 /// caller response per batch. Single-reader semantics mean no lock, no semaphore, no race.
 /// An event that cannot be applied costs the chart only that event: one that names a subplot the figure lacks is
 /// dropped (<see cref="DroppedEventCount"/>), one that throws is counted (<see cref="FaultedEventCount"/>), and the
-/// reader goes on with the next.</summary>
+/// reader goes on with the next.
+/// <para>When something else also writes the figure (a stream's scale mode), the session and that writer share a gate and each
+/// holds it for the whole of what it does to the figure, so neither sees the other's work half done.</para></summary>
 internal sealed class ChartSession : IAsyncDisposable
 {
     private readonly IChartPublisher _publisher;
     private readonly ICallerPublisher _callerPublisher;
     private readonly ChartSessionOptions _options;
     private readonly CancellationTokenSource _cts = new();
+    private readonly object _gate;
     private readonly Task _reader;
     private long _droppedEvents;
     private long _faultedEvents;
@@ -36,10 +39,12 @@ internal sealed class ChartSession : IAsyncDisposable
         Figure figure,
         IChartPublisher publisher,
         ICallerPublisher callerPublisher,
-        ChartSessionOptions options)
+        ChartSessionOptions options,
+        object? figureGate = null)
     {
         ChartId = chartId;
         Figure = figure;
+        _gate = figureGate ?? new object();
         _publisher = publisher;
         _callerPublisher = callerPublisher;
         _options = options;
@@ -70,8 +75,11 @@ internal sealed class ChartSession : IAsyncDisposable
             while (await reader.WaitToReadAsync(ct).ConfigureAwait(false))
             {
                 var mutated = false;
-                string? tooltipHtml = null;
-                string? tooltipConnectionId = null;
+                FigureInteractionEvent? lastMover = null;
+
+                // Each viewer who hovered in this burst is answered once, with the latest of their hovers: a later hover of
+                // the same connection overwrites an earlier one, and another connection's tooltip is its own.
+                var tooltips = new Dictionary<string, string>();
 
                 while (reader.TryRead(out var evt))
                 {
@@ -80,6 +88,7 @@ internal sealed class ChartSession : IAsyncDisposable
                     // is held to the event that failed. Cancellation and a closed channel are the shutdown, and still end it.
                     try
                     {
+                        bool taken = true;
                         switch (evt)
                         {
                             case BrushSelectEvent brush when _options.BrushSelectHandler is { } h:
@@ -90,9 +99,7 @@ internal sealed class ChartSession : IAsyncDisposable
                                 var html = await h(hover).ConfigureAwait(false);
                                 if (html is not null && hover.CallerConnectionId is not null)
                                 {
-                                    // Coalesce: later hovers in the same burst overwrite earlier ones.
-                                    tooltipHtml = html;
-                                    tooltipConnectionId = hover.CallerConnectionId;
+                                    tooltips[hover.CallerConnectionId] = html;
                                 }
                                 break;
 
@@ -101,21 +108,46 @@ internal sealed class ChartSession : IAsyncDisposable
                                 break;
 
                             case FigureNotificationEvent:
-                                // Notification event with no handler registered — drop silently.
+                                // Notification event with no callback registered for its kind: nothing to run.
                                 break;
 
                             default:
                                 // Mutation event — axis limits, visibility, etc. One that names a subplot the figure lacks
-                                // changed nothing: it is counted, and no publish is made for it.
-                                if (evt.TryApplyTo(Figure)) mutated = true;
-                                else Interlocked.Increment(ref _droppedEvents);
+                                // changed nothing: it is counted, and no publish is made for it, and the handler is not told.
+                                bool applied;
+                                lock (_gate) { applied = evt.TryApplyTo(Figure); }
+                                if (applied)
+                                {
+                                    mutated = true;
+                                    if (evt.ViewerId is not null && evt.ChangesView) lastMover = evt;
+                                }
+                                else
+                                {
+                                    Interlocked.Increment(ref _droppedEvents);
+                                    taken = false;
+                                }
                                 break;
+                        }
+
+                        if (taken && _options.EventHandler is { } handler)
+                        {
+                            await handler.OnEventAsync(evt, ContextOf(evt)).ConfigureAwait(false);
+
+                            // A brush over rows with keys is also said as the rows it covers, to the same viewer, right after it.
+                            if (evt is BrushSelectEvent brush)
+                            {
+                                RowSelectionEvent? rows;
+                                lock (_gate) { rows = Figure.RowSelectionOf(brush); }
+                                if (rows is not null)
+                                {
+                                    await handler.OnEventAsync(rows with { ViewerId = evt.ViewerId, ViewerName = evt.ViewerName }, ContextOf(evt)).ConfigureAwait(false);
+                                }
+                            }
                         }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException and not ChannelClosedException)
                     {
-                        _lastFault = ex;
-                        Interlocked.Increment(ref _faultedEvents);
+                        Fault(ex);
 
                         // A mutation event that threw half-way may already have changed the figure: publish it like one that
                         // applied, so subscribers see what the server holds.
@@ -123,16 +155,54 @@ internal sealed class ChartSession : IAsyncDisposable
                     }
                 }
 
+                // The tail of the batch is guarded like an event: a publisher that fails (a hub that is shutting down, a
+                // renderer that throws on a figure the application has just changed) costs this batch, and the reader goes on.
                 if (mutated)
-                    await _publisher.PublishSvgAsync(ChartId, Figure, ct).ConfigureAwait(false);
+                {
+                    // The publisher renders the figure before it awaits anything, so taking the gate for the call is taking it
+                    // for the render: whoever else writes this figure (a stream's scale mode) cannot do it half-way through.
+                    await GuardedAsync(() => { lock (_gate) { return _publisher.PublishSvgAsync(ChartId, Figure, ct); } }).ConfigureAwait(false);
+                }
 
-                if (tooltipHtml is not null && tooltipConnectionId is not null)
-                    await _callerPublisher.SendTooltipAsync(tooltipConnectionId, ChartId, tooltipHtml, ct).ConfigureAwait(false);
+                // The viewers are told who moved the shared view. Events are applied in the order they arrive, so the last
+                // one of the batch is the view they now see; the others in the batch were overtaken by it.
+                if (mutated && lastMover is { ViewerId: { } moverId, ViewerName: { } moverName })
+                {
+                    await GuardedAsync(() => _publisher.PublishViewChangeAsync(ChartId, moverId, moverName, ct)).ConfigureAwait(false);
+                }
+
+                foreach (var (connectionId, html) in tooltips)
+                {
+                    await GuardedAsync(() => _callerPublisher.SendTooltipAsync(connectionId, ChartId, html, ct)).ConfigureAwait(false);
+                }
             }
         }
         catch (OperationCanceledException) { /* shutdown */ }
         catch (ChannelClosedException) { /* shutdown */ }
     }
+
+    /// <summary>Runs one send of the batch's tail, counting a failure as a fault instead of letting it end the reader.</summary>
+    private async Task GuardedAsync(Func<Task> send)
+    {
+        try
+        {
+            await send().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not ChannelClosedException)
+        {
+            Fault(ex);
+        }
+    }
+
+    private void Fault(Exception ex)
+    {
+        _lastFault = ex;
+        Interlocked.Increment(ref _faultedEvents);
+    }
+
+    /// <summary>Who an event came from, for the handler: the viewer the hub stamped on it. An event that did not come over
+    /// a connection has none.</summary>
+    private static ChartEventContext ContextOf(FigureInteractionEvent evt) => evt.ViewerContext;
 
     public async ValueTask DisposeAsync()
     {

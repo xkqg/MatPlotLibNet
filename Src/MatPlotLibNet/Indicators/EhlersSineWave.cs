@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Ehlers;
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
 
@@ -13,11 +14,6 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Mesa and Trading Market Cycles</i>, Ch. 9.</summary>
 public sealed class EhlersSineWave : PriceIndicator<SineWaveResult>
 {
-    // Phase-rate tolerance (degrees) — Ehlers-standard heuristic for flagging the
-    // cyclic vs trend regime: if |Δphase − 360/period| exceeds the tolerance, treat
-    // the bar as trend-mode.
-    private const double CyclicToleranceDegrees = 50.0;
-
     /// <summary>Creates a new Ehlers Sinewave indicator.</summary>
     public EhlersSineWave(double[] prices) : base(prices)
     {
@@ -32,28 +28,18 @@ public sealed class EhlersSineWave : PriceIndicator<SineWaveResult>
             return new SineWaveResult(
                 Array.Empty<double>(), Array.Empty<double>(), Array.Empty<bool>());
 
-        var hilbert = ((ReadOnlySpan<double>)Prices).HilbertDiscriminate();
-
         int outLen = n - 6;
         var sineWave = new double[outLen];
         var leadSine = new double[outLen];
         var isCyclic = new bool[outLen];
-
-        double fortyFiveRad = 45.0 * Math.PI / 180.0;
-
-        for (int w = 0; w < outLen; w++)
+        var step = new EhlersSineWaveStep();
+        for (int i = 0; i < n; i++)
         {
-            int i = 6 + w;
-            double phaseRad = hilbert.Phase[i] * Math.PI / 180.0;
-            sineWave[w] = Math.Sin(phaseRad);
-            leadSine[w] = Math.Sin(phaseRad + fortyFiveRad);
-
-            // Phase change per bar vs expected 360°/period → in-cycle if close.
-            // HilbertDiscriminator's [6, 50] absolute clamp + EMA guarantees Period[i] ≥ 1.2
-            // for all i ≥ 6, so no divide-by-zero guard is needed here.
-            double expectedRate = 360.0 / hilbert.Period[i];
-            double actualRate = Math.Abs(hilbert.Phase[i] - hilbert.Phase[i - 1]);
-            isCyclic[w] = Math.Abs(actualRate - expectedRate) < CyclicToleranceDegrees;
+            var point = step.Next(Prices[i]);
+            if (i < 6) continue;
+            sineWave[i - 6] = point.SineWave;
+            leadSine[i - 6] = point.LeadSine;
+            isCyclic[i - 6] = point.IsCyclic;
         }
 
         return new SineWaveResult(sineWave, leadSine, isCyclic);

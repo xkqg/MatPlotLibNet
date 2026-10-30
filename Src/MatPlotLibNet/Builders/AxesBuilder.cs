@@ -1035,6 +1035,14 @@ public sealed class AxesBuilder
     public AxesBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null)
         => AddSeries(ax => ax.Sankey(nodes, links), configure);
 
+    /// <summary>Adds a word cloud to the axes: each word set in a size that follows its weight.</summary>
+    public AxesBuilder WordCloud(string[] words, double[] weights, Action<WordCloudSeries>? configure = null)
+        => AddSeries(ax => ax.WordCloud(words, weights), configure);
+
+    /// <summary>Adds a chord diagram of the flows between groups to the axes.</summary>
+    public AxesBuilder Chord(string[] names, double[,] flows, Action<ChordSeries>? configure = null)
+        => AddSeries(ax => ax.Chord(names, flows), configure);
+
     /// <summary>Adds a polar line series to the axes.</summary>
     public AxesBuilder PolarPlot(double[] r, double[] theta, Action<PolarLineSeries>? configure = null)
         => AddSeries(ax => ax.PolarPlot(r, theta), configure);
@@ -1042,6 +1050,18 @@ public sealed class AxesBuilder
     /// <summary>Adds a polar scatter series to the axes.</summary>
     public AxesBuilder PolarScatter(double[] r, double[] theta, Action<PolarScatterSeries>? configure = null)
         => AddSeries(ax => ax.PolarScatter(r, theta), configure);
+
+    /// <summary>Adds a line through compositions of three parts to the axes, which becomes a ternary diagram.</summary>
+    public AxesBuilder TernaryPlot(double[] top, double[] left, double[] right, Action<TernaryLineSeries>? configure = null)
+        => AddSeries(ax => ax.TernaryPlot(top, left, right), configure);
+
+    /// <summary>Adds a marker on each composition of three parts to the axes, which becomes a ternary diagram.</summary>
+    public AxesBuilder TernaryScatter(double[] top, double[] left, double[] right, Action<TernaryScatterSeries>? configure = null)
+        => AddSeries(ax => ax.TernaryScatter(top, left, right), configure);
+
+    /// <summary>Adds a Piper diagram of the given waters (in mg/L) to the axes: the cations and the anions each on a triangle, both on a diamond.</summary>
+    public AxesBuilder Piper(IReadOnlyList<WaterSample> samples, Action<PiperSeries>? configure = null)
+        => AddSeries(ax => ax.Piper(samples), configure);
 
     /// <summary>Adds a polar bar series to the axes.</summary>
     public AxesBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null)
@@ -1744,6 +1764,20 @@ public sealed class AxesBuilder
         Action<Indicators.TransferEntropy>? configure = null)
     {
         var indicator = new Indicators.TransferEntropy(source, target, bins, lag);
+        return ApplyIndicator(indicator, configure);
+    }
+
+    /// <summary>Adds a Transfer Entropy computation as the options say (the default is the Kraskov nearest-neighbour estimate). With a
+    /// <see cref="Indicators.TransferEntropyOptions.Window"/> it is a rolling entropy, one value for each bar, drawn as a line (NaN until the
+    /// first window is full); without one it is a single number and nothing is drawn.</summary>
+    /// <param name="source">The series whose influence is measured.</param>
+    /// <param name="target">The series that is influenced; the same length as <paramref name="source"/>.</param>
+    /// <param name="options">The estimator and its settings.</param>
+    /// <param name="configure">Optional hook to style the indicator.</param>
+    public AxesBuilder TransferEntropy(double[] source, double[] target, Indicators.TransferEntropyOptions options,
+        Action<Indicators.TransferEntropy>? configure = null)
+    {
+        var indicator = new Indicators.TransferEntropy(source, target, options);
         return ApplyIndicator(indicator, configure);
     }
 

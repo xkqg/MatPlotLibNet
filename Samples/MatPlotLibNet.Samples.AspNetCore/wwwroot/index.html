@@ -33,12 +33,24 @@
 
         // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
         // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
-        // Without this the chart is drawn but its interaction script never wires it, and no gesture reaches the hub.
+        // A chart the viewer is in the middle of a drag or a band on says so (data-mpl-busy): replacing it would cut
+        // the gesture off, so the latest picture waits for the chart's mpl:idle event.
         function mplMountSvg(host, svgMarkup) {
+            var busy = host.querySelector('svg[data-mpl-busy]');
+            if (busy) {
+                var first = !host.__mplHeldBack;
+                host.__mplHeldBack = svgMarkup;
+                if (first) busy.addEventListener('mpl:idle', function () {
+                    var held = host.__mplHeldBack; host.__mplHeldBack = null;
+                    if (held) mplMountSvg(host, held);
+                }, { once: true });
+                return;
+            }
             host.innerHTML = svgMarkup;
             host.querySelectorAll('script').forEach(function (inert) {
-                const live = document.createElementNS(inert.namespaceURI, 'script');
-                for (const attr of inert.attributes) live.setAttribute(attr.name, attr.value);
+                var live = document.createElementNS(inert.namespaceURI, 'script');
+                for (var i = 0; i < inert.attributes.length; i++)
+                    live.setAttribute(inert.attributes[i].name, inert.attributes[i].value);
                 live.textContent = inert.textContent;
                 inert.parentNode.replaceChild(live, inert);
             });

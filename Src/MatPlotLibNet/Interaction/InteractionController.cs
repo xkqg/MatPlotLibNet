@@ -17,11 +17,14 @@ namespace MatPlotLibNet.Interaction;
 /// </summary>
 public sealed class InteractionController : IInteractionController
 {
-    private IReadOnlyList<IInteractionModifier> _modifiers;
+    private readonly IReadOnlyList<IInteractionModifier> _modifiers;
     private IInteractionModifier? _activeModifier;
     private readonly Figure _figure;
     private readonly Action<FigureInteractionEvent> _sink;
-    private IChartLayout _layout;
+
+    /// <summary>The layout of the latest repaint, which every modifier and this controller read. A repaint replaces
+    /// the layout in the slot (<see cref="UpdateLayout"/>); the modifiers are built once and keep their gestures.</summary>
+    private readonly LayoutSlot _layout;
     private HoverTooltipContent? _activeTooltip;
 
     /// <summary>The toolbar managed by this controller. Activate drawing tools via <see cref="InteractionToolbar.Activate"/>.</summary>
@@ -41,6 +44,11 @@ public sealed class InteractionController : IInteractionController
     /// in this repository holds the concrete type, and the interface is what a custom host implements.</para></summary>
     public event Action<PinnedAnnotation>? DataPointClicked;
 
+    /// <summary>Raised for every event this controller produced, after the sink has applied it or sent it and after
+    /// <see cref="DataPointClicked"/> (for a click). The host that owns the controller forwards it to the chart's
+    /// <see cref="IChartEventHandler"/>.</summary>
+    public event Action<FigureInteractionEvent>? EventHandled;
+
     /// <inheritdoc />
     public BrushSelectState? ActiveBrushSelect =>
         _modifiers.OfType<BrushSelectModifier>().FirstOrDefault()?.ActiveBrush;
@@ -58,7 +66,7 @@ public sealed class InteractionController : IInteractionController
         Action<FigureInteractionEvent> sink)
     {
         _figure = figure;
-        _layout = layout;
+        _layout = new LayoutSlot(layout);
 
         // Every modifier writes through this one wrapper, so a clicked point is seen whichever sink the caller
         // gave us. Wrapping here rather than inside CreateLocal is the whole point: the server-driven hosts build
@@ -70,9 +78,11 @@ public sealed class InteractionController : IInteractionController
             {
                 DataPointClicked?.Invoke(pinned.Annotation);
             }
+
+            EventHandled?.Invoke(evt);
         };
 
-        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, _sink, figure, Toolbar);
+        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, _layout, _sink, figure, Toolbar);
     }
 
     /// <summary>Creates a controller in local mode: events are applied directly to the figure
@@ -101,11 +111,10 @@ public sealed class InteractionController : IInteractionController
         => new(figure, layout, sink);
 
     /// <inheritdoc />
-    public void UpdateLayout(IChartLayout layout)
-    {
-        _layout = layout;
-        _modifiers = BuildModifiers(_figure.ChartId ?? string.Empty, layout, _sink, _figure, Toolbar);
-    }
+    /// <remarks>Only the layout the modifiers read is replaced. They are not built again: a rubber band or a drag that is
+    /// going on keeps going across the repaint, and "home" is the view the figure remembers
+    /// (see <see cref="ResetEvent"/>), not whatever range the latest repaint drew.</remarks>
+    public void UpdateLayout(IChartLayout layout) => _layout.Current = layout;
 
     /// <inheritdoc />
     public void HandlePointerPressed(PointerInputArgs args)
@@ -156,7 +165,7 @@ public sealed class InteractionController : IInteractionController
             int? axesIndex = _layout.HitTestAxes(args.X, args.Y);
             if (axesIndex is not null)
             {
-                var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex.Value);
+                var coords = _layout.PixelToData(args.X, args.Y, axesIndex.Value);
                 if (coords is { } c)
                 {
                     var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, c.DataX, c.DataY, _layout);
@@ -228,7 +237,7 @@ public sealed class InteractionController : IInteractionController
     {
         // Order matters — first modifier whose Handles* returns true claims the event:
         //   1. LegendToggle: click on legend item (specific hit-test, highest priority for clicks)
-        //   2. Reset: double-click wins before Pan (both claim left-button; ClickCount distinguishes)
+        //   2. Home: double-click wins before Pan (both claim left-button; ClickCount distinguishes)
         //   3. Rotate3D: right-drag on 3D axes, arrow keys/Home for 3D (v1.4.1)
         //   4. RectangleZoom: Ctrl+drag draws zoom box (v1.4.1)
         //   5. BrushSelect: Shift+drag before Pan (Shift distinguishes)
@@ -244,7 +253,7 @@ public sealed class InteractionController : IInteractionController
         return
         [
             new LegendToggleModifier(chartId, layout, sink),
-            new ResetModifier(chartId, layout, sink),
+            new HomeModifier(chartId, layout, sink),
             new Rotate3DModifier(chartId, layout, sink, figure),
             new RectangleZoomModifier(chartId, layout, sink),
             new BrushSelectModifier(chartId, layout, sink),

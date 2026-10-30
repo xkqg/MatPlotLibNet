@@ -35,15 +35,19 @@ public sealed record PanEvent(
     public IReadOnlyList<SecondaryAxisRange>? SecondaryRanges { get; init; }
 
     /// <inheritdoc />
+    internal override bool ChangesView => true;
+
+    /// <inheritdoc />
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
     internal override bool TryApplyTo(Figure figure)
     {
-        if (!TryTargetAxes(figure, out var axes)) return false;
+        if (!TryTargetMovableAxes(figure, out var axes)) return false;
 
         foreach (var linked in XLinkedAxes(figure))
         {
+            figure.Home.Remember(linked);
             if ((linked.XAxis.Min ?? InView?.XMin) is double xMin && (linked.XAxis.Max ?? InView?.XMax) is double xMax)
                 Shift(linked.XAxis, xMin, xMax, DxData);
         }

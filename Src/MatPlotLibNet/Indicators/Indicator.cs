@@ -14,14 +14,19 @@ namespace MatPlotLibNet.Indicators;
 /// and inject series into the axes.</remarks>
 public abstract class Indicator : IIndicator
 {
+    /// <summary>The colour of the indicator's main line, or of its band. <see langword="null"/> (the default) leaves the choice to the indicator or the axes' colour cycle.</summary>
     public Color? Color { get; set; }
 
+    /// <summary>The legend text of the indicator's main series. Each indicator sets a default that names its periods, such as <c>ADX(14)</c>.</summary>
     public string? Label { get; set; }
 
+    /// <summary>The thickness of the indicator's lines, in points. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>The dash pattern of the indicator's lines. Solid by default.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
+    /// <summary>A shift added to every X position the indicator plots, in X-axis units (bars, for an indicator plotted against bar index). Default 0, which plots each value at its own bar.</summary>
     public double Offset { get; set; }
 
     /// <inheritdoc />
@@ -44,9 +49,21 @@ public abstract class Indicator : IIndicator
     /// <summary>Plots a single signal line with the indicator's styling applied.</summary>
     /// <returns>The created <see cref="LineSeries"/> for further customization.</returns>
     protected LineSeries PlotSignal(Axes axes, double[] values, int warmup,
+        string? label = null, Color? color = null) =>
+        PlotSignalAt(axes, MakeX(values.Length, warmup), values, label, color);
+
+    /// <summary>Plots a single signal line at the given positions, with the indicator's styling applied. For a signal whose values do
+    /// not stand at consecutive bars (a stride leaves some out); <paramref name="x"/> is used as given, without the
+    /// <see cref="Offset"/>.</summary>
+    /// <param name="axes">The axes the line is added to.</param>
+    /// <param name="x">The position of each value.</param>
+    /// <param name="values">The values, parallel to <paramref name="x"/>.</param>
+    /// <param name="label">The label of the line; the indicator's own when null.</param>
+    /// <param name="color">The color of the line; the indicator's own when null.</param>
+    /// <returns>The created <see cref="LineSeries"/> for further customization.</returns>
+    protected LineSeries PlotSignalAt(Axes axes, double[] x, double[] values,
         string? label = null, Color? color = null)
     {
-        var x = MakeX(values.Length, warmup);
         var series = axes.Plot(x, values);
         series.Label = label ?? Label;
         if (color.HasValue) series.Color = color.Value;

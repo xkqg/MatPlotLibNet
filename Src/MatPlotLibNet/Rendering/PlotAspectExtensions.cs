@@ -40,12 +40,14 @@ internal static class PlotAspectExtensions
         /// <see cref="Axes.Aspect"/> times as long as one unit of X. The ranges are measured in the scale each axis is drawn in
         /// (a decade of a log axis is a unit), as matplotlib measures them, from <see cref="AxesRangeExtensions"/>, which
         /// reads no plot area. A polar or 3-D axes, an aspect that is not positive and finite, and a range that cannot be
-        /// measured (an infinite end, or none at all) all leave the cell as it is.</summary>
+        /// measured (an infinite end, or none at all) all leave the cell as it is. A ternary axes is the exception: its shape
+        /// is the triangle's own, √3/2 high for one wide, whatever aspect it was given, so it always gets that box.</summary>
         /// <param name="cell">The rectangle the layout gave the axes.</param>
         /// <param name="theme">The theme that pads the range where the axes sets no margin.</param>
         /// <returns>The rectangle to draw the axes in.</returns>
         internal Rect FittedTo(Rect cell, Theme theme)
         {
+            if (axes.CoordinateSystem == CoordinateSystem.Ternary) return cell.WithBoxAspect(TernaryFrame.Height);
             if (axes.Aspect is not { } aspect) return cell;
             if (axes.CoordinateSystem != CoordinateSystem.Cartesian) return cell;
 

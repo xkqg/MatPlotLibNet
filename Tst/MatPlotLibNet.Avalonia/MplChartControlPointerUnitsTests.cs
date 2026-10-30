@@ -26,7 +26,7 @@ public class MplChartControlPointerUnitsTests
         return ChartLayout.Create(figure, ChartRendererDefault.Current.ComputeLayout(figure, ctx));
     }
 
-    private static InteractionController Attached(Figure figure, out Rect area)
+    private static InteractionHost Attached(Figure figure, out Rect area)
     {
         var layout = PaintAndLayOut(figure);
         area = layout.GetPlotArea(0);

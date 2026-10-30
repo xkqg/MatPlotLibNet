@@ -59,7 +59,6 @@ public class SvgMountRecipeContractTests
         var found = PageFiles();
 
         Assert.Contains("Samples/MatPlotLibNet.Samples.AspNetCore/wwwroot/index.html", found);
-        Assert.Contains("Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor", found);
         Assert.Contains("Src/MatPlotLibNet.AspNetCore/README.md", found);
         Assert.Contains("Src/MatPlotLibNet.Blazor/README.md", found);
     }
@@ -78,5 +77,30 @@ public class SvgMountRecipeContractTests
         Assert.True(mounts >= 1, $"{relativePath}: never calls mplMountSvg");
         Assert.True(innerHtmlWrites == 1,
             $"{relativePath}: assigns innerHTML {innerHtmlWrites} times; only mplMountSvg may, because a script that arrives through innerHTML never runs");
+    }
+
+    /// <summary>A redrawn picture replaces the SVG, and with it the drag or the band the viewer is in the middle of. The chart
+    /// says when it is busy (<c>data-mpl-busy</c>) and when it is idle again (<c>mpl:idle</c>), and the recipe waits for it.</summary>
+    [Theory]
+    [MemberData(nameof(PagesThatMountAPushedSvg))]
+    public void APushedSvg_IsNotMountedOverAGestureInProgress(string relativePath)
+    {
+        string text = File.ReadAllText(Path.Combine(Root, relativePath));
+
+        Assert.Contains("data-mpl-busy", text);
+        Assert.Contains("mpl:idle", text);
+    }
+
+    /// <summary>The Blazor sample shows the way that needs no recipe: the live chart component mounts the picture, runs its
+    /// script, holds a redraw back during a gesture and gives the script the connection its client holds, so the page sets no
+    /// connection of its own.</summary>
+    [Fact]
+    public void TheBlazorSample_UsesTheLiveChartComponent_AndSetsNoConnectionOfItsOwn()
+    {
+        string text = File.ReadAllText(Path.Combine(Root, "Samples", "MatPlotLibNet.Samples.Blazor", "Components", "Pages", "Interactive.razor"));
+
+        Assert.Contains("<MplLiveChart", text);
+        Assert.DoesNotContain("__mpl_signalr_connection", text);
+        Assert.DoesNotContain("UpdateChartSvg", text);
     }
 }

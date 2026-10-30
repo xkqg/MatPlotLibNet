@@ -12,14 +12,19 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D scatter plot rendered as projected circles.</summary>
 public sealed class Scatter3DSeries : XYZSeries, IHasColor, IColormappable, INormalizable, IHasMarkerStyle
 {
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
+    /// <inheritdoc />
     public MarkerStyle MarkerStyle { get; set; } = MarkerStyle.Circle;
 
+    /// <summary>The size of each point marker, in points. Default 6.</summary>
     public double MarkerSize { get; set; } = 6;
 
     /// <summary>Initializes a new 3D scatter series with the specified data.</summary>

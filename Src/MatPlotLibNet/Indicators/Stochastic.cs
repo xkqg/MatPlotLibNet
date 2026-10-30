@@ -15,6 +15,7 @@ public sealed class Stochastic : CandleIndicator<StochasticResult>
     private readonly int _kPeriod;
     private readonly int _dPeriod;
 
+    /// <summary>The colour of the %D line. <see langword="null"/> (the default) draws it orange.</summary>
     public Color? DColor { get; set; }
 
     /// <summary>Creates a new Stochastic Oscillator indicator.</summary>

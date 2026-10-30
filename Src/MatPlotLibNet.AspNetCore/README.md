@@ -72,10 +72,10 @@ app.MapChartHub();
 ### How the round-trip works
 
 1. The browser loads the initial SVG. Because `ServerInteraction = true`, the SVG embeds `SvgSignalRInteractionScript`. That script is a single IIFE, and it wires listeners for `wheel`, `pointerdown`, `keydown` and `click`.
-2. The script finds the JS-side `HubConnection` on `window.__mpl_signalr_connection`, which the host page sets. It then invokes `OnZoom`, `OnPan`, `OnReset` or `OnLegendToggle`. The payload carries the new axis limits, or the index of the toggled series.
+2. The script finds the `HubConnection` the chart's host element carries (an `MplLiveChart` gives its chart the connection its client holds), else the one on `window.__mpl_signalr_connection`, which the host page sets. It then invokes `OnZoom`, `OnPan`, `OnReset` or `OnLegendToggle`. The payload carries the new axis limits, or the index of the toggled series.
 3. `ChartHub` calls `FigureRegistry.Publish`, which writes the event to the per-chart `Channel<FigureInteractionEvent>`, and then returns. The hub method never blocks on rendering.
 4. One background reader task per chart (`ChartSession`) drains the channel in order. It applies each event with `FigureInteractionEvent.ApplyTo(figure)` and calls `IChartPublisher.PublishSvgAsync` once per drained batch. Bursts therefore coalesce: 50 wheel events over one frame produce exactly one re-render. One event costs the chart only itself: an event that names a subplot the figure does not have (the figure changed after the page drew, or the index was crafted) is dropped and changes nothing, and one that throws, such as an application event that fails in its `ApplyTo` or a registered handler that fails, is counted and skipped. The reader goes on with the next event and keeps answering; only cancelling the session or closing the channel ends it.
-5. `PublishSvgAsync` sends the new SVG to every subscriber of the chart's SignalR group. Several viewers of the same chart stay in sync through that existing group mechanism.
+5. `PublishSvgAsync` sends the new SVG to every subscriber of the chart's SignalR group. Several viewers of the same chart stay in sync through that existing group mechanism, and the hub stamps every event with the connection it came in on and the name the chart gave it ("Viewer 2"); `EnableViewerCursors()` shows each viewer's pointer to the others.
 
 ### Event hierarchy (`MatPlotLibNet.Interaction` in the core package)
 
@@ -89,6 +89,8 @@ FigureInteractionEvent           (abstract root — ChartId, AxesIndex, abstract
 ├── PanEvent                     (drag — delta translation of current limits)
 └── LegendToggleEvent            (click on data-series-index — flips ChartSeries.Visible)
 ```
+
+The tree shows the first events; the others (`BrushSelectEvent`, `HoverEvent`, `DataCursorEvent`, `RectangleZoomEvent`, `RowSelectionEvent` and the rest) follow the same shape. `ChartSessionOptions.Handle(IChartEventHandler)` takes one handler that receives every one of them once, with a `ChartEventContext` that names the viewer.
 
 ### `FigureBuilder.WithServerInteraction`
 
@@ -107,7 +109,7 @@ Opting in sets `Figure.ChartId` and `Figure.ServerInteraction = true`. It also t
 
 ### Frontend hookup
 
-Any environment that can create a `@microsoft/signalr` `HubConnection` will work. The script inside the SVG reads `window.__mpl_signalr_connection` each time it sends an event, and registers its hover-tooltip handler on that connection when it runs, so the host page exposes the connection globally once, before it mounts the first SVG.
+Any environment that can create a `@microsoft/signalr` `HubConnection` will work. Unless the chart is an `MplLiveChart`, which hands its script the connection its client holds, the script inside the SVG reads `window.__mpl_signalr_connection` each time it sends an event, and registers its hover-tooltip handler on that connection when it runs, so the host page exposes the connection globally once, before it mounts the first SVG.
 
 The interaction script travels inside the SVG, and a browser never runs a `<script>` that arrives through `innerHTML`. Mount every SVG, the first one and each update, with a function that puts the markup in place and re-creates its script elements, such as `mplMountSvg` below. With a plain `innerHTML` the chart is drawn but no gesture reaches the server.
 
@@ -116,7 +118,19 @@ The interaction script travels inside the SVG, and a browser never runs a `<scri
 <script>
     // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
     // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
+    // A chart the viewer is in the middle of a drag or a band on says so (data-mpl-busy): replacing it would cut
+    // the gesture off, so the latest picture waits for the chart's mpl:idle event.
     function mplMountSvg(host, svgMarkup) {
+        var busy = host.querySelector('svg[data-mpl-busy]');
+        if (busy) {
+            var first = !host.__mplHeldBack;
+            host.__mplHeldBack = svgMarkup;
+            if (first) busy.addEventListener('mpl:idle', function () {
+                var held = host.__mplHeldBack; host.__mplHeldBack = null;
+                if (held) mplMountSvg(host, held);
+            }, { once: true });
+            return;
+        }
         host.innerHTML = svgMarkup;
         host.querySelectorAll('script').forEach(function (inert) {
             var live = document.createElementNS(inert.namespaceURI, 'script');

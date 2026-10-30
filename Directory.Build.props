@@ -11,8 +11,8 @@
     <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/xkqg/MatPlotLibNet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <!-- Every public type and member of a package carries an XML comment: CS1591 is a warning, and a warning fails the build. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <!-- One language version for every project, both TFMs — set here so no csproj repeats or drifts from it
          (same one-place pattern as SourceLinkVersion below). A per-project override used to pin core to 12
@@ -54,7 +54,7 @@
        project's own `IsPackable` is not yet known in this file. -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'Src'))))">
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.25.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.26.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -67,10 +67,10 @@
        Pinned, not floating: CVE-2026-62900 names four bands of Microsoft.Build.Tasks.Git, the package SourceLink
        pulls: 8.0.0, 10.0.102-10.0.110, 10.0.200-10.0.204 and 10.0.300-10.0.301. The 8.0.0 and 10.0.200-10.0.204
        bands have no patched release inside them (the fix there is a newer SDK); 10.0.111 and 10.0.303 are the
-       fixes of the other two. 10.0.402 lies above every band, so it is outside all four, and a floating range
+       fixes of the other two. 10.0.403 lies above every band, so it is outside all four, and a floating range
        could drift back into one of them on its own. -->
   <PropertyGroup>
-    <SourceLinkVersion>10.0.402</SourceLinkVersion>
+    <SourceLinkVersion>10.0.403</SourceLinkVersion>
   </PropertyGroup>
 
   <ItemGroup>

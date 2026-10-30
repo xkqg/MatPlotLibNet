@@ -10,10 +10,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a bar chart in polar coordinates with wedge-shaped bars.</summary>
 public sealed class PolarBarSeries : PolarSeries, IHasColor, IHasAlpha
 {
+    /// <summary>The angular width of each wedge, in radians, centred on its angle. Default 0.3; a larger value gives
+    /// wider wedges, and bars spaced evenly round a full circle touch when the width is 2π divided by their number.</summary>
     public double BarWidth { get; set; } = 0.3;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.8;
 
     /// <summary>Initializes a new polar bar series.</summary>

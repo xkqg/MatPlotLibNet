@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -50,27 +51,14 @@ public sealed class Cusum : PriceIndicator<CusumResult>
         var signal = new double[outLen];
         var sPos = new double[outLen];
         var sNeg = new double[outLen];
-
-        double accPos = 0, accNeg = 0;
-        for (int i = 0; i < outLen; i++)
+        var step = new CusumStep(_threshold, _drift);
+        for (int i = 0; i < n; i++)
         {
-            double y = Math.Log(Prices[i + 1] / Prices[i]);
-            accPos = Math.Max(0, accPos + y - _drift);
-            accNeg = Math.Min(0, accNeg + y + _drift);
-
-            if (accPos > _threshold)
-            {
-                signal[i] = 1;
-                accPos = 0;
-            }
-            else if (accNeg < -_threshold)
-            {
-                signal[i] = -1;
-                accNeg = 0;
-            }
-
-            sPos[i] = accPos;
-            sNeg[i] = accNeg;
+            var point = step.Next(Prices[i]);
+            if (i == 0) continue;
+            signal[i - 1] = point.Signal;
+            sPos[i - 1] = point.SPos;
+            sNeg[i - 1] = point.SNeg;
         }
 
         return new CusumResult(signal, sPos, sNeg);

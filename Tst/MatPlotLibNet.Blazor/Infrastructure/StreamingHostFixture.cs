@@ -32,6 +32,12 @@ public sealed class StreamingHostFixture : IAsyncDisposable
     /// publish frames that flow back through SignalR to the connected client.</summary>
     public IChartPublisher Publisher { get; }
 
+    /// <summary>The registry of the live figures, so a test can register a chart the hub applies gestures to.</summary>
+    public FigureRegistry Registry { get; }
+
+    /// <summary>The ledger of who is subscribed to which chart.</summary>
+    public ChartSubscriptions Subscriptions { get; }
+
     public StreamingHostFixture()
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -48,6 +54,8 @@ public sealed class StreamingHostFixture : IAsyncDisposable
         HubUrl = $"{baseUrl}/charts-hub";
 
         Publisher = _app.Services.GetRequiredService<IChartPublisher>();
+        Registry = _app.Services.GetRequiredService<FigureRegistry>();
+        Subscriptions = _app.Services.GetRequiredService<ChartSubscriptions>();
     }
 
     public async ValueTask DisposeAsync()

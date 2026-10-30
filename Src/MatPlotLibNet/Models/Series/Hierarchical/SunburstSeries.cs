@@ -18,6 +18,8 @@ namespace MatPlotLibNet.Models.Series;
 /// </remarks>
 public sealed class SunburstSeries : HierarchicalSeries
 {
+    /// <summary>The radius of the empty hole at the centre, as a fraction of the outer radius (0 to 1). 0, the default,
+    /// leaves no hole, so the innermost ring is a solid disc; a larger value turns the chart into a donut.</summary>
     public double InnerRadius { get; set; }
 
     /// <summary>Optional minimum sweep angle in degrees below which a node's label is

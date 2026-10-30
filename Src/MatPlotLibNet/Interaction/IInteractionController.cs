@@ -37,7 +37,8 @@ public interface IInteractionController
     /// set by the crosshair modifier on every <see cref="HandlePointerMoved"/>.</summary>
     CrosshairState? ActiveCrosshair { get; }
 
-    /// <summary>Rebuilds the layout snapshot from the current figure state.
-    /// Call after each render so modifiers have fresh axis limits and plot areas.</summary>
+    /// <summary>Hands the controller the layout of the latest paint. The modifiers are built once and read the layout through a slot
+    /// this replaces when they act, so nothing is rebuilt and a gesture in progress (a rubber band) carries on across a repaint. Call
+    /// it after each render so a pixel is read against the plot areas and axis limits on screen.</summary>
     void UpdateLayout(IChartLayout layout);
 }

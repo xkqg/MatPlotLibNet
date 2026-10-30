@@ -12,6 +12,21 @@
   "dependencies": {
     "tslib": "^2.6.0"
   },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "jsdom": "^25.0.0",
+    "@angular/core": "^19.0.0",
+    "@angular/common": "^19.0.0",
+    "@microsoft/signalr": "^8.0.0",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.6.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "keywords": [
     "angular",
     "charting",

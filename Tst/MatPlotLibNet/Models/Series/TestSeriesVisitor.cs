@@ -112,5 +112,10 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(WaffleSeries series, RenderArea area) => LastVisited = nameof(WaffleSeries);
     public void Visit(PointAndFigureSeries series, RenderArea area) => LastVisited = nameof(PointAndFigureSeries);
     public void Visit(IcicleSeries series, RenderArea area) => LastVisited = nameof(IcicleSeries);
+    public void Visit(TernaryScatterSeries series, RenderArea area) => LastVisited = nameof(TernaryScatterSeries);
+    public void Visit(TernaryLineSeries series, RenderArea area) => LastVisited = nameof(TernaryLineSeries);
+    public void Visit(PiperSeries series, RenderArea area) => LastVisited = nameof(PiperSeries);
+    public void Visit(ChordSeries series, RenderArea area) => LastVisited = nameof(ChordSeries);
+    public void Visit(WordCloudSeries series, RenderArea area) => LastVisited = nameof(WordCloudSeries);
     public void Visit(RelativeRotationSeries series, RenderArea area) => LastVisited = nameof(RelativeRotationSeries);
 }

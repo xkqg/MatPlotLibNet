@@ -47,9 +47,9 @@ public class MplChartControlTests
         paint.Invoke(control, [new SKPaintSurfaceEventArgs(surface, new SKImageInfo(800, 600))]);
     }
 
-    private static InteractionController ControllerOf(MplChartControl control) =>
-        (InteractionController)typeof(MplChartControl)
-            .GetField("_controller", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;
+    private static InteractionHost ControllerOf(MplChartControl control) =>
+        (InteractionHost)typeof(MplChartControl)
+            .GetField("_host", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;
 
     [Fact]
     public void ZoomOnTheFigureTheControlDrew_ActsOnIt()

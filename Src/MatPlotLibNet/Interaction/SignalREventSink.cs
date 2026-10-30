@@ -4,7 +4,8 @@
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Creates a platform-neutral event sink <c>Action&lt;FigureInteractionEvent&gt;</c>
-/// that dispatches each interaction event type to a named method on a generic async send
+/// that dispatches each interaction event type to the hub method that carries it (<c>HubMethodNames</c>, the one place
+/// the names are written; an event that is not sent over a wire is dropped) on a generic async send
 /// delegate — typically backed by a SignalR <c>HubCallerClients.SendAsync</c>. Lives in the
 /// core library so both Avalonia and Uno controls can use it without taking a SignalR
 /// dependency.</summary>
@@ -16,16 +17,6 @@ public static class SignalREventSink
     /// (e.g. <c>(method, payload) => hubConnection.SendAsync(method, payload)</c>).</param>
     public static Action<FigureInteractionEvent> Create(Func<string, object, Task> sendAsync)
     {
-        return evt => _ = evt switch
-        {
-            ZoomEvent z         => sendAsync("OnZoom", z),
-            PanEvent p          => sendAsync("OnPan", p),
-            ResetEvent r        => sendAsync("OnReset", r),
-            LegendToggleEvent l => sendAsync("OnLegendToggle", l),
-            BrushSelectEvent b  => sendAsync("OnBrushSelect", b),
-            HoverEvent h        => sendAsync("OnHover", h),
-            DataCursorEvent d   => sendAsync("OnDataCursor", d),
-            _                   => Task.CompletedTask
-        };
+        return evt => _ = HubMethodNames.For(evt) is { } name ? sendAsync(name, evt) : Task.CompletedTask;
     }
 }

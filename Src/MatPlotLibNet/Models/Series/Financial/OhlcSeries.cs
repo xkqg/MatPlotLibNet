@@ -9,18 +9,26 @@ namespace MatPlotLibNet.Models.Series;
 /// Stores Open/High/Low/Close arrays, up/down colors, date labels, and provides PriceData.</summary>
 public abstract class OhlcSeries : ChartSeries, IPriceSeries
 {
+    /// <summary>The opening price of each bar.</summary>
     public double[] Open { get; }
 
+    /// <summary>The highest price of each bar.</summary>
     public double[] High { get; }
 
+    /// <summary>The lowest price of each bar.</summary>
     public double[] Low { get; }
 
+    /// <summary>The closing price of each bar.</summary>
     public double[] Close { get; }
 
+    /// <summary>An optional label for each bar, such as its date: it names the bar in the series' data table and, for
+    /// candlesticks, labels the category axis. <see langword="null"/> leaves the bars numbered.</summary>
     public string[]? DateLabels { get; set; }
 
+    /// <summary>The colour of the bars that closed at or above their open. Default green.</summary>
     public Color UpColor { get; set; } = Colors.Green;
 
+    /// <summary>The colour of the bars that closed below their open. Default red.</summary>
     public Color DownColor { get; set; } = Colors.Red;
 
     /// <inheritdoc />

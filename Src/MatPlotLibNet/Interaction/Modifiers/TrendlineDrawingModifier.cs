@@ -22,6 +22,12 @@ public sealed class TrendlineDrawingModifier : IInteractionModifier
     private int _axesIndex;
     private double _x1, _y1;
 
+    /// <summary>Creates a modifier that draws a trendline from two clicks while the trendline tool is active.</summary>
+    /// <param name="chartId">The identifier of the chart that the emitted <see cref="AddTrendlineEvent"/> is addressed to.</param>
+    /// <param name="layout">The chart layout used to find the axes under a click and to turn the click into data coordinates.</param>
+    /// <param name="figure">The figure being interacted with.</param>
+    /// <param name="sink">Receives the event this modifier emits when the second click completes the trendline.</param>
+    /// <param name="toolbar">The toolbar that says which tool is active; this modifier acts only while it is <see cref="ToolMode.Trendline"/>.</param>
     public TrendlineDrawingModifier(
         string chartId,
         IChartLayout layout,
@@ -46,7 +52,7 @@ public sealed class TrendlineDrawingModifier : IInteractionModifier
     public void OnPointerPressed(PointerInputArgs args)
     {
         int axesIndex = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
+        var coords = _layout.PixelToData(args.X, args.Y, axesIndex);
         if (coords is null) return;
 
         if (!_waitingForSecondClick)

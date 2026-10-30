@@ -18,6 +18,12 @@ public sealed class LevelDrawingModifier : IInteractionModifier
     private readonly Action<FigureInteractionEvent> _sink;
     private readonly InteractionToolbar _toolbar;
 
+    /// <summary>Creates a modifier that draws a horizontal level at the Y value of a click while the level tool is active.</summary>
+    /// <param name="chartId">The identifier of the chart that the emitted <see cref="AddHorizontalLevelEvent"/> is addressed to.</param>
+    /// <param name="layout">The chart layout used to find the axes under a click and to turn the click into data coordinates.</param>
+    /// <param name="figure">The figure being interacted with.</param>
+    /// <param name="sink">Receives the event this modifier emits when a level is placed.</param>
+    /// <param name="toolbar">The toolbar that says which tool is active; this modifier acts only while it is <see cref="ToolMode.Level"/>.</param>
     public LevelDrawingModifier(
         string chartId,
         IChartLayout layout,
@@ -42,7 +48,7 @@ public sealed class LevelDrawingModifier : IInteractionModifier
     public void OnPointerPressed(PointerInputArgs args)
     {
         int axesIndex = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
+        var coords = _layout.PixelToData(args.X, args.Y, axesIndex);
         if (coords is null) return;
 
         var tool = new HorizontalLevel(coords.Value.DataY);

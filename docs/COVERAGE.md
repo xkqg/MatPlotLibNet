@@ -2,6 +2,21 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.27.0, the last fourteen roadmap rows: new charts, streaming forms for 57 indicators, one interaction host for the native heads, and the Windows heads in CI):** **1,094/1,094 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 1094 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.8L / 98.8B**; **25,667 tests, 0 failures** across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite run beside the
+gate and are not measured by it: they hold no product code, or need Windows). Two things changed in what the gate sees. The MAUI suite joined the measured suites,
+and the Avalonia suite now loads the package itself instead of a copy of its sources linked into the suite's own assembly, which the collector leaves out; so the
+classes of both heads are measured for the first time. Where a member can only run on a platform's own thread or event system (Avalonia's input events, dispatcher
+posts and render thread, MAUI's main-thread dispatch) it carries `[ExcludeFromCodeCoverage]` with the reason, and what it hands on is held where that logic lives; where
+the logic could be pulled out it was (the Avalonia button rules are plain functions of the enum, and both timers raise their tick through a method a test calls).
+The first strict run read 54 classes short: 39 below 90/90 and 15 under their baseline. Most were the code of the release that no test reached: the argument guards of
+the 46 new streaming forms, the six hub routes of the native controls, the figure-level forms of the new charts, the failure paths of the Blazor client and of the live
+chart, and the layout seams of the interaction layer. A test per arm closed them, and four changes that the tests showed to be right went in with them: the interaction
+host delivers a brush with the figure the event was raised for, a step-through frame is sized by its figure and not by parsing its own view box, the word cloud packing
+skips a box larger than the room left, and a timer keeps one field where it had two. The packing test is bounded by a limit only a blow-up reaches: the same call takes
+ten times as long under the collector the CI job runs.
+
 **Status (v1.26.0, marks in data units, decorated lines and fills, the frame of a plot, more layouts, and the comparison with matplotlib in CI):** **948/948 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 948 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.8L / 98.7B**; **24,382 tests, 0 failures** across the 11 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite run beside the

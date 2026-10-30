@@ -47,60 +47,66 @@ public sealed class TurbulenceIndex : MultivariateIndicator<SignalResult>
         if (BarCount == 0 || BarCount <= _window)
             return Array.Empty<double>();
 
-        int d = FeatureCount;
         int outLen = BarCount - _window;
         var result = new double[outLen];
+        for (int w = 0; w < outLen; w++)
+            result[w] = Score(Features, w, _window, _regularization);
+        return result;
+    }
+
+    /// <summary>The turbulence of the row at <c>start + window</c> against the <c>window</c> rows before it: the squared Mahalanobis
+    /// distance of the row from their mean, through the inverse of their sample covariance (regularised on the diagonal). The one
+    /// place that arithmetic is written, read by <see cref="Compute"/> and by <see cref="Streaming.StreamingTurbulenceIndex"/>.</summary>
+    /// <param name="features">The rows; at least <c>start + window + 1</c> of them, all of the same length.</param>
+    /// <param name="start">The index of the oldest row of the window.</param>
+    /// <param name="window">How many rows the mean and the covariance are taken over.</param>
+    /// <param name="regularization">Added to the diagonal of the covariance before it is inverted.</param>
+    internal static double Score(double[][] features, int start, int window, double regularization)
+    {
+        int d = features[0].Length;
+        int end = start + window; // exclusive — the current bar is `end`.
         var mu = new double[d];
         var cov = new double[d, d];
         var diff = new double[d];
 
-        for (int w = 0; w < outLen; w++)
+        // Feature-wise mean over [start, end).
+        for (int t = start; t < end; t++)
+            for (int k = 0; k < d; k++) mu[k] += features[t][k];
+        for (int k = 0; k < d; k++) mu[k] /= window;
+
+        // Sample covariance (divide by N-1) over [start, end).
+        for (int t = start; t < end; t++)
         {
-            int start = w;
-            int end = w + _window; // exclusive — current bar is `end`.
-
-            // Feature-wise mean over [start, end).
-            Array.Clear(mu, 0, d);
-            for (int t = start; t < end; t++)
-                for (int k = 0; k < d; k++) mu[k] += Features[t][k];
-            for (int k = 0; k < d; k++) mu[k] /= _window;
-
-            // Sample covariance (divide by N-1) over [start, end).
+            var row = features[t];
             for (int i = 0; i < d; i++)
+            {
+                double di = row[i] - mu[i];
                 for (int j = 0; j < d; j++)
-                    cov[i, j] = 0;
-            for (int t = start; t < end; t++)
-            {
-                var row = Features[t];
-                for (int i = 0; i < d; i++)
-                {
-                    double di = row[i] - mu[i];
-                    for (int j = 0; j < d; j++)
-                        cov[i, j] += di * (row[j] - mu[j]);
-                }
+                    cov[i, j] += di * (row[j] - mu[j]);
             }
-            double denom = _window - 1;
-            for (int i = 0; i < d; i++)
-                for (int j = 0; j < d; j++) cov[i, j] /= denom;
-
-            // Inverse of (cov + λI) via LU.
-            var inv = InvertRegularized(cov, _regularization);
-
-            // diff = currentBar - μ
-            var current = Features[end];
-            for (int k = 0; k < d; k++) diff[k] = current[k] - mu[k];
-
-            // TI = diffᵀ · inv · diff
-            double ti = 0;
-            for (int i = 0; i < d; i++)
-            {
-                double tmp = 0;
-                for (int j = 0; j < d; j++) tmp += inv[i, j] * diff[j];
-                ti += diff[i] * tmp;
-            }
-            result[w] = ti;
         }
-        return result;
+
+        double denom = window - 1;
+        for (int i = 0; i < d; i++)
+            for (int j = 0; j < d; j++) cov[i, j] /= denom;
+
+        // Inverse of (cov + λI) via LU.
+        var inv = InvertRegularized(cov, regularization);
+
+        // diff = currentBar - μ
+        var current = features[end];
+        for (int k = 0; k < d; k++) diff[k] = current[k] - mu[k];
+
+        // TI = diffᵀ · inv · diff
+        double ti = 0;
+        for (int i = 0; i < d; i++)
+        {
+            double tmp = 0;
+            for (int j = 0; j < d; j++) tmp += inv[i, j] * diff[j];
+            ti += diff[i] * tmp;
+        }
+
+        return ti;
     }
 
     /// <inheritdoc />

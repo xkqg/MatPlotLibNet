@@ -16,4 +16,8 @@ public enum CoordinateSystem
 
     /// <summary>Three-dimensional (X, Y, Z) coordinate system with projection.</summary>
     ThreeD = 2,
+
+    /// <summary>Ternary: a composition of three parts in an equilateral triangle, drawn in a fixed frame that a zoom or a pan
+    /// leaves alone (no composition lies outside the triangle).</summary>
+    Ternary = 3,
 }

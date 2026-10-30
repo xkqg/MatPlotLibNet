@@ -12,7 +12,7 @@ that needs a row is what moves it up.
 | **Done** | The fluent core | `Plt.Create()`, `FigureBuilder` and `AxesBuilder`: a chart in one chain, drawn as SVG, written to JSON and read back. See [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet). |
 | **Done** | Themes and colour maps | 30 themes, matplotlib's own looks among them, and 148 colormaps counting their reversed forms. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
 | **Done** | Blazor and ASP.NET Core | `<MplChart>` and `<MplLiveChart>`, a SignalR hub, REST endpoints, and clients for Angular, React and Vue. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
-| **Done** | The chart types | 86 series types: lines and bars, statistical, financial, grid, 3-D, polar, hierarchical, flow and the control room's. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
+| **Done** | The chart types | 91 series types: lines and bars, statistical, financial, grid, 3-D, polar, hierarchical, flow and the control room's. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | PNG, PDF and GIF | `MatPlotLibNet.Skia`: the same figure as a PNG, a PDF of one page or several, and an animated GIF. See [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started). |
 | **Done** | Technical indicators | 59 indicators computed from a price series and drawn on it, from a moving average to transfer entropy. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | GraphQL | `MatPlotLibNet.GraphQL`: charts as HotChocolate queries and subscriptions. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
@@ -95,20 +95,20 @@ that needs a row is what moves it up.
 | **Done** | Stem-and-leaf plot | `StemAndLeaf` writes a sample as stems and leaves, a column for each leaf, so they line up in any font. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | A waterfall's target | `WaterfallSeries.Targets` marks the level each step was meant to reach. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | The matplotlib comparison run by CI | The suite that compares the output with images matplotlib drew runs in CI and in the release job, on a colour distance that reads every pixel. See [MatplotlibThemes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes). |
-| **Later** | Word cloud | Words sized by weight and packed without overlap need a text-packing layout. |
-| **Later** | Chord diagram | Ribbons between arcs around a circle need a series of their own. |
-| **Later** | Ternary plot | Three parts that sum to one, on triangular axes. |
-| **Later** | Piper diagram | Two ternary triangles and a diamond; it needs ternary axes first. |
-| **Later** | Linked selection | Choose points in one chart and see the same rows lit in the others. |
-| **Later** | Step-through SVG | One SVG file with a slider or a play button that steps through frames without a server. |
-| **Later** | A live chart that sends its own gestures | `MplLiveChart` shows the server's redraws; the page still has to hand its script a SignalR connection. |
-| **Later** | Home that returns to the first view in the native controls | After a zoom and a repaint, Home returns to the view on screen, not the one first drawn. |
-| **Later** | The MAUI view on a par with the others | It draws and streams a chart, and does not pan, zoom or select, nor draw a hatch. |
-| **Later** | Streaming forms of more indicators | 11 of the 59 indicators have a streaming form that follows each new bar. |
-| **Later** | Transfer entropy over time | A rolling window, a continuous estimator and a conditional form beside the scalar that ships. |
-| **Later** | A handler of your own for a chart's gestures | One interface a chart's events go to, beyond the callbacks a chart session takes today. |
-| **Later** | Several viewers as a designed feature | Viewers of one chart that see each other's gestures by design, not as a side effect where the last one wins. |
-| **Later** | The Windows heads tested by CI | The WPF, Uno and MAUI suites run on Windows by hand or before a push, never on the CI runners. |
+| **Done** | Word cloud | `WordCloud` sets each word in a size that follows the square root of its weight and packs the words on a spiral without overlap; nothing is dropped silently. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Chord diagram | `Chord` draws the flows between groups as a ring of arcs with a ribbon for each flow, ordered so that a complete graph crosses least. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Ternary plot | `TernaryScatter` and `TernaryPlot` place three parts that make a whole in a triangle, with a grid at every fifth and the parts named at the corners. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Piper diagram | `Piper` draws the major ions of a set of waters on two triangles and a diamond, from the mg/L a laboratory delivers. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Linked selection | A brush on one chart lights the rows it covers on the other charts of its group; a series names its rows with `RowKeys`. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Step-through SVG | `AnimationBuilder.SaveStepThroughSvg` writes an animation as one SVG with a slider, a play button and the arrow keys, and no server. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | A live chart that sends its own gestures | `MplLiveChart` hands the script in its SVG the SignalR connection it holds, so zoom, pan, legend and Home reach the server without JavaScript of your own. See [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR). |
+| **Done** | Home that returns to the first view in the native controls | The figure remembers each axes' view from before an interaction first moved it, and Home, Escape and a double-click go back to it, in the browser script and in the native controls alike. See [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls). |
+| **Done** | The MAUI view on a par with the others | A finger pans, zooms, brushes and picks points on a MAUI chart through the host the other heads share, and the canvas draws hatches, gradients and the arcs of a pie. See [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls). |
+| **Done** | Streaming forms of more indicators | 57 of the 59 indicators have a streaming form that follows each new bar, attached to a candle series with `WithStreaming`. See [Streaming](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming). |
+| **Done** | Transfer entropy over time | `TransferEntropyOptions` chooses the Kraskov estimate, a rolling window and a series to condition on; the entropy is one value for each bar. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | A handler of your own for a chart's gestures | `IChartEventHandler` receives every interaction event once, with the viewer it came from, on a server and on a native control. See [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls). |
+| **Done** | Several viewers as a designed feature | Every event is stamped with its viewer, a page can show each viewer's pointer with a name, and everyone is told who moved the shared view. See [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR). |
+| **Done** | The Windows heads tested by CI | A `windows-heads` job builds the MAUI, WPF and Uno packages on every push and runs their suites. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
 
 Every row has a section of its own on the [roadmap in the wiki](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap): what
 it is, why it stands where it does, what a row still to come waits for, and what is left out on purpose. This table is

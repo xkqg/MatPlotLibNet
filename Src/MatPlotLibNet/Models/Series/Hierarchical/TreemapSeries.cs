@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a treemap series that renders hierarchical data as nested rectangles.</summary>
 public sealed class TreemapSeries : HierarchicalSeries
 {
+    /// <summary>The gap, in pixels, left between neighbouring rectangles. Default 2; 0 makes them touch.</summary>
     public double Padding { get; set; } = 2.0;
 
     /// <summary>What to do with a label wider than its rect — see <see cref="TreemapLabelFit"/>.</summary>

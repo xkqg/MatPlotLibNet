@@ -10,6 +10,8 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a traditional OHLC bar chart with vertical high-low lines and open/close tick marks.</summary>
 public sealed class OhlcBarSeries : OhlcSeries
 {
+    /// <summary>How far the open tick reaches to the left and the close tick to the right of each bar, in units of 20
+    /// pixels. Default 0.3, which is 6 pixels.</summary>
     public double TickWidth { get; set; } = 0.3;
 
     /// <summary>Initializes a new <see cref="OhlcBarSeries"/> with per-bar OHLC price data.</summary>

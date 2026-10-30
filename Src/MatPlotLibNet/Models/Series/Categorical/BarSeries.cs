@@ -23,19 +23,30 @@ public enum BarOrientation
 public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable,
     IHasBarOrientation
 {
+    /// <summary>The label of each bar, in drawing order. With numeric <see cref="XCoordinate"/> positions the labels
+    /// only name the bars in tooltips.</summary>
     public string[] Categories { get; }
 
     /// <inheritdoc />
     string[]? ICategoryLabeled.CategoryLabels => Categories;
 
+    /// <summary>The height of each bar, measured from zero or from its entry in <see cref="StackBaseline"/>; a negative
+    /// value points the bar the other way and a missing one (NaN) draws no bar.</summary>
     public double[] Values { get; }
 
+    /// <summary>Whether the bars stand up (<see cref="BarOrientation.Vertical"/>, the default) or lie down
+    /// (<see cref="BarOrientation.Horizontal"/>); it decides which axis carries the categories and which the
+    /// values.</summary>
     public BarOrientation Orientation { get; set; } = BarOrientation.Vertical;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <inheritdoc />
     public Color? EdgeColor { get; set; }
 
+    /// <summary>How wide each bar is, as a fraction of its category slot (1 makes neighbouring bars touch); on numeric
+    /// <see cref="XCoordinate"/> positions, in data units. Default 0.8.</summary>
     public double BarWidth { get; set; } = 0.8;
 
     /// <summary>Where each bar starts: bar <c>i</c> is drawn from <c>StackBaseline[i]</c> up (down, for a negative
@@ -45,6 +56,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     /// event on a calendar stands on its own foot under any bar mode.</summary>
     public double[]? StackBaseline { get; set; }
 
+    /// <inheritdoc />
     public bool ShowLabels { get; set; }
 
     /// <summary>The .NET format string of each value label (<c>"F0"</c>, <c>"F2"</c>, ...). <see langword="null"/> writes
@@ -52,21 +64,31 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     /// (<c>'%g'</c>): 12500 reads <c>12500</c>, and only a value below 1e-4 or from 1e6 takes an exponent.</summary>
     public string? LabelFormat { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = RestingAlpha;
 
+    /// <summary>Width of the outline around each bar, in pixels. 0 (the default) draws none unless
+    /// <see cref="EdgeColor"/> is set, which then draws a 1 pixel outline; a positive width without an edge colour
+    /// outlines the bars in the series colour.</summary>
     public double LineWidth { get; set; } = RestingLineWidth;
 
+    /// <summary>Whether each bar is centred in its category slot (<see cref="BarAlignment.Center"/>, the default) or
+    /// starts at the slot's left edge (<see cref="BarAlignment.Edge"/>).</summary>
     public BarAlignment Align { get; set; } = RestingAlign;
 
+    /// <summary>The pattern laid over the fill of each bar; <see cref="HatchPattern.None"/>, the default, leaves the
+    /// bars plain.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
+    /// <summary>The colour of the hatch lines; <see langword="null"/> picks a colour that contrasts with the
+    /// fill.</summary>
     public Color? HatchColor { get; set; }
 
     /// <summary>The colour the fill blends to at the tip of each bar; <see langword="null"/> (the default) is a flat fill. The
     /// fill of every bar runs in a straight line from the series colour at the bar's foot to this colour at its end, which is
     /// the top of a bar that points up and the bottom of one that points down, whichever way the axis runs. A bar series'
-    /// <see cref="Alpha"/> applies to both colours, a hatch is laid over the gradient, and the Maui backend, which paints no
-    /// gradient, draws the series colour.</summary>
+    /// <see cref="Alpha"/> applies to both colours, and a hatch is laid over the gradient. Every backend (SVG, Skia, Maui) draws the
+    /// gradient.</summary>
     public Color? GradientColor { get; set; }
 
     private const double RestingAlpha = 1.0;

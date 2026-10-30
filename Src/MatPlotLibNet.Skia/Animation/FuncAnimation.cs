@@ -41,12 +41,22 @@ public sealed class FuncAnimation
         _loop = loop;
     }
 
-    /// <summary>Saves the animation to a file. Format is determined by extension (.gif or .png for frames).</summary>
+    /// <summary>Saves the animation to a file. Format is determined by extension: <c>.svg</c> is an SVG that steps through its
+    /// frames (<see cref="MatPlotLibNet.Transforms.StepThroughSvgTransform"/>); anything else, <c>.gif</c> included, is an animated
+    /// GIF.</summary>
     public void Save(string filePath)
     {
         using var stream = File.Create(filePath);
-        SaveGif(stream);
+        if (string.Equals(Path.GetExtension(filePath), ".svg", StringComparison.OrdinalIgnoreCase))
+            SaveStepThroughSvg(stream);
+        else
+            SaveGif(stream);
     }
+
+    /// <summary>Saves the animation as an SVG that steps through its frames to the specified stream. The file is as large as
+    /// all the frames together.</summary>
+    public void SaveStepThroughSvg(Stream output) =>
+        new MatPlotLibNet.Transforms.StepThroughSvgTransform().Transform(GenerateFrames(), TimeSpan.FromMilliseconds(_delayMs), _loop, output);
 
     /// <summary>Saves the animation as an animated GIF to the specified stream.</summary>
     public void SaveGif(Stream output)

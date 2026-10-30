@@ -8,6 +8,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class SequentialColorMaps
 {
+    /// <summary>Dark blue to yellow through grey, designed to look the same under the common forms of colour vision deficiency (after matplotlib's <c>cividis</c>).</summary>
     public static IColorMap Cividis { get; } = new LinearColorMap("cividis",
     [
         Color.FromHex("#00204D"),
@@ -18,6 +19,7 @@ public static class SequentialColorMaps
         Color.FromHex("#FFE945"),
     ]);
 
+    /// <summary>Near-white to dark green, so larger values read darker (after matplotlib's <c>Greens</c>).</summary>
     public static IColorMap Greens { get; } = new LinearColorMap("greens",
     [
         Color.FromHex("#F7FCF5"),
@@ -30,6 +32,7 @@ public static class SequentialColorMaps
         Color.FromHex("#005A32"),
     ]);
 
+    /// <summary>Near-white to dark orange-brown, so larger values read darker (after matplotlib's <c>Oranges</c>).</summary>
     public static IColorMap Oranges { get; } = new LinearColorMap("oranges",
     [
         Color.FromHex("#FFF5EB"),
@@ -42,6 +45,7 @@ public static class SequentialColorMaps
         Color.FromHex("#8C2D04"),
     ]);
 
+    /// <summary>Near-white to dark purple, so larger values read darker (after matplotlib's <c>Purples</c>).</summary>
     public static IColorMap Purples { get; } = new LinearColorMap("purples",
     [
         Color.FromHex("#FCFBFD"),
@@ -54,6 +58,7 @@ public static class SequentialColorMaps
         Color.FromHex("#4A1486"),
     ]);
 
+    /// <summary>White to near-black, so larger values read darker (after matplotlib's <c>Greys</c>).</summary>
     public static IColorMap Greys { get; } = new LinearColorMap("greys",
     [
         Color.FromHex("#FFFFFF"),
@@ -66,6 +71,7 @@ public static class SequentialColorMaps
         Color.FromHex("#252525"),
     ]);
 
+    /// <summary>Pale yellow through orange to dark brown (after matplotlib's <c>YlOrBr</c>).</summary>
     public static IColorMap YlOrBr { get; } = new LinearColorMap("ylorbr",
     [
         Color.FromHex("#FFFFE5"),
@@ -78,6 +84,7 @@ public static class SequentialColorMaps
         Color.FromHex("#8C2D04"),
     ]);
 
+    /// <summary>Pale yellow through orange to dark red (after matplotlib's <c>YlOrRd</c>).</summary>
     public static IColorMap YlOrRd { get; } = new LinearColorMap("ylorrd",
     [
         Color.FromHex("#FFFFCC"),
@@ -90,6 +97,7 @@ public static class SequentialColorMaps
         Color.FromHex("#B10026"),
     ]);
 
+    /// <summary>Pale cream through orange to dark red (after matplotlib's <c>OrRd</c>).</summary>
     public static IColorMap OrRd { get; } = new LinearColorMap("orrd",
     [
         Color.FromHex("#FFF7EC"),
@@ -102,6 +110,7 @@ public static class SequentialColorMaps
         Color.FromHex("#990000"),
     ]);
 
+    /// <summary>Near-white through light purple-blue to deep blue (after matplotlib's <c>PuBu</c>).</summary>
     public static IColorMap PuBu { get; } = new LinearColorMap("pubu",
     [
         Color.FromHex("#FFF7FB"),
@@ -114,6 +123,7 @@ public static class SequentialColorMaps
         Color.FromHex("#034E7B"),
     ]);
 
+    /// <summary>Pale yellow through light green to dark green (after matplotlib's <c>YlGn</c>).</summary>
     public static IColorMap YlGn { get; } = new LinearColorMap("ylgn",
     [
         Color.FromHex("#FFFFE5"),
@@ -126,6 +136,7 @@ public static class SequentialColorMaps
         Color.FromHex("#005A32"),
     ]);
 
+    /// <summary>Near-white through pale blue-green to dark green (after matplotlib's <c>BuGn</c>).</summary>
     public static IColorMap BuGn { get; } = new LinearColorMap("bugn",
     [
         Color.FromHex("#F7FCFD"),
@@ -138,6 +149,7 @@ public static class SequentialColorMaps
         Color.FromHex("#005824"),
     ]);
 
+    /// <summary>Black through red and orange to yellow and white, like a heated metal (after matplotlib's <c>hot</c>).</summary>
     public static IColorMap Hot { get; } = new LinearColorMap("hot",
     [
         Color.FromHex("#0B0000"),
@@ -149,6 +161,7 @@ public static class SequentialColorMaps
         Color.FromHex("#FFFFFF"),
     ]);
 
+    /// <summary>Black to a light copper tone (after matplotlib's <c>copper</c>).</summary>
     public static IColorMap Copper { get; } = new LinearColorMap("copper",
     [
         Color.FromHex("#000000"),
@@ -159,6 +172,7 @@ public static class SequentialColorMaps
         Color.FromHex("#FFC882"),
     ]);
 
+    /// <summary>Black through blue-tinted greys to near-white, the look of an X-ray plate (after matplotlib's <c>bone</c>).</summary>
     public static IColorMap Bone { get; } = new LinearColorMap("bone",
     [
         Color.FromHex("#000000"),
@@ -171,6 +185,7 @@ public static class SequentialColorMaps
         Color.FromHex("#E8E8E8"),
     ]);
 
+    /// <summary>Near-white through pale blue to dark purple (after matplotlib's <c>BuPu</c>).</summary>
     public static IColorMap BuPu { get; } = new LinearColorMap("bupu",
     [
         Color.FromHex("#F7FCFD"),
@@ -183,6 +198,7 @@ public static class SequentialColorMaps
         Color.FromHex("#6E016B"),
     ]);
 
+    /// <summary>Near-white through light green and teal to dark blue (after matplotlib's <c>GnBu</c>).</summary>
     public static IColorMap GnBu { get; } = new LinearColorMap("gnbu",
     [
         Color.FromHex("#F7FCF0"),
@@ -195,6 +211,7 @@ public static class SequentialColorMaps
         Color.FromHex("#084081"),
     ]);
 
+    /// <summary>Near-white through lilac and pink to dark red-violet (after matplotlib's <c>PuRd</c>).</summary>
     public static IColorMap PuRd { get; } = new LinearColorMap("purd",
     [
         Color.FromHex("#F7F4F9"),
@@ -207,6 +224,7 @@ public static class SequentialColorMaps
         Color.FromHex("#91003F"),
     ]);
 
+    /// <summary>Near-white through pink to dark purple (after matplotlib's <c>RdPu</c>).</summary>
     public static IColorMap RdPu { get; } = new LinearColorMap("rdpu",
     [
         Color.FromHex("#FFF7F3"),
@@ -219,6 +237,7 @@ public static class SequentialColorMaps
         Color.FromHex("#7A0177"),
     ]);
 
+    /// <summary>Pale yellow through green and teal to dark blue (after matplotlib's <c>YlGnBu</c>).</summary>
     public static IColorMap YlGnBu { get; } = new LinearColorMap("ylgnbu",
     [
         Color.FromHex("#FFFFD9"),
@@ -231,6 +250,7 @@ public static class SequentialColorMaps
         Color.FromHex("#0C2C84"),
     ]);
 
+    /// <summary>Black to white along a helix of hues, with brightness rising steadily so it also reads in grayscale (after matplotlib's <c>cubehelix</c>).</summary>
     public static IColorMap Cubehelix { get; } = new LinearColorMap("cubehelix",
     [
         Color.FromHex("#000000"),
@@ -246,6 +266,7 @@ public static class SequentialColorMaps
         Color.FromHex("#FFFFFF"),
     ]);
 
+    /// <summary>Near-white through light purple-blue and blue to dark green (after matplotlib's <c>PuBuGn</c>).</summary>
     public static IColorMap PuBuGn { get; } = new LinearColorMap("pubugn",
     [
         Color.FromHex("#FFF7FB"),

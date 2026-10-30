@@ -10,18 +10,29 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a vector field (quiver) series with arrows at each grid point.</summary>
 public sealed class QuiverSeries : ChartSeries, IHasColor
 {
+    /// <summary>The X position of the tail of each arrow.</summary>
     public double[] XData { get; }
 
+    /// <summary>The Y position of the tail of each arrow.</summary>
     public double[] YData { get; }
 
+    /// <summary>The X component of each arrow: its head stands at the tail plus this value times
+    /// <see cref="Scale"/>.</summary>
     public double[] UData { get; }
 
+    /// <summary>The Y component of each arrow: its head stands at the tail plus this value times
+    /// <see cref="Scale"/>.</summary>
     public double[] VData { get; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The factor that turns the U and V components into data units along the axes, so an arrow reaches from
+    /// its tail by (U, V) times this value. Default 1.</summary>
     public double Scale { get; set; } = 1.0;
 
+    /// <summary>Length of the two strokes of each arrowhead, as a fraction of the drawn length of the arrow itself.
+    /// Default 0.3.</summary>
     public double ArrowHeadSize { get; set; } = 0.3;
 
     /// <summary>Creates a new quiver series from the given position and vector data.</summary>

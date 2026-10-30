@@ -58,6 +58,31 @@ public static class NearestPointFinder
                 continue;
             }
 
+            if (axes.Series[sIdx] is TernarySeries ternary)
+            {
+                // A sample of a ternary diagram stands where its composition does in the frame the axes are drawn over; what
+                // the reader is told is the composition, not that place.
+                if (!ternary.Visible) continue;
+
+                foreach (var mark in ternary.FramePoints())
+                {
+                    var at = view.DataToPixel(mark.Position.X, mark.Position.Y);
+                    double pixelDist = Math.Sqrt(Math.Pow(at.X - cursor.X, 2) + Math.Pow(at.Y - cursor.Y, 2));
+                    if (!(pixelDist <= maxPixelDistance)) continue;
+
+                    if (best is null || pixelDist < best.PixelDistance)
+                    {
+                        best = new NearestPointResult(ternary.Label ?? $"Series {sIdx}", sIdx, mark.Position.X, mark.Position.Y, pixelDist)
+                        {
+                            PointIndex = mark.Row,
+                            Detail = ternary.Describe(mark.Row, axes),
+                        };
+                    }
+                }
+
+                continue;
+            }
+
             if (axes.Series[sIdx] is not XYSeries xySeries) continue;
             if (!xySeries.Visible) continue;
 

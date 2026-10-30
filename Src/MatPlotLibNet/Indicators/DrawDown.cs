@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
@@ -14,6 +15,7 @@ public sealed class DrawDown : Indicator<SignalResult>
 {
     private readonly double[] _equity;
 
+    /// <summary>The opacity of the filled drawdown area, from 0 (invisible) to 1 (solid). Default 0.4.</summary>
     public double Alpha { get; set; } = 0.4;
 
     /// <summary>Creates a new drawdown indicator from an equity curve.</summary>
@@ -28,12 +30,9 @@ public sealed class DrawDown : Indicator<SignalResult>
     public override SignalResult Compute()
     {
         var dd = new double[_equity.Length];
-        double peak = _equity[0];
+        var step = new DrawDownStep();
         for (int i = 0; i < _equity.Length; i++)
-        {
-            if (_equity[i] > peak) peak = _equity[i];
-            dd[i] = peak > 0 ? (peak - _equity[i]) / peak * 100 : 0;
-        }
+            dd[i] = step.Next(_equity[i]);
         return dd;
     }
 

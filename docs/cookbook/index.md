@@ -25,7 +25,9 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Contour Plots](contour.md) | Contour lines with labels, filled contour that follows the limits, custom levels, contour overlay, triangulated contour |
 | [Subplots & GridSpec](subplots.md) | Grid subplots, GridSpec ratios, mosaic layout, spanning subplots, insets, shared axes, spacing |
 | [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI), an anchored VWAP and a volume profile, Point and Figure, Renko and Kagi charts of the closes |
-| [Sankey Diagrams](sankey.md) | Income statement, customer journey, process distribution, vertical orientation, severity cascade |
+| [Sankey Diagrams](sankey.md) | Income statement, customer journey, process distribution, vertical orientation, severity cascade, a chord diagram of flows that go round |
+| [Ternary & Piper](ternary.md) | Three parts that make a whole on triangular axes (soil texture), and a Piper diagram of the major ions of a set of waters |
+| [Word Clouds](word-cloud.md) | Words sized by weight and packed without overlap, each with its weight in its title |
 | [Treemaps & Hierarchical](treemaps.md) | Nested pie, treemap with drilldown, an icicle chart |
 | [Dendrograms](dendrograms.md) | Hierarchical-clustering tree, four orientations, cut-height with cluster colours |
 | [Clustermap](clustermap.md) | Heatmap + row/column dendrograms, automatic reordering, panel ratio control |

@@ -6,8 +6,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Base class for series rendered in polar coordinates (r, theta).</summary>
 public abstract class PolarSeries : ChartSeries, IPolarSeries
 {
+    /// <inheritdoc />
     public double[] R { get; }
 
+    /// <inheritdoc />
     public double[] Theta { get; }
 
     /// <summary>Initializes with R and Theta data arrays.</summary>

@@ -24,16 +24,17 @@ public class AxisLessCapabilityContractTests
     private static readonly Type[] DrawsWithoutAxes =
     [
         typeof(RadarSeries), typeof(PieSeries), typeof(WaffleSeries), typeof(DonutSeries), typeof(FunnelSeries), typeof(GaugeSeries),
-        typeof(ProgressBarSeries), typeof(BulletGraphSeries), typeof(StatTileSeries), typeof(SparklineSeries),
+        typeof(ProgressBarSeries), typeof(BulletGraphSeries), typeof(StatTileSeries), typeof(SparklineSeries), typeof(PiperSeries), typeof(ChordSeries), typeof(WordCloudSeries),
         typeof(TableSeries), typeof(TreeGridSeries), typeof(TreemapSeries), typeof(SunburstSeries), typeof(IcicleSeries), typeof(DendrogramSeries),
         typeof(ClustermapSeries), typeof(PairGridSeries), typeof(SankeySeries),
     ];
 
-    /// <summary>The series that stand on a coordinate system of their own, polar or 3-D, drawn by the renderer of that system:
+    /// <summary>The series that stand on a coordinate system of their own, polar, 3-D or ternary, drawn by the renderer of that system:
     /// the limits of the Cartesian axes are not theirs, so their marks do not move with them, and they are not axis-less.</summary>
     private static readonly Type[] OwnCoordinateSystem =
     [
         typeof(PolarLineSeries), typeof(PolarScatterSeries), typeof(PolarBarSeries), typeof(PolarHeatmapSeries),
+        typeof(TernaryScatterSeries), typeof(TernaryLineSeries),
         typeof(SurfaceSeries), typeof(WireframeSeries), typeof(Contour3DSeries), typeof(Scatter3DSeries), typeof(Stem3DSeries),
         typeof(Bar3DSeries), typeof(PlanarBar3DSeries), typeof(Line3DSeries), typeof(Trisurf3DSeries), typeof(Quiver3DSeries),
         typeof(Text3DSeries), typeof(VoxelSeries),

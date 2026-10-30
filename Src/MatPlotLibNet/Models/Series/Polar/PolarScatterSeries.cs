@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a scatter plot in polar coordinates (r, theta).</summary>
 public sealed class PolarScatterSeries : PolarSeries, IHasColor
 {
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The size of each point marker, in points. Default 6.</summary>
     public double MarkerSize { get; set; } = 6;
 
     /// <summary>Initializes a new polar scatter series.</summary>

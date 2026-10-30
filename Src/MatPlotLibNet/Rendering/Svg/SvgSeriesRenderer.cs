@@ -80,11 +80,18 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // Flow family
     private SankeySeriesRenderer? _sankey;
+    private ChordSeriesRenderer? _chord;
+    private WordCloudSeriesRenderer? _wordCloud;
 
     // Polar family
     private PolarLineSeriesRenderer? _polarLine;
     private PolarScatterSeriesRenderer? _polarScatter;
     private PolarBarSeriesRenderer? _polarBar;
+
+    // Ternary family
+    private TernaryScatterSeriesRenderer? _ternaryScatter;
+    private TernaryLineSeriesRenderer? _ternaryLine;
+    private PiperSeriesRenderer? _piper;
 
     // ThreeD family
     private SurfaceSeriesRenderer? _surface;
@@ -290,6 +297,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Flow family
     /// <inheritdoc />
     public void Visit(SankeySeries s, RenderArea a) => Dispatch(_sankey ??= new(_context), s);
+    /// <inheritdoc />
+    public void Visit(ChordSeries s, RenderArea a) => Dispatch(_chord ??= new(_context), s);
+    /// <inheritdoc />
+    public void Visit(WordCloudSeries s, RenderArea a) => Dispatch(_wordCloud ??= new(_context), s);
 
     // Polar family
     /// <inheritdoc />
@@ -298,6 +309,14 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(PolarScatterSeries s, RenderArea a) => Dispatch(_polarScatter ??= new(_context), s);
     /// <inheritdoc />
     public void Visit(PolarBarSeries s, RenderArea a) => Dispatch(_polarBar ??= new(_context), s);
+
+    // Ternary family
+    /// <inheritdoc />
+    public void Visit(TernaryScatterSeries s, RenderArea a) => Dispatch(_ternaryScatter ??= new(_context), s);
+    /// <inheritdoc />
+    public void Visit(TernaryLineSeries s, RenderArea a) => Dispatch(_ternaryLine ??= new(_context), s);
+    /// <inheritdoc />
+    public void Visit(PiperSeries s, RenderArea a) => Dispatch(_piper ??= new(_context), s);
 
     // ThreeD family
     /// <inheritdoc />

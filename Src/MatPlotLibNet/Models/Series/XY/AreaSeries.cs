@@ -16,6 +16,9 @@ internal readonly record struct AreaCurves(double[] Along, double[] Across, doub
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
 public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, ITableNamedByAxes
 {
+    /// <summary>The second curve of an upright fill (<see cref="Orientation"/>): where on the Y axis the fill ends, at
+    /// each X position. <see langword="null"/> fills down to Y = 0. A horizontal fill uses <see cref="XData2"/> and
+    /// leaves this alone.</summary>
     public double[]? YData2 { get; set; }
 
     /// <summary>Which way the fill lies: <see cref="BarOrientation.Vertical"/> (the default) fills between curves of Y over
@@ -30,29 +33,40 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     /// <see cref="YData2"/> and leaves this alone.</summary>
     public double[]? XData2 { get; set; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.3;
 
+    /// <summary>The dash pattern of the line along the top edge of the area. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
+    /// <summary>The thickness of the line along the top edge of the area, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>The exact fill colour of the area. When set it is used as given, ignoring <see cref="Alpha"/>; when
+    /// null the fill is the series colour at <see cref="Alpha"/> opacity.</summary>
     public Color? FillColor { get; set; }
 
+    /// <summary>The pattern of lines or dots laid over the fill. Default none.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
+    /// <summary>The colour of the <see cref="Hatch"/> pattern; null picks a colour that contrasts with the fill.</summary>
     public Color? HatchColor { get; set; }
 
     /// <summary>The colour the fill blends to at the tip of the area; <see langword="null"/> (the default) is a flat fill. The
     /// fill runs in a straight line across the area from the series colour at its baseline (the zero line, or the mean height
     /// of the lower curve) to this colour at the point of the top edge furthest from it, whichever way the axis runs. With a
     /// <see cref="FillColor"/> that colour is the baseline's; the <see cref="Alpha"/> of the series applies to both colours
-    /// otherwise, a hatch is laid over the gradient, and the Maui backend, which paints no gradient, draws the flat fill.</summary>
+    /// otherwise, and a hatch is laid over the gradient. Every backend (SVG, Skia, Maui) draws the gradient.</summary>
     public Color? GradientColor { get; set; }
 
+    /// <inheritdoc />
     public Color? EdgeColor { get; set; }
 
+    /// <summary>How the edges of the area run between data points: the default joins them with straight segments,
+    /// while a step mode holds each value flat until the next point, giving a staircase.</summary>
     public DrawStyle StepMode { get; set; } = DrawStyle.Default;
 
     /// <summary>Optional predicate <c>(x, y) => condition</c> that masks which regions get filled.
@@ -188,10 +202,10 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     /// <remarks>A fill between two lines carries both of them; a fill to the baseline carries one.</remarks>
     public override ChartDataTable? ToDataTable() =>
         Orientation == BarOrientation.Horizontal
-            ? HorizontalTable()
+            ? this.WithRowKeys(HorizontalTable())
             : YData2 is { Length: > 0 } second
-            ? ChartDataTable.FromNumberColumns(
-                [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("y2", Axis: DataAxis.Y)], [XData, YData, second])
+            ? this.WithRowKeys(ChartDataTable.FromNumberColumns(
+                [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("y2", Axis: DataAxis.Y)], [XData, YData, second]))
             : base.ToDataTable();
 
     /// <inheritdoc />

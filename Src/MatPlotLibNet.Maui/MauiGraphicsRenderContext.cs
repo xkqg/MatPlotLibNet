@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Microsoft.Maui.Graphics;
-using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 using MplFont = MatPlotLibNet.Styling.Font;
@@ -51,7 +50,6 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawPolygon(IReadOnlyList<MplPoint> points, ShapeStyle shape)
     {
-        AnnounceUnsupportedHatch(shape);
         var path = new PathF();
         if (points.Count > 0)
         {
@@ -63,8 +61,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
 
         if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
-            _canvas.FillPath(path);
+            Fill(shape, path.Bounds, () => _canvas.FillPath(path));
         }
         if (shape.HasVisibleStroke)
         {
@@ -77,11 +74,10 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawCircle(MplPoint center, double radius, ShapeStyle shape)
     {
-        AnnounceUnsupportedHatch(shape);
         if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
-            _canvas.FillCircle((float)center.X, (float)center.Y, (float)radius);
+            var bounds = new RectF((float)(center.X - radius), (float)(center.Y - radius), (float)(2 * radius), (float)(2 * radius));
+            Fill(shape, bounds, () => _canvas.FillCircle((float)center.X, (float)center.Y, (float)radius));
         }
         if (shape.HasVisibleStroke)
         {
@@ -94,11 +90,10 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawRectangle(MplRect rect, ShapeStyle shape)
     {
-        AnnounceUnsupportedHatch(shape);
         if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
-            _canvas.FillRectangle((float)rect.X, (float)rect.Y, (float)rect.Width, (float)rect.Height);
+            var bounds = new RectF((float)rect.X, (float)rect.Y, (float)rect.Width, (float)rect.Height);
+            Fill(shape, bounds, () => _canvas.FillRectangle(bounds.X, bounds.Y, bounds.Width, bounds.Height));
         }
         if (shape.HasVisibleStroke)
         {
@@ -111,11 +106,10 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawEllipse(MplRect bounds, ShapeStyle shape)
     {
-        AnnounceUnsupportedHatch(shape);
         if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
-            _canvas.FillEllipse((float)bounds.X, (float)bounds.Y, (float)bounds.Width, (float)bounds.Height);
+            var box = new RectF((float)bounds.X, (float)bounds.Y, (float)bounds.Width, (float)bounds.Height);
+            Fill(shape, box, () => _canvas.FillEllipse(box.X, box.Y, box.Width, box.Height));
         }
         if (shape.HasVisibleStroke)
         {
@@ -145,7 +139,6 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
-        AnnounceUnsupportedHatch(shape);
         var path = new PathF();
         foreach (var seg in segments)
         {
@@ -163,6 +156,17 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
                         (float)b.Control2.X, (float)b.Control2.Y,
                         (float)b.End.X, (float)b.End.Y);
                     break;
+                case ArcSegment arc:
+                    // The path builder has lines and curves and no arc: the arc is followed with the curves that
+                    // BezierSegment-based backends share (ArcSegmentExtensions), where it used to be dropped.
+                    foreach (var curve in arc.ToBeziers())
+                    {
+                        path.CurveTo(
+                            (float)curve.Control1.X, (float)curve.Control1.Y,
+                            (float)curve.Control2.X, (float)curve.Control2.Y,
+                            (float)curve.End.X, (float)curve.End.Y);
+                    }
+                    break;
                 case CloseSegment:
                     path.Close();
                     break;
@@ -171,8 +175,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
 
         if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
-            _canvas.FillPath(path);
+            Fill(shape, path.Bounds, () => _canvas.FillPath(path));
         }
         if (shape.HasVisibleStroke)
         {
@@ -197,12 +200,9 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public MplSize MeasureText(string text, MplFont font)
-    {
-        double width = text.Length * font.Size * 0.6;
-        double height = font.Size * 1.2;
-        return new MplSize(width, height);
-    }
+    /// <remarks>The library's own metrics, the ones the layout measured every label with: a canvas that measured with
+    /// a width of its own would place text the layout had left room of another width for.</remarks>
+    public MplSize MeasureText(string text, MplFont font) => FontMetricsDefault.Current.Measure(text, font);
 
     /// <inheritdoc />
     public void SetOpacity(double opacity)
@@ -210,20 +210,64 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
         _canvas.Alpha = (float)opacity;
     }
 
-    /// <summary>The MAUI canvas has no hatch primitive on this backend, so a hatched shape degrades to its
-    /// flat fill. It does NOT do so silently: a style that renders on one backend and vanishes on another is
-    /// the divergence that makes an operator trust the wrong picture, so the drop is announced on the
-    /// library's diagnostics channel and a subscriber can see exactly what was not painted.</summary>
-    private void AnnounceUnsupportedHatch(ShapeStyle shape)
+    /// <summary>Fills a shape the way the other backends do: the flat fill first, a gradient over it when the style has one,
+    /// and the hatch over that. <paramref name="fill"/> paints the shape's outline with whatever paint is set, so it is
+    /// called once for each layer.</summary>
+    /// <param name="shape">The style.</param>
+    /// <param name="bounds">The shape's bounding box: a gradient's ends and the origin of a pattern are relative to it.</param>
+    /// <param name="fill">Paints the shape's outline with the canvas' current fill paint.</param>
+    private void Fill(ShapeStyle shape, RectF bounds, Action fill)
     {
-        if (!shape.HasVisibleHatch)
+        _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
+
+        if (shape.HasVisibleGradient && bounds.Width > 0 && bounds.Height > 0)
         {
-            return;
+            _canvas.SetFillPaint(GradientPaintOf(shape.Gradient!.Value, bounds), bounds);
         }
 
-        ChartDiagnostics.Emit(new ChartDiagnostic(
-            nameof(MauiGraphicsRenderContext),
-            $"Hatch pattern '{shape.Hatch}' is not supported by the MAUI canvas; the shape is painted with its flat fill instead.",
-            null));
+        fill();
+
+        if (shape.HasVisibleHatch)
+        {
+            Microsoft.Maui.Graphics.Color strokes = (shape.HatchColor ?? shape.Fill!.Value.ContrastingTextColor()).ToMauiColor();
+            _canvas.SetFillPaint(new PatternPaint { Pattern = new HatchTilePattern(shape.Hatch, strokes) }, bounds);
+            fill();
+        }
+    }
+
+    /// <summary>A linear gradient paint for <paramref name="gradient"/>: the canvas takes its two ends as fractions of the
+    /// rectangle it is set for, and the style gives them in the units of the picture.</summary>
+    private static LinearGradientPaint GradientPaintOf(LinearGradient gradient, RectF bounds) => new()
+    {
+        StartColor = gradient.StartColor.ToMauiColor(),
+        EndColor = gradient.EndColor.ToMauiColor(),
+        StartPoint = new Microsoft.Maui.Graphics.Point((gradient.Start.X - bounds.X) / bounds.Width, (gradient.Start.Y - bounds.Y) / bounds.Height),
+        EndPoint = new Microsoft.Maui.Graphics.Point((gradient.End.X - bounds.X) / bounds.Width, (gradient.End.Y - bounds.Y) / bounds.Height),
+    };
+
+    /// <summary>The tile of a hatch, as a pattern a canvas repeats over a fill: the marks <see cref="HatchTile"/> says, the
+    /// same the SVG pattern and the raster shader draw.</summary>
+    private sealed class HatchTilePattern(HatchPattern hatch, Microsoft.Maui.Graphics.Color strokes)
+        : AbstractPattern((float)HatchTile.Size, (float)HatchTile.Size)
+    {
+        /// <inheritdoc />
+        public override void Draw(ICanvas canvas)
+        {
+            canvas.StrokeColor = strokes;
+            canvas.StrokeSize = 1f;
+            canvas.FillColor = strokes;
+
+            foreach (var mark in HatchTile.MarksOf(hatch))
+            {
+                if (mark.Kind == HatchMarkKind.Dot)
+                {
+                    canvas.FillCircle((float)mark.X1, (float)mark.Y1, 1f);
+                }
+                else
+                {
+                    canvas.DrawLine((float)mark.X1, (float)mark.Y1, (float)mark.X2, (float)mark.Y2);
+                }
+            }
+        }
     }
 }

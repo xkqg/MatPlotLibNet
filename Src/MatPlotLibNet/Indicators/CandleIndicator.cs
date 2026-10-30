@@ -11,16 +11,22 @@ namespace MatPlotLibNet.Indicators;
 public abstract class CandleIndicator<TResult> : Indicator<TResult>
     where TResult : IIndicatorResult
 {
+    /// <summary>The open price of each bar. Empty when the bars were built without it, which is so for every indicator that does not read it.</summary>
     protected double[] Open { get; }
 
+    /// <summary>The high price of each bar.</summary>
     protected double[] High { get; }
 
+    /// <summary>The low price of each bar.</summary>
     protected double[] Low { get; }
 
+    /// <summary>The close price of each bar.</summary>
     protected double[] Close { get; }
 
+    /// <summary>The traded volume of each bar. Empty when the bars were built without it, which is so for every indicator that does not read it.</summary>
     protected double[] Volume { get; }
 
+    /// <summary>The number of bars the derived computations walk: the length of the shortest of <see cref="High"/>, <see cref="Low"/> and <see cref="Close"/>.</summary>
     protected int BarCount { get; }
 
     /// <summary>Creates a new candle indicator from the given bars.</summary>
@@ -43,8 +49,7 @@ public abstract class CandleIndicator<TResult> : Indicator<TResult>
         var tr = new double[n - 1];
         for (int i = 0; i < n - 1; i++)
         {
-            double h = High[i + 1], l = Low[i + 1], pc = Close[i];
-            tr[i] = Math.Max(h - l, Math.Max(Math.Abs(h - pc), Math.Abs(l - pc)));
+            tr[i] = PriceSources.TrueRange(High[i + 1], Low[i + 1], Close[i]);
         }
         return tr;
     }

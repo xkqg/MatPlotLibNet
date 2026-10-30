@@ -16,11 +16,24 @@ public sealed class DonutSeries : ChartSeries
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The size of each slice, in any unit: a slice covers its share of the total. A slice that cannot be
+    /// drawn (NaN or infinite) counts as zero and draws no wedge.</summary>
     public double[] Sizes { get; }
+    /// <summary>The name of each slice, by position; it names the slices in the series' data table and in the saved
+    /// chart, but the donut draws no text beside its wedges. <see langword="null"/> leaves the slices
+    /// unnamed.</summary>
     public string[]? Labels { get; set; }
+    /// <summary>The colour of each slice, by position; a slice past the end of the array, or every slice when this is
+    /// <see langword="null"/>, takes the colour the figure's theme hands out at its position.</summary>
     public Color[]? Colors { get; set; }
+    /// <summary>Radius of the hole as a fraction of the outer radius: 0 is a full pie, values towards 1 give a thinner
+    /// ring. Default 0.4.</summary>
     public double InnerRadius { get; set; } = 0.4;
+    /// <summary>Text drawn in bold in the middle of the hole, such as a total; <see langword="null"/> (the default)
+    /// draws none.</summary>
     public string? CenterText { get; set; }
+    /// <summary>The angle in degrees at which the first slice begins; the default 90 is straight up. The slices follow
+    /// in the order of <see cref="Sizes"/>.</summary>
     public double StartAngle { get; set; } = 90;
 
     /// <summary>Initializes a new <see cref="DonutSeries"/> with the given slice sizes.</summary>

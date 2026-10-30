@@ -119,6 +119,38 @@ var anim = new FuncAnimation(
 anim.Save("growing_bars.gif");
 ```
 
+## One SVG that steps through its frames
+
+A GIF needs an image viewer that animates it. `SaveStepThroughSvg` writes every frame into one SVG file that carries its own slider, a
+play button and the arrow keys, and needs no server and no player:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Animation;
+
+double[] times = [.. Enumerable.Range(0, 60).Select(i => i * 0.1)];
+
+var waveSteps = new AnimationBuilder(frameCount: 8, frame =>
+    Plt.Create()
+        .WithTitle($"Wave, phase {frame}")
+        .WithSize(560, 320)
+        .Plot(times, [.. times.Select(v => Math.Sin(v + frame * 0.4))])
+        .Build())
+{
+    Interval = TimeSpan.FromMilliseconds(400),
+    Loop = true,
+};
+
+waveSteps.SaveStepThroughSvg("wave_steps.svg");
+```
+
+![A sine wave on a plot titled Wave, phase 0](../images/wave_steps.svg)
+
+Without its script the file is its first frame, which is what an `<img>`, a README or a viewer that runs nothing shows, and a reader who
+asked their system for reduced motion gets no autoplay. Open the file itself to step: Home and End go to the ends, the space bar plays and
+pauses, and a click on the track goes to that frame. The file is as large as all its frames together: no frame is dropped or shared.
+`FuncAnimation.Save` writes the same file for a `.svg` path.
+
 ## Fluent API reference
 
 | Class / Method | Parameters | Description |

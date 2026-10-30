@@ -41,6 +41,11 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     /// <inheritdoc />
     public event Action<OhlcBar>? BarAppended;
 
+    /// <summary>Fired after each bar is appended, carrying it with its volume: the volume the bar came with, or NaN when it
+    /// came without one. It is the event an indicator that reads the volume is attached to; the series itself keeps the
+    /// prices only, so a volume reaches the indicators attached while the bar arrives and is not kept, written or drawn.</summary>
+    public event Action<OhlcvBar>? OhlcvBarAppended;
+
     /// <summary>Initializes a new streaming candlestick series.</summary>
     /// <param name="capacity">Maximum bars retained. Default 5,000.</param>
     public StreamingCandlestickSeries(int capacity = 5_000)
@@ -54,11 +59,18 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
         AppendBar(new OhlcBar(open, high, low, close));
 
     /// <inheritdoc />
-    public void AppendBar(OhlcBar bar)
+    /// <remarks>The bar has no volume (NaN) for <see cref="OhlcvBarAppended"/>.</remarks>
+    public void AppendBar(OhlcBar bar) => AppendBar(OhlcvBar.From(bar));
+
+    /// <summary>Appends a bar with its volume. The prices are kept and go to <see cref="BarAppended"/>; the bar whole goes to
+    /// <see cref="OhlcvBarAppended"/>. Every other way in ends here.</summary>
+    /// <param name="bar">The bar; its volume is NaN when it has none.</param>
+    public void AppendBar(OhlcvBar bar)
     {
-        _bars.Append(bar);
+        _bars.Append(bar.Ohlc);
         Interlocked.Increment(ref _version);
-        BarAppended?.Invoke(bar);
+        BarAppended?.Invoke(bar.Ohlc);
+        OhlcvBarAppended?.Invoke(bar);
     }
 
     /// <inheritdoc />

@@ -10,28 +10,48 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a histogram series that bins continuous data into discrete intervals.</summary>
 public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdgeColor
 {
+    /// <summary>The raw observations to bin; a missing value (NaN) or an infinity is not counted.</summary>
     public double[] Data { get; }
 
+    /// <summary>The number of equal-width bins the range of the data is divided into. Default 10.</summary>
     public int Bins { get; set; } = 10;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <inheritdoc />
     public Color? EdgeColor { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 1.0;
 
+    /// <summary>When <see langword="true"/> the bar heights are scaled so that all bars together cover an area of 1,
+    /// instead of showing counts. Default <see langword="false"/>.</summary>
     public bool Density { get; set; } = false;
 
+    /// <summary>When <see langword="true"/> each bar shows the running total of its bin and every bin before it,
+    /// instead of its own height. Default <see langword="false"/>.</summary>
     public bool Cumulative { get; set; } = false;
 
+    /// <summary>How the bins are drawn: as separate bars (<c>Bar</c>, the default), as an unfilled step outline
+    /// (<c>Step</c>) or as a filled one (<c>StepFilled</c>).</summary>
     public HistType HistType { get; set; } = HistType.Bar;
 
+    /// <summary>The weight of each observation, one per entry of <see cref="Data"/>: a bin then rises by the sum of the
+    /// weights of its observations instead of their count. Ignored unless there is exactly one weight per
+    /// observation.</summary>
     public double[]? Weights { get; set; }
 
+    /// <summary>How wide each bar is, as a fraction of its bin: 1 (the default) makes neighbouring bars touch, smaller
+    /// values leave a gap. Only bar histograms use it.</summary>
     public double RWidth { get; set; } = 1.0;
 
+    /// <summary>The pattern laid over the fill of the bars (or of a filled step outline);
+    /// <see cref="HatchPattern.None"/>, the default, leaves them plain.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
+    /// <summary>The colour of the hatch lines; <see langword="null"/> picks a colour that contrasts with the
+    /// fill.</summary>
     public Color? HatchColor { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="HistogramSeries"/> with the specified data.</summary>

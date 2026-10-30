@@ -69,7 +69,7 @@ public class StatTileAnatomyTests
 
     /// <summary>A caption may carry MORE THAN ONE LINE. A tile's gap line answers "is this good or bad", and a
     /// second line answers "measured over what" — two different questions that do not belong on one crowded row
-    /// (reported from the Ait ops wall, 2026-08-30: "threshold 250 · 2148 msg · 1 s" ran wider than its tile).
+    /// (reported from an operations wall, 2026-08-30: "threshold 250 · 2148 msg · 1 s" ran wider than its tile).
     /// Newline-separated, drawn stacked and centred like every other line of the anatomy.</summary>
     [Fact]
     public void ACaptionWithNewlines_IsDrawnAsSTACKEDLines()
@@ -92,7 +92,7 @@ public class StatTileAnatomyTests
 
     /// <summary>An extra caption line does NOT move the headline. The tile's anatomy is FIXED — number, label,
     /// captions, trend strip — because a row of tiles is read as one line of numbers and a stack that centres
-    /// itself moves each number by half of whatever that tile happens to carry (measured on the Ait wall
+    /// itself moves each number by half of whatever that tile happens to carry (measured on an operations wall
     /// 2026-08-31: y = 65, 72 and 79 across one row; owner: *"ik zou de getallen en de tekst daaronder op
     /// dezelfde hoogte plaatsen"*). This supersedes the 2026-08-30 rule that lifted the block instead. The
     /// second line grows DOWN into the room the anatomy reserves, and still never reaches the tile's edge.</summary>
@@ -331,7 +331,7 @@ public class StatTileAnatomyTests
     /// <summary>The label wears the theme's own ink, like the value and the caption above and below it.
     /// <para>It did not: the label was drawn with a Font carrying no Color, so it fell back to black — on an
     /// operator ground (Theme.OpsNight, #191C1E) that is a label nobody can read, while the number right
-    /// above it is perfectly legible. Reported from the Ait console, where it showed up as tiles with
+    /// above it is perfectly legible. Reported from an operations console, where it showed up as tiles with
     /// invisible names.</para></summary>
     [Fact]
     public void TheLabel_WearsTheThemesInk_notABlackFallback()

@@ -34,7 +34,7 @@ public sealed class HoverModifier : IInteractionModifier
         int? axesIndex = _layout.HitTestAxes(args.X, args.Y);
         if (axesIndex is null) return;
 
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex.Value);
+        var coords = _layout.PixelToData(args.X, args.Y, axesIndex.Value);
 
         _sink(new HoverEvent(_chartId, axesIndex.Value, coords!.Value.DataX, coords.Value.DataY));
     }

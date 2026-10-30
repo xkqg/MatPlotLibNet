@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
@@ -14,8 +15,10 @@ public sealed class Adx : CandleIndicator<SignalResult>
 {
     private readonly int _period;
 
+    /// <summary>The colour of the +DI line. <see langword="null"/> (the default) draws it green.</summary>
     public Color? PlusDiColor { get; set; }
 
+    /// <summary>The colour of the -DI line. <see langword="null"/> (the default) draws it red.</summary>
     public Color? MinusDiColor { get; set; }
 
     /// <summary>Creates a new ADX indicator.</summary>
@@ -59,64 +62,20 @@ public sealed class Adx : CandleIndicator<SignalResult>
         int n = Close.Length;
         if (n <= _period * 2) return new([], [], []);
 
-        var tr = new double[n - 1];
-        var plusDm = new double[n - 1];
-        var minusDm = new double[n - 1];
-
-        for (int i = 0; i < n - 1; i++)
+        int length = n - _period * 2;
+        var adx = new double[length];
+        var plusDi = new double[length];
+        var minusDi = new double[length];
+        var step = new AdxStep(_period);
+        for (int i = 0; i < n; i++)
         {
-            double h = High[i + 1], l = Low[i + 1], pc = Close[i];
-            tr[i] = Math.Max(h - l, Math.Max(Math.Abs(h - pc), Math.Abs(l - pc)));
-            double upMove = High[i + 1] - High[i];
-            double downMove = Low[i] - Low[i + 1];
-            plusDm[i] = upMove > downMove && upMove > 0 ? upMove : 0;
-            minusDm[i] = downMove > upMove && downMove > 0 ? downMove : 0;
+            var point = step.Next(High[i], Low[i], Close[i]);
+            if (i < _period * 2) continue;
+            adx[i - _period * 2] = point.Adx;
+            plusDi[i - _period * 2] = point.PlusDi;
+            minusDi[i - _period * 2] = point.MinusDi;
         }
 
-        // Wilder's smoothing for first period
-        double smoothTr = 0, smoothPlusDm = 0, smoothMinusDm = 0;
-        for (int i = 0; i < _period; i++)
-        {
-            smoothTr += tr[i]; smoothPlusDm += plusDm[i]; smoothMinusDm += minusDm[i];
-        }
-
-        int resultLen = n - _period * 2;
-        if (resultLen <= 0) return new([], [], []);
-
-        int dxLen = n - _period - 1;
-        var dx     = new double[dxLen];
-        var pdiArr = new double[dxLen];
-        var mdiArr = new double[dxLen];
-        int dxIdx  = 0;
-
-        for (int i = _period; i < n - 1; i++)
-        {
-            smoothTr = smoothTr - smoothTr / _period + tr[i];
-            smoothPlusDm = smoothPlusDm - smoothPlusDm / _period + plusDm[i];
-            smoothMinusDm = smoothMinusDm - smoothMinusDm / _period + minusDm[i];
-
-            double pdi = smoothTr > 0 ? smoothPlusDm / smoothTr * 100 : 0;
-            double mdi = smoothTr > 0 ? smoothMinusDm / smoothTr * 100 : 0;
-            double diSum = pdi + mdi;
-            dx[dxIdx]     = diSum > 0 ? Math.Abs(pdi - mdi) / diSum * 100 : 0;
-            pdiArr[dxIdx] = pdi;
-            mdiArr[dxIdx] = mdi;
-            dxIdx++;
-        }
-
-        // ADX = SMA of DX over period
-        double[] adxValues = new Sma(dx, _period).Compute();
-        int adxLen = adxValues.Length;
-
-        // +DI/-DI aligned to the last bar of each SMA window
-        var plusDiValues  = new double[adxLen];
-        var minusDiValues = new double[adxLen];
-        for (int j = 0; j < adxLen; j++)
-        {
-            plusDiValues[j]  = pdiArr[j + _period - 1];
-            minusDiValues[j] = mdiArr[j + _period - 1];
-        }
-
-        return new(adxValues, plusDiValues, minusDiValues);
+        return new(adx, plusDi, minusDi);
     }
 }

@@ -18,6 +18,7 @@ public sealed class LinearNormalizer : INormalizer, IJsonDescribed<NormalizerDto
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new LinearNormalizerDto();
 
+    /// <summary>The shared instance; the normalizer holds no state.</summary>
     public static LinearNormalizer Instance { get; } = new();
 
     /// <inheritdoc />
@@ -52,6 +53,7 @@ public sealed class TwoSlopeNormalizer : INormalizer, IJsonDescribed<NormalizerD
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new TwoSlopeNormalizerDto(Center);
 
+    /// <summary>The data value that maps to the middle of the colour map (0.5).</summary>
     public double Center { get; }
 
     /// <summary>Creates a two-slope normalizer with the specified center value.</summary>
@@ -121,10 +123,13 @@ public sealed class SymLogNormalizer : INormalizer, IJsonDescribed<NormalizerDto
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new SymLogNormalizerDto(Linthresh, Base, LinScale);
 
+    /// <summary>The half-width of the linear region around zero: values within ±this are scaled linearly, beyond it logarithmically. 1 by default.</summary>
     public double Linthresh { get; }
 
+    /// <summary>The logarithm base of the compressed region beyond ±<see cref="Linthresh"/>. 10 by default.</summary>
     public double Base { get; }
 
+    /// <summary>How much room, in units of the logarithm base, the linear region ±<see cref="Linthresh"/> takes on the transformed scale. 1 by default.</summary>
     public double LinScale { get; }
 
     /// <summary>Creates a symmetric-log normalizer.</summary>
@@ -158,6 +163,7 @@ public sealed class PowerNormNormalizer : INormalizer, IJsonDescribed<Normalizer
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new PowerNormalizerDto(Gamma);
 
+    /// <summary>The exponent applied to the normalized value: below 1 it expands low values, above 1 it compresses them, and 1 (the default) leaves the scale linear.</summary>
     public double Gamma { get; }
 
     /// <summary>Creates a power-norm normalizer with the specified gamma.</summary>
@@ -180,8 +186,10 @@ public sealed class CenteredNormNormalizer : INormalizer, IJsonDescribed<Normali
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new CenteredNormalizerDto(Vcenter, Halfrange);
 
+    /// <summary>The data value that maps to the middle of the colour map (0.5). 0 by default.</summary>
     public double Vcenter { get; }
 
+    /// <summary>When set, the distance either side of <see cref="Vcenter"/> that spans the whole map, which makes the scale symmetric; <see langword="null"/> lets the data's own minimum and maximum bound each side.</summary>
     public double? Halfrange { get; }
 
     /// <summary>Creates a centered normalizer.</summary>
@@ -214,6 +222,7 @@ public sealed class NoNormNormalizer : INormalizer, IJsonDescribed<NormalizerDto
     /// <inheritdoc />
     NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new NoNormNormalizerDto();
 
+    /// <summary>The shared instance; the normalizer holds no state.</summary>
     public static NoNormNormalizer Instance { get; } = new();
 
     /// <inheritdoc />

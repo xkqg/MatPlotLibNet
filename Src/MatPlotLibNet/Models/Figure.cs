@@ -8,6 +8,9 @@ namespace MatPlotLibNet.Models;
 /// <summary>Represents the top-level figure that contains one or more subplot axes.</summary>
 public sealed class Figure
 {
+    /// <summary>The title centred across the top of the figure, above every subplot (matplotlib's suptitle); the layout
+    /// makes room for it. <see langword="null"/> (the default) draws none. A title with a pair of <c>$</c> delimiters is
+    /// typeset as math.</summary>
     public string? Title { get; set; }
 
     /// <summary>Short alternative text for the chart, rendered as the SVG <c>&lt;title&gt;</c> element (falls back to <see cref="Title"/>).</summary>
@@ -16,8 +19,10 @@ public sealed class Figure
     /// <summary>Longer description rendered as the SVG <c>&lt;desc&gt;</c> element and linked via <c>aria-describedby</c>.</summary>
     public string? Description { get; set; }
 
+    /// <summary>The width of the figure in layout units, which are pixels at 96 dpi (see <see cref="Dpi"/>). Default 800.</summary>
     public double Width { get; set; } = 800;
 
+    /// <summary>The height of the figure in layout units, which are pixels at 96 dpi (see <see cref="Dpi"/>). Default 600.</summary>
     public double Height { get; set; } = 600;
 
     /// <summary>The resolution at which one unit of <see cref="Width"/> and <see cref="Height"/> is one pixel: the figure is
@@ -34,14 +39,26 @@ public sealed class Figure
     /// it for one save.</summary>
     public double Dpi { get; set; } = ReferenceDpi;
 
+    /// <summary>The colour the whole figure is filled with. <see langword="null"/> (the default) takes the theme's
+    /// background colour.</summary>
     public Color? BackgroundColor { get; set; }
 
+    /// <summary>The theme that styles the figure: its fonts, colours, grid, spines and default spacing. Default
+    /// <see cref="Styling.Theme.MatplotlibV2"/>.</summary>
     public Theme Theme { get; set; } = Theme.MatplotlibV2;
 
+    /// <summary>The margins around the subplots, the gaps between them and the automatic-layout switches. Left at its
+    /// default, a theme that defines its own spacing supplies it.</summary>
     public SubPlotSpacing Spacing { get; set; } = new();
 
+    /// <summary>The grid the subplots are laid out on, with its optional row and column ratios. <see langword="null"/>
+    /// (the default) lays each subplot out by the rows-by-columns cell it names itself. Set by the first subplot added
+    /// through a grid specification.</summary>
     public GridSpec? GridSpec { get; set; }
 
+    /// <summary>A colour bar for the figure as a whole, drawn outside the area all the subplots cover.
+    /// <see langword="null"/> (the default) draws none; a bar that is not <see cref="ColorBar.Visible"/> is not drawn
+    /// either.</summary>
     public ColorBar? FigureColorBar { get; set; }
 
     /// <summary>Optional chart identifier used by the bidirectional SignalR interaction pipeline.
@@ -57,19 +74,67 @@ public sealed class Figure
     /// Default <see langword="false"/> — existing behaviour is byte-identical.</summary>
     public bool ServerInteraction { get; set; }
 
+    /// <summary>When true, the SVG output embeds a script that zooms with the mouse wheel or keyboard and pans by dragging
+    /// or with the arrow keys. Off by default.</summary>
     public bool EnableZoomPan { get; set; }
 
+    /// <summary>When true, the SVG output embeds a script that hides or shows a series when its legend entry is clicked,
+    /// and lets the legend be dragged. Off by default.</summary>
     public bool EnableLegendToggle { get; set; }
 
+    /// <summary>When true, the SVG output embeds a script that shows styled HTML tooltips in place of the browser's native
+    /// ones. Off by default.</summary>
     public bool EnableRichTooltips { get; set; }
 
+    /// <summary>When true, the SVG output embeds a script that dims the other series while the pointer or keyboard focus is
+    /// on one. Off by default.</summary>
     public bool EnableHighlight { get; set; }
 
+    /// <summary>When true, the SVG output embeds a script that draws a selection rectangle when the reader drags with
+    /// Shift held down. Off by default.</summary>
     public bool EnableSelection { get; set; }
+
+    private string? _selectionGroup;
+    private IReadOnlyList<string>? _selectedRows;
+
+    /// <summary>The name that links this chart to the others of the same data on a page: a brush on one chart lights the same rows
+    /// (<c>XYSeries.RowKeys</c>) on every chart that shares the name, through the window (<c>mpl:rows</c>), with no server in
+    /// between. <see langword="null"/> (the default) links to nothing. The brush that selects the rows is
+    /// <see cref="EnableSelection"/>, which <c>FigureBuilder.LinkSelection</c> switches on together with the group.</summary>
+    /// <exception cref="ArgumentException">The name is blank.</exception>
+    public string? SelectionGroup
+    {
+        get => _selectionGroup;
+        set => _selectionGroup = value is null || !string.IsNullOrWhiteSpace(value)
+            ? value
+            : throw new ArgumentException("A selection group needs a name; null links to nothing, a blank name is a mistake.", nameof(SelectionGroup));
+    }
+
+    /// <summary>The rows (<c>XYSeries.RowKeys</c>) this chart starts with selected: the application's own state, restored with the
+    /// chart and carried in the JSON. What the reader brushes afterwards is theirs and stays in their browser.
+    /// <see langword="null"/> (the default) starts with nothing selected.</summary>
+    /// <exception cref="ArgumentException">A key is blank; the rows the figure had are kept.</exception>
+    public IReadOnlyList<string>? SelectedRows
+    {
+        get => _selectedRows;
+        set => _selectedRows = value is null || value.All(key => !string.IsNullOrWhiteSpace(key))
+            ? value
+            : throw new ArgumentException("A selected row is the key of a row, and no key is blank.", nameof(SelectedRows));
+    }
+
+    /// <summary>The view each axes had before an interaction first moved it: where Home goes back to
+    /// (<see cref="FigureHome"/>). Session state, not part of the drawing, so it is neither settable nor serialised.</summary>
+    internal FigureHome Home { get; } = new();
 
     /// <summary>Whether a click on a data point is reported to the server as a data-cursor event. Server
     /// interaction only; the native controls raise their own <c>DataPointClicked</c> event in process.</summary>
     public bool EnableDataCursor { get; set; }
+
+    /// <summary>Whether the viewers of a server-interactive chart see each other's pointers: the page sends where its
+    /// pointer is, the server relays it to the other viewers of the chart, and the page draws theirs with the name the
+    /// chart gave them. Needs <see cref="ServerInteraction"/>; off by default, because a moving pointer is a message
+    /// every fifty milliseconds to every other viewer.</summary>
+    public bool EnableViewerCursors { get; set; }
 
     /// <summary>When true, embeds a JavaScript 3D rotation handler in the SVG output.</summary>
     public bool Enable3DRotation { get; set; }
@@ -88,7 +153,7 @@ public sealed class Figure
     public bool EnableSankeyHover { get; set; }
 
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
-    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || EnableDataCursor || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
+    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || SelectionGroup is not null || EnableDataCursor || EnableViewerCursors || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
 
     /// <summary>Configurable opacity / transition tokens for the embedded interaction
     /// scripts. Defaults to <see cref="InteractionTheme.Default"/> (the values the scripts hard-coded

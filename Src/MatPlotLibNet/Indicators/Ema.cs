@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 
@@ -23,12 +24,9 @@ public sealed class Ema : PriceIndicator<SignalResult>
     {
         if (Prices.Length < _period) return Array.Empty<double>();
         var result = new double[Prices.Length];
-        double multiplier = 2.0 / (_period + 1);
-        double sum = 0;
-        for (int i = 0; i < _period; i++) { result[i] = double.NaN; sum += Prices[i]; }
-        result[_period - 1] = sum / _period;
-        for (int i = _period; i < Prices.Length; i++)
-            result[i] = (Prices[i] - result[i - 1]) * multiplier + result[i - 1];
+        var step = new EmaStep(_period);
+        for (int i = 0; i < Prices.Length; i++)
+            result[i] = step.Next(Prices[i]);
         return result;
     }
 

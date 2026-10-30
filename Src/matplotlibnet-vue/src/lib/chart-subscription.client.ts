@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import * as signalR from '@microsoft/signalr';
 
@@ -12,6 +12,12 @@ export class ChartSubscriptionClient {
   private connection: signalR.HubConnection | null = null;
   private onSvgUpdatedHandler: ((chartId: string, svg: string) => void) | null = null;
   private onChartUpdatedHandler: ((chartId: string, json: string) => void) | null = null;
+  private readonly subscribed = new Set<string>();
+
+  /** The SignalR connection, which a chart's script reaches the server through, or `null` while not connected. */
+  get hub(): signalR.HubConnection | null {
+    return this.connection;
+  }
 
   /** Whether the client is currently connected to the hub. */
   get isConnected(): boolean {
@@ -33,8 +39,12 @@ export class ChartSubscriptionClient {
       this.onChartUpdatedHandler?.(chartId, json);
     });
 
+    // A reconnect is a new connection to the server, with none of the groups the old one joined: every chart this
+    // client had subscribed to is subscribed to again, so a chart does not go silent for good after a network blip.
     this.connection.onreconnected(async () => {
-      // Re-subscribe logic is handled by the component
+      for (const chartId of this.subscribed) {
+        await this.connection?.invoke('Subscribe', chartId);
+      }
     });
 
     await this.connection.start();
@@ -43,10 +53,12 @@ export class ChartSubscriptionClient {
   /** Subscribes to updates for the specified chart. */
   async subscribe(chartId: string): Promise<void> {
     await this.connection?.invoke('Subscribe', chartId);
+    this.subscribed.add(chartId);
   }
 
   /** Unsubscribes from chart updates. */
   async unsubscribe(chartId: string): Promise<void> {
+    this.subscribed.delete(chartId);
     await this.connection?.invoke('Unsubscribe', chartId);
   }
 

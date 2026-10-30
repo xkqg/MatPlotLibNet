@@ -1,12 +1,12 @@
 ﻿# MatPlotLibNet — matplotlib for .NET
 
 MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
-[matplotlib](https://matplotlib.org/). It draws 86 chart types and saves them as SVG, PNG, PDF or an animated GIF,
+[matplotlib](https://matplotlib.org/). It draws 91 chart types and saves them as SVG, PNG, PDF or an animated GIF,
 straight from your server code. It does not need a JavaScript framework, a WebView or a hosted service.
 
 It has a fluent API and it works with dependency injection. It ships with 148 colormaps, 30 themes, 13 map
-projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 59
-technical indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
+projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming (57 of its 59
+technical indicators have a streaming form), a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
 and an MCP server so an AI agent can draw with it. Charts render natively in Blazor, WPF, MAUI, Avalonia, Uno and
 ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for Angular, React and Vue.
 
@@ -18,13 +18,20 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.27.0** finishes the roadmap. A word cloud, a chord diagram, a ternary plot and a Piper diagram are new charts, a
+selection in one chart can light the same rows in another, and an animation can be saved as one SVG that steps through
+its frames. A live chart sends its own gestures, one handler interface receives them, and several viewers of one chart
+share it by design. The native controls return Home to the first view, the MAUI view reaches the same functions, and the
+Windows heads are tested by CI. 57 of the 59 indicators have a streaming form that follows each new bar, and transfer
+entropy follows a window.
+
 **1.26.0** gives marks that are a size in data units a home. A waffle chart, a calendar of events, Point and Figure
 and Renko charts draw squares, stripes and boxes that tile the plot area, and Kagi draws its thick and thin lines. A
 fill can run from one colour to another, an arrow can follow a connected scatter, and the frame of a plot can be
 trimmed: a spine spans only the data's range, a plot keeps an equal scale on request, and parallel coordinates label
 every column in its own units. An icicle chart, an arc diagram and a stem-and-leaf plot join the layouts, a waterfall
 chart can mark a target on each bar, and the comparison with matplotlib now runs in CI. Three new series types (the
-waffle chart, Point and Figure and the icicle chart) bring the count to 86 chart types, and six new verbs (`CalendarEvents`,
+waffle chart, Point and Figure and the icicle chart) join the chart types, and six new verbs (`CalendarEvents`,
 `Renko`, `Kagi`, `ConnectedScatter`, `StemAndLeaf`, `MatShow`) bring the chart verbs to 26.
 
 **1.25.0** gives each value a chart resolves one owner that every reader asks. The colour bar puts its ticks where the
@@ -119,15 +126,15 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (948 classes, at
-99.8 % line / 98.7 % branch) across 24,382 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,094 classes, at
+99.8 % line / 98.8 % branch) across 25,667 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib, and CI runs it.
 
 ---
 
 ## Documentation
 
-- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 86 chart types, the
+- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 91 chart types, the
   control room, styling, streaming, SignalR, packages
 - **[From matplotlib to C#](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html)** — the pyplot call you know, and the line that draws it here
 - **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** — copy-paste examples with rendered output
@@ -187,7 +194,7 @@ Plt.Create()
 
 ## Features
 
-**86 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, Point and Figure, treemap, sunburst, icicle, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waffle, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, twenty-six one-call chart verbs (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `CalendarHeatmap`, `Spy`, `MatShow`, `CalendarEvents`, `Renko`, `Kagi`, `ConnectedScatter`, `StemAndLeaf`) are built from those series, so they add none to the count and travel through JSON as their parts.
+**91 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, Point and Figure, treemap, sunburst, icicle, Sankey, chord, word cloud, ternary (scatter and line), Piper, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waffle, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, twenty-six one-call chart verbs (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `CalendarHeatmap`, `Spy`, `MatShow`, `CalendarEvents`, `Renko`, `Kagi`, `ConnectedScatter`, `StemAndLeaf`) are built from those series, so they add none to the count and travel through JSON as their parts.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over
@@ -204,7 +211,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Control room** — `Plt.OpsDashboard()` builds one operator screen: KPI tiles across the top, state timelines under them, a topology panel showing which service calls which (`AddTopology`), and a shared trend panel. All of them use one time window that the caller supplies; the library never reads the wall clock. A tile carries a `Target`, a multi-line `Caption` that wraps, an inline sparkline, and an `OpsCondition` saying what it is in. That condition has two axes on purpose: `OpsSeverity` (normal, warning, critical) is the only one that compares, and `OpsVisibility` (observed, unknown, shelved) says whether the reading can be believed and whether someone silenced it — a silent source is not a degraded one, and a muted alarm is not a solved problem. `OpsCondition.RollUp` reads a set of children the way an operator does: the worst child that can be seen decides the colour, the unseen and the muted are counted. `WithEventMarker` puts a deploy or an incident on every panel that has a clock. `Theme.Alarm` defines the reserved alarm colours, and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 
-**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. The controls also have a toolbar state model, view history (back/forward), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart. A server-driven chart reports the same click to its `OnDataCursor` handler.
+**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. The controls also have a toolbar state model, view history (back/forward), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart. A server-driven chart reports the same click to its `OnDataCursor` handler. Home goes back to the view the chart started with, however many zooms and repaints came between. A control's `ChartEventHandler` takes one `IChartEventHandler`, the interface a server session takes too, that is told of every gesture, not only the click; the WPF and MAUI controls carry it as well, and on MAUI a finger does what the mouse does (a drag pans, zooms into a rectangle or selects, a pinch zooms, a double tap is Home) once `IsInteractive` is set.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It supports 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
@@ -212,7 +219,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **3-D charts** — 12 series types: Surface, Wireframe, Scatter3D, Stem3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). The 3-D support includes a full `Projection3D` pipeline, a `DepthQueue3D` painter's algorithm, shading from `Vec3.FaceNormal` plus the `Color.Shade()`/`Color.Modulate()` extension methods, `Svg3DRotationScript` for client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection`: the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, both server-side and during a drag), a configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
-**Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries` and `StreamingCandlestickSeries` are backed by `RingBuffer<T>` and add points with `AppendPoint(x, y)`. A `RingBuffer<T>` is a fixed-capacity circular sequence of any type (64 M appends/s, and it never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) attach automatically to candlestick data. Streaming controls exist for WPF, Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. The library includes an SVG diff engine to save bandwidth, and an Rx `IObservable<T>` adapter.
+**Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries` and `StreamingCandlestickSeries` are backed by `RingBuffer<T>` and add points with `AppendPoint(x, y)`. A `RingBuffer<T>` is a fixed-capacity circular sequence of any type (64 M appends/s, and it never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 57 of the 59 indicators have a streaming form, and `candles.WithStreaming(axes, indicator)` attaches any of them to candlestick data, feeding it the prices and the volume of each bar (the form of each indicator says the same as the batch indicator over every bar so far; `FibonacciRetracement` and `VolumeProfile` have none, and `StreamingMap` says why). Streaming controls exist for WPF, Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. The library includes an SVG diff engine to save bandwidth, and an Rx `IObservable<T>` adapter.
 
 **Geographic projections** — the `MatPlotLibNet.Geo` package has 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, EqualEarth, Mollweide, Natural Earth, Sinusoidal, Stereographic), a GeoJSON parser and writer, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A map axes has one projection that every layer reads, a region with a hole is drawn with the hole, the map comes back whole from JSON, and `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram` and `Dorling` put data on it. A symlog axis scale handles data that spans positive and negative ranges.
 

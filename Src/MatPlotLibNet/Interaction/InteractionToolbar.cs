@@ -36,14 +36,23 @@ public sealed class InteractionToolbar
     /// <summary>Button IDs used by <see cref="Activate"/> and <see cref="CreateDefault"/>.</summary>
     public static class ToolIds
     {
+        /// <summary>The button ID of the pan tool (<see cref="ToolMode.Pan"/>).</summary>
         public const string Pan       = "pan";
+        /// <summary>The button ID of the rectangle-zoom tool (<see cref="ToolMode.Zoom"/>).</summary>
         public const string Zoom      = "zoom";
+        /// <summary>The button ID of the 3D rotation tool (<see cref="ToolMode.Rotate3D"/>); the default toolbar offers it only for a figure with a 3D axes.</summary>
         public const string Rotate3D  = "rotate3d";
+        /// <summary>The button ID of the Reset View button. It is an action, not a tool mode: <see cref="Activate"/> ignores it and the active tool stays as it was.</summary>
         public const string Home      = "home";
+        /// <summary>The button ID of the data-cursor tool (<see cref="ToolMode.DataCursor"/>).</summary>
         public const string Cursor    = "cursor";
+        /// <summary>The button ID of the X-range selection tool (<see cref="ToolMode.SpanSelect"/>).</summary>
         public const string Span      = "span";
+        /// <summary>The button ID of the trendline drawing tool (<see cref="ToolMode.Trendline"/>).</summary>
         public const string Trendline = "trendline";
+        /// <summary>The button ID of the horizontal-level drawing tool (<see cref="ToolMode.Level"/>).</summary>
         public const string Level     = "level";
+        /// <summary>The button ID of the Fibonacci retracement drawing tool (<see cref="ToolMode.Fibonacci"/>).</summary>
         public const string Fibonacci = "fibonacci";
     }
 

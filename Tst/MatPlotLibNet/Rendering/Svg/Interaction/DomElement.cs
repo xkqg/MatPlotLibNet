@@ -40,6 +40,10 @@ public sealed class DomElement
 
     public string? getAttribute(string name) => Xml.Attribute(name)?.Value;
 
+    /// <summary>The expando a live chart component gives its host element: the connection proxy the chart's script reaches
+    /// the server through. A property here because the stub element is a CLR object and cannot grow members from a script.</summary>
+    public object? __mplHub { get; set; }
+
     /// <summary>Mirrors DOM <c>element.innerHTML</c> as text: what is assigned is kept as the element's content, not
     /// parsed (the server tooltip writes its HTML here).</summary>
     public string innerHTML { get => Xml.Value; set => Xml.Value = value ?? ""; }
@@ -182,6 +186,27 @@ public sealed class DomElement
         bottom = 40,
     };
 
+    /// <summary>Mirrors DOM <c>element.isConnected</c>: whether the element is in the document. The synthetic document is an
+    /// <c>html</c> element holding the charts, so an element is connected while it has that root above it; one that was
+    /// replaced (<see cref="InteractionScriptHarness.Remount"/>) or removed has none.</summary>
+    public bool isConnected => Xml.Ancestors().Any(ancestor => ancestor.Name.LocalName == "html");
+
+    /// <summary>Mirrors <c>SVGGraphicsElement.getBBox()</c> for the shapes a mark is drawn as, from their attributes: a circle
+    /// by its centre and radius, a rectangle by its corner and size. Anything else has no box (0, 0, 0, 0). No transform is applied
+    /// (marks are not transformed), as the real call does not apply one either.</summary>
+    public DomBox getBBox()
+    {
+        static double Number(XElement element, string name) =>
+            double.TryParse(element.Attribute(name)?.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : 0;
+
+        return Xml.Name.LocalName switch
+        {
+            "circle" => new DomBox { x = Number(Xml, "cx") - Number(Xml, "r"), y = Number(Xml, "cy") - Number(Xml, "r"), width = 2 * Number(Xml, "r"), height = 2 * Number(Xml, "r") },
+            "rect" => new DomBox { x = Number(Xml, "x"), y = Number(Xml, "y"), width = Number(Xml, "width"), height = Number(Xml, "height") },
+            _ => new DomBox(),
+        };
+    }
+
     /// <summary>Stub <c>clientWidth</c> / <c>clientHeight</c> — for SVG elements, reads the
     /// rendered <c>width</c>/<c>height</c> attributes the figure pipeline always emits.
     /// Falls back to 1 (not 0) so divisions don't NaN. Phase C of v1.7.2 follow-on plan
@@ -315,4 +340,13 @@ public sealed class DomBoundingRect
     public double height { get; set; }
     public double right { get; set; }
     public double bottom { get; set; }
+}
+
+/// <summary>The box <c>getBBox()</c> returns: its corner and size.</summary>
+public sealed class DomBox
+{
+    public double x { get; set; }
+    public double y { get; set; }
+    public double width { get; set; }
+    public double height { get; set; }
 }

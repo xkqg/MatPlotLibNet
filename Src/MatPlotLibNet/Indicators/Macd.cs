@@ -9,14 +9,15 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>MACD (Moving Average Convergence Divergence) indicator. Shows trend direction and momentum.</summary>
-/// <remarks>Adds three series: MACD line (fast EMA - slow EMA), signal line (EMA of MACD),
-/// and a histogram (bar series showing the difference). Best placed in a separate subplot.</remarks>
+/// <remarks>Adds three series: MACD line (fast EMA - slow EMA), signal line (the simple moving average of the MACD line over
+/// the signal period), and a histogram (bar series showing the difference). Best placed in a separate subplot.</remarks>
 public sealed class Macd : PriceIndicator<MacdResult>
 {
     private readonly int _fastPeriod;
     private readonly int _slowPeriod;
     private readonly int _signalPeriod;
 
+    /// <summary>The colour of the signal line. <see langword="null"/> (the default) draws it orange.</summary>
     public Color? SignalColor { get; set; }
 
     /// <summary>Creates a new MACD indicator.</summary>
@@ -35,6 +36,8 @@ public sealed class Macd : PriceIndicator<MacdResult>
     /// <inheritdoc />
     public override MacdResult Compute()
     {
+        if (Prices.Length < _slowPeriod) return new MacdResult([], [], []);
+
         double[] fastEma = new Ema(Prices, _fastPeriod).Compute();
         double[] slowEma = new Ema(Prices, _slowPeriod).Compute();
 

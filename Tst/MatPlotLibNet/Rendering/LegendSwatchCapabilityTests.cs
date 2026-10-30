@@ -24,13 +24,15 @@ public class LegendSwatchCapabilityTests
         [typeof(RegressionSeries)] = LegendSwatchKind.Line,
         [typeof(SparklineSeries)] = LegendSwatchKind.SolidLine,
         [typeof(ScatterSeries)] = LegendSwatchKind.Marker,
+        [typeof(TernaryScatterSeries)] = LegendSwatchKind.Marker,
+        [typeof(TernaryLineSeries)] = LegendSwatchKind.Line,
         [typeof(ErrorBarSeries)] = LegendSwatchKind.ErrorBar,
         [typeof(StateTimelineSeries)] = LegendSwatchKind.Stripes,
     };
 
     [Theory]
     [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void EveryShippedSeries_SaysItsSwatch_APatchUnlessItIsOneOfTheTen(ISeries series, string name)
+    public void EveryShippedSeries_SaysItsSwatch_APatchUnlessItIsInTheTable(ISeries series, string name)
     {
         var expected = NotPatches.GetValueOrDefault(series.GetType(), LegendSwatchKind.Patch);
 

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
@@ -21,8 +22,10 @@ public sealed class ParabolicSar : Indicator<ParabolicSarResult>
     private readonly double _step;
     private readonly double _max;
 
+    /// <summary>The colour of the dots drawn below the price, while the trend is up. Green by default.</summary>
     public Color LongColor { get; set; } = Colors.Green;
 
+    /// <summary>The colour of the dots drawn above the price, while the trend is down. Red by default.</summary>
     public Color ShortColor { get; set; } = Colors.Red;
 
     /// <summary>Creates a new Parabolic SAR indicator.</summary>
@@ -45,73 +48,17 @@ public sealed class ParabolicSar : Indicator<ParabolicSarResult>
 
         var sar = new double[n];
         var isLong = new bool[n];
-
-        // Seed: start long if first bar rises
-        bool trending = _high[1] >= _high[0];
-        double af = _step;
-        double ep = trending ? _high[0] : _low[0];
-        sar[0] = trending ? _low[0] : _high[0];
-        isLong[0] = trending;
-
-        for (int i = 1; i < n; i++)
+        var step = new ParabolicSarStep(_step, _max);
+        for (int i = 0; i < n; i++)
         {
-            double prevSar = sar[i - 1];
-
-            if (trending)
-            {
-                // SAR is below price — update EP on new highs
-                if (_high[i] > ep)
-                {
-                    ep = _high[i];
-                    af = Math.Min(af + _step, _max);
-                }
-                double newSar = prevSar + af * (ep - prevSar);
-                // SAR must not exceed the two prior lows
-                if (i >= 2) newSar = Math.Min(newSar, Math.Min(_low[i - 1], _low[i - 2]));
-                else newSar = Math.Min(newSar, _low[i - 1]);
-
-                if (newSar >= _low[i])
-                {
-                    // Reversal to short
-                    trending = false;
-                    af = _step;
-                    ep = _low[i];
-                    sar[i] = ep;
-                }
-                else
-                {
-                    sar[i] = newSar;
-                }
-            }
-            else
-            {
-                // SAR is above price — update EP on new lows
-                if (_low[i] < ep)
-                {
-                    ep = _low[i];
-                    af = Math.Min(af + _step, _max);
-                }
-                double newSar = prevSar + af * (ep - prevSar);
-                // SAR must not exceed the two prior highs
-                if (i >= 2) newSar = Math.Max(newSar, Math.Max(_high[i - 1], _high[i - 2]));
-                else newSar = Math.Max(newSar, _high[i - 1]);
-
-                if (newSar <= _high[i])
-                {
-                    // Reversal to long
-                    trending = true;
-                    af = _step;
-                    ep = _high[i];
-                    sar[i] = ep;
-                }
-                else
-                {
-                    sar[i] = newSar;
-                }
-            }
-            isLong[i] = trending;
+            var point = step.Next(_high[i], _low[i]);
+            sar[i] = point.Sar;
+            isLong[i] = point.IsLong;
         }
 
+        // Bar 0 is given its value once the second bar has been read: the seed of the trend.
+        sar[0] = step.First.Sar;
+        isLong[0] = step.First.IsLong;
         return new ParabolicSarResult(sar, isLong);
     }
 

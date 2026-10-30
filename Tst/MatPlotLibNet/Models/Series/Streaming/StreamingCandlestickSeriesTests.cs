@@ -149,4 +149,53 @@ public sealed class StreamingCandlestickSeriesTests
         s.Clear();
         Assert.Equal(0, s.Count);
     }
+
+    /// <summary>A bar that comes with its volume tells every subscriber of <see cref="StreamingCandlestickSeries.OhlcvBarAppended"/>
+    /// that volume, and tells the older <see cref="StreamingCandlestickSeries.BarAppended"/> the prices alone, as it always did.</summary>
+    [Fact]
+    public void AppendBar_WithAVolume_RaisesBothEvents_EachWithWhatItCarries()
+    {
+        var series = new StreamingCandlestickSeries();
+        OhlcBar? prices = null;
+        OhlcvBar? traded = null;
+        series.BarAppended += bar => prices = bar;
+        series.OhlcvBarAppended += bar => traded = bar;
+
+        series.AppendBar(new OhlcvBar(10, 12, 9, 11, 500));
+
+        Assert.Equal(new OhlcBar(10, 12, 9, 11), prices);
+        Assert.Equal(new OhlcvBar(10, 12, 9, 11, 500), traded);
+    }
+
+    /// <summary>Every way in without a volume ends in the same place: the volume event, with NaN.</summary>
+    [Fact]
+    public void AppendBar_WithoutAVolume_RaisesTheVolumeEventWithNaN_ByEveryRoute()
+    {
+        var series = new StreamingCandlestickSeries();
+        var volumes = new List<double>();
+        series.OhlcvBarAppended += bar => volumes.Add(bar.Volume);
+
+        series.AppendBar(1, 2, 0.5, 1.5);
+        series.AppendBar(new OhlcBar(1, 2, 0.5, 1.5));
+
+        Assert.Equal(2, volumes.Count);
+        Assert.All(volumes, v => Assert.True(double.IsNaN(v)));
+    }
+
+    /// <summary>The volume is for the indicators attached while the bar arrives; the series keeps the prices.</summary>
+    [Fact]
+    public void AppendBar_WithAVolume_StoresThePricesOnly()
+    {
+        var series = new StreamingCandlestickSeries();
+
+        series.AppendBar(new OhlcvBar(10, 12, 9, 11, 500));
+
+        var snapshot = series.CreateOhlcSnapshot();
+        Assert.Equal([10.0], snapshot.Open);
+        Assert.Equal([12.0], snapshot.High);
+        Assert.Equal([9.0], snapshot.Low);
+        Assert.Equal([11.0], snapshot.Close);
+        Assert.Equal(1, series.Count);
+        Assert.Equal(1, series.Version);
+    }
 }

@@ -6,10 +6,9 @@ using MatPlotLibNet.Indicators.Streaming;
 
 namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
-/// <summary>Coverage uplift Batch D — full coverage for <see cref="StreamingObv"/> (was 0%).
-/// Verifies the cumulative OBV formula across both <c>AppendWithVolume</c> and the
-/// volume-less <c>AppendCandle</c> code paths, including the equal-close branch and
-/// ring-buffer eviction on capacity overflow.</summary>
+/// <summary>The cumulative OBV formula across <c>AppendWithVolume</c> and the volume-less <c>AppendCandle</c> path,
+/// including the equal-close branch and ring-buffer eviction on capacity overflow. The sum is the batch <see cref="Obv"/>:
+/// the first bar opens it with its own volume, and a bar without a volume makes it NaN.</summary>
 public sealed class StreamingObvTests
 {
     [Fact]
@@ -29,32 +28,32 @@ public sealed class StreamingObvTests
     }
 
     [Fact]
-    public void FirstBar_OutputIsZero_AndWarmupSatisfied()
+    public void FirstBar_OpensTheSumWithItsVolume_AndWarmupSatisfied()
     {
         var obv = new StreamingObv();
         obv.AppendWithVolume(100, 50);
 
         Assert.True(obv.IsWarmedUp); // WarmupPeriod = 1
-        Assert.Equal(0.0, obv.GetLatest());
+        Assert.Equal(50.0, obv.GetLatest());
     }
 
     [Fact]
     public void AppendWithVolume_RisingClose_AddsVolume()
     {
         var obv = new StreamingObv();
-        obv.AppendWithVolume(100, 50); // OBV=0  (seed)
-        obv.AppendWithVolume(102, 30); // OBV=0+30 = 30
-        Assert.Equal(30.0, obv.GetLatest());
+        obv.AppendWithVolume(100, 50); // OBV=50 (the first volume)
+        obv.AppendWithVolume(102, 30); // OBV=50+30 = 80
+        Assert.Equal(80.0, obv.GetLatest());
     }
 
     [Fact]
     public void AppendWithVolume_FallingClose_SubtractsVolume()
     {
         var obv = new StreamingObv();
-        obv.AppendWithVolume(100, 50); // OBV=0
-        obv.AppendWithVolume(102, 30); // OBV=30
-        obv.AppendWithVolume(101, 20); // 101<102 → OBV = 30-20 = 10
-        Assert.Equal(10.0, obv.GetLatest());
+        obv.AppendWithVolume(100, 50); // OBV=50
+        obv.AppendWithVolume(102, 30); // OBV=80
+        obv.AppendWithVolume(101, 20); // 101<102 → OBV = 80-20 = 60
+        Assert.Equal(60.0, obv.GetLatest());
     }
 
     [Fact]
@@ -62,20 +61,20 @@ public sealed class StreamingObvTests
     {
         var obv = new StreamingObv();
         obv.AppendWithVolume(100, 50);
-        obv.AppendWithVolume(102, 30); // OBV=30
+        obv.AppendWithVolume(102, 30); // OBV=80
         obv.AppendWithVolume(102, 99); // equal → unchanged
-        Assert.Equal(30.0, obv.GetLatest());
+        Assert.Equal(80.0, obv.GetLatest());
     }
 
     [Fact]
     public void ManualSequence_MatchesHandComputed()
     {
         // Hand-walked per the formula in the source:
-        //   bar 1 (100, 50): OBV = 0
-        //   bar 2 (102, 30): up   →  0 + 30 = 30
-        //   bar 3 (101, 20): down → 30 - 20 = 10
-        //   bar 4 (101, 40): eq   → 10
-        //   bar 5 (105, 25): up   → 10 + 25 = 35
+        //   bar 1 (100, 50): OBV = 50 (opens with its volume)
+        //   bar 2 (102, 30): up   → 50 + 30 = 80
+        //   bar 3 (101, 20): down → 80 - 20 = 60
+        //   bar 4 (101, 40): eq   → 60
+        //   bar 5 (105, 25): up   → 60 + 25 = 85
         var obv = new StreamingObv();
         obv.AppendWithVolume(100, 50);
         obv.AppendWithVolume(102, 30);
@@ -84,22 +83,43 @@ public sealed class StreamingObvTests
         obv.AppendWithVolume(105, 25);
 
         var snap = obv.OutputSeries[0].CreateSnapshot();
-        Assert.Equal(new[] { 0.0, 30.0, 10.0, 10.0, 35.0 }, snap.YData);
+        Assert.Equal(new[] { 50.0, 80.0, 60.0, 60.0, 85.0 }, snap.YData);
     }
 
     [Fact]
-    public void AppendCandle_WithoutVolume_UsesUnitDelta()
+    public void AppendCandle_WithoutVolume_GivesNaN_NotAUnitStep()
     {
-        // When AppendCandle is called the per-bar volume defaults to 0 → the formula falls back
-        // to a +/-1 unit step (see source: `_lastVolume > 0 ? _lastVolume : 1`).
+        // A candle carries no volume. It used to count as a step of 1, which is a number nobody traded; the sum of a
+        // volume that is not known is not known.
         var obv = new StreamingObv();
-        obv.AppendCandle(new OhlcBar(100, 100, 100, 100)); // OBV=0
-        obv.AppendCandle(new OhlcBar(101, 101, 101, 101)); // up   → +1
-        obv.AppendCandle(new OhlcBar(100, 100, 100,  99)); // down → -1 → 0
-        obv.AppendCandle(new OhlcBar(102, 102, 102, 105)); // up   → +1 → 1
+        obv.AppendCandle(new OhlcBar(100, 100, 100, 100));
+        obv.AppendCandle(new OhlcBar(101, 101, 101, 101));
+        obv.AppendCandle(new OhlcBar(100, 100, 100,  99));
 
         var snap = obv.OutputSeries[0].CreateSnapshot();
-        Assert.Equal(new[] { 0.0, 1.0, 0.0, 1.0 }, snap.YData);
+        Assert.Equal(3, snap.YData.Length);
+        Assert.All(snap.YData, v => Assert.True(double.IsNaN(v)));
+    }
+
+    [Fact]
+    public void AVolumeThatIsGiven_DoesNotLeakIntoTheNextBarThatHasNone()
+    {
+        var obv = new StreamingObv();
+        obv.AppendWithVolume(100, 50);
+        obv.AppendWithVolume(101, 30);                          // 80
+        obv.AppendCandle(new OhlcBar(102, 102, 102, 102));      // no volume of its own: NaN, not 80 + 30
+
+        Assert.True(double.IsNaN(obv.GetLatest()));
+    }
+
+    [Fact]
+    public void AppendBar_TakesTheCloseAndTheVolumeOfTheBar()
+    {
+        var obv = new StreamingObv();
+        obv.AppendBar(new OhlcvBar(1, 9, 0, 100, 50));
+        obv.AppendBar(new OhlcvBar(1, 9, 0, 102, 30));
+
+        Assert.Equal([50.0, 80.0], obv.OutputSeries[0].CreateSnapshot().YData);
     }
 
     [Fact]
@@ -111,8 +131,8 @@ public sealed class StreamingObvTests
 
         var snap = obv.OutputSeries[0].CreateSnapshot();
         Assert.Equal(3, snap.YData.Length);
-        // OBV after 5 rising bars: 0, 10, 20, 30, 40 → buffer keeps {20, 30, 40}
-        Assert.Equal(new[] { 20.0, 30.0, 40.0 }, snap.YData);
+        // OBV after 5 rising bars: 10, 20, 30, 40, 50 → buffer keeps {30, 40, 50}
+        Assert.Equal(new[] { 30.0, 40.0, 50.0 }, snap.YData);
     }
 
     [Fact]

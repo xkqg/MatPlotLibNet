@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -32,42 +33,15 @@ public sealed class TwiggsMoneyFlow : CandleIndicator<SignalResult>
         int n = BarCount;
         if (n < 2) return Array.Empty<double>();
 
-        int outLen = n - 1;
-        var ad = new double[outLen];
-        var volTail = new double[outLen];
-
-        for (int i = 0; i < outLen; i++)
+        var result = new double[n - 1];
+        var step = new TwiggsMoneyFlowStep(_period);
+        for (int i = 0; i < n; i++)
         {
-            int b = i + 1;
-            double pc = Close[b - 1];
-            double th = Math.Max(High[b], pc);
-            double tl = Math.Min(Low[b], pc);
-            double tr = th - tl;
-            ad[i] = tr > 0 ? (2.0 * Close[b] - th - tl) / tr * Volume[b] : 0.0;
-            volTail[i] = Volume[b];
+            double value = step.Next(High[i], Low[i], Close[i], Volume[i]);
+            if (i >= 1) result[i - 1] = value;
         }
 
-        double alpha = 1.0 / _period;
-        var emaAd = WilderEma(ad, alpha);
-        var emaVol = WilderEma(volTail, alpha);
-
-        var tmf = new double[outLen];
-        for (int i = 0; i < outLen; i++)
-            tmf[i] = emaVol[i] > 0 ? emaAd[i] / emaVol[i] : 0.0;
-        return tmf;
-    }
-
-    /// <summary>Wilder-style EMA (<c>adjust=False</c>): <c>y_0 = x_0</c>, then
-    /// <c>y_t = α·x_t + (1−α)·y_{t−1}</c>.</summary>
-    private static double[] WilderEma(double[] values, double alpha)
-    {
-        // values.Length is always >= 1 here: Compute() returns early for BarCount < 2, so outLen = n-1 >= 1
-        // on every call this private helper ever receives.
-        var y = new double[values.Length];
-        double oneMinusAlpha = 1.0 - alpha;
-        y[0] = values[0];
-        for (int i = 1; i < y.Length; i++) y[i] = alpha * values[i] + oneMinusAlpha * y[i - 1];
-        return y;
+        return result;
     }
 
     /// <inheritdoc />

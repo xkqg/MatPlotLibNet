@@ -26,24 +26,28 @@ public sealed class DispersionIndex : MultivariateIndicator<SignalResult>
     public override SignalResult Compute()
     {
         if (BarCount == 0) return Array.Empty<double>();
-
         var result = new double[BarCount];
         for (int t = 0; t < BarCount; t++)
-        {
-            var row = Features[t];
-            double sum = 0;
-            for (int k = 0; k < FeatureCount; k++) sum += row[k];
-            double mean = sum / FeatureCount;
-
-            double m2 = 0;
-            for (int k = 0; k < FeatureCount; k++)
-            {
-                double d = row[k] - mean;
-                m2 += d * d;
-            }
-            result[t] = Math.Sqrt(m2 / FeatureCount);
-        }
+            result[t] = Of(Features[t]);
         return result;
+    }
+
+    /// <summary>The dispersion of one row: the population standard deviation of its signals. The one place that arithmetic is
+    /// written, read by <see cref="Compute"/> and by <see cref="Streaming.StreamingDispersionIndex"/>.</summary>
+    /// <param name="row">One value of each signal at one bar.</param>
+    internal static double Of(double[] row)
+    {
+        double sum = 0;
+        for (int k = 0; k < row.Length; k++) sum += row[k];
+        double mean = sum / row.Length;
+        double m2 = 0;
+        for (int k = 0; k < row.Length; k++)
+        {
+            double d = row[k] - mean;
+            m2 += d * d;
+        }
+
+        return Math.Sqrt(m2 / row.Length);
     }
 
     /// <inheritdoc />

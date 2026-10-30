@@ -13,16 +13,24 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
 
+    /// <summary>The raw sample the curve is made from, in the order it was given. Missing values (NaN) and infinities
+    /// are kept here but are not observations, so they take no part in the curve.</summary>
     public double[] Data { get; }
 
+    /// <summary>The drawable values of <see cref="Data"/> in ascending order: the positions of the steps along the X axis.</summary>
     public double[] SortedX { get; }
 
+    /// <summary>The cumulative fraction at each entry of <see cref="SortedX"/>, from 1/n for the smallest value up to 1
+    /// for the largest: the height the curve steps to there.</summary>
     public double[] CdfY { get; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The thickness of the step line, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>The dash pattern of the step line. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Creates a new ECDF series from the given raw data.</summary>

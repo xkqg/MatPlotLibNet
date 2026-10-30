@@ -40,13 +40,6 @@ public sealed class FigureRegistry
     {
     }
 
-    private sealed class NullCallerPublisher : ICallerPublisher
-    {
-        public static readonly NullCallerPublisher Instance = new();
-        public Task SendTooltipAsync(string connectionId, string chartId, string html,
-            CancellationToken ct = default) => Task.CompletedTask;
-    }
-
     /// <summary>Registers a figure under <paramref name="chartId"/> and starts its reader task.
     /// No notification handlers attached — use the <see cref="Register(string, Figure, Action{ChartSessionOptions})"/>
     /// overload if you want brush-select or hover callbacks. If a session already exists for
@@ -68,20 +61,37 @@ public sealed class FigureRegistry
     /// <summary>Registers a streaming figure for server-push live updates. The streaming figure's
     /// <see cref="StreamingFigure.RenderRequested"/> event triggers automatic SVG publishing to
     /// all connected clients via <see cref="IChartPublisher"/>.</summary>
-    public void RegisterStreaming(string chartId, StreamingFigure streamingFigure)
-    {
-        if (_streamingSessions.TryRemove(chartId, out var existing))
-            _ = existing.DisposeAsync();
+    public void RegisterStreaming(string chartId, StreamingFigure streamingFigure) =>
+        RegisterStreamingCore(chartId, streamingFigure, new ChartSessionOptions());
 
-        _streamingSessions[chartId] = new StreamingChartSession(chartId, streamingFigure, _publisher);
+    /// <summary>Registers a streaming figure with per-chart handlers, as
+    /// <see cref="Register(string, Figure, Action{ChartSessionOptions})"/> does for a figure that does not stream. A viewer
+    /// can zoom, pan and press Home on a streaming chart: the gestures are applied to the figure the stream also writes,
+    /// and an axes the viewer has moved is left where they put it until Home hands it back to the scale mode.</summary>
+    public void RegisterStreaming(string chartId, StreamingFigure streamingFigure, Action<ChartSessionOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        var options = new ChartSessionOptions();
+        configure(options);
+        RegisterStreamingCore(chartId, streamingFigure, options);
+    }
+
+    private void RegisterStreamingCore(string chartId, StreamingFigure streamingFigure, ChartSessionOptions options)
+    {
+        // The session that is replaced is the one this registration displaced, whichever registration ran first: two
+        // registrations of one id at the same time cannot leave a session that nobody disposes.
+        StreamingChartSession? displaced = null;
+        var session = new StreamingChartSession(chartId, streamingFigure, _publisher, _callerPublisher, options);
+        _streamingSessions.AddOrUpdate(chartId, session, (_, existing) => { displaced = existing; return session; });
+        if (displaced is not null) _ = displaced.DisposeAsync();
     }
 
     private void RegisterCore(string chartId, Figure figure, ChartSessionOptions options)
     {
-        if (_sessions.TryRemove(chartId, out var existing))
-            _ = existing.DisposeAsync();
-
-        _sessions[chartId] = new ChartSession(chartId, figure, _publisher, _callerPublisher, options);
+        ChartSession? displaced = null;
+        var session = new ChartSession(chartId, figure, _publisher, _callerPublisher, options);
+        _sessions.AddOrUpdate(chartId, session, (_, existing) => { displaced = existing; return session; });
+        if (displaced is not null) _ = displaced.DisposeAsync();
     }
 
     /// <summary>Disposes the session for <paramref name="chartId"/>. Safe to call with an unknown id.</summary>
@@ -96,5 +106,6 @@ public sealed class FigureRegistry
     /// chart is not registered or the session is shutting down. Fire-and-forget — the caller
     /// does not await mutation or re-render.</summary>
     public bool Publish(string chartId, FigureInteractionEvent evt) =>
-        _sessions.TryGetValue(chartId, out var session) && session.Events.Writer.TryWrite(evt);
+        _sessions.TryGetValue(chartId, out var session) ? session.Events.Writer.TryWrite(evt)
+        : _streamingSessions.TryGetValue(chartId, out var streaming) && streaming.Gestures.TryWrite(evt);
 }

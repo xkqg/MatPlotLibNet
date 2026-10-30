@@ -26,10 +26,13 @@ public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
     /// <summary>X value of the first sample.</summary>
     public double XStart { get; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The dash pattern of the line. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
+    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
     /// <summary>

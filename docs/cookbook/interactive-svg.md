@@ -107,6 +107,67 @@ Plt.Create()
     .Save("server_interactive.svg");
 ```
 
+## One handler for everything the reader does
+
+A chart session offers callbacks for a brush, a hover and a click. An `IChartEventHandler` receives every event once, a zoom, a pan, a
+legend toggle and a reset too, with a context that names the viewer. Give it to `ChartSessionOptions.Handle` on a server, or to the
+`ChartEventHandler` of a native control:
+
+```csharp
+using MatPlotLibNet.AspNetCore;
+using MatPlotLibNet.Interaction;
+
+// Where a chart is registered: registry.Register("live-1", figure, configure);
+Action<ChartSessionOptions> configure = opts => opts.Handle(new ViewerLog());
+
+sealed class ViewerLog : IChartEventHandler
+{
+    public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
+    {
+        Console.WriteLine($"{context.ViewerName ?? "This window"}: {evt.GetType().Name} on {evt.ChartId}");
+        return ValueTask.CompletedTask;
+    }
+}
+```
+
+A handler that throws costs its own event only. Viewers of one chart are named ("Viewer 1", "Viewer 2") by the hub, and
+`EnableViewerCursors()` on `WithServerInteraction` shows each viewer's pointer to the others.
+
+## Linking the charts of a page
+
+A series that gives its points `RowKeys` names its rows, and `LinkSelection(group)` makes the charts of one page a group. A
+Shift+drag on one chart lights the same rows on every chart of the group and dims the others; Escape clears it. The keys travel in the
+JSON and name the rows of the table.
+
+```csharp
+using MatPlotLibNet;
+
+string[] orders = ["o1", "o2", "o3", "o4", "o5", "o6"];
+double[] size = [12, 30, 18, 44, 26, 38];
+double[] days = [2, 5, 3, 9, 4, 7];
+
+Plt.Create()
+    .WithTitle("The same six orders in two charts")
+    .WithSize(860, 380)
+    .LinkSelection("orders", ["o2", "o5"])
+    .AddSubPlot(1, 2, 1, ax => ax
+        .WithTitle("Size and delivery time")
+        .SetXLabel("Order size")
+        .SetYLabel("Days to deliver")
+        .Scatter(size, days, s => s.RowKeys = orders))
+    .AddSubPlot(1, 2, 2, ax => ax
+        .WithTitle("Size by order")
+        .SetXLabel("Order number")
+        .SetYLabel("Order size")
+        .Scatter([1.0, 2, 3, 4, 5, 6], size, s => s.RowKeys = orders))
+    .Save("linked_orders.svg");
+```
+
+![Two scatter charts of the same six orders](../images/linked_orders.png)
+
+Open the SVG in a browser and the points of o2 and o5, the rows the chart starts with selected, stand out in both charts while the others
+are dimmed. The picture is a PNG, which has no script, so it shows all six alike.
+
 ## Which point did the reader click?
 
 A click on a data point tells your application which one it was — not only where it was on the axes:

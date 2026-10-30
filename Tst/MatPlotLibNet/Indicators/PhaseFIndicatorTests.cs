@@ -171,6 +171,40 @@ public class ParabolicSarTests
     private static readonly double[] Low = [47.79, 48.14, 48.39, 48.37, 48.24, 48.64, 48.94, 48.86, 49.50, 49.87,
         49.20, 48.90, 49.43, 49.73, 49.26, 50.09, 50.30, 49.21, 48.98, 48.22];
 
+    /// <summary>The acceleration factor stops growing at the maximum, on the way up: five bars each three higher than the one before,
+    /// with a step of 0.05 and a maximum of 0.07, put the factor at 0.07 from the second bar on. Worked by hand: the SAR starts at the
+    /// first low (10), is held there by the lows of the bars before while those are lower, and from the fourth bar moves
+    /// <c>0.07 × (extreme - SAR)</c> toward the extreme point (an uncapped factor would give 12 there).</summary>
+    [Fact]
+    public void Compute_AccelerationStopsAtTheMaximum_OnTheWayUp()
+    {
+        double[] low = [10, 13, 16, 19, 22];
+        double[] high = [11, 14, 17, 20, 23];
+
+        var result = new ParabolicSar(high, low, step: 0.05, max: 0.07).Compute();
+
+        double[] expected = [10, 10, 10, 10 + 0.07 * (20 - 10), 10 + 0.07 * (20 - 10) + 0.07 * (23 - (10 + 0.07 * (20 - 10)))];
+        for (int i = 0; i < expected.Length; i++) Assert.Equal(expected[i], result.Sar[i], 12);
+        Assert.All(result.IsLong, isLong => Assert.True(isLong));
+    }
+
+    /// <summary>The same on the way down: bars three lower than the one before, the SAR starts at the first high (30) and the factor
+    /// stops at 0.07; the fourth bar moves it <c>0.07 × (extreme - SAR)</c> toward the lowest low.</summary>
+    [Fact]
+    public void Compute_AccelerationStopsAtTheMaximum_OnTheWayDown()
+    {
+        double[] high = [31, 28, 25, 22, 19];
+        double[] low = [30, 27, 24, 21, 18];
+
+        var result = new ParabolicSar(high, low, step: 0.05, max: 0.07).Compute();
+
+        // The second high is below the first, so the trend starts down: SAR at the first high (31), extreme point the first low (30).
+        double sar3 = 31 + 0.07 * (21 - 31);
+        double[] expected = [31, 31, 31, sar3, sar3 + 0.07 * (18 - sar3)];
+        for (int i = 0; i < expected.Length; i++) Assert.Equal(expected[i], result.Sar[i], 12);
+        Assert.All(result.IsLong, isLong => Assert.False(isLong));
+    }
+
     /// <summary>SAR array length equals input length.</summary>
     [Fact]
     public void Compute_SarLengthEqualsInput()

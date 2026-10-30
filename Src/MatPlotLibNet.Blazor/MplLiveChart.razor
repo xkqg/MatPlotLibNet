@@ -1,28 +1,53 @@
 @* Copyright (c) 2026 H.P. Gansevoort. All rights reserved. *@
-@* Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information. *@
+@* Licensed under the MIT License. See LICENSE file in the project root for full license information. *@
 
 @namespace MatPlotLibNet.Blazor
 
+@using System.Text.Json
+@using MatPlotLibNet.Diagnostics
+@using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
-<div class="mpl-chart mpl-live @CssClass">
-    @((MarkupString)_svgContent)
+<div @ref="_host" class="mpl-chart mpl-live @CssClass" data-mpl-live="@ChartId">
+    @* The key is on the inner element: mounting the chart again must not replace the host the page side is attached to. *@
+    <div @key="_mount" style="display: contents">@((MarkupString)_svgContent)</div>
 </div>
 
 @code {
+    private const string ModulePath = "./_content/MatPlotLibNet.Blazor/mplLiveChart.js";
+
     [Parameter, EditorRequired] public string ChartId { get; set; } = default!;
     [Parameter] public string HubUrl { get; set; } = "/charts-hub";
     [Parameter] public string? CssClass { get; set; }
     [Parameter] public Figure? InitialFigure { get; set; }
     /// <summary>Optional subscription client — exposed so tests can inject a mock
     /// and so host apps can share one connection across components. When null
-    /// (default), the component creates its own <see cref="ChartSubscriptionClient"/>.</summary>
+    /// (default), the component creates its own <see cref="ChartSubscriptionClient"/>.
+    /// <para>A client that also sends gestures (<see cref="IChartGestureSender"/>) and hands on the messages about the
+    /// other viewers (<see cref="IChartMessageSource"/>), as <see cref="ChartSubscriptionClient"/> does, makes the chart
+    /// interactive: the script inside the SVG reaches the server through this client's connection, so a page needs no
+    /// connection of its own and sets no <c>window.__mpl_signalr_connection</c>.</para></summary>
     [Parameter] public IChartSubscriptionClient? Client { get; set; }
 
+    private ElementReference _host;
     private IChartSubscriptionClient _client = default!;
     private string _svgContent = string.Empty;
     private bool _ownsClient;
+
+    // The page side: a module that gives the chart's script a connection to send through, a bridge it calls back into,
+    // and the registrations on the shared client, all of which this component takes away again when it goes.
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<LiveChartBridge>? _bridge;
+    private IDisposable? _svgSubscription;
+    private IDisposable? _messageSubscription;
+
+    // A redrawn picture that arrived while the viewer was in the middle of a drag or a band. Only the latest is kept.
+    private string? _pendingSvg;
+
+    // Mounting the chart again, once the page side is in place, runs its script again with the connection present.
+    private int _mount;
 
     protected override void OnInitialized()
     {
@@ -40,29 +65,100 @@
     {
         if (!firstRender) return;
 
-        _client.OnSvgUpdated((id, svg) =>
-        {
-            if (id == ChartId)
-            {
-                _svgContent = svg;
-                InvokeAsync(StateHasChanged);
-            }
-            return Task.CompletedTask;
-        });
+        _svgSubscription = _client.SubscribeSvgUpdates((id, svg) =>
+            id == ChartId ? ApplyAsync(svg) : Task.CompletedTask);
 
         _client.OnChartUpdated((id, json) =>
         {
-            if (id == ChartId)
-            {
-                var figure = ChartSerializerDefault.Current.FromJson(json);
-                _svgContent = SvgRendererDefault.Current.Render(figure);
-                InvokeAsync(StateHasChanged);
-            }
-            return Task.CompletedTask;
+            if (id != ChartId) return Task.CompletedTask;
+            var figure = ChartSerializerDefault.Current.FromJson(json);
+            return ApplyAsync(SvgRendererDefault.Current.Render(figure));
         });
+
+        if (_client is IChartGestureSender sender)
+            await AttachPageAsync(sender);
 
         await _client.ConnectAsync(ResolveHubUrl());
         await _client.SubscribeAsync(ChartId);
+    }
+
+    /// <summary>Gives the chart's script a connection to send its gestures through, and the messages about the other
+    /// viewers a way back to it. The chart is mounted again afterwards, so that its script, which looks for the connection
+    /// when it starts, runs with it there.</summary>
+    private async Task AttachPageAsync(IChartGestureSender sender)
+    {
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            _bridge = DotNetObjectReference.Create(new LiveChartBridge(sender, ShowHeldBackAsync));
+            await _module.InvokeVoidAsync("attach", _host, _bridge);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Prerendering, a circuit that is already gone, a module the host did not serve: there is no page to attach
+            // to. The chart still shows what the server sends; it does not send gestures back, and the diagnostics
+            // channel says why.
+            _module = null;
+            ChartDiagnostics.Emit(new ChartDiagnostic(nameof(MplLiveChart),
+                $"The live chart could not attach to the page, so it will not send gestures: {ex.Message}", ex));
+            return;
+        }
+
+        if (_client is IChartMessageSource source)
+            _messageSubscription = source.SubscribeMessages(PassMessageOnAsync);
+
+        _mount++;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Mounts a redrawn picture, unless the viewer is in the middle of a gesture on the one it replaces: the
+    /// mount would cut it off, so the picture is held back (the latest wins) until the chart says it is idle.</summary>
+    private async Task ApplyAsync(string svg)
+    {
+        if (_module is not null && await IsBusyAsync())
+        {
+            _pendingSvg = svg;
+            return;
+        }
+
+        _pendingSvg = null;
+        _svgContent = svg;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<bool> IsBusyAsync()
+    {
+        try
+        {
+            return await _module!.InvokeAsync<bool>("isBusy", _host);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>The chart went idle: the picture that was held back is mounted.</summary>
+    private async Task ShowHeldBackAsync()
+    {
+        if (_pendingSvg is not { } svg) return;
+
+        _pendingSvg = null;
+        _svgContent = svg;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Hands a message about another viewer to the page. Only subscribed once the module is attached, so it is there.</summary>
+    private async Task PassMessageOnAsync(string method, JsonElement args)
+    {
+        try
+        {
+            await _module!.InvokeVoidAsync("deliver", _host, method, args);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException or InvalidOperationException)
+        {
+            // The page is gone; there is nobody to tell.
+        }
     }
 
     /// <summary>SignalR needs an absolute HTTP-family URI, so a rooted <see cref="HubUrl"/> — the component's
@@ -93,8 +189,24 @@
 
     public async ValueTask DisposeAsync()
     {
-        // BUG B4: an injected (unowned) Client belongs to the DI container/host app —
-        // only dispose a client this component created itself.
+        // A client handed in by the host belongs to the host, which may share it with other components: this one takes
+        // its own registrations away and leaves the client alone. Only a client this component made is disposed (BUG B4).
+        _svgSubscription?.Dispose();
+        _messageSubscription?.Dispose();
+        _bridge?.Dispose();
+
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.DisposeAsync();
+            }
+            catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException)
+            {
+                // The circuit closed first; the module went with it.
+            }
+        }
+
         if (_ownsClient)
             await _client.DisposeAsync();
     }

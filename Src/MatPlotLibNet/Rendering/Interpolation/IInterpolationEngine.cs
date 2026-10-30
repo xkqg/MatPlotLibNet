@@ -6,6 +6,7 @@ namespace MatPlotLibNet.Rendering.Interpolation;
 /// <summary>Strategy for resampling a 2D scalar grid to a different resolution.</summary>
 public interface IInterpolationEngine
 {
+    /// <summary>The name the engine is registered and looked up under in <see cref="InterpolationRegistry"/>, such as <c>"nearest"</c> or <c>"bilinear"</c>.</summary>
     string Name { get; }
 
     /// <summary>Resamples <paramref name="data"/> to a grid of <paramref name="targetRows"/> × <paramref name="targetCols"/> cells.</summary>

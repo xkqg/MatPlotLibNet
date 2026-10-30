@@ -15,12 +15,19 @@ public sealed class ViolinSeries : DatasetSeries, IHasColor, IHasAlpha
     /// theme's colour at the series' place in the cycle. The legend swatch wears the colour of the body, by the same rule.</summary>
     public Color? Color { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = RestingAlpha;
 
+    /// <summary>When <see langword="true"/> a line is drawn across each violin at the mean of its data. Default
+    /// <see langword="false"/>.</summary>
     public bool ShowMeans { get; set; }
 
+    /// <summary>When <see langword="true"/> a line is drawn across each violin at the median of its data. Default
+    /// <see langword="false"/>.</summary>
     public bool ShowMedians { get; set; }
 
+    /// <summary>When <see langword="true"/> (the default) a short tick marks the smallest and the largest observation
+    /// of each violin.</summary>
     public bool ShowExtrema { get; set; } = true;
 
     /// <summary>Where each violin stands along the X axis, one position per dataset; a dataset the array does not reach
@@ -31,6 +38,8 @@ public sealed class ViolinSeries : DatasetSeries, IHasColor, IHasAlpha
     /// <summary>The widest a violin's body can be to either side of its position, in data units.</summary>
     public double Widths { get; set; } = RestingWidths;
 
+    /// <summary>Which side of its position each violin is drawn on: <c>Both</c> (the default) draws the whole violin,
+    /// <c>Low</c> only its left half and <c>High</c> only its right half.</summary>
     public ViolinSide Side { get; set; } = RestingSide;
 
     private const double RestingAlpha = 0.3;

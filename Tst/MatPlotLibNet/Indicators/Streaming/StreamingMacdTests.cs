@@ -48,6 +48,6 @@ public sealed class StreamingMacdTests
     }
 
     [Fact]
-    public void WarmupPeriod_IsSlowPlusSignal() =>
-        Assert.Equal(35, new StreamingMacd(12, 26, 9).WarmupPeriod);
+    public void WarmupPeriod_IsTheBarEveryLineHasAValue() =>
+        Assert.Equal(34, new StreamingMacd(12, 26, 9).WarmupPeriod);   // the line from bar 26, the signal 8 bars later
 }

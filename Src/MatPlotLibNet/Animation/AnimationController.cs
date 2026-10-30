@@ -19,6 +19,8 @@ public sealed class AnimationController<TState> : IAsyncDisposable, IAnimationSo
     /// <summary>Gets the current playback state.</summary>
     public AnimationPlaybackState State => _state;
 
+    /// <summary>The index of the frame most recently published, counted from 0. It stays at its last value after playback
+    /// stops, and is 0 before the first frame.</summary>
     public int CurrentFrame { get; private set; }
 
     /// <summary>Fired after each frame is published. Subscribe to drive UI redraws.</summary>

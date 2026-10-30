@@ -19,8 +19,11 @@ public record SeriesRenderContext(
     Color SeriesColor,
     RenderArea Area)
 {
+    /// <summary>Whether the renderer wraps each mark in an SVG tooltip group, so hovering it shows its text. Off by default.</summary>
     public bool TooltipsEnabled { get; init; }
 
+    /// <summary>The cycler's whole set for the series' slot (colour, line style, marker, width); <see langword="null"/> when
+    /// no cycler is in play, and the series then takes the theme's resting style.</summary>
     public CycledProperties? CycledProps { get; init; }
 
     /// <summary>What the theme hands out at this series' slot: its colour and the cycler's set. A renderer asks it how
@@ -28,10 +31,13 @@ public record SeriesRenderContext(
     /// <see cref="SeriesSlot.LineMarkerOf"/>, <see cref="SeriesSlot.ScatterMarkerOf"/>), the same owner the legend asks.</summary>
     internal SeriesSlot Slot => Theme.ThemedSlot(SeriesColor, CycledProps);
 
+    /// <summary>The projection from 3-D data to pixels of the 3-D axes the series is drawn on; <see langword="null"/> on any other axes.</summary>
     public Projection3D? Projection3D { get; init; }
 
+    /// <summary>The light that shades the faces of a 3-D surface or bar; <see langword="null"/> for no shading, and the faces keep their plain colour.</summary>
     public ILightSource? LightSource { get; init; }
 
+    /// <summary>Whether 3-D renderers write the <c>data-v3d</c> attributes that let a script rotate the scene in the browser. Off by default.</summary>
     public bool Emit3DData { get; init; }
 
     /// <summary>

@@ -65,12 +65,60 @@ jobs:
           dotnet run --project Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj --no-build --configuration Release
+          # The MAUI package needs a workload, but its suite compiles the package's sources into a plain net10.0
+          # assembly and needs none, so it runs here beside the others (and again against the real build by the Windows job).
+          dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --no-build --configuration Release
           # Every C# block of the wiki, compiled against the packages this job just built. Not in the coverage job: it
           # holds no product code to measure, and it compiles text rather than exercising a class.
           dotnet run --project Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj --no-build --configuration Release
           # The charts against matplotlib's own pictures (the references in Tst/MatPlotLibNet.Fidelity/Fixtures), scored by a
           # perceptual diff on this runner's own rasterizer. Not in the coverage job: it holds no product code to measure.
           dotnet run --project Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj --no-build --configuration Release
+
+  # The packages that need a workload or a Windows SDK (MAUI, WPF, Uno) cannot be built on the Linux runner, so the
+  # publish workflow was the first thing to build them -- after the tag, where a break (or an API change the pack's
+  # compatibility check refuses against the previous release) cannot be undone for a package already pushed. This job
+  # builds them on every push with the steps publish-platform uses, and runs their suites. It builds what it runs,
+  # which is why these projects stay out of MatPlotLibNet.CI.slnf.
+  windows-heads:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Install platform workloads
+        run: dotnet workload install maui android
+
+      # Building MAUI also packs it (GeneratePackageOnBuild), which is where the API-compatibility check against the
+      # previous release runs.
+      - name: Build MAUI
+        run: dotnet build Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release
+
+      - name: Build WPF
+        run: dotnet build Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj --configuration Release
+
+      # What publish-uno installs: the Uno Platform's source generators come with Uno.Templates, not with a workload.
+      - name: Install Uno templates
+        run: dotnet new install Uno.Templates
+
+      - name: Build Uno
+        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --configuration Release
+
+      # One step each: a failing native command in a multi-line PowerShell block does not stop the next one.
+      - name: Test MAUI
+        run: dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --configuration Release
+
+      - name: Test WPF
+        run: dotnet run --project Tst/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.Tests.csproj --configuration Release
+
+      - name: Test Uno
+        run: dotnet run --project Tst/MatPlotLibNet.Uno/MatPlotLibNet.Uno.Tests.csproj --configuration Release
 
   coverage:
     runs-on: ubuntu-latest

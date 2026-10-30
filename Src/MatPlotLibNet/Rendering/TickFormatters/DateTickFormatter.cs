@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// <summary>Formats tick values as dates by interpreting them as OLE Automation dates.</summary>
 public sealed class DateTickFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
+    /// <summary>The .NET date-and-time format string each tick is written with, using the invariant culture. Default <c>yyyy-MM-dd</c>.</summary>
     public string DateFormat { get; set; } = "yyyy-MM-dd";
 
     /// <inheritdoc />

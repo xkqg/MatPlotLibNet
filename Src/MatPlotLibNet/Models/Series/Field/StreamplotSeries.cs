@@ -10,20 +10,31 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a streamline plot through a 2D vector field (U, V components on a grid).</summary>
 public sealed class StreamplotSeries : ChartSeries, IHasColor
 {
+    /// <summary>The X coordinate of each grid column, one per column of <see cref="U"/> and <see cref="V"/>.</summary>
     public double[] X { get; }
 
+    /// <summary>The Y coordinate of each grid row, one per row of <see cref="U"/> and <see cref="V"/>.</summary>
     public double[] Y { get; }
 
+    /// <summary>The X component of the field at each grid point, indexed [row, column] with rows along Y and columns
+    /// along X.</summary>
     public double[,] U { get; }
 
+    /// <summary>The Y component of the field at each grid point, indexed [row, column] with rows along Y and columns
+    /// along X.</summary>
     public double[,] V { get; }
 
+    /// <summary>How closely streamlines are seeded across the grid: about half the number of grid points along each
+    /// axis, times this value (at least 2). Default 1; larger values draw more, closer lines.</summary>
     public double Density { get; set; } = 1.0;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>Width of the streamlines, in pixels. Default 1.</summary>
     public double LineWidth { get; set; } = 1.0;
 
+    /// <summary>Scale of the arrowheads along the streamlines: 1 (the default) draws heads 6 pixels long.</summary>
     public double ArrowSize { get; set; } = 1.0;
 
     /// <summary>Creates a new streamplot series from grid coordinates and velocity field components.</summary>

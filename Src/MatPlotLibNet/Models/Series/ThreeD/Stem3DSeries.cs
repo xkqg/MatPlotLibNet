@@ -11,8 +11,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D stem series — vertical lines from the XY-plane to each (X, Y, Z) data point.</summary>
 public sealed class Stem3DSeries : XYZSeries, IHasColor
 {
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The size of the marker at the top of each stem, in points. Default 6.</summary>
     public double MarkerSize { get; set; } = 6;
 
     /// <summary>Colour of the baseline polyline drawn at <c>z = 0</c> through every stem

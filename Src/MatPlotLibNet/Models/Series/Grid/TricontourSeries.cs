@@ -11,16 +11,26 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a contour series on an unstructured triangular mesh.</summary>
 public sealed class TricontourSeries : ChartSeries, IColormappable, INormalizable
 {
+    /// <summary>The X coordinate of each scattered point, paired by index with <see cref="Y"/> and
+    /// <see cref="Z"/>.</summary>
     public Vec X { get; }
 
+    /// <summary>The Y coordinate of each scattered point, paired by index with <see cref="X"/> and
+    /// <see cref="Z"/>.</summary>
     public Vec Y { get; }
 
+    /// <summary>The value at each scattered point, paired by index with <see cref="X"/> and <see cref="Y"/>; the
+    /// iso-lines trace levels of it.</summary>
     public Vec Z { get; }
 
+    /// <summary>How many iso-lines are drawn, evenly spaced across the range of <see cref="Z"/>. A value below 2 counts
+    /// as 2. Default 10.</summary>
     public int Levels { get; set; } = 10;
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="TricontourSeries"/>.</summary>

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 
@@ -28,8 +29,9 @@ public sealed class EquityCurve : Indicator<SignalResult>
     {
         var equity = new double[_returns.Length + 1];
         equity[0] = _startingCapital;
-        VectorMath.CumulativeSum(_returns, equity.AsSpan(1));
-        VectorMath.Add(equity.AsSpan(1), _startingCapital, equity.AsSpan(1));
+        var step = new EquityCurveStep(_startingCapital);
+        for (int i = 0; i < _returns.Length; i++)
+            equity[i + 1] = step.Next(_returns[i]);
         return equity;
     }
 

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Animation;
 using MatPlotLibNet;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Samples.Console;
@@ -2273,7 +2274,7 @@ Console.WriteLine("Saved international.svg and international.png");
                 a.Font = new Font { Family = "sans-serif", Size = 38 };
                 a.Color = Color.FromHex("#9BE7C4");
             })
-            .Annotate("86 chart types in C#  ·  SVG, PNG, PDF, GIF", 0.055, 0.31, a =>
+            .Annotate("91 chart types in C#  ·  SVG, PNG, PDF, GIF", 0.055, 0.31, a =>
             {
                 a.Coordinates = AnnotationCoordinates.AxesFraction;
                 a.Font = new Font { Family = "sans-serif", Size = 26 };
@@ -3018,6 +3019,25 @@ Console.WriteLine("Saved horizontal_bars.svg");
             .WithGrid(g => g with { Color = Colors.Crimson, LineStyle = LineStyle.Dashed }))
         .SaveSvgAndPng(SamplesPath("polar_grid.svg"));
     Console.WriteLine("Saved polar_grid.svg");
+}
+
+// --- 58b. A step-through SVG: one file that shows a frame at a time, with a slider, a play button and the arrow keys ---
+{
+    double[] times = [.. Enumerable.Range(0, 60).Select(i => i * 0.1)];
+
+    var waveSteps = new AnimationBuilder(frameCount: 8, frame =>
+        Plt.Create()
+            .WithTitle($"Wave, phase {frame}")
+            .WithSize(560, 320)
+            .Plot(times, [.. times.Select(v => Math.Sin(v + frame * 0.4))])
+            .Build())
+    {
+        Interval = TimeSpan.FromMilliseconds(400),
+        Loop = true,
+    };
+
+    waveSteps.SaveStepThroughSvg(SamplesPath("wave_steps.svg"));
+    Console.WriteLine("Saved wave_steps.svg");
 }
 
 // --- 59. The pictures the wiki shows that no sample above draws ---

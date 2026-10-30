@@ -20,6 +20,7 @@ public sealed class SvgRenderContext : IRenderContext
     private readonly SvgIdScope _ids;
     private List<DataAttr>? _pendingData;
     private string? _pendingClass;
+    private double? _pendingTextLength;
 
     /// <summary>Hatch-pattern defs, created on first hatched shape. Most figures carry no hatch at all,
     /// so the registry stays unallocated and the output byte-identical to before hatching existed.</summary>
@@ -56,6 +57,10 @@ public sealed class SvgRenderContext : IRenderContext
         _pendingData.Add(new(key, value));
     }
 
+    /// <inheritdoc />
+    public void SetNextTextLength(double width) =>
+        _pendingTextLength = width > 0 && double.IsFinite(width) ? width : null;
+
     private void FlushPendingData()
     {
         if (_pendingAriaLevel is { } level)
@@ -70,7 +75,7 @@ public sealed class SvgRenderContext : IRenderContext
         }
         if (_pendingData is null || _pendingData.Count == 0) return;
         foreach (var attr in _pendingData)
-            _sb.Append(" data-").Append(attr.Key).Append("=\"").Append(attr.Value).Append('"');
+            _sb.Append(" data-").Append(attr.Key).Append("=\"").Append(attr.Value.EscapeForXml()).Append('"');
         _pendingData.Clear();
     }
 
@@ -268,6 +273,12 @@ public sealed class SvgRenderContext : IRenderContext
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        if (_pendingTextLength is { } length)
+        {
+            _sb.Append(" textLength=\"").Append(length.ToSvgNumber()).Append("\" lengthAdjust=\"spacingAndGlyphs\"");
+            _pendingTextLength = null;
+        }
+
         FlushPendingData();
         _sb.Append('>').Append(text.EscapeForXml()).AppendLine("</text>");
     }
@@ -292,6 +303,8 @@ public sealed class SvgRenderContext : IRenderContext
 
     private void EmitGlyphPath(string d, string textForMeasure, Point position, Font font, TextAlignment alignment, double rotation)
     {
+        // Outlines have no font to be substituted, so there is nothing to fit.
+        _pendingTextLength = null;
         // Compute the horizontal offset needed to realise the requested alignment.
         // We measure width via FontMetricsDefault.Current — same source Skia used when
         // it generated the glyph path, so the alignment math matches the glyph layout.

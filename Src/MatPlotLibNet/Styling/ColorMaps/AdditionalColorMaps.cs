@@ -6,42 +6,49 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// <summary>Provides additional color maps extending the matplotlib palette.</summary>
 public static class AdditionalColorMaps
 {
+    /// <summary>Linear ramp from black to white (the matplotlib <c>gray</c> map).</summary>
     public static IColorMap Gray { get; } = new LinearColorMap("gray",
     [
         Color.FromHex("#000000"),
         Color.FromHex("#FFFFFF"),
     ]);
 
+    /// <summary>Linear ramp from magenta to yellow (the matplotlib <c>spring</c> map).</summary>
     public static IColorMap Spring { get; } = new LinearColorMap("spring",
     [
         Color.FromHex("#FF00FF"),
         Color.FromHex("#FFFF00"),
     ]);
 
+    /// <summary>Linear ramp from a dark sea green to a pale yellow (the matplotlib <c>summer</c> map).</summary>
     public static IColorMap Summer { get; } = new LinearColorMap("summer",
     [
         Color.FromHex("#008066"),
         Color.FromHex("#FFFF66"),
     ]);
 
+    /// <summary>Linear ramp from red to yellow (the matplotlib <c>autumn</c> map).</summary>
     public static IColorMap Autumn { get; } = new LinearColorMap("autumn",
     [
         Color.FromHex("#FF0000"),
         Color.FromHex("#FFFF00"),
     ]);
 
+    /// <summary>Linear ramp from blue to a sea green (the matplotlib <c>winter</c> map).</summary>
     public static IColorMap Winter { get; } = new LinearColorMap("winter",
     [
         Color.FromHex("#0000FF"),
         Color.FromHex("#00FF80"),
     ]);
 
+    /// <summary>Linear ramp from cyan to magenta (the matplotlib <c>cool</c> map).</summary>
     public static IColorMap Cool { get; } = new LinearColorMap("cool",
     [
         Color.FromHex("#00FFFF"),
         Color.FromHex("#FF00FF"),
     ]);
 
+    /// <summary>Black through dark red and orange to yellow and white, sampled at five stops after matplotlib's <c>afmhot</c>.</summary>
     public static IColorMap AfmHot { get; } = new LinearColorMap("afmhot",
     [
         Color.FromHex("#000000"),
@@ -51,6 +58,7 @@ public static class AdditionalColorMaps
         Color.FromHex("#FFFFFF"),
     ]);
 
+    /// <summary>Diverging map from dark purple through a near-white centre to dark green: purple for low values, green for high ones (after matplotlib's <c>PRGn</c>).</summary>
     public static IColorMap PRGn { get; } = new LinearColorMap("prgn",
     [
         Color.FromHex("#40004B"),
@@ -62,6 +70,7 @@ public static class AdditionalColorMaps
         Color.FromHex("#00441B"),
     ]);
 
+    /// <summary>Diverging map from dark red through white to a near-black grey: red for low values, grey for high ones (after matplotlib's <c>RdGy</c>).</summary>
     public static IColorMap RdGy { get; } = new LinearColorMap("rdgy",
     [
         Color.FromHex("#67001F"),
@@ -73,6 +82,7 @@ public static class AdditionalColorMaps
         Color.FromHex("#1A1A1A"),
     ]);
 
+    /// <summary>The spectrum from blue through cyan, green and yellow to red, sampled at five stops after matplotlib's <c>rainbow</c>.</summary>
     public static IColorMap Rainbow { get; } = new LinearColorMap("rainbow",
     [
         Color.FromHex("#0000FF"),
@@ -82,6 +92,7 @@ public static class AdditionalColorMaps
         Color.FromHex("#FF0000"),
     ]);
 
+    /// <summary>Dark blue through teal and green to white, sampled at five stops after matplotlib's <c>ocean</c>.</summary>
     public static IColorMap Ocean { get; } = new LinearColorMap("ocean",
     [
         Color.FromHex("#00004C"),
@@ -91,6 +102,7 @@ public static class AdditionalColorMaps
         Color.FromHex("#FFFFFF"),
     ]);
 
+    /// <summary>Deep blue for the lowest values, then light blue, green lowlands and tan up to white peaks, like a relief map (after matplotlib's <c>terrain</c>).</summary>
     public static IColorMap Terrain { get; } = new LinearColorMap("terrain",
     [
         Color.FromHex("#333399"),
@@ -101,6 +113,7 @@ public static class AdditionalColorMaps
         Color.FromHex("#FFFFFF"),
     ]);
 
+    /// <summary>Black through blue, teal, green and orange to red and white, with brightness rising steadily so the map also reads in grayscale (after matplotlib's <c>CMRmap</c>).</summary>
     public static IColorMap CMRmap { get; } = new LinearColorMap("cmrmap",
     [
         Color.FromHex("#000000"),

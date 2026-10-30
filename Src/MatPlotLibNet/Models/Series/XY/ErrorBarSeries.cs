@@ -13,24 +13,38 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
     /// <inheritdoc />
     internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.ErrorBar, LineWidth);
 
+    /// <summary>How far each vertical error bar reaches below its point, in data units, one non-negative distance per point.</summary>
     public double[] YErrorLow { get; }
 
+    /// <summary>How far each vertical error bar reaches above its point, in data units, one non-negative distance per point.</summary>
     public double[] YErrorHigh { get; }
 
+    /// <summary>How far each horizontal error bar reaches left of its point, in data units, one distance per point.
+    /// Horizontal bars are drawn only when both this and <see cref="XErrorHigh"/> are set; null (the default) draws none.</summary>
     public double[]? XErrorLow { get; set; }
 
+    /// <summary>How far each horizontal error bar reaches right of its point, in data units, one distance per point.
+    /// Horizontal bars are drawn only when both this and <see cref="XErrorLow"/> are set; null (the default) draws none.</summary>
     public double[]? XErrorHigh { get; set; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The thickness of the error bars and their caps, in pixels. Default 1.5. <see cref="ELineWidth"/> and
+    /// <see cref="CapThick"/> override it for the bars and the caps separately.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>The half-length of the cap at the end of each error bar, in pixels: the cap spans twice this. Default 5.</summary>
     public double CapSize { get; set; } = 5.0;
 
+    /// <summary>The thickness of the error bar lines alone, in pixels; null (the default) uses <see cref="LineWidth"/>.</summary>
     public double? ELineWidth { get; set; }
 
+    /// <summary>The thickness of the caps alone, in pixels; null (the default) uses <see cref="LineWidth"/>.</summary>
     public double? CapThick { get; set; }
 
+    /// <summary>Draws the error bars only at every N-th point, starting with the first, while every point keeps its dot.
+    /// Default 1 draws a bar at every point; a thick data set reads better with a larger value.</summary>
     public int ErrorEvery { get; set; } = RestingErrorEvery;
 
     private const int RestingErrorEvery = 1;
@@ -140,7 +154,7 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
             values.Add(xHigh);
         }
 
-        return ChartDataTable.FromNumberColumns(columns, values);
+        return this.WithRowKeys(ChartDataTable.FromNumberColumns(columns, values));
     }
 
     /// <inheritdoc />

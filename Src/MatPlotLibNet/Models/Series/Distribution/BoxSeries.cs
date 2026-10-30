@@ -10,21 +10,34 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a box plot series displaying statistical distribution summaries.</summary>
 public sealed class BoxSeries : DatasetSeries, IHasColor
 {
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The colour of the median line across each box; <see langword="null"/> (the default) draws it red.</summary>
     public Color? MedianColor { get; set; }
 
+    /// <summary>Whether the observations beyond the whiskers are to be marked as outliers. Default
+    /// <see langword="true"/>. The value is kept and saved with the series, but the box renderer draws no outlier
+    /// marks, so it does not change the picture.</summary>
     public bool ShowOutliers { get; set; } = true;
 
+    /// <summary>Width of each box in data units of the position axis, where positions are 1 apart by default. Default
+    /// 0.5.</summary>
     public double Widths { get; set; } = RestingWidths;
 
+    /// <summary>When <see langword="true"/> (the default) the boxes stand upright, with positions along X and values
+    /// along Y; when <see langword="false"/> they lie down, with positions along Y and values along X.</summary>
     public bool Vert { get; set; } = true;
 
+    /// <summary>How far a whisker reaches past its box, as a multiple of the interquartile range; the whisker stops at
+    /// the most extreme observation inside that reach. Default 1.5.</summary>
     public double Whis { get; set; } = RestingWhis;
 
     private const double RestingWidths = 0.5;
     private const double RestingWhis = 1.5;
 
+    /// <summary>When <see langword="true"/> each box also gets a dot at the mean of its data. Default
+    /// <see langword="false"/>.</summary>
     public bool ShowMeans { get; set; }
 
     /// <summary>Where each box stands along the axis that carries the positions (X for upright boxes, Y for boxes that lie

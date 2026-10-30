@@ -17,10 +17,14 @@ public sealed class SparklineSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The y value of each point of the line. Points are spaced evenly from left to right, so a value's position
+    /// in the array is its x.</summary>
     public double[] Values { get; }
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
     /// <summary>Creates a new sparkline series from the given values.</summary>

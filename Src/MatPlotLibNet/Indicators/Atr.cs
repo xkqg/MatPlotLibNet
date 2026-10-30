@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
 
@@ -27,17 +28,12 @@ public sealed class Atr : CandleIndicator<SignalResult>
     {
         int n = BarCount;
         if (n <= _period) return Array.Empty<double>();
-        var tr = ComputeTrueRange();
-
         var result = new double[n - _period];
-        double avg = 0;
-        for (int i = 0; i < _period; i++) avg += tr[i]; // tr is already offset by 1 (length = n-1)
-        avg /= _period;
-        result[0] = avg;
-        for (int i = 1; i < result.Length; i++)
+        var step = new AtrStep(_period);
+        for (int i = 0; i < n; i++)
         {
-            avg = (avg * (_period - 1) + tr[_period - 1 + i]) / _period;
-            result[i] = avg;
+            double value = step.Next(High[i], Low[i], Close[i]);
+            if (i >= _period) result[i - _period] = value;
         }
         return result;
     }

@@ -185,6 +185,49 @@ public class ReleaseContractTests
             + string.Join(", ", unseen.Select(p => $"{p.Id} ({p.Missing})")));
     }
 
+    [Fact]
+    public void EveryRecordedPackage_IsLoadedByItsSuite_OrItsSuiteIsRecordedInItsPlace()
+    {
+        // The allowlist names an assembly and a suite runs, but the collector records a module only while the test
+        // process loads it. A suite that LINKS a package's source files compiles them into its own *.Tests.dll, which
+        // the runsettings leaves out, so none of the package's classes ever reached a Cobertura file: Avalonia was in
+        // the allowlist, ran its suite and was invisible to the gate. A suite must either reference the package
+        // project (the package assembly is then the module) or, where the package cannot be referenced from a plain
+        // net10.0 suite (MAUI, whose target frameworks are platform ones), the linked suite's own assembly has to be
+        // on the allowlist.
+        var recorded = AssembliesTheCollectorRecords();
+
+        var unseen = new List<string>();
+        foreach (var id in LivePackages().Select(p => p.Xml.Descendants("PackageId").First().Value.Trim())
+                     .Where(id => recorded.Contains(id, StringComparer.Ordinal)))
+        {
+            string suitePath = Path.Combine(Root, "Tst", id, $"{id}.Tests.csproj");
+            if (!File.Exists(suitePath))
+            {
+                continue;
+            }
+
+            var suite = XDocument.Load(suitePath);
+            var referenced = suite.Descendants("ProjectReference")
+                .Select(r => (r.Attribute("Include")?.Value ?? string.Empty).Replace('\\', '/'))
+                .Any(r => r.EndsWith($"Src/{id}/{id}.csproj", StringComparison.Ordinal));
+            var linked = suite.Descendants("Compile")
+                .Select(c => (c.Attribute("Include")?.Value ?? string.Empty).Replace('\\', '/'))
+                .Any(c => c.Contains($"Src/{id}/", StringComparison.Ordinal));
+
+            if (!referenced && !(linked && recorded.Contains($"{id}.Tests", StringComparer.Ordinal)))
+            {
+                unseen.Add(linked
+                    ? $"{id} (its suite links the sources into {id}.Tests.dll, which the runsettings does not record)"
+                    : $"{id} (its suite neither references nor links the package)");
+            }
+        }
+
+        Assert.True(unseen.Count == 0,
+            "These packages are on the coverage allowlist and their suites never load them, so no class of them is measured: "
+            + string.Join(", ", unseen));
+    }
+
     // ---- the version, in every place it is written ----------------------------------------------------------
 
     [Fact]
@@ -890,6 +933,88 @@ public class ReleaseContractTests
 
         Assert.True(unpublished.Length == 0,
             $"These packages have a PackageId and nothing ever pushes them: {string.Join(", ", unpublished)}");
+    }
+
+    // ---- the platform heads are judged on every push, not by the tag ------------------------------------------
+
+    private const string MauiProject = "Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj";
+    private const string WpfProject = "Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj";
+    private const string MauiSuite = "Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj";
+    private const string WpfSuite = "Tst/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.Tests.csproj";
+    private const string UnoSuite = "Tst/MatPlotLibNet.Uno/MatPlotLibNet.Uno.Tests.csproj";
+
+    /// <summary>The one job of <c>ci.yml</c> that runs on Windows: the packages that need a workload or a Windows SDK
+    /// are built there, because the Linux runner cannot build them.</summary>
+    private static WorkflowJob CiWindowsJob() =>
+        JobsOf("ci.yml").Single(job => job.Text.Contains("runs-on: windows-latest", StringComparison.Ordinal));
+
+    [Fact]
+    public void TheWindowsHeads_AreBuiltAndTestedByCiOnEveryPush()
+    {
+        // Measured: MAUI, WPF and Uno were built for the first time by the publish workflow, after the tag, so a break
+        // in them (or in the API-compatibility check their pack runs against the previous release) showed on a
+        // release, where a package already pushed cannot be taken back. A job that builds what it runs is why these
+        // projects stay out of the CI filter.
+        var job = CiWindowsJob();
+        int workloads = job.Text.IndexOf("dotnet workload install maui android", StringComparison.Ordinal);
+
+        Assert.True(workloads >= 0, $"{job.Name} never installs the workloads MAUI needs.");
+
+        foreach (string project in new[] { MauiProject, WpfProject })
+        {
+            int built = job.Text.IndexOf("dotnet build " + project, StringComparison.Ordinal);
+
+            Assert.True(built >= 0, $"{job.Name} never builds {project}.");
+            Assert.True(built > workloads, $"{job.Name} builds {project} before it installs the workloads.");
+        }
+
+        foreach (string suite in new[] { MauiSuite, WpfSuite, UnoSuite })
+        {
+            Assert.True(
+                job.Text.Contains("dotnet run --project " + suite, StringComparison.Ordinal),
+                $"{job.Name} never runs {suite}.");
+        }
+    }
+
+    [Fact]
+    public void TheWindowsJobOfCi_InstallsTheWorkloadsThePublishJobInstalls()
+    {
+        // The job exists to judge what publish-platform will build; a different workload list would judge another thing.
+        static string WorkloadLine(string text) =>
+            Regex.Match(text, @"dotnet workload install [^\r\n]+").Value.Trim();
+
+        string publish = WorkloadLine(Read(".github", "workflows", "publish.yml"));
+
+        Assert.NotEmpty(publish);
+        Assert.Equal(publish, WorkloadLine(CiWindowsJob().Text));
+    }
+
+    [Fact]
+    public void EveryProjectPublishBuildsByName_IsBuiltByCiToo()
+    {
+        // publish.yml builds the platform packages by name; the CI filter builds the rest. A project only the publish
+        // workflow builds is validated for the first time on a release.
+        var named = Regex.Matches(Read(".github", "workflows", "publish.yml"), @"dotnet (?:build|pack) (Src/\S+\.csproj)")
+            .Select(m => m.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal);
+        string ci = Read(".github", "workflows", "ci.yml");
+
+        var unjudged = named
+            .Where(path => !CiFilterProjects().Contains(path, StringComparer.Ordinal)
+                           && !ci.Contains("dotnet build " + path, StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(unjudged.Length == 0,
+            $"publish.yml builds these and no job of ci.yml does: {string.Join(", ", unjudged)}");
+    }
+
+    [Fact]
+    public void TheMauiSuite_IsInTheCiFilter_SoTheLinuxRunnerRunsItToo()
+    {
+        // The suite compiles the package's sources into a plain net10.0 assembly, so it needs no workload and runs on
+        // the Linux job like the others; the Windows job runs it again against the real package build.
+        Assert.Contains(MauiSuite, CiFilterTestProjects());
+        Assert.Contains(MauiSuite, TestProjectsRunWithoutBuilding("ci.yml"));
     }
 
     [Fact]

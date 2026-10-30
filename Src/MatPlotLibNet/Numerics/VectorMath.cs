@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using MatPlotLibNet.Indicators.Steps;
 
 namespace MatPlotLibNet.Numerics;
 
@@ -115,15 +116,12 @@ internal static class VectorMath
         int n = source.Length;
         if (n < period) return [];
 
-        int len = n - period + 1;
-        var result = new double[len];
-        double sum = 0;
-        for (int i = 0; i < period; i++) sum += source[i];
-        result[0] = sum / period;
-        for (int i = period; i < n; i++)
+        var result = new double[n - period + 1];
+        var step = new RollingMeanStep(period);
+        for (int i = 0; i < n; i++)
         {
-            sum += source[i] - source[i - period];
-            result[i - period + 1] = sum / period;
+            double mean = step.Next(source[i]);
+            if (i >= period - 1) result[i - period + 1] = mean;
         }
         return result;
     }

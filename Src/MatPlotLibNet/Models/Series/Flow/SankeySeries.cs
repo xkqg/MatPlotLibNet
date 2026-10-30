@@ -51,14 +51,21 @@ public sealed class SankeySeries : ChartSeries
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The nodes of the diagram, drawn as labelled rectangles in columns; the links refer to them by
+    /// index.</summary>
     public IReadOnlyList<SankeyNode> Nodes { get; }
 
+    /// <summary>The flows between the nodes: each link names its source and target node by index into
+    /// <see cref="Nodes"/>, and its value sets how thick the link is drawn.</summary>
     public IReadOnlyList<SankeyLink> Links { get; }
 
+    /// <summary>Width of each node rectangle along the direction of the flow, in pixels. Default 20.</summary>
     public double NodeWidth { get; set; } = 20;
 
+    /// <summary>The gap kept between neighbouring nodes of one column, in pixels. Default 10.</summary>
     public double NodePadding { get; set; } = 10;
 
+    /// <summary>Opacity of the links, from 0 (invisible) to 1 (solid). Default 0.4.</summary>
     public double LinkAlpha { get; set; } = 0.4;
 
     /// <summary>Horizontal alignment strategy for node columns. Default <see cref="SankeyNodeAlignment.Justify"/>.</summary>

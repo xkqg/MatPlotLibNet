@@ -12,14 +12,22 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>X has M+1 edge coordinates, Y has N+1 edge coordinates, and C is an N×M data matrix.</remarks>
 public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
+    /// <summary>The M + 1 cell edges along X: column <c>c</c> of <see cref="C"/> spans from <c>X[c]</c> to <c>X[c +
+    /// 1]</c>, and the spacing may be uneven.</summary>
     public Vec X { get; }
 
+    /// <summary>The N + 1 cell edges along Y: row <c>r</c> of <see cref="C"/> spans from <c>Y[r]</c> to <c>Y[r +
+    /// 1]</c>, and the spacing may be uneven.</summary>
     public Vec Y { get; }
 
+    /// <summary>The cell values, an N-by-M matrix indexed [row, column]: each fills the cell between its edges on
+    /// <see cref="X"/> and <see cref="Y"/>.</summary>
     public double[,] C { get; }
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />

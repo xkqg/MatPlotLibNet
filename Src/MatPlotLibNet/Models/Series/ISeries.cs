@@ -9,10 +9,15 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Defines the contract for a data series that can be rendered on an axes.</summary>
 public interface ISeries
 {
+    /// <summary>The name shown for this series in the legend; <see langword="null"/> or an empty string keeps the
+    /// series out of the legend.</summary>
     string? Label { get; set; }
 
+    /// <summary>Whether the series is drawn. A series set to false stays on the axes but is not rendered.</summary>
     bool Visible { get; set; }
 
+    /// <summary>The stacking order among the series of one axes: a series with a higher value is drawn on top of one
+    /// with a lower value.</summary>
     int ZOrder { get; set; }
 
     /// <summary>Accepts a visitor for rendering this series within the specified area.</summary>

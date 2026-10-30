@@ -13,10 +13,14 @@ namespace MatPlotLibNet.Models.Series;
 public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, ILabelable,
     ITableNamedByAxes
 {
+    /// <summary>The values to draw, indexed [row, column]: each becomes one coloured cell, and row 0 is at the
+    /// top.</summary>
     public double[,] Data { get; }
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc cref="ILabelable.ShowLabels"/>

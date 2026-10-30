@@ -11,16 +11,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a spectrogram series that displays the time-frequency content of a signal using Short-Time FFT.</summary>
 public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
+    /// <summary>The signal in the time domain, one sample per entry; the series draws its short-time spectrum.</summary>
     public Vec Signal { get; }
 
+    /// <summary>Samples per second of the signal: it turns a sample index into a time and puts the top of the frequency
+    /// axis at half this rate. Default 1.</summary>
     public int SampleRate { get; set; } = 1;
 
+    /// <summary>The number of samples in each analysis window, rounded to a power of two; longer windows resolve
+    /// frequency better and time worse. Default 256.</summary>
     public int WindowSize { get; set; } = 256;
 
+    /// <summary>The number of samples that neighbouring windows share. Default 128.</summary>
     public int Overlap { get; set; } = 128;
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
+    /// <inheritdoc />
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>The short-time spectrum the cells are drawn from and the colour bar is read from: one place the signal's

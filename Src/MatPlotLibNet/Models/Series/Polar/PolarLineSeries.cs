@@ -10,10 +10,13 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a line plot in polar coordinates (r, theta).</summary>
 public sealed class PolarLineSeries : PolarSeries, IHasColor
 {
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The dash pattern of the line: solid, dashed, dotted and so on. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
+    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
     /// <summary>Initializes a new polar line series.</summary>

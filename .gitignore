@@ -66,3 +66,6 @@ docs/contrib/indicator-tier-*.md
 
 ## Council/audit artifacts (local-only, not for the public tree)
 .path-manifests/
+
+# The npm bindings are installed on demand; their lock files are not kept in the repository.
+Src/matplotlibnet-*/package-lock.json

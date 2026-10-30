@@ -11,14 +11,21 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a rug plot series that draws short tick marks along an axis to show the distribution of individual values.</summary>
 public sealed class RugplotSeries : ChartSeries, IHasColor, IHasAlpha
 {
+    /// <summary>The observations to mark: each draws one short tick at its value along X. A missing value (NaN) or an
+    /// infinity draws none.</summary>
     public Vec Data { get; }
 
+    /// <summary>Height of each tick as a fraction of the vertical extent of the plot, measured up from its bottom edge.
+    /// Default 0.05.</summary>
     public double Height { get; set; } = 0.05;
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.5;
 
+    /// <summary>Width of each tick, in pixels. Default 1.</summary>
     public double LineWidth { get; set; } = 1.0;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="RugplotSeries"/> with the specified data.</summary>

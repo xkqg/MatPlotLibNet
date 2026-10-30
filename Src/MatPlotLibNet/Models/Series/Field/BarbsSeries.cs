@@ -11,16 +11,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a wind barb series using meteorological notation to show speed and direction.</summary>
 public sealed class BarbsSeries : ChartSeries, IHasColor
 {
+    /// <summary>The X position of the base of each barb.</summary>
     public Vec X { get; }
 
+    /// <summary>The Y position of the base of each barb.</summary>
     public Vec Y { get; }
 
+    /// <summary>The wind speed at each position, in knots: a flag stands for 50, a full barb for 10 and a half barb for
+    /// 5.</summary>
     public Vec Speed { get; }
 
+    /// <summary>The direction the staff of each barb points, in degrees clockwise from north: 0 is straight up and 90
+    /// is to the right.</summary>
     public Vec Direction { get; }
 
+    /// <summary>Length of the staff of each barb, in pixels. Default 15.</summary>
     public double BarbLength { get; set; } = 15;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="BarbsSeries"/>.</summary>

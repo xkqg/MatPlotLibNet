@@ -10,10 +10,13 @@ public sealed class AnimationBuilder
 {
     private readonly Func<int, Figure> _frameGenerator;
 
+    /// <summary>The number of frames in one pass of the animation; frame indexes run from 0 to one less than this.</summary>
     public int FrameCount { get; }
 
+    /// <summary>The pause between one frame and the next during playback. Default 50 ms.</summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(50);
 
+    /// <summary>Whether playback starts over after the last frame instead of stopping. Default <see langword="true"/>.</summary>
     public bool Loop { get; set; } = true;
 
     /// <summary>Creates an animation builder with the specified frame count and generator function.</summary>

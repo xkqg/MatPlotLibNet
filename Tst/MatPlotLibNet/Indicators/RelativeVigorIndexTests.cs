@@ -19,6 +19,24 @@ public class RelativeVigorIndexTests
         Assert.Empty(r.Signal);
     }
 
+    /// <summary>With exactly <c>period + 4</c> bars the RVI has its first two values and the signal (which needs one more bar) none.
+    /// It used to throw an OverflowException (a signal of length -1), which a streaming form compared against the batch over every
+    /// prefix ran into on its fifth bar.</summary>
+    [Fact]
+    public void Compute_OneBarShortOfTheSignal_HasTheRviAndNoSignal_InsteadOfThrowing()
+    {
+        int period = 5, n = period + 4;
+        double[] open = [.. Enumerable.Range(0, n).Select(i => 100.0 + i)];
+        double[] close = [.. open.Select(v => v + 0.5)];
+        double[] high = [.. close.Select(v => v + 1)];
+        double[] low = [.. open.Select(v => v - 1)];
+
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(open, high, low, close), period).Compute();
+
+        Assert.Equal(2, r.Rvi.Length);
+        Assert.Empty(r.Signal);
+    }
+
     // ── Branch 2 — OHLC length mismatch throws ──
     [Fact]
     public void Constructor_LengthMismatch_Throws()

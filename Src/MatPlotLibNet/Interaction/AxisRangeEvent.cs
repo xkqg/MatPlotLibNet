@@ -25,15 +25,43 @@ public abstract record AxisRangeEvent(
     /// such axis where it was (today's behavior).</summary>
     public IReadOnlyList<SecondaryAxisRange>? SecondaryRanges { get; init; }
 
+    /// <summary>Whether this event takes the axes back to the view the reader started from (<see cref="ResetEvent"/>)
+    /// instead of to the range it carries. The numbers it carries are then only what is used when the figure remembers
+    /// no first view for the axes, because nothing has moved it.</summary>
+    internal virtual bool RestoresHome => false;
+
+    /// <inheritdoc />
+    internal override bool ChangesView => true;
+
     /// <inheritdoc />
     public sealed override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
     internal sealed override bool TryApplyTo(Figure figure)
     {
-        if (!TryTargetAxes(figure, out var axes)) return false;
+        if (!TryTargetMovableAxes(figure, out var axes)) return false;
 
-        foreach (var linked in XLinkedAxes(figure))
+        var linkedAxes = XLinkedAxes(figure);
+        if (RestoresHome)
+        {
+            // Every axes the sender linked to this one goes home with it, each to the view it started from.
+            bool wentHome = false;
+            foreach (var linked in linkedAxes)
+            {
+                wentHome |= figure.Home.GoHome(linked);
+            }
+
+            if (wentHome) return true;
+        }
+        else
+        {
+            foreach (var linked in linkedAxes)
+            {
+                figure.Home.Remember(linked);
+            }
+        }
+
+        foreach (var linked in linkedAxes)
         {
             linked.XAxis.Min = XMin;
             linked.XAxis.Max = XMax;

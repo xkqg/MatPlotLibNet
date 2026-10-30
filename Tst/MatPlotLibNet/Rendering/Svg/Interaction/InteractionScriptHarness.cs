@@ -74,6 +74,10 @@ public sealed class InteractionScriptHarness : IDisposable
 {
     private readonly Engine _engine;
     public DomDocument Document { get; }
+
+    /// <summary>The page's <c>window</c>, which scripts listen on and dispatch to when charts talk to each other
+    /// (<c>mpl:rows</c>). Replaced by the test's own object when a test wires a SignalR connection.</summary>
+    public DomWindow Window { get; }
     /// <summary>The full SVG XML the figure produced. Useful for static assertions
     /// that complement behavioural ones.</summary>
     public string Svg { get; }
@@ -83,6 +87,7 @@ public sealed class InteractionScriptHarness : IDisposable
         Svg = svg;
         Document = doc;
         _engine = engine;
+        Window = new DomWindow(engine);
     }
 
     /// <summary>Builds the figure, extracts its embedded scripts, runs them in Jint
@@ -102,6 +107,18 @@ public sealed class InteractionScriptHarness : IDisposable
             configure(fb);
             svgs.Add(fb.ToSvg());
         }
+
+        return FromSvgs(svgs, reducedMotion: false);
+    }
+
+    /// <summary>One document that is not a figure's own: an SVG a transform wrote (an animation that steps through its frames), run
+    /// as a page runs it. Time is the test's: an interval armed by a script fires when <see cref="Tick"/> says so.</summary>
+    /// <param name="svg">The SVG document.</param>
+    /// <param name="reducedMotion">Whether the page's reader asked for reduced motion (<c>prefers-reduced-motion</c>).</param>
+    public static InteractionScriptHarness FromSvg(string svg, bool reducedMotion = false) => FromSvgs([svg], reducedMotion);
+
+    private static InteractionScriptHarness FromSvgs(IReadOnlyList<string> svgs, bool reducedMotion)
+    {
         var combined = string.Concat(svgs);
 
         // Strip XML declarations + namespace decls so XDocument can parse the multi-SVG bag
@@ -123,6 +140,7 @@ public sealed class InteractionScriptHarness : IDisposable
 
         var engine = new Engine(opts => opts.Strict(false));
         var harness = new InteractionScriptHarness(combined, dom, engine);
+        harness.Window.PrefersReducedMotion = reducedMotion;
         harness.WireGlobals();
         harness.RunEmbeddedScripts(dom.QuerySelectorAllRaw("script"));
         return harness;
@@ -163,8 +181,8 @@ public sealed class InteractionScriptHarness : IDisposable
     {
         _engine.Execute("""
             window = { __mpl_signalr_connection: {
-                invoked: [], handlers: [],
-                invoke: function (method, payload) { this.invoked.push(method); },
+                invoked: [], payloads: [], handlers: [],
+                invoke: function (method, payload) { this.invoked.push(method); this.payloads.push(JSON.stringify(payload)); },
                 on: function (name, fn) { this.handlers.push({ name: name, fn: fn }); }
             } };
             """);
@@ -175,12 +193,19 @@ public sealed class InteractionScriptHarness : IDisposable
     {
         Document.AttachEngine(_engine);
         _engine.SetValue("document", Document);
-        _engine.SetValue("window", new { });
+        _engine.SetValue("window", Window);
         _engine.SetValue("console", new { log = (Action<object>)(o => System.Console.WriteLine(o)) });
         _engine.SetValue("location", new { hash = "" });
         // The hover round trip arms a timer to clear its in-flight flag. The harness has no event loop, so the timer is
         // accepted and never fires: a test sees the state right after the event, the way a browser does before the timer.
         _engine.SetValue("setTimeout", new Func<Jint.Native.JsValue, Jint.Native.JsValue, int>((_, _) => 0));
+        // An interval is armed and cleared for real, and fires only when the test says time has passed (Tick).
+        _engine.SetValue("setInterval", new Func<Jint.Native.JsValue, Jint.Native.JsValue, int>((handler, _) =>
+        {
+            _intervals[++_lastIntervalId] = handler;
+            return _lastIntervalId;
+        }));
+        _engine.SetValue("clearInterval", new Action<int>(id => _intervals.Remove(id)));
         // Phase G.5 of v1.7.2 follow-on plan — CustomEvent is needed by the selection
         // script's `svg.dispatchEvent(new CustomEvent('mpl:selection', { detail: {...} }))`.
         // Jint's `new` requires a concrete function-value, so we register a factory that
@@ -268,6 +293,19 @@ public sealed class InteractionScriptHarness : IDisposable
         return mock;
     }
 
+    private readonly Dictionary<int, Jint.Native.JsValue> _intervals = [];
+    private int _lastIntervalId;
+
+    /// <summary>How many intervals the scripts have armed and not cleared.</summary>
+    public int ActiveIntervals => _intervals.Count;
+
+    /// <summary>One interval of time passes: every interval a script has armed fires once.</summary>
+    public void Tick()
+    {
+        foreach (var handler in _intervals.Values.ToArray())
+            _engine.Invoke(handler);
+    }
+
     public void Dispose() => _engine.Dispose();
 }
 
@@ -309,7 +347,79 @@ public sealed class JsSignalRHub
         })
         """), name, chartId, html);
 
+    /// <summary>Delivers a server message with any arguments to every handler registered for it, as the connection does.</summary>
+    /// <param name="name">The client method the server called.</param>
+    /// <param name="args">Its arguments, in order.</param>
+    public void DeliverMessage(string name, params object[] args)
+    {
+        var deliver = _engine.Evaluate("""
+            (function (name, args) {
+                var hs = window.__mpl_signalr_connection.handlers;
+                for (var i = 0; i < hs.length; i++) if (hs[i].name === name) hs[i].fn.apply(null, args);
+            })
+            """);
+        var list = (Jint.Native.JsArray)_engine.Evaluate("[]");
+        foreach (var arg in args)
+        {
+            list.Push(Jint.Native.JsValue.FromObject(_engine, arg));
+        }
+
+        _engine.Invoke(deliver, name, list);
+    }
+
+    /// <summary>The JSON payload of the last time the scripts invoked <paramref name="method"/>, or <see langword="null"/>.</summary>
+    public string? LastPayload(string method) => _engine.Evaluate($$"""
+        (function () {
+            var c = window.__mpl_signalr_connection;
+            for (var i = c.invoked.length - 1; i >= 0; i--) if (c.invoked[i] === '{{method}}') return c.payloads[i];
+            return null;
+        })()
+        """) is var v && v.IsString() ? v.AsString() : null;
+
     /// <summary>The hub methods the scripts invoked, in order.</summary>
     public string[] Invoked => _engine.Evaluate("window.__mpl_signalr_connection.invoked.join(',')").AsString()
         .Split(',', StringSplitOptions.RemoveEmptyEntries);
+}
+
+/// <summary>The page's <c>window</c> as a script sees it: an event target the charts of a page use to talk to each other. A
+/// listener is kept by the function the script passed, so <c>removeEventListener</c> removes the one that was added, and the
+/// number left can be asserted.</summary>
+public sealed class DomWindow
+{
+    private readonly Engine _engine;
+    private readonly List<Listener> _listeners = [];
+
+    private readonly record struct Listener(string Type, Jint.Native.JsValue Handler);
+
+    internal DomWindow(Engine engine) => _engine = engine;
+
+    /// <summary>Whether the page's reader asked for reduced motion; what <c>matchMedia('(prefers-reduced-motion: reduce)')</c> answers.</summary>
+    public bool PrefersReducedMotion { get; set; }
+
+    /// <summary>Mirrors <c>window.matchMedia</c> for the one query the scripts ask.</summary>
+    public DomMediaQuery matchMedia(string query) =>
+        new() { matches = query.Contains("prefers-reduced-motion", StringComparison.Ordinal) && PrefersReducedMotion };
+
+    public void addEventListener(string type, Jint.Native.JsValue handler, object? options = null) =>
+        _listeners.Add(new Listener(type, handler));
+
+    public void removeEventListener(string type, Jint.Native.JsValue handler, object? options = null) =>
+        _listeners.RemoveAll(listener => listener.Type == type && ReferenceEquals(listener.Handler, handler));
+
+    /// <summary>Delivers the event to every listener of its type, in the order they were added; a listener added or removed while
+    /// it is delivered does not change who hears this one.</summary>
+    public void dispatchEvent(DomEvent ev)
+    {
+        foreach (var listener in _listeners.Where(l => l.Type == ev.type).ToArray())
+            _engine.Invoke(listener.Handler, ev);
+    }
+
+    /// <summary>How many listeners of this type are registered now.</summary>
+    public int ListenerCount(string type) => _listeners.Count(listener => listener.Type == type);
+}
+
+/// <summary>The answer <c>matchMedia</c> gives.</summary>
+public sealed class DomMediaQuery
+{
+    public bool matches { get; set; }
 }

@@ -26,7 +26,7 @@ public class MarkObstaclesContractTests
         typeof(SignalSeries), typeof(SignalXYSeries), typeof(StreamingLineSeries), typeof(StreamingSignalSeries), typeof(ErrorBarSeries),
         typeof(StemSeries), typeof(AreaSeries), typeof(StackedAreaSeries), typeof(BoxSeries), typeof(ViolinSeries), typeof(OhlcBarSeries),
         typeof(PointplotSeries), typeof(RugplotSeries), typeof(EventplotSeries), typeof(DendrogramSeries), typeof(NetworkGraphSeries),
-        typeof(RelativeRotationSeries), typeof(RadarSeries), typeof(PieSeries), typeof(DonutSeries), typeof(SunburstSeries), typeof(WaffleSeries),
+        typeof(RelativeRotationSeries), typeof(RadarSeries), typeof(PieSeries), typeof(DonutSeries), typeof(SunburstSeries), typeof(WaffleSeries), typeof(PiperSeries), typeof(ChordSeries), typeof(WordCloudSeries),
         // points
         typeof(ScatterSeries), typeof(BubbleSeries), typeof(StreamingScatterSeries), typeof(StripplotSeries), typeof(SwarmplotSeries),
         typeof(ResidualSeries),
@@ -35,10 +35,10 @@ public class MarkObstaclesContractTests
         typeof(GanttSeries), typeof(FunnelSeries), typeof(CandlestickSeries), typeof(StreamingCandlestickSeries), typeof(PointAndFigureSeries),
     ];
 
-    /// <summary>The series that draw marks on polar and 3-D axes.</summary>
-    private static readonly Type[] PolarAndThreeD =
+    /// <summary>The series that draw marks on a coordinate system of their own: polar, 3-D and ternary axes.</summary>
+    private static readonly Type[] OwnCoordinateSystem =
     [
-        typeof(PolarLineSeries), typeof(PolarScatterSeries), typeof(PolarBarSeries),
+        typeof(PolarLineSeries), typeof(PolarScatterSeries), typeof(PolarBarSeries), typeof(TernaryScatterSeries), typeof(TernaryLineSeries),
         typeof(Line3DSeries), typeof(Stem3DSeries), typeof(Scatter3DSeries), typeof(Bar3DSeries), typeof(PlanarBar3DSeries), typeof(Text3DSeries),
     ];
 
@@ -62,7 +62,7 @@ public class MarkObstaclesContractTests
     [Fact]
     public void EverySeriesType_StandsInExactlyOneList()
     {
-        var lists = new[] { Cartesian, PolarAndThreeD, Dropped };
+        var lists = new[] { Cartesian, OwnCoordinateSystem, Dropped };
         var unplaced = Shipped().Where(t => lists.All(list => !list.Contains(t))).Select(t => t.Name).Order(StringComparer.Ordinal).ToList();
         var twice = Shipped().Where(t => lists.Count(list => list.Contains(t)) > 1).Select(t => t.Name).Order(StringComparer.Ordinal).ToList();
         var unknown = lists.SelectMany(list => list).Where(t => !Shipped().Contains(t)).Select(t => t.Name).ToList();
@@ -77,7 +77,7 @@ public class MarkObstaclesContractTests
     {
         var covered = MarksAsDrawnTests.SeriesTypes.ToHashSet();
 
-        var missing = Cartesian.Concat(PolarAndThreeD).Where(t => !covered.Contains(t)).Select(t => t.Name).ToList();
+        var missing = Cartesian.Concat(OwnCoordinateSystem).Where(t => !covered.Contains(t)).Select(t => t.Name).ToList();
 
         Assert.True(missing.Count == 0, $"no marks-as-drawn row for: {string.Join(", ", missing)}");
     }

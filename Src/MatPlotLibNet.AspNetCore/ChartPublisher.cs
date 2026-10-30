@@ -27,4 +27,8 @@ public sealed class ChartPublisher(
         var svg = svgRenderer.Render(figure);
         await hubContext.Clients.Group(chartId).UpdateChartSvg(chartId, svg);
     }
+
+    /// <inheritdoc />
+    public Task PublishViewChangeAsync(string chartId, string viewerId, string viewerName, CancellationToken ct = default) =>
+        hubContext.Clients.Group(chartId).ViewChanged(chartId, viewerId, viewerName);
 }

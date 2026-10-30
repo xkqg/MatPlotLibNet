@@ -10,12 +10,19 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents an event plot series that draws rows of vertical tick lines at event positions, one row per event set.</summary>
 public sealed class EventplotSeries : ChartSeries
 {
+    /// <summary>The events, one array per row: the values of array <c>i</c> are where the ticks of row <c>i</c> stand
+    /// along X, and the row is drawn at height <c>i</c>.</summary>
     public double[][] Positions { get; }
 
+    /// <summary>Width of each event tick, in pixels. Default 1.</summary>
     public double LineWidth { get; set; } = 1.0;
 
+    /// <summary>The colour of the ticks of each row, by row; a row past the end of the array, or every row when this is
+    /// <see langword="null"/>, takes the series colour.</summary>
     public Color[]? Colors { get; set; }
 
+    /// <summary>Height of each tick in data units of the row axis, centred on its row; the default 1 makes the ticks of
+    /// neighbouring rows touch.</summary>
     public double LineLength { get; set; } = 1.0;
 
     /// <summary>Initializes a new instance of <see cref="EventplotSeries"/> with the specified position sets.</summary>

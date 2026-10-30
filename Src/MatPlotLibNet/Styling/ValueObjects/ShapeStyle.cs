@@ -40,8 +40,8 @@ public readonly record struct ShapeStyle(Color? Fill, Color? Stroke, double Stro
     /// colour of the shape wherever a backend cannot paint a gradient.</summary>
     /// <remarks>An <c>init</c> property for the reason <see cref="Hatch"/> is one. A hatch together with a gradient is laid
     /// over the gradient. The SVG backend writes a <c>linearGradient</c> in user space (shapes that carry the same gradient
-    /// share it), the Skia backend paints a shader (a vector shading in a PDF), and the MAUI backend, which this repository
-    /// cannot build or test, paints the flat <see cref="Fill"/>.</remarks>
+    /// share it), the Skia backend paints a shader (a vector shading in a PDF), and the MAUI backend paints a linear gradient
+    /// paint whose ends are fractions of the shape's box.</remarks>
     public LinearGradient? Gradient { get; init; }
 
     /// <summary>Gets a value indicating whether a gradient must be painted: one is set AND there is a fill, which is the

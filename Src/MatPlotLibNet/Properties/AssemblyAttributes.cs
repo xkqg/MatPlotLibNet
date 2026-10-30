@@ -19,3 +19,6 @@ using System.Runtime.CompilerServices;
 // (Serialization/ColorMapDescriptionExtensions, NormalizableExtensions) and leaves a value at rest out the way every
 // series does (RestingValueExtensions), rather than keeping a second copy of any of them in the package that ships with this one.
 [assembly: InternalsVisibleTo("MatPlotLibNet.Geo")]
+// The routing contract of the server package (the hub, the sink of a native control and the script of a page spell the same
+// hub method names) is held by its own test project, which reads the names from where they are written.
+[assembly: InternalsVisibleTo("MatPlotLibNet.AspNetCore.Tests")]

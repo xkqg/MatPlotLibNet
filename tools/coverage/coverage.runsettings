@@ -22,13 +22,24 @@
                 <ModulePath>.*MatPlotLibNet\.GraphQL\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.Mcp\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.Verso\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.Maui\.dll$</ModulePath>
+                <!-- MatPlotLibNet.Maui has platform target frameworks and needs the MAUI workload, so its suite compiles
+                     the package's sources into its own assembly (Tst/MatPlotLibNet.Maui). That assembly is the module the
+                     package's classes are recorded in; the suite's own tests are left out by the Functions rule below. -->
+                <ModulePath>.*MatPlotLibNet\.Maui\.Tests\.dll$</ModulePath>
             </Include>
             <Exclude>
-                <ModulePath>.*\.Tests\.dll$</ModulePath>
+                <ModulePath>^(?!.*MatPlotLibNet\.Maui\.Tests\.dll$).*\.Tests\.dll$</ModulePath>
                 <ModulePath>.*xunit.*\.dll$</ModulePath>
                 <ModulePath>.*Microsoft\.Testing.*\.dll$</ModulePath>
             </Exclude>
         </ModulePaths>
+
+        <Functions>
+            <Exclude>
+                <Function>^MatPlotLibNet\.Maui\.Tests\..*</Function>
+            </Exclude>
+        </Functions>
 
         <Attributes>
             <Exclude>

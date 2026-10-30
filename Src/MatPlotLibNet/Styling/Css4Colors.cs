@@ -327,6 +327,7 @@ public static class Css4Colors
     /// <summary>Gets the <c>Black</c> color (#000000).</summary>
     public static Color Black          => new(0x00, 0x00, 0x00);
 
+    /// <summary>All 148 CSS Level 4 colours keyed by lower-case name, with the same values as the static properties of this class. Lookup ignores case.</summary>
     public static IReadOnlyDictionary<string, Color> All { get; } = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
     {
         // Pinks

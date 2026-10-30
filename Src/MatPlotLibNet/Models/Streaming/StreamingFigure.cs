@@ -73,11 +73,17 @@ public sealed class StreamingFigure : IDisposable
 
     /// <summary>Applies axis scaling modes to the figure's axes based on current data ranges.
     /// Call this before each render to update axis limits.</summary>
+    /// <remarks>An axes the reader has moved (zoomed, panned or rotated) is left where they put it: its first view is
+    /// remembered by the figure (<c>Figure.Home</c>), and a scale mode that rewrote the limits at every frame would
+    /// overrule the reader at the next frame. Home returns the axes to their first view and forgets it, so the scale mode
+    /// follows the data again from the next frame.</remarks>
     public void ApplyAxisScaling()
     {
         for (int i = 0; i < Figure.SubPlots.Count; i++)
         {
             var axes = Figure.SubPlots[i];
+            if (Figure.Home.Remembers(axes)) continue;
+
             var config = AxesConfigs.TryGetValue(i, out var c) ? c : DefaultConfig;
             ApplyScaleMode(axes, config);
         }

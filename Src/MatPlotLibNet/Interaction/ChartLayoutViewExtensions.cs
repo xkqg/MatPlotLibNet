@@ -18,6 +18,7 @@ internal static class ChartLayoutViewExtensions
         /// its plot area.</summary>
         internal DataTransform ViewOf(int axesIndex)
         {
+            if (layout is LayoutSlot slot) return slot.Current.ViewOf(axesIndex);
             if (layout is ChartLayout drawn) return drawn.View(axesIndex);
             var (xMin, xMax, yMin, yMax) = layout.GetDataRange(axesIndex);
             return new DataTransform(xMin, xMax, yMin, yMax, layout.GetPlotArea(axesIndex));
@@ -30,6 +31,7 @@ internal static class ChartLayoutViewExtensions
         /// (<see cref="IChartLayout.GetSecondaryDataRanges"/>), read here as linear over the shared plot area.</summary>
         internal IReadOnlyList<SecondaryAxisTransform> SecondaryViewsOf(int axesIndex)
         {
+            if (layout is LayoutSlot slot) return slot.Current.SecondaryViewsOf(axesIndex);
             if (layout is ChartLayout drawn) return drawn.SecondaryViews(axesIndex);
             var area = layout.GetPlotArea(axesIndex);
             var (xMin, xMax, _, _) = layout.GetDataRange(axesIndex);

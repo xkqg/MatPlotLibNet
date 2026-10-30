@@ -91,7 +91,10 @@ public sealed class ChartSerializer : IChartSerializer
         EnableRichTooltips = figure.EnableRichTooltips.OrNullAtRest(RestingFigure.EnableRichTooltips),
         EnableHighlight = figure.EnableHighlight.OrNullAtRest(RestingFigure.EnableHighlight),
         EnableSelection = figure.EnableSelection.OrNullAtRest(RestingFigure.EnableSelection),
+        SelectionGroup = figure.SelectionGroup,
+        SelectedRows = figure.SelectedRows?.ToArray(),
         EnableDataCursor = figure.EnableDataCursor.OrNullAtRest(RestingFigure.EnableDataCursor),
+        EnableViewerCursors = figure.EnableViewerCursors.OrNullAtRest(RestingFigure.EnableViewerCursors),
         EnableTreemapDrilldown = figure.EnableTreemapDrilldown.OrNullAtRest(RestingFigure.EnableTreemapDrilldown),
         EnableSankeyHover = figure.EnableSankeyHover.OrNullAtRest(RestingFigure.EnableSankeyHover),
         InteractionTheme = figure.InteractionTheme == RestingFigure.InteractionTheme ? null : InteractionThemeDto.From(figure.InteractionTheme),
@@ -337,7 +340,11 @@ public sealed class ChartSerializer : IChartSerializer
         dto.ZOrder = series.ZOrder.OrNullAtRest(series is ChartSeries chart ? chart.RestingZOrder : 0);
         dto.Visible = series.Visible.OrNullAtRest(true);
         if (series is XYSeries xy)
+        {
             dto.MaxDisplayPoints = xy.MaxDisplayPoints;
+            dto.RowKeys = xy.RowKeys;
+        }
+
         if (series is ChartSeries { ColorGroup: { } colorGroup })
             dto.ColorGroup = colorGroup;
         if (series is ChartSeries { WearsNeutral: true })
@@ -359,6 +366,8 @@ public sealed class ChartSerializer : IChartSerializer
             series.Visible = visible;
         if (series is XYSeries xy && dto.MaxDisplayPoints is { } maxDisplayPoints)
             xy.MaxDisplayPoints = maxDisplayPoints;
+        if (series is XYSeries keyed && dto.RowKeys is { } rowKeys)
+            keyed.RowKeys = rowKeys;
         if (series is ChartSeries chartSeries && dto.ColorGroup is { } colorGroup)
             chartSeries.ColorGroup = colorGroup;
         if (series is ChartSeries wearing && dto.WearsNeutral is true)
@@ -389,7 +398,10 @@ public sealed class ChartSerializer : IChartSerializer
             EnableRichTooltips = dto.EnableRichTooltips ?? RestingFigure.EnableRichTooltips,
             EnableHighlight = dto.EnableHighlight ?? RestingFigure.EnableHighlight,
             EnableSelection = dto.EnableSelection ?? RestingFigure.EnableSelection,
+            SelectionGroup = dto.SelectionGroup,
+            SelectedRows = dto.SelectedRows,
             EnableDataCursor = dto.EnableDataCursor ?? RestingFigure.EnableDataCursor,
+            EnableViewerCursors = dto.EnableViewerCursors ?? RestingFigure.EnableViewerCursors,
             EnableTreemapDrilldown = dto.EnableTreemapDrilldown ?? RestingFigure.EnableTreemapDrilldown,
             EnableSankeyHover = dto.EnableSankeyHover ?? RestingFigure.EnableSankeyHover,
             InteractionTheme = dto.InteractionTheme?.ToInteractionTheme() ?? RestingFigure.InteractionTheme,
@@ -767,14 +779,24 @@ internal static class EnumParsingExtensions
     extension(string? value)
     {
         /// <summary>Parses this string to an enum value and applies it via <paramref name="setter"/> on success.
-        /// Case-insensitive; no-ops when this string is <see langword="null"/> or not a valid member of
-        /// <typeparamref name="T"/>.</summary>
+        /// Case-insensitive; does nothing when this string is <see langword="null"/> (the JSON carries no value). A name
+        /// that is not a member of <typeparamref name="T"/> (a figure written by a newer version, a hand-made payload) is
+        /// still dropped leniently, so the figure keeps loading, but is announced on <see cref="ChartDiagnostics"/> instead
+        /// of coming back drawn as the default without a word.</summary>
         internal void ApplyEnum<T>(Action<T> setter) where T : struct, Enum
         {
-            if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
+            if (value is null) return;
+
+            if (Enum.TryParse<T>(value, true, out var parsed))
             {
                 setter(parsed);
+                return;
             }
+
+            ChartDiagnostics.Emit(new ChartDiagnostic(
+                nameof(ChartSerializer),
+                $"Unknown {typeof(T).Name} '{value}' was ignored during deserialization; the default is kept.",
+                null));
         }
     }
 }
@@ -1052,8 +1074,15 @@ internal sealed record FigureDto
     public bool? EnableHighlight { get; init; }
     /// <summary><see langword="true"/> when the SVG embeds rectangle selection.</summary>
     public bool? EnableSelection { get; init; }
+    /// <summary>The name that links this chart's selection to the others of the page; absent when it links to nothing.</summary>
+    public string? SelectionGroup { get; init; }
+    /// <summary>The rows the chart starts with selected; absent when none.</summary>
+    public string[]? SelectedRows { get; init; }
     /// <summary><see langword="true"/> when a click on a point is reported to the server.</summary>
     public bool? EnableDataCursor { get; init; }
+
+    /// <summary><see langword="true"/> when the viewers of a server-interactive chart see each other's pointers.</summary>
+    public bool? EnableViewerCursors { get; init; }
     /// <summary><see langword="true"/> when the SVG embeds treemap drilldown.</summary>
     public bool? EnableTreemapDrilldown { get; init; }
     /// <summary><see langword="true"/> when the SVG embeds Sankey hover emphasis.</summary>
@@ -1197,7 +1226,8 @@ internal sealed record AxesDto
     /// <summary>Whether this axes emits per-vertex 3-D data for client-side reprojection; absent for the default
     /// <see langword="false"/>.</summary>
     public bool? Emit3DVertexData { get; init; }
-    /// <summary>Cartesian, polar or three-D; absent for the default <c>Cartesian</c>.</summary>
+    /// <summary>Cartesian, polar, three-D or ternary; absent for the default <c>Cartesian</c>. A name this reader does not
+    /// know is announced on <see cref="Diagnostics.ChartDiagnostics"/> and the axes is drawn as Cartesian.</summary>
     public string? CoordinateSystem { get; init; }
 }
 
@@ -1398,31 +1428,70 @@ internal sealed record AxisDto
 /// Unused properties serialize as null and are omitted from JSON output via <c>DefaultIgnoreCondition.WhenWritingNull</c>.</remarks>
 public sealed record SeriesDto
 {
+    /// <summary>The discriminator that names the kind of series, such as <c>"line"</c> or <c>"bar"</c>. It picks the reader
+    /// registered for it in <see cref="SeriesRegistry"/> and decides which of the other properties the series
+    /// uses.</summary>
     public string? Type { get; init; }
+    /// <summary>The series' legend label (<see cref="Models.Series.ChartSeries.Label"/>); absent for a series without
+    /// one.</summary>
     public string? Label { get; set; }
     /// <summary>Where the series shows its <see cref="Label"/> when that is not the legend: <c>"lineend"</c> draws it at
     /// the end of the line. Absent for the default and in a JSON written before the setting existed, which reads as the
     /// legend. Only a line and a streaming line carry it.</summary>
     public string? LabelPlacement { get; set; }
+    /// <summary>The X coordinate of each point of an x/y series, a 3-D series or a vector field, one per point. A streaming
+    /// series writes its current snapshot here.</summary>
     public double[]? XData { get; init; }
+    /// <summary>The Y coordinate of each point, one per point; for a signal series the samples themselves, spaced along X by
+    /// <see cref="SignalSampleRate"/>. A streaming series writes its current snapshot here.</summary>
     public double[]? YData { get; init; }
+    /// <summary>The observations of a histogram, a density curve, an empirical distribution curve or a rug plot, as they
+    /// were given.</summary>
     public double[]? Data { get; init; }
+    /// <summary>The size of each point of a scatter or bubble series, one per point, or the size of each slice of a pie or
+    /// donut, which is drawn as its share of the total.</summary>
     public double[]? Sizes { get; init; }
+    /// <summary>The value of each category or step: the heights of the bars, the steps of a waterfall, the stages of a
+    /// funnel, the axes of a radar, the counts of a waffle, the weights of a word cloud, the prices of a Point and Figure
+    /// chart, the samples of a sparkline and the trend line of a stat tile.</summary>
     public double[]? Values { get; init; }
+    /// <summary>The name of each category, step, axis or word, in the order of <see cref="Values"/>: the bars, the waterfall
+    /// steps, the radar axes, the words of a word cloud, the group names of a chord diagram, the rows of a broken-bar chart
+    /// and the states of a state timeline.</summary>
     public string[]? Categories { get; init; }
+    /// <summary>The names of the parts of a whole: the slices of a pie or a donut, the stages of a funnel and the layers of
+    /// a stacked area.</summary>
     public string[]? PieLabels { get; init; }
+    /// <summary>One array of values per group, for the series that compare groups: the violins, boxes, strips, swarms and
+    /// points of a category chart, and the layers of a stacked area.</summary>
     public double[][]? Datasets { get; init; }
+    /// <summary>The grid of values of a heatmap, an image, a pseudo-colour mesh or a contour, as a list of rows. A stream
+    /// plot keeps the X component of its vector field here; the Y component is <see cref="VFieldData"/>.</summary>
     public List<List<double>>? HeatmapData { get; init; }
+    /// <summary>The colour of the series; absent when it takes the next colour of the theme's cycle.</summary>
     public Color? Color { get; init; }
+    /// <summary>The style of the series' line, as the lower-case name of the line style: <c>"solid"</c>, <c>"dashed"</c>,
+    /// <c>"dotted"</c> or <c>"dashdot"</c>. Absent leaves the series at its own default.</summary>
     public string? LineStyle { get; init; }
+    /// <summary>The width of the series' line; absent leaves the series at its own default.</summary>
     public double? LineWidth { get; init; }
     /// <summary>The size of the markers of a scatter-like series. A quiver key keeps the point size of its label here too,
     /// which is how every document it has been written in carries it.</summary>
     public double? MarkerSize { get; init; }
+    /// <summary>The width of a bar: a share of the space for one category in a bar chart or a waterfall, the angular width
+    /// of a polar bar in radians, or the side of a 3-D bar's base in data units. Absent leaves the series at its own
+    /// default.</summary>
     public double? BarWidth { get; init; }
+    /// <summary>The direction the series is drawn in, as the lower-case name <c>"vertical"</c> or <c>"horizontal"</c> (a bar
+    /// chart, a count plot, a bullet graph, an area); absent for the series' own default.</summary>
     public string? Orientation { get; init; }
+    /// <summary>The number of bins of a histogram; for a 2-D histogram, the number of bins along X (the bins along Y are
+    /// <see cref="BinsY"/>).</summary>
     public int? Bins { get; init; }
+    /// <summary>The number of bins of a 2-D histogram along the Y axis.</summary>
     public int? BinsY { get; init; }
+    /// <summary>The second curve of an upright area: where on the Y axis the fill ends, at each X position. Absent for a
+    /// fill down to zero.</summary>
     public double[]? YData2 { get; init; }
     /// <summary>The second curve of an area that lies down (<c>orientation</c> horizontal): where on the X axis it ends.</summary>
     public double[]? XData2 { get; init; }
@@ -1436,185 +1505,372 @@ public sealed record SeriesDto
     public double? BoxSize { get; init; }
     /// <summary>The boxes a price has to come back to start a new column of a Point and Figure chart; left out at the default of 3.</summary>
     public int? Reversal { get; init; }
+    /// <summary>The opacity of the series' fill or marks, from 0 (transparent) to 1 (opaque); for a chord diagram, the
+    /// opacity of its ribbons. Absent leaves the series at its own default.</summary>
     public double? Alpha { get; init; }
+    /// <summary>Where a step series makes its step between two points, as the lower-case name <c>"pre"</c>, <c>"mid"</c> or
+    /// <c>"post"</c>.</summary>
     public string? StepPosition { get; init; }
+    /// <summary>How far the error bar of each point reaches below it, one value per point.</summary>
     public double[]? YErrorLow { get; init; }
+    /// <summary>How far the error bar of each point reaches above it, one value per point.</summary>
     public double[]? YErrorHigh { get; init; }
+    /// <summary>How far the horizontal error bar of each point reaches to its left, one value per point; absent for a series
+    /// with no horizontal error bars.</summary>
     public double[]? XErrorLow { get; init; }
+    /// <summary>How far the horizontal error bar of each point reaches to its right, one value per point; absent for a
+    /// series with no horizontal error bars.</summary>
     public double[]? XErrorHigh { get; init; }
+    /// <summary>The size of the caps at the ends of an error bar (their half-width, in pixels) or of the intervals of a
+    /// point plot.</summary>
     public double? CapSize { get; init; }
+    /// <summary>The opening price of each bar of a candlestick or OHLC series.</summary>
     public double[]? Open { get; init; }
+    /// <summary>The highest price of each bar of a candlestick or OHLC series.</summary>
     public double[]? High { get; init; }
+    /// <summary>The lowest price of each bar of a candlestick or OHLC series.</summary>
     public double[]? Low { get; init; }
+    /// <summary>The closing price of each bar of a candlestick or OHLC series.</summary>
     public double[]? Close { get; init; }
+    /// <summary>The label under each bar of a candlestick or OHLC series (usually a date), one per bar; absent when the bars
+    /// carry none.</summary>
     public string[]? DateLabels { get; init; }
+    /// <summary>The colour of an up bar of a candlestick or OHLC series, one that closes above where it opened.</summary>
     public Color? UpColor { get; init; }
+    /// <summary>The colour of a down bar of a candlestick or OHLC series, one that closes below where it opened.</summary>
     public Color? DownColor { get; init; }
+    /// <summary>The width of a candle's body as a share of the space for one bar.</summary>
     public double? BodyWidth { get; init; }
+    /// <summary>The X component of the vector at each point of a quiver field, one per point; a 3-D quiver carries its X
+    /// components here too.</summary>
     public double[]? UData { get; init; }
+    /// <summary>The Y component of the vector at each point of a quiver field, one per point; a 3-D quiver carries its Y
+    /// components here too.</summary>
     public double[]? VData { get; init; }
+    /// <summary>The factor each arrow's vector is multiplied by to get its length in data units; 1 draws an arrow as long as
+    /// its vector.</summary>
     public double? Scale { get; init; }
+    /// <summary>The length of a quiver arrow's head as a share of the arrow's own length.</summary>
     public double? ArrowHeadSize { get; init; }
+    /// <summary>The fill colour of a series that has a fill of its own to name: a radar polygon, an area, the band of a
+    /// regression, the filled part of a progress bar and the cells of a table.</summary>
     public Color? FillColor { get; init; }
+    /// <summary>The value the outer ring of a radar chart stands for; absent when the largest value of the data
+    /// does.</summary>
     public double? MaxValue { get; init; }
+    /// <summary>The radius of the hole of a donut or a sunburst as a share of its outer radius.</summary>
     public double? InnerRadius { get; init; }
+    /// <summary>The text written in the hole of a donut; for a stat tile, its caption.</summary>
     public string? CenterText { get; init; }
+    /// <summary>The angle in degrees at which the first slice of a pie or donut starts; 90 puts it at the top.</summary>
     public double? StartAngle { get; init; }
+    /// <summary>The length of the open tick and of the close tick of an OHLC bar, in units of 20 pixels.</summary>
     public double? TickWidth { get; init; }
+    /// <summary>The colour of a waterfall step that raises the running total.</summary>
     public Color? IncreaseColor { get; init; }
+    /// <summary>The colour of a waterfall step that lowers the running total.</summary>
     public Color? DecreaseColor { get; init; }
+    /// <summary>The colour of a waterfall step that is a total, one named in <see cref="TotalIndices"/>.</summary>
     public Color? TotalColor { get; init; }
 
     /// <summary>The steps of a waterfall that are totals, by position from 0: a total bar stands on zero, reaches the
     /// value it holds and wears the total colour. Absent when no step is a total.</summary>
     public int[]? TotalIndices { get; init; }
 
+    /// <summary>The name of each task of a Gantt chart, one per bar.</summary>
     public string[]? Tasks { get; init; }
+    /// <summary>Where each task of a Gantt chart, or each segment of a state timeline, starts on the time axis, one per task
+    /// or segment.</summary>
     public double[]? Starts { get; init; }
+    /// <summary>Where each task of a Gantt chart, or each segment of a state timeline, ends on the time axis, one per task
+    /// or segment.</summary>
     public double[]? Ends { get; init; }
+    /// <summary>The thickness of a Gantt, broken-bar or progress-bar bar, in the units of the row spacing.</summary>
     public double? BarHeight { get; init; }
+    /// <summary>The value a gauge, a bullet graph, a progress bar or a stat tile shows.</summary>
     public double? GaugeValue { get; init; }
+    /// <summary>The lower bound of a gauge's dial.</summary>
     public double? GaugeMin { get; init; }
+    /// <summary>The upper bound of a gauge's dial.</summary>
     public double? GaugeMax { get; init; }
+    /// <summary>The colour of a gauge's needle.</summary>
     public Color? NeedleColor { get; init; }
+    /// <summary>The colour of the element that sits beside the value: the track of a progress bar, the target mark of a
+    /// bullet graph and the trend line of a stat tile.</summary>
     public Color? TrackColor { get; init; }
 
     /// <summary>The name of the series' colour map when it travels by its name: a map the library ships, or a map of your
     /// own type registered under its name. A map built in code travels in the internal <c>colorMap</c> description instead.</summary>
     public string? ColorMapName { get; init; }
+    /// <summary>The lowest value the colour map covers; absent when the colour scale follows the data.</summary>
     public double? VMin { get; init; }
+    /// <summary>The highest value the colour map covers; absent when the colour scale follows the data.</summary>
     public double? VMax { get; init; }
+    /// <summary>The name of the interpolation an image is resampled with, such as <c>"nearest"</c>, <c>"bilinear"</c> or
+    /// <c>"bicubic"</c>; absent for nearest.</summary>
     public string? Interpolation { get; init; }
+    /// <summary>The grid of the Y component of a stream plot's vector field, as a list of rows; the X component is in
+    /// <see cref="HeatmapData"/>.</summary>
     public List<List<double>>? VFieldData { get; init; }
+    /// <summary>The smoothing bandwidth of a density curve, in the units of the data; absent when it is chosen from the
+    /// data.</summary>
     public double? Bandwidth { get; init; }
+    /// <summary>The degree of the polynomial a regression or residual plot fits; a regression leaves it out for 1, a straight
+    /// line.</summary>
     public int? Degree { get; init; }
+    /// <summary><see langword="true"/> for a regression that draws its confidence band; absent when it does not.</summary>
     public bool? ShowConfidence { get; init; }
+    /// <summary>The confidence level of a regression's band or of a point plot's intervals, as a fraction: 0.95 is 95
+    /// percent. A regression leaves it out for 0.95.</summary>
     public double? ConfidenceLevel { get; init; }
+    /// <summary>The resolution of a hexbin plot's grid of hexagons: more of them make each one smaller. Absent for
+    /// 20.</summary>
     public int? GridSize { get; init; }
+    /// <summary>The fewest points a hexagon of a hexbin plot needs to be drawn; absent for 1.</summary>
     public int? MinCount { get; init; }
 
     // v0.8.0
+    /// <summary>The height of the ticks of a rug plot as a share of the range of the Y axis.</summary>
     public double? RugHeight { get; init; }
+    /// <summary>How far a strip plot spreads its points sideways, in category widths: each point is moved by a random amount
+    /// of at most this much.</summary>
     public double? Jitter { get; init; }
+    /// <summary>The position of each event of an event plot, one array per row.</summary>
     public double[][]? EventPositions { get; init; }
+    /// <summary>The length of each tick of an event plot, in the units of the row spacing.</summary>
     public double? LineLength { get; init; }
+    /// <summary>Where each segment of a broken-bar chart starts, one array per row.</summary>
     public double[][]? RangeStarts { get; init; }
+    /// <summary>The width of each segment of a broken-bar chart, one array per row in the order of
+    /// <see cref="RangeStarts"/>.</summary>
     public double[][]? RangeWidths { get; init; }
 
     // v0.8.0 Phase B
+    /// <summary>The text of every cell of a table, as a list of rows; the headers are not part of it.</summary>
     public string[][]? TableCellData { get; init; }
+    /// <summary>The header of each row of a table, drawn in a column of its own; absent for a table without row
+    /// headers.</summary>
     public string[]? RowHeaders { get; init; }
+    /// <summary>The header of each column of a table, or the column titles of a tree grid; absent for one without
+    /// headers.</summary>
     public string[]? ColumnHeaders { get; init; }
     /// <summary>How the text of each data column of a table is aligned in its cell; left out when every column is left aligned.</summary>
     public Rendering.TextAlignment[]? ColumnAlignments { get; init; }
     /// <summary>The relative width of each displayed column of a table; left out when every column is as wide as the others.</summary>
     public double[]? ColumnWidths { get; init; }
+    /// <summary>The samples of the signal a spectrogram analyses, in time order.</summary>
     public double[]? Signal { get; init; }
+    /// <summary>The number of samples per second of a spectrogram's signal, which sets its time and frequency
+    /// scales.</summary>
     public int? SampleRate { get; init; }
+    /// <summary>The number of samples in each window of a spectrogram's short-time Fourier transform.</summary>
     public int? WindowSize { get; init; }
+    /// <summary>The number of samples two neighbouring windows of a spectrogram share.</summary>
     public int? Overlap { get; init; }
 
     // v0.8.0 Phase C
+    /// <summary>The Z coordinate of each point or bar of a 3-D series, and the value at each point of a triangulated colour
+    /// or contour plot.</summary>
     public double[]? ZData { get; init; }
+    /// <summary>The number of levels a contour plot divides its values into when it is not given explicit ones; absent for
+    /// 10.</summary>
     public int? Levels { get; init; }
+    /// <summary>The triangles of a triangulated colour plot as a flat list of point indices, three per triangle; absent when
+    /// the mesh is triangulated from the points.</summary>
     public int[]? Triangles { get; init; }
+    /// <summary>The horizontal position of a quiver key (the reference arrow), as a fraction of the width of the axes from
+    /// the left.</summary>
     public double? QuiverKeyX { get; init; }
+    /// <summary>The vertical position of a quiver key (the reference arrow), as a fraction of the height of the axes from
+    /// the bottom.</summary>
     public double? QuiverKeyY { get; init; }
+    /// <summary>The vector length a quiver key's arrow stands for, in the data units of the field it explains.</summary>
     public double? QuiverKeyU { get; init; }
+    /// <summary>The text written beside a quiver key's arrow.</summary>
     public string? QuiverKeyLabel { get; init; }
+    /// <summary>The wind speed at each point of a wind-barb chart, in knots: each full barb is 10 and each flag
+    /// 50.</summary>
     public double[]? Speed { get; init; }
+    /// <summary>The direction of the staff of each wind barb, in degrees clockwise from north.</summary>
     public double[]? Direction { get; init; }
+    /// <summary>The length of a wind barb's staff, in pixels.</summary>
     public double? BarbLength { get; init; }
 
     // v0.9.0 Phase G — 3D enhancements
+    /// <summary>The Z values of a 3-D surface, wireframe or contour as a grid, a list of rows.</summary>
     public List<List<double>>? ZGridData { get; init; }
+    /// <summary><see langword="false"/> for a 3-D surface or triangle surface drawn without its wireframe edges; absent when
+    /// it draws them.</summary>
     public bool? ShowWireframe { get; init; }
+    /// <summary>How many grid rows a 3-D surface steps over between one drawn cell and the next; absent for 1, every
+    /// row.</summary>
     public int? RowStride { get; init; }
+    /// <summary>How many grid columns a 3-D surface steps over between one drawn cell and the next; absent for 1, every
+    /// column.</summary>
     public int? ColStride { get; init; }
 
     // v1.0 Signal series (distinct from int? SampleRate used by SpectrogramSeries)
+    /// <summary>The samples per X unit of a signal series (Hz for a signal over time), which spaces its samples along
+    /// X.</summary>
     public double? SignalSampleRate { get; init; }
+    /// <summary>The X value of the first sample of a signal series; a signal series leaves it out for 0.</summary>
     public double? SignalXStart { get; init; }
 
     // v1.1 Spline smoothing (LineSeries, AreaSeries)
+    /// <summary><see langword="true"/> for a line or an area drawn as a smooth curve through its points; absent for straight
+    /// segments.</summary>
     public bool? Smooth { get; init; }
+    /// <summary>The number of interpolated points per interval of a smooth line or area; absent for 10.</summary>
     public int? SmoothResolution { get; init; }
 
     // v1.1.1 PolarHeatmapSeries
+    /// <summary>The number of angular bins (cells around the circle) of a polar heatmap.</summary>
     public int? ThetaBins { get; init; }
+    /// <summary>The number of radial bins (cells along the radius) of a polar heatmap.</summary>
     public int? RBins { get; init; }
 
     // v1.3.0 3D series enhancements
+    /// <summary>The Z component of the vector at each point of a 3-D quiver, one per point.</summary>
     public double[]? WData { get; init; }
+    /// <summary>The factor a 3-D quiver multiplies its vectors by to get the length of its arrows; absent for 1.</summary>
     public double? ArrowLength { get; init; }
+    /// <summary>The cells of a voxel plot as nested lists indexed by X, then Y, then Z: <see langword="true"/> for a filled
+    /// cell.</summary>
     public List<List<List<bool>>>? VoxelData { get; init; }
+    /// <summary>The texts of a 3-D text series, each with its position.</summary>
     public List<Text3DAnnotationDto>? Text3DAnnotations { get; init; }
 
     // v1.10 HeatmapSeries extensions (annotated cells + triangular masks)
+    /// <summary><see langword="true"/> for a series that annotates each data point with its value (a heatmap cell, a bar, a
+    /// contour line); absent for none.</summary>
     public bool? ShowLabels { get; init; }
+    /// <summary>The format string of those value labels, such as <c>"F2"</c> for two decimals; absent for the default
+    /// numeric format.</summary>
     public string? LabelFormat { get; init; }
+    /// <summary>Which cells of a symmetric heatmap are hidden, as the name of the mask mode, such as <c>"UpperTriangle"</c>
+    /// or <c>"LowerTriangle"</c>; absent for none.</summary>
     public string? MaskMode { get; init; }
+    /// <summary>The colour of the values written in the cells of a heatmap; absent when each is black or white, whichever
+    /// contrasts with its cell.</summary>
     public Color? CellValueColor { get; init; }
     /// <summary>The date of the cell in row 0, column 0 of a heatmap that is a calendar (<see cref="Models.Series.HeatmapSeries.FirstCellDate"/>);
     /// absent for a grid that is no calendar. With it the table of the heatmap gives every cell its date.</summary>
     public DateTime? FirstCellDate { get; init; }
 
     // v1.10 DendrogramSeries
+    /// <summary>Which side of the plot the root of a dendrogram sits on; absent for the top, with the leaves along the
+    /// bottom.</summary>
     public DendrogramOrientation? DendrogramOrientation { get; init; }
+    /// <summary>The merge distance at which a dendrogram is cut into clusters, drawn as a reference line; absent for no
+    /// cut.</summary>
     public double? CutHeight { get; init; }
+    /// <summary>The colour of a dendrogram's cut line; absent for the theme's neutral colour.</summary>
     public Color? CutLineColor { get; init; }
+    /// <summary><see langword="false"/> for a dendrogram drawn in one colour instead of one per cluster below the cut;
+    /// absent when it colours by cluster.</summary>
     public bool? ColorByCluster { get; init; }
 
     // v1.10 ClustermapSeries panel-ratio overrides (null = use default 0.15)
+    /// <summary>The share of the plot's width that a clustermap gives to its row dendrogram; absent for 0.15.</summary>
     public double? RowDendrogramWidth { get; init; }
+    /// <summary>The share of the plot's height that a clustermap gives to its column dendrogram; absent for 0.15.</summary>
     public double? ColumnDendrogramHeight { get; init; }
 
     // v1.10 Phase 4 — PairGridSeries
+    /// <summary>The data of a pair grid as one list of values per variable
+    /// (<see cref="Models.Series.PairGridSeries.Variables"/>).</summary>
     public List<List<double>>? Variables          { get; init; }
+    /// <summary>The name of each variable of a pair grid, written on its axes
+    /// (<see cref="Models.Series.PairGridSeries.Labels"/>); absent for none.</summary>
     public string[]?            PairGridLabels     { get; init; }
+    /// <summary>The group number of each row of a pair grid's data, which colours its points by group
+    /// (<see cref="Models.Series.PairGridSeries.HueGroups"/>); absent for no grouping.</summary>
     public int[]?               PairGridHueGroups  { get; init; }
+    /// <summary>The legend label of each hue group of a pair grid, indexed by group number
+    /// (<see cref="Models.Series.PairGridSeries.HueLabels"/>); absent for none.</summary>
     public string[]?            PairGridHueLabels  { get; init; }
+    /// <summary>What a pair grid draws on its diagonal, as the name of the diagonal kind
+    /// (<see cref="Models.Series.PairGridSeries.DiagonalKind"/>); absent for a histogram.</summary>
     public string?              PairGridDiagonal   { get; init; }   // enum name
+    /// <summary>What a pair grid draws off its diagonal, as the name of the off-diagonal kind
+    /// (<see cref="Models.Series.PairGridSeries.OffDiagonalKind"/>); absent for a scatter.</summary>
     public string?              PairGridOffDiagonal{ get; init; }   // enum name
+    /// <summary>Which triangle of the grid a pair grid draws, as the name of the triangle
+    /// (<see cref="Models.Series.PairGridSeries.Triangular"/>); absent for both.</summary>
     public string?              PairGridTriangular { get; init; }   // enum name
+    /// <summary>The number of bins of the histograms on a pair grid's diagonal; absent for 20.</summary>
     public int?                 PairGridDiagonalBins { get; init; }
+    /// <summary>The radius in pixels of the dots of a pair grid's scatter cells; absent for 3.</summary>
     public double?              PairGridMarkerSize   { get; init; }
+    /// <summary>The share of the plot's size left as a gutter between the cells of a pair grid; absent for 0.02.</summary>
     public double?              PairGridCellSpacing  { get; init; }
     // v1.10 — Hexbin off-diagonal
+    /// <summary>The resolution of the hexagon grid in the cells of a pair grid drawn as hexbins; absent for 15.</summary>
     public int?                 PairGridHexbinGridSize      { get; init; }
+    /// <summary>The name of the colour map of a pair grid's hexbin cells when it travels by its name; a map built in code
+    /// travels as a description instead.</summary>
     public string?              PairGridOffDiagonalColorMap { get; init; }
 
     // v1.10 — NetworkGraphSeries
+    /// <summary>The nodes of a network graph.</summary>
     public List<GraphNodeDto>?  GraphNodes                     { get; init; }
+    /// <summary>The edges of a network graph, each naming its two nodes by their id.</summary>
     public List<GraphEdgeDto>?  GraphEdges                     { get; init; }
+    /// <summary>How a network graph places its nodes, as the name of the layout
+    /// (<see cref="Models.Series.NetworkGraphSeries.Layout"/>); absent for the circular layout.</summary>
     public string?              NetworkGraphLayout             { get; init; }   // enum name
+    /// <summary><see langword="false"/> for a network graph that writes no label next to its nodes; absent when it
+    /// does.</summary>
     public bool?                NetworkGraphShowNodeLabels     { get; init; }
+    /// <summary><see langword="true"/> for a network graph that writes the weight on each edge; absent when it does
+    /// not.</summary>
     public bool?                NetworkGraphShowEdgeWeights    { get; init; }
+    /// <summary>The factor an edge's weight is multiplied by to get its line thickness in pixels; absent for 1.</summary>
     public double?              NetworkGraphEdgeThicknessScale { get; init; }
+    /// <summary>The factor a node's size is multiplied by to get its radius in pixels; absent for 5.</summary>
     public double?              NetworkGraphNodeRadiusScale    { get; init; }
+    /// <summary>The seed of the random starting positions of the force-directed layout, which makes the same graph give the
+    /// same picture; absent for 0.</summary>
     public int?                 NetworkGraphLayoutSeed         { get; init; }
+    /// <summary>The most iterations the force-directed layout makes; absent for the default number.</summary>
     public int?                 NetworkGraphLayoutIterations   { get; init; }
+    /// <summary>The movement below which the force-directed layout stops before it has made all its iterations; absent for
+    /// no early stop.</summary>
     public double?              NetworkGraphConvergenceThreshold { get; init; }
 
     // v1.12 — StateTimelineSeries
+    /// <summary>The colour of each segment of a state timeline, one per segment in the order of <see cref="Starts"/> and
+    /// <see cref="Ends"/>.</summary>
     public List<Color>? StateSegmentColors { get; init; }
 
     // v1.14 — per-segment hatch: a band that says "no information" rather than a state.
+    /// <summary>The hatch of each segment of a state timeline, one per segment; written only when at least one segment is
+    /// hatched.</summary>
     public List<HatchPattern>? StateSegmentHatches { get; init; }
 
     // The condition per band, decomposed the same way the colours and hatches are. Null when no band names one.
+    /// <summary>The severity of the condition each segment of a state timeline was judged to be in, one per segment; written
+    /// only when at least one segment names one.</summary>
     public List<OpsSeverity>?   StateSegmentSeverities  { get; init; }
+    /// <summary>Whether the source of each segment of a state timeline was observed, one per segment; written only when at
+    /// least one segment names a visibility.</summary>
     public List<OpsVisibility>? StateSegmentVisibilities { get; init; }
 
     // v1.14 — threshold bands. Rendered by GaugeSeries since v1.9 but never serialized: a gauge sent over the
     // wire came back with its bands silently replaced by the defaults. Decomposed into parallel arrays, the
     // same shape StateTimelineSeries already uses for its segments. Named NEUTRALLY, not GaugeBand*: the
     // bullet graph carries the same (threshold, colour) bands, and two names for one shape is a fork.
+    /// <summary>The upper limit of each coloured band of a gauge or a bullet graph, one per band. Absent when no bands were
+    /// set; an empty array means no bands at all.</summary>
     public double[]?     BandThresholds { get; init; }
+    /// <summary>The colour of each band of a gauge or a bullet graph, in the order of
+    /// <see cref="BandThresholds"/>.</summary>
     public List<Color>?  BandColors     { get; init; }
 
     // v1.14 — StatTileSeries.Format. Rendered since v1.12 but never serialized: a tile restored from the wire
     // read "0.3" where it had read "0.3 s".
+    /// <summary>The numeric format of a stat tile's headline number, with its unit; left out at the default
+    /// format.</summary>
     public string?       TileFormat { get; init; }
 
     /// <summary>The level each step of a waterfall chart is compared with, one per step (a missing level is a step with no mark);
@@ -1624,24 +1880,31 @@ public sealed record SeriesDto
     public Color? TargetColor { get; init; }
 
     // v1.14 — BulletGraphSeries.Target (the comparative tick).
+    /// <summary>The level a bullet graph or a stat tile measures its value against; absent for none.</summary>
     public double?       BulletTarget { get; init; }
 
     // StatTileSeries.Url / Expanded — a tile that leads somewhere. Both null at the default so an unlinked
     // tile adds no bytes and every golden stays byte-identical.
+    /// <summary>The address a stat tile leads to; absent for a tile without a link.</summary>
     public string?       TileUrl      { get; init; }
+    /// <summary><see langword="true"/> when what a stat tile's link leads to is currently open; absent otherwise.</summary>
     public bool?         TileExpanded { get; init; }
 
     // The condition a tile or a band was judged to be in. Null at rest so a chart that never names one writes
     // exactly the bytes it wrote before the axis existed — a tile whose state is dropped on the wire comes back
     // drawn as quiet, which is the one failure that turns an alarm into calm.
+    /// <summary>The severity of the condition a stat tile was judged to be in; absent for normal.</summary>
     public OpsSeverity?   ConditionSeverity   { get; init; }
+    /// <summary>Whether the source of a stat tile is observed or has gone silent; absent for observed.</summary>
     public OpsVisibility? ConditionVisibility { get; init; }
 
     // v1.14 — hatch fills. NULLABLE by necessity: SeriesDto omits nulls
     // (DefaultIgnoreCondition.WhenWritingNull), so an unset hatch adds no bytes and the golden corpus of
     // every existing discriminator stays byte-identical. A non-nullable enum would always serialize and
     // would rewrite all 76 goldens for nothing.
+    /// <summary>The hatch pattern drawn over the series' fill; absent for a plain fill.</summary>
     public HatchPattern? Hatch      { get; init; }
+    /// <summary>The colour of the hatch strokes; absent for a colour that contrasts with the fill.</summary>
     public Color?        HatchColor { get; init; }
 
     /// <summary>The colour a bar's or an area's fill blends to at its tip; left out for a flat fill, which is every document
@@ -1649,16 +1912,38 @@ public sealed record SeriesDto
     public Color?        GradientColor { get; init; }
 
     // v1.11 — RelativeRotationSeries
+    /// <summary>The closing prices of each asset of a relative rotation graph, one list per asset
+    /// (<see cref="Models.Series.RelativeRotationSeries.AssetCloses"/>).</summary>
     public List<List<double>>?  RrgAssetCloses       { get; init; }
+    /// <summary>The closing prices of the benchmark every asset of a relative rotation graph is measured against
+    /// (<see cref="Models.Series.RelativeRotationSeries.BenchmarkCloses"/>).</summary>
     public List<double>?        RrgBenchmarkCloses   { get; init; }
+    /// <summary>The label of each asset of a relative rotation graph, in the order of <see cref="RrgAssetCloses"/>
+    /// (<see cref="Models.Series.RelativeRotationSeries.AssetLabels"/>).</summary>
     public string[]?            RrgAssetLabels       { get; init; }
+    /// <summary>The model a relative rotation graph computes its ratio and momentum with, as the name of the formula
+    /// (<see cref="Models.Series.RelativeRotationSeries.Formula"/>); absent for the dual EMA.</summary>
     public string?              RrgFormula           { get; init; }   // enum name; null = DualEma (default)
+    /// <summary>The short period of a relative rotation graph's formula
+    /// (<see cref="Models.Series.RelativeRotationSeries.ShortPeriod"/>); absent for 10.</summary>
     public int?                 RrgShortPeriod       { get; init; }
+    /// <summary>The long period of a relative rotation graph's formula
+    /// (<see cref="Models.Series.RelativeRotationSeries.LongPeriod"/>); absent for 26.</summary>
     public int?                 RrgLongPeriod        { get; init; }
+    /// <summary>The lookback of the momentum of a relative rotation graph
+    /// (<see cref="Models.Series.RelativeRotationSeries.MomentumLookback"/>); absent for 10.</summary>
     public int?                 RrgMomentumLookback  { get; init; }
+    /// <summary>The number of recent periods a relative rotation graph draws as the tail of each asset
+    /// (<see cref="Models.Series.RelativeRotationSeries.TailLength"/>); absent for 8.</summary>
     public int?                 RrgTailLength        { get; init; }
+    /// <summary><see langword="false"/> for a relative rotation graph drawn without its centre crosshair and quadrant fills
+    /// (<see cref="Models.Series.RelativeRotationSeries.ShowQuadrantGrid"/>); absent when it draws them.</summary>
     public bool?                RrgShowQuadrantGrid  { get; init; }
+    /// <summary>The absorption ratio at each bar, which colours the dots of the tails
+    /// (<see cref="Models.Series.RelativeRotationSeries.AbsorptionRatioPerBar"/>); absent for dots of one colour.</summary>
     public List<double>?        RrgAbsorptionPerBar  { get; init; }
+    /// <summary>The effective number of bets at each bar, which sizes the dots of the tails
+    /// (<see cref="Models.Series.RelativeRotationSeries.EnbPerBar"/>); absent for dots of one size.</summary>
     public List<double>?        RrgEnbPerBar         { get; init; }
 
     // The drawn properties of the series a composed chart is built from. Each is absent at the value the series is
@@ -1931,28 +2216,74 @@ public sealed record SeriesDto
     // Streaming series (JSON round-trip): the ring buffer's capacity and its current snapshot. The snapshot reuses
     // XData/YData/Open/High/Low/Close/YData+SignalSampleRate+SignalXStart — the same fields the non-streaming
     // Line/Candlestick/Signal series already carry — so a restored stream starts from the picture it was, not empty.
+    /// <summary>The most points a streaming series keeps; when it is full the oldest point is dropped to make room for a new
+    /// one.</summary>
     public int? Capacity { get; init; }
+
+    // The author's key for each point of an XY series (XYSeries.RowKeys), one string for each; absent when the series has none.
+    /// <summary>The author's key for each point of an x/y series (<see cref="Models.Series.XYSeries.RowKeys"/>), one string
+    /// per point; absent for a series that has none.</summary>
+    public string[]? RowKeys { get; set; }
 
     // Polar series data (JSON round-trip): R and Theta are their own fields, not XData/YData, since a polar
     // series' two coordinates are a radius and an angle, not a rectangular X and Y.
+    /// <summary>The radius of each point of a polar series.</summary>
     public double[]? RData { get; init; }
+    /// <summary>The angle of each point of a polar series, in radians.</summary>
     public double[]? ThetaData { get; init; }
+
+    // Ternary series data (JSON round-trip): the three parts of every sample as given (not closed), named by their corner:
+    // the part at the apex, at the bottom left and at the bottom right.
+    /// <summary>The part at the apex of each sample of a ternary series, as given and not closed to a sum.</summary>
+    public double[]? TopData { get; init; }
+    /// <summary>The part at the bottom left corner of each sample of a ternary series, as given and not closed to a
+    /// sum.</summary>
+    public double[]? LeftData { get; init; }
+    /// <summary>The part at the bottom right corner of each sample of a ternary series, as given and not closed to a
+    /// sum.</summary>
+    public double[]? RightData { get; init; }
+
+    // PiperSeries data (JSON round-trip): the waters, in mg/L; the colours and the marker size travel in Colors and MarkerSize.
+    /// <summary>The waters of a Piper diagram, one per sample, with the concentration of each ion in mg/L.</summary>
+    public List<WaterSampleDto>? WaterSamples { get; init; }
+
+    // ChordSeries data (JSON round-trip): the group names travel in Categories, the opacity of the ribbons in Alpha and the
+    // colours in Colors; the flow matrix and the gap between arcs are their own.
+    /// <summary>The flow matrix of a chord diagram as a list of rows: the entry at row <c>i</c>, column <c>j</c> is the flow
+    /// from group <c>i</c> to group <c>j</c>.</summary>
+    public List<List<double>>? ChordFlows { get; init; }
+    /// <summary>The gap between the arcs of a chord diagram's groups; absent for the default gap.</summary>
+    public double? ChordPadding { get; init; }
+
+    // WordCloudSeries data (JSON round-trip): the words travel in Categories, their weights in Values and the colours in Colors;
+    // the size range of the words is its own.
+    /// <summary>The font size of the lightest word of a word cloud; absent for the default.</summary>
+    public double? WordMinSize { get; init; }
+    /// <summary>The font size of the heaviest word of a word cloud; absent for the default.</summary>
+    public double? WordMaxSize { get; init; }
 
     // TreeGridSeries data (JSON round-trip): the rows themselves — the caller's own flattening of whatever
     // hierarchy it drew, kept as a flat list the same way the series already holds it.
+    /// <summary>The rows of a tree grid in the order they are drawn, as the caller flattened them.</summary>
     public List<TreeGridRowDto>? TreeGridRows { get; init; }
 
     // Hierarchical tree data (JSON round-trip): TreemapSeries, SunburstSeries and DendrogramSeries each hold one
     // TreeNode root (HierarchicalSeries.Root); ClustermapSeries holds two (RowTree, ColumnTree) alongside its
     // already-carried matrix. One recursive TreeNodeDto (ChartSerializer.TreeNodeToDto/DtoToTreeNode) serves all
     // four — the node shape does not change with how many of them a series holds.
+    /// <summary>The root of the tree of a treemap, a sunburst, an icicle or a dendrogram.</summary>
     public TreeNodeDto? TreeRoot { get; init; }
+    /// <summary>The tree that orders and groups the rows of a clustermap; absent for none.</summary>
     public TreeNodeDto? RowTree { get; init; }
+    /// <summary>The tree that orders and groups the columns of a clustermap; absent for none.</summary>
     public TreeNodeDto? ColumnTree { get; init; }
 
     // SankeySeries data (JSON round-trip): the nodes and the links between them, by index — the same shape
     // SankeyNode/SankeyLink already hold.
+    /// <summary>The nodes of a Sankey diagram.</summary>
     public List<SankeyNodeDto>? SankeyNodes { get; init; }
+    /// <summary>The links of a Sankey diagram, each naming its source and its target node by their index in
+    /// <see cref="SankeyNodes"/>.</summary>
     public List<SankeyLinkDto>? SankeyLinks { get; init; }
 }
 
@@ -1960,26 +2291,104 @@ public sealed record SeriesDto
 /// <see cref="TreeNodeSerializationExtensions"/>.</summary>
 public sealed record TreeNodeDto
 {
+    /// <summary>The node's name (<see cref="Models.TreeNode.Label"/>).</summary>
     public string Label { get; init; } = "";
+    /// <summary>The node's value (<see cref="Models.TreeNode.Value"/>): its area in a treemap, its size in a sunburst, and
+    /// for an inner node of a dendrogram its merge distance.</summary>
     public double Value { get; init; }
+    /// <summary>The node's own colour (<see cref="Models.TreeNode.Color"/>); absent for the colour the series gives
+    /// it.</summary>
     public Color? Color { get; init; }
+    /// <summary>The second value the node's colour is read from, through the series' normalizer and colour map
+    /// (<see cref="Models.TreeNode.ColorValue"/>); absent for none.</summary>
     public double? ColorValue { get; init; }
+    /// <summary>The number or short text a treemap cell shows under the node's name
+    /// (<see cref="Models.TreeNode.Headline"/>); absent for none.</summary>
     public string? Headline { get; init; }
+    /// <summary>The address the node's rectangle links to (<see cref="Models.TreeNode.Url"/>); absent for none.</summary>
     public string? Url { get; init; }
+    /// <summary>Whether the subtree the node leads to is currently shown (<see cref="Models.TreeNode.Expanded"/>); absent
+    /// for a node that discloses nothing.</summary>
     public bool? Expanded { get; init; }
+    /// <summary>The fill pattern over the node's rectangle (<see cref="Models.TreeNode.Hatch"/>);
+    /// <see cref="HatchPattern.None"/> for a plain fill.</summary>
     public HatchPattern Hatch { get; init; } = HatchPattern.None;
+    /// <summary>The colour of the hatch strokes (<see cref="Models.TreeNode.HatchColor"/>); absent for a colour that
+    /// contrasts with the fill.</summary>
     public Color? HatchColor { get; init; }
+    /// <summary>The node's children, each a node in turn (<see cref="Models.TreeNode.Children"/>); written only for a node
+    /// that has some.</summary>
     public List<TreeNodeDto>? Children { get; init; }
+}
+
+/// <summary>DTO for one <see cref="Models.Series.WaterSample"/>: its name and the concentration of each ion in mg/L, with an
+/// ion that is not there left out.</summary>
+public sealed record WaterSampleDto
+{
+    /// <summary>The name of the sample as the legend and the table show it (<see cref="Models.Series.WaterSample.Label"/>);
+    /// absent when it has none.</summary>
+    public string? Label { get; init; }
+    /// <summary>The concentration of calcium in mg/L (<see cref="Models.Series.WaterSample.Ca"/>); left out when the sample
+    /// has none.</summary>
+    public double? Ca { get; init; }
+    /// <summary>The concentration of magnesium in mg/L (<see cref="Models.Series.WaterSample.Mg"/>); left out when the
+    /// sample has none.</summary>
+    public double? Mg { get; init; }
+    /// <summary>The concentration of sodium in mg/L (<see cref="Models.Series.WaterSample.Na"/>); left out when the sample
+    /// has none.</summary>
+    public double? Na { get; init; }
+    /// <summary>The concentration of potassium in mg/L (<see cref="Models.Series.WaterSample.K"/>), which the diagram adds
+    /// to sodium; left out when the sample has none.</summary>
+    public double? K { get; init; }
+    // The camel-case policy would write these as hcO3, cO3 and sO4; the wire names are the ions' own lower-case symbols.
+    /// <summary>The concentration of bicarbonate in mg/L (<see cref="Models.Series.WaterSample.HCO3"/>); left out when the
+    /// sample has none. Written as <c>hco3</c>.</summary>
+    [JsonPropertyName("hco3")] public double? HCO3 { get; init; }
+    /// <summary>The concentration of carbonate in mg/L (<see cref="Models.Series.WaterSample.CO3"/>), which the diagram adds
+    /// to bicarbonate; left out when the sample has none. Written as <c>co3</c>.</summary>
+    [JsonPropertyName("co3")] public double? CO3 { get; init; }
+    /// <summary>The concentration of chloride in mg/L (<see cref="Models.Series.WaterSample.Cl"/>); left out when the sample
+    /// has none.</summary>
+    public double? Cl { get; init; }
+    /// <summary>The concentration of sulphate in mg/L (<see cref="Models.Series.WaterSample.SO4"/>); left out when the
+    /// sample has none. Written as <c>so4</c>.</summary>
+    [JsonPropertyName("so4")] public double? SO4 { get; init; }
+
+    /// <summary>The DTO of <paramref name="sample"/>: every ion that is present, none that is zero.</summary>
+    /// <param name="sample">The water.</param>
+    internal static WaterSampleDto From(Models.Series.WaterSample sample) => new()
+    {
+        Label = sample.Label,
+        Ca = sample.Ca.OrNullAtRest(0.0), Mg = sample.Mg.OrNullAtRest(0.0), Na = sample.Na.OrNullAtRest(0.0), K = sample.K.OrNullAtRest(0.0),
+        HCO3 = sample.HCO3.OrNullAtRest(0.0), CO3 = sample.CO3.OrNullAtRest(0.0), Cl = sample.Cl.OrNullAtRest(0.0), SO4 = sample.SO4.OrNullAtRest(0.0),
+    };
+
+    /// <summary>The water this DTO stands for: an ion it leaves out is zero.</summary>
+    internal Models.Series.WaterSample ToWaterSample() => new()
+    {
+        Label = Label,
+        Ca = Ca ?? 0, Mg = Mg ?? 0, Na = Na ?? 0, K = K ?? 0, HCO3 = HCO3 ?? 0, CO3 = CO3 ?? 0, Cl = Cl ?? 0, SO4 = SO4 ?? 0,
+    };
 }
 
 /// <summary>DTO for one <see cref="Models.Series.TreeGridRow"/>.</summary>
 public sealed record TreeGridRowDto
 {
+    /// <summary>The row's name, drawn at the left and indented by its depth
+    /// (<see cref="Models.Series.TreeGridRow.Label"/>).</summary>
     public string Label { get; init; } = "";
+    /// <summary>The row's values, one per column (<see cref="Models.Series.TreeGridRow.Cells"/>).</summary>
     public List<string>? Cells { get; init; }
+    /// <summary>How deep the row sits, 0 being the root (<see cref="Models.Series.TreeGridRow.Depth"/>).</summary>
     public int Depth { get; init; }
+    /// <summary>Where the row leads (<see cref="Models.Series.TreeGridRow.Url"/>); absent for a row that is plain
+    /// text.</summary>
     public string? Url { get; init; }
+    /// <summary>Whether the subtree under the row is shown (<see cref="Models.Series.TreeGridRow.Expanded"/>); absent for a
+    /// leaf, which discloses nothing.</summary>
     public bool? Expanded { get; init; }
+    /// <summary>The accent colour of the row's text (<see cref="Models.Series.TreeGridRow.Accent"/>); absent for
+    /// none.</summary>
     public Color? Accent { get; init; }
 }
 

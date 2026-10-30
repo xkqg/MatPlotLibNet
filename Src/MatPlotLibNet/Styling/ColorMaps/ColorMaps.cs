@@ -8,6 +8,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class ColorMaps
 {
+    /// <summary>Perceptually uniform map from dark purple through teal and green to yellow, nine stops after matplotlib's <c>viridis</c>. A sound default for continuous data.</summary>
     public static IColorMap Viridis { get; } = new LinearColorMap("viridis",
     [
         Color.FromHex("#440154"),
@@ -21,6 +22,7 @@ public static class ColorMaps
         Color.FromHex("#FDE725"),
     ]);
 
+    /// <summary>Perceptually uniform map from deep blue-violet through magenta and orange to bright yellow, after matplotlib's <c>plasma</c>.</summary>
     public static IColorMap Plasma { get; } = new LinearColorMap("plasma",
     [
         Color.FromHex("#0D0887"),
@@ -35,6 +37,7 @@ public static class ColorMaps
         Color.FromHex("#F0F921"),
     ]);
 
+    /// <summary>Perceptually uniform map from black through purple, red and orange to pale yellow, after matplotlib's <c>inferno</c>.</summary>
     public static IColorMap Inferno { get; } = new LinearColorMap("inferno",
     [
         Color.FromHex("#000004"),
@@ -49,6 +52,7 @@ public static class ColorMaps
         Color.FromHex("#FCFFA4"),
     ]);
 
+    /// <summary>Perceptually uniform map from black through purple and pink to pale cream, after matplotlib's <c>magma</c>.</summary>
     public static IColorMap Magma { get; } = new LinearColorMap("magma",
     [
         Color.FromHex("#000004"),
@@ -63,6 +67,7 @@ public static class ColorMaps
         Color.FromHex("#FCFDBF"),
     ]);
 
+    /// <summary>Diverging map from a cool blue through a pale grey centre to a warm red: blue for low values, red for high ones (after matplotlib's <c>coolwarm</c>).</summary>
     public static IColorMap Coolwarm { get; } = new LinearColorMap("coolwarm",
     [
         Color.FromHex("#3B4CC0"),
@@ -75,6 +80,7 @@ public static class ColorMaps
         Color.FromHex("#B40426"),
     ]);
 
+    /// <summary>Sequential map from near-white to dark blue, so larger values read darker (after matplotlib's <c>Blues</c>).</summary>
     public static IColorMap Blues { get; } = new LinearColorMap("blues",
     [
         Color.FromHex("#F7FBFF"),
@@ -87,6 +93,7 @@ public static class ColorMaps
         Color.FromHex("#084594"),
     ]);
 
+    /// <summary>Sequential map from near-white to dark red, so larger values read darker (after matplotlib's <c>Reds</c>).</summary>
     public static IColorMap Reds { get; } = new LinearColorMap("reds",
     [
         Color.FromHex("#FFF5F0"),
@@ -99,6 +106,7 @@ public static class ColorMaps
         Color.FromHex("#99000D"),
     ]);
 
+    /// <summary>Smoothed rainbow from dark blue through cyan, green and yellow to dark red, made as a better-behaved replacement for <see cref="Jet"/> (after matplotlib's <c>turbo</c>).</summary>
     public static IColorMap Turbo { get; } = new LinearColorMap("turbo",
     [
         Color.FromHex("#30123B"),
@@ -113,6 +121,7 @@ public static class ColorMaps
         Color.FromHex("#7A0403"),
     ]);
 
+    /// <summary>The classic rainbow from dark blue through cyan and yellow to dark red (matplotlib's <c>jet</c>). Its brightness is uneven along the scale, so <see cref="Viridis"/> is usually the better choice for quantitative data.</summary>
     public static IColorMap Jet { get; } = new LinearColorMap("jet",
     [
         Color.FromHex("#000080"),

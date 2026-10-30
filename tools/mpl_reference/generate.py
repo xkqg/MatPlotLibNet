@@ -1309,6 +1309,34 @@ def fig_geo_robinson():
     return fig
 
 
+def fig_ternary_scatter():
+    """Ten compositions in a ternary triangle, drawn by mpltern: a corner label on each side, the grid and the ticks at
+    fifths, and a title. Requires mpltern (optional, pip-installable). Skip if unavailable."""
+    try:
+        import mpltern  # noqa: F401  (side-effect: registers the 'ternary' projection)
+        from matplotlib.ticker import MultipleLocator
+    except ImportError:
+        print("  SKIP ternary_scatter: mpltern not installed (pip install mpltern)", file=sys.stderr)
+        return None
+
+    top = np.array([0.80, 0.55, 0.30, 0.15, 0.10, 0.40, 0.25, 0.60, 0.35, 0.50])
+    left = np.array([0.10, 0.20, 0.50, 0.30, 0.15, 0.20, 0.35, 0.10, 0.45, 0.25])
+    right = 1.0 - top - left
+
+    with plt.style.context(STYLE):
+        fig = plt.figure(figsize=FIGSIZE)
+        ax = fig.add_subplot(1, 1, 1, projection="ternary")
+        ax.scatter(top, left, right)
+        ax.set_tlabel("Top")
+        ax.set_llabel("Left")
+        ax.set_rlabel("Right")
+        for axis in (ax.taxis, ax.laxis, ax.raxis):
+            axis.set_major_locator(MultipleLocator(0.2))
+        ax.grid(True)
+        ax.set_title("ternary scatter")
+    return fig
+
+
 def fig_annotate_default():
     """Two annotations with no font of their own: matplotlib draws them at the size of the tick labels."""
     x = np.linspace(0, 10, 50)
@@ -1415,6 +1443,7 @@ CHARTS: dict[str, callable] = {
     "fill_betweenx": fig_fill_betweenx,
     "matshow":       fig_matshow,
     "set_bounds":    fig_set_bounds,
+    "ternary_scatter": fig_ternary_scatter,
     # Phase 5 — Distribution (6, seaborn)
     "kde":           fig_kde,
     "rugplot":       fig_rugplot,

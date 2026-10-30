@@ -4,9 +4,12 @@
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Windows;
+using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Models.Streaming;
+using SkiaSharp;
+using SkiaSharp.Views.Desktop;
 
 namespace MatPlotLibNet.Wpf.Tests;
 
@@ -141,5 +144,45 @@ public class MplStreamingChartControlTests
             Assert.NotNull(handler);
             Assert.True(Volatile.Read(ref invalidations) >= 1,
                 "appending a point must reach the subscribers of the figure the control is bound to");    });
+    }
+
+    /// <summary>Paints the control once, the way WPF does, and returns the host it built.</summary>
+    private static InteractionHost Painted(MplStreamingChartControl control)
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(800, 600));
+        typeof(MplStreamingChartControl).GetMethod("OnPaintSurface", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(control, [new SKPaintSurfaceEventArgs(surface, new SKImageInfo(800, 600))]);
+        return (InteractionHost)typeof(MplStreamingChartControl)
+            .GetField("_host", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;
+    }
+
+    [Fact]
+    public void AnInteractiveStreamingChart_StaysWhereTheReaderZoomedItWhileDataKeepsArriving()
+    {
+        OnStaThread(() =>
+        {
+            var figure = new Figure();
+            var series = figure.AddSubPlot().AddSeries(new StreamingLineSeries(100));
+            figure.ChartId = "c";
+            for (int i = 0; i < 10; i++) series.AppendPoint(i, i * 2.0);
+            using var stream = new StreamingFigure(figure)
+            {
+                DefaultConfig = new StreamingAxesConfig(new AxisScaleMode.AutoScale(), new AxisScaleMode.AutoScale()),
+            };
+            var control = new MplStreamingChartControl { StreamingFigure = stream, IsInteractive = true };
+            var host = Painted(control);
+
+            host.HandleScroll(new ScrollInputArgs(400, 300, 0, -3.0, MatPlotLibNet.Interaction.ModifierKeys.None));
+            double? zoomedMax = figure.SubPlots[0].XAxis.Max;
+            for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
+            Painted(control);
+
+            Assert.NotNull(zoomedMax);
+            Assert.Equal(zoomedMax, figure.SubPlots[0].XAxis.Max);   // the next frame did not overrule the reader
+
+            host.HandleKeyDown(new KeyInputArgs("Home"));
+            Painted(control);
+            Assert.Equal(19.0, figure.SubPlots[0].XAxis.Max);        // Home handed the axes back to the scale mode
+        });
     }
 }

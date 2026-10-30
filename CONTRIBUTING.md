@@ -35,9 +35,11 @@ dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj -c Release
 ```
 
 Each package has a test project of its own under `Tst/`, run the same way. CI runs the core suite, one suite for
-each of ten other packages (Geo, Skia, Blazor, Avalonia, AspNetCore, Interactive, GraphQL, DataFrame, Mcp, Verso),
-the Wiki suite below and `Tst/MatPlotLibNet.Fidelity` (a comparison with images drawn by matplotlib, scored by a
-perceptual diff). The Wpf, Uno and Maui suites need Windows or a workload and are outside the CI filter. When you
+each of eleven other packages (Geo, Skia, Blazor, Avalonia, AspNetCore, Interactive, GraphQL, DataFrame, Mcp, Verso,
+Maui: its suite compiles the package's sources and needs no workload), the Wiki suite below and
+`Tst/MatPlotLibNet.Fidelity` (a comparison with images drawn by matplotlib, scored by a perceptual diff). The Wpf and
+Uno suites need Windows, and the MAUI, Wpf and Uno packages need a workload or a Windows SDK: the `windows-heads` job of
+`ci.yml` builds them and runs those suites on every push. When you
 change how something is drawn, run the Fidelity suite too; a reference picture is made again with
 `tools/mpl_reference/generate.py`. To run one test class, call the built executable with an xunit filter:
 

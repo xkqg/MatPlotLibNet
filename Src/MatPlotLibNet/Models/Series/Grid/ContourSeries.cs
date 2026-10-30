@@ -10,10 +10,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a contour plot series displaying iso-lines or filled regions for 3D surface data.</summary>
 public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
 {
+    /// <summary>The X coordinate of each grid column, one per column of <see cref="ZData"/>.</summary>
     public double[] XData { get; }
 
+    /// <summary>The Y coordinate of each grid row, one per row of <see cref="ZData"/>.</summary>
     public double[] YData { get; }
 
+    /// <summary>The height of the surface at each grid point, indexed [row, column] with rows along Y; the iso-lines
+    /// trace levels of these values.</summary>
     public double[,] ZData { get; }
 
     /// <summary>How many iso-lines are drawn when <see cref="LevelValues"/> names none: this many levels, evenly spaced
@@ -28,14 +32,20 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     /// its level. A filled contour (<see cref="Filled"/>) fills the bands between these levels, from the lowest value to the highest.</summary>
     public double[]? LevelValues { get; set; }
 
+    /// <summary>When <see langword="true"/> the bands between neighbouring levels are filled with the colour map as
+    /// well; the iso-lines are drawn either way. Default <see langword="false"/>.</summary>
     public bool Filled { get; set; }
 
+    /// <inheritdoc />
     public bool ShowLabels { get; set; }
 
+    /// <inheritdoc />
     public string? LabelFormat { get; set; }
 
+    /// <summary>Font size of the level labels, in points. Default 10.</summary>
     public double LabelFontSize { get; set; } = 10;
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
 

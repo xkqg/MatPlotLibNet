@@ -13,28 +13,41 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle, RestingLineWidth);
 
+    /// <summary>The x coordinate of each observation the line is fitted to, in data units.</summary>
     public double[] XData { get; }
 
+    /// <summary>The y coordinate of each observation the line is fitted to, in data units; one value per
+    /// <see cref="XData"/> entry. An observation with a missing value (NaN) or an infinity is left out of the fit.</summary>
     public double[] YData { get; }
 
+    /// <summary>The degree of the polynomial that is fitted: 1, the default, is a straight line, 2 a parabola, and so on.
+    /// Drawing limits it to 0 through 10.</summary>
     public int Degree { get; set; } = 1;
 
+    /// <summary>Whether a shaded confidence band is drawn around the fitted line. False by default.</summary>
     public bool ShowConfidence { get; set; } = false;
 
+    /// <summary>The confidence level of the band, as a fraction between 0 and 1. Default 0.95 for a 95 percent band; it
+    /// has an effect only when <see cref="ShowConfidence"/> is true.</summary>
     public double ConfidenceLevel { get; set; } = 0.95;
 
     /// <summary>The line width a new regression line holds, which is not the 1.5 of the other lines; a theme's cycler
     /// names a width for the line only when it holds this one and the cycler names one other than 1.5.</summary>
     internal const double RestingLineWidth = 2.0;
 
+    /// <summary>The thickness of the fitted line, in pixels. Default 2.</summary>
     public double LineWidth { get; set; } = RestingLineWidth;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The colour of the confidence band; null (the default) uses the colour of the fitted line.</summary>
     public Color? BandColor { get; set; }
 
+    /// <summary>The opacity of the confidence band, from 0 (invisible) to 1 (opaque). Default 0.2.</summary>
     public double BandAlpha { get; set; } = 0.2;
 
+    /// <summary>The dash pattern of the fitted line. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Initializes a new instance of <see cref="RegressionSeries"/> with the specified X and Y data.</summary>

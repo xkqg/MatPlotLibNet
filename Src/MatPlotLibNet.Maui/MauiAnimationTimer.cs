@@ -12,7 +12,6 @@ public sealed class MauiAnimationTimer : IAnimationTimer
 {
     private Timer? _timer;
     private TimeSpan _interval = TimeSpan.FromMilliseconds(16);
-    private bool _running;
 
     /// <inheritdoc />
     public TimeSpan Interval
@@ -21,7 +20,7 @@ public sealed class MauiAnimationTimer : IAnimationTimer
         set
         {
             _interval = value;
-            if (_running) _timer?.Change(_interval, _interval);
+            _timer?.Change(_interval, _interval);
         }
     }
 
@@ -31,15 +30,16 @@ public sealed class MauiAnimationTimer : IAnimationTimer
     /// <inheritdoc />
     public void Start()
     {
-        if (_running) return;
-        _running = true;
-        _timer = new Timer(_ => Tick?.Invoke(this, EventArgs.Empty), null, _interval, _interval);
+        if (_timer is not null) return;
+        _timer = new Timer(_ => RaiseTick(), null, _interval, _interval);
     }
+
+    /// <summary>Says to whoever listens that a frame is due.</summary>
+    internal void RaiseTick() => Tick?.Invoke(this, EventArgs.Empty);
 
     /// <inheritdoc />
     public void Stop()
     {
-        _running = false;
         _timer?.Dispose();
         _timer = null;
     }

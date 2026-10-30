@@ -11,20 +11,28 @@ namespace MatPlotLibNet.Styling;
 /// picture. A figure on the default theme (<see cref="MatplotlibV2"/>) writes no theme at all.</remarks>
 public sealed class Theme
 {
+    /// <summary>The theme's name, such as <c>dark</c>; the figure JSON writes it with the theme.</summary>
     public string Name { get; }
 
+    /// <summary>The colour behind the whole figure.</summary>
     public Color Background { get; init; }
 
+    /// <summary>The colour of text and of foreground marks such as axis lines and outlines.</summary>
     public Color ForegroundText { get; init; }
 
+    /// <summary>The fill of the plot area behind the data.</summary>
     public Color AxesBackground { get; init; }
 
+    /// <summary>The colours handed to successive series that name none of their own, starting over after the last. Ignored when <see cref="PropCycler"/> is set.</summary>
     public Color[] CycleColors { get; init; }
 
+    /// <summary>The font of text that does not name its own.</summary>
     public Font DefaultFont { get; init; }
 
+    /// <summary>The grid every axes draws unless it asks for a change (visibility, colour, line style and so on).</summary>
     public GridStyle DefaultGrid { get; init; }
 
+    /// <summary>An optional cycle of colours, line styles, markers and line widths that successive series step through together (matplotlib's <c>prop_cycle</c>). When set it takes precedence over <see cref="CycleColors"/>.</summary>
     public PropCycler? PropCycler { get; init; }
 
     /// <summary>
@@ -169,6 +177,7 @@ public sealed class Theme
         Color.FromHex("#17becf"), // cyan
     ];
 
+    /// <summary>The library's plain light theme: white figure and axes, black text, matplotlib's <c>tab10</c> colour cycle and a light-grey grid.</summary>
     public static Theme Default { get; } = new(
         name: "default",
         background: Colors.White,
@@ -178,6 +187,7 @@ public sealed class Theme
         defaultFont: new Font(),
         defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#B0B0B0"), LineStyle = LineStyle.Solid, LineWidth = 0.8 });
 
+    /// <summary>A dark theme: a near-black figure (<c>#1C1C1C</c>), dark grey axes (<c>#2D2D2D</c>), light grey text, the <c>tab10</c> colour cycle and a dark grey grid.</summary>
     public static Theme Dark { get; } = new(
         name: "dark",
         background: Color.FromHex("#1C1C1C"),
@@ -187,6 +197,7 @@ public sealed class Theme
         defaultFont: new Font { Color = Color.FromHex("#E0E0E0") },
         defaultGrid: new GridStyle { Color = Color.FromHex("#404040"), Visible = true });
 
+    /// <summary>A seaborn-like look: white figure, light blue-grey axes, seaborn's ten-colour cycle, white grid lines and 11-point text.</summary>
     public static Theme Seaborn { get; } = new(
         name: "seaborn",
         background: Colors.White,
@@ -208,6 +219,7 @@ public sealed class Theme
         defaultFont: new Font { Family = "sans-serif", Size = 11 },
         defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
+    /// <summary>A ggplot-like look: grey axes (<c>#E5E5E5</c>) with white grid lines and ggplot's colour cycle, which opens with red, blue and violet.</summary>
     public static Theme Ggplot { get; } = new(
         name: "ggplot",
         background: Colors.White,
@@ -229,6 +241,7 @@ public sealed class Theme
         defaultFont: new Font(),
         defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
+    /// <summary>The look of matplotlib's <c>bmh</c> (Bayesian Methods for Hackers) style: light grey axes, white grid lines, dark grey text and a colour cycle that opens with blue and crimson.</summary>
     public static Theme Bmh { get; } = new(
         name: "bmh",
         background: Colors.White,
@@ -250,6 +263,7 @@ public sealed class Theme
         defaultFont: new Font(),
         defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
+    /// <summary>A FiveThirtyEight-like look: light grey figure and axes (<c>#F0F0F0</c>), a pale grey grid, 14-point text and a colour cycle that opens with blue and orange-red.</summary>
     public static Theme FiveThirtyEight { get; } = new(
         name: "fivethirtyeight",
         background: Color.FromHex("#F0F0F0"),
@@ -453,17 +467,26 @@ public sealed class Theme
 /// </summary>
 public sealed record GridStyle
 {
+    /// <summary>Whether grid lines are drawn at all. A new <see cref="GridStyle"/> hides them; the built-in themes set this as they see fit.</summary>
     public bool Visible { get; init; }
 
+    /// <summary>The colour of the grid lines. Light grey (<c>#CCCCCC</c>) by default.</summary>
     public Color Color { get; init; } = Color.FromHex("#CCCCCC");
 
+    /// <summary>The dash pattern of the grid lines. Solid by default.</summary>
     public LineStyle LineStyle { get; init; } = LineStyle.Solid;
 
+    /// <summary>The width of the grid lines in pixels. 0.5 by default.</summary>
     public double LineWidth { get; init; } = 0.5;
 
+    /// <summary>The opacity of the grid lines, from 0 (transparent) to 1 (opaque), 0.7 by default. It is kept by themes, style sheets
+    /// (<c>grid.alpha</c>) and JSON, but the Cartesian renderer draws the grid in the alpha of <see cref="Color"/> itself and does not
+    /// read this value.</summary>
     public double Alpha { get; init; } = 0.7;
 
+    /// <summary>Which ticks the grid lines stand on: the major ticks, the minor ticks or both. Major by default.</summary>
     public GridWhich Which { get; init; } = GridWhich.Major;
 
+    /// <summary>Which axes get grid lines: X, Y or both. Both by default.</summary>
     public GridAxis Axis { get; init; } = GridAxis.Both;
 }

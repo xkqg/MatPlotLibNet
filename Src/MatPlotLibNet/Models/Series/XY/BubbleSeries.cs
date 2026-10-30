@@ -10,8 +10,11 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a bubble chart — a scatter plot where marker area encodes a third variable.</summary>
 public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
 {
+    /// <summary>The area of each bubble, in points squared, one per data point; a larger value draws a larger bubble.</summary>
     public double[] Sizes { get; }
+    /// <inheritdoc />
     public Color? Color { get; set; }
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.6;
 
     /// <summary>Initializes a new <see cref="BubbleSeries"/> with position and size data.</summary>
@@ -50,8 +53,8 @@ public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
     /// <inheritdoc />
     /// <remarks>The point, and the size that is its third variable.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns(
-            [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("size")], [XData, YData, Sizes]);
+        this.WithRowKeys(ChartDataTable.FromNumberColumns(
+            [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("size")], [XData, YData, Sizes]));
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

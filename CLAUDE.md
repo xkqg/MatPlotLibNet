@@ -38,10 +38,10 @@ mcr.microsoft.com/dotnet/sdk:10.0-noble bash -c "<script>"`, started from PowerS
 The script installs `libfontconfig1 libfreetype6 git ca-certificates` (and `python3` for the Pages job), `git clone`s both
 mounts beside each other (the committed state with LF endings, as on the runner, not the CRLF working copy), points
 `origin` at the GitHub URL (without it SourceLink warns and the build is not 0 warnings), then runs the steps of `ci.yml`
-(restore, build `MatPlotLibNet.CI.slnf`, the 13 suites with `dotnet run --no-build`) and, for `pages.yml`,
+(restore, build `MatPlotLibNet.CI.slnf`, the 14 suites with `dotnet run --no-build`) and, for `pages.yml`,
 `dotnet tool install -g docfx`, `docfx metadata docs/docfx.json` and `docfx build docs/docfx.json` with
-`DOTNET_ROLL_FORWARD=Major` (the image has the 10 runtime only). Measured on the 1.26.0 tree, on the noble and the resolute image: 0 warnings, 0 errors,
-all 13 suites green, docfx 0 errors.
+`DOTNET_ROLL_FORWARD=Major` (the image has the 10 runtime only). Measured on the 1.27.0 tree, on the noble and the resolute image: 0 warnings, 0 errors,
+all 14 suites green, docfx 0 errors. `tools/prepush.ps1` calls `git` in its docfx step, so the PowerShell that runs it needs `git` on its PATH.
 
 `tools/coverage/thresholds.json` carries no exemptions by policy (`90/90`, `exemptions: {}`); a class that is
 legitimately untestable gets `[ExcludeFromCodeCoverage]` at the source instead, so it drops out of the cobertura
@@ -52,15 +52,17 @@ never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: pre
 
 ## The two solution views, and why a green build can still be red
 
-- `MatPlotLibNet.slnx` — the working set: the 15 packages, 16 test projects (incl. `Wpf`, `Uno`, `Maui`, which CI
-  does not run, and `Fidelity`, which it does), 7 samples, the benchmarks. It does **not** hold the three npm binding
+- `MatPlotLibNet.slnx` — the working set: the 15 packages, 16 test projects (incl. `Wpf`, `Uno`, `Maui` and
+  `Fidelity`, all of which CI runs), 7 samples, the benchmarks. It does **not** hold the three npm binding
   folders in `Src/`. Nor does it hold
   `Samples/MatPlotLibNet.Playground`, `.Samples.AspNetCore` or `.Samples.Wpf` — three more csproj with no build
   verdict from slnx or CI.slnf; Playground still gets one, because `MatPlotLibNet.Tests.csproj` references it and
   Pages publishes it.
-- `MatPlotLibNet.CI.slnf` — a **subset** (24 projects: 11 packages, their 11 test projects, the wiki suite and the Fidelity
-  suite). CI builds this and runs **13** suites. Wpf, Uno and Maui are outside it (Windows or a workload), and so is the frozen
-  Notebooks.
+- `MatPlotLibNet.CI.slnf` — a **subset** (25 projects: 11 packages, their 11 test projects, the wiki suite, the Fidelity
+  suite and the Maui suite). CI builds this and runs **14** suites on ubuntu. The Wpf, Uno and Maui *packages* are outside it
+  (Windows or a workload): the `windows-heads` job of `ci.yml` builds them on every push with the steps `publish.yml` uses
+  (so a break shows before a tag) and runs the Wpf and Uno suites and the Maui suite again against the real build. The frozen
+  Notebooks is outside both.
 - **The wiki is compiled by a test.** `Tst/MatPlotLibNet.Wiki` compiles every `csharp` block of the wiki against
   the packages as built (warnings fail it) and holds the shape of the wiki's `Examples.md`. It reads the wiki
   **beside the repository** — `git clone https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki` —
@@ -153,6 +155,21 @@ record struct with one named factory per shape an indicator actually reads — `
 `CandleIndicator<TResult>` subclass and the `AxesBuilder` verb that forwards to it takes `OhlcvBars bars`;
 `MatPlotLibNet.DataFrame`'s column-name verbs keep their own string signature and build the value internally
 from `df.DoubleCol(...)`.
+
+**A streaming indicator says the same as its batch indicator, and shares its arithmetic.** 57 of the 59 indicators have a form in
+`Indicators/Streaming/`, rooted in `StreamingIndicator<TInput>` (the 11 oldest keep the older non-generic `StreamingIndicator`). A
+form is either a window of the last inputs that the batch indicator is run over (`WindowedStreamingIndicator<TInput>`) or the
+state of the recursion, an internal step struct in `Indicators/Steps/` that the batch indicator folds over too. Three tests hold it:
+`StreamingMap` (every calculator is classified, and an indicator with no form says why), `StreamingEqualsBatchTests` (after the bar at
+index *i* the form equals the last value of the batch indicator over the bars up to *i*, to 1e-9, for every prefix) and
+`StepArithmeticPinsTests`. The pins are not redundant: the theory runs the batch and the form through the same step, so a change to the
+step moves both and stays green. A new indicator turns `StreamingMapTests` red until the map says how it is streamed.
+
+**The native controls share one `InteractionHost`.** WPF, Avalonia, Uno and MAUI derive from four base classes, so what they share is
+`Interaction/InteractionHost.cs`, composed: a control forwards its input and hands over the figure and layout of every paint; the host
+builds a controller for a new figure and only replaces the layout for the same one, which is what lets Home go back to the first view.
+A control exposes the host's handler as `ChartEventHandler` (an `IChartEventHandler`, the interface a server session takes) and its
+failures as `ChartEventHandlerFaulted`. The Uno elements cannot be constructed in a unit test; the `windows-heads` job compiles them.
 
 **Colours and colormaps are three classes, not one.** `Colors` is a 40-name curated palette, `Css4Colors` the
 full 148-name CSS4 table, and the maps live on `ColorMaps` (9 named + `Get(name)`), `DivergingColorMaps`,

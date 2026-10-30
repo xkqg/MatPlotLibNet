@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
+
 namespace MatPlotLibNet.Indicators.Ehlers;
 
 /// <summary>Ehlers' one-pole high-pass filter. Reference: Ehlers (2014),
@@ -21,29 +23,12 @@ internal static class HighPassFilter
             int n = signal.Length;
             if (n == 0) return Array.Empty<double>();
 
-            double theta = DegreesToRadians(0.707 * 360.0 / period);
-            double cosT = Math.Cos(theta);
-            double sinT = Math.Sin(theta);
-            double alpha = (cosT + sinT - 1) / cosT;
-            double omA = 1 - alpha;
-            double coefX = (1 - alpha / 2) * (1 - alpha / 2);
-            double coefHp1 = 2 * omA;
-            double coefHp2 = -(omA * omA);
-
-            // Canonical HP init: first two output bars are 0 so constant input settles to
-            // output ≡ 0. Carrying the input through would inject a step that leaks for
-            // many bars via the IIR tail.
+            // Canonical HP init: the first two output bars are 0 so a constant input settles to output 0.
+            // Carrying the input through would inject a step that leaks for many bars via the IIR tail.
             var result = new double[n];
-
-            for (int i = 2; i < n; i++)
-            {
-                result[i] = coefX * (signal[i] - 2 * signal[i - 1] + signal[i - 2])
-                          + coefHp1 * result[i - 1]
-                          + coefHp2 * result[i - 2];
-            }
+            var step = new HighPassStep(period);
+            for (int i = 0; i < n; i++) result[i] = step.Next(signal[i]);
             return result;
         }
     }
-
-    private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180.0;
 }

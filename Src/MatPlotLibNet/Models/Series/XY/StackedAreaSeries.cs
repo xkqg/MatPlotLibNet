@@ -24,18 +24,28 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
                 .Where(part => !string.IsNullOrEmpty(part.Label))]
             : base.LegendParts;
 
+    /// <summary>The x coordinate shared by all layers, in data units; every layer has one value per entry.</summary>
     public double[] X { get; }
 
+    /// <summary>The values of each layer, one array per layer, bottom layer first. Each array holds one value per
+    /// <see cref="X"/> entry, and a layer is drawn on top of the sum of the layers before it.</summary>
     public double[][] YSets { get; }
 
+    /// <summary>The name of each layer, in the order of <see cref="YSets"/>, shown in the legend in the colour of that
+    /// layer. Null (the default) names none, and the series' own label stands for the whole stack.</summary>
     public string[]? Labels { get; set; }
 
+    /// <inheritdoc />
     public double Alpha { get; set; } = 0.7;
 
+    /// <summary>Where the stack starts. The default grows every layer upward from y = 0; the other choices centre the stack
+    /// around y = 0 for a streamgraph look.</summary>
     public StackedBaseline Baseline { get; set; } = StackedBaseline.Zero;
 
+    /// <summary>The pattern of lines or dots laid over every layer. Default none.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
+    /// <summary>The colour of the <see cref="Hatch"/> pattern; null picks a colour that contrasts with each layer's fill.</summary>
     public Color? HatchColor { get; set; }
 
     /// <summary>Creates a new stacked area series from shared X values and multiple Y datasets.</summary>

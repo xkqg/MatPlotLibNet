@@ -13,8 +13,10 @@ public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormali
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
+    /// <summary>The top node of the tree being drawn; its descendants are the cells, ring segments or branches.</summary>
     public TreeNode Root { get; }
 
+    /// <inheritdoc />
     public IColorMap? ColorMap { get; set; }
 
     /// <summary>The lower bound of the <see cref="TreeNode.ColorValue"/> range, or null for the leaves' own minimum.</summary>
@@ -60,6 +62,8 @@ public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormali
         }
     }
 
+    /// <summary>Whether each node's label is drawn on its cell, ring segment or branch. True by default; false leaves
+    /// the shapes unlabelled.</summary>
     public bool ShowLabels { get; set; } = true;
 
     /// <summary>Initializes a new instance with the specified root node.</summary>

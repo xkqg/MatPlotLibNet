@@ -1,8 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import { Component, Input, OnChanges, SimpleChanges, ElementRef, ViewChild } from '@angular/core';
 import { ChartService } from './chart.service';
+import { mountSvg } from './mount-svg';
 
 /**
  * Static chart component that fetches SVG from a MatPlotLibNet endpoint and renders it inline.
@@ -15,7 +16,7 @@ import { ChartService } from './chart.service';
   selector: 'mpl-chart',
   template: `
     <div class="mpl-chart" [ngClass]="cssClass" #container>
-      <div [innerHTML]="svgContent"></div>
+      <div #host></div>
     </div>
   `,
   standalone: true,
@@ -29,12 +30,18 @@ export class MplChartComponent implements OnChanges {
 
   @ViewChild('container') container!: ElementRef;
 
+  @ViewChild('host', { static: true }) host!: ElementRef<HTMLElement>;
+
   constructor(private chartService: ChartService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['chartUrl'] && this.chartUrl) {
       this.chartService.getSvg(this.chartUrl).subscribe({
-        next: svg => this.svgContent = svg,
+        next: svg => {
+          this.svgContent = svg;
+          // Mounted so that the scripts of an interactive chart run (a script that arrives through innerHTML never does).
+          mountSvg(this.host.nativeElement, svg);
+        },
         error: err => console.error('Failed to load chart:', err)
       });
     }

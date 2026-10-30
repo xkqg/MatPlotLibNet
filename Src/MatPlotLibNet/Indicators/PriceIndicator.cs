@@ -16,6 +16,7 @@ namespace MatPlotLibNet.Indicators;
 public abstract class PriceIndicator<TResult> : Indicator<TResult>
     where TResult : IIndicatorResult
 {
+    /// <summary>The single price array the indicator is computed from: the array given to the constructor, or the price source picked out of the OHLC data.</summary>
     protected double[] Prices { get; }
 
     /// <summary>Creates a new price indicator from a price array.</summary>

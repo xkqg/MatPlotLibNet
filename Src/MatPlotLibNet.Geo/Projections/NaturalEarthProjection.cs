@@ -7,8 +7,10 @@ namespace MatPlotLibNet.Geo.Projections;
 /// by Tom Patterson (2012). Similar to Robinson but with smoother edges.</summary>
 public sealed class NaturalEarthProjection : IGeoProjection
 {
+    /// <inheritdoc />
     public string Name => "NaturalEarth";
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = latitude.ToRadians();
@@ -18,8 +20,10 @@ public sealed class NaturalEarthProjection : IGeoProjection
         return new(x, y);
     }
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
 
+    /// <inheritdoc />
     public GeoBounds Bounds
     {
         get

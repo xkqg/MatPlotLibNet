@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Ehlers;
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -11,8 +12,6 @@ namespace MatPlotLibNet.Indicators;
 /// SuperSmoothed. Reference: Ehlers (2013) <i>Cycle Analytics for Traders</i>, Ch. 12.</summary>
 public sealed class AdaptiveStochastic : CandleIndicator<SignalResult>
 {
-    private const int MinCycleBars = 6;
-
     private readonly int _smoothingPeriod;
 
     /// <summary>Creates a new Adaptive Stochastic indicator.</summary>
@@ -41,35 +40,15 @@ public sealed class AdaptiveStochastic : CandleIndicator<SignalResult>
         int n = BarCount;
         if (n < 7) return Array.Empty<double>();
 
-        // Typical price for Hilbert input — Ehlers' recommendation for stochastics.
-        var typical = new double[n];
-        for (int t = 0; t < n; t++) typical[t] = PriceSources.TypicalPrice(High[t], Low[t], Close[t]);
-
-        var hilbert = ((ReadOnlySpan<double>)typical).HilbertDiscriminate();
-
-        int outLen = n - 6;
-        var rawK = new double[outLen];
-        for (int w = 0; w < outLen; w++)
+        var result = new double[n - 6];
+        var step = new AdaptiveStochasticStep(_smoothingPeriod);
+        for (int t = 0; t < n; t++)
         {
-            int t = 6 + w;
-            // HilbertDiscriminator caps Period at 50, so cycleBars = Period/2 ≤ 25.
-            // Only the lower-clamp branch can fire.
-            int cycleBars = (int)Math.Round(hilbert.Period[t] / 2.0);
-            if (cycleBars < MinCycleBars) cycleBars = MinCycleBars;
-
-            int start = Math.Max(0, t - cycleBars + 1);
-            double hh = High[start], ll = Low[start];
-            for (int k = start + 1; k <= t; k++)
-            {
-                if (High[k] > hh) hh = High[k];
-                if (Low[k] < ll) ll = Low[k];
-            }
-            double range = hh - ll;
-            rawK[w] = range == 0 ? 50.0 : 100.0 * (Close[t] - ll) / range;
+            double value = step.Next(High[t], Low[t], Close[t]);
+            if (t >= 6) result[t - 6] = value;
         }
 
-        if (_smoothingPeriod < 2) return rawK;
-        return ((ReadOnlySpan<double>)rawK).SuperSmooth(_smoothingPeriod);
+        return result;
     }
 
     /// <inheritdoc />

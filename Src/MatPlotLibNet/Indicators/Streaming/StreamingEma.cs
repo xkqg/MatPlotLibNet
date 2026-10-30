@@ -1,15 +1,16 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Exponential Moving Average. O(1) per append: α * price + (1-α) * prev.</summary>
+/// <summary>Streaming Exponential Moving Average: the <see cref="EmaStep"/> the batch <see cref="Ema"/> folds over its prices,
+/// taken one price at a time. O(1) per append.</summary>
 public sealed class StreamingEma : StreamingIndicator
 {
     private readonly int _period;
-    private readonly double _multiplier;
-    private double _ema;
-    private double _smaSum;
+    private EmaStep _step;
 
     /// <inheritdoc />
     public override int WarmupPeriod => _period;
@@ -18,25 +19,10 @@ public sealed class StreamingEma : StreamingIndicator
     public StreamingEma(int period, int capacity = 10_000) : base(capacity)
     {
         _period = period;
-        _multiplier = 2.0 / (period + 1);
+        _step = new EmaStep(period);
         Label = $"EMA({period})";
     }
 
     /// <inheritdoc />
-    protected override double ComputeNext(double price)
-    {
-        if (ProcessedCount <= _period)
-        {
-            _smaSum += price;
-            if (ProcessedCount == _period)
-            {
-                _ema = _smaSum / _period;
-                return _ema;
-            }
-            return double.NaN;
-        }
-
-        _ema = (price - _ema) * _multiplier + _ema;
-        return _ema;
-    }
+    protected override double ComputeNext(double price) => _step.Next(price);
 }

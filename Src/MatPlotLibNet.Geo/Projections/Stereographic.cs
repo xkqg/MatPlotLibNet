@@ -10,8 +10,12 @@ public sealed class Stereographic : IGeoProjection, IProjectionParameters
     private readonly double _phi0, _lam0, _cosPhi0, _sinPhi0;
     private readonly Dictionary<string, double> _parameters;
 
+    /// <inheritdoc />
     public string Name => "Stereographic";
 
+    /// <summary>Creates a Stereographic projection centred on the given point. The defaults centre it on the North Pole.</summary>
+    /// <param name="centerLat">Latitude of the centre point in degrees. Default 90.</param>
+    /// <param name="centerLon">Longitude of the centre point in degrees. Default 0.</param>
     public Stereographic(double centerLat = 90, double centerLon = 0)
     {
         _parameters = new() { ["lat_0"] = centerLat, ["lon_0"] = centerLon };
@@ -27,6 +31,7 @@ public sealed class Stereographic : IGeoProjection, IProjectionParameters
     IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
         new Stereographic(parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]), parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]));
 
+    /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = latitude.ToRadians(), lam = longitude.ToRadians();
@@ -38,6 +43,8 @@ public sealed class Stereographic : IGeoProjection, IProjectionParameters
         return new(x.ToDegrees(), y.ToDegrees());
     }
 
+    /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
+    /// <inheritdoc />
     public GeoBounds Bounds => new(-360, 360, -360, 360);
 }

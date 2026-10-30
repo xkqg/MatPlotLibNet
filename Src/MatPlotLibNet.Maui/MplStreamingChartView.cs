@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Microsoft.Maui;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Maui.Controls;
 using MatPlotLibNet.Models.Streaming;
 
@@ -59,11 +60,15 @@ public class MplStreamingChartView : MplChartView
         }
     }
 
-    private void OnRenderRequested()
-    {
-        _subscribedFigure?.ApplyAxisScaling();
-        MainThread.BeginInvokeOnMainThread(Invalidate);
-    }
+    /// <summary>The figure raises this on a thread-pool thread. The axis limits are written on the main thread, where the
+    /// view draws and where a gesture changes them, so there is one writer and a frame never draws half-written limits.</summary>
+    [ExcludeFromCodeCoverage(Justification = "Runs on MAUI's main thread, which a unit test has no loop for; what it does there is held through the figure and the view it calls.")]
+    private void OnRenderRequested() =>
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _subscribedFigure?.ApplyAxisScaling();
+            Invalidate();
+        });
 
     /// <inheritdoc />
     protected override void OnHandlerChanging(HandlerChangingEventArgs args)

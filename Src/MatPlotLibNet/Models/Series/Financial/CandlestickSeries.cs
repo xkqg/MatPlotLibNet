@@ -13,6 +13,8 @@ public sealed class CandlestickSeries : OhlcSeries, ICategoryLabeled
     /// <inheritdoc />
     string[]? ICategoryLabeled.CategoryLabels => DateLabels;
 
+    /// <summary>Width of the body of each candle as a fraction of its category slot; 1 makes neighbouring bodies touch.
+    /// Default 0.6.</summary>
     public double BodyWidth { get; set; } = 0.6;
 
     /// <summary>Creates a new candlestick series from the given OHLC data.</summary>

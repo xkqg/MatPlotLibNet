@@ -16,12 +16,16 @@ public sealed record Rotate3DEvent(
     double DeltaElevation) : FigureInteractionEvent(ChartId, AxesIndex)
 {
     /// <inheritdoc />
+    internal override bool ChangesView => true;
+
+    /// <inheritdoc />
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
     internal override bool TryApplyTo(Figure figure)
     {
         if (!TryTargetAxes(figure, out var axes)) return false;
+        figure.Home.Remember(axes);
         axes.Azimuth += DeltaAzimuth;
         axes.Elevation = Math.Clamp(axes.Elevation + DeltaElevation, -90, 90);
         axes.Projection = null; // force rebuild

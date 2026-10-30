@@ -41,7 +41,7 @@ public sealed class SpanSelectModifier : IInteractionModifier
     public void OnPointerPressed(PointerInputArgs args)
     {
         _activeAxes = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, _activeAxes);
+        var coords = _layout.PixelToData(args.X, args.Y, _activeAxes);
         if (coords is null) return;
 
         _active = true;
@@ -62,7 +62,7 @@ public sealed class SpanSelectModifier : IInteractionModifier
         if (!_active) return;
         _active = false;
 
-        var endCoords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, _activeAxes);
+        var endCoords = _layout.PixelToData(args.X, args.Y, _activeAxes);
         if (endCoords is null) return;
 
         double xMin = Math.Min(_startDataX, endCoords.Value.DataX);

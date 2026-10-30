@@ -51,20 +51,32 @@ public sealed class MplChartElement : SKCanvasElement
         set => SetValue(IsInteractiveProperty, value);
     }
 
-    private InteractionController? _controller;
-    private Action<FigureInteractionEvent>? _serverEventSink;
+    /// <summary>Told of every gesture of the reader once it has reached the figure (or the server sink), whichever kind it
+    /// is: the same <see cref="IChartEventHandler"/> a server session takes, so one class reacts to a chart wherever it is
+    /// shown. It needs <see cref="IsInteractive"/>.</summary>
+    public IChartEventHandler? ChartEventHandler
+    {
+        get => _host.Handler;
+        set => _host.Handler = value;
+    }
+
+    /// <summary>Raised when <see cref="ChartEventHandler"/> fails. The gesture has been applied and the next one is taken as
+    /// usual, so the failure is reported here and never thrown into the control.</summary>
+    public event Action<Exception>? ChartEventHandlerFaulted;
+
+    private readonly InteractionHost _host = new();
 
     /// <summary>When set, the interaction controller routes events through this sink (typically
     /// created via <see cref="SignalREventSink.Create"/>) instead of applying them locally.
     /// Set via <see cref="ServerInteractionExtensions.WithServerInteraction"/>.</summary>
     internal Action<FigureInteractionEvent>? ServerEventSink
     {
-        get => _serverEventSink;
-        set { _serverEventSink = value; _controller = null; }
+        get => _host.ServerEventSink;
+        set => _host.ServerEventSink = value;
     }
 
     /// <summary>Returns the active brush select state for overlay rendering, or <c>null</c>.</summary>
-    internal BrushSelectState? ActiveBrushSelect => _controller?.ActiveBrushSelect;
+    internal BrushSelectState? ActiveBrushSelect => _host.ActiveBrushSelect;
 
     /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
     /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, select a row in a
@@ -77,6 +89,9 @@ public sealed class MplChartElement : SKCanvasElement
     {
         // SKCanvasElement extends FrameworkElement, not Control, so input events
         // are wired as handlers rather than overrides.
+        _host.InvalidateRequested += Invalidate;
+        _host.HandlerFaulted += failure => ChartEventHandlerFaulted?.Invoke(failure);
+        _host.DataPointClicked += point => DataPointClicked?.Invoke(point);
         PointerPressed += OnElementPointerPressed;
         PointerMoved += OnElementPointerMoved;
         PointerReleased += OnElementPointerReleased;
@@ -102,76 +117,48 @@ public sealed class MplChartElement : SKCanvasElement
         // Draw rubber-band selection rectangle if a brush select drag is in progress.
         var brushState = ActiveBrushSelect;
         if (brushState is { } bs)
-        {
-            var rect = new SKRect(
-                (float)Math.Min(bs.StartPixelX, bs.CurrentPixelX),
-                (float)Math.Min(bs.StartPixelY, bs.CurrentPixelY),
-                (float)Math.Max(bs.StartPixelX, bs.CurrentPixelX),
-                (float)Math.Max(bs.StartPixelY, bs.CurrentPixelY));
-
-            using var paint = new SKPaint { Color = new SKColor(30, 144, 255, 50), Style = SKPaintStyle.Fill };
-            canvas.DrawRect(rect, paint);
-
-            paint.Color = new SKColor(30, 144, 255, 180);
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 1.5f;
-            canvas.DrawRect(rect, paint);
-        }
+            canvas.DrawBrushSelect(bs);
     }
 
     private void PostLayoutUpdate(Figure figure, MatPlotLibNet.Rendering.LayoutResult layoutResult)
     {
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
-        {
-            var layout = ChartLayout.Create(figure, layoutResult);
-            if (_controller is null)
-            {
-                _controller = _serverEventSink is not null
-                    ? InteractionController.Create(figure, layout, _serverEventSink)
-                    : InteractionController.CreateLocal(figure, layout);
-                _controller.InvalidateRequested += Invalidate;
-                _controller.DataPointClicked += point => DataPointClicked?.Invoke(point);
-            }
-            else
-            {
-                _controller.UpdateLayout(layout);
-            }
-        });
+            _host.Update(figure, ChartLayout.Create(figure, layoutResult)));
     }
 
     private void OnElementPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_controller is null || !IsInteractive) return;
-        _controller.HandlePointerPressed(UnoInputAdapter.ToPointerArgs(e, this));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandlePointerPressed(UnoInputAdapter.ToPointerArgs(e, this));
         e.Handled = true;
         Focus(FocusState.Pointer);
     }
 
     private void OnElementPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_controller is null || !IsInteractive) return;
-        _controller.HandlePointerMoved(UnoInputAdapter.ToPointerArgs(e, this));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandlePointerMoved(UnoInputAdapter.ToPointerArgs(e, this));
 
-        var tooltip = _controller.ActiveTooltip;
+        var tooltip = _host.ActiveTooltip;
         ToolTipService.SetToolTip(this, tooltip?.Text);
     }
 
     private void OnElementPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (_controller is null || !IsInteractive) return;
-        _controller.HandlePointerReleased(UnoInputAdapter.ToPointerArgs(e, this));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandlePointerReleased(UnoInputAdapter.ToPointerArgs(e, this));
     }
 
     private void OnElementPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        if (_controller is null || !IsInteractive) return;
-        _controller.HandleScroll(UnoInputAdapter.ToScrollArgs(e, this));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandleScroll(UnoInputAdapter.ToScrollArgs(e, this));
         e.Handled = true;
     }
 
     private void OnElementKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (_controller is null || !IsInteractive) return;
-        _controller.HandleKeyDown(UnoInputAdapter.ToKeyArgs(e));
+        if (!_host.IsAttached || !IsInteractive) return;
+        _host.HandleKeyDown(UnoInputAdapter.ToKeyArgs(e));
     }
 }

@@ -25,7 +25,7 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
         // the DATA, so a cull that starts past the first sample would hand each marker another point's size,
         // colour or edge. Any of them set means the points are drawn whole.
         bool indexTied = series.C is not null || series.Colors is not null || series.Sizes is not null
-                      || series.EdgeColors is not null || series.LineWidths is not null;
+                      || series.EdgeColors is not null || series.LineWidths is not null || series.RowKeys is not null;
         XYData data = !indexTied && series.MaxDisplayPoints.HasValue
             // The unscaled range: the culler compares against raw sample values, and on a log or symlog axis the
             // transform's range is in scaled space.
@@ -77,6 +77,8 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
             var c = ResolvePointColor(series, i, defaultColor, normalizer, cMin, cMax);
             var edgeColor = series.EdgeColors is not null && i < series.EdgeColors.Length ? series.EdgeColors[i] : (Color?)null;
             var edgeWidth = series.LineWidths is not null && i < series.LineWidths.Length ? series.LineWidths[i] : 0.0;
+            // The mark is one row of the data: say which, so a script can find the same row in another chart.
+            if (series.RowKeys is { } keys) Ctx.SetNextElementData("row", keys[i]);
             Ctx.DrawMarker(marker, pts[i], 2 * radius, new ShapeStyle(FillOf(c, series.Alpha), edgeColor, edgeWidth));
             EndTooltip();
         }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Ehlers;
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Indicators;
@@ -35,9 +36,13 @@ public sealed class RoofingFilter : PriceIndicator<SignalResult>
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        if (Prices.Length < 3) return Array.Empty<double>();
-        var hp = ((ReadOnlySpan<double>)Prices).HighPass(_hpPeriod);
-        return ((ReadOnlySpan<double>)hp).SuperSmooth(_lpPeriod);
+        int n = Prices.Length;
+        if (n < 3) return Array.Empty<double>();
+        var result = new double[n];
+        var highPass = new HighPassStep(_hpPeriod);
+        var smoother = new SuperSmootherStep(_lpPeriod);
+        for (int i = 0; i < n; i++) result[i] = smoother.Next(highPass.Next(Prices[i]));
+        return result;
     }
 
     /// <inheritdoc />

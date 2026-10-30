@@ -38,7 +38,7 @@ public sealed class PanModifier : IInteractionModifier
     public void OnPointerPressed(PointerInputArgs args)
     {
         int axesIndex = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
+        var coords = _layout.PixelToData(args.X, args.Y, axesIndex);
         if (coords is null) return;
 
         _active     = true;
@@ -56,7 +56,7 @@ public sealed class PanModifier : IInteractionModifier
     {
         if (!_active) return;
 
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, _activeAxes);
+        var coords = _layout.PixelToData(args.X, args.Y, _activeAxes);
         if (coords is null) return;
 
         var view = _layout.ViewOf(_activeAxes);

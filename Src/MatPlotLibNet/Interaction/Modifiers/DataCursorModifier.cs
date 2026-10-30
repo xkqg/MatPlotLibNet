@@ -59,7 +59,7 @@ public sealed class DataCursorModifier : IInteractionModifier
         var axesIndex = _layout.HitTestAxes(args.X, args.Y);
         if (axesIndex is null) return false;
 
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex.Value);
+        var coords = _layout.PixelToData(args.X, args.Y, axesIndex.Value);
 
         var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, coords!.Value.DataX, coords.Value.DataY, _layout);
         if (nearest is null) return false;

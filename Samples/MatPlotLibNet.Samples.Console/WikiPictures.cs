@@ -1,7 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Indicators.Streaming;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
@@ -33,6 +35,13 @@ internal static class WikiPictures
 
     private static IEnumerable<WikiPicture> All()
     {
+        yield return new("survey_words", SurveyWords());
+        yield return new("region_chord", RegionChord());
+        yield return new("soil_ternary", SoilTernary());
+        yield return new("piper_water", PiperWater());
+        yield return new("linked_orders", LinkedOrders());
+        yield return new("streaming_obv", StreamingObv());
+        yield return new("rolling_transfer_entropy", RollingTransferEntropy());
         yield return new("anomaly_horizon", AnomalyHorizon());
         yield return new("arc_diagram", ArcDiagram());
         yield return new("budget_icicle", BudgetIcicle());
@@ -1209,6 +1218,162 @@ internal static class WikiPictures
                     s.TotalColor = Color.FromHex("#1F77B4");
                     s.BarWidth = 0.8;
                 }))
+            .Build();
+        return figure;
+    }
+
+    private static Figure SurveyWords()
+    {
+        string[] words = ["price", "support", "speed", "design", "docs", "bugs", "export", "themes", "charts", "install", "license", "maps"];
+        double[] weights = [42, 35, 30, 24, 22, 18, 16, 14, 13, 9, 7, 5];
+
+        var figure = Plt.Create()
+            .WithTitle("What the survey answers talk about")
+            .WithSize(620, 420)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax.WordCloud(words, weights))
+            .Build();
+        return figure;
+    }
+
+    private static Figure RegionChord()
+    {
+        string[] regions = ["North", "South", "East", "West"];
+        double[,] moves =
+        {
+            { 0, 12, 8, 3 },
+            { 9, 0, 5, 7 },
+            { 4, 6, 0, 10 },
+            { 2, 8, 11, 0 },
+        };
+
+        var figure = Plt.Create()
+            .WithTitle("People moving between regions")
+            .WithSize(560, 560)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax.Chord(regions, moves))
+            .Build();
+        return figure;
+    }
+
+    private static Figure SoilTernary()
+    {
+        double[] clay = [0.55, 0.30, 0.12, 0.20, 0.40, 0.08, 0.28, 0.65];
+        double[] silt = [0.25, 0.40, 0.18, 0.60, 0.15, 0.12, 0.22, 0.15];
+        double[] sand = [0.20, 0.30, 0.70, 0.20, 0.45, 0.80, 0.50, 0.20];
+
+        var figure = Plt.Create()
+            .WithTitle("Soil samples by texture")
+            .WithSize(620, 560)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .SetYLabel("Clay")
+                .SetZLabel("Silt")
+                .SetXLabel("Sand")
+                .TernaryScatter(clay, silt, sand))
+            .Build();
+        return figure;
+    }
+
+    private static Figure PiperWater()
+    {
+        WaterSample[] waters =
+        [
+            new() { Label = "Mountain spring", Ca = 60, Mg = 10, Na = 8, K = 2, HCO3 = 200, SO4 = 20, Cl = 10 },
+            new() { Label = "Brine well", Ca = 400, Mg = 100, Na = 5000, K = 50, HCO3 = 150, SO4 = 300, Cl = 8000 },
+            new() { Label = "Sodium spring", Ca = 10, Mg = 3, Na = 300, K = 5, HCO3 = 600, SO4 = 30, Cl = 40 },
+        ];
+
+        var figure = Plt.Create()
+            .WithTitle("Three waters on a Piper diagram")
+            .WithSize(820, 560)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax.Piper(waters))
+            .Build();
+        return figure;
+    }
+
+    private static Figure LinkedOrders()
+    {
+        string[] orders = ["o1", "o2", "o3", "o4", "o5", "o6"];
+        double[] size = [12, 30, 18, 44, 26, 38];
+        double[] days = [2, 5, 3, 9, 4, 7];
+
+        var figure = Plt.Create()
+            .WithTitle("The same six orders in two charts")
+            .WithSize(860, 400)
+            .TightLayout()
+            .LinkSelection("orders", ["o2", "o5"])
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithTitle("Size and delivery time")
+                .SetXLabel("Order size")
+                .SetYLabel("Days to deliver")
+                .Scatter(size, days, s => s.RowKeys = orders))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithTitle("Size by order")
+                .SetXLabel("Order number")
+                .SetYLabel("Order size")
+                .Scatter([1.0, 2, 3, 4, 5, 6], size, s => s.RowKeys = orders))
+            .Build();
+        return figure;
+    }
+
+    private static Figure StreamingObv()
+    {
+        var figure = new Figure { Title = "Candles with a streaming average and on-balance volume", Width = 760, Height = 520 };
+        var price = figure.AddSubPlot(2, 1, 1);
+        var volume = figure.AddSubPlot(2, 1, 2);
+        var candles = price.AddSeries(new StreamingCandlestickSeries(200));
+        candles.WithStreamingSma(price, 5);
+        candles.WithStreamingObv(volume);
+
+        double close = 100;
+        ulong state = 7;
+        for (int i = 0; i < 60; i++)
+        {
+            state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+            double step = ((state >> 11) / (double)(1UL << 53) - 0.5) * 6;
+            state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+            double traded = 800 + (state >> 11) / (double)(1UL << 53) * 600;
+            double open = close;
+            close = Math.Max(1, close + step);
+            candles.AppendBar(new OhlcvBar(open, Math.Max(open, close) + 1, Math.Min(open, close) - 1, close, traded));
+        }
+
+        return figure;
+    }
+
+    private static Figure RollingTransferEntropy()
+    {
+        const int n = 400;
+        ulong state = 7;
+        double Normal()
+        {
+            double sum = 0;
+            for (int k = 0; k < 12; k++)
+            {
+                state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+                sum += (state >> 11) / (double)(1UL << 53);
+            }
+
+            return sum - 6;
+        }
+
+        double[] source = new double[n];
+        double[] noise = new double[n];
+        for (int t = 0; t < n; t++) source[t] = Normal();
+        for (int t = 0; t < n; t++) noise[t] = Normal();
+        double[] target = new double[n];
+        target[0] = noise[0];
+        for (int t = 0; t + 1 < n; t++) target[t + 1] = (t >= 200 ? 1 : 0) * source[t] + noise[t + 1];
+
+        var figure = Plt.Create()
+            .WithTitle("Does the source lead the target? It does from bar 200")
+            .WithSize(760, 380)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .SetXLabel("Bar")
+                .SetYLabel("Transfer entropy (nats)")
+                .TransferEntropy(source, target, new TransferEntropyOptions(Neighbours: 4, Window: 100, Stride: 5)))
             .Build();
         return figure;
     }

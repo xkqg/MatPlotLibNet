@@ -17,6 +17,7 @@ public sealed class ServerInteractionBuilder
     internal bool BrushSelect { get; private set; }
     internal bool Hover { get; private set; }
     internal bool DataCursor { get; private set; }
+    internal bool ViewerCursors { get; private set; }
 
     /// <summary>Opt in to <c>ZoomEvent</c> round-trips.</summary>
     public ServerInteractionBuilder EnableZoom() { Zoom = true; return this; }
@@ -43,6 +44,11 @@ public sealed class ServerInteractionBuilder
     /// notification delivered to the chart's data-cursor handler, naming the series the reader clicked and
     /// where on the axes they clicked it.</summary>
     public ServerInteractionBuilder EnableDataCursor() { DataCursor = true; return this; }
+
+    /// <summary>Opt in to showing each viewer the pointers of the others. Not a gesture the server applies and not part
+    /// of <see cref="All"/>: every viewer sends where their pointer is while it moves, and the server relays it to
+    /// the other viewers of the chart.</summary>
+    public ServerInteractionBuilder EnableViewerCursors() { ViewerCursors = true; return this; }
 
     /// <summary>Opt in to every event type.</summary>
     public ServerInteractionBuilder All()

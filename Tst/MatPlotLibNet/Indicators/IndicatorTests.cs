@@ -396,6 +396,21 @@ public class IndicatorBranchCoverageTests
         Assert.True(axes.Series.Count >= 2);
     }
 
+    /// <summary>A series shorter than the slow period has no MACD yet. It used to throw an OverflowException (a negative array
+    /// length), which is what a streaming form compared against the batch over every prefix ran into on its first bar.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4)]
+    [InlineData(9)]
+    public void Macd_OverFewerPricesThanTheSlowPeriod_HasNoValues_InsteadOfThrowing(int count)
+    {
+        var result = new Macd([.. Enumerable.Range(0, count).Select(i => 100.0 + i)], fastPeriod: 2, slowPeriod: 10, signalPeriod: 3).Compute();
+
+        Assert.Empty(result.MacdLine);
+        Assert.Empty(result.SignalLine);
+        Assert.Empty(result.Histogram);
+    }
+
     /// <summary>Vwap.Apply with explicit Color override — existing test uses default.</summary>
     [Fact]
     public void Vwap_ExplicitColor_AppliesIt()

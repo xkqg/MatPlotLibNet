@@ -60,6 +60,7 @@ OPTIONAL_PROJS=(
     "Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj"
     "Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj"
     "Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj"
+    "Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj"
 )
 for p in "${OPTIONAL_PROJS[@]}"; do
     [ -f "$REPO_ROOT/$p" ] && TEST_PROJECTS+=("$p")

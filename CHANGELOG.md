@@ -4,6 +4,190 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.27.0]
+
+Every row that stood under "still to come" on the roadmap is done: a word cloud, a chord diagram, a ternary plot and a
+Piper diagram join the charts; a chart can be linked to another so that a selection in one lights the other, and an
+animation can be saved as one SVG that steps through its frames. A live chart sends its own gestures to the server, one
+handler interface receives every gesture, and several viewers of one chart are a designed feature. The native controls
+return Home to the first view, the MAUI view reaches the same functions, and the Windows heads are tested by CI. More
+indicators have a streaming form, and transfer entropy can be followed over time. The sections below list each change
+with what it replaces.
+
+### Added
+
+- **`TernaryScatter(top, left, right)` and `TernaryPlot(top, left, right)`: three parts that make a whole, in a triangle.** A
+  ternary axes is drawn with a triangle, a grid at every fifth and ticks that run counter-clockwise (the right part along
+  the base, the top part up the right edge, the left part down the left edge), with the three parts named at the corners by
+  the labels the axes already has (`SetYLabel` at the apex, `SetZLabel` bottom left, `SetXLabel` bottom right). The amounts stay as
+  the author knew them (a count, a percentage, a mass) and are closed to fractions only to be placed, so (2, 5, 3) and
+  (20, 50, 30) stand at the same place and the table still shows what was typed. A sample with a negative, infinite or missing
+  part, or three zeros, is refused by its row and its part. Hovering a point names its composition ("Clay 20 %, Silt 50 %, Sand 30 %").
+  The triangle is a fixed frame: a wheel, a drag or Home over it leaves the chart as it is, because a composition cannot lie
+  outside it. `CoordinateSystem` gains `Ternary = 3`. The chart is held against `mpltern` in the fidelity suite.
+
+  ```csharp
+  Plt.Create()
+      .WithTitle("Soil samples by texture")
+      .AddSubPlot(1, 1, 1, ax => ax
+          .SetYLabel("Clay").SetZLabel("Silt").SetXLabel("Sand")
+          .TernaryScatter(clay, silt, sand))
+      .Save("soil_ternary.svg");
+  ```
+
+- **`Piper(samples)`: the major ions of a set of waters on two triangles and a diamond.** The cations (calcium, magnesium, sodium
+  with potassium) on one triangle, the anions (bicarbonate with carbonate, sulphate, chloride) on a second, and both on a diamond
+  between and above them, a marker for each water on each panel in one colour so a reader follows a water from panel to panel.
+  The input is what a laboratory delivers: a `WaterSample` in mg/L. The percentages are of milliequivalents, and the table gives
+  the six percentages, the charge balance error and "balanced" or "unbalanced" for each water: a water whose charges do not
+  balance (beyond 5 %) is flagged, not dropped. A water with an amount that is negative, infinite or missing, or with no cations
+  or no anions, is refused by its row and its ion.
+
+- **`Chord(names, flows)`: the flows between groups as a ring of arcs with ribbons through the centre.** An arc is as long as the
+  row of its group, a ribbon is drawn in the colour of the group that sends more of the two, and the ribbons inside an arc run in
+  the order that makes the ribbons of a complete graph cross least (the fewest any layout can: 0, 1, 5, 15 crossings for three to
+  six groups). The names stand outside the ring and never read upside down. A matrix that cannot be drawn (not square, a negative
+  or infinite flow, all zero) is refused by name; the table is source, target and value for each flow there is.
+
+- **`WordCloud(words, weights)`: words sized by weight and packed without overlap.** Each word is set in a size that follows the
+  square root of its weight between two sizes (12 and 60 unless said otherwise), the heaviest first at the centre, the rest on a
+  spiral at the first place where they fit with two pixels clear. Nothing is dropped silently: when the words do not all fit, every
+  size shrinks toward the smallest together, and a word that still has no room is announced on `ChartDiagnostics`. A word is
+  moved toward the text colour until it reads against the background (4.5 to 1, 3 to 1 for large words), each word carries its
+  weight as a title, and the SVG asks the browser to set each word to the width it was measured at, so a different font cannot
+  make one run into its neighbour (`IRenderContext` gains `SetNextTextLength`, a default member).
+
+- **Linked selection: a brush on one chart lights the same rows on the others of its group.** `RowKeys` on a series gives each point
+  the author's own name for its row; `FigureBuilder.LinkSelection(group, selectedRows)` names the group the charts of one page
+  share. When a brush ends, the rows whose marks lie inside it are lit on every chart of the group (the others dimmed, `aria-selected`
+  on each), and Escape clears them. It is a window event, so it is the page's: nothing crosses tabs. The keys travel in the JSON and
+  name the rows of the table.
+
+- **`RowSelectionEvent`: a brush also says which rows it covers, to the one handler.** A native control and a server give the
+  application the keys of the points inside the rectangle (each once, in the order of the data) after the brush itself.
+
+- **`StepThroughSvgTransform` and `AnimationBuilder.SaveStepThroughSvg(path)`: an animation as one SVG that steps through its frames.**
+  Every frame is in the file as a nested SVG under ids of its own, one shown at a time, with a slider, a play button and the arrow
+  keys (Home and End go to the ends, the space bar plays and pauses, a click on the track goes to that frame). Without its script
+  the file is its first frame, so the picture in an `<img>`, a README or a viewer that runs nothing is the frame alone, and a reader
+  who asked their system for reduced motion gets no autoplay. `FuncAnimation.Save` writes it for a `.svg` path. The file is as
+  large as all its frames together: no frame is dropped or shared.
+
+- **`IChartEventHandler`: one handler for everything a viewer does.** A chart offered a callback for a brush, a hover and a click
+  and nothing for a zoom, a pan, a legend toggle or a reset. The handler receives every interaction event once, with a context
+  that names the viewer; it is given to `ChartSessionOptions.Handle` on a server and to the `ChartEventHandler` of a native control
+  (the WPF, Avalonia, Uno and MAUI chart controls and the streaming controls of the first three), so one class reacts to a chart
+  wherever it is shown. A handler that throws costs its own event only; on a native control `ChartEventHandlerFaulted` reports it.
+
+- **Several viewers of one chart, by design.** The hub stamps every event with the connection it came in on and the name the chart
+  gave that connection ("Viewer 1", "Viewer 2"), over whatever the payload claimed. With `EnableViewerCursors` a page sends where its
+  pointer is (one position in fifty milliseconds) and draws the others' pointers with their names; after a batch in which a viewer
+  moved the shared view every viewer is told who. A chart says when it is busy (`data-mpl-busy`) and idle (`mpl:idle`).
+
+- **A live chart that sends its own gestures.** `MplLiveChart` gives the script inside its SVG the SignalR connection the .NET client
+  already holds, so a zoom, a pan, a legend toggle and Home reach the server without any JavaScript of your own. The React, Vue and
+  Angular components mount a chart so that its script runs (a script that arrives through `innerHTML` never does), with
+  `mountSvg(host, svg, hub)` exported from each package.
+
+- **One interaction host for the native controls.** `InteractionHost` is the one place the WPF, Avalonia, Uno and MAUI controls wire
+  pan, zoom, point picking, brush, hover and Home; it gives WPF a server sink, a tooltip and the rubber band it lacked, and the
+  streaming controls of WPF, Avalonia and Uno `IsInteractive`: a streaming chart can be panned and zoomed, and its scale mode
+  leaves an axes the reader moved alone until Home hands it back.
+
+- **A finger works the MAUI chart.** Drag (pan, rectangle zoom, brush, span or rotate, as `DragGestureAction` says), pinch (zoom in
+  whole 15 % notches), tap, double tap (Home) and hover reach the same host as the mouse of the other heads; `IsInteractive` is off
+  by default so a chart on a scrolling page does not take the drag meant to scroll it. The MAUI canvas draws what the SVG and the
+  PNG draw: hatches, gradients, the arcs of a pie and a donut, and the library's own text metrics.
+
+- **Streaming forms for 57 of the 59 indicators.** A bar can carry its volume (`OhlcvBar`, `AppendBar(OhlcvBar)` and
+  `OhlcvBarAppended` on `StreamingCandlestickSeries`), and `WithStreaming(axes, indicator)` attaches any indicator to a candle
+  series, feeding it the prices and the volume of each bar; the nine named verbs stay, and `WithStreamingObv` and `WithStreamingVwap`
+  join them. `StreamingIndicator<TInput>` is the root of every new form, whatever it reads (a bar, a price, a row of several series). The
+  46 new forms take one of two shapes, written in `StreamingMap` for every indicator: a window of the last bars that the batch
+  indicator is run over (24 forms, the transfer entropy among them), or the state of the recursion, taken out of the batch loop as a
+  step that the batch indicator folds over too, so the arithmetic is written once (22 forms). FibonacciRetracement and VolumeProfile have none, and the map says why.
+  The rule every form is held to is that after the bar at index *i* its value is the last value of the batch indicator over the bars
+  up to *i*, to 1e-9; a theory runs the batch over every prefix of 200 bars for each of them.
+
+- **Transfer entropy over time, and without bins.** `TransferEntropyOptions` chooses the estimator (the Kraskov nearest-neighbour
+  estimate is the default; the binned one is what the older constructor still gives), the neighbours, the lag and a series to
+  condition on (a common driver). With a `Window` the entropy is one value for each bar (the entropy of the last bars, never
+  dependent on a later one), NaN until the first window is full, drawn as a line; a `Stride` works out every n-th window.
+  `StreamingTransferEntropy` takes `TransferEntropySample`s and says the same as the batch. On a coupling of 1 against noise of 1 the
+  estimate is 0.32 against the 0.35 of the analytic answer, and about 0 the other way; the binned estimate on a window of 100 with
+  8 bins gave twice the signal for independent series.
+
+- **The Windows heads are built and tested by CI on every push.** The MAUI, WPF and Uno packages were built for the first time by
+  the publish job, after the tag. A `windows-heads` job now builds them with the same steps and runs their suites, and the MAUI
+  suite, which needs no workload, runs on Linux too.
+
+- **Every public type and member of a package has an XML comment.** `CS1591` was switched off (1,025 members in the packages);
+  it is a warning now, and a warning fails the build.
+
+### Changed
+
+- **On-balance volume starts with the volume of the first bar, and a bar without a volume gives NaN.** The streaming form began at 0 and
+  counted a bar with no volume as a step of 1, which is a number nobody traded. It is now the sum the batch `Obv` gives.
+- **The streaming RSI, ATR, MACD signal and Stochastic %D give the values of their batch indicators.** The RSI seeded Wilder's averages
+  from one change too few, the ATR counted the first bar's range, the MACD signal and the %D were smoothed like an EMA where the
+  batch indicator takes the simple mean. The warm-up of the MACD (`slow + signal - 1`) and of the Stochastic (`k + d - 1`) is the bar
+  every line has a value. The documentation of `Macd` said EMA where it takes the simple mean of the last signal-period values; it
+  says so now.
+- **`IChartLayout.PixelToData` is a member of the interface.** Nine modifiers and the controller cast the layout to `ChartLayout`
+  fourteen times to turn a pixel into a data point, so a layout of a host's own threw an `InvalidCastException` on the first pointer
+  move. The member is a default one, so an existing implementer keeps compiling.
+- **One name for every hub route.** `HubMethodNames` writes the name of the hub method that carries each event once; the hub gained
+  `OnRectangleZoom`, `OnSpanSelect`, `OnRotate3D`, `OnAddTrendline`, `OnAddHorizontalLevel` and `OnAddFibonacciRetracement`, which the
+  native controls had been sending to a method that did not exist. `RemoveDrawingToolEvent` is named as not routed, with its reason.
+- **Microsoft.Maui.Controls and Graphics move to 10.0.120, and SourceLink to 10.0.403.**
+- **The series count is 91, in 16 categories.** It was 86 in 14: `WordCloudSeries`, `ChordSeries`, `TernaryScatterSeries`, `TernaryLineSeries` and
+  `PiperSeries` are new, and Text and Ternary are two new categories. A test holds each document to the assembly.
+
+### Fixed
+
+- **Home returns to the view the reader started from.** A control repaints after every change and gave the controller a new layout each
+  time, and the reset modifier took its "original" range from that layout, so after a zoom Home returned to where the reader already
+  was; a browser had the same fault, because the page sends the range it read off the latest drawing. The figure now remembers the view
+  each axes had before an interaction first moved it, and a reset goes back to it. A rubber band being drawn no longer loses its state at
+  the next repaint.
+- **A native control kept the figure it was first given.** Avalonia and Uno aimed the controller at the first figure for good, and WPF
+  reported every mouse move as a left-button drag, so hover never fired. The host builds a new controller for a new figure and only replaces
+  the layout for the same one.
+- **A session no longer ends when a send throws.** A session whose publisher or tooltip send threw ended its reader, and every later event
+  from every viewer was accepted and never applied. Viewers who hover in one burst are each answered; registering one id twice at once cannot
+  leave a session nobody disposes.
+- **The scripts in the React, Vue and Angular components run.** The three bindings put the SVG on the page through `innerHTML`, where a script
+  never runs, so a server-interactive chart drew its picture and did nothing else.
+- **A data attribute is escaped.** A treemap label or a row key with a quote or an ampersand made the SVG ill-formed.
+- **Short series no longer throw.** `Macd` over fewer prices than its slow period, `RelativeVigorIndex` over exactly `period + 4` bars,
+  `Ichimoku` over fewer bars than its kijun period and `DrawDown` over an empty curve threw an overflow or an index error where every other
+  indicator has no value yet; a streaming form held against the batch over every prefix found each.
+- **A figure from a newer writer is announced.** An enum name the reader does not know came back drawn as the default, silently. It is announced on
+  `ChartDiagnostics`.
+- **Twenty-nine source files named the GPL in their header** (the two Blazor components and the three npm bindings); they name the MIT licence.
+
+### Upgrading
+
+- **Home autoscale.** A control that was relying on Home to return to the range on screen now returns to the first view: that is the fix, and
+  there is nothing to change. The range a reset carries is used only for an axes nothing has moved.
+- **`MplLiveChart` sends gestures.** A page that wires `window.__mpl_signalr_connection` itself keeps working (the script looks at the host of
+  its own chart first, then at the page); remove the wiring when you like, and the redrawn picture is mounted when the chart is idle.
+- **`OnSvgUpdated` is still one replaceable callback.** `IChartSubscriptionClient.SubscribeSvgUpdates` is the way for several components to
+  listen through one client, and it hands back the token that takes a callback away.
+- **A 1.26 reader meets a ternary figure.** `ApplyEnum` announces the name it cannot place on `ChartDiagnostics` and draws the axes as Cartesian; the
+  figure still loads.
+- **Streaming values change for five indicators.** The OBV, RSI, ATR, MACD signal and Stochastic %D now equal their batch indicators (see Changed). An
+  application that pinned the old values pins the new ones. `StreamingIndicator.AppendToOutput` is obsolete: use `SetOutput`, which writes every
+  output of an input together.
+- **`TransferEntropy` over options.** The overload that takes `TransferEntropyOptions` uses the Kraskov estimate by default; the overload with `bins` and
+  `lag` is the binned estimate it always was. `new TransferEntropyOptions()` means the defaults, not zeros.
+- **What is left to say plainly.** The MAUI recognizers cannot be driven on a device here: the strongest check is the Windows job's platform build, and the
+  residual stays. A push that fails after the core package was pushed is repaired by the publish workflow's manual catch-up with `--skip-duplicate`; a
+  `needs:` between the two jobs was not added. `DrawStyle.StepsPre` draws the same path as `StepsPost`, `GridStyle.Alpha` is stored but the Cartesian
+  renderer draws the grid in the alpha of its colour, `Legend.FancyBox`, `SignalMarker.Label`, `TickConfig.Format`, `BoxSeries.ShowOutliers`,
+  `StemSeries.Marker` and `DonutSeries.Labels` are stored and not read by a renderer, and the leading span of `Ichimoku` ends a few bars before the latest
+  bar: all of them are now written in the comment of the member, and none changed.
+
 ## [1.26.0]
 
 Marks that are a size in data units now have a home: a waffle chart, a calendar of events, Point and Figure and Renko

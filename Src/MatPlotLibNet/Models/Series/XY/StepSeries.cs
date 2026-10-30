@@ -28,14 +28,22 @@ public sealed class StepSeries : XYSeries, IHasColor
     /// <inheritdoc />
     internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, LineWidth, LineStyle, Marker: Marker, MarkerSize: LineSeries.RestingMarkerSize);
 
+    /// <summary>Where each step happens between two neighbouring points: after the earlier point (the default), before the
+    /// later point, or halfway between them.</summary>
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
 
+    /// <inheritdoc />
     public Color? Color { get; set; }
 
+    /// <summary>The dash pattern of the step line. Default solid.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
+    /// <summary>The thickness of the step line, in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>The shape drawn at each data point, not at the corners of the steps. Null (the default) leaves the choice
+    /// to the chart's property cycle, which normally draws no markers; <see cref="MarkerStyle.None"/> draws none whatever
+    /// the cycle says.</summary>
     public MarkerStyle? Marker { get; set; }
 
     /// <summary>Creates a new step series from the given X and Y data.</summary>

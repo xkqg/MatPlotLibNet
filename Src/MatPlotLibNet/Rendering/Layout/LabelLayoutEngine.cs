@@ -198,7 +198,10 @@ public sealed record LabelPlacement(
 /// remove, or renumber.</remarks>
 public enum LabelPriority
 {
+    /// <summary>The label gives way first: it is moved before labels of higher priority.</summary>
     Low    = 0,
+    /// <summary>The ordinary priority, which every label has unless it asks for another.</summary>
     Normal = 1,
+    /// <summary>The label resists displacement the longest, so the others move around it.</summary>
     High   = 2,
 }

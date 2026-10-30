@@ -24,16 +24,22 @@ namespace MatPlotLibNet.Styling;
 /// </remarks>
 public sealed record TextStyle
 {
+    /// <summary>Font size in points, or <see langword="null"/> to keep the base font's size.</summary>
     public double? FontSize { get; init; }
 
+    /// <summary>Font weight, or <see langword="null"/> to keep the base font's weight.</summary>
     public FontWeight? FontWeight { get; init; }
 
+    /// <summary>Font family, or <see langword="null"/> to keep the base font's family.</summary>
     public string? FontFamily { get; init; }
 
+    /// <summary>Font slant, or <see langword="null"/> to keep the base font's slant.</summary>
     public FontSlant? FontSlant { get; init; }
 
+    /// <summary>Text colour, or <see langword="null"/> to keep the base font's colour.</summary>
     public Color? Color { get; init; }
 
+    /// <summary>Extra distance, in pixels, that moves a title or axis label further from the plot area. <see langword="null"/> adds none.</summary>
     public double? Pad { get; init; }
 
     /// <summary>
