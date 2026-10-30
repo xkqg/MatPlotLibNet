@@ -2273,7 +2273,7 @@ Console.WriteLine("Saved international.svg and international.png");
                 a.Font = new Font { Family = "sans-serif", Size = 38 };
                 a.Color = Color.FromHex("#9BE7C4");
             })
-            .Annotate("83 chart types in C#  ·  SVG, PNG, PDF, GIF", 0.055, 0.31, a =>
+            .Annotate("86 chart types in C#  ·  SVG, PNG, PDF, GIF", 0.055, 0.31, a =>
             {
                 a.Coordinates = AnnotationCoordinates.AxesFraction;
                 a.Font = new Font { Family = "sans-serif", Size = 26 };

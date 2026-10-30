@@ -21,7 +21,7 @@ public class DistributionChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 110, Ssim = 0.55, DeltaE = 140)]   // v1.1.4: seaborn fill alpha + different KDE bandwidth heuristic; classic axes.xmargin=0 shifted histogram bar edges → top-5 color blend differs
+    [FidelityTolerance(Rms = 110, Ssim = 0.55, DeltaE = 115)]   // v1.1.4: seaborn fill alpha + different KDE bandwidth heuristic; classic axes.xmargin=0 shifted histogram bar edges → top-5 color blend differs
     public void Kde_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -40,7 +40,7 @@ public class DistributionChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 25)]
     public void Rugplot_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -59,7 +59,7 @@ public class DistributionChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 140)]   // pt→px font fix shifted axis labels → top-5 color cluster changed
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // pt→px font fix shifted axis labels → top-5 color cluster changed
     public void Stripplot_ThreeGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -81,7 +81,7 @@ public class DistributionChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 140)]   // swarm layout differs slightly + pt→px font fix shifted axis labels
+    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 55)]   // swarm layout differs slightly + pt→px font fix shifted axis labels
     public void Swarmplot_ThreeGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -103,7 +103,7 @@ public class DistributionChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 15)]
     public void Pointplot_FourGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);

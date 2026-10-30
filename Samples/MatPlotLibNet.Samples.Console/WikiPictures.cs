@@ -34,6 +34,21 @@ internal static class WikiPictures
     private static IEnumerable<WikiPicture> All()
     {
         yield return new("anomaly_horizon", AnomalyHorizon());
+        yield return new("arc_diagram", ArcDiagram());
+        yield return new("budget_icicle", BudgetIcicle());
+        yield return new("budget_waterfall", BudgetWaterfall());
+        yield return new("calendar_events", CalendarEventsPicture());
+        yield return new("connected_scatter", ConnectedScatterPicture());
+        yield return new("fidelity_waterfall", FidelityWaterfall());
+        yield return new("fill_betweenx_speed", FillBetweenXSpeed());
+        yield return new("gradient_fills", GradientFills());
+        yield return new("heating_waffle", HeatingWaffle());
+        yield return new("kagi_closes", KagiCloses());
+        yield return new("matshow_correlation", MatShowCorrelation());
+        yield return new("point_and_figure_closes", PointAndFigureCloses());
+        yield return new("range_frame", RangeFrame());
+        yield return new("renko_closes", RenkoCloses());
+        yield return new("stem_and_leaf_ages", StemAndLeafAges());
         yield return new("axis_colors", AxisColors());
         yield return new("band_spy", BandSpy());
         yield return new("cash_waterfall", CashWaterfall());
@@ -921,6 +936,280 @@ internal static class WikiPictures
            .AddSubPlot(2, 1, 2, ax => ax.WilliamsR(OhlcvBars.Hlc(high, low, close)))
            .TightLayout()
            .Build();
+        return figure;
+    }
+
+    /// <summary>The closing prices the price charts of this release draw: thirty closes that rise, fall back and rise again.</summary>
+    private static readonly double[] Closes =
+        [100, 102, 105, 103, 108, 112, 109, 107, 111, 115, 118, 114, 110, 106, 103, 107, 111, 116, 121, 119, 115, 112, 117, 123, 128, 125, 121, 118, 122, 127];
+
+    private static Figure HeatingWaffle()
+    {
+        var figure = Plt.Create()
+            .WithTitle("Households by heating")
+            .WithSize(620, 420)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Waffle(["Gas", "Electric", "Heat pump", "Other"], [46, 31, 17, 6])
+                .WithLegend(LegendPosition.OutsideRight))
+            .Build();
+        return figure;
+    }
+
+    private static Figure CalendarEventsPicture()
+    {
+        DateTime[] days =
+        [
+            new(2025, 3, 3), new(2025, 3, 3), new(2025, 3, 12), new(2025, 3, 19), new(2025, 4, 1),
+            new(2025, 4, 1), new(2025, 4, 9), new(2025, 4, 22), new(2025, 5, 6),
+        ];
+        string[] kinds = ["deploy", "incident", "deploy", "deploy", "deploy", "incident", "incident", "deploy", "deploy"];
+
+        var figure = Plt.Create()
+            .WithTitle("Releases and incidents")
+            .WithSize(900, 300)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .CalendarEvents(days, kinds)
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    private static Figure PointAndFigureCloses()
+    {
+        var figure = Plt.Create()
+            .WithTitle("Point and Figure, boxes of 2")
+            .WithSize(700, 450)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .PointAndFigure(Closes, 2)
+                .SetAspect(1.0 / 2))
+            .Build();
+        return figure;
+    }
+
+    private static Figure RenkoCloses()
+    {
+        var figure = Plt.Create()
+            .WithTitle("Renko, bricks of 3")
+            .WithSize(700, 450)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Renko(Closes, 3)
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    private static Figure KagiCloses()
+    {
+        var figure = Plt.Create()
+            .WithTitle("Kagi, a reversal of 4")
+            .WithSize(700, 450)
+            .AddSubPlot(1, 1, 1, ax => ax.Kagi(Closes, 4))
+            .Build();
+        return figure;
+    }
+
+    private static Figure GradientFills()
+    {
+        double[] x = [0, 1, 2, 3, 4, 5, 6];
+        double[] y = [2, 5, 4, 8, 6, 9, 7];
+
+        var figure = Plt.Create()
+            .WithTitle("Fills that fade")
+            .WithSize(860, 380)
+            .AddSubPlot(1, 2, 1, ax => ax
+                .Bar(["Q1", "Q2", "Q3", "Q4"], [4, 7, -3, 9], s =>
+                {
+                    s.Color = Colors.Tab10Blue;
+                    s.GradientColor = Color.FromHex("#C6DBEF");
+                }))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .FillBetween(x, y, null, s =>
+                {
+                    s.Color = Colors.Tab10Orange;
+                    s.Alpha = 1;
+                    s.GradientColor = Colors.Tab10Orange.WithAlpha(0);
+                }))
+            .Build();
+        return figure;
+    }
+
+    private static Figure ConnectedScatterPicture()
+    {
+        double[] unemployment = [4.0, 4.4, 5.8, 7.7, 9.3, 9.6, 8.9];
+        double[] inflation = [2.4, 1.6, 2.7, 0.1, 2.7, 1.5, 3.0];
+
+        var figure = Plt.Create()
+            .WithTitle("Unemployment and inflation")
+            .WithSize(700, 450)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .ConnectedScatter(unemployment, inflation)
+                .SetXLabel("Unemployment (%)")
+                .SetYLabel("Inflation (%)"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure RangeFrame()
+    {
+        double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        double[] y = [3.1, 3.8, 4.2, 4.0, 5.1, 5.9, 5.6, 6.8, 7.2, 7.9];
+
+        var figure = Plt.Create()
+            .WithTitle("A range frame")
+            .WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, y)
+                .WithSpines(spines => spines with
+                {
+                    Bottom = spines.Bottom with { BoundsFrom = 1, BoundsTo = 10 },
+                    Left = spines.Left with { BoundsFrom = 3.1, BoundsTo = 7.9 },
+                    Top = spines.Top with { Visible = false },
+                    Right = spines.Right with { Visible = false },
+                }))
+            .Build();
+        return figure;
+    }
+
+    private static Figure FillBetweenXSpeed()
+    {
+        double[] depth = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        double[] speed = [2, 4, 3, 6, 5, 8, 6, 9, 7, 10, 8];
+
+        var figure = Plt.Create()
+            .WithTitle("Speed by depth")
+            .WithSize(500, 450)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .FillBetweenX(depth, speed, null, s => s.Alpha = 0.8)
+                .SetXLabel("Speed")
+                .SetYLabel("Depth"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure MatShowCorrelation()
+    {
+        var correlation = new double[,]
+        {
+            { 1.0, 0.8, 0.1, -0.4 },
+            { 0.8, 1.0, -0.3, -0.2 },
+            { 0.1, -0.3, 1.0, 0.6 },
+            { -0.4, -0.2, 0.6, 1.0 },
+        };
+
+        var figure = Plt.Create()
+            .WithTitle("Correlation")
+            .WithSize(520, 520)
+            .AddSubPlot(1, 1, 1, ax => ax.MatShow(correlation))
+            .Build();
+        return figure;
+    }
+
+    private static Figure BudgetIcicle()
+    {
+        var budget = new TreeNode
+        {
+            Label = "Budget",
+            Children =
+            [
+                new TreeNode
+                {
+                    Label = "Engineering",
+                    Children =
+                    [
+                        new TreeNode { Label = "Platform", Value = 40 },
+                        new TreeNode { Label = "Apps", Value = 25 },
+                        new TreeNode { Label = "Data", Value = 15 },
+                    ],
+                },
+                new TreeNode
+                {
+                    Label = "Sales",
+                    Children = [new TreeNode { Label = "Direct", Value = 30 }, new TreeNode { Label = "Partners", Value = 20 }],
+                },
+                new TreeNode
+                {
+                    Label = "Operations",
+                    Children = [new TreeNode { Label = "Support", Value = 18 }, new TreeNode { Label = "Finance", Value = 12 }],
+                },
+            ],
+        };
+
+        var figure = Plt.Create()
+            .WithTitle("Where the budget goes")
+            .WithSize(760, 360)
+            .AddSubPlot(1, 1, 1, ax => ax.Icicle(budget))
+            .Build();
+        return figure;
+    }
+
+    private static Figure ArcDiagram()
+    {
+        GraphNode[] nodes = [new("Ada"), new("Ben"), new("Cleo"), new("Dev"), new("Eli"), new("Fay"), new("Gus")];
+        GraphEdge[] edges =
+        [
+            new("Ada", "Dev"), new("Ada", "Gus"), new("Ben", "Cleo"), new("Ben", "Fay"),
+            new("Cleo", "Dev"), new("Dev", "Eli"), new("Eli", "Gus"), new("Cleo", "Gus"),
+        ];
+
+        var figure = Plt.Create()
+            .WithTitle("Who works with whom")
+            .WithSize(800, 420)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .NetworkGraph(nodes, edges, s => s.Layout = GraphLayout.Arc)
+                .SetAspect(1)
+                .HideAllAxes())
+            .Build();
+        return figure;
+    }
+
+    private static Figure StemAndLeafAges()
+    {
+        double[] ages = [12, 15, 21, 23, 23, 38, 41, 44, 47, 52, 53, 58, 61];
+
+        var figure = Plt.Create()
+            .WithTitle("Ages")
+            .WithSize(500, 350)
+            .AddSubPlot(1, 1, 1, ax => ax.StemAndLeaf(ages))
+            .Build();
+        return figure;
+    }
+
+    private static Figure BudgetWaterfall()
+    {
+        string[] steps = ["Opening", "Q1", "Q2", "Q3", "Q4", "Closing"];
+        double[] amounts = [100, 30, -20, 40, -10, 140];
+
+        var figure = Plt.Create()
+            .WithTitle("Budget against target")
+            .WithSize(640, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Waterfall(steps, amounts, s =>
+                {
+                    s.TotalIndices = [0, 5];
+                    s.Targets = [100, 125, 110, 150, 145, 150];
+                })
+                .SetYLabel("Budget (k€)"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure FidelityWaterfall()
+    {
+        var figure = Plt.Create()
+            .WithSize(800, 600)
+            .WithTheme(Theme.MatplotlibV2)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTitle("Waterfall chart")
+                .Waterfall(["Start", "A", "B", "C", "D", "End"], [100, 30, -20, 40, -10, 140], s =>
+                {
+                    s.TotalIndices = [0, 5];
+                    s.IncreaseColor = Color.FromHex("#2CA02C");
+                    s.DecreaseColor = Color.FromHex("#D62728");
+                    s.TotalColor = Color.FromHex("#1F77B4");
+                    s.BarWidth = 0.8;
+                }))
+            .Build();
         return figure;
     }
 }

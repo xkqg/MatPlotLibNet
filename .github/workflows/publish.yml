@@ -79,6 +79,9 @@ jobs:
           dotnet run --project Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj --no-build --configuration Release
+          # The charts against matplotlib's own pictures, scored on the rasterizer this job publishes. The references are files
+          # of the repository, so they are the tag's own.
+          dotnet run --project Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj --no-build --configuration Release
           # Not run here: Tst/MatPlotLibNet.Wiki. This job checks out the release TAG, and the wiki has no tags -- a clone
           # takes the wiki as it is today. A wiki that already shows a later release's API would then be compiled
           # against this older code and block the release. CI compiles the wiki on every push to main instead.

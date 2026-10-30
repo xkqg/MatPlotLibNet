@@ -37,7 +37,7 @@ internal sealed class CartesianYAxisSlotPart : CartesianAxesPart
     {
         _placed = placed;
         _insideSeriesGroup = insideSeriesGroup;
-        TickDraw = placed.Terms.Hang(placed.TickDraw(context.Theme), placed.EdgeX(context.PlotArea), context.Axes.Spines);
+        TickDraw = placed.Terms.Hang(placed.TickDraw(context.Theme), placed.TickEdgeX(context.PlotArea, context.Axes.Spines), context.Axes.Spines);
     }
 
     /// <summary>How this slot's major ticks are drawn: facing its side and hung from its edge.</summary>

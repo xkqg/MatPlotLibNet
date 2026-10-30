@@ -51,6 +51,15 @@ internal readonly record struct PlacedYSlot
     /// <returns>The edge, in pixels.</returns>
     internal double EdgeX(Rect plot) => Terms.EdgeX(plot, Offset);
 
+    /// <summary>The x this slot's tick marks and labels hang from. The slot standing at the plot's own edge (offset 0) hangs
+    /// from the spine on its side wherever that has been moved to (a data value, a fraction of the axes); a slot stacked out
+    /// past it keeps to its place beside the plot.</summary>
+    /// <param name="plot">The plot area.</param>
+    /// <param name="spines">The axes' spines.</param>
+    /// <returns>The x, in pixels.</returns>
+    internal double TickEdgeX(Rect plot, SpinesConfig spines) =>
+        Offset == 0 ? Terms.Spine(spines).VerticalX(plot, EdgeX(plot), Transform) : EdgeX(plot);
+
     /// <summary>How this slot's tick labels are drawn and measured, before they are hung from an edge: by its tick source's
     /// formatter (or the uniform format of its ticks), in the theme's tick font, at its label rotation, anchored away from
     /// the plot. The drawing and the layout's reserve both read it.</summary>

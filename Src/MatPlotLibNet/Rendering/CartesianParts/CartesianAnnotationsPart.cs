@@ -138,23 +138,16 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
                     annotation.ConnectionStyle, annotation.ConnectionRad);
                 Ctx.DrawPath(connPath, new ShapeStyle(null, arrowColor, 1));
 
-                // Arrowhead at target
-                double dx = arrowTarget.X - textPos.X;
-                double dy = arrowTarget.Y - textPos.Y;
-                double len = Math.Sqrt(dx * dx + dy * dy);
-                if (len > 0)
-                {
-                    double ux = dx / len, uy = dy / len;
-                    var headPolygon = ArrowHeadBuilder.BuildPolygon(arrowTarget, ux, uy,
-                        annotation.ArrowStyle, annotation.ArrowHeadSize);
-                    if (headPolygon.Count > 0)
-                        Ctx.DrawPolygon([.. headPolygon], new ShapeStyle(arrowColor, null, 0));
+                // Arrowhead at target: asked for by the two ends of the arrow; an arrow of no length has none.
+                var headPolygon = ArrowHeadBuilder.BuildPolygon(textPos, arrowTarget,
+                    annotation.ArrowStyle, annotation.ArrowHeadSize);
+                if (headPolygon.Count > 0)
+                    Ctx.DrawPolygon([.. headPolygon], new ShapeStyle(arrowColor, null, 0));
 
-                    var headPath = ArrowHeadBuilder.BuildPath(arrowTarget, ux, uy,
-                        annotation.ArrowStyle, annotation.ArrowHeadSize);
-                    if (headPath is { Count: > 0 })
-                        Ctx.DrawPath(headPath, new ShapeStyle(null, arrowColor, 1));
-                }
+                var headPath = ArrowHeadBuilder.BuildPath(textPos, arrowTarget,
+                    annotation.ArrowStyle, annotation.ArrowHeadSize);
+                if (headPath is { Count: > 0 })
+                    Ctx.DrawPath(headPath, new ShapeStyle(null, arrowColor, 1));
             }
         }
     }

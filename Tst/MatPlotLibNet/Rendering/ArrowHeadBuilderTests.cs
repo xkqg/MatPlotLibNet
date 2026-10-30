@@ -11,6 +11,54 @@ public class ArrowHeadBuilderTests
 {
     private static (double ux, double uy) Rightward() => (1.0, 0.0); // unit vector pointing right
 
+    /// <summary>A head is asked for by the two ends of the line it finishes, the one way an annotation, a graph edge and an arc
+    /// ask: the unit direction is worked out here, once, instead of by each caller.</summary>
+    [Fact]
+    public void AHeadAskedForByItsTwoEnds_IsTheHeadOfTheUnitDirectionFromTheFirstToTheSecond()
+    {
+        var from = new Point(10, 20);
+        var tip = new Point(13, 24);   // 3 across, 4 down: length 5, direction (0.6, 0.8)
+
+        var byEnds = ArrowHeadBuilder.BuildPolygon(from, tip, ArrowStyle.FancyArrow, 8);
+        var byDirection = ArrowHeadBuilder.BuildPolygon(tip, 0.6, 0.8, ArrowStyle.FancyArrow, 8);
+
+        Assert.Equal(byDirection.Count, byEnds.Count);
+        for (int i = 0; i < byEnds.Count; i++)
+        {
+            Assert.Equal(byDirection[i].X, byEnds[i].X, 9);
+            Assert.Equal(byDirection[i].Y, byEnds[i].Y, 9);
+        }
+    }
+
+    [Fact]
+    public void TheHeadAskedForByItsTwoEnds_StandsBehindTheTip_NotAheadOfIt()
+    {
+        var polygon = ArrowHeadBuilder.BuildPolygon(new Point(0, 0), new Point(100, 0), ArrowStyle.FancyArrow, 8);
+
+        Assert.Equal(new Point(100, 0), polygon[0]);
+        Assert.All(polygon.Skip(1), vertex => Assert.True(vertex.X < 100));
+    }
+
+    [Fact]
+    public void APathHeadAskedForByItsTwoEnds_IsThePathHeadOfTheUnitDirection()
+    {
+        var byEnds = ArrowHeadBuilder.BuildPath(new Point(0, 0), new Point(0, 50), ArrowStyle.CurveB, 8);
+        var byDirection = ArrowHeadBuilder.BuildPath(new Point(0, 50), 0, 1, ArrowStyle.CurveB, 8);
+
+        Assert.NotNull(byEnds);
+        Assert.Equal(byDirection!.Count, byEnds!.Count);
+        Assert.Equal(byDirection.Select(s => s.ToSvgPathData()), byEnds.Select(s => s.ToSvgPathData()));
+    }
+
+    [Fact]
+    public void AnArrowOfNoLength_HasNoHead()
+    {
+        var spot = new Point(5, 5);
+
+        Assert.Empty(ArrowHeadBuilder.BuildPolygon(spot, spot, ArrowStyle.FancyArrow, 8));
+        Assert.Null(ArrowHeadBuilder.BuildPath(spot, spot, ArrowStyle.CurveB, 8));
+    }
+
     /// <summary>Verifies that FancyArrow returns a 3-point triangle polygon.</summary>
     [Fact]
     public void FancyArrow_ReturnsTrianglePolygon()

@@ -115,7 +115,7 @@ low and close. A heatmap gives a long-form table with row, column and value colu
 the name its axis shows there; it stays readable at any width, where a wide grid does not. A histogram gives its
 bins. A treemap gives its tree flattened depth-first, with the depth kept as a column.
 
-**Two of the 83 series types have no tabular form and produce no table:** `QuiverKeySeries` (a reference arrow
+**Two of the 86 series types have no tabular form and produce no table:** `QuiverKeySeries` (a reference arrow
 that explains the scale of a vector field; it is an annotation, not a measurement) and `Text3DSeries` (text
 placed at a point in a 3-D scene). They return `null` and are left out. A figure whose series are all of those
 two types returns an empty list from `ToDataTables()`. `ShowDataTable` then renders no disclosure at all rather

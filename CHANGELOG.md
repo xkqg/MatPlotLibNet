@@ -4,6 +4,168 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.26.0]
+
+Marks that are a size in data units now have a home: a waffle chart, a calendar of events, Point and Figure and Renko
+charts draw squares, stripes and boxes that tile the plot area, and Kagi draws its thick and thin lines. A fill can run
+from one colour to another, an arrow can follow a connected scatter, and the frame of a plot can be trimmed: a spine spans
+only the data's range, a plot can keep an equal scale, `fill_betweenx` and `matshow` have their equivalents, and
+parallel coordinates label every column in its own units. An icicle chart, an arc diagram and a stem-and-leaf plot join
+the layouts, and a waterfall chart can mark a target level on each bar. The comparison with matplotlib now runs in CI,
+on a metric that looks at every pixel. The sections below list each change with what it replaces.
+
+### Added
+
+- **`Waffle(categories, values)`: "37 of every 100", counted in squares.** A grid of square cells, ten by ten unless
+  `Rows` and `Columns` say otherwise, filled by category in proportion to its share of the total: each category takes the
+  whole number of cells its share comes to, the cells left over go to the largest remainders (ties to the category that
+  comes first), and the cells fill from the bottom-left corner, row by row from the left, category by category in the order
+  given. The cells are square at any figure size. A category with no cell keeps its legend entry and its row in the table
+  (category, value, cells). `CellGap` is the space between cells and `Colors` the colour of each category.
+
+  ```csharp
+  Plt.Create()
+      .WithTitle("Households by heating")
+      .WithSize(620, 420)
+      .TightLayout()
+      .AddSubPlot(1, 1, 1, ax => ax
+          .Waffle(["Gas", "Electric", "Heat pump", "Other"], [46, 31, 17, 6])
+          .WithLegend(LegendPosition.OutsideRight))
+      .Save("heating_waffle.svg");
+  ```
+
+- **`CalendarEvents(dates, kinds)`: a mark for each event inside the cell of its day.** The days from the earliest event to
+  the latest are laid out as `CalendarHeatmap` lays them out, every day a cell in the theme's neutral grey, and each event
+  is a mark inside the cell of its day. Events on one day stand side by side in the order given; the kinds take the
+  theme's colours in the order they first appear and are the legend's entries. The callback receives `CalendarEventsParts`
+  (the days and one bar series for each kind). The plot has an aspect of one, so the cells are square.
+
+- **`PointAndFigure(prices, boxSize, reversal = 3)`: columns of Xs and Os.** The price as columns of boxes with no axis
+  for time, close only: an X rounds a price down to its box and an O rounds it up, a column grows while the price reaches the
+  next box in its direction and gives way to the other kind once the price has come back `reversal` boxes from the last box
+  drawn, and the first column is decided by the first close that leaves the box of the first price. It is a series
+  (`PointAndFigureSeries`), so it travels through JSON as itself and its table has a row for each column (column, mark, from,
+  to). `SetAspect(1.0 / boxSize)` makes the boxes square.
+
+- **`Renko(prices, brickSize)` and `Kagi(prices, reversal)`: the price without a time axis, in a new family of verbs.**
+  `PriceAxesExtensions` holds "a series of prices in time order, drawn without its time axis", and takes the closes as one
+  `double[]`. Renko is a staircase of bricks of one size, anchored on the first close, a close on the next brick's trigger
+  drawing it, a close that covers several bricks drawing each, and a reversal needing two bricks from the far edge, so a
+  reversing brick never overlaps the one before it; `RenkoParts` holds the rising and the falling bricks as two floating bar
+  series. Kagi is one path of vertical lines and short connectors that turns thick exactly where the price breaks above the
+  last shoulder and thin exactly where it breaks below the last waist, in the middle of a line; `KagiParts` holds the thick
+  and the thin line. Both draw without ticks on the X axis, which is only an order. A decimal brick or reversal never loses a
+  step to binary error (`0.3 - 0.2` is a reversal of `0.1`).
+
+- **A fill that fades: `GradientColor` on `BarSeries` and `AreaSeries`.** The fill runs from the series' colour to the
+  gradient colour, along a bar from its foot to its end (the top of a bar that points up, the bottom of one that points down,
+  whichever way the axis runs) and across an area from its baseline to the point of its top edge furthest from it. The
+  gradient is a property of the fill (`ShapeStyle.Gradient`), so the SVG, PNG and PDF all paint it (the PDF as a vector
+  shading), a hatch is laid over it, and a gradient colour with an alpha of its own, such as `Colors.Orange.WithAlpha(0)`,
+  fades to clear. The MAUI view, which paints no gradient, draws the flat colour.
+
+- **`ConnectedScatter(x, y)`: a marker on every point and an arrow to the next.** The path two values take over time, as a
+  scatter and a quiver in one colour; each arrow's head lands on the next point and points along the segment as the page
+  draws it. `ConnectedScatterParts` holds the points and the arrows.
+
+- **Range frames: `BoundsFrom` and `BoundsTo` on a spine.** An axis line that spans only part of its axis, in data units of
+  that axis, as matplotlib's `set_bounds` does; `null` is the edge of the plot. Set both to the data's range for a range frame.
+  The tick marks are not clipped to the bounds.
+
+  ```csharp
+  .WithSpines(spines => spines with
+  {
+      Bottom = spines.Bottom with { BoundsFrom = 1, BoundsTo = 10 },
+      Left = spines.Left with { BoundsFrom = 3.1, BoundsTo = 7.9 },
+      Top = spines.Top with { Visible = false },
+      Right = spines.Right with { Visible = false },
+  })
+  ```
+
+- **Two plots matplotlib has: `FillBetweenX` and `MatShow`, and an aspect.** `FillBetweenX(y, x1, x2)` is an area that lies
+  down (`AreaSeries` gains the `Orientation` the bars have). `MatShow(matrix)` draws a matrix as square cells, the first row
+  on top, the columns and rows numbered from 0, with a colour bar. `Axes.Aspect` (`SetAspect(double?)` on the builder) says how
+  much longer a unit of Y is than a unit of X on the page; `1` makes a square of data a square, and the plot is the largest
+  rectangle of that shape that fits, centred, at any figure size. Polar and 3-D axes ignore it.
+
+- **Parallel coordinates in each column's own units.** Each column's line carries ticks over that column's own range, a short
+  mark with the number to its left at the height that value is drawn at, so a reader can read a value and not only compare shapes.
+
+- **`Icicle(root)`: a hierarchy in rows.** One row of cells for each level, the cells of a node side by side under it, each as
+  wide as its share of the node's width, by the rule the sunburst divides an angle by. The root is not drawn. It is a series
+  (`IcicleSeries`) that takes the colour map, labels and limits every hierarchical series takes.
+
+- **`GraphLayout.Arc`: an arc diagram.** The nodes of a network graph in a row, in the order stored, and every edge a semicircle
+  above the row (two cubic Bézier curves, a half circle under `SetAspect(1)`), the head of a directed edge along the end of
+  its arc. The axes make room for the arcs.
+
+- **`StemAndLeaf(sample, leafUnit)`: a sample as stems and leaves.** Every observation on a row, the digits above the leaf unit
+  (a power of ten, chosen from the sample when not given) as the stem and the last digit as a leaf, cut toward zero without
+  rounding; negative values have negative stems and the stem `-0`; a stem nobody falls on is a row of no leaves. Each leaf has
+  a column of its own, so the leaves stand under each other in any font, and a line at the lower left says how to read it
+  (`Key: 1 | 2 = 12`). `StemAndLeafParts` holds the table and the key. `TableSeries` gains `ColumnAlignments` (left, centre or
+  right for each data column) and `ColumnWidths` (relative widths).
+
+- **`WaterfallSeries.Targets`: the level each step was meant to reach.** One absolute level for each step on the scale the bars
+  stand on (not a change), a short mark across the bar and a little past it, drawn over the bar in the theme's text colour or
+  `TargetColor`. A missing level is a step with no mark, the value axis makes room for the levels, the table gains a `target`
+  column only when there are targets, and the marks have no legend entry.
+
+- **`SaveOptions.SvgIdPrefix`: several figures on one HTML page.** A prefix in front of every id a document defines and every
+  reference to one (`id`, `url(#)`, `href`, `aria-labelledby`, `aria-describedby`), so the figures' clip paths, hatches and
+  gradients cannot collide. A prefix that is not an XML name is refused by name.
+
+- **The comparison with matplotlib runs in CI and in the release job.** `Tst/MatPlotLibNet.Fidelity` scores the charts against
+  pictures matplotlib drew with a perceptual diff; it is in the CI filter and run as the last step of the build and test job
+  and in the publish job. Its colour distance now reads every pixel (a lattice of every tenth pixel scored a picture against
+  itself drawn one pixel over at a delta E of 77), every override is re-set from a measurement on Windows and on ubuntu noble and
+  resolute, the waterfall reference draws what the library draws, and `fill_betweenx`, `matshow` and `Spine.set_bounds` have
+  references of their own.
+
+### Changed
+
+- **A spine's ticks stand on the spine.** A spine moved to a data value or to a fraction of the axes left its tick marks and
+  labels on the plot edge; they hang from the spine now, as matplotlib's do. A spine written to JSON without a width reads
+  back as wide as the model's spine (0.8, it was 1.0).
+
+- **The cells of `Spy` and `CalendarHeatmap` are square.** Both set an aspect of one now, as their reference libraries do, so the
+  plot is the largest rectangle of the data's shape that fits and no longer fills the cell.
+
+- **A Sankey diagram's links blend in a PNG and a PDF too.** The gradient existed only as two members of the SVG render
+  context, so a link blended in SVG and was flat in the other two; it is a property of the fill now. `DefineLinearGradient` and
+  `DrawPathWithGradientFill` stay and are marked `[Obsolete]`.
+
+- **A bar with a foot of its own is not part of a stack.** A bar lifted onto a `StackBaseline` stood on a stacked foot anyway
+  when the axes stacked; it keeps its baseline now and ranges its own feet and ends, and the bars after it stand on the stack
+  without it. Its table is category, from and to.
+
+- **A multi-subplot SVG gives each later subplot ids of its own.** Two subplots of one figure both defined `clip-0` (or
+  `hatch-0`), and a clipped group could resolve to the other subplot's definition. The first subplot keeps its ids, so a
+  one-plot figure is the same bytes; the others write `s1-clip-0`, `s2-hatch-0` and so on.
+
+- **The native Skia and HarfBuzz assets are written once.** Three hosts that render import `SkiaNativeAssets.props` instead
+  of each listing six package references.
+
+- **An arrow head is asked for by the two ends of its line.** The annotation arrow and a directed graph edge no longer work the
+  direction out themselves; the direction-based members stay.
+
+### Fixed
+
+- The fidelity suite died on Linux with "Unable to load shared library 'libSkiaSharp'" before it compared a picture.
+- A colour distance between two pictures of one thing depended on where a lattice of pixels fell.
+- The waterfall reference drew an opening bar, four steps and a closing bar of the running total in the style's cycle (red and
+  cyan in the classic style), and the test drew other values on a tolerance of 140.
+- A spine moved off the plot edge left its ticks behind.
+- Two subplots of one SVG defined the same clip, hatch and gradient ids.
+
+### Upgrading
+
+Nothing you can call is removed from the public API; the additions are all new members, and a figure that sets none of the new
+properties writes the same JSON. The changes that can show up in your output: a multi-subplot SVG carries ids with a subplot
+prefix from the second subplot on; a spine moved to a data value or a fraction of the axes takes its ticks with it; `Spy` and
+`CalendarHeatmap` plots are square-celled; a Sankey diagram's PNG and PDF blend; a parallel-coordinates chart carries a scale on
+each column; the `Axes` of a figure that sets an aspect writes `aspect`, and its SVG root carries `data-aspect-lock="true"`.
+
 ## [1.25.0]
 
 A value a chart resolves now has one owner that every reader asks: the colour bar places its ticks the way the

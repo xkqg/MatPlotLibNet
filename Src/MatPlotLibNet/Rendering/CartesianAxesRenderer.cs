@@ -115,22 +115,22 @@ public class CartesianAxesRenderer : AxesRenderer
             var range = ComputeDataRanges();
             var xSource = Axes.PrimaryTickSource(isX: true);
             var xTicks = PrimaryTicks(range, xSource, isX: true);
-            var xDraw = PrimaryXDraw(xTicks, xSource, ViewTransform(range, Axes.YAxis, Axes.YBreaks), range.YMin);
+            var view = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
+            var xDraw = PrimaryXDraw(xTicks, xSource, view, range.YMin);
             bool uprightNumbers = xDraw.LabelRotation == 0 && !xSource.NamesCategories;
             double xLabelHeight = Ctx.MeasureText("0", xMajor.LabelFont(xDraw.BaseFont)).Height;
             tallestX = uprightNumbers ? xLabelHeight : Ctx.MeasureAxisTicks(xTicks, xMajor, xDraw);
             if (MirrorsXTicks)
                 top = xMajor.TickLabelBand(xDraw.LabelRotation == 0
                     ? xLabelHeight
-                    : Ctx.MeasureAxisTicks(xTicks, xMajor, MirroredXDraw(xDraw)));
+                    : Ctx.MeasureAxisTicks(xTicks, xMajor, MirroredXDraw(xDraw, view)));
 
             // How far the first and the last label stand out sideways past the plot, at the rotation they are drawn at.
-            var view = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
             double fontSize = xMajor.LabelFont(xDraw.BaseFont).Size;
             overhang = OverhangOf(xTicks, xDraw, view, range.YMin, fontSize);
             if (MirrorsXTicks)
             {
-                var mirrored = OverhangOf(xTicks, MirroredXDraw(xDraw), view, range.YMin, fontSize);
+                var mirrored = OverhangOf(xTicks, MirroredXDraw(xDraw, view), view, range.YMin, fontSize);
                 overhang = new Layout.SideOverhang(Math.Max(overhang.Left, mirrored.Left), Math.Max(overhang.Right, mirrored.Right));
             }
         }
@@ -210,7 +210,7 @@ public class CartesianAxesRenderer : AxesRenderer
         var context = new TickDrawContext
         {
             Side          = TickSide.Bottom,
-            AxisEdge      = PlotArea.Y + PlotArea.Height,
+            AxisEdge      = Axes.Spines.Bottom.HorizontalY(PlotArea, PlotArea.Y + PlotArea.Height, transform),
             SpineHalf     = Axes.Spines.Bottom.LineWidth / 2.0,
             BaseFont      = TickFont(),
             Formatter     = source.Formatter,
@@ -233,10 +233,10 @@ public class CartesianAxesRenderer : AxesRenderer
     /// <summary>The primary X ticks mirrored on the top spine: the same ticks and rotation as <paramref name="bottom"/>,
     /// labels above the edge; a turned label hangs from its start, so it rises away from the axis (the point reflection of
     /// the bottom label). The drawing and the measuring share it.</summary>
-    private TickDrawContext MirroredXDraw(TickDrawContext bottom) => bottom with
+    private TickDrawContext MirroredXDraw(TickDrawContext bottom, DataTransform transform) => bottom with
     {
         Side      = TickSide.Top,
-        AxisEdge  = PlotArea.Y,
+        AxisEdge  = Axes.Spines.Top.HorizontalY(PlotArea, PlotArea.Y, transform),
         SpineHalf = Axes.Spines.Top.LineWidth / 2.0,
         Alignment = bottom.LabelRotation == 0 ? TextAlignment.Center : TextAlignment.Left,
     };
@@ -464,19 +464,21 @@ public class CartesianAxesRenderer : AxesRenderer
         RenderAxisLabels();
     }
 
-    /// <summary>Stacked bars: each bar starts on the sum of the stackable series added before it — the same set the data
-    /// range sums. Render state, worked out afresh here on every render and cleared on every render that does not
+    /// <summary>Stacked bars: each bar starts on the sum of the stackable series added before it that have no foot of their
+    /// own — the same set the data range sums; a bar with a foot of its own floats on it and is not in the stack. Render state, worked out afresh here on every render and cleared on every render that does not
     /// stack; the StackBaseline a user sets is never written, so a stacked render leaves no trace in the figure, in
     /// its JSON or in the next render. The marks a legend keeps clear of are collected from the same state.</summary>
     private void StackBars()
     {
-        var stackables = Axes.Series.OfType<IStackable>().ToList();
-        bool stacked = Axes.BarMode == BarMode.Stacked && stackables.Count > 1;
-        var feet = stackables.StackedFeet();
-        for (int i = 0; i < stackables.Count; i++)
+        var layers = Axes.Series.StackLayers();
+        bool stacked = Axes.BarMode == BarMode.Stacked && layers.Count > 1;
+        var feet = layers.StackedFeet();
+        foreach (var bar in Axes.Series.OfType<BarSeries>())
+            bar.StackedBottoms = null;
+        for (int i = 0; i < layers.Count; i++)
         {
-            if (stackables[i] is BarSeries bar)
-                bar.StackedBottoms = stacked ? feet[i] : null;
+            if (stacked && layers[i] is BarSeries bar)
+                bar.StackedBottoms = feet[i];
         }
     }
 
@@ -630,7 +632,7 @@ public class CartesianAxesRenderer : AxesRenderer
             // Mirrored X ticks on the top spine: the same ticks, labels above the edge. The band they take is what the
             // axes title rises by.
             if (MirrorsXTicks)
-                MeasuredTopTickBand = xMajor.TickLabelBand(Ctx.RenderAxisTicks(xTicks, yMin, transform, xMajor, MirroredXDraw(xDraw)));
+                MeasuredTopTickBand = xMajor.TickLabelBand(Ctx.RenderAxisTicks(xTicks, yMin, transform, xMajor, MirroredXDraw(xDraw, transform)));
 
             // Minor X ticks (no labels, shorter mark)
             Ctx.RenderMinorTicks(new TickRun(xTicks, yMin, transform), xMinor, xDraw);
@@ -646,7 +648,7 @@ public class CartesianAxesRenderer : AxesRenderer
         {
             var right = YSideTerms.Right;
             _mirroredYTickBand = yMajor.TickLabelBand(Ctx.RenderAxisTicks(yPart.Ticks, Axes.XAxis.Min ?? 0, transform, yMajor,
-                right.Hang(yPart.TickDraw, right.EdgeX(PlotArea, 0), Axes.Spines)));
+                right.Hang(yPart.TickDraw, Axes.Spines.Right.VerticalX(PlotArea, right.EdgeX(PlotArea, 0), transform), Axes.Spines)));
         }
 
         // Minor Y ticks (no labels, shorter mark)
@@ -689,54 +691,12 @@ public class CartesianAxesRenderer : AxesRenderer
         return 0;
     }
 
-    /// <summary>
-    /// Computes the combined X and Y data ranges across all series on the axes, including
-    /// shared axes' series when <c>sharex</c>/<c>sharey</c> is configured: their ranges AND their sticky edges, so
-    /// axes that share a scale have the same one. The heavy lifting
-    /// lives in <see cref="Range1D"/> (pipeline methods) and <see cref="AxesRangeExtensions"/>
-    /// (aggregation helpers). Exposed as <c>internal</c> so regression tests can assert the
-    /// padding / sticky-edge / nice-bound interaction without rendering to SVG.
-    /// </summary>
-    internal DataRange ComputeDataRanges()
-    {
-        // === 1. Aggregate — seed from axis-level limits, fold in own + shared series; a set limit is exact ===
-        // One snapshot of the own series (Histogram rebuilds bins each call), then each scale's contributions: own plus the
-        // axes it is shared with. The same contributions range the scale and decide its sticky edges below, so the axes
-        // that share a scale cannot disagree on its margins.
-        var own = Axes.SnapshotContributions();
-        DataRangeContribution[] xContribs = [.. own, .. Axes.LinkedContributions(axes => axes.ShareXWith)];
-        DataRangeContribution[] yContribs = [.. own, .. Axes.LinkedContributions(axes => axes.ShareYWith)];
-        var xRange = xContribs.FoldXRange(Range1D.FromAxis(Axes.XAxis)).WithExplicitLimits(Axes.XAxis);        var yRange = yContribs.FoldYRange(Range1D.FromAxis(Axes.YAxis)).WithExplicitLimits(Axes.YAxis);
-
-        // === 2. Normalize — handle empty / lopsided / zero-width inputs before any math ===
-        xRange = xRange.Normalized().PositiveForLog(Axes.XAxis);
-        yRange = yRange.Normalized().PositiveForLog(Axes.YAxis);
-
-        // === 3. Drive padding + sticky + nice-bound from the contributions gathered once above ===
-        // The unpadded snapshot is captured BEFORE padding so sticky clamp can distinguish
-        // "padding pushed past the sticky" (snap back) from "another series has data past the
-        // sticky" (preserve, an overlay's sticky must not clip a wider underlying series).
-        var xUnpadded = xRange;
-        var yUnpadded = yRange;
-
-        xRange = xRange.Padded(Axes.XAxis.Margin ?? Theme.AxisXMargin, Axes.XAxis);
-        yRange = yRange.Padded(Axes.YAxis.Margin ?? Theme.AxisYMargin, Axes.YAxis);
-
-        foreach (var c in xContribs)
-            xRange = xRange.ClampSticky(c.StickyXMin, c.StickyXMax, xUnpadded, Axes.XAxis);
-        foreach (var c in yContribs)
-            yRange = yRange.ClampSticky(c.StickyYMin, c.StickyYMax, yUnpadded, Axes.YAxis);
-
-        var locator = new MatPlotLibNet.Rendering.TickLocators.AutoLocator();
-        xRange = xRange.ExpandedToNiceBoundsIfAuto(Axes.XAxis, xUnpadded, xContribs.HasAnyStickyX(), locator);
-        yRange = yRange.ExpandedToNiceBoundsIfAuto(Axes.YAxis, yUnpadded, yContribs.HasAnyStickyY(), locator);
-
-        // === 4. Orient — an inverted axis is drawn high to low, the way a limit set high to low already is ===
-        xRange = xRange.OrientedBy(Axes.XAxis);
-        yRange = yRange.OrientedBy(Axes.YAxis);
-
-        return new DataRange(xRange.Lo, xRange.Hi, yRange.Lo, yRange.Hi);
-    }
+    /// <summary>The combined X and Y data ranges across all series on the axes, including shared axes' series when
+    /// <c>sharex</c>/<c>sharey</c> is configured. The rule is the axes' own (<see cref="AxesRangeExtensions"/>): it reads the
+    /// axes and the theme and never the plot area, so whatever must know the extent before a rectangle exists asks the axes.
+    /// Exposed as <c>internal</c> so regression tests can assert the padding / sticky-edge / nice-bound interaction without
+    /// rendering to SVG.</summary>
+    internal DataRange ComputeDataRanges() => Axes.ComputeDataRanges(Theme);
 
     /// <summary>Computes the Y data range for <paramref name="series"/> plotted against <paramref name="axis"/> — one
     /// slot's own range, independent of every other slot's (each <see cref="YAxisSlot"/> keeps its own series, so nothing
@@ -810,64 +770,24 @@ public class CartesianAxesRenderer : AxesRenderer
         return new DataRange(drawn.Lo, drawn.Hi, yMin, yMax);
     }
 
-    /// <summary>Renders the four axis spines (border lines) based on the <see cref="Axes.Spines"/> configuration.</summary>
+    /// <summary>Renders the four axis spines (border lines) based on the <see cref="Axes.Spines"/> configuration: each from
+    /// the one rule that places a spine (<see cref="SpineLineExtensions"/>), the same rule the tick marks hang from.</summary>
     private void RenderSpines(DataTransform transform)
     {
         var spines = Axes.Spines;
-        double left = PlotArea.X;
-        double right = PlotArea.X + PlotArea.Width;
-        double top = PlotArea.Y;
         double bottom = PlotArea.Y + PlotArea.Height;
+        double right = PlotArea.X + PlotArea.Width;
 
-        if (spines.Bottom.Visible)
-        {
-            double y = ResolveSpineY(spines.Bottom, bottom, top, bottom, transform);
-            DrawSpineLine(new Point(left, y), new Point(right, y),
-                spines.Bottom.Color ?? Theme.ForegroundText, spines.Bottom.LineWidth, spines.Bottom.LineStyle);
-        }
-
-        if (spines.Top.Visible)
-        {
-            double y = ResolveSpineY(spines.Top, top, top, bottom, transform);
-            DrawSpineLine(new Point(left, y), new Point(right, y),
-                spines.Top.Color ?? Theme.ForegroundText, spines.Top.LineWidth, spines.Top.LineStyle);
-        }
-
-        if (spines.Left.Visible)
-        {
-            double x = ResolveSpineX(spines.Left, left, left, right, transform);
-            DrawSpineLine(new Point(x, top), new Point(x, bottom),
-                spines.Left.Color ?? Theme.ForegroundText, spines.Left.LineWidth, spines.Left.LineStyle);
-        }
-
-        if (spines.Right.Visible)
-        {
-            double x = ResolveSpineX(spines.Right, right, left, right, transform);
-            DrawSpineLine(new Point(x, top), new Point(x, bottom),
-                spines.Right.Color ?? Theme.ForegroundText, spines.Right.LineWidth, spines.Right.LineStyle);
-        }
+        if (spines.Bottom.Visible) DrawSpine(spines.Bottom, spines.Bottom.HorizontalLine(PlotArea, bottom, transform));
+        if (spines.Top.Visible) DrawSpine(spines.Top, spines.Top.HorizontalLine(PlotArea, PlotArea.Y, transform));
+        if (spines.Left.Visible) DrawSpine(spines.Left, spines.Left.VerticalLine(PlotArea, PlotArea.X, transform));
+        if (spines.Right.Visible) DrawSpine(spines.Right, spines.Right.VerticalLine(PlotArea, right, transform));
     }
 
-    private double ResolveSpineY(SpineConfig spine, double edgeY, double plotTop, double plotBottom, DataTransform transform) =>
-        spine.Position switch
-        {
-            SpinePosition.Data => transform.DataToPixel(0, spine.PositionValue).Y,
-            SpinePosition.Axes => plotTop + (1 - spine.PositionValue) * (plotBottom - plotTop),
-            _ => edgeY
-        };
-
-    private double ResolveSpineX(SpineConfig spine, double edgeX, double plotLeft, double plotRight, DataTransform transform) =>
-        spine.Position switch
-        {
-            SpinePosition.Data => transform.DataToPixel(spine.PositionValue, 0).X,
-            SpinePosition.Axes => plotLeft + spine.PositionValue * (plotRight - plotLeft),
-            _ => edgeX
-        };
-
-    private void DrawSpineLine(Point p1, Point p2, Color color, double lineWidth, LineStyle lineStyle = LineStyle.Solid)
+    private void DrawSpine(SpineConfig spine, SpineLine line)
     {
         Ctx.BeginGroup("spine");
-        Ctx.DrawLine(p1, p2, new StrokeStyle(color, lineWidth, lineStyle));
+        Ctx.DrawLine(line.From, line.To, new StrokeStyle(spine.Color ?? Theme.ForegroundText, spine.LineWidth, spine.LineStyle));
         Ctx.EndGroup();
     }
 

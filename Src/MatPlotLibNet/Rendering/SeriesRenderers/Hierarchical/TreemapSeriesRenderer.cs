@@ -24,7 +24,8 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
     {
         var bounds = Context.Area.PlotBounds;
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        (_cMin, _cMax) = series.ColorRange();
+        var colours = series.ColorRange();
+        (_cMin, _cMax) = (colours.Lo, colours.Hi);
         // An EMPTY tree draws nothing. A childless root used to render as one full-area leaf — "one healthy
         // thing fills the fleet" on a wall that in fact knows nothing (measured 2026-08-30).
         if (series.Root.Children.Count == 0)

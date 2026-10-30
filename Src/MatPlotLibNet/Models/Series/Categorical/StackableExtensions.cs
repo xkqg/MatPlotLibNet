@@ -12,6 +12,16 @@ namespace MatPlotLibNet.Models.Series;
 /// end they give, so the picture and the range cannot stack differently.</summary>
 internal static class StackableExtensions
 {
+    extension(IEnumerable<ISeries> series)
+    {
+        /// <summary>The layers of a stack, in the order they were added: the stackable series that have no foot of their own. A
+        /// series with a <see cref="IStackable.StackBaseline"/> the user set floats on that foot, as matplotlib's
+        /// <c>bottom=</c> lifts a bar, so it is neither stood on the layers before it nor stood on by the layers after it. The
+        /// one rule for a floating bar, read by the axes renderer that stacks and by the range that sums the stack.</summary>
+        /// <returns>The series that stack.</returns>
+        internal List<IStackable> StackLayers() => [.. series.OfType<IStackable>().Where(layer => layer.StackBaseline is null)];
+    }
+
     extension(IReadOnlyList<IStackable> layers)
     {
         /// <summary>Where each layer of a stack stands, column by column.</summary>

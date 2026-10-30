@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.25.0)
+# MatPlotLibNet Core -- Architecture (v1.26.0)
 
 ## Package dependency graph
 
@@ -65,7 +65,7 @@ MatPlotLibNet/
                                       replaceable Current slot
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
-  SaveOptions.cs                      sealed record: Dpi, PrettifySvg, SvgDecimalPrecision, Title, Author — Figure.Save(path, options); each
+  SaveOptions.cs                      sealed record: Dpi, PrettifySvg, SvgDecimalPrecision, SvgIdPrefix, Title, Author — Figure.Save(path, options); each
                                       property says which format reads it, and a format that cannot use one leaves it alone
   SaveOptionsExtensions.cs            internal: the rules that read SaveOptions in one place (DpiFor: the options' resolution unless it is
                                       the default, else the figure's own; TitleOrNull, AuthorOrNull), so every export asks the same question
@@ -98,16 +98,17 @@ MatPlotLibNet/
                                       plot and a candlestick's dates along X; bars that lie down along Y). Also names only
                                       some slots (the months over a calendar's week columns) and names at positions of their
                                       own (the centres of a Marimekko chart's columns)
-    CategoricalAxesExtensions.cs      the 20 chart verbs, four static classes in namespace MatPlotLibNet (see "Where a verb
+    CategoricalAxesExtensions.cs      the 26 chart verbs, five static classes in namespace MatPlotLibNet (see "Where a verb
     DistributionAxesExtensions.cs     lives"): extension methods on AxesBuilder that compose a chart from series that already
     XYAxesExtensions.cs               exist. Categorical: Lollipop, Dumbbell, Pareto, SlopeGraph, DotPlot, ParallelCoordinates,
-    GridAxesExtensions.cs             Marimekko. Distribution: Ridgeline, QQPlot, ProbabilityPlot, KaplanMeier, RiskTable, Raincloud. XY:
-                                      BumpChart, ControlChart, ShewhartChart, StreamGraph, Horizon. Grid: CalendarHeatmap, Spy
+    GridAxesExtensions.cs             Marimekko. Distribution: Ridgeline, QQPlot, ProbabilityPlot, KaplanMeier, RiskTable, Raincloud, StemAndLeaf. XY:
+    PriceAxesExtensions.cs            BumpChart, ControlChart, ShewhartChart, StreamGraph, Horizon, ConnectedScatter. Grid: CalendarHeatmap, Spy, MatShow,
+                                      CalendarEvents. Price: Renko, Kagi
     DumbbellParts.cs                  what a verb's callback receives when it draws several series types: a readonly record
     ParetoParts.cs                    struct with an internal constructor and get-only properties holding the very series on
     QQPlotParts.cs                    the axes. Dumbbell (Connector, From, To), Pareto (Bars, Cumulative), QQPlot and ProbabilityPlot (Points,
     ControlChartParts.cs              Reference), ControlChart (Values, Violations, Center, Lower, Upper), RiskTable (Counts,
-    RiskTableParts.cs                 Test, LogRank). LogRankResult (Statistic, DegreesOfFreedom, PValue) is the public result of
+    RiskTableParts.cs                 Test, LogRank), Renko (Up, Down), Kagi (Thick, Thin), ConnectedScatter (Points, Arrows), StemAndLeaf (Table, Key). LogRankResult (Statistic, DegreesOfFreedom, PValue) is the public result of
                                       the log-rank test the risk table states
     ControlLimits.cs                  readonly record struct (Center, Lower, Upper): the limits ControlChart draws as given
                                       instead of estimating them
@@ -171,7 +172,8 @@ MatPlotLibNet/
   Models/
     Figure.cs                         top-level container (Title, Width, Height, Dpi — sizes a PNG or a GIF frame: a unit of the layout is dpi / 96 pixels, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
     Axes.cs                           subplot: series, annotations, ref lines, spans, the Y axis container (YAxes), the top X axis,
-                                      insets, ShareX/ShareY, EnableInteractiveAttributes.
+                                      insets, ShareX/ShareY, EnableInteractiveAttributes; Aspect (the length of a unit of Y over a unit of X
+                                      on the page, null = the plot fills its cell; Rendering/PlotAspectExtensions.cs is its one owner).
                                       YAxis is YAxes.Left[0].Axis and Series is YAxes.Left[0].Series: the primary Y axis is the first
                                       axis of the left side, held in no list of its own.
                                       AllSeries = every Y axis' series in YAxisContainer.IdentityOrder (the primary's, every right
@@ -246,7 +248,7 @@ MatPlotLibNet/
                                       shape (an OHLC row has no volume) and an empty cell says so without a
                                       sentinel number
 
-    Series/                           83 series types across 14 categories (Streaming is one of them)
+    Series/                           86 series types across 14 categories (Streaming is one of them)
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept(), ToDataTable() (default
                                       interface method returning null — a series with no tabular form, like a
                                       quiver key, says so by not overriding it)
@@ -309,7 +311,7 @@ MatPlotLibNet/
       HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst, Dendrogram)
       LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
       ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[], Alpha (the opacity of the marker fill), IColormappable
-      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ShowLabels, LabelFormat, ICategoryLabeled, IStackable;
+      BarSeries.cs                    Categories, Values, Color, GradientColor, Orientation, BarWidth, StackBaseline, ShowLabels, LabelFormat, ICategoryLabeled, IStackable;
                                       internal SlotOf(i): where bar i stands in the current render (renderer and data range read it)
       CategorySlot.cs                 internal readonly record struct (Left, Centre, Right): the one rule for where a category sits —
                                       category k owns [k, k + 1], centred CentreOffset (0.5) past k; Bar(width, offset, align) is the
@@ -384,7 +386,7 @@ MatPlotLibNet/
                                       values, a day without a value NaN (blank); RowOf, ColumnOf, WeekdayNames, MonthColumns. A year is
                                       53 columns wide, 54 when it has 366 days and starts on the last day of a week (Grid/)
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
-      AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor; ITableNamedByAxes: a fill down to one level
+      AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor, GradientColor, Orientation (FillBetweenX lies the area down); ITableNamedByAxes: a fill down to one level
                                       the Y axis names (a ridge) tables x and its height above that level under its label or the name;
                                       a run of two edges between gaps whose centre the X axis names (a Marimekko column) tables as a row:
                                       its name, its two edges and the height of the fill, and a column that merging the tables of several
@@ -395,12 +397,19 @@ MatPlotLibNet/
       QuiverSeries.cs                 XData, YData, UData, VData, Scale, ArrowHeadSize
       RadarSeries.cs                  Categories, Values, FillColor, Alpha, MaxValue
       DonutSeries.cs                  Sizes, InnerRadius, CenterText (Circular/)
+      WaffleSeries.cs                 ChartSeries: Categories, Values, Rows, Columns (10 x 10), CellGap, Colors; CellCounts() hands the shares to
+                                      Numerics/LargestRemainderExtensions.Apportion, the one place a share becomes whole cells; the cells are
+                                      square at any figure size and fill from the bottom-left (Circular/)
       BubbleSeries.cs                 XYSeries: Sizes, Alpha (XY/)
       OhlcBarSeries.cs                OhlcSeries: TickWidth (Financial/)
+      PointAndFigureSeries.cs         ChartSeries: Prices, BoxSize, Reversal (3), UpColor, DownColor; the columns come from
+                                      Numerics/PointAndFigureExtensions.PointAndFigureColumns, its table has a row for each column (Financial/)
       WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor, TotalColor, TotalIndices, BarWidth, ICategoryLabeled;
                                       internal Bars() → WaterfallBar(Foot, Top, IsTotal, Rises)[]: where each bar stands and ends, the
                                       one place the data range and the renderer both read (a total bar stands on zero in TotalColor,
-                                      and the steps after it start from its level); internal SlotOf(i) (Categorical/)
+                                      and the steps after it start from its level); internal SlotOf(i); Targets / TargetColor: one absolute level
+                                      for each step, marked across its bar (NaN = no mark), read by the data range, the renderer and the table
+                                      (Categorical/)
       FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
       GaugeSeries.cs                  Value, Min, Max, Ranges (GaugeBand[]?), NeedleColor (Circular/)
@@ -429,9 +438,12 @@ MatPlotLibNet/
       Scatter3DSeries.cs              I3DPointSeries: XData, YData, ZData, MarkerSize
       TreemapSeries.cs                HierarchicalSeries: Padding (Hierarchical/)
       SunburstSeries.cs               HierarchicalSeries: InnerRadius (Hierarchical/)
+      IcicleSeries.cs                 HierarchicalSeries: one row of cells for each level, each cell as wide as its share of its parent
+                                      (Models/TreeNodePartitionExtensions.Shares, the rule the sunburst divides an angle by) (Hierarchical/)
       DendrogramSeries.cs             HierarchicalSeries: Orientation, CutHeight, CutLineColor, ColorByCluster (Hierarchical/)
       DendrogramOrientation.cs        enum: Top, Bottom, Left, Right — leaf-axis placement
       TreeNodeExtensions.cs           TreeNode.Walk() — DFS pre-order enumerable; replaces hand-rolled visit-all recursions
+      TreeNodePartitionExtensions.cs  internal: Shares() → PartitionShare(Node, Share)[] and Levels(): the one rule that divides a parent's extent among its children
       ClustermapSeries.cs             ChartSeries + IColorBarDataProvider + IColormappable + INormalizable + ILabelable: Data[,], RowTree?, ColumnTree?, RowDendrogramWidth, ColumnDendrogramHeight; ResolveLeafOrder() (Grid/)
       PairGridSeries.cs               ChartSeries: Variables[][], Labels?, HueGroups?, HueLabels?, DiagonalKind, OffDiagonalKind, Triangular, DiagonalBins, MarkerSize, CellSpacing (Grid/)
       PairGridDiagonalKind.cs         enum: Histogram, Kde, None — univariate kind for diagonal cells
@@ -442,7 +454,7 @@ MatPlotLibNet/
       RrgFormula.cs                  enum: DualEma=0 (JdK canonical), ZScore=1 (mean-reversion), LogReturn=2
       Graph/GraphNode.cs              readonly record struct: Id, X, Y, ColorScalar, SizeScalar, Label
       Graph/GraphEdge.cs              readonly record struct: From, To, Weight, IsDirected
-      Graph/GraphLayout.cs            enum: Manual=0, ForceDirected=1, Circular=2, Hierarchical=3
+      Graph/GraphLayout.cs            enum: Manual=0, ForceDirected=1, Circular=2, Hierarchical=3, Arc=4 (the nodes in a row, every edge a semicircle above it)
       SankeySeries.cs                 Nodes, Links (Flow/)
       KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle; the curve is evaluated from three bandwidths below
                                       the smallest value to three above the largest, and its data range is that extent; a bandwidth that is not a
@@ -459,7 +471,8 @@ MatPlotLibNet/
       PcolormeshSeries.cs             Vec X (M+1), Vec Y (N+1), double[,] C (N×M), IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       SpectrogramSeries.cs            Vec Signal, SampleRate, WindowSize=256, Overlap=128, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       ResidualSeries.cs               Vec XData, Vec YData, Degree=1, MarkerSize, Color, ShowZeroLine (XY/)
-      TableSeries.cs                  string[][] CellData, ColumnHeaders, RowHeaders, CellHeight, CellPadding, colors, FontSize (Special/)
+      TableSeries.cs                  string[][] CellData, ColumnHeaders, RowHeaders, CellHeight, CellPadding, colors, FontSize, ColumnAlignments (left, centre or right for each
+                                      data column), ColumnWidths (relative) (Special/)
       TricontourSeries.cs             Vec X, Y, Z (unstructured), Levels=10, IColormappable, INormalizable (Grid/)
       TripcolorSeries.cs              Vec X, Y, Z, int[]? Triangles (auto-Delaunay), IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       QuiverKeySeries.cs              double X, Y (axes-fraction), U (data units), Label, FontSize — reference arrow annotation (Field/)
@@ -754,7 +767,7 @@ MatPlotLibNet/
                                         / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
                                         centralizes the Thickness<=0 visibility guard across every backend);
                                         DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 83 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 86 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment; internal Rect.FromCorners(a, b) is the
@@ -917,7 +930,9 @@ MatPlotLibNet/
                                         are for the hot families, AddMarksByDrawing runs Render against a MarkCollectingContext for the
                                         families with few marks. PlaceLabels/DrawPlacedLabel(s) are the shared bar, pie and sankey label placing
       PixelSegment.cs                   readonly record struct: one stroked segment as drawn, for AddSegment
-      Categorical/BarPixels.cs          PixelBar/PixelBars: the bars of a series as drawn (stacked, grouped, either orientation), with
+      Categorical/PixelBox.cs           BoxOnFoot(slot, foot, end, rising, orientation) → PixelBox(From, To): a box that stands on a foot, as pixels
+                                        (a bar, a histogram bin, a box plot, a waterfall step, a waffle cell and a Point and Figure box share it)
+      Categorical/BarPixels.cs          FootToEnd(orientation, footColour, endColour) → the LinearGradient of a bar; PixelBar/PixelBars: the bars of a series as drawn (stacked, grouped, either orientation), with
                                         VerticalEnd/HorizontalEnd — the end a value label stands beyond; the bar renderer and its AddMarks share them.
                                         A value label stands beyond the end in the direction the bar points in the data
                                         (DataTransform.ValueRunsBackwards), 4 px from it, on an axis that runs either way
@@ -964,6 +979,9 @@ MatPlotLibNet/
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
+      SvgIdScope.cs                   internal: the one owner of the ids a render context writes (Clip, Hatch, Gradient): the first subplot keeps the plain ids,
+                                      each later one writes s1-, s2- ...; SaveOptions.SvgIdPrefix is put in front of all of them afterwards
+      SvgGradientRegistry.cs          gradient ids and the <defs> emission; RegisterShared(LinearGradient) defines a gradient once for every shape that carries it
       SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx, ariaLabel?), BeginLegendItemGroup(idx, ariaLabel?), BeginAccessibleGroup(cssClass, ariaLabel); uses string.EscapeForXml() extension
       SvgXml.cs                       internal static: EscapeForXml(this string) — DRY XML escaping extension used by SvgRenderContext and SvgTransform (v1.8.0: renamed from SvgXmlHelper)
       SvgDocumentExtensions.cs        internal: WithSaveOptions(svg, options) — the settings of SaveOptions an SVG can use, applied to the
@@ -1124,6 +1142,14 @@ MatPlotLibNet/
                                       one number at risk the curve, the risk table and the test share
     NelsonRules.cs                    internal static: Flagged(rules, values, limits) — Nelson's eight tests as a table of (flag, predicate); a pattern is flagged at the
                                       point that completes it; zones are a third of the way from the centre to the upper limit drawn
+    PriceStepExtensions.cs            internal: FloorStep / CeilingStep / AtLeast / LevelFrom — the one owner of price arithmetic in whole steps from a
+                                      fixed origin, with a relative tolerance of 1e-9 of a step, so a decimal step never loses a step to binary error
+                                      (read by Renko, Point and Figure and Kagi)
+    PointAndFigureExtensions.cs       internal: PointAndFigureColumns(boxSize, reversal) → PointAndFigureColumn[] (a run of Xs or Os as box indices)
+    RenkoExtensions.cs                internal: RenkoBricks(brickSize) → RenkoBrick(Rising, Bottom, Top, SourceIndex)[]; a reversal needs two bricks
+    KagiExtensions.cs                 internal: KagiLines(reversal) → KagiLines(Segments, Connectors): the pieces of one width and the connectors, where the width changes
+    StemAndLeafExtensions.cs          internal: StemAndLeaf(leafUnit?) → StemAndLeafDisplay(Exponent, Rows); leaves cut toward zero
+    LargestRemainderExtensions.cs     internal: Apportion(seats) — Hamilton's method; the cells add up to the seats, ties to the first (read by WaffleSeries)
     ControlChartConstants.cs          internal static: A2, D3, D4 for subgroups of 2 to 10 to five decimals (exact integrals), the I-MR pair's 1.128 and 3.267, Sigmas = 3
     SortOrderExtensions.cs            internal: DescendingOrder() — the permutation from the largest value to the smallest, stable (ties keep
                                       the order given), NaN last; a verb reorders its parallel arrays by it (Pareto, DotPlot)
@@ -1149,7 +1175,7 @@ MatPlotLibNet/
                                       spread, as R's bw.nrd0 does), JointBandwidth(groups) (the mean of the groups' own bandwidths, ggridges'
                                       rule), Evaluate(sorted, bandwidth, numPoints) → XYCurve, and its two halves Grid and DensityAt, so several
                                       groups can be estimated on one shared grid; the violin's body reads DensityAt too (ViolinBodyExtensions.Outline, 100 heights) (moved from Rendering/SeriesRenderers/Distribution/ — K3 namespace-cycle kill)
-    NetworkGraphLayouts.cs            internal static: pure-function layouts ApplyManual/ApplyCircular/ApplyHierarchical/ApplyForceDirected + Apply(kind, seed, iterations, threshold) dispatch (moved from Rendering/SeriesRenderers/Graph/ — K3 namespace-cycle kill)
+    NetworkGraphLayouts.cs            internal static: pure-function layouts ApplyManual/ApplyCircular/ApplyArc/ApplyHierarchical/ApplyForceDirected (+ ArcRadius, ArcHeight) + Apply(kind, seed, iterations, threshold) dispatch (moved from Rendering/SeriesRenderers/Graph/ — K3 namespace-cycle kill)
 
     SeriesRenderers/Distribution/
     BeeswarmLayout.cs                 internal static: Compute(sortedValues, markerRadius, categoryCenter, pixelScale) — greedy circle-packing, cap 1000 pts, jitter fallback
@@ -1326,14 +1352,15 @@ MatPlotLibNet/
 
 A method of `AxesBuilder` itself adds one series or sets one property of the axes. A verb that composes a chart from
 series that already exist (it adds no series type, no `SeriesRegistry` key and no serializer path, so the chart travels
-through JSON as its parts) is an extension method on `AxesBuilder`. 20 verbs live there today, and each one:
+through JSON as its parts) is an extension method on `AxesBuilder`. 26 verbs live there today, and each one:
 
 - sits in namespace `MatPlotLibNet`, so it needs no `using` beyond the one the builder already takes;
 - sits in folder `Builders/`, in one static class per family, the family decided by the shape of the data the caller holds:
   - `CategoricalAxesExtensions`: data keyed by names (categories, a `BarGroup` per group). Verbs: `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`.
-  - `DistributionAxesExtensions`: a chart estimated from a sample (a `NamedSample` per group, a `SurvivalGroup` per group of survival data, a `QQReference` for the distribution a sample is compared with). Verbs: `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`.
-  - `XYAxesExtensions`: x and y arrays, values over x positions. Verbs: `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`.
-  - `GridAxesExtensions`: cells of a grid. Verbs: `CalendarHeatmap`, `Spy`.
+  - `DistributionAxesExtensions`: a chart estimated from a sample (a `NamedSample` per group, a `SurvivalGroup` per group of survival data, a `QQReference` for the distribution a sample is compared with). Verbs: `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `StemAndLeaf`.
+  - `XYAxesExtensions`: x and y arrays, values over x positions. Verbs: `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `ConnectedScatter`.
+  - `GridAxesExtensions`: cells of a grid. Verbs: `CalendarHeatmap`, `Spy`, `MatShow`, `CalendarEvents`.
+  - `PriceAxesExtensions`: a series of prices in time order, drawn without its time axis (the closes as one `double[]`; the indicators take an `OhlcvBars`, these charts need nothing but the closes). Verbs: `Renko`, `Kagi`.
 - takes at most 4 parameters besides `this`, the optional inputs of its computation (a bandwidth, a week start, a
   threshold) before `configure`, which comes last and may be left out. A verb that draws one series type takes
   `Action<TSeries>` and runs it once for each series it draws; one that draws several types takes `Action<XxxParts>` and
@@ -1342,7 +1369,7 @@ through JSON as its parts) is an extension method on `AxesBuilder`. 20 verbs liv
 
 The types the verbs introduce:
 
-- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `RiskTableParts`, `ControlChartParts`, `RaincloudParts`, `HorizonParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
+- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `RiskTableParts`, `ControlChartParts`, `RaincloudParts`, `HorizonParts`, `CalendarEventsParts`, `RenkoParts`, `ConnectedScatterParts`, `KagiParts`, `StemAndLeafParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
 - Named data: `BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`, `ControlChartData`, `QQReference`. Each is a public readonly record struct: a name and its values, the limits or the data of a control chart, or the distribution a plot compares a sample with.
 - A BarGroup (a name and one value per place) is the named-values type of eight verbs: GroupedBar, Dumbbell, SlopeGraph, DotPlot, ParallelCoordinates, Marimekko, BumpChart and StreamGraph. What the name stands for is each verb's to say: a legend entry, the class of a row, a segment of a column.
 
@@ -1572,7 +1599,7 @@ Things a reader may expect that the library does not do, with the reason:
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 83 series | each series knows how to both serialize and deserialize itself (v1.13.0: no central switch on either side) |
+| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 86 series | each series knows how to both serialize and deserialize itself (v1.13.0: no central switch on either side) |
 | One value, not N fields | StreamingSeries → RingBuffer&lt;StreamingPoint&gt;; StreamingCandlestickSeries → RingBuffer&lt;OhlcBar&gt;; StreamingSignalSeries → RingBuffer&lt;SignalSample&gt; (the sample carries its own ordinal) | a value that must stay consistent is stored as one object, so a reader running beside the writer never sees fields from different samples. Locking a separate buffer per field keeps each buffer safe, but not the invariant across the buffers. A measured run showed that invariant failing |
 | Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions groups the tables, writes their captions and reads a position the axes names as that name (the axes owns the names, through the rule its ticks are drawn by) | this follows the same principle as self-serialization: the type that owns the data also owns its column names, so a new series type needs no change in any central file |
 | One shaped text, three readers | Skia: TextShaper → ShapedText, read by SkiaFontMetrics (width), SkiaGlyphPathProvider (SVG outlines) and SkiaRenderContext (pixels) | the renderer draws text at the same width the layout measured for it; bidi levels come from Core's BidiAlgorithm and scripts from HarfBuzz, so Arabic letters join and Hebrew runs reverse the same way in every output |
@@ -1718,7 +1745,7 @@ rule, so the reader holds none: it builds the series through the registry on a s
 when the library refuses it, names the place from its own seat walk with the library's reason (`The 'surface' series at
 $.subPlots[0].series[1] was refused: Array lengths must match. ...`). A rule the library gains is a rule here, at every seat.
 
-A chart the library composes from several series travels as those series: none of the 20 chart verbs is a chart type of
+A chart the library composes from several series travels as those series: none of the 26 chart verbs is a chart type of
 this server, in its catalog, its served list or its vocabulary, and a spec that asks for one is refused like any unknown
 type (ComposedVerbVocabularyTests holds that). A document the library writes for a composed chart is accepted whole, a
 missing value as the string "NaN" (ComposedChartSpecTests runs every composed shape through the reader).

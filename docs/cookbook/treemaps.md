@@ -86,3 +86,52 @@ Plt.Create()
 > pan and zoom switched on.
 
 ![Treemap drilldown](../images/treemap_drilldown.png)
+
+## Icicle chart
+
+`Icicle(root)` draws a hierarchy as one row of cells for each level, the cells of a node side by side under it, each as wide as
+its share of the node's width. The root is not drawn.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+
+var budget = new TreeNode
+{
+    Label = "Budget",
+    Children =
+    [
+        new TreeNode
+        {
+            Label = "Engineering",
+            Children =
+            [
+                new TreeNode { Label = "Platform", Value = 40 },
+                new TreeNode { Label = "Apps", Value = 25 },
+                new TreeNode { Label = "Data", Value = 15 },
+            ],
+        },
+        new TreeNode
+        {
+            Label = "Sales",
+            Children = [new TreeNode { Label = "Direct", Value = 30 }, new TreeNode { Label = "Partners", Value = 20 }],
+        },
+        new TreeNode
+        {
+            Label = "Operations",
+            Children = [new TreeNode { Label = "Support", Value = 18 }, new TreeNode { Label = "Finance", Value = 12 }],
+        },
+    ],
+};
+
+Plt.Create()
+    .WithTitle("Where the budget goes")
+    .WithSize(760, 360)
+    .AddSubPlot(1, 1, 1, ax => ax.Icicle(budget))
+    .Save("budget_icicle.svg");
+```
+
+![An icicle chart of a budget](../images/budget_icicle.png)
+
+The widths follow the rule the sunburst divides an angle by, and the cells are in the order stored. It is a series
+(`IcicleSeries`) that takes the colour map, labels and limits every hierarchical series takes.

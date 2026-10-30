@@ -32,10 +32,7 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
         {
             double count = counts[categories[i]];
             var slot = CategorySlot.Of(i).Bar(series.BarWidth, 0, BarAlignment.Center);
-            bool vertical = series.Orientation == BarOrientation.Vertical;
-            var tl = vertical ? Transform.DataToPixel(slot.Left, count) : Transform.DataToPixelClippedX(0, slot.Right);
-            var br = vertical ? Transform.DataToPixelClippedY(slot.Right, 0) : Transform.DataToPixel(count, slot.Left);
-            var bar = Rect.FromCorners(tl, br);
+            var bar = Transform.BoxOnFoot(slot, 0, count, rising: true, series.Orientation).Rect;
             if (bar.IsDrawable()) yield return bar;
         }
     }

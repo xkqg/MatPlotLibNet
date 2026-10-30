@@ -14,7 +14,7 @@ public class AnnotationFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]   // AA grey text vs matplotlib black
+    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 30)]   // AA grey text vs matplotlib black
     public void Annotate_WithoutAFont_MatchesMatplotlib(string themeId)
     {
         double[] x = Enumerable.Range(0, 50).Select(i => i * 10.0 / 49).ToArray();

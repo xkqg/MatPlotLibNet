@@ -31,4 +31,8 @@
     <Content Include="Fixtures\Matplotlib\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The suite renders with Skia, so it brings the natives for every OS like the other hosts that render: on Linux it died
+       with "Unable to load shared library 'libSkiaSharp'" before any picture was compared. -->
+  <Import Project="..\..\SkiaNativeAssets.props" />
+
 </Project>

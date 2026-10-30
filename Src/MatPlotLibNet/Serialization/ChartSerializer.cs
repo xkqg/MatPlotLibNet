@@ -181,6 +181,7 @@ public sealed class ChartSerializer : IChartSerializer
             Elevation = axes.Elevation != 30 ? axes.Elevation : null,
             Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
             CameraDistance = axes.CameraDistance,
+            Aspect = axes.Aspect,
             LightSourceType = axes.LightSource is Rendering.Lighting.DirectionalLight dl
                 ? FormattableString.Invariant($"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}")
                 : null,
@@ -294,6 +295,8 @@ public sealed class ChartSerializer : IChartSerializer
         LineWidth = s.LineWidth,
         Color = s.Color,
         LineStyle = s.LineStyle.OrNullAtRest(LineStyle.Solid),
+        BoundsFrom = s.BoundsFrom,
+        BoundsTo = s.BoundsTo,
     };
 
     private static SpinesConfig DtoToSpines(SpinesConfigDto dto) => new()
@@ -317,6 +320,8 @@ public sealed class ChartSerializer : IChartSerializer
         LineWidth = dto.LineWidth,
         Color = dto.Color,
         LineStyle = dto.LineStyle ?? LineStyle.Solid,
+        BoundsFrom = dto.BoundsFrom,
+        BoundsTo = dto.BoundsTo,
     };
 
     /// <summary>The ONE place the fields every series shares leave the model: its label and where it is shown when
@@ -492,6 +497,7 @@ public sealed class ChartSerializer : IChartSerializer
         if (axDto.Elevation.HasValue) axes.Elevation = axDto.Elevation.Value;
         if (axDto.Azimuth.HasValue) axes.Azimuth = axDto.Azimuth.Value;
         if (axDto.CameraDistance.HasValue) axes.CameraDistance = axDto.CameraDistance.Value;
+        axes.Aspect = axDto.Aspect;
         if (axDto.LightSourceType is not { } lsType || !lsType.StartsWith("directional:", StringComparison.Ordinal)) return;
 
         var parts = lsType[12..].Split(',');
@@ -1091,10 +1097,14 @@ internal sealed record SpineConfigDto
     public bool Visible { get; init; } = true;
     public string? Position { get; init; }
     public double PositionValue { get; init; }
-    public double LineWidth { get; init; } = 1.0;
+    public double LineWidth { get; init; } = 0.8;
     public Color? Color { get; init; }
     /// <summary>The spine's line style; absent for solid, and in a JSON written before spines had one.</summary>
     public LineStyle? LineStyle { get; init; }
+    /// <summary>Where the spine begins along its own axis, in data units; absent when it starts at the edge of the plot.</summary>
+    public double? BoundsFrom { get; init; }
+    /// <summary>Where the spine ends along its own axis, in data units; absent when it ends at the edge of the plot.</summary>
+    public double? BoundsTo { get; init; }
 }
 
 /// <summary>JSON-serializable representation of an <see cref="Models.Axes"/> subplot, including series, annotations, and decorations.</summary>
@@ -1161,6 +1171,9 @@ internal sealed record AxesDto
     public double? Elevation { get; init; }
     public double? Azimuth { get; init; }
     public double? CameraDistance { get; init; }
+
+    /// <summary>The ratio of the length of a unit of Y to a unit of X on the page (<see cref="Axes.Aspect"/>); left out when the plot fills its cell.</summary>
+    public double? Aspect { get; init; }
     public string? LightSourceType { get; init; }
     // v1.1.1 Axis breaks
     public List<AxisBreakDto>? XBreaks { get; init; }
@@ -1411,6 +1424,18 @@ public sealed record SeriesDto
     public int? Bins { get; init; }
     public int? BinsY { get; init; }
     public double[]? YData2 { get; init; }
+    /// <summary>The second curve of an area that lies down (<c>orientation</c> horizontal): where on the X axis it ends.</summary>
+    public double[]? XData2 { get; init; }
+    /// <summary>The number of rows of a waffle chart's grid; left out at the default of 10.</summary>
+    public int? WaffleRows { get; init; }
+    /// <summary>The number of columns of a waffle chart's grid; left out at the default of 10.</summary>
+    public int? WaffleColumns { get; init; }
+    /// <summary>The space between a waffle chart's cells, as a share of a cell's side; left out at the default of 0.2.</summary>
+    public double? CellGap { get; init; }
+    /// <summary>The price one box of a Point and Figure chart covers.</summary>
+    public double? BoxSize { get; init; }
+    /// <summary>The boxes a price has to come back to start a new column of a Point and Figure chart; left out at the default of 3.</summary>
+    public int? Reversal { get; init; }
     public double? Alpha { get; init; }
     public string? StepPosition { get; init; }
     public double[]? YErrorLow { get; init; }
@@ -1480,6 +1505,10 @@ public sealed record SeriesDto
     public string[][]? TableCellData { get; init; }
     public string[]? RowHeaders { get; init; }
     public string[]? ColumnHeaders { get; init; }
+    /// <summary>How the text of each data column of a table is aligned in its cell; left out when every column is left aligned.</summary>
+    public Rendering.TextAlignment[]? ColumnAlignments { get; init; }
+    /// <summary>The relative width of each displayed column of a table; left out when every column is as wide as the others.</summary>
+    public double[]? ColumnWidths { get; init; }
     public double[]? Signal { get; init; }
     public int? SampleRate { get; init; }
     public int? WindowSize { get; init; }
@@ -1588,6 +1617,12 @@ public sealed record SeriesDto
     // read "0.3" where it had read "0.3 s".
     public string?       TileFormat { get; init; }
 
+    /// <summary>The level each step of a waterfall chart is compared with, one per step (a missing level is a step with no mark);
+    /// left out when the chart has no targets.</summary>
+    public double[]? Targets { get; init; }
+    /// <summary>The colour of the target marks of a waterfall chart; left out for the theme's text colour.</summary>
+    public Color? TargetColor { get; init; }
+
     // v1.14 — BulletGraphSeries.Target (the comparative tick).
     public double?       BulletTarget { get; init; }
 
@@ -1608,6 +1643,10 @@ public sealed record SeriesDto
     // would rewrite all 76 goldens for nothing.
     public HatchPattern? Hatch      { get; init; }
     public Color?        HatchColor { get; init; }
+
+    /// <summary>The colour a bar's or an area's fill blends to at its tip; left out for a flat fill, which is every document
+    /// written before the gradient existed.</summary>
+    public Color?        GradientColor { get; init; }
 
     // v1.11 — RelativeRotationSeries
     public List<List<double>>?  RrgAssetCloses       { get; init; }

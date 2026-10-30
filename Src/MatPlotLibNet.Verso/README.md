@@ -21,7 +21,7 @@ cell's last expression, and it draws inline as SVG. A figure works, and so does 
 you do not have to remember `.Build()`.
 
 The picture is drawn by [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet), a charting library for C# with
-83 chart types and 148 colormaps, so anything it can draw is a cell away: line, scatter, bar, histogram,
+86 chart types and 148 colormaps, so anything it can draw is a cell away: line, scatter, bar, histogram,
 candlestick, heatmap, 3-D surfaces, maps.
 
 ## What it does with the space it is given

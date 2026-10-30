@@ -289,6 +289,25 @@ public class BarSeriesTests
         Assert.Equal(3, vertical ? range.YMax : range.XMax);
     }
 
+    /// <summary>A bar with a foot of its own is not in a stack: in a stacked axes it still ranges its own feet and ends, and
+    /// the stack of the others sums without it.</summary>
+    [Fact]
+    public void AFloatingBar_InAStackedAxes_RangesItsOwnFeetAndEnds_AndLeavesTheStackOfTheOthers()
+    {
+        var below = new BarSeries(["A"], [1.0]);
+        var floating = new BarSeries(["A"], [2.0]) { StackBaseline = [10.0] };
+        var above = new BarSeries(["A"], [3.0]);
+        var context = new StackedContext([below, floating, above]);
+
+        var own = floating.ComputeDataRange(context);
+        var stack = below.ComputeDataRange(context);
+
+        Assert.Equal(10, own.YMin);
+        Assert.Equal(12, own.YMax);
+        Assert.Equal(0, stack.YMin);
+        Assert.Equal(4, stack.YMax);
+    }
+
     private sealed class GroupedContext : IAxesContext
     {
         public double? XAxisMin => null;

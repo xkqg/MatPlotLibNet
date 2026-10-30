@@ -505,8 +505,9 @@ Plt.Create()
 
 Rows that share a name are one class: one line series in one colour, named once in the legend, so a click on the
 entry hides every row of the class. Each column is scaled to 0..1 by its own smallest and largest value over all
-the rows, so dimensions in different units share one picture; that is why the Y axis has no ticks, since a number
-on it would read none of the columns. A column whose values are all equal is drawn at the middle. Each dimension's
+the rows, so dimensions in different units share one picture; that is why the Y axis has no shared ticks, since a number
+on it would read none of the columns. Each column's line carries ticks of its own instead, over that column's own range: a short mark
+with its number to the left, at the height that value is drawn at, so a value can be read and not only compared. A column whose values are all equal is drawn at the middle. Each dimension's
 axis is a vertical line at its name, in the grey of a reference line. The lines fill the plot, so the legend
 covers some of them wherever it stands inside; `WithLegend(LegendPosition.OutsideRight)` under `TightLayout()` puts
 it beside the plot, as above. A missing value leaves a gap in its own row and nothing else.
@@ -579,3 +580,69 @@ are named on the X axis under their bars, and the names follow the X tick settin
 `i` stands at `x = i + 0.5`, the centre of its slot, as a bar does, so a limit, a reference line or an annotation at
 "step 3" uses 3.5. A missing step is left out with every step after it, until the next total, which states its own
 level.
+
+## A fill that fades
+
+`GradientColor` on a bar series or an area series makes the fill run from the series' colour to that colour: along a bar from
+its foot to its end (the bottom of a bar that points down), and across an area from its baseline to the point of its top edge
+furthest from it.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Styling;
+
+double[] x = [0, 1, 2, 3, 4, 5, 6];
+double[] y = [2, 5, 4, 8, 6, 9, 7];
+
+Plt.Create()
+    .WithTitle("Fills that fade")
+    .WithSize(860, 380)
+    .AddSubPlot(1, 2, 1, ax => ax
+        .Bar(["Q1", "Q2", "Q3", "Q4"], [4, 7, -3, 9], s =>
+        {
+            s.Color = Colors.Tab10Blue;
+            s.GradientColor = Color.FromHex("#C6DBEF");
+        }))
+    .AddSubPlot(1, 2, 2, ax => ax
+        .FillBetween(x, y, null, s =>
+        {
+            s.Color = Colors.Tab10Orange;
+            s.Alpha = 1;
+            s.GradientColor = Colors.Tab10Orange.WithAlpha(0);
+        }))
+    .Save("gradient_fills.svg");
+```
+
+![Bars and an area that fade](../images/gradient_fills.png)
+
+The blend is a property of the fill, so the SVG, the PNG and the PDF all paint it (the PDF as a vector shading), and a hatch is
+laid over it. A gradient colour with an alpha of its own, such as `Colors.Tab10Orange.WithAlpha(0)`, fades to clear. The MAUI view,
+which paints no gradient, draws the flat colour.
+
+## A waterfall with targets
+
+`WaterfallSeries.Targets` holds the level each step was meant to reach: one absolute level for each step, on the scale the
+bars stand on, not a change.
+
+```csharp
+string[] steps = ["Opening", "Q1", "Q2", "Q3", "Q4", "Closing"];
+double[] amounts = [100, 30, -20, 40, -10, 140];
+
+Plt.Create()
+    .WithTitle("Budget against target")
+    .WithSize(640, 400)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Waterfall(steps, amounts, s =>
+        {
+            s.TotalIndices = [0, 5];
+            s.Targets = [100, 125, 110, 150, 145, 150];
+        })
+        .SetYLabel("Budget (k€)"))
+    .Save("budget_waterfall.svg");
+```
+
+![A waterfall with a target mark across each bar](../images/budget_waterfall.png)
+
+Each level is a short mark across the bar and a little past it, drawn over the bar in the theme's text colour or in
+`TargetColor`. A missing level (`double.NaN`) is a step with no mark, the value axis makes room for the levels, the table gains
+a `target` column only when there are targets, and the marks have no legend entry.

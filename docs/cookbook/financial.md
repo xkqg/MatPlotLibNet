@@ -197,3 +197,65 @@ ax.RelativeRotation(closes, benchmark, labels, s =>
 ```
 
 See [RelativeRotationSeries](https://github.com/xkqg/MatPlotLibNet/wiki/RelativeRotationSeries) for minimum data requirements per formula.
+
+## Prices without a time axis: Point and Figure, Renko and Kagi
+
+Three charts cut a series of closes into boxes, bricks and reversals of one size and draw them in order, with no axis for
+time. All three read the closes alone.
+
+```csharp
+double[] closes =
+[
+    100, 102, 105, 103, 108, 112, 109, 107, 111, 115, 118, 114, 110, 106, 103,
+    107, 111, 116, 121, 119, 115, 112, 117, 123, 128, 125, 121, 118, 122, 127,
+];
+
+Plt.Create()
+    .WithTitle("Point and Figure, boxes of 2")
+    .WithSize(700, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .PointAndFigure(closes, 2)
+        .SetAspect(1.0 / 2))
+    .Save("point_and_figure_closes.svg");
+```
+
+![Point and Figure chart](../images/point_and_figure_closes.png)
+
+`PointAndFigure(prices, boxSize, reversal = 3)` draws columns of boxes, an X where the price rose and an O where it fell. A
+column grows while the price reaches the next box in its direction and gives way to the other kind once the price has come
+back `reversal` boxes from the last box drawn. `SetAspect(1.0 / boxSize)` makes the boxes square, and the table beside the
+chart has a row for each column (column, mark, from, to). It is a series, so it travels through JSON as itself.
+
+```csharp
+// closes: the array of the first example
+Plt.Create()
+    .WithTitle("Renko, bricks of 3")
+    .WithSize(700, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Renko(closes, 3)
+        .WithLegend())
+    .Save("renko_closes.svg");
+```
+
+![Renko chart](../images/renko_closes.png)
+
+`Renko(prices, brickSize)` is a staircase of bricks of one size, anchored on the first close. A close on the next brick's
+trigger draws it, a close that covers several bricks draws each, and a reversal needs two bricks from the far edge, so a
+reversing brick never overlaps the one before it. `RenkoParts` hands you the rising and the falling bricks as two floating
+bar series. A decimal brick size never loses a step to binary error.
+
+```csharp
+// closes: the array of the first example
+Plt.Create()
+    .WithTitle("Kagi, a reversal of 4")
+    .WithSize(700, 450)
+    .AddSubPlot(1, 1, 1, ax => ax.Kagi(closes, 4))
+    .Save("kagi_closes.svg");
+```
+
+![Kagi chart](../images/kagi_closes.png)
+
+`Kagi(prices, reversal)` is one path of vertical lines and short connectors that turns thick exactly where the price breaks
+above the last shoulder and thin exactly where it breaks below the last waist, in the middle of a line. `KagiParts` hands you
+the thick and the thin line. Renko and Kagi carry no ticks on the X axis, since it is only an order; both verbs live in
+`PriceAxesExtensions`.

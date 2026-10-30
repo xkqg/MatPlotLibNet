@@ -537,6 +537,101 @@ public static class DistributionAxesExtensions
                 .SetXTickLocator(new Rendering.TickLocators.FixedLocator(positions))
                 .SetXTickFormatter(new Rendering.TickFormatters.CategoryFormatter([.. groups.Select(g => g.Label)], positions));
         }
+
+        /// <summary>Draws a stem-and-leaf display: every observation of the sample on a row, the digits above the last one as the
+        /// stem and the last digit as a leaf, so the shape of the distribution shows and every value can still be read back.
+        /// <para>A value is cut at the leaf unit (a power of ten) without rounding, toward zero: 1.29 at a unit of 0.1 is a 2 on
+        /// the stem 1. The rows run from the smallest stem to the largest, a stem nobody falls on being a row of no leaves; negative
+        /// values have negative stems, and the negative values smaller than ten leaf units stand on the stem "-0", before "0".
+        /// Within a stem the leaves follow the order of the values, and a repeated value is a repeated leaf. Without a
+        /// <paramref name="leafUnit"/> the finest power of ten is taken whose rows do not outnumber twice the square root of the
+        /// observations (at least five) while its stems have no more than two digits.</para>
+        /// <para>Each leaf has a column of its own, so the leaves of every row stand under each other because the cells are
+        /// the same width, in any font: the display is a <see cref="TableSeries"/> with no borders and no fill, the stems aligned to
+        /// the right against a bar and the leaves centred. A line at the lower left of the plot says how to read it, such as
+        /// <c>Key: 1 | 2 = 1.2</c>. The verb sets no axis limits.</para>
+        /// <para>The chart is its parts: written to JSON it is the table and the annotation, and read back it draws the same
+        /// picture. It is not laid out again; change the sample and call the verb again.</para></summary>
+        /// <param name="sample">The observations; a missing value (NaN) and an infinity are left out.</param>
+        /// <param name="leafUnit">The value of the last digit, a power of ten from 1e-15 to 1e15 such as 0.1 or 10, or
+        /// <see langword="null"/> to choose one from the sample.</param>
+        /// <param name="configure">Optional styling of the parts, run once after the verb has built them, so what it sets wins:
+        /// the font size, the row height, the widths of the columns, the text of the key.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="sample"/> is <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="sample"/> holds no finite number.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="leafUnit"/> is not a power of ten, or is too fine for the
+        /// largest value.</exception>
+        /// <example>
+        /// <code>
+        /// double[] ages = [12, 15, 21, 23, 23, 38, 41, 44, 47, 52];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Ages")
+        ///     .WithSize(500, 350)
+        ///     .AddSubPlot(1, 1, 1, ax => ax.StemAndLeaf(ages))
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder StemAndLeaf(double[] sample, double? leafUnit = null, Action<StemAndLeafParts>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+            ArgumentNullException.ThrowIfNull(sample);
+            var display = sample.StemAndLeaf(leafUnit);
+
+            // One column for each leaf of the fullest row, after the stem and the bar.
+            int leaves = display.Rows.Max(row => row.Leaves.Count);
+            string[][] cells =
+            [
+                .. display.Rows.Select(row => (string[])
+                [
+                    row.Stem, "|",
+                    .. Enumerable.Range(0, leaves).Select(i => i < row.Leaves.Count ? row.Leaves[i].ToString(CultureInfo.InvariantCulture) : string.Empty),
+                ]),
+            ];
+            var table = new TableSeries(cells)
+            {
+                ColumnAlignments = [TextAlignment.Right, TextAlignment.Center, .. Enumerable.Repeat(TextAlignment.Center, leaves)],
+                ColumnWidths = [StemColumnWidth, BarColumnWidth, .. Enumerable.Repeat(1.0, leaves)],
+                CellHeight = StemRowHeight,
+                CellColor = Colors.Transparent,
+                BorderColor = Colors.Transparent,
+            };
+            axes.AddSeries(table);
+
+            Annotation? key = null;
+            axes.Annotate(KeyOf(display), 0, KeyInset, line =>
+            {
+                line.Coordinates = AnnotationCoordinates.AxesFraction;
+                line.Alignment = TextAlignment.Left;
+                line.VerticalAlignment = TextVerticalAlignment.Bottom;
+                line.OffsetX = KeyOffset;
+                key = line;
+            });
+
+            configure?.Invoke(new StemAndLeafParts(table, key!));
+            return axes;
+        }
+    }
+
+    /// <summary>The widths of the stem column and of the bar column of a stem-and-leaf display, relative to the 1 of a leaf column.</summary>
+    private const double StemColumnWidth = 2, BarColumnWidth = 0.5;
+
+    /// <summary>The height of a row of a stem-and-leaf display, in pixels.</summary>
+    private const double StemRowHeight = 20;
+
+    /// <summary>How far above the foot of the plot (a share of its height) and in from its left edge (pixels) the key stands.</summary>
+    private const double KeyInset = 0.02, KeyOffset = 8;
+
+    /// <summary>The line that says how to read a stem-and-leaf display: the first leaf on the display, written as the value it
+    /// stands for, such as <c>Key: 1 | 2 = 1.2</c>.</summary>
+    private static string KeyOf(StemAndLeafDisplay display)
+    {
+        var row = display.Rows.First(candidate => candidate.Leaves.Count > 0);
+        int leaf = row.Leaves[0];
+        decimal digits = decimal.Parse(row.Stem.TrimStart('-'), CultureInfo.InvariantCulture) * 10 + leaf;
+        decimal value = (row.Stem.StartsWith('-') ? -digits : digits) * display.LeafUnit;
+        return $"Key: {row.Stem} | {leaf} = {value.ToString(CultureInfo.InvariantCulture)}";
     }
 
     /// <summary>The title of a Kaplan-Meier chart's Y axis.</summary>

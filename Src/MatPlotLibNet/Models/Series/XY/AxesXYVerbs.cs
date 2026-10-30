@@ -66,6 +66,20 @@ public static class AxesXYVerbs
             return axes.AddSeries(new AreaSeries(x, y) { YData2 = y2 });
         }
 
+        /// <summary>Adds a filled area that lies down, matplotlib's <c>fill_betweenx</c>: at each position along Y, the fill runs
+        /// between two curves on X.</summary>
+        /// <param name="y">The positions along the Y axis.</param>
+        /// <param name="x1">The first curve, on the X axis, one value per position.</param>
+        /// <param name="x2">Optional second curve on the X axis. When provided, fills between the two curves; when null, fills
+        /// from X = 0.</param>
+        /// <returns>The newly created <see cref="AreaSeries"/> for further configuration.</returns>
+        public AreaSeries FillBetweenX(double[] y, double[] x1, double[]? x2 = null)
+        {
+            y.Length.ThrowIfMisaligned(x1.Length);
+            if (x2 is not null) y.Length.ThrowIfMisaligned(x2.Length);
+            return axes.AddSeries(new AreaSeries(x1, y) { XData2 = x2, Orientation = BarOrientation.Horizontal });
+        }
+
         /// <summary>Adds a bubble chart series from X, Y, and size arrays.</summary>
         public BubbleSeries Bubble(double[] x, double[] y, double[] sizes)
         {

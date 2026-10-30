@@ -68,6 +68,9 @@ jobs:
           # Every C# block of the wiki, compiled against the packages this job just built. Not in the coverage job: it
           # holds no product code to measure, and it compiles text rather than exercising a class.
           dotnet run --project Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj --no-build --configuration Release
+          # The charts against matplotlib's own pictures (the references in Tst/MatPlotLibNet.Fidelity/Fixtures), scored by a
+          # perceptual diff on this runner's own rasterizer. Not in the coverage job: it holds no product code to measure.
+          dotnet run --project Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj --no-build --configuration Release
 
   coverage:
     runs-on: ubuntu-latest

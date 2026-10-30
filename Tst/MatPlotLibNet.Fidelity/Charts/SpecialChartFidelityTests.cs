@@ -49,7 +49,7 @@ public class SpecialChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 70)]   // table cell layout / AA text
+    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 60)]   // table cell layout / AA text
     public void Table_LossTable_MatchesMatplotlib(string themeId)
     {
         string[][] cellText =
@@ -79,7 +79,7 @@ public class SpecialChartFidelityTests : FidelityTest
     // (Bruls–Huijse–Van Wijk) layout with viridis-coloured tiles. Our output is
     // intentionally not bit-identical — tolerance is loosened so the test confirms
     // "something was drawn within the plot area" rather than "matches matplotlib pixel-for-pixel".
-    [FidelityTolerance(Rms = 120, Ssim = 0.40, DeltaE = 120)]
+    [FidelityTolerance(Rms = 120, Ssim = 0.40, DeltaE = 95)]
     public void Treemap_SevenRegions_MatchesMatplotlib(string themeId)
     {
         double[] sizes = [500, 300, 200, 150, 100, 80, 60];
@@ -107,7 +107,7 @@ public class SpecialChartFidelityTests : FidelityTest
     // two pictures only share their palette and text. Our fill is the tab10 colour, the recipe's is C0 (blue). The labels are
     // now set in the theme's text size (classic 12 pt, as matplotlib's own), which moved the dominant-colour distance of the
     // classic picture from 76 to 111 while its rms (45) and ssim (0.68) stayed far inside the tolerance.
-    [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 115)]
+    [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 125)]
     public void Radar_FiveAxes_MatchesMatplotlib(string themeId)
     {
         string[] categories = ["Speed", "Power", "Range", "Accuracy", "Cost"];

@@ -161,10 +161,21 @@ public sealed class ChartRenderer : IChartRenderer
     /// <param name="plotAreaTop">The Y coordinate the first row starts at.</param>
     /// <param name="sp">The spacing in pixels.</param>
     /// <returns>One plot area for each axes.</returns>
-    internal static List<Rect> SubPlotRects(Figure figure, double plotAreaTop, SubPlotSpacing sp) =>
-        figure.GridSpec is not null
+    internal static List<Rect> SubPlotRects(Figure figure, double plotAreaTop, SubPlotSpacing sp)
+    {
+        var cells = figure.GridSpec is not null
             ? ComputeGridSpecLayout(figure, figure.GridSpec, plotAreaTop, sp)
             : ComputeLegacyLayout(figure, plotAreaTop, sp);
+
+        // An axes with an aspect is drawn in the largest rectangle of its shape inside its cell, centred. Here, and not in a
+        // renderer: every consumer of the layout (the drawing, the constrained layout, the hit test) reads these rectangles.
+        for (int i = 0; i < cells.Count && i < figure.SubPlots.Count; i++)
+        {
+            cells[i] = figure.SubPlots[i].FittedTo(cells[i], figure.Theme);
+        }
+
+        return cells;
+    }
 
     private static List<Rect> ComputeGridSpecLayout(Figure figure, GridSpec gs, double plotAreaTop, SubPlotSpacing sp)
     {
@@ -303,11 +314,11 @@ public sealed class ChartRenderer : IChartRenderer
             foreach (var inset in axes.Insets)
             {
                 if (inset.InsetBounds is not { } bounds) continue;
-                var insetRect = new Rect(
+                var insetRect = inset.FittedTo(new Rect(
                     referenceArea.X + bounds.X * referenceArea.Width,
                     referenceArea.Y + bounds.Y * referenceArea.Height,
                     bounds.Width * referenceArea.Width,
-                    bounds.Height * referenceArea.Height);
+                    bounds.Height * referenceArea.Height), pass.Theme);
                 RenderAxes(figure, inset, pass with { PlotArea = insetRect }, depth + 1);
             }
         }

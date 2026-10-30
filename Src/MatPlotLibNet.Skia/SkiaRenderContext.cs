@@ -255,7 +255,7 @@ public sealed class SkiaRenderContext : IRenderContext
     {
         if (shape.HasVisibleFill)
         {
-            using var paint = CreateFillPaint(shape.Fill!.Value);
+            using var paint = shape.HasVisibleGradient ? CreateGradientPaint(shape.Gradient!.Value) : CreateFillPaint(shape.Fill!.Value);
             draw(paint);
 
             // Hatch parity with the SVG backend. A hatch that shows on screen and vanishes from an exported
@@ -395,6 +395,20 @@ public sealed class SkiaRenderContext : IRenderContext
         Color = ToSkColor(color),
         Style = SKPaintStyle.Fill,
         IsAntialias = true
+    };
+
+    /// <summary>Creates a fill paint whose shader blends the two ends of <paramref name="gradient"/> along its line, with the
+    /// nearest end's colour beyond either end, modulated by the current group opacity like a flat fill. On a PDF canvas Skia
+    /// writes it as an axial shading, a vector, not a bitmap.</summary>
+    private SKPaint CreateGradientPaint(LinearGradient gradient) => new()
+    {
+        Style = SKPaintStyle.Fill,
+        IsAntialias = true,
+        Shader = SKShader.CreateLinearGradient(
+            new SKPoint((float)gradient.Start.X, (float)gradient.Start.Y),
+            new SKPoint((float)gradient.End.X, (float)gradient.End.Y),
+            [ToSkColor(gradient.StartColor), ToSkColor(gradient.EndColor)],
+            SKShaderTileMode.Clamp),
     };
 
     /// <summary>Creates a stroke SKPaint with optional dash pattern, modulated by the current group opacity.</summary>

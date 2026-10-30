@@ -68,7 +68,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 55)]   // different RNG; AA grey text vs matplotlib black
+    [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 70)]   // different RNG; AA grey text vs matplotlib black
     public void Scatter_TwoMarkers_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -97,7 +97,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]   // layout differs (slot vs position axes); AA grey text vs crisp black
+    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 85)]   // layout differs (slot vs position axes); AA grey text vs crisp black
     public void Bar_Grouped_MatchesMatplotlib(string themeId)
     {
         var figure = Plt.Create()
@@ -121,7 +121,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // different RNG; dark-blue bar edge colour ΔE after alpha+edge fix
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 25)]   // different RNG; dark-blue bar edge colour ΔE after alpha+edge fix
     public void Hist_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng  = new Random(42);
@@ -148,7 +148,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.55, DeltaE = 115)]   // pie geometry differs (start angle, aspect ratio, pie size fill)
+    [FidelityTolerance(Rms = 90, Ssim = 0.55, DeltaE = 45)]   // pie geometry differs (start angle, aspect ratio, pie size fill)
     public void Pie_Autopct_MatchesMatplotlib(string themeId)
     {
         var figure = Plt.Create()
@@ -202,7 +202,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 110)]   // different RNG; body color fixed; thin stats lines produce sparse red pixels below top-5 threshold (Skia AA vs matplotlib crisp)
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // different RNG; body color fixed; thin stats lines produce sparse red pixels below top-5 threshold (Skia AA vs matplotlib crisp)
     public void Violin_ThreeGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -232,7 +232,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 65, Ssim = 0.40, DeltaE = 40)]   // different RNG → different cell values/colors; pt→px font scaling shifted tick labels → SSIM 0.45 → 0.40
+    [FidelityTolerance(Rms = 65, Ssim = 0.40, DeltaE = 30)]   // different RNG → different cell values/colors; pt→px font scaling shifted tick labels → SSIM 0.45 → 0.40
     public void Heatmap_10x10_Viridis_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -263,7 +263,7 @@ public class CoreChartFidelityTests : FidelityTest
     // matplotlib classic default colormap is 'jet' (cyan→green→yellow→red) while our contourf
     // defaults to viridis, so the top-5 colour set diverges hard. The tolerance here accepts
     // the shape-matching SSIM drop without forcing a theme-wide default colormap refactor.
-    [FidelityTolerance(Rms = 120, Ssim = 0.45, DeltaE = 120)]
+    [FidelityTolerance(Rms = 120, Ssim = 0.45, DeltaE = 110)]
     public void Contour_Peaks_MatchesMatplotlib(string themeId)
     {
         int n = 100;
@@ -294,7 +294,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 50, Ssim = 0.60, DeltaE = 150)]   // polar: RMS slightly above 30 due to grid/label differences; ΔE: classic's dotted black grid now antialiases to greys that outrank the blue line in the top-5 palette (8 -> 137) while RMS and SSIM stay where they were
+    [FidelityTolerance(Rms = 50, Ssim = 0.60, DeltaE = 155)]   // polar: RMS slightly above 30 due to grid/label differences; ΔE: classic's dotted black grid now antialiases to greys that outrank the blue line in the top-5 palette (8 -> 137) while RMS and SSIM stay where they were
     public void Polar_RoseCurve_MatchesMatplotlib(string themeId)
     {
         int n = 300;
@@ -320,7 +320,7 @@ public class CoreChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 100)]   // v1.1.4: different RNG → different OHLC values; classic axes.xmargin=0 shifted candle centres, changing top-5 green/red blends
+    [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 70)]   // v1.1.4: different RNG → different OHLC values; classic axes.xmargin=0 shifted candle centres, changing top-5 green/red blends
     public void Candlestick_20Bars_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);

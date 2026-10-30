@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Models.Series;
 /// visualisation (node colour = community ID), and minimum spanning trees. Layout is
 /// pluggable via <see cref="GraphLayout"/>: <see cref="GraphLayout.Manual"/> keeps the
 /// coordinates of the nodes, and <see cref="GraphLayout.Circular"/>,
-/// <see cref="GraphLayout.Hierarchical"/> and <see cref="GraphLayout.ForceDirected"/> place them.</summary>
+/// <see cref="GraphLayout.Hierarchical"/>, <see cref="GraphLayout.Arc"/> and <see cref="GraphLayout.ForceDirected"/> place them.</summary>
 /// <remarks>The model carries node + edge data and presentation knobs; layout
 /// computation lives in <c>NetworkGraphLayouts</c> and rendering in
 /// <c>NetworkGraphSeriesRenderer</c>. <see cref="ColorMap"/> maps each node's
@@ -103,6 +103,8 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
             if (p.Y < yMin) yMin = p.Y;
             if (p.Y > yMax) yMax = p.Y;
         }
+        // The arcs of an arc diagram rise over the row of nodes: the range holds the highest of them.
+        if (Layout == GraphLayout.Arc) yMax = Math.Max(yMax, NetworkGraphLayouts.ArcHeight(positioned, Edges));
         // Degenerate guard: single node or all-coincident nodes still need a finite range.
         if (xMin == xMax) { xMin -= 0.5; xMax += 0.5; }
         if (yMin == yMax) { yMin -= 0.5; yMax += 0.5; }

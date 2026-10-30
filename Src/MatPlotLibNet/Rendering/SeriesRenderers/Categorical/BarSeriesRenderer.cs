@@ -75,8 +75,14 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
         double edgeWidth = series.LineWidth > 0 ? series.LineWidth : (series.EdgeColor.HasValue ? 1 : 0);
         Color? edgeColor = series.LineWidth > 0 ? (series.EdgeColor ?? baseColor) : series.EdgeColor;
 
+        // A gradient runs through each bar from its foot to its end; the hatch is laid over it.
+        Color? tipColor = series.GradientColor is { } tip ? ScaleAlpha(tip, series.Alpha) : null;
         foreach (var pixel in series.PixelBars(Transform))
-            Ctx.DrawRectangle(pixel.Bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+        {
+            var style = new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor };
+            if (tipColor is { } end) style = style with { Gradient = pixel.FootToEnd(series.Orientation, fillColor, end) };
+            Ctx.DrawRectangle(pixel.Bar, style);
+        }
 
         // The labels are placed in one batch after all the bars are drawn, so the layout can shift the few that would
         // otherwise stand on a neighbouring bar's label (dense category axes, narrow bars, long labels).

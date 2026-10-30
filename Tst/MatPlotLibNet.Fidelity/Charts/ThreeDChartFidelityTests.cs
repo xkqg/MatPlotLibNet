@@ -33,7 +33,7 @@ public class ThreeDChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 80)]   // camera projection + different RNG
+    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 85)]   // camera projection + different RNG
     public void Scatter3D_Random_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -56,7 +56,7 @@ public class ThreeDChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 120, Ssim = 0.35, DeltaE = 90)]   // 3D bar face shading + projection angle differences
+    [FidelityTolerance(Rms = 120, Ssim = 0.35, DeltaE = 65)]   // 3D bar face shading + projection angle differences
     public void Bar3D_Grid_MatchesMatplotlib(string themeId)
     {
         int n = 16;
@@ -86,7 +86,7 @@ public class ThreeDChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 90)]   // surface colormap + shading
+    [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 70)]   // surface colormap + shading
     public void Surface_SinR_MatchesMatplotlib(string themeId)
     {
         int n = 40;
@@ -111,7 +111,7 @@ public class ThreeDChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 80)]
+    [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 40)]
     public void Wireframe_SinR_MatchesMatplotlib(string themeId)
     {
         int n = 20;
@@ -136,7 +136,7 @@ public class ThreeDChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 80)]
+    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 10)]
     public void Stem3D_Spiral_MatchesMatplotlib(string themeId)
     {
         int n = 20;

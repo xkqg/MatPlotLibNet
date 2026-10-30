@@ -12,7 +12,7 @@ that needs a row is what moves it up.
 | **Done** | The fluent core | `Plt.Create()`, `FigureBuilder` and `AxesBuilder`: a chart in one chain, drawn as SVG, written to JSON and read back. See [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet). |
 | **Done** | Themes and colour maps | 30 themes, matplotlib's own looks among them, and 148 colormaps counting their reversed forms. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
 | **Done** | Blazor and ASP.NET Core | `<MplChart>` and `<MplLiveChart>`, a SignalR hub, REST endpoints, and clients for Angular, React and Vue. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
-| **Done** | The chart types | 83 series types: lines and bars, statistical, financial, grid, 3-D, polar, hierarchical, flow and the control room's. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
+| **Done** | The chart types | 86 series types: lines and bars, statistical, financial, grid, 3-D, polar, hierarchical, flow and the control room's. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | PNG, PDF and GIF | `MatPlotLibNet.Skia`: the same figure as a PNG, a PDF of one page or several, and an animated GIF. See [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started). |
 | **Done** | Technical indicators | 59 indicators computed from a price series and drawn on it, from a moving average to transfer entropy. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | GraphQL | `MatPlotLibNet.GraphQL`: charts as HotChocolate queries and subscriptions. See [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map). |
@@ -80,24 +80,25 @@ that needs a row is what moves it up.
 | **Done** | More control charts | `ShewhartChart` draws the moving-range, X-bar, R, p and c charts and marks the points Nelson's eight tests flag. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | Anchored VWAP | `Vwap(bars, anchor)` counts the volume-weighted price from a bar you pick; the streaming form restarts with `AnchorHere()`. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
 | **Done** | Volume profile | `VolumeProfile` draws the volume traded at each price as bars beside the price chart. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
-| **Later** | Parallel coordinates in each axis's own units | Each column is scaled to 0..1; an axis per column with its own ticks needs a scale per column. |
-| **Later** | A waterfall's target | A budget marker beside each step; totals are marked with `TotalIndices`. |
-| **Later** | Two plots matplotlib has | `fill_betweenx`, and `matshow`, whose square cells need an aspect setting. |
-| **Later** | Gradient fills | An area or a bar that fades from one colour to another or to clear; only Sankey links draw a gradient. |
-| **Later** | Range frames | An axis line that spans only the data's range; a spine always runs the full length of the plot. |
-| **Later** | Arrows along a connected scatter | An arrow head on each segment to show direction; no series draws arrow heads along a line. |
-| **Later** | A waffle chart | Equal squares coloured by share, or an icon repeated once per unit; markers are sized in points, so they do not tile. |
-| **Later** | Stem-and-leaf plot | The digits of a sample laid out in rows by their leading digits; no series draws aligned columns of text. |
-| **Later** | Calendar of events | Marks inside a day's cell need sizes in cell units, which markers lack. |
+| **Done** | A waffle chart | `Waffle` fills a grid of equal squares in proportion to each category's share, so "37 of every 100" is thirty-seven squares you can count. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Calendar of events | `CalendarEvents` puts a mark for each event inside the cell of its day, side by side when a day has several, one colour for each kind. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Point and Figure | `PointAndFigure` draws columns of Xs and Os for a price series, close only, as a series that comes back from JSON. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Renko | `Renko` draws bricks of a fixed price step, in the new family of price verbs, and comes back from JSON as its parts. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Kagi | `Kagi` draws one line that thickens and thins where the price breaks the last shoulder or the last waist. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Gradient fills | A bar or an area fades from its colour to another with `GradientColor`, drawn alike in SVG, PNG and PDF. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Arrows along a connected scatter | `ConnectedScatter` draws the path two values take, with an arrow from each point to the next. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Range frames | A spine takes `BoundsFrom` and `BoundsTo`, so an axis line spans only the data's range, and its ticks stand on it. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
+| **Done** | Two plots matplotlib has | `FillBetweenX` and `MatShow`, and an aspect setting that keeps a plot's scale equal. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Parallel coordinates in each axis's own units | Each column's line carries ticks over its own range, so a value can be read, not only compared. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Icicle chart | `Icicle` draws a hierarchy in rows by depth, each node as wide as its share of its parent. See [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types). |
+| **Done** | Arc diagram | `GraphLayout.Arc` lays a graph's nodes in a row and joins them by arcs above it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Stem-and-leaf plot | `StemAndLeaf` writes a sample as stems and leaves, a column for each leaf, so they line up in any font. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | A waterfall's target | `WaterfallSeries.Targets` marks the level each step was meant to reach. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | The matplotlib comparison run by CI | The suite that compares the output with images matplotlib drew runs in CI and in the release job, on a colour distance that reads every pixel. See [MatplotlibThemes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes). |
 | **Later** | Word cloud | Words sized by weight and packed without overlap need a text-packing layout. |
 | **Later** | Chord diagram | Ribbons between arcs around a circle need a series of their own. |
-| **Later** | Arc diagram | Nodes on a line joined by arcs above it need a series of their own. |
-| **Later** | Icicle chart | A hierarchy in rows by depth; a layout beside the treemap and sunburst. |
 | **Later** | Ternary plot | Three parts that sum to one, on triangular axes. |
 | **Later** | Piper diagram | Two ternary triangles and a diamond; it needs ternary axes first. |
-| **Later** | Renko | Bricks of a fixed price step, in columns that rise and fall. |
-| **Later** | Kagi | One line that thickens and thins at each reversal; a line has one width. |
-| **Later** | Point and Figure | Columns of X and O boxes; markers are sized in points, so boxes do not tile. |
 | **Later** | Linked selection | Choose points in one chart and see the same rows lit in the others. |
 | **Later** | Step-through SVG | One SVG file with a slider or a play button that steps through frames without a server. |
 | **Later** | A live chart that sends its own gestures | `MplLiveChart` shows the server's redraws; the page still has to hand its script a SignalR connection. |
@@ -108,7 +109,6 @@ that needs a row is what moves it up.
 | **Later** | A handler of your own for a chart's gestures | One interface a chart's events go to, beyond the callbacks a chart session takes today. |
 | **Later** | Several viewers as a designed feature | Viewers of one chart that see each other's gestures by design, not as a side effect where the last one wins. |
 | **Later** | The Windows heads tested by CI | The WPF, Uno and MAUI suites run on Windows by hand or before a push, never on the CI runners. |
-| **Later** | The matplotlib comparison run by CI | The suite that compares the output with images matplotlib drew is run by hand. Its waterfall test draws other values than its reference script and passes only on a wide tolerance. |
 
 Every row has a section of its own on the [roadmap in the wiki](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap): what
 it is, why it stands where it does, what a row still to come waits for, and what is left out on purpose. This table is

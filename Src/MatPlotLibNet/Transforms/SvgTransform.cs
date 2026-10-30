@@ -71,7 +71,7 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         var subplotContexts = new SvgRenderContext[figure.SubPlots.Count];
         Parallel.For(0, figure.SubPlots.Count, i =>
         {
-            var ctx = new SvgRenderContext();
+            var ctx = new SvgRenderContext(SvgIdScope.ForSubplot(i));
             Renderer.RenderAxes(figure, figure.SubPlots[i], new RenderPass(plotAreas[i], ctx, theme));
             subplotContexts[i] = ctx;
         });
@@ -196,6 +196,9 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
           .Append(" aria-labelledby=\"chart-title\"");
         if (hasDescription)
             sb.Append(" aria-describedby=\"chart-desc\"");
+        // A plot with an aspect must not be stretched by zooming the picture: the zoom script reads this to keep the view isotropic.
+        if (figure.SubPlots.Any(axes => axes.Aspect.HasValue))
+            sb.Append(" data-aspect-lock=\"true\"");
         if (figure.ServerInteraction && figure.ChartId is { } chartId)
         {
             sb.Append(" data-chart-id=\"").Append(chartId.EscapeForXml()).Append('"');

@@ -3,6 +3,18 @@
 
 namespace MatPlotLibNet.Fidelity;
 
+/// <summary>The three limits a fidelity comparison is held to: the largest mean per-channel error, the smallest structural
+/// similarity and the largest distance between the dominant colours.</summary>
+/// <param name="Rms">The largest allowed RMS, on the 0 to 255 scale.</param>
+/// <param name="Ssim">The smallest allowed SSIM, on the 0 to 1 scale.</param>
+/// <param name="DeltaE">The largest allowed ΔE between dominant colours.</param>
+public readonly record struct FidelityThresholds(double Rms, double Ssim, double DeltaE)
+{
+    /// <summary>The limits of a test that names none.</summary>
+    public static FidelityThresholds Defaults { get; } =
+        new(PerceptualDiff.DefaultRmsThreshold, PerceptualDiff.DefaultSsimThreshold, PerceptualDiff.DefaultDeltaEThreshold);
+}
+
 /// <summary>
 /// Overrides the default perceptual-diff thresholds for a single fidelity test.
 /// Use this when a series has irreducible AA or font-rasterization noise that

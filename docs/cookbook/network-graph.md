@@ -8,9 +8,9 @@ description: "Draw network graphs in C#: nodes and edges with deterministic layo
 > **Install:** `dotnet add package MatPlotLibNet`
 
 NetworkGraph draws nodes and edges in 2D. Use it for correlation networks, lead-lag
-flows, Louvain community visualisation, and minimum spanning trees. Four layouts place
+flows, Louvain community visualisation, and minimum spanning trees. Five layouts place
 the nodes: `Manual` (uses the coordinates you pass), `Circular` (unit circle),
-`Hierarchical` (BFS top-down) and `ForceDirected` (Fruchterman–Reingold, seeded, so the
+`Arc` (a row, every edge a semicircle above it), `Hierarchical` (BFS top-down) and `ForceDirected` (Fruchterman–Reingold, seeded, so the
 same seed gives the same picture).
 
 ## Basic graph
@@ -88,6 +88,34 @@ the value to `[0, 1]`. A node's pixel radius is `SizeScalar` multiplied by
 This layout puts every node on the unit circle at evenly spaced angles. It ignores the
 edges and it ignores any pre-set `X`/`Y`. It is O(N) and deterministic. It is a good first
 pick for any small graph.
+
+### Arc
+This layout puts the nodes in a row, in the order stored, and draws every edge as a semicircle above it (two cubic Bézier curves,
+a half circle under `SetAspect(1)`). A directed edge carries its head along the end of its arc, and the axes make room for
+the highest arc. It ignores any pre-set `X`/`Y`.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models.Series;
+
+GraphNode[] nodes = [new("Ada"), new("Ben"), new("Cleo"), new("Dev"), new("Eli"), new("Fay"), new("Gus")];
+GraphEdge[] edges =
+[
+    new("Ada", "Dev"), new("Ada", "Gus"), new("Ben", "Cleo"), new("Ben", "Fay"),
+    new("Cleo", "Dev"), new("Dev", "Eli"), new("Eli", "Gus"), new("Cleo", "Gus"),
+];
+
+Plt.Create()
+    .WithTitle("Who works with whom")
+    .WithSize(800, 420)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .NetworkGraph(nodes, edges, s => s.Layout = GraphLayout.Arc)
+        .SetAspect(1)
+        .HideAllAxes())
+    .Save("arc_diagram.svg");
+```
+
+![An arc diagram](../images/arc_diagram.png)
 
 ### Hierarchical
 This layout walks the graph breadth-first from node 0 and lays out one layer per depth,
@@ -189,7 +217,7 @@ fallback: the renderer does not throw.
 |---|---|---|---|
 | `Nodes` | `IReadOnlyList<GraphNode>` | (constructor arg) | The graph's nodes. |
 | `Edges` | `IReadOnlyList<GraphEdge>` | (constructor arg) | The graph's edges. |
-| `Layout` | `GraphLayout` | `Circular` | `Manual` / `Circular` / `Hierarchical` / `ForceDirected`. |
+| `Layout` | `GraphLayout` | `Circular` | `Manual` / `Circular` / `Arc` / `Hierarchical` / `ForceDirected`. |
 | `ColorMap` | `IColorMap?` | `null`, meaning Viridis | Per-node colour from `ColorScalar`. |
 | `ShowNodeLabels` | `bool` | `true` | Render `Label` (or `Id`) next to each node. |
 | `ShowEdgeWeights` | `bool` | `false` | Render numeric weight on top of each edge. |

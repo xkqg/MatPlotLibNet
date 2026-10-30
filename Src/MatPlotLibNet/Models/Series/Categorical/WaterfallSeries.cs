@@ -13,6 +13,7 @@ namespace MatPlotLibNet.Models.Series;
 public sealed class WaterfallSeries : ChartSeries, ICategoryLabeled
 {
     private int[]? _totalIndices;
+    private double[]? _targets;
 
     /// <summary>The name of each step, in order. The X axis writes them under the bars.</summary>
     public string[] Categories { get; }
@@ -67,6 +68,35 @@ public sealed class WaterfallSeries : ChartSeries, ICategoryLabeled
         }
     }
 
+    /// <summary>The level each step is meant to reach, one for each step, as absolute levels on the value axis (the same scale the
+    /// bars are drawn on, not a change): a short mark across the bar at that level, drawn over the bar, so the distance between the
+    /// bar's end and the mark is how far the step fell short or went past. A missing level (NaN) is a step with no mark;
+    /// <see langword="null"/> (the default) is a chart with no targets. The mark has no legend entry. The value axis makes room
+    /// for the targets, and the data table gains a <c>target</c> column only when there are any.</summary>
+    /// <exception cref="ArgumentException">The array does not hold one level for each step. The list is not kept.</exception>
+    /// <example>
+    /// <code>
+    /// ax.Waterfall(["Q1", "Q2", "Q3"], [100, 30, -20], s => s.Targets = [100, 125, 110]);
+    /// </code>
+    /// </example>
+    public double[]? Targets
+    {
+        get => _targets;
+        set
+        {
+            if (value is not null && value.Length != Values.Length)
+            {
+                throw new ArgumentException(
+                    $"Targets (\"targets\" in JSON) holds {value.Length} levels and the series has {Values.Length} steps; there must be one level for each step.", nameof(Targets));
+            }
+
+            _targets = value;
+        }
+    }
+
+    /// <summary>The colour of the target marks; <see langword="null"/> (the default) is the theme's text colour.</summary>
+    public Color? TargetColor { get; set; }
+
     /// <summary>Initializes a new <see cref="WaterfallSeries"/> with category labels and step values.</summary>
     /// <param name="categories">Label for each step.</param>
     /// <param name="values">Signed delta for each step.</param>
@@ -116,7 +146,9 @@ public sealed class WaterfallSeries : ChartSeries, ICategoryLabeled
         var scale = context.YScale;
         // A level that cannot be placed (from a missing or infinite step on, until a total states one) is not drawn, so
         // it is left out here too.
-        var y = Bars().Aggregate(Range1D.Empty.Including(0, scale), (range, bar) => range.Including(bar.Top, scale)).OrNone();
+        var bars = Bars().Aggregate(Range1D.Empty.Including(0, scale), (range, bar) => range.Including(bar.Top, scale));
+        // A target is a level on the same axis, so the axis makes room for it; a missing or unplaceable one is left out.
+        var y = (_targets ?? []).Aggregate(bars, (range, level) => range.Including(level, scale)).OrNone();
         return new(xMin, xMax, y?.Lo, y?.Hi,
             StickyXMin: xMin, StickyXMax: xMax, StickyYMin: 0);
     }
@@ -130,6 +162,8 @@ public sealed class WaterfallSeries : ChartSeries, ICategoryLabeled
         TotalColor = TotalColor, BarWidth = BarWidth,
         // No total marked, or an empty list, writes nothing: a series at rest writes the bytes it always wrote.
         TotalIndices = _totalIndices is { Length: > 0 } ? _totalIndices : null,
+        Targets = _targets,
+        TargetColor = TargetColor,
     };
 
     /// <summary>Reconstructs a <see cref="WaterfallSeries"/> from its serialization DTO, including increase/decrease/total colours, and adds it to the axes.</summary>
@@ -157,22 +191,30 @@ public sealed class WaterfallSeries : ChartSeries, ICategoryLabeled
         }
 
         s.TotalIndices = dto.TotalIndices;
+        s.Targets = dto.Targets;
+        s.TargetColor = dto.TargetColor;
         return s;
     }
 
 
     /// <inheritdoc />
-    /// <remarks>The categories as text, then the values under the series' own label.</remarks>
+    /// <remarks>The categories as text, then the values under the series' own label, then the level each step was meant to reach
+    /// as a <c>target</c> column when the series has targets, and only then.</remarks>
     public override ChartDataTable? ToDataTable()
     {
         int count = Math.Min(Categories.Length, Values.Length);
         var rows = new IReadOnlyList<DataCell>[count];
         for (int i = 0; i < count; i++)
         {
-            rows[i] = [DataCell.FromText(Categories[i]), DataCell.FromNumber(Values[i])];
+            rows[i] = _targets is { } levels
+                ? [DataCell.FromText(Categories[i]), DataCell.FromNumber(Values[i]), DataCell.FromNumber(levels[i])]
+                : [DataCell.FromText(Categories[i]), DataCell.FromNumber(Values[i])];
         }
 
-        return new ChartDataTable(null, [new("category", DataColumnKind.Text), new(Label ?? "value")], rows);
+        ChartDataColumn[] columns = _targets is null
+            ? [new("category", DataColumnKind.Text), new(Label ?? "value")]
+            : [new("category", DataColumnKind.Text), new(Label ?? "value"), new("target")];
+        return new ChartDataTable(null, columns, rows);
     }
 
     /// <inheritdoc />

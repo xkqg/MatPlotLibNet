@@ -19,6 +19,33 @@ public sealed class TableSeries : ChartSeries
 
     public string[]? RowHeaders { get; set; }
 
+    /// <summary>How the text of each data column is aligned in its cell, by position; <see langword="null"/> (the default), or a
+    /// column past the end of the array, is left aligned. A left aligned text starts <see cref="CellPadding"/> in from the left
+    /// edge of its cell, a right aligned one ends that far from the right edge, a centred one is centred. The headers of the
+    /// columns and of the rows stay centred.</summary>
+    public TextAlignment[]? ColumnAlignments { get; set; }
+
+    private double[]? _columnWidths;
+
+    /// <summary>The relative width of each displayed column, by position: the columns share the width of the plot in these
+    /// proportions. When the table has row headers the first width is that of the row-header column and the data columns follow.
+    /// <see langword="null"/> (the default) makes every column as wide as the others, and a column past the end of the array
+    /// counts for 1.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">A width is not a finite number above zero.</exception>
+    public double[]? ColumnWidths
+    {
+        get => _columnWidths;
+        set
+        {
+            if (value is not null && value.Any(width => !(double.IsFinite(width) && width > 0)))
+            {
+                throw new ArgumentOutOfRangeException(nameof(ColumnWidths), value, "A column's relative width is a finite number above zero.");
+            }
+
+            _columnWidths = value;
+        }
+    }
+
     public double CellHeight { get; set; } = 25;
 
     public double CellPadding { get; set; } = 4;
@@ -51,6 +78,8 @@ public sealed class TableSeries : ChartSeries
         RowHeaders = RowHeaders,
         CellHeight = CellHeight.OrNullAtRest(25.0),
         CellPadding = CellPadding.OrNullAtRest(4.0),
+        ColumnAlignments = ColumnAlignments,
+        ColumnWidths = ColumnWidths,
         HeaderColor = HeaderColor,
         FillColor = CellColor,
         EdgeColor = BorderColor,
@@ -80,6 +109,8 @@ public sealed class TableSeries : ChartSeries
         {
             s.CellPadding = dto.CellPadding.Value;
         }
+        s.ColumnAlignments = dto.ColumnAlignments;
+        s.ColumnWidths = dto.ColumnWidths;
         s.HeaderColor = dto.HeaderColor;
         s.CellColor = dto.FillColor;
         s.BorderColor = dto.EdgeColor;

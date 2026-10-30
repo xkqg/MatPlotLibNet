@@ -17,7 +17,7 @@ public class V170AxisFeaturesFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.50, DeltaE = 80)]
+    [FidelityTolerance(Rms = 100, Ssim = 0.50, DeltaE = 55)]
     public void BrokenY_MatchesMatplotlib(string themeId)
     {
         // Data with low values 0..18 and high values 100..118 — break removes 25..85.
@@ -44,7 +44,7 @@ public class V170AxisFeaturesFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.50, DeltaE = 80)]
+    [FidelityTolerance(Rms = 100, Ssim = 0.50, DeltaE = 55)]
     public void Symlog_MatchesMatplotlib(string themeId)
     {
         // Cubic data x ∈ [-50, 50] spanning ±125000, symlog Y with linthresh=100.

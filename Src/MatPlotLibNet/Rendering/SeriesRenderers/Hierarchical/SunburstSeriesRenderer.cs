@@ -26,7 +26,7 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
         double maxRadius = Math.Min(bounds.Width, bounds.Height) / 2 - HierarchicalLayout.Sunburst.OuterRingInsetPx;
 
         // Count max depth
-        int maxDepth = GetMaxDepth(series.Root);
+        int maxDepth = series.Root.Levels();
         if (maxDepth == 0) return;
 
         double ringWidth = (maxRadius - series.InnerRadius * maxRadius) / maxDepth;
@@ -46,12 +46,12 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
         SunburstSeries series, double ringWidth, double maxRadius,
         List<LabelCandidate>? labelCandidates)
     {
-        if (node.Children.Count == 0) return;
+        // The children and the share of this ring each takes: the one rule every hierarchical layout partitions by.
+        var shares = node.Shares();
+        if (shares.Count == 0) return;
 
         double innerR = series.InnerRadius * maxRadius + depth * ringWidth;
         double outerR = innerR + ringWidth;
-        double total = node.TotalValue;
-        if (total <= 0) return;
 
         // Reuse the cached label font so every ring uses the same metrics, and so the
         // text-size measurement inside the LabelLayoutEngine matches what the renderer
@@ -64,9 +64,9 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
         }
 
         double currentAngle = startAngle;
-        foreach (var child in node.Children)
+        foreach (var (child, share) in shares)
         {
-            double childSweep = sweepAngle * (child.TotalValue / total);
+            double childSweep = sweepAngle * share;
             var color = child.Color ?? ResolveColor(null);
 
             Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, currentAngle, currentAngle + childSweep), new ShapeStyle(color, Colors.White, 1));
@@ -87,14 +87,5 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
             RenderRing(child, cx, cy, currentAngle, childSweep, depth + 1, series, ringWidth, maxRadius, labelCandidates);
             currentAngle += childSweep;
         }
-    }
-
-    private static int GetMaxDepth(TreeNode node)
-    {
-        if (node.Children.Count == 0) return 0;
-        int max = 0;
-        foreach (var child in node.Children)
-            max = Math.Max(max, GetMaxDepth(child));
-        return max + 1;
     }
 }

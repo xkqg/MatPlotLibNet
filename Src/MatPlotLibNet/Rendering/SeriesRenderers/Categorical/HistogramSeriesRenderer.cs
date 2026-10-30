@@ -46,7 +46,7 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
                 double x0 = bins.Min + i * bins.BinWidth;
                 double barW = bins.BinWidth * series.RWidth;
                 double gap = (bins.BinWidth - barW) / 2;
-                var bar = Rect.FromCorners(Transform.DataToPixel(x0 + gap, heights[i]), Transform.DataToPixelClippedY(x0 + gap + barW, 0));
+                var bar = Transform.BoxOnFoot(new CategorySlot(x0 + gap, x0 + gap + barW / 2, x0 + gap + barW), 0, heights[i], rising: true, BarOrientation.Vertical).Rect;
                 if (!bar.IsDrawable()) continue;
                 yield return new HistogramShape(bar, null, false);
             }

@@ -24,7 +24,7 @@ internal static class ArrowHeadBuilder
     }
 
     /// <summary>Returns path segments for open/line arrowhead styles.
-    /// Returns <c>null</c> for styles handled by <see cref="BuildPolygon"/> or with no head.</summary>
+    /// Returns <c>null</c> for styles handled by <see cref="BuildPolygon(Point, double, double, ArrowStyle, double)"/> or with no head.</summary>
     public static IReadOnlyList<PathSegment>? BuildPath(Point tip, double ux, double uy,
         ArrowStyle style, double size = 8)
     {
@@ -42,7 +42,29 @@ internal static class ArrowHeadBuilder
         };
     }
 
+    /// <summary>Returns the polygon of a solid head at <paramref name="tip"/> for a line that comes from
+    /// <paramref name="from"/>, the direction worked out here. A line of no length has no direction and no head.</summary>
+    public static IReadOnlyList<Point> BuildPolygon(Point from, Point tip, ArrowStyle style, double size = 8) =>
+        Direction(from, tip) is { } unit ? BuildPolygon(tip, unit.X, unit.Y, style, size) : Array.Empty<Point>();
+
+    /// <summary>Returns the path of an open head at <paramref name="tip"/> for a line that comes from
+    /// <paramref name="from"/>; <c>null</c> for a style with another kind of head and for a line of no length.</summary>
+    public static IReadOnlyList<PathSegment>? BuildPath(Point from, Point tip, ArrowStyle style, double size = 8) =>
+        Direction(from, tip) is { } unit ? BuildPath(tip, unit.X, unit.Y, style, size) : null;
+
     // --- Private helpers ---
+
+    /// <summary>A direction of length one.</summary>
+    private readonly record struct Unit(double X, double Y);
+
+    /// <summary>The unit direction from <paramref name="from"/> to <paramref name="tip"/>, the one place it is worked out;
+    /// <see langword="null"/> when the two are the same point (or so close that there is no direction to speak of).</summary>
+    private static Unit? Direction(Point from, Point tip)
+    {
+        double dx = tip.X - from.X, dy = tip.Y - from.Y;
+        double length = Math.Sqrt(dx * dx + dy * dy);
+        return length < 1e-9 ? null : new Unit(dx / length, dy / length);
+    }
 
     private static IReadOnlyList<Point> BuildFancyArrow(Point tip,
         double ux, double uy, double nx, double ny, double len, double halfWidth)

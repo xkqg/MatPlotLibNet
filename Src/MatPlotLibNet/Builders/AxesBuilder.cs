@@ -112,6 +112,23 @@ public sealed class AxesBuilder
     /// <summary>Sets the Y-axis data range limits.</summary>
     public AxesBuilder SetYLim(double min, double max) { PrimaryYAxis.SetYLim(min, max); return this; }
 
+    /// <summary>Sets how much longer one unit of Y is than one unit of X on the page (<see cref="Axes.Aspect"/>): 1 makes a
+    /// square of data a square on the page. The plot is drawn in the largest rectangle of that shape that fits its cell,
+    /// centred in it.</summary>
+    /// <param name="aspect">The ratio, positive and finite; <see langword="null"/> lets the plot fill its cell again.</param>
+    /// <returns>This builder.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="aspect"/> is zero, negative, infinite or not a number.</exception>
+    public AxesBuilder SetAspect(double? aspect)
+    {
+        if (aspect is { } value && !(value > 0 && double.IsFinite(value)))
+        {
+            throw new ArgumentOutOfRangeException(nameof(aspect), aspect, "An aspect is a ratio of lengths: positive and finite.");
+        }
+
+        _axes.Aspect = aspect;
+        return this;
+    }
+
     /// <summary>Sets the Z-axis label (3D charts only).</summary>
     public AxesBuilder SetZLabel(string label) { _axes.ZAxis.Label = label; return this; }
 
@@ -824,6 +841,15 @@ public sealed class AxesBuilder
     public AxesBuilder StackPlot(double[] x, double[][] ySets, Action<StackedAreaSeries>? configure = null)
         => AddSeries(ax => ax.StackPlot(x, ySets), configure);
 
+    /// <summary>Adds a waffle chart to the axes: a grid of square cells (10 by 10 unless <c>configure</c> says otherwise) filled by
+    /// category in proportion to its share of the total, so "37 of every 100" is thirty-seven squares a reader can count.</summary>
+    /// <param name="categories">The categories' names.</param>
+    /// <param name="values">The size of each category, one per category; only the proportions matter.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>This builder.</returns>
+    public AxesBuilder Waffle(string[] categories, double[] values, Action<WaffleSeries>? configure = null)
+        => AddSeries(ax => ax.Waffle(categories, values), configure);
+
     /// <summary>Adds a pie series to the axes.</summary>
     public AxesBuilder Pie(double[] sizes, string[]? labels = null, Action<PieSeries>? configure = null)
         => AddSeries(ax => ax.Pie(sizes, labels), configure);
@@ -936,6 +962,14 @@ public sealed class AxesBuilder
     /// <summary>Adds a sunburst series to the axes.</summary>
     public AxesBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null)
         => AddSeries(ax => ax.Sunburst(root), configure);
+
+    /// <summary>Adds an icicle chart to the axes: the hierarchy under <paramref name="root"/> as rows of cells, one row for each
+    /// level, each cell as wide as its node's share of its parent's width.</summary>
+    /// <param name="root">The root of the hierarchy; it is not drawn, its children are the first row.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>This builder.</returns>
+    public AxesBuilder Icicle(TreeNode root, Action<IcicleSeries>? configure = null)
+        => AddSeries(ax => ax.Icicle(root), configure);
 
     /// <summary>Adds a dendrogram series to the axes.</summary>
     /// <param name="root">The root <see cref="TreeNode"/>. Internal nodes carry their merge
@@ -1116,6 +1150,17 @@ public sealed class AxesBuilder
     public AxesBuilder Candlestick(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null, Action<CandlestickSeries>? configure = null)
         => AddSeries(ax => ax.Candlestick(open, high, low, close, dateLabels), configure);
 
+    /// <summary>Adds a Point and Figure chart (close only) to the axes: the price as columns of boxes, Xs where it rose and Os
+    /// where it fell, with no axis for time.</summary>
+    /// <param name="prices">The closing prices, oldest first.</param>
+    /// <param name="boxSize">The price one box covers; a finite number above zero.</param>
+    /// <param name="reversal">How many boxes back from the last box drawn the price has to come to start a column the other
+    /// way; 1 or more, and 3 (the classic) unless said otherwise.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>This builder.</returns>
+    public AxesBuilder PointAndFigure(double[] prices, double boxSize, int reversal = 3, Action<PointAndFigureSeries>? configure = null)
+        => AddSeries(ax => ax.PointAndFigure(prices, boxSize, reversal), configure);
+
     /// <summary>Adds an error bar series to the axes.</summary>
     public AxesBuilder ErrorBar(double[] x, double[] y, double[] yErrorLow, double[] yErrorHigh, Action<ErrorBarSeries>? configure = null)
         => AddSeries(ax => ax.ErrorBar(x, y, yErrorLow, yErrorHigh), configure);
@@ -1127,6 +1172,16 @@ public sealed class AxesBuilder
     /// <summary>Adds a filled area (fill-between) series to the axes.</summary>
     public AxesBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null)
         => AddSeries(ax => ax.FillBetween(x, y, y2), configure);
+
+    /// <summary>Adds an area that lies down (matplotlib's <c>fill_betweenx</c>): at each position along Y, the fill runs between
+    /// two curves on X, or from X = 0 to <paramref name="x1"/> when there is no second curve.</summary>
+    /// <param name="y">The positions along the Y axis.</param>
+    /// <param name="x1">The first curve on the X axis, one value per position.</param>
+    /// <param name="x2">The second curve on the X axis, or <see langword="null"/> to fill from X = 0.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>This builder.</returns>
+    public AxesBuilder FillBetweenX(double[] y, double[] x1, double[]? x2 = null, Action<AreaSeries>? configure = null)
+        => AddSeries(ax => ax.FillBetweenX(y, x1, x2), configure);
 
     // --- v0.8.0 builder methods ---
 

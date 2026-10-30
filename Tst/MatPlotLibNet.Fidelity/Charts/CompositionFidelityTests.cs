@@ -20,7 +20,7 @@ public class CompositionFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 75, Ssim = 0.30, DeltaE = 140)]   // mathtext legend + thin lines + 2-axis layout; matplotlib's tight_layout(rect=[..,0.93]) reserves more for suptitle than ours, dropping SSIM (0.35 after y-tick fix made our render closer to matplotlib but shifted SSIM scoring)
+    [FidelityTolerance(Rms = 75, Ssim = 0.30, DeltaE = 85)]   // mathtext legend + thin lines + 2-axis layout; matplotlib's tight_layout(rect=[..,0.93]) reserves more for suptitle than ours, dropping SSIM (0.35 after y-tick fix made our render closer to matplotlib but shifted SSIM scoring)
     public void MathText_TwoSubplots_WithSupTitle_Legend_MatchesMatplotlib(string themeId)
     {
         var t = new double[500];

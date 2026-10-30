@@ -7,10 +7,28 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
+/// <summary>The data of an area in the terms of its drawing, whichever way it lies.</summary>
+/// <param name="Along">The positions along the axis the fill runs along: X for an upright fill, Y for one that lies down.</param>
+/// <param name="Across">The first curve, on the axis the fill is read on.</param>
+/// <param name="Second">The second curve on that axis, or <see langword="null"/> for a fill from zero.</param>
+internal readonly record struct AreaCurves(double[] Along, double[] Across, double[]? Second);
+
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
 public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, ITableNamedByAxes
 {
     public double[]? YData2 { get; set; }
+
+    /// <summary>Which way the fill lies: <see cref="BarOrientation.Vertical"/> (the default) fills between curves of Y over
+    /// X, <see cref="BarOrientation.Horizontal"/> between curves of X over Y, matplotlib's <c>fill_betweenx</c>. The data is
+    /// held in axis terms either way: <see cref="XYSeries.XData"/> is on the X axis and <see cref="XYSeries.YData"/> on the Y
+    /// axis, so a horizontal fill's positions are <see cref="XYSeries.YData"/>, its first curve <see cref="XYSeries.XData"/>
+    /// and its second <see cref="XData2"/>.</summary>
+    public BarOrientation Orientation { get; set; } = BarOrientation.Vertical;
+
+    /// <summary>The second curve of a horizontal fill (<see cref="Orientation"/>): where on the X axis the fill ends, at each
+    /// position of <see cref="XYSeries.YData"/>. <see langword="null"/> fills down to X = 0. A vertical fill uses
+    /// <see cref="YData2"/> and leaves this alone.</summary>
+    public double[]? XData2 { get; set; }
 
     public Color? Color { get; set; }
 
@@ -25,6 +43,13 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
     public Color? HatchColor { get; set; }
+
+    /// <summary>The colour the fill blends to at the tip of the area; <see langword="null"/> (the default) is a flat fill. The
+    /// fill runs in a straight line across the area from the series colour at its baseline (the zero line, or the mean height
+    /// of the lower curve) to this colour at the point of the top edge furthest from it, whichever way the axis runs. With a
+    /// <see cref="FillColor"/> that colour is the baseline's; the <see cref="Alpha"/> of the series applies to both colours
+    /// otherwise, a hatch is laid over the gradient, and the Maui backend, which paints no gradient, draws the flat fill.</summary>
+    public Color? GradientColor { get; set; }
 
     public Color? EdgeColor { get; set; }
 
@@ -57,17 +82,39 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
         // throw "Sequence contains no elements" — caught by RendererEdgeCaseTests.
         if (YData.Length == 0) return new DataRangeContribution(null, null, null, null);
 
+        // A horizontal fill is the vertical one on its side: measured as an upright fill (its positions along, its curves
+        // across) and put on its axes, so the two orientations cannot range differently.
+        bool horizontal = Orientation == BarOrientation.Horizontal;
+        var scale = horizontal ? context.XScale : context.YScale;
+        var curves = Curves;
+        double[] along = curves.Along, across = curves.Across;
+        double[]? second = curves.Second;
+        var upright = Upright(along, across, second, scale);
+        return horizontal ? upright.OnAxes(Orientation) : upright;
+    }
+
+    /// <summary>The data of the fill in the terms of its drawing: <see cref="AreaCurves.Along"/> is the axis the fill runs
+    /// along (X for an upright fill, Y for one that lies down), <see cref="AreaCurves.Across"/> the axis its first curve is
+    /// read on, <see cref="AreaCurves.Second"/> its second curve.</summary>
+    internal AreaCurves Curves => Orientation == BarOrientation.Horizontal
+        ? new AreaCurves(YData, XData, XData2)
+        : new AreaCurves(XData, YData, YData2);
+
+    /// <summary>The range of the fill as if it stood upright: <paramref name="along"/> on the axis it runs along,
+    /// <paramref name="across"/> and <paramref name="second"/> on the axis its curves are read on, which places them by
+    /// <paramref name="scale"/>.</summary>
+    private static DataRangeContribution Upright(double[] along, double[] across, double[]? second, AxisScale scale)
+    {
         // Both edges of the area: its top and its bottom, the second curve or the zero it is filled down to. Over what the Y
         // axis can place: a gap in the area (NaN) and an infinity are not part of its extent, and on a log axis, which has
         // no place for zero (the bottom is drawn at the plot's edge there), the range starts at the lowest value reached.
-        var scale = context.YScale;
-        bool toZero = YData2 is not { Length: > 0 };
+        bool toZero = second is not { Length: > 0 };
         var y = toZero
-            ? YData.DrawableRange(scale) is { } top ? top.Including(0, scale) : (Range1D?)null
-            : new[] { YData, YData2! }.DrawableRange(scale);
+            ? across.DrawableRange(scale) is { } top ? top.Including(0, scale) : (Range1D?)null
+            : new[] { across, second! }.DrawableRange(scale);
         // fill_between with y2=0 and non-negative y1: sticky floor
         double? stickyYMin = toZero && y is { Lo: >= 0 } ? 0 : null;
-        var x = XData.DrawableRange();
+        var x = along.DrawableRange();
         return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi,
             StickyXMin: x?.Lo, StickyXMax: x?.Hi, StickyYMin: stickyYMin);
     }
@@ -77,6 +124,9 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     {
         Type = "area",
         XData = XData, YData = YData, YData2 = YData2,
+        XData2 = XData2,
+        // Left out for the upright fill, so its golden stays byte-identical.
+        Orientation = Orientation == BarOrientation.Horizontal ? "horizontal" : null,
         Color = Color, Alpha = Alpha,
         LineStyle = LineStyle.ToString().ToLowerInvariant(),
         LineWidth = LineWidth,
@@ -85,6 +135,7 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
         // Null when unhatched, so an unhatched area emits no hatch bytes and its golden stays byte-identical.
         Hatch = Hatch != HatchPattern.None ? Hatch : null,
         HatchColor = HatchColor,
+        GradientColor = GradientColor,
         FillColor = FillColor,
         EdgeColor = EdgeColor,
         DrawStyle = StepMode.OrNullAtRest(DrawStyle.Default),
@@ -96,7 +147,13 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     /// <returns>The reconstructed series instance.</returns>
     internal static AreaSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.FillBetween(dto.XData ?? [], dto.YData ?? [], dto.YData2);
+        bool horizontal = string.Equals(dto.Orientation, "horizontal", StringComparison.OrdinalIgnoreCase);
+        var s = horizontal
+            ? axes.FillBetweenX(dto.YData ?? [], dto.XData ?? [], dto.XData2)
+            : axes.FillBetween(dto.XData ?? [], dto.YData ?? [], dto.YData2);
+        // Both second curves travel, whichever way the fill lies; the one that is not drawn is simply not used.
+        s.YData2 = dto.YData2;
+        s.XData2 = dto.XData2;
         s.Color = dto.Color;
         if (dto.Alpha.HasValue)
         {
@@ -119,6 +176,7 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
         }
 
         s.HatchColor = dto.HatchColor;
+        s.GradientColor = dto.GradientColor;
         s.FillColor = dto.FillColor;
         s.EdgeColor = dto.EdgeColor;
         s.StepMode = dto.DrawStyle ?? DrawStyle.Default;
@@ -129,7 +187,9 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     /// <inheritdoc />
     /// <remarks>A fill between two lines carries both of them; a fill to the baseline carries one.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        YData2 is { Length: > 0 } second
+        Orientation == BarOrientation.Horizontal
+            ? HorizontalTable()
+            : YData2 is { Length: > 0 } second
             ? ChartDataTable.FromNumberColumns(
                 [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("y2", Axis: DataAxis.Y)], [XData, YData, second])
             : base.ToDataTable();
@@ -145,6 +205,9 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     /// cannot name is no columns. Any other area tables as <see cref="ToDataTable()"/> does.</para></remarks>
     ChartDataTable? ITableNamedByAxes.ToDataTable(AxisNames names)
     {
+        // The names of the axes are read off the upright fill; a fill that lies down is tabled as it is.
+        if (Orientation == BarOrientation.Horizontal) return ToDataTable();
+
         if (ColumnRuns(names) is { } columns)
         {
             var rows = columns.Select(column => (IReadOnlyList<DataCell>)
@@ -161,6 +224,12 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
         double[] heights = [.. YData.Zip(YData2!, (top, bottom) => top - bottom)];
         return ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new(Label ?? name)], [XData, heights]);
     }
+
+    /// <summary>The table of a horizontal fill: the positions along Y, then the curve (or curves) on X.</summary>
+    private ChartDataTable HorizontalTable() => XData2 is { Length: > 0 } second
+        ? ChartDataTable.FromNumberColumns(
+            [new("y", Axis: DataAxis.Y), new(Label ?? "x1", Axis: DataAxis.X), new("x2", Axis: DataAxis.X)], [YData, XData, second])
+        : ChartDataTable.FromNumberColumns([new("y", Axis: DataAxis.Y), new(Label ?? "x", Axis: DataAxis.X)], [YData, XData]);
 
     /// <summary>One column of an area drawn as columns: where it stands and how high the fill is in it.</summary>
     private readonly record struct ColumnRun(double Centre, double Left, double Right, double Height);

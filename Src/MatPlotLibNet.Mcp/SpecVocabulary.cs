@@ -114,10 +114,12 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.Series, "conditionSeverity")] = Names<OpsSeverity>(),
         [(SpecNodeKind.Series, "conditionVisibility")] = Names<OpsVisibility>(),
         [(SpecNodeKind.Series, "stateSegmentHatches")] = Names<HatchPattern>(),
+        [(SpecNodeKind.Series, "columnAlignments")] = Names<TextAlignment>(),
         [(SpecNodeKind.Series, "stateSegmentSeverities")] = Names<OpsSeverity>(),
         [(SpecNodeKind.Series, "stateSegmentVisibilities")] = Names<OpsVisibility>(),
         // What an axes draws besides its series: enum-typed on the wire, refused here with what is accepted.
         [(SpecNodeKind.Axes, "titleLoc")] = Names<TitleLocation>(),
+        [(SpecNodeKind.Axes, "coordinateSystem")] = Names<CoordinateSystem>(),
         [(SpecNodeKind.Legend, "position")] = Names<LegendPosition>(),
         [(SpecNodeKind.ColorBar, "extend")] = Names<ColorBarExtend>(),
         [(SpecNodeKind.ColorBar, "orientation")] = Names<ColorBarOrientation>(),
@@ -125,6 +127,7 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.Grid, "which")] = Names<GridWhich>(),
         [(SpecNodeKind.Grid, "axis")] = Names<GridAxis>(),
         [(SpecNodeKind.Spine, "lineStyle")] = Names<LineStyle>(),
+        [(SpecNodeKind.Spine, "position")] = Names<SpinePosition>(),
         [(SpecNodeKind.Ticks, "direction")] = Names<TickDirection>(),
         [(SpecNodeKind.TextStyle, "fontWeight")] = Names<FontWeight>(),
         [(SpecNodeKind.TextStyle, "fontSlant")] = Names<FontSlant>(),
@@ -155,7 +158,7 @@ internal sealed class SpecVocabulary
         {
             return seriesType switch
             {
-                "bar" or "count" => BarOrientations,
+                "bar" or "count" or "area" => BarOrientations,
                 "bulletgraph" => LineOrientations,
                 _ => null,
             };

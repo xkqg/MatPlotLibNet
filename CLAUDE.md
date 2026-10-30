@@ -38,10 +38,10 @@ mcr.microsoft.com/dotnet/sdk:10.0-noble bash -c "<script>"`, started from PowerS
 The script installs `libfontconfig1 libfreetype6 git ca-certificates` (and `python3` for the Pages job), `git clone`s both
 mounts beside each other (the committed state with LF endings, as on the runner, not the CRLF working copy), points
 `origin` at the GitHub URL (without it SourceLink warns and the build is not 0 warnings), then runs the steps of `ci.yml`
-(restore, build `MatPlotLibNet.CI.slnf`, the 12 suites with `dotnet run --no-build`) and, for `pages.yml`,
+(restore, build `MatPlotLibNet.CI.slnf`, the 13 suites with `dotnet run --no-build`) and, for `pages.yml`,
 `dotnet tool install -g docfx`, `docfx metadata docs/docfx.json` and `docfx build docs/docfx.json` with
-`DOTNET_ROLL_FORWARD=Major` (the image has the 10 runtime only). Measured on the 1.24.0 tree: 0 warnings, 0 errors,
-all 12 suites green, docfx 0 errors.
+`DOTNET_ROLL_FORWARD=Major` (the image has the 10 runtime only). Measured on the 1.26.0 tree, on the noble and the resolute image: 0 warnings, 0 errors,
+all 13 suites green, docfx 0 errors.
 
 `tools/coverage/thresholds.json` carries no exemptions by policy (`90/90`, `exemptions: {}`); a class that is
 legitimately untestable gets `[ExcludeFromCodeCoverage]` at the source instead, so it drops out of the cobertura
@@ -52,15 +52,14 @@ never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: pre
 
 ## The two solution views, and why a green build can still be red
 
-- `MatPlotLibNet.slnx` — the working set: the 15 packages, 15 test projects (incl. `Wpf`, `Uno`, `Maui`, which CI
-  does not run), 7 samples, the benchmarks. It does **not** hold the three npm binding folders in `Src/`, nor
-  `Tst/MatPlotLibNet.Fidelity` — a matplotlib-reference image-diff suite that no solution, workflow or coverage
-  run builds or runs (it builds clean on its own: `dotnet build` on its csproj, 0 warnings). Nor does it hold
+- `MatPlotLibNet.slnx` — the working set: the 15 packages, 16 test projects (incl. `Wpf`, `Uno`, `Maui`, which CI
+  does not run, and `Fidelity`, which it does), 7 samples, the benchmarks. It does **not** hold the three npm binding
+  folders in `Src/`. Nor does it hold
   `Samples/MatPlotLibNet.Playground`, `.Samples.AspNetCore` or `.Samples.Wpf` — three more csproj with no build
   verdict from slnx or CI.slnf; Playground still gets one, because `MatPlotLibNet.Tests.csproj` references it and
   Pages publishes it.
-- `MatPlotLibNet.CI.slnf` — a **subset** (23 projects: 11 packages, their 11 test projects and the wiki suite). CI
-  builds this and runs **12** suites. Wpf, Uno and Maui are outside it (Windows or a workload), and so is the frozen
+- `MatPlotLibNet.CI.slnf` — a **subset** (24 projects: 11 packages, their 11 test projects, the wiki suite and the Fidelity
+  suite). CI builds this and runs **13** suites. Wpf, Uno and Maui are outside it (Windows or a workload), and so is the frozen
   Notebooks.
 - **The wiki is compiled by a test.** `Tst/MatPlotLibNet.Wiki` compiles every `csharp` block of the wiki against
   the packages as built (warnings fail it) and holds the shape of the wiki's `Examples.md`. It reads the wiki

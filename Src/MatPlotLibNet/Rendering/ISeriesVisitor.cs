@@ -289,4 +289,22 @@ public interface ISeriesVisitor
     /// <summary>Renders a bullet graph (measure, target tick, qualitative bands).
     /// Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(BulletGraphSeries series, RenderArea area) { }
+
+    // ── v1.26 Waffle (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a waffle chart (a grid of square cells filled by category).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(WaffleSeries series, RenderArea area) { }
+
+    // ── v1.26 Point and Figure (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a Point and Figure chart (columns of Xs and Os).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(PointAndFigureSeries series, RenderArea area) { }
+
+    // ── v1.26 Icicle (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders an icicle chart (a hierarchy as rows of cells).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(IcicleSeries series, RenderArea area) { }
 }

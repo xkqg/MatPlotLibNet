@@ -32,7 +32,7 @@ public class BarLabelFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]   // AA grey text vs matplotlib black
+    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]   // AA grey text vs matplotlib black
     public void BarLabels_PositiveAndNegative_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — positive and negative", BarOrientation.Vertical, false), "bar_label_signs");
 
@@ -40,7 +40,7 @@ public class BarLabelFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]
+    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]
     public void BarLabels_OnABackwardsYAxis_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — backwards Y axis", BarOrientation.Vertical, true), "bar_label_inverted");
 
@@ -48,7 +48,7 @@ public class BarLabelFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]
+    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]
     public void BarLabels_OnHorizontalBars_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — horizontal bars", BarOrientation.Horizontal, false), "bar_label_horizontal");
 
@@ -56,7 +56,7 @@ public class BarLabelFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]
+    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]
     public void BarLabels_OnHorizontalBarsOnABackwardsAxis_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — horizontal bars, backwards axis", BarOrientation.Horizontal, true), "bar_label_horizontal_inverted");
 }

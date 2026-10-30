@@ -114,6 +114,26 @@ public class StackedBarRenderStateTests
         Assert.Null(bar.StackBaseline);
     }
 
+    /// <summary>A bar with a foot of its own (a StackBaseline the user sets) is the one rule for a floating bar: it is not in
+    /// the stack. It keeps its baseline, receives no stacked foot, and the bars after it stand on the stack without it.</summary>
+    [Fact]
+    public void AFloatingBar_KeepsItsBaseline_InAStackedAxes()
+    {
+        var figure = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax
+            .Bar(["A", "B"], [1.0, 2.0])
+            .Bar(["A", "B"], [3.0, 4.0])
+            .Bar(["A", "B"], [2.0, 2.0], s => s.StackBaseline = [10, 20])
+            .Bar(["A", "B"], [5.0, 5.0])
+            .SetBarMode(BarMode.Stacked)).Build();
+
+        figure.ToSvg();
+
+        var bars = figure.SubPlots[0].Series.OfType<BarSeries>().ToArray();
+        Assert.Null(bars[2].StackedBottoms);
+        Assert.Equal([10.0, 20.0], bars[2].Bottoms!);
+        Assert.Equal([4.0, 6.0], bars[3].StackedBottoms!);
+    }
+
     private static string[] Rects(string svg) =>
         [.. System.Text.RegularExpressions.Regex.Matches(svg, "<rect[^>]*>").Select(m => m.Value).Where(r => !r.Contains("width=\"400\"", StringComparison.Ordinal))];
 

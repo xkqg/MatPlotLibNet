@@ -42,6 +42,14 @@ public sealed record SaveOptions
     /// number outside 0 to 15 is refused. Used by an SVG only; a PNG, a PDF page and JSON have no SVG numbers.</summary>
     public int? SvgDecimalPrecision { get; init; }
 
+    /// <summary>A prefix put in front of every id an SVG defines and in front of every reference to one (<c>id</c>,
+    /// <c>url(#id)</c>, <c>href="#id"</c> and the <c>aria-labelledby</c> and <c>aria-describedby</c> lists), so several
+    /// figures can share one HTML page without sharing an id: give each figure its own, <c>"revenue-"</c> and
+    /// <c>"costs-"</c>. A figure's own subplots never share an id whatever this is. <see langword="null"/> or an empty
+    /// string, the default, changes nothing. The prefix has to be a valid XML name (a letter or underscore first, then
+    /// letters, digits, <c>-</c>, <c>_</c> or <c>.</c>) and anything else is refused. Used by an SVG only.</summary>
+    public string? SvgIdPrefix { get; init; }
+
     /// <summary>The title of the document. In an SVG it is the Dublin Core title in the <c>metadata</c> element, not the
     /// <c>title</c> element, which stays the accessible name of the chart; in a PDF it is the Title of the document
     /// information; in a PNG it is a text chunk with the keyword Title. Not used by JSON. <see langword="null"/> or an

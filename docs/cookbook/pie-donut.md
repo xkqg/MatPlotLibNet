@@ -162,3 +162,30 @@ Plt.Create()
 ```
 
 ![Funnel chart](../images/funnel_chart.png)
+
+## Waffle chart
+
+`Waffle(categories, values)` counts a share in squares: a grid of ten by ten cells filled by category in proportion to its
+share, so "46 of every 100" is forty-six cells you can count.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+
+Plt.Create()
+    .WithTitle("Households by heating")
+    .WithSize(620, 420)
+    .TightLayout()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Waffle(["Gas", "Electric", "Heat pump", "Other"], [46, 31, 17, 6])
+        .WithLegend(LegendPosition.OutsideRight))
+    .Save("heating_waffle.svg");
+```
+
+![Waffle chart of households by heating](../images/heating_waffle.png)
+
+Each category takes the whole number of cells its share comes to, and the cells left over go one each to the categories
+whose shares left the largest remainders (a tie goes to the category that comes first), so the cells always add up to the
+grid. The cells fill from the bottom-left corner, row by row from the left, category by category in the order given, and
+they are square at any figure size. `Rows` and `Columns` change the grid, `CellGap` the space between cells and `Colors`
+the colour of each category. A category with no cell keeps its legend entry and its row in the table.

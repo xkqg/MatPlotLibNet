@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -33,6 +35,25 @@ public class SunburstSeriesTests
     {
         var series = new SunburstSeries(SampleTree);
         Assert.Equal(0.0, series.InnerRadius);
+    }
+
+    /// <summary>A wedge wears the colour its node names; a node that names none takes the next colour of the theme's cycle.</summary>
+    [Fact]
+    public void AWedge_WearsTheColourItsNodeNames_AndTheCycleOtherwise()
+    {
+        var named = Color.FromHex("#123456");
+        var root = new TreeNode
+        {
+            Label = "Root",
+            Children = [new TreeNode { Label = "A", Value = 30, Color = named }, new TreeNode { Label = "B", Value = 70 }],
+        };
+        var recording = new Tests.Rendering.RecordingRenderContext();
+
+        new ChartRenderer().Render(Plt.Create().WithSize(400, 400).AddSubPlot(1, 1, 1, ax => ax.Sunburst(root)).Build(), recording);
+
+        var fills = recording.OfKind("DrawPath").Select(call => (Color?)((dynamic)call.Args!).fill).ToList();
+        Assert.Contains(named, fills.OfType<Color>());
+        Assert.Contains(fills, fill => fill is { } colour && colour != named);
     }
 
     /// <summary>Verifies that ShowLabels defaults to true.</summary>

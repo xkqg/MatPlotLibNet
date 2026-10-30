@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"streaming_candlestick","open":[10],"high":[12],"low":[9],"close":[11],"capacity":8}]}]}

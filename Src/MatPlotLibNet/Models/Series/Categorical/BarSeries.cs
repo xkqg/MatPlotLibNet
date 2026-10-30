@@ -39,9 +39,10 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     public double BarWidth { get; set; } = 0.8;
 
     /// <summary>Where each bar starts: bar <c>i</c> is drawn from <c>StackBaseline[i]</c> up (down, for a negative
-    /// value), the way matplotlib's <c>bottom=</c> lifts a bar. <see langword="null"/> starts every bar at zero. A
-    /// stacked chart (<see cref="BarMode.Stacked"/>) works out its own stacking each time it is drawn and leaves this
-    /// value as it was set.</summary>
+    /// value), the way matplotlib's <c>bottom=</c> lifts a bar. <see langword="null"/> starts every bar at zero. A series with
+    /// a foot of its own is a floating bar and is no layer of a stacked chart (<see cref="BarMode.Stacked"/>): the other
+    /// series stack among themselves, each time the chart is drawn, and this value stays as it was set, so a Renko brick or an
+    /// event on a calendar stands on its own foot under any bar mode.</summary>
     public double[]? StackBaseline { get; set; }
 
     public bool ShowLabels { get; set; }
@@ -60,6 +61,13 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
     public Color? HatchColor { get; set; }
+
+    /// <summary>The colour the fill blends to at the tip of each bar; <see langword="null"/> (the default) is a flat fill. The
+    /// fill of every bar runs in a straight line from the series colour at the bar's foot to this colour at its end, which is
+    /// the top of a bar that points up and the bottom of one that points down, whichever way the axis runs. A bar series'
+    /// <see cref="Alpha"/> applies to both colours, a hatch is laid over the gradient, and the Maui backend, which paints no
+    /// gradient, draws the series colour.</summary>
+    public Color? GradientColor { get; set; }
 
     private const double RestingAlpha = 1.0;
     private const double RestingLineWidth = 0.0;
@@ -166,7 +174,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         }
 
         var scale = Orientation.ValueScale(context);
-        if (context.BarMode != BarMode.Stacked && StackBaseline is { } bottoms)
+        if (StackBaseline is { } bottoms)
         {
             return RangeOnBottoms(bottoms, xMin, xMax, scale);
         }
@@ -176,7 +184,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         // missing bar (NaN) and an infinity are left out, as the renderer leaves out the bar, and so is an edge the value
         // axis cannot place: on a log axis, which has no place for zero and clips the feet to the edge where it begins,
         // the range starts at the lowest end, as matplotlib's does (the smallest positive value, its minpos).
-        var reached = context.BarMode == BarMode.Stacked ? context.AllSeries.OfType<IStackable>().ToList().StackedEnds() : [Values];
+        var reached = context.BarMode == BarMode.Stacked ? context.AllSeries.StackLayers().StackedEnds() : [Values];
         if (reached.DrawableRange(scale) is not { } ends)
         {
             return new(xMin, xMax, null, null, StickyXMin: xMin, StickyXMax: xMax);
@@ -218,6 +226,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         // Null when unhatched, so an unhatched bar emits no hatch bytes and its golden stays byte-identical.
         Hatch = Hatch != HatchPattern.None ? Hatch : null,
         HatchColor = HatchColor,
+        GradientColor = GradientColor,
         EdgeColor = EdgeColor,
         LineWidth = LineWidth.OrNullAtRest(RestingLineWidth),
         Alpha = Alpha.OrNullAtRest(RestingAlpha),
@@ -257,6 +266,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         }
 
         s.HatchColor = dto.HatchColor;
+        s.GradientColor = dto.GradientColor;
         dto.Orientation.ApplyEnum<BarOrientation>(v => s.Orientation = v);
         return s;
     }
@@ -272,11 +282,24 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
 
 
     /// <inheritdoc />
-    /// <remarks>The categories as text, then the values under the series' own label.</remarks>
+    /// <remarks>The categories as text, then the values under the series' own label. A bar with a foot of its own
+    /// (<see cref="StackBaseline"/>) is an interval, so its table is the category and the two ends of the interval,
+    /// <c>from</c> (the foot, zero where the foot list is shorter) and <c>to</c> (the foot plus the value).</remarks>
     public override ChartDataTable? ToDataTable()
     {
         int count = Math.Min(Categories.Length, Values.Length);
         var rows = new IReadOnlyList<DataCell>[count];
+        if (StackBaseline is { } feet)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                double foot = i < feet.Length ? feet[i] : 0;
+                rows[i] = [DataCell.FromText(Categories[i]), DataCell.FromNumber(foot), DataCell.FromNumber(foot + Values[i])];
+            }
+
+            return new ChartDataTable(null, [new("category", DataColumnKind.Text), new("from"), new("to")], rows);
+        }
+
         for (int i = 0; i < count; i++)
         {
             rows[i] = [DataCell.FromText(Categories[i]), DataCell.FromNumber(Values[i])];

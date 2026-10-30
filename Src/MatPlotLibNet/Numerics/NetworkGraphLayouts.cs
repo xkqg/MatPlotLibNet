@@ -11,7 +11,7 @@ namespace MatPlotLibNet.Numerics;
 /// array with positioned <see cref="GraphNode.X"/> and <see cref="GraphNode.Y"/>
 /// coordinates. All other node properties (Id, Label, ColorScalar, SizeScalar) are
 /// preserved verbatim.</summary>
-/// <remarks>Four layouts: <see cref="ApplyManual"/>, <see cref="ApplyCircular"/> and
+/// <remarks>Five layouts: <see cref="ApplyManual"/>, <see cref="ApplyCircular"/>, <see cref="ApplyArc"/> and
 /// <see cref="ApplyHierarchical"/> are deterministic arithmetic on the nodes; <see cref="ApplyForceDirected"/>
 /// runs a spring embedder from seeded random positions, so it is deterministic too for a given seed.
 /// <see cref="Apply"/> dispatches on <see cref="GraphLayout"/>.</remarks>
@@ -43,6 +43,44 @@ internal static class NetworkGraphLayouts
             result[i] = nodes[i] with { X = Math.Cos(angle), Y = Math.Sin(angle) };
         }
         return result;
+    }
+
+    /// <summary>An arc diagram's row: node <c>i</c> lands at <c>(i, 0)</c>, in the order the nodes are stored; the edges and the
+    /// coordinates you supplied move nothing. The edges are the arcs the renderer draws over the row.</summary>
+    internal static GraphNode[] ApplyArc(IReadOnlyList<GraphNode> nodes)
+    {
+        var result = new GraphNode[nodes.Count];
+        for (int i = 0; i < result.Length; i++) result[i] = nodes[i] with { X = i, Y = 0 };
+        return result;
+    }
+
+    /// <summary>How high an arc rises over the row: half the distance between its two nodes, so the arc is a half circle when
+    /// the plot has an aspect of one. The one rule the renderer draws an arc by and the series states its data range by.</summary>
+    /// <param name="xFrom">Where the arc's first node stands along the row.</param>
+    /// <param name="xTo">Where the arc's second node stands.</param>
+    /// <returns>The radius of the semicircle, in data units.</returns>
+    internal static double ArcRadius(double xFrom, double xTo) => Math.Abs(xTo - xFrom) / 2;
+
+    /// <summary>The height of the highest arc of an arc diagram: the radius of the longest edge between two different nodes. A
+    /// self-loop has no arc and an edge to a node that is not there is not drawn, so neither counts.</summary>
+    /// <param name="positioned">The nodes, already laid out in a row.</param>
+    /// <param name="edges">The graph's edges.</param>
+    /// <returns>The height the arcs reach above the row; 0 when there is no arc.</returns>
+    internal static double ArcHeight(IReadOnlyList<GraphNode> positioned, IReadOnlyList<GraphEdge> edges)
+    {
+        var index = new Dictionary<string, int>(positioned.Count);
+        for (int i = 0; i < positioned.Count; i++) index[positioned[i].Id] = i;
+
+        double height = 0;
+        foreach (var edge in edges)
+        {
+            if (index.TryGetValue(edge.From, out int u) && index.TryGetValue(edge.To, out int v) && u != v)
+            {
+                height = Math.Max(height, ArcRadius(positioned[u].X, positioned[v].X));
+            }
+        }
+
+        return height;
     }
 
     /// <summary>BFS top-down layering. Node 0 is the root (depth 0); each edge advances
@@ -267,6 +305,7 @@ internal static class NetworkGraphLayouts
         GraphLayout.Circular      => ApplyCircular(nodes),
         GraphLayout.Hierarchical  => ApplyHierarchical(nodes, edges),
         GraphLayout.ForceDirected => ApplyForceDirected(nodes, edges, seed, iterations, convergenceThreshold),
+        GraphLayout.Arc           => ApplyArc(nodes),
         _                         => ApplyManual(nodes),
     };
 }

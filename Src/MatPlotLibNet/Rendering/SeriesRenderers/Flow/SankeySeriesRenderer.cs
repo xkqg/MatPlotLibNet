@@ -132,26 +132,18 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
             Ctx.SetNextElementData("sankey-link-source", link.SourceIndex.ToString(culture));
             Ctx.SetNextElementData("sankey-link-target", link.TargetIndex.ToString(culture));
 
-            bool drewGradient = false;
-            if (series.LinkColorMode == SankeyLinkColorMode.Gradient && Ctx is SvgRenderContext svg)
+            var fromAlpha = ApplyAlpha(srcColor, series.LinkAlpha);
+            if (series.LinkColorMode == SankeyLinkColorMode.Gradient)
             {
-                var fromAlpha = ApplyAlpha(srcColor, series.LinkAlpha);
+                // The blend runs from source to target along the flow direction, a property of the fill like a hatch
+                // is, so every backend that can paint a gradient (SVG, PNG, PDF) paints it.
                 var toAlpha = ApplyAlpha(tgtColor, series.LinkAlpha);
-                // Gradient axis runs from source to target along the flow direction.
-                var gradStart = P(srcPrimary, srcCrossPos);
-                var gradEnd = P(tgtPrimary, tgtCrossPos);
-                string gradId = svg.DefineLinearGradient(fromAlpha, toAlpha,
-                    gradStart.X, gradStart.Y, gradEnd.X, gradEnd.Y);
-                svg.DrawPathWithGradientFill(segments, gradId, null, 0);
-                drewGradient = true;
+                var blend = new LinearGradient(P(srcPrimary, srcCrossPos), P(tgtPrimary, tgtCrossPos), fromAlpha, toAlpha);
+                Ctx.DrawPath(segments, new ShapeStyle(fromAlpha, null, 0) { Gradient = blend });
             }
-            if (!drewGradient)
+            else
             {
-                var fillColor = series.LinkColorMode switch
-                {
-                    SankeyLinkColorMode.Target => ApplyAlpha(tgtColor, series.LinkAlpha),
-                    _ => ApplyAlpha(srcColor, series.LinkAlpha),
-                };
+                var fillColor = series.LinkColorMode == SankeyLinkColorMode.Target ? ApplyAlpha(tgtColor, series.LinkAlpha) : fromAlpha;
                 Ctx.DrawPath(segments, new ShapeStyle(fillColor, null, 0));
             }
 

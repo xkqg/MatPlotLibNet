@@ -107,5 +107,10 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
 
     // ── the last two series types that were outside the all-series list ──
     public void Visit(TreeGridSeries series, RenderArea area) => LastVisited = nameof(TreeGridSeries);
+
+    /// <inheritdoc />
+    public void Visit(WaffleSeries series, RenderArea area) => LastVisited = nameof(WaffleSeries);
+    public void Visit(PointAndFigureSeries series, RenderArea area) => LastVisited = nameof(PointAndFigureSeries);
+    public void Visit(IcicleSeries series, RenderArea area) => LastVisited = nameof(IcicleSeries);
     public void Visit(RelativeRotationSeries series, RenderArea area) => LastVisited = nameof(RelativeRotationSeries);
 }

@@ -358,6 +358,70 @@ public static class XYAxesExtensions
             return axes.SetYTickLocator(new FixedLocator([]));
         }
 
+        /// <summary>Draws a connected scatter plot: a marker on every point and an arrow from each point to the next, in the
+        /// order the points are given, so the path a pair of values takes over time (the order is the time) can be followed, not
+        /// only where it has been.
+        /// <para>The chart is two series in one colour of the theme's cycle: a <see cref="ScatterSeries"/> for the markers and a
+        /// <see cref="QuiverSeries"/> for the arrows, whose shaft is the segment between two points and whose head stands on the
+        /// next point. Each arrow is the step to the next point at a scale of one, so its head lands exactly on that point, and
+        /// its head is drawn in the pixels of the picture, so it points along the segment as you see it on a plot that is wider
+        /// than it is tall, not along the segment of the data. A head is a tenth of its arrow long.</para>
+        /// <para>A missing value (NaN) leaves out its marker and the arrows that run into it and out of it; two points on top of
+        /// one another leave an arrow with no head. The verb sets no axis limits.</para>
+        /// <para>The chart is its parts: written to JSON it is the scatter and the quiver, and read back it draws the same
+        /// picture. It is not laid out again; change the points and call the verb again.</para></summary>
+        /// <param name="x">The X position of each point, in the order the path visits them.</param>
+        /// <param name="y">The Y position of each point, one per X position.</param>
+        /// <param name="configure">Optional styling of the parts, run once after the verb has built them, so what it sets wins:
+        /// the colour or the width of the arrows, the size or the shape of the markers, a label for the legend.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="x"/> or <paramref name="y"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length.</exception>
+        /// <example>
+        /// <code>
+        /// double[] unemployment = [4.0, 4.4, 5.8, 7.7, 9.3, 9.6, 8.9];
+        /// double[] inflation = [2.4, 1.6, 2.7, 0.1, 2.7, 1.5, 3.0];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Unemployment and inflation")
+        ///     .WithSize(700, 450)
+        ///     .AddSubPlot(1, 1, 1, ax => ax.ConnectedScatter(unemployment, inflation))
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder ConnectedScatter(double[] x, double[] y, Action<ConnectedScatterParts>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+            ArgumentNullException.ThrowIfNull(x);
+            ArgumentNullException.ThrowIfNull(y);
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException($"x has {x.Length} values and y has {y.Length}; there must be one y per x.", nameof(y));
+            }
+
+            // The step from each point to the next, in data units; a quiver at a scale of one lands its head on the next point.
+            int steps = Math.Max(0, x.Length - 1);
+            double[] u = new double[steps], v = new double[steps];
+            for (int i = 0; i < steps; i++)
+            {
+                u[i] = x[i + 1] - x[i];
+                v[i] = y[i + 1] - y[i];
+            }
+
+            int colorGroup = axes.NextColorGroup();
+            var arrows = new QuiverSeries(x[..steps], y[..steps], u, v) { Scale = 1, ArrowHeadSize = 0.1 };
+            arrows.ColorGroup = colorGroup;
+            axes.AddSeries(arrows);
+
+            var points = new ScatterSeries(x, y);
+            points.ColorGroup = colorGroup;
+            axes.AddSeries(points);
+
+            configure?.Invoke(new ConnectedScatterParts(points, arrows));
+            return axes;
+        }
+
         /// <summary>Draws a horizon chart: one series folded into <paramref name="bands"/> bands of the same hue and
         /// increasing depth, so a tall value reads as a short, deeply-coloured band instead of a line that runs off the
         /// top of a short plot — a way to show a series with a wide range of values in a strip a few dozen pixels tall.

@@ -281,9 +281,9 @@ everywhere.
 A day's cell holds the sum of the values given for it, whatever their time of day. A day without a value is blank:
 transparent, or the colour map's `BadColor` when it has one, as above. Under a map that starts at white, a blank
 day and a zero look alike without it. A zero is a value and wears the bottom of the scale. The chart is one heatmap
-series with a colour bar as its key; the last argument styles it. The verb sets no limits and no aspect: the cells
-fill the plot, so their shape follows the figure. A short, wide figure such as 1100 × 300 reads closest to the
-familiar shape.
+series with a colour bar as its key; the last argument styles it. The verb sets no limits, and it sets an aspect of one: the
+cells are square at any figure size, and the plot is the largest rectangle of the calendar's shape that fits. A short,
+wide figure such as 1100 × 300 gives it the most room.
 
 ## Spy plot: where a matrix is not zero
 
@@ -325,5 +325,58 @@ and last row and column, so a marker on an edge cell is whole. The ticks are who
 intervals across. The chart is one scatter series of square markers; the last argument styles it.
 
 A marker is a size in points, not in cells, so a larger matrix has the same markers on a finer grid: lower
-`MarkerSize` for a large matrix, or the markers merge. The cells are square only on a figure with the matrix'
-proportions; the verb sets no aspect.
+`MarkerSize` for a large matrix, or the markers merge. The cells are square at any figure size: the verb sets an
+aspect of one, so the plot is the largest rectangle of the matrix' shape that fits.
+
+## Calendar of events
+
+`CalendarEvents(dates, kinds)` lays the days from the earliest event to the latest out as `CalendarHeatmap` does, every
+day a cell in the theme's neutral grey, and puts a mark inside the cell of each event's day.
+
+```csharp
+DateTime[] days =
+[
+    new(2025, 3, 3), new(2025, 3, 3), new(2025, 3, 12), new(2025, 3, 19), new(2025, 4, 1),
+    new(2025, 4, 1), new(2025, 4, 9), new(2025, 4, 22), new(2025, 5, 6),
+];
+string[] kinds = ["deploy", "incident", "deploy", "deploy", "deploy", "incident", "incident", "deploy", "deploy"];
+
+Plt.Create()
+    .WithTitle("Releases and incidents")
+    .WithSize(900, 300)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .CalendarEvents(days, kinds)
+        .WithLegend())
+    .Save("calendar_events.svg");
+```
+
+![Calendar of events](../images/calendar_events.png)
+
+Events on one day stand side by side in the order given. The kinds take the theme's colours in the order they first appear
+and are the legend's entries. The callback receives `CalendarEventsParts`, the days and one bar series for each kind, and the
+plot has an aspect of one, so the cells are square.
+
+## Matrix show
+
+`MatShow(matrix)` draws a matrix as square cells, the first row on top, the columns and rows numbered from 0, with a colour
+bar: matplotlib's `matshow`.
+
+```csharp
+var correlation = new double[,]
+{
+    { 1.0, 0.8, 0.1, -0.4 },
+    { 0.8, 1.0, -0.3, -0.2 },
+    { 0.1, -0.3, 1.0, 0.6 },
+    { -0.4, -0.2, 0.6, 1.0 },
+};
+
+Plt.Create()
+    .WithTitle("Correlation")
+    .WithSize(520, 520)
+    .AddSubPlot(1, 1, 1, ax => ax.MatShow(correlation))
+    .Save("matshow_correlation.svg");
+```
+
+![A correlation matrix as square cells](../images/matshow_correlation.png)
+
+The last argument styles the heatmap series. The cells are square at any figure size, since the verb sets an aspect of one.

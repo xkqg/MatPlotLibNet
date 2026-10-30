@@ -12,7 +12,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Mcp</PackageId>
-    <Version>1.25.0</Version>
+    <Version>1.26.0</Version>
     <Description>MCP (Model Context Protocol) stdio server for MatPlotLibNet. An AI agent renders the library's chart types to PNG, SVG or PDF from a JSON spec, reads the chart's data back as a markdown table, lists the chart types and reads the spec schema — no browser, no service.</Description>
     <PackageTags>matplotlib;mcp;model-context-protocol;ai;agent;charting;plotting;visualization;stdio;plot</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,19 +27,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
     <PackageReference Include="ModelContextProtocol" Version="2.3.0" />
-    <!-- The managed SkiaSharp package carries no native binary of its own: each platform's libSkiaSharp comes
-         from its own RID package. A library can leave that choice to the application that hosts it, but this
-         package IS the application — a tool a host resolves and starts on whatever machine it lands on — so it
-         has to bring all three. Without the Linux one, every render on a Linux host dies with
-         "Unable to load shared library 'libSkiaSharp'". Same set, same floating range, as the Skia test project. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.*" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.*" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.*" />
-    <!-- libHarfBuzzSharp for the text shaper, the same reasoning. Pinned exactly: HarfBuzzSharp has no 3.x line
-         and 8.3.1.5 is what SkiaSharp.HarfBuzz 3.119 was built against. -->
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.5" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="8.3.1.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,5 +61,11 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
   </ItemGroup>
+
+  <!-- A library can leave the choice of native libraries to the application that hosts it, but this package IS the
+       application — a tool a host resolves and starts on whatever machine it lands on — so it brings all of them
+       (SkiaNativeAssets.props). Without the Linux one every render on a Linux host dies with
+       "Unable to load shared library 'libSkiaSharp'". -->
+  <Import Project="..\..\SkiaNativeAssets.props" />
 
 </Project>

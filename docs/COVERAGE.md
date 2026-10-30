@@ -2,6 +2,19 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.26.0, marks in data units, decorated lines and fills, the frame of a plot, more layouts, and the comparison with matplotlib in CI):** **948/948 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 948 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.8L / 98.7B**; **24,382 tests, 0 failures** across the 11 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite run beside the
+gate and are not measured by it: they hold no product code, or need Windows). The fifteen roadmap rows of this release added the series and rules behind a waffle
+chart, Point and Figure, an icicle chart, Renko and Kagi, a stem-and-leaf plot and a calendar of events (`WaffleSeries`, `PointAndFigureSeries`,
+`IcicleSeries`, `PriceStepExtensions`, `LargestRemainderExtensions`, `TreeNodePartitionExtensions`), the one owner of a plot's aspect
+(`PlotAspectExtensions`), the one owner of the ids an SVG writes (`SvgIdScope`) and the gradient a fill carries. Its first strict run reported two classes below
+90/90 and six that regressed from 100 %: the arms left without a test were the weight written over an arc, the colour a sunburst node names, the marks of a
+waterfall's targets and of a step the axes cannot place, a gradient laid under a hatch on a circle, an ellipse and a path, the table of a fill that lies down,
+and a record with no data. A test per arm closed them. Three guards were not tested but deleted, because another rule already decided the same thing: the checks
+on the spans of a plot's aspect (a ratio that is not positive and finite is left alone by `WithBoxAspect`, which now decides it alone), the finite check on the
+side of a waffle's cell, and the empty lower edge of a gradient fill, which no fill can have.
+
 **Status (v1.24.0, a container for the Y axes, the placement of texts, the scales and the maps):** **896/896 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 896 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.7L / 98.7B**; **22,297 tests, 0 failures** across the 11 measured suites (the wiki suite, the WPF suite and the Uno suite run beside the gate and
@@ -233,7 +246,7 @@ Per-class baselines protect against subtle quality erosion — e.g., someone del
 | Drawn-property contracts | `Tst/MatPlotLibNet/Serialization/` (`SeriesDrawnPropertiesRoundTripTests`, `AxesDrawnPropertiesRoundTripTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every settable property of every series type and every part of an axes, found by reflection, comes back from a JSON round trip with the value it was given; a property added without its DTO field turns a Theory red and names itself |
 | Composed charts | `Tst/MatPlotLibNet/Rendering/` (`ComposedChartShapes`, `ComposedChartRoundTripTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every chart verb's figure is written as JSON, read back to the same picture, wears one colour for each drawn unit and lists the legend entries it should, and a missing value is never written into the picture; each verb's SVG equals the SVG of the public calls it replaces |
 | Document claims | `Tst/MatPlotLibNet/Packaging/` (`ReleaseContractTests`, `VerbPlacementContractTests`), `Tst/MatPlotLibNet.Geo/` | The numbers and lists the documents state (the colormap count, the version a document names, the verbs and where they live, the map projections) are held against the assembly and the project files |
-| Fidelity tests | `Tst/MatPlotLibNet.Fidelity/` | Render PNG, compare to matplotlib reference via `PerceptualDiff` (RMS / SSIM / ΔE). Run by hand: no workflow builds or runs this project |
+| Fidelity tests | `Tst/MatPlotLibNet.Fidelity/` | Render PNG, compare to matplotlib reference via `PerceptualDiff` (RMS / SSIM / ΔE read from every pixel). Run by CI and by the publish job; no coverage is measured for it, since it holds no product code |
 | Performance benchmarks | `Tst/MatPlotLibNet/Benchmarks/` | Throughput numbers (not gated, informational) |
 
 ## Edge case checklist (enforced via test naming)

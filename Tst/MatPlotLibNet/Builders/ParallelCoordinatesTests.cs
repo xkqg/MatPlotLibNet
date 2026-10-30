@@ -350,7 +350,8 @@ public class ParallelCoordinatesTests
     }
 
     /// <summary>The Y axis carries no ticks: every column is scaled to 0..1 on its own, so a number on the Y axis would read
-    /// none of them. The axis is a built-in locator with no positions (it survives JSON), and no Y tick label or mark is drawn.</summary>
+    /// none of them. The axis is a built-in locator with no positions (it survives JSON), and no Y tick label or mark is drawn
+    /// beside the plot; the numbers each column reads in its own units stand on the column lines, inside the plot.</summary>
     [Fact]
     public void TheYAxis_CarriesNoTicks()
     {
@@ -359,8 +360,8 @@ public class ParallelCoordinatesTests
 
         Assert.IsType<FixedLocator>(axes.YAxis.TickLocator);
         Assert.Empty(axes.YAxis.TickLocator!.Locate(-10, 10));
-        Assert.DoesNotContain(FigureTexts(svg), t => t.Anchor == "end");
         var plot = PlotArea(svg);
+        Assert.DoesNotContain(FigureTexts(svg), t => t.Anchor == "end" && t.X < plot.X);
         Assert.DoesNotContain(FigureLines(svg), l => l.Y1 == l.Y2 && l.X1 < plot.X);
     }
 
@@ -524,7 +525,8 @@ public class ParallelCoordinatesTests
 
         Assert.Equal(drawn, readBack);
         Assert.Equal(FourDimensions, FigureTexts(readBack).Where(t => t.Anchor == "middle").Select(t => t.Text));
-        Assert.DoesNotContain(FigureTexts(readBack), t => t.Anchor == "end");
+        // The numbers on the column lines come back with the annotations that carry them.
+        Assert.Contains(FigureTexts(readBack), t => t.Anchor == "end");
     }
 
     // ---- refused arguments -----------------------------------------------------------------------------------------------

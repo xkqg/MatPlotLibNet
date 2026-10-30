@@ -175,6 +175,11 @@ internal abstract class SeriesRenderer
     protected Color ApplyAlpha(Color color, double alpha) =>
         color.WithAlpha((byte)Math.Round(Math.Clamp(alpha, 0.0, 1.0) * 255));
 
+    /// <summary>The colour with its own opacity scaled by <paramref name="alpha"/>: a colour that is already translucent (the
+    /// end of a fade to nothing) stays that much more translucent, where <see cref="ApplyAlpha"/> would set the opacity.</summary>
+    protected Color ScaleAlpha(Color color, double alpha) =>
+        color.WithAlpha((byte)Math.Round(color.A * Math.Clamp(alpha, 0.0, 1.0)));
+
     /// <summary>Applies viewport culling and LTTB downsampling to XY data when maxPoints is set.</summary>
     protected XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
     {

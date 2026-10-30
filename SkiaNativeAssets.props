@@ -1,0 +1,29 @@
+<Project>
+
+  <ItemGroup>
+    <!-- The native libraries the managed SkiaSharp and HarfBuzzSharp packages need, written once. A host that renders
+         (the MCP tool, the Skia test project, the picture-comparison suite) imports this file. A library leaves the choice
+         of platform to the application that hosts it and does not import it.
+
+         libSkiaSharp is shipped via per-OS NativeAssets packages, not the SkiaSharp metapackage. Without these the host
+         crashes with "Unable to load shared library 'libSkiaSharp'" on whichever OS is missing. All three are always
+         referenced so the binary is portable across runners (no MSBuild OS conditions: those evaluate at build time, not
+         runtime, and would leave the build host's bin/Release short on libs for the other OSes — exactly what bit us on the
+         v1.7.1 hotfix where Linux CI couldn't load libSkiaSharp.so). The .NoDependencies Linux variant pairs with the
+         libfontconfig1 + libfreetype6 install in .github/workflows/ci.yml. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- libHarfBuzzSharp, the same way: the managed HarfBuzzSharp carries no binary. Pinned exactly, not floated:
+         HarfBuzzSharp has no 3.x line (its majors are 1, 2, 7, 8 and 14), and 8.3.1.5 is what SkiaSharp.HarfBuzz 3.119 was
+         built against — a floating "*" would put 14.x natives beside 8.3.1.5 managed code. There is no .NoDependencies
+         variant for Linux; the plain asset is the only one. -->
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.5" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="8.3.1.5" />
+  </ItemGroup>
+
+</Project>

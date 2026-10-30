@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -32,9 +33,9 @@ public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormali
             ? cmap.ColorOf(v, this.NormalizerOrLinear(), cMin, cMax)
             : null;
 
-    /// <summary>The (min, max) the colour values are normalized over: the explicit limits where set, the
-    /// leaves' own extremes otherwise.</summary>
-    internal (double Min, double Max) ColorRange()
+    /// <summary>The range the colour values are normalized over: the explicit limits where set, the leaves' own extremes
+    /// otherwise.</summary>
+    internal Range1D ColorRange()
     {
         double min = double.PositiveInfinity, max = double.NegativeInfinity;
         Walk(Root);
@@ -43,7 +44,7 @@ public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormali
             min = 0;
             max = 1;
         }
-        return (VMin ?? min, VMax ?? max);
+        return new Range1D(VMin ?? min, VMax ?? max);
 
         void Walk(TreeNode node)
         {

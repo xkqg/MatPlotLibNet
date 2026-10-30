@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -22,6 +23,24 @@ internal readonly record struct PixelBar(int Index, Point From, Point To, bool R
 
     /// <summary>Where a horizontal bar's end stands, as a pixel column: the corner its value reaches, whichever way it points.</summary>
     internal double HorizontalEnd => Rising ? To.X : From.X;
+
+    /// <summary>Where a vertical bar's foot stands, as a pixel row: the corner its value starts from.</summary>
+    internal double VerticalFoot => Rising ? To.Y : From.Y;
+
+    /// <summary>Where a horizontal bar's foot stands, as a pixel column: the corner its value starts from.</summary>
+    internal double HorizontalFoot => Rising ? From.X : To.X;
+
+    /// <summary>The blend that runs through the middle of the bar from its foot to its end: <paramref name="footColour"/>
+    /// where the bar stands, <paramref name="endColour"/> where its value reaches. The end is the corner the value reaches
+    /// (the top of a bar that points up, the bottom of one that points down), whichever way the axis runs.</summary>
+    /// <param name="orientation">The axis the bar's value runs along.</param>
+    /// <param name="footColour">The colour at the foot.</param>
+    /// <param name="endColour">The colour at the end.</param>
+    /// <returns>The gradient, in the pixels of the figure.</returns>
+    internal LinearGradient FootToEnd(BarOrientation orientation, Color footColour, Color endColour) =>
+        orientation == BarOrientation.Vertical
+            ? new LinearGradient(new Point((From.X + To.X) / 2, VerticalFoot), new Point((From.X + To.X) / 2, VerticalEnd), footColour, endColour)
+            : new LinearGradient(new Point(HorizontalFoot, (From.Y + To.Y) / 2), new Point(HorizontalEnd, (From.Y + To.Y) / 2), footColour, endColour);
 }
 
 /// <summary>Where a bar series' bars stand: the one geometry the bar renderer draws them at and hands to a legend.</summary>
@@ -55,24 +74,12 @@ internal static class BarPixelExtensions
                 // Where the bar stands along its category axis: in its category's slot, or around its numeric x
                 // (CategorySlot, the one rule the data range and the category labels read too).
                 var slot = series.SlotOf(i);
-                double barLeft = slot.Left, barRight = slot.Right;
 
                 double baseline = series.Bottoms is { } bottoms ? bottoms[i] : 0;
                 double value = series.Values[i];
-                double end = baseline + value;
                 bool rising = value >= 0;
-                Point from, to;
-                if (series.Orientation == BarOrientation.Vertical)
-                {
-                    from = rising ? transform.DataToPixel(barLeft, end) : transform.DataToPixelClippedY(barLeft, baseline);
-                    to = rising ? transform.DataToPixelClippedY(barRight, baseline) : transform.DataToPixel(barRight, end);
-                }
-                else
-                {
-                    from = rising ? transform.DataToPixelClippedX(baseline, barRight) : transform.DataToPixel(end, barRight);
-                    to = rising ? transform.DataToPixel(end, barLeft) : transform.DataToPixelClippedX(baseline, barLeft);
-                }
-                var pixel = new PixelBar(i, from, to, rising);
+                var box = transform.BoxOnFoot(slot, baseline, baseline + value, rising, series.Orientation);
+                var pixel = new PixelBar(i, box.From, box.To, rising);
                 if (pixel.Bar.IsDrawable()) yield return pixel;
             }
         }

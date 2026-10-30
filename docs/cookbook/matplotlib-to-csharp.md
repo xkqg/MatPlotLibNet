@@ -94,6 +94,7 @@ Plt.Create()
 | `ax.stem(x, y)` | `ax.Stem(x, y)` | |
 | `ax.stackplot(x, ys)` | `ax.StackPlot(x, ySets)` | Name the layers with `Labels` and each is a legend entry. |
 | `ax.fill_between(x, y1, y2)` | `ax.FillBetween(x, y, y2)` | |
+| `ax.fill_betweenx(y, x1, x2)` | `ax.FillBetweenX(y, x1, x2)` | The area lies down: it runs between two curves along X at each height. |
 | `ax.errorbar(x, y, yerr=e)` | `ax.ErrorBar(x, y, errorLow, errorHigh)` | |
 | `ax.pie(sizes, labels=…)` | `ax.Pie(sizes, labels)` | |
 | donut via `wedgeprops` | `ax.Donut(sizes, labels)` | |
@@ -101,6 +102,7 @@ Plt.Create()
 | `ax.table(cellText=…)` | `ax.Table(cells)` | |
 | — | `ax.Sankey(nodes, links)` | |
 | `squarify.plot` | `ax.Treemap(root)` | matplotlib has no treemap; this one is built in. |
+| `plotly.express.icicle` | `ax.Icicle(root)` | A hierarchy in rows, each cell as wide as its share of its parent. |
 | nested `ax.pie` | `ax.Sunburst(root)` | |
 
 ## Charts matplotlib draws from a recipe
@@ -113,6 +115,13 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | matplotlib / Python | MatPlotLibNet | Notes |
 |---|---|---|
 | `ax.spy(matrix)` | `ax.Spy(matrix)` | Square markers on the cells whose magnitude is above a threshold, row 0 on top. |
+| `pywaffle.Waffle(values=…)` | `ax.Waffle(categories, values)` | Square cells counted by share; the cells always add up to the grid. |
+| `mplfinance.plot(df, type='renko')` | `ax.Renko(prices, brickSize)` | Bricks of one size from the closes; a reversal needs two bricks. |
+| `mplfinance.plot(df, type='pnf')` | `ax.PointAndFigure(prices, boxSize, reversal)` | Columns of Xs and Os; `SetAspect(1.0 / boxSize)` makes the boxes square. |
+| — | `ax.Kagi(prices, reversal)` | One path that thickens and thins where the price breaks the last shoulder or waist. |
+| — | `ax.ConnectedScatter(x, y)` | A marker on every point and an arrow to the next. |
+| — | `ax.StemAndLeaf(sample)` | Every observation on a row: the stem and its leaves. |
+| — | `ax.CalendarEvents(dates, kinds)` | A mark inside the cell of each event's day. |
 | `scipy.stats.probplot(x, plot=ax)` | `ax.QQPlot(sample)` | scipy's plotting positions and least-squares reference line, against the normal distribution. |
 | `scipy.stats.probplot(x, dist=stats.expon, plot=ax)` | `ax.ProbabilityPlot(sample, QQReference.Exponential)` | The same, against an exponential, uniform, log-normal or Student t distribution, or one of your own (`QQReference.Of`). |
 | `ax.stackplot(x, ys, baseline='wiggle')` | `ax.StreamGraph(x, layers)` | One area per layer, each named in the legend. |
@@ -205,6 +214,9 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | matplotlib | MatPlotLibNet | Notes |
 |---|---|---|
 | `ax.imshow(matrix)` | `ax.Image(matrix)` | |
+| `ax.matshow(matrix)` | `ax.MatShow(matrix)` | Square cells, first row on top, numbered from 0, with a colour bar. |
+| `ax.set_aspect(1)` | `ax.SetAspect(1)` | A unit of Y as long as a unit of X on the page; the plot is the largest rectangle of that shape that fits. |
+| `ax.spines['left'].set_bounds(lo, hi)` | `ax.WithSpines(s => s with { Left = s.Left with { BoundsFrom = lo, BoundsTo = hi } })` | An axis line that spans only part of its axis, in data units. |
 | `ax.pcolormesh(x, y, z)` | `ax.Pcolormesh(xEdges, yEdges, values)` | |
 | `ax.contour(x, y, z)` | `ax.Contour(x, y, z)` | |
 | `ax.contourf(x, y, z)` | `ax.Contourf(x, y, z)` | |

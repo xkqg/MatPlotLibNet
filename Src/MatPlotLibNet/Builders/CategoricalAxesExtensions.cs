@@ -409,8 +409,10 @@ public static class CategoricalAxesExtensions
         /// units share one axis; a column whose values are all the same is drawn at the middle. A missing value (NaN) or an
         /// infinity leaves a gap in its row's line, never a bridge, and is no part of its column's range. The Y axis carries no
         /// ticks, because each column is scaled to 0..1 on its own and a number on it would read none of them; each dimension's
-        /// own axis is the vertical line at its name, a solid line in the reference line's default grey. Axes that show each
-        /// column's own units are not drawn.</para>
+        /// own axis is the vertical line at its name, a solid line in the reference line's default grey, and it carries its own
+        /// ticks: the numbers the tick locator picks over the column's own range, each a short mark on the line with the number
+        /// to its left (an annotation), at the height that value is drawn at. A column whose values are all the same has the one
+        /// tick, at the middle, and a column with nothing to draw has none.</para>
         /// <para>The dimension names are the X ticks, on the centres of the slots, as every verb that names categories puts them.
         /// The legend stands where the theme puts it unless told otherwise, <see cref="LegendPosition.Best"/> (the place that
         /// covers the fewest marks; the upper right corner under the classic theme): the lines of a parallel-coordinates chart
@@ -472,7 +474,8 @@ public static class CategoricalAxesExtensions
                 row.ThrowIfMisaligned(dimensions.Length, nameof(rows), "dimensions");
             }
 
-            double[][] scaled = ScaleColumns(dimensions, rows);
+            var scaling = ScaleColumns(dimensions, rows);
+            double[][] scaled = scaling.Scaled;
             double[] columns = SlotCentres(dimensions.Length);
 
             // The solid axis lines take no colour of their own: the reference line's default grey is a fixed mid grey that stands
@@ -506,6 +509,22 @@ public static class CategoricalAxesExtensions
                     Label = classRows.Key.Length > 0 ? classRows.Key : null,
                 };
                 axes.AddSeries(line, configure);
+            }
+
+            // Each column reads in its own units, so its own line carries the ticks: the numbers the locator picks over the column's
+            // own range, a short mark on the line and the number to its left, at the height that value is drawn at.
+            for (int d = 0; d < columns.Length; d++)
+            {
+                foreach (var tick in scaling.Ticks(d))
+                {
+                    axes.Annotate(tick.Text, columns[d], tick.Height, columns[d], tick.Height, mark =>
+                    {
+                        mark.Alignment = TextAlignment.Right;
+                        mark.VerticalAlignment = TextVerticalAlignment.Center;
+                        mark.OffsetX = -ParallelTickReach;
+                        mark.ArrowStyle = ArrowStyle.Simple;
+                    });
+                }
             }
 
             // The columns are scaled to 0..1 on their own, so the Y axis has no scale to read: an empty fixed locator draws no tick,
@@ -662,19 +681,55 @@ public static class CategoricalAxesExtensions
         }
     }
 
+    /// <summary>The columns of a parallel-coordinates chart after scaling: every value on a scale of 0..1, and the range each
+    /// column was scaled over, so the numbers on a column's own line read in its own units.</summary>
+    /// <param name="Scaled">The scaled values, one array per row with one entry for each dimension.</param>
+    /// <param name="Ranges">The range of each column over ALL the rows; <see langword="null"/> for a column with nothing to draw.</param>
+    private readonly record struct ScaledColumns(double[][] Scaled, Range1D?[] Ranges)
+    {
+        /// <summary>One tick on a column's own line: the number it reads and the height on the scale of 0..1 it stands at.</summary>
+        internal readonly record struct ColumnTick(string Text, double Height);
+
+        /// <summary>The ticks of column <paramref name="column"/>: the values the locator picks over the column's own range that
+        /// lie inside it, each at the height it is drawn at; a column whose values are all the same has the one tick, at the
+        /// middle, and a column with nothing to draw has none.</summary>
+        internal IEnumerable<ColumnTick> Ticks(int column)
+        {
+            if (Ranges[column] is not { } range) yield break;
+
+            if (range.Width > 0)
+            {
+                double slack = range.Width * 1e-9;
+                foreach (double value in new AutoLocator().Locate(range.Lo, range.Hi))
+                {
+                    if (value >= range.Lo - slack && value <= range.Hi + slack)
+                    {
+                        yield return new ColumnTick(value.ToString("G6", CultureInfo.InvariantCulture), (value - range.Lo) / range.Width);
+                    }
+                }
+            }
+            else
+            {
+                yield return new ColumnTick(range.Lo.ToString("G6", CultureInfo.InvariantCulture), MiddleOfAColumn);
+            }
+        }
+    }
+
     /// <summary>Scales every column of <paramref name="rows"/> to 0..1 by its smallest and largest drawable value over ALL the
     /// rows. A value that cannot be drawn (NaN, an infinity) stays missing and is no part of the range; a column whose drawable
     /// values are all the same has no range and sits at the middle.</summary>
-    /// <returns>The scaled values, one array per row with one entry for each dimension.</returns>
+    /// <returns>The scaled values, one array per row with one entry for each dimension, and the range of each column.</returns>
     /// <exception cref="ArgumentException">The values of a column span more than a <see cref="double"/> can hold.</exception>
-    private static double[][] ScaleColumns(string[] dimensions, IReadOnlyList<BarGroup> rows)
+    private static ScaledColumns ScaleColumns(string[] dimensions, IReadOnlyList<BarGroup> rows)
     {
         double[][] scaled = [.. rows.Select(_ => new double[dimensions.Length])];
+        var ranges = new Range1D?[dimensions.Length];
         for (int d = 0; d < dimensions.Length; d++)
         {
             double[] column = [.. rows.Select(row => row.Values[d])];
             // A column with nothing to draw has no range; every value of it is then missing and the span is never read.
-            var range = column.DrawableRange() ?? new Range1D(0, 0);
+            ranges[d] = column.DrawableRange();
+            var range = ranges[d] ?? new Range1D(0, 0);
             double span = range.Width;
             if (double.IsInfinity(span))
             {
@@ -691,7 +746,7 @@ public static class CategoricalAxesExtensions
             }
         }
 
-        return scaled;
+        return new ScaledColumns(scaled, ranges);
     }
 
     /// <summary>Refuses a count that is negative or infinite: a Pareto chart counts occurrences, and a negative count has no
@@ -785,6 +840,10 @@ public static class CategoricalAxesExtensions
 
     /// <summary>Where a column without a range is drawn, on the scale of 0..1: the middle.</summary>
     private const double MiddleOfAColumn = 0.5;
+
+    /// <summary>How far, in pixels, a tick mark on a parallel-coordinates column reaches left of the column line; the number
+    /// stands at its end.</summary>
+    private const double ParallelTickReach = 6;
 
     /// <summary>The whole, in percent: a Marimekko chart's widths are percent of the grand total and its heights percent of
     /// a column's total.</summary>

@@ -98,6 +98,14 @@ public sealed class Axes
     /// <summary>Configuration for the three back-facing cube panes (floor, left wall, right wall) in 3D plots.</summary>
     public Pane3DConfig Pane3D { get; set; } = new();
 
+    /// <summary>How much longer one unit of Y is than one unit of X on the page, as matplotlib's <c>set_aspect</c> says it:
+    /// 1 makes a square of data a square on the page, 2 makes a unit of Y twice as long as a unit of X.
+    /// <see langword="null"/> (the default) lets the plot fill the cell it is given. A plot with an aspect is drawn in the
+    /// largest rectangle of the shape that aspect asks for that fits the cell, centred in it, so the ticks, the labels, the
+    /// colour bar and the hit-testing all follow the rectangle that is drawn. A Cartesian axes only; a polar axes has its
+    /// own geometry and a 3-D axes its box aspect, and both leave this alone. Has to be positive and finite to take effect.</summary>
+    public double? Aspect { get; set; }
+
     /// <summary>Camera elevation above the XY plane in degrees. Default is 30.</summary>
     public double Elevation { get; set; } = 30;
 

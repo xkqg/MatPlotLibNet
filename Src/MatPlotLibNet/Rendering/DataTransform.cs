@@ -182,6 +182,22 @@ public sealed class DataTransform
         return dst;
     }
 
+    /// <summary>The X counterpart of <see cref="TransformYClipped"/>: the bases of a mark that lies down (the left edge of a fill
+    /// between curves of X) to pixel X values, a base the X axis' scale cannot place clipped to the edge where the X axis
+    /// begins.</summary>
+    /// <param name="xData">The bases, in data space.</param>
+    /// <returns>Pixel-space X values, one per input element.</returns>
+    internal double[] TransformXClipped(ReadOnlySpan<double> xData)
+    {
+        var dst = TransformX(xData);
+        for (int i = 0; i < dst.Length; i++)
+        {
+            if (ClipsBase(xData[i], _xAxisScale)) dst[i] = XAxisStart;
+        }
+
+        return dst;
+    }
+
     /// <summary>Whether a base is clipped: a finite value that <paramref name="scale"/> has no place for. A missing value
     /// and an infinity are not: no axis places them.</summary>
     private static bool ClipsBase(double value, AxisScale scale) => value.IsDrawable() && !scale.HasPlaceFor(value);

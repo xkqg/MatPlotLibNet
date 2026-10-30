@@ -17,6 +17,7 @@ public sealed class SvgRenderContext : IRenderContext
 
     private readonly StringBuilder _sb = new();
     private int _clipId;
+    private readonly SvgIdScope _ids;
     private List<DataAttr>? _pendingData;
     private string? _pendingClass;
 
@@ -26,9 +27,17 @@ public sealed class SvgRenderContext : IRenderContext
 
     /// <summary>Default constructor: wires the gradient registry to the internal buffer
     /// so gradient defs land inline at the point of <see cref="DefineLinearGradient"/>.</summary>
-    public SvgRenderContext()
+    public SvgRenderContext() : this(default)
     {
-        _gradients = new SvgGradientRegistry(_sb);
+    }
+
+    /// <summary>A context whose clip, hatch and gradient ids carry the prefix of <paramref name="ids"/>: the context of a later
+    /// subplot of a figure, whose ids must not repeat those of the subplots before it.</summary>
+    /// <param name="ids">The scope that names the ids this context writes.</param>
+    internal SvgRenderContext(SvgIdScope ids)
+    {
+        _ids = ids;
+        _gradients = new SvgGradientRegistry(_sb, ids);
     }
 
     /// <summary>Returns the accumulated SVG markup as a string.</summary>
@@ -104,6 +113,12 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine(" />");
     }
 
+    /// <summary>The id of the paint server the shape is filled with: its gradient, its hatch pattern, or none for a flat
+    /// fill. A shape with both is drawn in two layers (<see cref="ShapeStyleLayers"/>) before it gets here.
+    /// <para>Called BEFORE the element's opening tag is written, as <see cref="ResolveHatch"/> is.</para></summary>
+    private string? ResolvePaintServer(ShapeStyle shape) =>
+        shape.HasVisibleGradient ? _gradients.RegisterShared(shape.Gradient!.Value) : ResolveHatch(shape);
+
     /// <summary>Registers the shape's hatch (if any) and returns the pattern id to fill with.
     /// <para>Called BEFORE the element's opening tag is written: the registry appends its
     /// <c>&lt;defs&gt;&lt;pattern&gt;</c> block to the same buffer, and a defs block emitted halfway through a
@@ -124,13 +139,20 @@ public sealed class SvgRenderContext : IRenderContext
         // rather than mint a second one that computes the same luminance test.
         Color strokes = shape.HatchColor ?? fill.ContrastingTextColor();
 
-        return (_hatches ??= new SvgHatchRegistry(_sb)).Register(shape.Hatch, fill, strokes);
+        return (_hatches ??= new SvgHatchRegistry(_sb, _ids)).Register(shape.Hatch, fill, strokes);
     }
 
     /// <inheritdoc />
     public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape)
     {
-        string? hatch = ResolveHatch(shape);
+        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
+        {
+            DrawPolygon(points, shape.UnderTheHatch);
+            DrawPolygon(points, shape.HatchLayer);
+            return;
+        }
+
+        string? hatch = ResolvePaintServer(shape);
         _sb.Append("<polygon points=\"");
         for (int i = 0; i < points.Count; i++)
         {
@@ -146,7 +168,14 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawCircle(Point center, double radius, ShapeStyle shape)
     {
-        string? hatch = ResolveHatch(shape);
+        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
+        {
+            DrawCircle(center, radius, shape.UnderTheHatch);
+            DrawCircle(center, radius, shape.HatchLayer);
+            return;
+        }
+
+        string? hatch = ResolvePaintServer(shape);
         _sb.Append("<circle cx=\"").Append(center.X.ToSvgNumber()).Append("\" cy=\"").Append(center.Y.ToSvgNumber())
            .Append("\" r=\"").Append(radius.ToSvgNumber()).Append('"');
         _sb.AppendFillStroke(shape, hatch);
@@ -157,7 +186,14 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawRectangle(Rect rect, ShapeStyle shape)
     {
-        string? hatch = ResolveHatch(shape);
+        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
+        {
+            DrawRectangle(rect, shape.UnderTheHatch);
+            DrawRectangle(rect, shape.HatchLayer);
+            return;
+        }
+
+        string? hatch = ResolvePaintServer(shape);
         _sb.Append("<rect x=\"").Append(rect.X.ToSvgNumber()).Append("\" y=\"").Append(rect.Y.ToSvgNumber())
            .Append("\" width=\"").Append(rect.Width.ToSvgNumber()).Append("\" height=\"").Append(rect.Height.ToSvgNumber()).Append('"');
         _sb.AppendFillStroke(shape, hatch);
@@ -168,7 +204,14 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawEllipse(Rect bounds, ShapeStyle shape)
     {
-        string? hatch = ResolveHatch(shape);
+        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
+        {
+            DrawEllipse(bounds, shape.UnderTheHatch);
+            DrawEllipse(bounds, shape.HatchLayer);
+            return;
+        }
+
+        string? hatch = ResolvePaintServer(shape);
         double cx = bounds.X + bounds.Width / 2;
         double cy = bounds.Y + bounds.Height / 2;
         _sb.Append("<ellipse cx=\"").Append(cx.ToSvgNumber()).Append("\" cy=\"").Append(cy.ToSvgNumber())
@@ -279,7 +322,14 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
-        string? hatch = ResolveHatch(shape);
+        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
+        {
+            DrawPath(segments, shape.UnderTheHatch);
+            DrawPath(segments, shape.HatchLayer);
+            return;
+        }
+
+        string? hatch = ResolvePaintServer(shape);
         _sb.Append("<path d=\"");
         foreach (var seg in segments)
             _sb.Append(seg.ToSvgPathData());
@@ -295,12 +345,12 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void PushClip(Rect clipRect)
     {
-        int id = _clipId++;
-        _sb.Append("<defs><clipPath id=\"clip-").Append(id)
+        string id = _ids.Clip(_clipId++);
+        _sb.Append("<defs><clipPath id=\"").Append(id)
            .Append("\"><rect x=\"").Append(clipRect.X.ToSvgNumber()).Append("\" y=\"").Append(clipRect.Y.ToSvgNumber())
            .Append("\" width=\"").Append(clipRect.Width.ToSvgNumber()).Append("\" height=\"").Append(clipRect.Height.ToSvgNumber())
            .AppendLine("\" /></clipPath></defs>");
-        _sb.Append("<g clip-path=\"url(#clip-").Append(id).AppendLine(")\">");
+        _sb.Append("<g clip-path=\"url(#").Append(id).AppendLine(")\">");
     }
 
     /// <inheritdoc />
@@ -460,6 +510,7 @@ public sealed class SvgRenderContext : IRenderContext
     /// <paramref name="x2"/>/<paramref name="y2"/> in user space units (SVG
     /// <c>gradientUnits="userSpaceOnUse"</c>), so Sankey links can anchor the gradient to
     /// the link's bounding box without the browser re-applying a percentage-based transform.</summary>
+    [Obsolete("Give the shape a ShapeStyle.Gradient instead: every backend paints it, and the SVG one defines and shares the gradient itself.")]
     public string DefineLinearGradient(Color from, Color to,
         double x1, double y1, double x2, double y2)
         => _gradients.Register(from, to, x1, y1, x2, y2);
@@ -467,6 +518,7 @@ public sealed class SvgRenderContext : IRenderContext
     /// <summary>Draws a filled path whose fill references a previously-defined gradient
     /// (see <see cref="DefineLinearGradient"/>). Used by the Sankey renderer to emit
     /// source→target colour blends for every link.</summary>
+    [Obsolete("Draw the path with a ShapeStyle.Gradient instead: every backend paints it, and the SVG one defines and shares the gradient itself.")]
     public void DrawPathWithGradientFill(IReadOnlyList<PathSegment> segments, string gradientId,
         Color? stroke, double strokeThickness)
     {

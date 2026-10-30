@@ -27,14 +27,17 @@ internal sealed class SvgHatchRegistry
     private const double Tile = 6.0;
 
     private readonly StringBuilder _sb;
+    private readonly SvgIdScope _scope;
     private readonly Dictionary<(HatchPattern Hatch, Color Fill, Color Stroke), string> _ids = [];
     private int _hatchId;
 
     /// <summary>Constructs a registry that writes pattern defs to the supplied buffer.</summary>
     /// <param name="sb">The shared output buffer (the hosting <see cref="SvgRenderContext"/>'s StringBuilder).</param>
-    public SvgHatchRegistry(StringBuilder sb)
+    /// <param name="ids">The scope that names the patterns; none for the first subplot of a figure.</param>
+    public SvgHatchRegistry(StringBuilder sb, SvgIdScope ids = default)
     {
         _sb = sb;
+        _scope = ids;
     }
 
     /// <summary>Returns the id of a pattern painting <paramref name="hatch"/> in <paramref name="hatchColor"/> over
@@ -51,15 +54,19 @@ internal sealed class SvgHatchRegistry
             return existing;
         }
 
-        string refId = $"hatch-{_hatchId++}";
+        string refId = _scope.Hatch(_hatchId++);
         _ids[key] = refId;
 
         _sb.Append("<defs><pattern id=\"").Append(refId)
            .Append("\" patternUnits=\"userSpaceOnUse\" width=\"").Append(Tile.ToSvgNumber())
-           .Append("\" height=\"").Append(Tile.ToSvgNumber()).Append("\">")
-           .Append("<rect width=\"").Append(Tile.ToSvgNumber())
-           .Append("\" height=\"").Append(Tile.ToSvgNumber())
-           .Append("\" fill=\"").Append(fill.ToHex()).Append("\" />");
+           .Append("\" height=\"").Append(Tile.ToSvgNumber()).Append("\">");
+        if (fill.A > 0)
+        {
+            // A fill that is not there (a hatch laid over a gradient) leaves the tile to the strokes alone.
+            _sb.Append("<rect width=\"").Append(Tile.ToSvgNumber())
+               .Append("\" height=\"").Append(Tile.ToSvgNumber())
+               .Append("\" fill=\"").Append(fill.ToHex()).Append("\" />");
+        }
 
         AppendStrokes(hatch, hatchColor);
 

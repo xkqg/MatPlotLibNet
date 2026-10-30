@@ -1,7 +1,7 @@
 """
 MatPlotLibNet matplotlib reference image generator.
 
-Generates fixture PNGs for the fidelity test suite using pinned matplotlib 3.9.x.
+Generates fixture PNGs for the fidelity test suite using pinned matplotlib 3.10.x.
 Each fixture uses:
   - fixed RNG seed 42
   - figsize (8, 6) inches at DPI 100 → 800×600 px output
@@ -640,23 +640,64 @@ def fig_gantt():
 
 
 def fig_waterfall():
+    # An opening total of 100, four steps, and a closing total of 140: six bars. The totals stand on zero; each step stands on the
+    # running total before it. The colours are written out, not taken from the style's cycle: in the classic style C2 and C3 are
+    # red and cyan, which is not what any waterfall means, and the library under test draws increases green, decreases red.
     labels = ["Start", "A", "B", "C", "D", "End"]
-    values = [100, 30, -20, 40, -10]
-    cumulative = np.concatenate([[0], np.cumsum(values)])
-    totals = [100, *(100 + np.cumsum(values))]
+    steps = [30, -20, 40, -10]
+    running = [100]
+    for step in steps:
+        running.append(running[-1] + step)          # 100, 130, 110, 150, 140
+    increase, decrease, total = "#2ca02c", "#d62728", "#1f77b4"
     with plt.style.context(STYLE):
         fig, ax = plt.subplots(figsize=FIGSIZE)
-        # Start bar
-        ax.bar(0, totals[0], color="C0")
-        # Delta bars
-        for i, v in enumerate(values):
-            color = "C2" if v >= 0 else "C3"
-            ax.bar(i + 1, v, bottom=totals[i], color=color)
-        # End bar
-        ax.bar(len(labels) - 1, totals[-1], color="C0")
+        ax.bar(0, running[0], color=total)
+        for i, step in enumerate(steps):
+            ax.bar(i + 1, step, bottom=running[i], color=increase if step >= 0 else decrease)
+        ax.bar(len(labels) - 1, running[-1], color=total)
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels)
         ax.set_title("Waterfall chart")
+    return fig
+
+
+def fig_fill_betweenx():
+    # An area that lies down: at each height y the fill runs from x = 0 to the curve.
+    y = np.arange(0, 11)
+    x = np.array([2, 4, 3, 6, 5, 8, 6, 9, 7, 10, 8])
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.fill_betweenx(y, x)
+        ax.set_title("fill_betweenx")
+    return fig
+
+
+def fig_matshow():
+    # A matrix shown as a grid of equal cells, the first row on top, with a colour bar. viridis in both styles (classic's
+    # default map is jet).
+    data = (np.arange(54).reshape(6, 9)) % 7
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        image = ax.matshow(data, cmap="viridis")
+        fig.colorbar(image, ax=ax)
+    return fig
+
+
+def fig_set_bounds():
+    # The left and bottom lines span only part of their axis (a range frame), the other two lines are gone, the ticks stay on the
+    # left and the bottom.
+    x = np.arange(0, 11)
+    y = np.array([2, 3, 5, 4, 6, 8, 7, 9, 8, 10, 9])
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.plot(x, y)
+        ax.spines["bottom"].set_bounds(2, 8)
+        ax.spines["left"].set_bounds(3, 9)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.xaxis.set_ticks_position("bottom")
+        ax.yaxis.set_ticks_position("left")
+        ax.set_title("set_bounds")
     return fig
 
 
@@ -1371,6 +1412,9 @@ CHARTS: dict[str, callable] = {
     "eventplot":     fig_eventplot,
     "gantt":         fig_gantt,
     "waterfall":     fig_waterfall,
+    "fill_betweenx": fig_fill_betweenx,
+    "matshow":       fig_matshow,
+    "set_bounds":    fig_set_bounds,
     # Phase 5 — Distribution (6, seaborn)
     "kde":           fig_kde,
     "rugplot":       fig_rugplot,

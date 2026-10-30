@@ -139,12 +139,38 @@ public class SeriesDataTableTests
     }
 
     [Fact]
-    public void ABarSeries_StackedOrNot_ReportsItsOwnValues()
+    public void ABarSeries_InAStackedRender_ReportsItsOwnValues()
     {
         // The table is the data: a stacked bar draws a cumulative top, and its own value is what it contributes.
-        var table = new BarSeries(["A"], [3]) { StackBaseline = [10] }.ToDataTable()!;
+        var upper = new BarSeries(["A"], [3]);
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarSeries(["A"], [4])).AddSeries(upper).SetBarMode(BarMode.Stacked)).Build();
+        figure.ToSvg();
 
+        var table = upper.ToDataTable()!;
+
+        Assert.Equal(["category", "value"], table.Columns.Select(c => c.Header));
         Assert.Equal(3.0, table.Rows[0][1].Number);
+    }
+
+    [Fact]
+    public void AFloatingBar_ReportsWhereItStartsAndWhereItEnds()
+    {
+        // A bar with a foot of its own is an interval, and the interval is the data: from the foot to the foot plus the value.
+        var table = new BarSeries(["A", "B"], [3, -2]) { StackBaseline = [10, 20] }.ToDataTable()!;
+
+        Assert.Equal(["category", "from", "to"], table.Columns.Select(c => c.Header));
+        Assert.Equal(DataColumnKind.Text, table.Columns[0].Kind);
+        Assert.Equal("A", table.Rows[0][0].Text);
+        Assert.Equal([10.0, 13.0], table.Rows[0].Skip(1).Select(c => c.Number));
+        Assert.Equal([20.0, 18.0], table.Rows[1].Skip(1).Select(c => c.Number));
+    }
+
+    [Fact]
+    public void AFloatingBar_WhoseFootIsMissing_StartsAtZero()
+    {
+        var table = new BarSeries(["A", "B"], [3, 4]) { StackBaseline = [5] }.ToDataTable()!;
+
+        Assert.Equal([0.0, 4.0], table.Rows[1].Skip(1).Select(c => c.Number));
     }
 
     [Fact]

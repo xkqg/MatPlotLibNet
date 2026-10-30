@@ -53,6 +53,76 @@ public class SpecVocabularyTests
         Assert.Equal(Enum.GetNames(enumType), rule.Accepted);
     }
 
+    [Fact]
+    public void TheNetworkGraphLayout_AcceptsTheArcDiagram_InAnySpelling()
+    {
+        var rule = new SpecVocabulary().RuleFor(SpecNodeKind.Series, "networkGraphLayout", seriesType: null);
+
+        Assert.NotNull(rule);
+        Assert.Contains("Arc", rule.Accepted);
+        Assert.Equal("Arc", rule.Canonical("arc"));
+        Assert.Null(rule.Canonical("arcs"));
+    }
+
+    /// <summary>The string-valued fields of the axes and spine records that hold text or a key, never an enum spelling: the
+    /// title, the keys a shared axis is looked up by, and the light source's own compound text.</summary>
+    private static readonly string[] FreeText = ["title", "key", "shareXKey", "shareYKey", "lightSourceType"];
+
+    /// <summary>The string-valued fields of the axes and spine records, as (node kind, wire name): the serializer writes the
+    /// enum ones as text and ignores a miss, so each is either free text or needs a row in the vocabulary.</summary>
+    public static TheoryData<string, string> AxesAndSpineStringFields { get; } = AsTheoryData(StringFields());
+
+    private static TheoryData<string, string> AsTheoryData(List<(string Kind, string Field)> fields)
+    {
+        var data = new TheoryData<string, string>();
+        foreach (var (kind, field) in fields)
+        {
+            data.Add(kind, field);
+        }
+
+        return data;
+    }
+
+    private static List<(string Kind, string Field)> StringFields()
+    {
+        var data = new List<(string Kind, string Field)>();
+        var assembly = typeof(SeriesDto).Assembly;
+        foreach (var (kind, record) in new[] { (SpecNodeKind.Axes, "AxesDto"), (SpecNodeKind.Spine, "SpineConfigDto") })
+        {
+            var type = assembly.GetType($"MatPlotLibNet.Serialization.{record}")!;
+            foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(property => property.PropertyType == typeof(string)))
+            {
+                string field = WireName(property);
+                if (!FreeText.Contains(field))
+                {
+                    data.Add((kind.ToString(), field));
+                }
+            }
+        }
+
+        return data;
+    }
+
+    [Theory]
+    [MemberData(nameof(AxesAndSpineStringFields))]
+    public void EveryTextFieldOfTheAxesAndSpineRecords_IsFreeTextOrNamesTheValuesItAccepts(string kind, string field)
+    {
+        var rule = new SpecVocabulary().RuleFor(Enum.Parse<SpecNodeKind>(kind), field, seriesType: null);
+
+        Assert.True(rule is not null,
+            $"The {kind} field '{field}' is text on the wire and not on the list of free-text fields, and the spec vocabulary has no row for it: a misspelt value would pass the reader and be dropped by the serializer without a word.");
+    }
+
+    [Fact]
+    public void TheAxesAndSpineRecords_HoldTheEnumFieldsTheTheoryChecks()
+    {
+        var fields = StringFields().Select(row => $"{row.Kind}.{row.Field}").ToList();
+
+        Assert.Contains("Axes.barMode", fields);
+        Assert.Contains("Axes.coordinateSystem", fields);
+        Assert.Contains("Spine.position", fields);
+    }
+
     /// <summary>The reflection finds the enum fields of the record: a refactor that hides them all would leave the
     /// Theory above with nothing to check.</summary>
     [Fact]

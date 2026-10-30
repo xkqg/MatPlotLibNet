@@ -55,7 +55,7 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 110, Ssim = 0.35, DeltaE = 55)]   // different RNG → different cell occupancy; sparse cells lower SSIM
+    [FidelityTolerance(Rms = 110, Ssim = 0.35, DeltaE = 10)]   // different RNG → different cell occupancy; sparse cells lower SSIM
     public void Hexbin_Gaussian_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -76,7 +76,7 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // different RNG
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 15)]   // different RNG
     public void Histogram2D_Gaussian_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -127,7 +127,7 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.30, DeltaE = 60)]   // random noise: SSIM is inherently low (no structure)
+    [FidelityTolerance(Rms = 90, Ssim = 0.30, DeltaE = 55)]   // random noise: SSIM is inherently low (no structure)
     public void Image_RandomRgb_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -149,7 +149,7 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 80)]   // FFT-of-random-noise differs by RNG
+    [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 55)]   // FFT-of-random-noise differs by RNG
     public void Spectrogram_Sine50Hz_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -175,7 +175,7 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // different RNG scatter positions
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 35)]   // different RNG scatter positions
     public void Tricontour_GaussianBump_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -197,7 +197,7 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // different RNG
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 30)]   // different RNG
     public void Tripcolor_GaussianBump_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);

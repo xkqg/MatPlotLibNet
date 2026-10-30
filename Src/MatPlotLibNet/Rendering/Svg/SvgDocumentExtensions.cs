@@ -27,6 +27,13 @@ internal static class SvgDocumentExtensions
         "width", "height", "d", "points", "transform", "viewBox",
     };
 
+    /// <summary>A reference to an id inside an attribute value: <c>url(#id)</c> in <c>clip-path</c>, <c>fill</c>, <c>stroke</c>
+    /// and <c>style</c>.</summary>
+    private static readonly Regex UrlReference = new(@"url\(#([^)]*)\)", RegexOptions.CultureInvariant);
+
+    /// <summary>The attributes whose value is a list of ids separated by spaces.</summary>
+    private static readonly HashSet<string> IdListAttributes = new(StringComparer.Ordinal) { "aria-labelledby", "aria-describedby" };
+
     /// <summary>A number as the SVG writer emits it: optional sign, digits with an optional fraction, optional exponent.</summary>
     private static readonly Regex Number = new(@"-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?", RegexOptions.CultureInvariant);
 
@@ -48,7 +55,13 @@ internal static class SvgDocumentExtensions
             string? title = options.TitleOrNull();
             string? author = options.AuthorOrNull();
             bool hasMetadata = title is not null || author is not null;
-            if (!options.PrettifySvg && options.SvgDecimalPrecision is null && !hasMetadata)
+            string? idPrefix = string.IsNullOrEmpty(options.SvgIdPrefix) ? null : options.SvgIdPrefix;
+            if (idPrefix is not null)
+            {
+                VerifyIdPrefix(idPrefix);
+            }
+
+            if (!options.PrettifySvg && options.SvgDecimalPrecision is null && !hasMetadata && idPrefix is null)
             {
                 return svg;
             }
@@ -68,7 +81,53 @@ internal static class SvgDocumentExtensions
                 RoundCoordinates(root, decimals);
             }
 
+            if (idPrefix is not null)
+            {
+                PrefixIds(root, idPrefix);
+            }
+
             return Write(document, options.PrettifySvg);
+        }
+    }
+
+    /// <summary>Refuses a prefix that would make an id that is not an XML name.</summary>
+    private static void VerifyIdPrefix(string prefix)
+    {
+        try
+        {
+            XmlConvert.VerifyNCName(prefix);
+        }
+        catch (XmlException ex)
+        {
+            throw new ArgumentException($"{nameof(SaveOptions.SvgIdPrefix)} must be a valid XML name (a letter or underscore first, then letters, digits, '-', '_' or '.'): {ex.Message}", nameof(SaveOptions.SvgIdPrefix), ex);
+        }
+    }
+
+    /// <summary>Puts <paramref name="prefix"/> in front of every id the document defines and of every reference to one.</summary>
+    private static void PrefixIds(XElement root, string prefix)
+    {
+        foreach (XElement element in root.DescendantsAndSelf())
+        {
+            foreach (XAttribute attribute in element.Attributes().ToList())
+            {
+                string name = attribute.Name.LocalName;
+                if (name == "id")
+                {
+                    attribute.Value = prefix + attribute.Value;
+                }
+                else if (IdListAttributes.Contains(name))
+                {
+                    attribute.Value = string.Join(' ', attribute.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(id => prefix + id));
+                }
+                else if (name == "href" && attribute.Value.StartsWith('#'))
+                {
+                    attribute.Value = "#" + prefix + attribute.Value[1..];
+                }
+                else if (attribute.Value.Contains("url(#", StringComparison.Ordinal))
+                {
+                    attribute.Value = UrlReference.Replace(attribute.Value, match => $"url(#{prefix}{match.Groups[1].Value})");
+                }
+            }
         }
     }
 

@@ -56,11 +56,14 @@ public class MarksAsDrawnTests
         ["filled stepped histogram"] = () => new HistogramSeries([1.0, 2.0, 2.5, 3.0, 3.1, 4.0, 5.0, 5.5, 6.0]) { HistType = HistType.StepFilled },
         ["count"] = () => new CountSeries(["a", "b", "a", "c", "a", "b"]),
         ["waterfall"] = () => new WaterfallSeries(["a", "b", "c"], [10.0, -4.0, 6.0]),
+        ["waterfall with targets"] = () => new WaterfallSeries(["a", "b", "c"], [10.0, -4.0, 6.0]) { Targets = [12.0, double.NaN, 5.0] },
+        ["waterfall with a missing step"] = () => new WaterfallSeries(["a", "b", "c"], [10.0, double.NaN, 6.0]) { Targets = [9.0, 9.0, 9.0] },
         ["broken bar"] = () => new BrokenBarSeries([[new(1.0, 2.0), new(4.0, 1.0)], [new(2.0, 3.0)]]),
         ["gantt"] = () => new GanttSeries(["a", "b"], [0.0, 2.0], [3.0, 6.0]),
         ["funnel"] = () => new FunnelSeries(["Visited", "Cart", "Bought"], [100.0, 60.0, 20.0]),
         ["candlestick"] = () => new CandlestickSeries([10.0, 12, 11], [15.0, 16, 14], [8.0, 9, 8], [13.0, 11, 12]),
         ["ohlc bar"] = () => new OhlcBarSeries([10.0, 12, 11], [15.0, 16, 14], [8.0, 9, 8], [13.0, 11, 12]),
+        ["point and figure"] = () => new PointAndFigureSeries([20.4, 22.3, 24.4, 21.0, 18.6, 21.9, 22.0, 25.8], 1),
         ["box"] = () => new BoxSeries([[1.0, 2, 3, 4, 5, 9], [2.0, 3, 3, 4, 6]]) { ShowMeans = true },
         ["horizontal box"] = () => new BoxSeries([[1.0, 2, 3, 4, 5, 9], [2.0, 3, 3, 4, 6]]) { Vert = false, ShowMeans = true },
         ["violin"] = () => new ViolinSeries([[1.0, 2, 3, 4, 5, 9], [2.0, 3, 3, 4, 6]]) { ShowExtrema = true, ShowMedians = true, ShowMeans = true },
@@ -70,6 +73,7 @@ public class MarksAsDrawnTests
         ["eventplot"] = () => new EventplotSeries([[1.0, 2.0], [3.0, 4.0, 8.0]]),
         ["pointplot"] = () => new PointplotSeries([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
         ["pie"] = () => new PieSeries([30.0, 50.0, 20.0]) { AutoPct = "{0:F0}%", Labels = ["a", "b", "c"] },
+        ["waffle"] = () => new WaffleSeries(["a", "b", "c"], [30.0, 50.0, 20.0]),
         ["donut"] = () => new DonutSeries([30.0, 50.0, 20.0]) { CenterText = "total" },
         ["radar"] = () => new RadarSeries(["A", "B", "C", "D"], [1.0, 2.0, 3.0, 2.0]),
         ["network graph"] = () => new NetworkGraphSeries(
@@ -159,6 +163,8 @@ public class MarksAsDrawnTests
         Assert.True(marks.Boxes.Count + marks.Paths.Count + marks.Points.Count > 0, $"{name}: collected no mark at all");
 
         var rects = drawn.OfKind("DrawRectangle").Select(c => (Rect)((dynamic)c.Args!).rect).ToList();
+        // An ellipse is a box as well: the rectangle it is inscribed in.
+        rects.AddRange(drawn.OfKind("DrawEllipse").Select(c => (Rect)((dynamic)c.Args!).bounds));
         // A text the series draws is a box as well: where it stands, measured as the legend's pass measures it.
         foreach (var text in drawn.OfKind("DrawText"))
         {
@@ -214,6 +220,42 @@ public class MarksAsDrawnTests
     private static int MarkCount(MarkObstacles marks) => marks.Boxes.Count + marks.Paths.Count + marks.Points.Count;
 
     private static double[] Fill(double value) => [.. X.Select(_ => value)];
+
+    [Fact]
+    public void AWaterfallsTargets_AreCollectedAsOnePathEach_ThoseTheAxesCannotPlaceAreNot()
+    {
+        var marks = Collected(new WaterfallSeries(["a", "b", "c"], [10.0, -4.0, 6.0]) { Targets = [12.0, double.NaN, 5.0] });
+
+        Assert.Equal(3, marks.Boxes.Count);
+        Assert.Equal(2, marks.Paths.Count);
+        Assert.All(marks.Paths, path => Assert.Equal(2, path.Count));
+    }
+
+    [Fact]
+    public void AWaterfallStepTheAxesCannotPlace_CollectsNoBoxForItsBar()
+    {
+        var marks = Collected(new WaterfallSeries(["a", "b", "c"], [10.0, double.NaN, 6.0]));
+
+        Assert.Single(marks.Boxes);
+    }
+
+    /// <summary>A grid of cells needs room to stand in: a plot area with none draws no cell and collects no mark, rather than
+    /// cells of no size or a negative one.</summary>
+    [Fact]
+    public void AWaffleInAPlotWithNoRoom_DrawsNothing_AndCollectsNothing()
+    {
+        var empty = new Rect(10, 10, 0, 0);
+        var drawn = new RecordingRenderContext();
+        var builder = new MarkObstacles.Builder();
+        var transform = new DataTransform(0, 10, 0, 10, empty);
+
+        Series["waffle"]().Accept(new SvgSeriesRenderer(transform, drawn, Colors.Blue, Theme.Default, plotArea: empty), new RenderArea(empty, drawn));
+        Series["waffle"]().Accept(new SvgSeriesRenderer(transform, new RecordingRenderContext(), Colors.Blue, Theme.Default, plotArea: empty) { Marks = builder },
+            new RenderArea(empty, new RecordingRenderContext()));
+
+        Assert.Empty(drawn.OfKind("DrawRectangle"));
+        Assert.Equal(0, MarkCount(builder.Build()));
+    }
 
     [Fact]
     public void AKdeOfNoSample_CollectsNoMark() =>

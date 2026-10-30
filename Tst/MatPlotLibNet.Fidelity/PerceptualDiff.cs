@@ -207,8 +207,9 @@ public static class PerceptualDiff
 
     /// <summary>
     /// Maximum CIE ΔE*76 between the 5 dominant colours of each image.
-    /// Dominant colours are found by sampling every 10th pixel and k-means-like median-cut
-    /// simplified to a 4-bit per channel colour cube histogram.
+    /// Dominant colours are found from EVERY pixel by a 4-bit per channel colour cube histogram. A lattice of pixels
+    /// (every tenth, say) reads a different sample of a picture drawn one pixel over, so the distance between the palettes of
+    /// two pictures of one thing would depend on where the lattice fell: the same picture one pixel over scored a ΔE of 77.
     /// </summary>
     private static double ComputeMaxDeltaE(SKColor[] a, SKColor[] b)
     {
@@ -273,12 +274,12 @@ public static class PerceptualDiff
         return Math.Sqrt((L1 - L2) * (L1 - L2) + (a1 - a2) * (a1 - a2) + (b1 - b2) * (b1 - b2));
     }
 
-    /// <summary>Returns the N most prevalent colours by sampling every 10th pixel and histogram bucketing.</summary>
+    /// <summary>Returns the N most prevalent colours by histogram bucketing every pixel.</summary>
     private static List<SKColor> DominantColors(SKColor[] pixels, int n)
     {
         // 4-bit per channel (16³ = 4096 buckets) histogram
         var hist = new Dictionary<int, (long r, long g, long b, long count)>(256);
-        for (int i = 0; i < pixels.Length; i += 10)
+        for (int i = 0; i < pixels.Length; i++)
         {
             int key = (pixels[i].Red >> 4) << 8 | (pixels[i].Green >> 4) << 4 | (pixels[i].Blue >> 4);
             var (r, g, b, cnt) = hist.GetValueOrDefault(key);

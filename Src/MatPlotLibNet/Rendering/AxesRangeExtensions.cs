@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
 
@@ -16,6 +17,55 @@ internal static class AxesRangeExtensions
 {
     extension(Axes axes)
     {
+        /// <summary>The combined X and Y ranges the axes draws: its own series and the axes it shares a scale with, ranged and
+        /// padded and snapped by the pipeline of <see cref="Range1D"/>: aggregate (set limits are exact), normalise, pad with the
+        /// axis margin or the theme's, clamp to the sticky edges, expand to nice bounds, orient. It reads the axes and the theme
+        /// and nothing about the plot area, so the aspect of a plot, which is the ratio of these two ranges, can be asked of the
+        /// axes before any rectangle exists; the renderer delegates here, so the two cannot disagree.</summary>
+        /// <param name="theme">The theme whose margins pad the range where the axes sets none.</param>
+        /// <returns>The drawn range.</returns>
+        internal DataRange ComputeDataRanges(Theme theme)
+        {
+            // === 1. Aggregate — seed from axis-level limits, fold in own + shared series; a set limit is exact ===
+            // One snapshot of the own series (Histogram rebuilds bins each call), then each scale's contributions: own plus the
+            // axes it is shared with. The same contributions range the scale and decide its sticky edges below, so the axes
+            // that share a scale cannot disagree on its margins.
+            var own = axes.SnapshotContributions();
+            DataRangeContribution[] xContribs = [.. own, .. axes.LinkedContributions(linked => linked.ShareXWith)];
+            DataRangeContribution[] yContribs = [.. own, .. axes.LinkedContributions(linked => linked.ShareYWith)];
+            var xRange = xContribs.FoldXRange(Range1D.FromAxis(axes.XAxis)).WithExplicitLimits(axes.XAxis);
+            var yRange = yContribs.FoldYRange(Range1D.FromAxis(axes.YAxis)).WithExplicitLimits(axes.YAxis);
+
+            // === 2. Normalize — handle empty / lopsided / zero-width inputs before any math ===
+            xRange = xRange.Normalized().PositiveForLog(axes.XAxis);
+            yRange = yRange.Normalized().PositiveForLog(axes.YAxis);
+
+            // === 3. Drive padding + sticky + nice-bound from the contributions gathered once above ===
+            // The unpadded snapshot is captured BEFORE padding so sticky clamp can distinguish
+            // "padding pushed past the sticky" (snap back) from "another series has data past the
+            // sticky" (preserve, an overlay's sticky must not clip a wider underlying series).
+            var xUnpadded = xRange;
+            var yUnpadded = yRange;
+
+            xRange = xRange.Padded(axes.XAxis.Margin ?? theme.AxisXMargin, axes.XAxis);
+            yRange = yRange.Padded(axes.YAxis.Margin ?? theme.AxisYMargin, axes.YAxis);
+
+            foreach (var c in xContribs)
+                xRange = xRange.ClampSticky(c.StickyXMin, c.StickyXMax, xUnpadded, axes.XAxis);
+            foreach (var c in yContribs)
+                yRange = yRange.ClampSticky(c.StickyYMin, c.StickyYMax, yUnpadded, axes.YAxis);
+
+            var locator = new MatPlotLibNet.Rendering.TickLocators.AutoLocator();
+            xRange = xRange.ExpandedToNiceBoundsIfAuto(axes.XAxis, xUnpadded, xContribs.HasAnyStickyX(), locator);
+            yRange = yRange.ExpandedToNiceBoundsIfAuto(axes.YAxis, yUnpadded, yContribs.HasAnyStickyY(), locator);
+
+            // === 4. Orient — an inverted axis is drawn high to low, the way a limit set high to low already is ===
+            xRange = xRange.OrientedBy(axes.XAxis);
+            yRange = yRange.OrientedBy(axes.YAxis);
+
+            return new DataRange(xRange.Lo, xRange.Hi, yRange.Lo, yRange.Hi);
+        }
+
         /// <summary>
         /// Snapshots what takes part in the automatic range of the axes into an array: every series'
         /// <see cref="DataRangeContribution"/>, evaluating <c>ComputeDataRange</c> exactly once per series, then one

@@ -18,6 +18,17 @@ public static class AxesCircularVerbs
         /// <returns>The newly created <see cref="PieSeries"/> for further configuration.</returns>
         public PieSeries Pie(double[] sizes, string[]? labels = null) => axes.AddSeries(new PieSeries(sizes) { Labels = labels });
 
+        /// <summary>Adds a waffle chart: a grid of square cells filled by category in proportion to its share, so "37 of every
+        /// 100" is thirty-seven squares a reader can count.</summary>
+        /// <param name="categories">The categories' names.</param>
+        /// <param name="values">The size of each category, one per category; only the proportions matter.</param>
+        /// <returns>The newly created <see cref="WaffleSeries"/> for further configuration.</returns>
+        public WaffleSeries Waffle(string[] categories, double[] values)
+        {
+            categories.Length.ThrowIfMisaligned(values.Length);
+            return axes.AddSeries(new WaffleSeries(categories, values));
+        }
+
         /// <summary>Adds a donut chart series.</summary>
         public DonutSeries Donut(double[] sizes, string[]? labels = null) => axes.AddSeries(new DonutSeries(sizes) { Labels = labels });
 

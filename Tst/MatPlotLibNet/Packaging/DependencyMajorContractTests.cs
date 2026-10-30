@@ -67,6 +67,8 @@ public class DependencyMajorContractTests
             .Select(folder => Path.Combine(Root, folder))
             .Where(Directory.Exists)
             .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj", SearchOption.AllDirectories))
+            // The props files at the root that projects import carry package references too (the native assets).
+            .Concat(Directory.EnumerateFiles(Root, "*.props", SearchOption.TopDirectoryOnly))
             .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .SelectMany(file => ReferencesIn(XDocument.Load(file)).Select(reference => new PackageUse(
                 Path.GetRelativePath(Root, file).Replace('\\', '/'),
@@ -140,8 +142,8 @@ public class DependencyMajorContractTests
         new("Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj", "SkiaSharp.Views.Uno.WinUI", 3),
         new("Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj", "Uno.WinUI", 5),
         new("Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj", "Uno.WinUI.Graphics2DSK", 5),
-        new("Src/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.csproj", "SkiaSharp.NativeAssets.Win32", 3),
-        new("Src/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.csproj", "HarfBuzzSharp.NativeAssets.Win32", 8),
+        new("SkiaNativeAssets.props", "SkiaSharp.NativeAssets.Win32", 3),
+        new("SkiaNativeAssets.props", "HarfBuzzSharp.NativeAssets.Win32", 8),
         new("Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj", "HotChocolate.AspNetCore", 15),
     ];
 

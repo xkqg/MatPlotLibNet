@@ -1,7 +1,7 @@
 ﻿# MatPlotLibNet — matplotlib for .NET
 
 MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
-[matplotlib](https://matplotlib.org/). It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF,
+[matplotlib](https://matplotlib.org/). It draws 86 chart types and saves them as SVG, PNG, PDF or an animated GIF,
 straight from your server code. It does not need a JavaScript framework, a WebView or a hosted service.
 
 It has a fluent API and it works with dependency injection. It ships with 148 colormaps, 30 themes, 13 map
@@ -18,6 +18,15 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.26.0** gives marks that are a size in data units a home. A waffle chart, a calendar of events, Point and Figure
+and Renko charts draw squares, stripes and boxes that tile the plot area, and Kagi draws its thick and thin lines. A
+fill can run from one colour to another, an arrow can follow a connected scatter, and the frame of a plot can be
+trimmed: a spine spans only the data's range, a plot keeps an equal scale on request, and parallel coordinates label
+every column in its own units. An icicle chart, an arc diagram and a stem-and-leaf plot join the layouts, a waterfall
+chart can mark a target on each bar, and the comparison with matplotlib now runs in CI. Three new series types (the
+waffle chart, Point and Figure and the icicle chart) bring the count to 86 chart types, and six new verbs (`CalendarEvents`,
+`Renko`, `Kagi`, `ConnectedScatter`, `StemAndLeaf`, `MatShow`) bring the chart verbs to 26.
+
 **1.25.0** gives each value a chart resolves one owner that every reader asks. The colour bar puts its ticks where the
 chart's normaliser puts its colours, a theme owns the neutral grey that reference lines and outlines wear, a grid the
 author changed stays a change over whichever theme the figure is drawn under (a polar chart's rings and a 3-D chart's
@@ -27,8 +36,8 @@ stands directly under the curve it counts. The statistics grow: the violin reads
 density plot, `ProbabilityPlot` draws a Q-Q plot against an exponential, uniform, log-normal or Student t distribution (or
 one of your own), `RiskTable` puts the numbers at risk and the log-rank test under a survival plot, and `ShewhartChart`
 draws the individuals, moving range, X-bar, range, p and c charts and marks points by Nelson's eight tests. The volume
-tools gain an anchored VWAP (`Vwap(bars, anchor)`) and a volume profile (`VolumeProfile`). There are now 20 chart verbs
-and 59 indicators.
+tools gain an anchored VWAP (`Vwap(bars, anchor)`) and a volume profile (`VolumeProfile`). The library now has 59
+indicators.
 
 **1.24.0** gathers every Y axis of a chart into one container. The primary axis is the first axis of the left side,
 and each further axis stacks outward past the one before it, on either side and as many times as the chart needs one:
@@ -110,15 +119,15 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (896 classes, at
-99.7 % line / 98.7 % branch) across 22,297 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
-rendering with reference images drawn by matplotlib; it is not part of the CI run.
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (948 classes, at
+99.8 % line / 98.7 % branch) across 24,382 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+rendering with reference images drawn by matplotlib, and CI runs it.
 
 ---
 
 ## Documentation
 
-- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 83 chart types, the
+- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 86 chart types, the
   control room, styling, streaming, SignalR, packages
 - **[From matplotlib to C#](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html)** — the pyplot call you know, and the line that draws it here
 - **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** — copy-paste examples with rendered output
@@ -178,7 +187,7 @@ Plt.Create()
 
 ## Features
 
-**83 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, twenty one-call chart verbs (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `CalendarHeatmap`, `Spy`) are built from those series, so they add none to the count and travel through JSON as their parts.
+**86 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, Point and Figure, treemap, sunburst, icicle, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waffle, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, twenty-six one-call chart verbs (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `CalendarHeatmap`, `Spy`, `MatShow`, `CalendarEvents`, `Renko`, `Kagi`, `ConnectedScatter`, `StemAndLeaf`) are built from those series, so they add none to the count and travel through JSON as their parts.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over

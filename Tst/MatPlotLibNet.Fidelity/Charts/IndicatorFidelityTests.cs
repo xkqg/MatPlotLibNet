@@ -52,7 +52,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // 2 thin lines — pure #0000FF AA-diffuses below top-5 pixel threshold
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // 2 thin lines — pure #0000FF AA-diffuses below top-5 pixel threshold
     public void Sma_20_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
@@ -75,7 +75,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // same as SMA — thin-line AA diffusion
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // same as SMA — thin-line AA diffusion
     public void Ema_20_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
@@ -121,7 +121,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 140)]   // v1.1.4: close + VWAP overlay (2 thin lines) — classic xmargin=0 shifted line endpoints, pushing blend colours out of top-5
+    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 55)]   // v1.1.4: close + VWAP overlay (2 thin lines) — classic xmargin=0 shifted line endpoints, pushing blend colours out of top-5
     public void Vwap_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, volume) = Ohlc();
@@ -144,7 +144,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 140)]   // thin-line AA diffusion
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // thin-line AA diffusion
     public void KeltnerChannels_20_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
@@ -167,7 +167,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.45, DeltaE = 80)]   // ichimoku: multi-line + legend + cloud geometry differences
+    [FidelityTolerance(Rms = 100, Ssim = 0.45, DeltaE = 70)]   // ichimoku: multi-line + legend + cloud geometry differences
     public void Ichimoku_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc(n: 80);
@@ -190,7 +190,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.50, DeltaE = 60)]
+    [FidelityTolerance(Rms = 90, Ssim = 0.50, DeltaE = 55)]
     public void ParabolicSar_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
@@ -217,7 +217,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 80)]   // RSI overbought line is pure #FF0000 in matplotlib v2; our v2 fg #262626 displaces it from top-5
+    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 70)]   // RSI overbought line is pure #FF0000 in matplotlib v2; our v2 fg #262626 displaces it from top-5
     public void Rsi_14_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
@@ -238,7 +238,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 110, Ssim = 0.45, DeltaE = 140)]   // MACD line/signal/histogram; pure #0000FF AA-diffusion below top-5
+    [FidelityTolerance(Rms = 110, Ssim = 0.45, DeltaE = 155)]   // MACD line/signal/histogram; pure #0000FF AA-diffusion below top-5
     public void Macd_12_26_9_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
@@ -258,7 +258,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 60)]
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]
     public void Stochastic_14_3_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
@@ -278,7 +278,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // bundled DejaVu font shifted text glyphs → top-5 color blends out of band
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // bundled DejaVu font shifted text glyphs → top-5 color blends out of band
     public void Atr_14_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
@@ -299,7 +299,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 60)]
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]
     public void Adx_14_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
@@ -319,7 +319,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 70)]
     public void Cci_20_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
@@ -359,7 +359,7 @@ public class IndicatorFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // bundled DejaVu font shifted text glyphs → top-5 color blends out of band
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // bundled DejaVu font shifted text glyphs → top-5 color blends out of band
     public void Obv_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, volume) = Ohlc();

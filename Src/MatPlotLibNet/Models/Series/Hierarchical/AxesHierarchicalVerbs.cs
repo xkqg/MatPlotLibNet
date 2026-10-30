@@ -19,6 +19,12 @@ public static class AxesHierarchicalVerbs
         /// <summary>Adds a sunburst series to the axes.</summary>
         public SunburstSeries Sunburst(TreeNode root) => axes.AddSeries(new SunburstSeries(root));
 
+        /// <summary>Adds an icicle chart to the axes: the hierarchy under <paramref name="root"/> as rows of cells, one row for
+        /// each level, each cell as wide as its node's share of its parent's width.</summary>
+        /// <param name="root">The root of the hierarchy; it is not drawn, its children are the first row.</param>
+        /// <returns>The newly created <see cref="IcicleSeries"/> for further configuration.</returns>
+        public IcicleSeries Icicle(TreeNode root) => axes.AddSeries(new IcicleSeries(root));
+
         /// <summary>Adds a dendrogram series to the axes.</summary>
         /// <param name="root">The root <see cref="TreeNode"/>. Internal nodes carry their merge
         /// distance in <see cref="TreeNode.Value"/>.</param>

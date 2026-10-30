@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Tests.Packaging;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -18,12 +19,19 @@ namespace MatPlotLibNet.Tests.Models.Series;
 /// held to the same without an edit here.</summary>
 public class ComposedVerbDocumentationTests
 {
-    private static readonly Type[] Families =
-        [typeof(CategoricalAxesExtensions), typeof(DistributionAxesExtensions), typeof(XYAxesExtensions), typeof(GridAxesExtensions)];
+    private static IReadOnlyList<Type> Families => VerbFamilies.All;
 
-    /// <summary>The types the verbs introduce: the parts a callback receives, the reference of a probability plot, the control limits, and the named data.</summary>
-    private static readonly Type[] VerbTypes =
-        [typeof(DumbbellParts), typeof(ParetoParts), typeof(QQPlotParts), typeof(QQReference), typeof(RiskTableParts), typeof(LogRankResult), typeof(ControlChartParts), typeof(ControlChartData), typeof(ControlLimits), typeof(SurvivalGroup), typeof(NamedSample)];
+    /// <summary>The types the verbs introduce: the parts a callback receives and the named data they take, found through the
+    /// verbs' parameters, and the result of the log-rank test, which a verb hands out inside the risk table's parts.</summary>
+    private static readonly Type[] VerbTypes = [.. VerbFamilies.TypesTheVerbsIntroduce(), typeof(LogRankResult)];
+
+    [Fact]
+    public void TheTypesItChecks_AreEveryTypeTheVerbsIntroduce()
+    {
+        var missing = VerbFamilies.TypesTheVerbsIntroduce().Except(VerbTypes).Select(type => type.Name).ToArray();
+
+        Assert.True(missing.Length == 0, $"The documentation check leaves out types the verbs introduce: {string.Join(", ", missing)}.");
+    }
 
     private static readonly XDocument Documentation = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MatPlotLibNet.xml"));
 

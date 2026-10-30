@@ -23,8 +23,7 @@ public class VerbPlacementContractTests
 
     private static readonly string Root = RepoRoot();
 
-    private static readonly Type[] Families =
-        [typeof(CategoricalAxesExtensions), typeof(DistributionAxesExtensions), typeof(XYAxesExtensions), typeof(GridAxesExtensions)];
+    private static IReadOnlyList<Type> Families => VerbFamilies.All;
 
     private static string RepoRoot()
     {
@@ -42,43 +41,13 @@ public class VerbPlacementContractTests
 
     private static string Contributing => File.ReadAllText(Path.Combine(Root, "CONTRIBUTING.md"));
 
-    /// <summary>The names of the public extension methods a family class declares: its verbs.</summary>
-    private static MethodInfo[] VerbsOf(Type family) =>
-        [.. family.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
-            .Where(method => method.IsDefined(typeof(ExtensionAttribute), inherit: false))
-            .OrderBy(method => method.Name, StringComparer.Ordinal)];
+    private static MethodInfo[] VerbsOf(Type family) => VerbFamilies.VerbsOf(family);
 
-    private static MethodInfo[] AllVerbs => [.. Families.SelectMany(VerbsOf)];
+    private static MethodInfo[] AllVerbs => VerbFamilies.AllVerbs;
 
-    /// <summary>The types the verbs take or hand to their callbacks that belong to this library and are not series: the named
-    /// data (a group, a sample, the limits of a chart) and the parts of a chart. Found through the parameters, so a type a
-    /// verb starts taking tomorrow is found without an edit here.</summary>
-    private static Type[] TypesTheVerbsIntroduce()
-    {
-        static IEnumerable<Type> Unwrapped(Type type)
-        {
-            yield return type;
-            if (type.IsArray)
-            {
-                foreach (var inner in Unwrapped(type.GetElementType()!)) yield return inner;
-            }
+    private static Type[] TypesTheVerbsIntroduce() => VerbFamilies.TypesTheVerbsIntroduce();
 
-            foreach (var argument in type.IsGenericType ? type.GetGenericArguments() : [])
-            {
-                foreach (var inner in Unwrapped(argument)) yield return inner;
-            }
-        }
-
-        return
-        [.. AllVerbs
-            .SelectMany(verb => verb.GetParameters().Skip(1))
-            .SelectMany(parameter => Unwrapped(parameter.ParameterType))
-            .Where(type => type.IsValueType && !type.IsEnum && type.Assembly == typeof(AxesBuilder).Assembly)
-            .Distinct()
-            .OrderBy(type => type.Name, StringComparer.Ordinal)];
-    }
-
-    public static TheoryData<string> FamilyNames { get; } = new(Families.Select(family => family.Name));
+    public static TheoryData<string> FamilyNames { get; } = new(VerbFamilies.All.Select(family => family.Name));
 
     public static TheoryData<string> VerbNames { get; } = new(AllVerbs.Select(verb => verb.Name));
 
@@ -120,11 +89,11 @@ public class VerbPlacementContractTests
     private static string Show(IEnumerable<string> names) => names.Any() ? string.Join(", ", names) : "(none)";
 
     [Fact]
-    public void TheFourFamiliesAndTheirVerbs_AreFound()
+    public void TheFiveFamiliesAndTheirVerbs_AreFound()
     {
-        Assert.Equal(4, Families.Length);
-        Assert.Equal(20, AllVerbs.Length);
-        Assert.Equal(13, TypesTheVerbsIntroduce().Length);
+        Assert.Equal(5, Families.Count);
+        Assert.Equal(26, AllVerbs.Length);
+        Assert.Equal(18, TypesTheVerbsIntroduce().Length);
     }
 
     [Theory]
@@ -275,6 +244,16 @@ public class VerbPlacementContractTests
         Assert.True(violations.Count == 0, $"{verb.DeclaringType!.Name}.{name}: {Show(violations)}.");
     }
 
+    [Theory]
+    [MemberData(nameof(VerbNames))]
+    public void EveryVerb_HasAComposedShape(string name)
+    {
+        var shapes = Tests.Rendering.ComposedChartShapes.All.Where(shape => shape.Verb == name).ToArray();
+
+        Assert.True(shapes.Length == 1,
+            $"{name} is a verb, so ComposedChartShapes holds exactly one shape that stands for it (Verb = \"{name}\"); it holds {shapes.Length}.");
+    }
+
     // ---- the container verbs ------------------------------------------------------------------------------------------
 
     /// <summary>The verbs that add a Y axis to the container: instance methods of the builder (they add an axis, not a
@@ -332,7 +311,7 @@ public class VerbPlacementContractTests
     {
         var parts = TypesTheVerbsIntroduce().Where(type => type.Name.EndsWith("Parts", StringComparison.Ordinal)).ToArray();
 
-        Assert.Equal(7, parts.Length);
+        Assert.Equal(12, parts.Length);
         foreach (var type in parts)
         {
             Assert.True(type.PartsViolations().Count == 0, $"{type.Name}: {Show(type.PartsViolations())}.");

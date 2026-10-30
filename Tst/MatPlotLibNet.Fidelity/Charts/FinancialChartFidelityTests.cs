@@ -21,7 +21,7 @@ public class FinancialChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 110)]   // thin red/green OHLC ticks fall below top-5 pixel count threshold (same pattern as core violin)
+    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 70)]   // thin red/green OHLC ticks fall below top-5 pixel count threshold (same pattern as core violin)
     public void OhlcBar_20Bars_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);

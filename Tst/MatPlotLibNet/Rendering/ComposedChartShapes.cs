@@ -19,7 +19,9 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// when the chart is a grid of cells and has no series colour to count.</param>
 /// <param name="LegendEntries">How many entries the legend lists; 0 when the chart names its units on the axis or at the
 /// end of the line instead.</param>
-public readonly record struct ComposedShape(string Name, Func<bool, FigureBuilder> Build, int? Colours, int LegendEntries);
+/// <param name="Verb">The verb this shape draws, when it is the shape that stands for that verb; <see langword="null"/> for a
+/// variant of a verb that another shape stands for. Every verb has one shape that names it.</param>
+public readonly record struct ComposedShape(string Name, Func<bool, FigureBuilder> Build, int? Colours, int LegendEntries, string? Verb = null);
 
 /// <summary>The composed charts of the recipes-to-verbs increment, built from the public verbs only: the call chains the
 /// cookbook recipes make today and the one-call verbs will make tomorrow. Every shape is a figure with a known
@@ -35,32 +37,38 @@ public static class ComposedChartShapes
     /// <summary>Every shape, tranche A first.</summary>
     public static IReadOnlyList<ComposedShape> All { get; } =
     [
-        new("lollipop", Lollipop, 1, 1),
-        new("dumbbell", Dumbbell, 3, 2),
-        new("pareto", Pareto, 2, 2),
-        new("ridgeline", Ridgeline, 3, 0),
-        new("bump", Bump, 3, 0),
-        new("calendar", Calendar, null, 0),
-        new("spy", Spy, 1, 0),
-        new("slope", Slope, 5, 0),
-        new("dot-plot", DotPlot, 2, 2),
-        new("qq", QQ, 1, 1),
-        new("probability-plot", ProbabilityPlot, 1, 1),
-        new("control-chart", ControlChart, 2, 2),
-        new("shewhart-chart", ShewhartChart, 2, 2),
+        new("lollipop", Lollipop, 1, 1, "Lollipop"),
+        new("dumbbell", Dumbbell, 3, 2, "Dumbbell"),
+        new("pareto", Pareto, 2, 2, "Pareto"),
+        new("ridgeline", Ridgeline, 3, 0, "Ridgeline"),
+        new("bump", Bump, 3, 0, "BumpChart"),
+        new("calendar", Calendar, null, 0, "CalendarHeatmap"),
+        new("spy", Spy, 1, 0, "Spy"),
+        new("matshow", MatShow, null, 0, "MatShow"),
+        new("calendar-events", CalendarEvents, null, 2, "CalendarEvents"),
+        new("slope", Slope, 5, 0, "SlopeGraph"),
+        new("dot-plot", DotPlot, 2, 2, "DotPlot"),
+        new("qq", QQ, 1, 1, "QQPlot"),
+        new("probability-plot", ProbabilityPlot, 1, 1, "ProbabilityPlot"),
+        new("control-chart", ControlChart, 2, 2, "ControlChart"),
+        new("shewhart-chart", ShewhartChart, 2, 2, "ShewhartChart"),
         new("moving-range-chart", MovingRangeChart, 2, 2),
         new("xbar-chart", XBarChart, 2, 2),
         new("range-chart", RangeChart, 2, 2),
         new("p-chart", PChart, 2, 2),
         new("c-chart", CChart, 2, 2),
-        new("kaplan-meier", KaplanMeier, 2, 2),
-        new("risk-table", RiskTable, 2, 2),
-        new("parallel-coordinates", ParallelCoordinates, 3, 3),
-        new("stream-graph", StreamGraph, 4, 4),
-        new("marimekko", Marimekko, 3, 3),
-        new("raincloud", Raincloud, 1, 1),
+        new("kaplan-meier", KaplanMeier, 2, 2, "KaplanMeier"),
+        new("risk-table", RiskTable, 2, 2, "RiskTable"),
+        new("parallel-coordinates", ParallelCoordinates, 3, 3, "ParallelCoordinates"),
+        new("stream-graph", StreamGraph, 4, 4, "StreamGraph"),
+        new("marimekko", Marimekko, 3, 3, "Marimekko"),
+        new("raincloud", Raincloud, 1, 1, "Raincloud"),
         new("waterfall-total", WaterfallTotal, null, 0),
-        new("horizon", Horizon, 2, 0),
+        new("horizon", Horizon, 2, 0, "Horizon"),
+        new("renko", Renko, 2, 2, "Renko"),
+        new("connected-scatter", ConnectedScatter, 1, 0, "ConnectedScatter"),
+        new("kagi", Kagi, 1, 0, "Kagi"),
+        new("stem-and-leaf", StemAndLeaf, null, 0, "StemAndLeaf"),
     ];
 
     /// <summary>The names of <see cref="All"/>, as a Theory carries them.</summary>
@@ -394,6 +402,7 @@ public static class ComposedChartShapes
             .SetXTickFormatter(new CategoryFormatter(labels))
             .SetYTickLocator(new FixedLocator([.. Enumerable.Range(0, 7).Select(r => r + 0.5)]))
             .SetYTickFormatter(new CategoryFormatter(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], reversed: true))
+            .SetAspect(1)
             .WithColorBar());
     }
 
@@ -445,8 +454,175 @@ public static class ComposedChartShapes
             .Scatter([.. columns], [.. rows], s => s.Marker = MarkerStyle.Square)
             .SetXLim(-0.5, SpyColumns - 0.5)
             .SetYLim(SpyRows - 0.5, -0.5)
+            .SetAspect(1)
             .SetXTickLocator(new MultipleLocator(2))    // 18 columns: whole numbers, at most nine intervals across
             .SetYTickLocator(new MultipleLocator(2)));  // 12 rows: the same
+    }
+
+    private static readonly DateTime[] EventDays = [new(2025, 3, 3), new(2025, 3, 3), new(2025, 4, 1)];
+    private static readonly string[] EventKinds = ["deploy", "incident", "deploy"];
+
+    /// <summary>Three events on two days: two on Monday March 3 (a deploy and an incident) and one on Tuesday April 1, a month
+    /// later, built by <c>CalendarEvents</c>: a neutral cell for every day from March 3 to April 1, and a mark for each event
+    /// inside the cell of its day, the two of the first day side by side.</summary>
+    private static FigureBuilder CalendarEvents(bool missing) =>
+        Plt.Create().WithSize(900, 300).AddSubPlot(1, 1, 1, ax => ax.CalendarEvents(EventDays, EventKinds));
+
+    private static double[] StemSample(bool missing)
+    {
+        double[] ages = [12, 15, 21, 23, 23, 38, 41, 44, 47, 52];
+        return missing ? [.. ages, double.NaN] : ages;
+    }
+
+    /// <summary>Ten ages as a stem-and-leaf display, built by <c>StemAndLeaf</c>: the tens as the stems and the units as the leaves,
+    /// one column for each leaf of the fullest row, and the line that says how to read it.</summary>
+    private static FigureBuilder StemAndLeaf(bool missing) =>
+        Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax.StemAndLeaf(StemSample(missing)));
+
+    /// <summary>The call chain the <c>StemAndLeaf</c> verb replaces, written by hand with the public building blocks: the rows
+    /// worked out by hand (1 | 2 5, 2 | 1 3 3, 3 | 8, 4 | 1 4 7, 5 | 2: a unit of 1, because 41 stems at a tenth outnumber the
+    /// budget of 8 rows), a table of five columns of text (the stem aligned to the right, the bar and the three leaves centred, in
+    /// the widths 2, 0.5, 1, 1 and 1) with no border and no fill, 20 pixels a row, and the key as an annotation pinned to the
+    /// plot's lower left. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether the sample carries a missing value (NaN), which leaves the picture as it is.</param>
+    public static FigureBuilder StemAndLeafByHand(bool missing)
+    {
+        _ = StemSample(missing);
+        string[][] cells =
+        [
+            ["1", "|", "2", "5", ""], ["2", "|", "1", "3", "3"], ["3", "|", "8", "", ""], ["4", "|", "1", "4", "7"], ["5", "|", "2", "", ""],
+        ];
+        return Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
+            .Table(cells, t =>
+            {
+                t.ColumnAlignments = [TextAlignment.Right, TextAlignment.Center, TextAlignment.Center, TextAlignment.Center, TextAlignment.Center];
+                t.ColumnWidths = [2, 0.5, 1, 1, 1];
+                t.CellHeight = 20;
+                t.CellColor = Colors.Transparent;
+                t.BorderColor = Colors.Transparent;
+            })
+            .Annotate("Key: 1 | 2 = 12", 0, 0.02, key =>
+            {
+                key.Coordinates = AnnotationCoordinates.AxesFraction;
+                key.Alignment = TextAlignment.Left;
+                key.VerticalAlignment = TextVerticalAlignment.Bottom;
+                key.OffsetX = 8;
+            }));
+    }
+
+    private static double[] KagiCloses(bool missing)
+    {
+        double[] closes = [10, 10.5, 12, 12, 13, 12, 11, 10, 11, 14, 15, 14, 12, 9, 10];
+        if (missing) closes[1] = double.NaN;
+        return closes;
+    }
+
+    /// <summary>Fifteen closes drawn as a Kagi chart with a reversal of 1 by the <c>Kagi</c> verb: five legs, the third thin up to
+    /// the shoulder at 13 and thick above it, the fourth thick down to the waist at 10 and thin below it, all in the one colour
+    /// the verb's colour group gives the thick line and the thin one.</summary>
+    private static FigureBuilder Kagi(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Kagi(KagiCloses(missing), 1));
+
+    /// <summary>The call chain the <c>Kagi</c> verb replaces, written by hand with the public building blocks: the path of the
+    /// fifteen closes worked out by hand, a leg on the centre of its column and a connector from one centre to the next at the
+    /// price of the turn, as two lines of one explicit colour (the test side has no access to the internal colour group, so the
+    /// same literal colour on each is the public-API equivalent), the thin one 1 point wide and the thick one 3, each stretch of
+    /// one width a line of its own parted from the next by a missing value. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether the second close is missing (NaN), which leaves the picture as it is.</param>
+    public static FigureBuilder KagiByHand(bool missing)
+    {
+        _ = KagiCloses(missing);
+        var colour = Theme.Default.CycleColors[0];
+        double nan = double.NaN;
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([0.5, 0.5, 1.5, 1.5, 2.5, 2.5, nan, 3.5, 3.5, 4.5, 4.5], [10, 13, 13, 10, 10, 13, nan, 10, 9, 9, 10], s => { s.Color = colour; s.LineWidth = 1; })
+            .Plot([2.5, 2.5, 3.5, 3.5], [13, 15, 15, 10], s => { s.Color = colour; s.LineWidth = 3; })
+            .SetXTickLocator(new FixedLocator([])));
+    }
+
+    private static readonly double[] PathX = [1, 2, 4, 5, 7, 8, 9];
+
+    private static double[] PathY(bool missing)
+    {
+        double[] y = [3, 5, 4, 7, 6, 9, 8];
+        if (missing) y[3] = double.NaN;
+        return y;
+    }
+
+    /// <summary>Seven points visited in order, built by <c>ConnectedScatter</c>: a marker on every point and an arrow from each
+    /// point to the next, all in the one colour the verb's colour group gives them.</summary>
+    private static FigureBuilder ConnectedScatter(bool missing) =>
+        Plt.Create().WithSize(700, 450).AddSubPlot(1, 1, 1, ax => ax.ConnectedScatter(PathX, PathY(missing)));
+
+    /// <summary>The call chain the <c>ConnectedScatter</c> verb replaces, written by hand with the public building blocks: one
+    /// quiver whose arrow <c>i</c> starts on point <c>i</c> and takes the step to point <c>i + 1</c> at a scale of one, with a
+    /// head a tenth of its arrow long, then one scatter of the points over it, both in one explicit colour (the test side has no
+    /// access to the internal colour group, so the same literal colour on each is the public-API equivalent). The verb must draw
+    /// exactly this picture.</summary>
+    /// <param name="missing">Whether the fourth point's Y is missing (NaN).</param>
+    public static FigureBuilder ConnectedScatterByHand(bool missing)
+    {
+        double[] y = PathY(missing);
+        var colour = Theme.Default.CycleColors[0];
+        double[] u = [.. Enumerable.Range(0, PathX.Length - 1).Select(i => PathX[i + 1] - PathX[i])];
+        double[] v = [.. Enumerable.Range(0, PathX.Length - 1).Select(i => y[i + 1] - y[i])];
+        return Plt.Create().WithSize(700, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Quiver(PathX[..6], y[..6], u, v, s => { s.Color = colour; s.Scale = 1; s.ArrowHeadSize = 0.1; })
+            .Scatter(PathX, y, s => s.Color = colour));
+    }
+
+    private static double[] RenkoCloses(bool missing)
+    {
+        double[] closes = [10, 10.4, 11.0, 13.2, 12.5, 11.0, 10.4, 7.8, 8.9, 10.0, 9.0, 15.9];
+        if (missing) closes[1] = double.NaN;
+        return closes;
+    }
+
+    /// <summary>Twelve closes drawn as Renko bricks of 1 by the <c>Renko</c> verb: thirteen bricks, the first at 10 to 11, three
+    /// up, four down, then six up, each brick a column wide and its corner on the corner of the one before. The bricks that
+    /// rose wear one colour and those that fell another, and the legend names the two kinds.</summary>
+    private static FigureBuilder Renko(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Renko(RenkoCloses(missing), 1).WithLegend());
+
+    private const int MatShowRows = 6, MatShowColumns = 9;
+
+    /// <summary>A matrix of small whole numbers from a modular rule (integer arithmetic only); the missing one is at row 2,
+    /// column 3.</summary>
+    private static double[,] MatShowMatrix(bool missing)
+    {
+        var matrix = new double[MatShowRows, MatShowColumns];
+        for (int r = 0; r < MatShowRows; r++)
+        {
+            for (int c = 0; c < MatShowColumns; c++) matrix[r, c] = (r * 7 + c * 3) % 10;
+        }
+        if (missing) matrix[2, 3] = double.NaN;
+        return matrix;
+    }
+
+    /// <summary>A matrix shown as a grid of square cells, built by <c>MatShow</c>: one heatmap with an aspect of one, the
+    /// rows and the columns numbered from 0 (the first row on top, the columns along the top as well as the bottom) and a
+    /// colour bar.</summary>
+    private static FigureBuilder MatShow(bool missing) =>
+        Plt.Create().WithSize(700, 500).AddSubPlot(1, 1, 1, ax => ax.MatShow(MatShowMatrix(missing)));
+
+    /// <summary>The call chain the <c>MatShow</c> verb replaces, written by hand with the public building blocks: the heatmap,
+    /// an aspect of one, a tick on the centre of every column and row (9 columns and 6 rows are few enough to number each)
+    /// reading its own index, the rows read from the top down, the X ticks mirrored on the top edge, and a colour bar. The
+    /// verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether one cell (row 2, column 3) is missing (NaN).</param>
+    public static FigureBuilder MatShowByHand(bool missing)
+    {
+        string[] columnNames = [.. Enumerable.Range(0, MatShowColumns).Select(c => c.ToString(System.Globalization.CultureInfo.InvariantCulture))];
+        string[] rowNames = [.. Enumerable.Range(0, MatShowRows).Select(r => r.ToString(System.Globalization.CultureInfo.InvariantCulture))];
+        return Plt.Create().WithSize(700, 500).AddSubPlot(1, 1, 1, ax => ax
+            .Heatmap(MatShowMatrix(missing))
+            .SetAspect(1)
+            .SetXTickLocator(new FixedLocator([.. Enumerable.Range(0, MatShowColumns).Select(c => c + 0.5)]))
+            .SetXTickFormatter(new CategoryFormatter(columnNames))
+            .SetYTickLocator(new FixedLocator([.. Enumerable.Range(0, MatShowRows).Select(r => r + 0.5)]))
+            .SetYTickFormatter(new CategoryFormatter(rowNames, reversed: true))
+            .WithXTicksMirrored()
+            .WithColorBar());
     }
 
     // ---- tranche B ----------------------------------------------------------------------------------------------
@@ -901,6 +1077,23 @@ public static class ComposedChartShapes
                 int cls = c;
                 ax.Plot([.. xs], [.. ys], s => { s.LineWidth = 1.2; s.Label = IrisClasses[cls]; });
             }
+            // Each column reads in its own units: the locator's numbers over the column's own range, a six-pixel mark on the
+            // column line and the number to its left, at the height that value is drawn at.
+            for (int d = 0; d < 4; d++)
+            {
+                foreach (double value in new AutoLocator().Locate(low[d], high[d]).Where(v => v >= low[d] - 1e-9 * (high[d] - low[d]) && v <= high[d] + 1e-9 * (high[d] - low[d])))
+                {
+                    double height = (value - low[d]) / (high[d] - low[d]);
+                    ax.Annotate(value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture), centres[d], height, centres[d], height, a =>
+                    {
+                        a.Alignment = TextAlignment.Right;
+                        a.VerticalAlignment = TextVerticalAlignment.Center;
+                        a.OffsetX = -6;
+                        a.ArrowStyle = ArrowStyle.Simple;
+                    });
+                }
+            }
+
             ax.SetXTickLocator(new FixedLocator(centres)).SetXTickFormatter(new CategoryFormatter(IrisDimensions))
               .SetYTickLocator(new FixedLocator([]));
         });

@@ -14,23 +14,23 @@ This cookbook contains code examples with their rendered output. Every example u
 | Category | Examples |
 |---|---|
 | [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, colour, statistics, images, 3D and polar |
-| [Line Charts](line-charts.md) | Line styles, markers, gaps at missing values, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, a second axis or any number of Y axes on either side, where the legend stands (`Best` looks for room), outside legend, legend value display; in one call each: bump chart, control chart (and the other Shewhart charts with Nelson's tests), stream graph, horizon chart; connected scatter |
+| [Line Charts](line-charts.md) | Line styles, markers, gaps at missing values, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, a second axis or any number of Y axes on either side, where the legend stands (`Best` looks for room), outside legend, legend value display; in one call each: bump chart, control chart (and the other Shewhart charts with Nelson's tests), stream graph, horizon chart; connected scatter, a connected scatter with arrows, an area that lies down |
 | [Direct labels & axis colours](direct-labels-and-axis-colours.md) | A line's name at the end of the line instead of in the legend, each Y axis coloured like its line, a dual-axis chart that needs no legend, what is kept in JSON |
-| [Bar Charts](bar-charts.md) | Vertical/horizontal bars, bars below zero, bars on a log scale, stacked, grouped, bar labels (beyond the bar's end whichever way it points), hatching, width/alpha control; in one call each: Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko; waterfall with totals |
-| [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
-| [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, placing them, KDE, rug plot, density scatter; in one call each: ridgeline, Q-Q plot and probability plot against other distributions, Kaplan-Meier curve with its risk table and log-rank test, raincloud |
+| [Bar Charts](bar-charts.md) | Vertical/horizontal bars, bars below zero, bars on a log scale, stacked, grouped, bar labels (beyond the bar's end whichever way it points), hatching, width/alpha control; in one call each: Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko; waterfall with totals, a fill that fades from one colour to another, a waterfall with a target on each bar |
+| [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches, a waffle chart of square cells counted by share |
+| [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, placing them, KDE, rug plot, density scatter; in one call each: ridgeline, Q-Q plot and probability plot against other distributions, Kaplan-Meier curve with its risk table and log-rank test, raincloud, a stem-and-leaf plot |
 | [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap, wind rose (stacked by speed), one radial scale |
-| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh; in one call each: calendar heatmap from dates, spy plot of a matrix |
+| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh; in one call each: calendar heatmap from dates, spy plot of a matrix, a calendar of events, a matrix as square cells (`MatShow`) |
 | [Latency Heatmaps](latency-heatmap.md) | A histogram over time: a real clock across, log-scaled latency bucket edges up the side, counts in the cells, with a percentile line on top |
 | [Contour Plots](contour.md) | Contour lines with labels, filled contour that follows the limits, custom levels, contour overlay, triangulated contour |
 | [Subplots & GridSpec](subplots.md) | Grid subplots, GridSpec ratios, mosaic layout, spanning subplots, insets, shared axes, spacing |
-| [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI), an anchored VWAP and a volume profile |
+| [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI), an anchored VWAP and a volume profile, Point and Figure, Renko and Kagi charts of the closes |
 | [Sankey Diagrams](sankey.md) | Income statement, customer journey, process distribution, vertical orientation, severity cascade |
-| [Treemaps & Hierarchical](treemaps.md) | Nested pie, treemap with drilldown |
+| [Treemaps & Hierarchical](treemaps.md) | Nested pie, treemap with drilldown, an icicle chart |
 | [Dendrograms](dendrograms.md) | Hierarchical-clustering tree, four orientations, cut-height with cluster colours |
 | [Clustermap](clustermap.md) | Heatmap + row/column dendrograms, automatic reordering, panel ratio control |
 | [Pair Grid (PairPlot)](pairplot.md) | N×N matrix of histograms (or KDE) on the diagonal + scatters off-diagonal, hue grouping, triangular suppression |
-| [Network Graph](network-graph.md) | Nodes + edges in 2D, three deterministic layouts (Manual/Circular/Hierarchical), directed-edge arrowheads, per-node colour and size scalars, DataFrame edge-list ingestion |
+| [Network Graph](network-graph.md) | Nodes + edges in 2D, four deterministic layouts (Manual/Circular/Arc/Hierarchical), directed-edge arrowheads, per-node colour and size scalars, DataFrame edge-list ingestion |
 | [3D Charts](threed.md) | Surface, scatter, bar, Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D, camera, lighting, pane styling |
 | [Math Text](mathtext.md) | Greek letters, fractions, square roots, accents, font variants, operator limits (∫ Σ Π), matrices |
 | [Error Bars](error-bars.md) | Symmetric, asymmetric, cap size, combined scatter+error, confidence bands, A/B test |
@@ -42,7 +42,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export, rotating 3D |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling, Rx integration |
 | [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations, text size, pixel offset and vertical alignment, annotations that move out of the way |
-| [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
+| [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates, a range frame, an equal scale, several figures on one page |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks, turned labels with room beside the plot |
 | [State timeline in WPF](wpf-timeline.md) | A WPF window with a state timeline: tooltip and click per event, pan and zoom along time, stacked categories on one time axis, a marker for the playback position |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition, topology panel (the service map) |

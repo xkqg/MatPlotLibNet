@@ -73,11 +73,12 @@ public class ComposedChartPixelTests
 
         public bool HasStroke => Text("stroke") is { } stroke && stroke != "none";
 
-        /// <summary>Whether this part paints the point (<paramref name="x"/>, <paramref name="y"/>), half a pixel's margin
-        /// included: its fill when it has one, its stroke when it has one.</summary>
+        /// <summary>Whether this part paints the point (<paramref name="x"/>, <paramref name="y"/>), a whole pixel's margin
+        /// included (the pixel that is read begins at the point and reaches a pixel beyond it, so a part whose edge lies in that
+        /// pixel has blended into it): its fill when it has one, its stroke when it has one.</summary>
         public bool Covers(double x, double y)
         {
-            const double margin = 0.6;
+            const double margin = 1.0;
             switch (Kind)
             {
                 case "circle":
@@ -157,7 +158,7 @@ public class ComposedChartPixelTests
             case "circle" when part.HasFill && part.Text("fill")!.Length == 7 && part.Number("r") >= 2.5:
                 yield return new Probe(part, part.Number("cx"), part.Number("cy"), Rgb.FromHex(part.Text("fill")!), part.Opacity, Blended: part.Opacity < 1);
                 break;
-            case "rect" when part.HasFill && part.Text("fill")!.Length == 7 && !IsThePage(part) && part.Number("width") > 3 && part.Number("height") > 3:
+            case "rect" when part.HasFill && part.Text("fill")!.Length == 7 && !IsThePage(part) && part.Opacity > 0 && part.Number("width") > 3 && part.Number("height") > 3:
                 yield return new Probe(part, part.Number("x") + part.Number("width") / 2, part.Number("y") + part.Number("height") / 2, Rgb.FromHex(part.Text("fill")!), part.Opacity, Blended: part.Opacity < 1);
                 break;
             case "line" when part.HasStroke && part.Text("stroke")!.Length == 7 && part.Text("stroke") != "#262626":
@@ -263,11 +264,20 @@ public class ComposedChartPixelTests
         return new Verdict(matched, covered, mismatches);
     }
 
+    /// <summary>The shapes whose picture is text and nothing else: their cells are transparent, so no part has a colour of its
+    /// own to compare. The check below holds the exemption to that, so a shape cannot hide in it by drawing a part that could be compared.</summary>
+    private static readonly string[] TextOnly = ["stem-and-leaf"];
+
     [Theory]
     [MemberData(nameof(ComposedChartShapes.Names), MemberType = typeof(ComposedChartShapes))]
     public void ThePngDrawsEveryPartInTheColourTheSvgGivesIt(string name)
     {
         var verdict = Compare(ComposedChartShapes.Named(name).Build(false).Build());
+        if (TextOnly.Contains(name))
+        {
+            Assert.True(verdict.Total == 0, $"{name} is exempt because its picture is text only, yet {verdict.Total} parts could be compared.");
+            return;
+        }
 
         Assert.True(verdict.Mismatches.Count == 0,
             $"{name}: {verdict.Mismatches.Count} of {verdict.Total} parts have another colour in the PNG than in the SVG: {string.Join("; ", verdict.Mismatches.Take(5))}");

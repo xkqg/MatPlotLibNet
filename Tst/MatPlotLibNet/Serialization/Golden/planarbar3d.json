@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"planarbar3d","xData":[0,1],"yData":[0,1],"barWidth":0.8,"zData":[1,2]}],"coordinateSystem":"threed"}]}

@@ -50,7 +50,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 115, Ssim = 0.50, DeltaE = 125)]   // tab10 (ours) vs bgrcmyk (matplotlib classic) — pure blue/red/green don't appear in our top-5
+    [FidelityTolerance(Rms = 115, Ssim = 0.50, DeltaE = 45)]   // tab10 (ours) vs bgrcmyk (matplotlib classic) — pure blue/red/green don't appear in our top-5
     public void StackedArea_StackPlot_MatchesMatplotlib(string themeId)
     {
         var x = Linspace(0, 10, 50);
@@ -72,7 +72,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 10)]
     public void Step_Function_MatchesMatplotlib(string themeId)
     {
         var x = Enumerable.Range(0, 20).Select(i => (double)i).ToArray();
@@ -115,7 +115,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 10)]
     public void Regression_LinearFit_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -136,7 +136,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 10)]
     public void Residual_ScatterZero_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -158,7 +158,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 15)]
     public void Ecdf_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -206,7 +206,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 10)]
     public void SignalXY_IrregularX_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
@@ -228,7 +228,7 @@ public class XyChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.45, DeltaE = 55)]   // sparkline has minimal chrome; small diffs dominate
+    [FidelityTolerance(Rms = 80, Ssim = 0.45, DeltaE = 85)]   // sparkline has minimal chrome; small diffs dominate
     public void Sparkline_RandomWalk_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);

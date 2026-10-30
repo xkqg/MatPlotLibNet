@@ -56,6 +56,13 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             var p1 = pixelPositions[u];
             var p2 = pixelPositions[v];
             double thickness = edge.Weight * series.EdgeThicknessScale;
+            if (series.Layout == GraphLayout.Arc)
+            {
+                // An arc diagram draws every edge as a semicircle over the row of nodes; a self-loop has none to draw.
+                if (u != v) DrawArc(series, edge, positioned[u].X, positioned[v].X, thickness);
+                continue;
+            }
+
             Ctx.DrawLine(p1, p2, new StrokeStyle(SeriesColor, thickness, LineStyle.Solid));
 
             if (edge.IsDirected)
@@ -88,16 +95,48 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
         }
     }
 
+    /// <summary>The control points of the quarter circle of a semicircle, as a share of its radius: the cubic Bézier curve that
+    /// follows a quarter circle closest (4/3 of the tangent of an eighth of a turn), a constant so that no trigonometry is
+    /// needed.</summary>
+    private const double QuarterCircle = 0.5522847498307936;
+
+    /// <summary>Strokes one edge of an arc diagram: a semicircle over the row, from the node the edge leaves to the node it
+    /// reaches, as two cubic Bézier curves worked out in data units (so they are a half circle when the plot has an aspect of
+    /// one) and mapped to the page. A directed edge ends in an arrowhead whose direction is the end of the arc: from the
+    /// last control point to the node.</summary>
+    private void DrawArc(NetworkGraphSeries series, GraphEdge edge, double xFrom, double xTo, double thickness)
+    {
+        double radius = NetworkGraphLayouts.ArcRadius(xFrom, xTo);
+        double centre = (xFrom + xTo) / 2, side = xTo > xFrom ? 1 : -1, bend = QuarterCircle * radius;
+        Point At(double x, double y) => Transform.DataToPixel(x, y);
+
+        var end = At(xTo, 0);
+        var lastControl = At(xTo, bend);
+        PathSegment[] arc =
+        [
+            new MoveToSegment(At(xFrom, 0)),
+            new BezierSegment(At(xFrom, bend), At(centre - side * bend, radius), At(centre, radius)),
+            new BezierSegment(At(centre + side * bend, radius), lastControl, end),
+        ];
+        Ctx.DrawPath(arc, new ShapeStyle(null, SeriesColor, thickness));
+
+        if (edge.IsDirected)
+            DrawArrowhead(lastControl, end, SeriesColor);
+
+        if (series.ShowEdgeWeights)
+        {
+            Ctx.DrawText(edge.Weight.ToString("G3", System.Globalization.CultureInfo.InvariantCulture),
+                At(centre, radius), new Font { Family = "sans-serif", Size = 9, Color = Colors.Black },
+                TextAlignment.Center);
+        }
+    }
+
     /// <summary>Paints a small filled triangle at the target end of a directed edge,
     /// reusing <see cref="ArrowHeadBuilder"/> so the geometry matches annotation-style
     /// arrows used elsewhere in the library.</summary>
     private void DrawArrowhead(Point from, Point to, Color color)
     {
-        double dx = to.X - from.X, dy = to.Y - from.Y;
-        double len = Math.Sqrt(dx * dx + dy * dy);
-        if (len < 1e-9) return;
-        double ux = dx / len, uy = dy / len;
-        var verts = ArrowHeadBuilder.BuildPolygon(to, ux, uy, ArrowStyle.FancyArrow, ArrowSizePx);
+        var verts = ArrowHeadBuilder.BuildPolygon(from, to, ArrowStyle.FancyArrow, ArrowSizePx);
         if (verts.Count > 0) Ctx.DrawPolygon(verts, new ShapeStyle(color, null, 0.0));
     }
 }

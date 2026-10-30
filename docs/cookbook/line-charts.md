@@ -658,23 +658,47 @@ none of them carries a label, since the bands' own stacking is the reading. `Hor
 
 ## Connected scatter
 
-Two measures that change together over time, one point per moment, joined in time order. There is no verb for it:
-it is a line with markers, labelled at the points that matter:
+Two measures that change together over time, one point per moment, joined in time order. `ConnectedScatter(x, y)` draws a
+marker on every point and an arrow from each point to the next, so the way the path runs can be followed:
 
 ```csharp
-double[] unemployment = [5.0, 4.6, 4.4, 3.9, 3.7, 8.1, 5.3, 3.6, 3.6];
-double[] inflation    = [0.1, 1.3, 2.1, 2.4, 1.8, 1.2, 4.7, 8.0, 4.1];
+double[] unemployment = [4.0, 4.4, 5.8, 7.7, 9.3, 9.6, 8.9];
+double[] inflation = [2.4, 1.6, 2.7, 0.1, 2.7, 1.5, 3.0];
 
 Plt.Create()
-    .WithTitle("Unemployment and inflation, 2015 to 2023")
+    .WithTitle("Unemployment and inflation")
+    .WithSize(700, 450)
     .AddSubPlot(1, 1, 1, ax => ax
-        .Plot(unemployment, inflation, s => { s.Marker = MarkerStyle.Circle; s.MarkerSize = 7; })
-        .Annotate("2015", unemployment[0], inflation[0])
-        .Annotate("2023", unemployment[^1], inflation[^1])
+        .ConnectedScatter(unemployment, inflation)
         .SetXLabel("Unemployment (%)")
         .SetYLabel("Inflation (%)"))
     .Save("connected_scatter.svg");
 ```
 
-A line draws its points in the order given, so the x values may go back and forth. Arrow heads along the segments,
-to show the direction, are not drawn.
+![A connected scatter with an arrow along each segment](../images/connected_scatter.png)
+
+The path is a scatter and a quiver in one colour; each arrow's head lands on the next point and points along the segment as the
+page draws it. The points keep the order given, so the x values may go back and forth. `ConnectedScatterParts` hands you the
+points and the arrows, to label the moments that matter with `Annotate` or to restyle either.
+
+## Area that lies down
+
+`FillBetweenX(y, x1, x2)` is `FillBetween` turned on its side: at each height the fill runs between two curves along X, or
+from zero to the curve when `x2` is `null`. It is an `AreaSeries` with the orientation the bars have.
+
+```csharp
+double[] depth = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+double[] speed = [2, 4, 3, 6, 5, 8, 6, 9, 7, 10, 8];
+
+Plt.Create()
+    .WithTitle("Speed by depth")
+    .WithSize(500, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .FillBetweenX(depth, speed, null, s => s.Alpha = 0.8)
+        .SetXLabel("Speed")
+        .SetYLabel("Depth"))
+    .Save("fill_betweenx_speed.svg");
+```
+
+![An area that runs from the left axis out to a jagged curve](../images/fill_betweenx_speed.png)
+

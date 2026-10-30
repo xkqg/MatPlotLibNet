@@ -11,6 +11,9 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders <see cref="HeatmapSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class HeatmapSeriesRenderer : SeriesRenderer<HeatmapSeries>
 {
+    /// <summary>How opaque the neutral grey of a calendar of events lays the days, out of 255.</summary>
+    private const byte NeutralCellOpacity = 64;
+
     /// <inheritdoc />
     public HeatmapSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -60,7 +63,10 @@ internal sealed class HeatmapSeriesRenderer : SeriesRenderer<HeatmapSeries>
             if (!cell.IsDrawable()) continue;   // a cell with an edge that cannot be placed is skipped
 
             double value = series.Data[r, c];
-            var color = cmap.ColorOf(value, norm, min, max);
+            // A calendar of events lays its days in the theme's neutral grey, light enough to be a ground for the marks on it.
+            var color = series.WearsNeutral && !value.IsMissing()
+                ? Context.Theme.Neutral with { A = NeutralCellOpacity }
+                : cmap.ColorOf(value, norm, min, max);
             Ctx.DrawRectangle(cell, new ShapeStyle(color, null, 0));
 
             // A label states the cell's value; a missing cell has none to state.

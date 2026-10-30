@@ -34,6 +34,42 @@ public sealed record SpineConfig
     public Color? Color { get; init; }
 
     public LineStyle LineStyle { get; init; } = LineStyle.Solid;
+
+    private readonly double? _boundsFrom;
+    private readonly double? _boundsTo;
+
+    /// <summary>Where the spine begins along its own axis, in data units of that axis (X for a bottom or top spine, Y for a
+    /// left or right one), as matplotlib's <c>set_bounds</c> says it. <see langword="null"/>, the default, starts the spine
+    /// at the edge of the plot. Together with <see cref="BoundsTo"/> it makes a range frame: an axis line that spans only
+    /// the data's range. The tick marks are not clipped to the bounds, as matplotlib's are not. A bound has to be a finite
+    /// number; one given the other way round (<see cref="BoundsFrom"/> above <see cref="BoundsTo"/>) draws the same line.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a number or is infinite.</exception>
+    public double? BoundsFrom
+    {
+        get => _boundsFrom;
+        init => _boundsFrom = value.Finite(nameof(BoundsFrom));
+    }
+
+    /// <summary>Where the spine ends along its own axis, in data units of that axis; <see langword="null"/> ends it at the
+    /// edge of the plot. See <see cref="BoundsFrom"/>.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is not a number or is infinite.</exception>
+    public double? BoundsTo
+    {
+        get => _boundsTo;
+        init => _boundsTo = value.Finite(nameof(BoundsTo));
+    }
+}
+
+internal static class SpineBoundExtensions
+{
+    extension(double? bound)
+    {
+        /// <summary>The bound itself, refused by name when it is not a finite number.</summary>
+        internal double? Finite(string name) =>
+            bound is { } value && !double.IsFinite(value)
+                ? throw new ArgumentOutOfRangeException(name, value, "A spine bound is a finite number in data units.")
+                : bound;
+    }
 }
 
 /// <summary>Configures all four spines of a Cartesian axes.</summary>

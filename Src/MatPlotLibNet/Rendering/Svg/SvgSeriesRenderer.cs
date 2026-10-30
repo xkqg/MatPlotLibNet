@@ -354,6 +354,9 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Phase D additions
     private Stem3DSeriesRenderer? _stem3D;
     private Bar3DSeriesRenderer? _bar3D;
+    private WaffleSeriesRenderer? _waffle;
+    private PointAndFigureSeriesRenderer? _pointAndFigure;
+    private IcicleSeriesRenderer? _icicle;
     private PlanarBar3DSeriesRenderer? _planarBar3D;
     /// <inheritdoc />
     public void Visit(Stem3DSeries s, RenderArea a) => Dispatch(_stem3D ??= new(_context), s);
@@ -361,6 +364,15 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(Bar3DSeries s, RenderArea a) => Dispatch(_bar3D ??= new(_context), s);
     /// <inheritdoc />
     public void Visit(PlanarBar3DSeries s, RenderArea a) => Dispatch(_planarBar3D ??= new(_context), s);
+
+    /// <inheritdoc />
+    public void Visit(WaffleSeries s, RenderArea a) => Dispatch(_waffle ??= new(_context), s);
+
+    /// <inheritdoc />
+    public void Visit(PointAndFigureSeries s, RenderArea a) => Dispatch(_pointAndFigure ??= new(_context), s);
+
+    /// <inheritdoc />
+    public void Visit(IcicleSeries s, RenderArea a) => Dispatch(_icicle ??= new(_context), s);
 
     // Signal v1.0
     /// <inheritdoc />

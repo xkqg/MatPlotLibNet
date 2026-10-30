@@ -136,6 +136,9 @@ public static class SeriesRegistry
         Register("spectrogram", SpectrogramSeries.FromSeriesDto);
         Register("table", TableSeries.FromSeriesDto);
         Register("treegrid", TreeGridSeries.FromSeriesDto);
+        Register("waffle", WaffleSeries.FromSeriesDto);
+        Register("pointandfigure", PointAndFigureSeries.FromSeriesDto);
+        Register("icicle", IcicleSeries.FromSeriesDto);
 
         // v0.8.0 Phase C
         Register("tricontour", TricontourSeries.FromSeriesDto);

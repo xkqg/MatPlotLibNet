@@ -459,3 +459,26 @@ A point at index *i* of its group, standing at the group's own index *g*, is jit
 the figure is the same on every run. Only the violin carries a label ("Samples"), so one legend swatch names the
 trio rather than standing, falsely, for several differently coloured groups; the groups themselves are named along
 the X axis. `RaincloudParts` hands you `Violin`, `Box` and `Points`. A group of no observations is refused.
+
+## Stem-and-leaf plot
+
+`StemAndLeaf(sample, leafUnit)` writes a sample as stems and leaves: every observation on a row, the digits above the leaf unit
+as the stem and the last digit as a leaf, cut toward zero without rounding.
+
+```csharp
+double[] ages = [12, 15, 21, 23, 23, 38, 41, 44, 47, 52, 53, 58, 61];
+
+Plt.Create()
+    .WithTitle("Ages")
+    .WithSize(500, 350)
+    .AddSubPlot(1, 1, 1, ax => ax.StemAndLeaf(ages))
+    .Save("stem_and_leaf_ages.svg");
+```
+
+![A stem-and-leaf plot of ages](../images/stem_and_leaf_ages.png)
+
+The leaf unit, a power of ten, is chosen from the sample when you give none. Negative values have negative stems and the stem
+`-0`, and a stem nobody falls on is a row of no leaves. Each leaf has a column of its own, so the leaves stand under each other
+in any font, and a line at the lower left says how to read it (`Key: 1 | 2 = 12`). The display is a `TableSeries`, which gained
+`ColumnAlignments` (left, centre or right for each data column) and `ColumnWidths` (relative widths); `StemAndLeafParts` hands
+you the table and the key.

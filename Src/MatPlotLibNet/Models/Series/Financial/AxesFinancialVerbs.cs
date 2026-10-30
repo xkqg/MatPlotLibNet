@@ -21,6 +21,16 @@ public static class AxesFinancialVerbs
             return axes.AddSeries(new CandlestickSeries(open, high, low, close) { DateLabels = dateLabels });
         }
 
+        /// <summary>Adds a Point and Figure chart (close only): the price as columns of boxes, Xs where it rose and Os where it
+        /// fell, with no axis for time.</summary>
+        /// <param name="prices">The closing prices, oldest first.</param>
+        /// <param name="boxSize">The price one box covers; a finite number above zero.</param>
+        /// <param name="reversal">How many boxes back from the last box drawn the price has to come to start a column the other
+        /// way; 1 or more, and 3 (the classic) unless said otherwise.</param>
+        /// <returns>The newly created <see cref="PointAndFigureSeries"/> for further configuration.</returns>
+        public PointAndFigureSeries PointAndFigure(double[] prices, double boxSize, int reversal = 3) =>
+            axes.AddSeries(new PointAndFigureSeries(prices, boxSize, reversal));
+
         /// <summary>Adds a traditional OHLC bar chart series from price data.</summary>
         public OhlcBarSeries OhlcBar(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null)
         {

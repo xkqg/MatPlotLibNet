@@ -28,4 +28,12 @@ public enum GraphLayout
     /// <summary>BFS top-down layering from the first node: depth = Y, within-depth order = X.
     /// Disconnected components default to depth 0. Cycles are tolerated.</summary>
     Hierarchical = 3,
+
+    /// <summary>An arc diagram: the nodes in a row along the X axis, node <c>i</c> at <c>(i, 0)</c> in the order the nodes are
+    /// stored, and every edge drawn as a semicircle above the row from one of its nodes to the other (its two cubic Bézier
+    /// curves in data space, so the arc is a half circle when the plot has an aspect of one, <c>SetAspect(1)</c>, and a half
+    /// ellipse otherwise). An edge between two nodes <c>d</c> apart rises <c>d / 2</c>, so the arcs always fit the range from 0
+    /// to <c>n - 1</c> along X and from 0 to <c>(n - 1) / 2</c> along Y, which the series states as its data range. A
+    /// self-loop has no arc to draw. The edges and the coordinates you supplied do not move the nodes.</summary>
+    Arc = 4,
 }

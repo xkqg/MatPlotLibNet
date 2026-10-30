@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using MatPlotLibNet.Tests.Packaging;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -13,14 +13,9 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// a verb that was ever registered as a series type (which would advertise a chart no spec carries) turns it red.</summary>
 public class ComposedVerbVocabularyTests
 {
-    private static readonly Type[] Families =
-        [typeof(CategoricalAxesExtensions), typeof(DistributionAxesExtensions), typeof(XYAxesExtensions), typeof(GridAxesExtensions)];
-
-    /// <summary>The name of every verb: a public extension method of one of the four family classes.</summary>
+    /// <summary>The name of every verb: a public extension method of one of the family classes.</summary>
     private static readonly string[] Verbs =
-        [.. Families
-            .SelectMany(family => family.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly))
-            .Where(method => method.IsDefined(typeof(ExtensionAttribute), inherit: false))
+        [.. VerbFamilies.AllVerbs
             .Select(method => method.Name)
             .Distinct()
             .Order(StringComparer.Ordinal)];

@@ -26,13 +26,13 @@ public class MarkObstaclesContractTests
         typeof(SignalSeries), typeof(SignalXYSeries), typeof(StreamingLineSeries), typeof(StreamingSignalSeries), typeof(ErrorBarSeries),
         typeof(StemSeries), typeof(AreaSeries), typeof(StackedAreaSeries), typeof(BoxSeries), typeof(ViolinSeries), typeof(OhlcBarSeries),
         typeof(PointplotSeries), typeof(RugplotSeries), typeof(EventplotSeries), typeof(DendrogramSeries), typeof(NetworkGraphSeries),
-        typeof(RelativeRotationSeries), typeof(RadarSeries), typeof(PieSeries), typeof(DonutSeries), typeof(SunburstSeries),
+        typeof(RelativeRotationSeries), typeof(RadarSeries), typeof(PieSeries), typeof(DonutSeries), typeof(SunburstSeries), typeof(WaffleSeries),
         // points
         typeof(ScatterSeries), typeof(BubbleSeries), typeof(StreamingScatterSeries), typeof(StripplotSeries), typeof(SwarmplotSeries),
         typeof(ResidualSeries),
         // boxes
         typeof(BarSeries), typeof(HistogramSeries), typeof(CountSeries), typeof(WaterfallSeries), typeof(BrokenBarSeries),
-        typeof(GanttSeries), typeof(FunnelSeries), typeof(CandlestickSeries), typeof(StreamingCandlestickSeries),
+        typeof(GanttSeries), typeof(FunnelSeries), typeof(CandlestickSeries), typeof(StreamingCandlestickSeries), typeof(PointAndFigureSeries),
     ];
 
     /// <summary>The series that draw marks on polar and 3-D axes.</summary>
@@ -51,7 +51,7 @@ public class MarkObstaclesContractTests
         typeof(QuiverSeries), typeof(StreamplotSeries), typeof(BarbsSeries), typeof(PolarHeatmapSeries), typeof(SurfaceSeries),
         typeof(WireframeSeries), typeof(Trisurf3DSeries), typeof(Contour3DSeries), typeof(Quiver3DSeries), typeof(VoxelSeries),
         typeof(ClustermapSeries), typeof(StateTimelineSeries),
-        typeof(TreemapSeries), typeof(TableSeries), typeof(TreeGridSeries), typeof(PairGridSeries), typeof(SankeySeries),
+        typeof(TreemapSeries), typeof(IcicleSeries), typeof(TableSeries), typeof(TreeGridSeries), typeof(PairGridSeries), typeof(SankeySeries),
         typeof(StatTileSeries), typeof(GaugeSeries), typeof(ProgressBarSeries), typeof(BulletGraphSeries), typeof(QuiverKeySeries),
     ];
 

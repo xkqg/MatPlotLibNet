@@ -163,17 +163,17 @@ public abstract class FidelityTest
     // Threshold resolution
     // ──────────────────────────────────────────────────────────────────────────
 
-    private (double Rms, double Ssim, double DeltaE) GetThresholds(string? callerMember)
+    private FidelityThresholds GetThresholds(string? callerMember)
     {
         if (callerMember is null)
-            return (PerceptualDiff.DefaultRmsThreshold, PerceptualDiff.DefaultSsimThreshold, PerceptualDiff.DefaultDeltaEThreshold);
+            return FidelityThresholds.Defaults;
 
         var method = GetType().GetMethod(callerMember,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         var attr = method?.GetCustomAttribute<FidelityToleranceAttribute>();
         return attr is null
-            ? (PerceptualDiff.DefaultRmsThreshold, PerceptualDiff.DefaultSsimThreshold, PerceptualDiff.DefaultDeltaEThreshold)
-            : (attr.Rms, attr.Ssim, attr.DeltaE);
+            ? FidelityThresholds.Defaults
+            : new FidelityThresholds(attr.Rms, attr.Ssim, attr.DeltaE);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

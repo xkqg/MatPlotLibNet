@@ -221,3 +221,65 @@ Plt.Create()
 | `.WithYTicksMirrored()` | Y ticks on both sides |
 | `.WithXTicksMirrored()` | X ticks on top and bottom |
 | `.WithMinorTicks(bool)` | Show/hide minor ticks |
+
+## A range frame
+
+A spine can span only part of its axis. `BoundsFrom` and `BoundsTo` are in the data units of that axis and `null` is the edge
+of the plot, so setting both to the range of the data, with the top and right spines hidden, gives a range frame. The tick
+marks and tick labels of a spine moved to a data value or to a fraction of the axes hang from that spine, as matplotlib's do.
+
+```csharp
+double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+double[] y = [3.1, 3.8, 4.2, 4.0, 5.1, 5.9, 5.6, 6.8, 7.2, 7.9];
+
+Plt.Create()
+    .WithTitle("A range frame")
+    .WithSize(600, 400)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y)
+        .WithSpines(spines => spines with
+        {
+            Bottom = spines.Bottom with { BoundsFrom = 1, BoundsTo = 10 },
+            Left = spines.Left with { BoundsFrom = 3.1, BoundsTo = 7.9 },
+            Top = spines.Top with { Visible = false },
+            Right = spines.Right with { Visible = false },
+        }))
+    .Save("range_frame.svg");
+```
+
+![A line chart whose left line spans only the data](../images/range_frame.png)
+
+## Equal scale
+
+`SetAspect(1)` says how much longer a unit of Y is than a unit of X on the page: `1` makes a square of data a square, and the
+plot is the largest rectangle of that shape that fits in its cell, centred, at any figure size. `SetAspect(null)` turns it off
+again. `Spy`, `CalendarHeatmap`, `MatShow` and `CalendarEvents` set an aspect of one themselves, and polar and 3-D axes ignore it.
+
+```csharp
+double[] x = [0, 1, 2, 3, 4];
+double[] y = [0, 1, 4, 9, 16];
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y).SetAspect(1))
+    .Save("equal_scale.svg");
+```
+
+## Several figures on one HTML page
+
+Every SVG defines ids of its own (clip paths, hatches, gradients), so two figures written into one page would each resolve
+the other's. `SaveOptions.SvgIdPrefix` puts a prefix in front of every id the document defines and every reference to one, and
+a subplot after the first in a figure writes ids with its own number (`s1-clip-0`).
+
+```csharp
+var growth = Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2.0, 3.0], [1.0, 4.0, 9.0]))
+    .Build();
+var decline = Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2.0, 3.0], [9.0, 4.0, 1.0]))
+    .Build();
+
+growth.Save("growth.svg", new SaveOptions { SvgIdPrefix = "growth" });
+decline.Save("decline.svg", new SaveOptions { SvgIdPrefix = "decline" });
+```
+
+A prefix that is not an XML name (it must begin with a letter or an underscore) is refused by name.

@@ -309,7 +309,7 @@ public class CalendarHeatmapTests
 
     /// <summary>The cells tile the plot area at any figure size: every cell is the plot's width over the number of week
     /// columns wide and its height over seven high, so a cell is square only at the figure size that makes those two equal
-    /// (measured, not promised: the verb sets no aspect).</summary>
+    /// (the plot has an aspect of one, so they are square: the plot is the largest rectangle of the calendar's proportions).</summary>
     [Theory]
     [InlineData(1100, 300)]
     [InlineData(800, 500)]

@@ -10,8 +10,8 @@ namespace MatPlotLibNet.Tests.Serialization;
 
 /// <summary>
 /// Golden-JSON corpus gate for the upcoming <see cref="ChartSerializer"/> refactor. One
-/// checked-in golden file per registered <see cref="SeriesRegistry"/> discriminator (all 76,
-/// enumerated from the exact <c>Register("...")</c> calls in <c>SeriesRegistry.cs</c>) pins
+/// checked-in golden file per registered <see cref="SeriesRegistry"/> discriminator (every one
+/// <see cref="SeriesRegistry.Discriminators"/> lists, so a new series type is held to a golden file by the Theory itself) pins
 /// the exact byte-for-byte wire shape the current serializer produces. A refactor that changes
 /// field order, naming, null-omission, or default-materialization for any series type will fail
 /// this Theory immediately, instead of surfacing as a silent wire-format drift discovered later
@@ -53,6 +53,14 @@ public class ChartSerializerGoldenCorpusTests
     /// failed for it on that run and its name would have been added here.</remarks>
     private static readonly HashSet<string> StabilizedKinds = new(StringComparer.Ordinal);
 
+    /// <summary>The discriminators a satellite package registers when its assembly loads into the process (the Geo package's
+    /// polygon): they are not the core's and are not built here.</summary>
+    private static readonly HashSet<string> SatelliteKinds = new(["geo_polygon"], StringComparer.Ordinal);
+
+    /// <summary>Every discriminator the registry knows, so a series type registered tomorrow is held to a golden file
+    /// without an edit here: the Theory has no hand-kept list that could fall behind the registry.</summary>
+    public static TheoryData<string> Discriminators { get; } = new(SeriesRegistry.Discriminators.Where(kind => !SatelliteKinds.Contains(kind)));
+
     private static string GoldenDirectory() =>
         Path.Combine(AppContext.BaseDirectory, "Serialization", "Golden");
 
@@ -71,83 +79,7 @@ public class ChartSerializerGoldenCorpusTests
     // ── Theory: every registered discriminator gets a golden file ───────────
 
     [Theory]
-    [InlineData("line")]
-    [InlineData("scatter")]
-    [InlineData("bar")]
-    [InlineData("histogram")]
-    [InlineData("pie")]
-    [InlineData("box")]
-    [InlineData("violin")]
-    [InlineData("hexbin")]
-    [InlineData("regression")]
-    [InlineData("kde")]
-    [InlineData("heatmap")]
-    [InlineData("image")]
-    [InlineData("histogram2d")]
-    [InlineData("stem")]
-    [InlineData("contour")]
-    [InlineData("contourf")]
-    [InlineData("area")]
-    [InlineData("step")]
-    [InlineData("ecdf")]
-    [InlineData("stackedarea")]
-    [InlineData("errorbar")]
-    [InlineData("candlestick")]
-    [InlineData("quiver")]
-    [InlineData("streamplot")]
-    [InlineData("radar")]
-    [InlineData("donut")]
-    [InlineData("bubble")]
-    [InlineData("ohlcbar")]
-    [InlineData("waterfall")]
-    [InlineData("funnel")]
-    [InlineData("gantt")]
-    [InlineData("gauge")]
-    [InlineData("progressbar")]
-    [InlineData("stattile")]
-    [InlineData("statetimeline")]
-    [InlineData("bulletgraph")]
-    [InlineData("sparkline")]
-    [InlineData("treemap")]
-    [InlineData("sunburst")]
-    [InlineData("dendrogram")]
-    [InlineData("clustermap")]
-    [InlineData("pairgrid")]
-    [InlineData("networkgraph")]
-    [InlineData("relativerotation")]
-    [InlineData("sankey")]
-    [InlineData("polarline")]
-    [InlineData("polarscatter")]
-    [InlineData("polarbar")]
-    [InlineData("surface")]
-    [InlineData("wireframe")]
-    [InlineData("scatter3d")]
-    [InlineData("rugplot")]
-    [InlineData("stripplot")]
-    [InlineData("eventplot")]
-    [InlineData("brokenbar")]
-    [InlineData("count")]
-    [InlineData("pcolormesh")]
-    [InlineData("residual")]
-    [InlineData("pointplot")]
-    [InlineData("swarmplot")]
-    [InlineData("spectrogram")]
-    [InlineData("table")]
-    [InlineData("tricontour")]
-    [InlineData("tripcolor")]
-    [InlineData("quiverkey")]
-    [InlineData("barbs")]
-    [InlineData("stem3d")]
-    [InlineData("bar3d")]
-    [InlineData("signal-xy")]
-    [InlineData("signal")]
-    [InlineData("polarheatmap")]
-    [InlineData("line3d")]
-    [InlineData("trisurf")]
-    [InlineData("contour3d")]
-    [InlineData("quiver3d")]
-    [InlineData("voxels")]
-    [InlineData("text3d")]
+    [MemberData(nameof(Discriminators))]
     public void Golden_MatchesCheckedInFile_AndRoundTripFixpoints(string discriminator)
     {
         var rawFig = BuildFigure(discriminator);
@@ -239,6 +171,7 @@ public class ChartSerializerGoldenCorpusTests
             case "sparkline": ax.Sparkline([1.0, 2, 3, 4, 5]); break;
             case "treemap": ax.Treemap(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }); break;
             case "sunburst": ax.Sunburst(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }); break;
+            case "icicle": ax.Icicle(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }, new TreeNode { Label = "B", Value = 30 }] }); break;
             case "dendrogram":
                 ax.Dendrogram(new TreeNode
                 {
@@ -305,6 +238,14 @@ public class ChartSerializerGoldenCorpusTests
                 ax.Voxels(filled);
                 break;
             case "text3d": ax.Text3D(1, 2, 3, "hello"); break;
+            case "planarbar3d": ax.PlanarBar3D([0.0, 1.0], [0.0, 1.0], [1.0, 2.0]); break;
+            case "streaming_line": ax.StreamingPlot(8, s => { s.AppendPoint(1, 2); s.AppendPoint(2, 3); }); break;
+            case "streaming_scatter": ax.StreamingScatter(8, s => { s.AppendPoint(1, 2); s.AppendPoint(2, 3); }); break;
+            case "streaming_candlestick": ax.StreamingCandlestick(8, s => s.AppendBar(10, 12, 9, 11)); break;
+            case "streaming_signal": ax.StreamingSignal(8, 1.0, s => { s.AppendSample(1); s.AppendSample(2); }); break;
+            case "waffle": ax.Waffle(["A", "B", "C"], [37.0, 33.0, 30.0]); break;
+            case "pointandfigure": ax.PointAndFigure([20.4, 20.9, 22.3, 23.0, 21.0, 24.4, 21.0, 20.2, 18.6, 21.9, 22.0, 25.8, 22.0, 22.9, 15.1], 1); break;
+            case "treegrid": ax.TreeGrid([new TreeGridRow("A", ["1", "2"]), new TreeGridRow("B", ["3", "4"])]); break;
             default: throw new ArgumentOutOfRangeException(nameof(kind), kind, "unknown discriminator");
         }
     }

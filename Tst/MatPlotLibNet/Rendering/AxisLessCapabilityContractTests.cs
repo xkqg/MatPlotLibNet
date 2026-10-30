@@ -23,9 +23,9 @@ public class AxisLessCapabilityContractTests
     /// axes draws no grid, ticks or frame for them. Each one's marks stay where they are when the limits change.</summary>
     private static readonly Type[] DrawsWithoutAxes =
     [
-        typeof(RadarSeries), typeof(PieSeries), typeof(DonutSeries), typeof(FunnelSeries), typeof(GaugeSeries),
+        typeof(RadarSeries), typeof(PieSeries), typeof(WaffleSeries), typeof(DonutSeries), typeof(FunnelSeries), typeof(GaugeSeries),
         typeof(ProgressBarSeries), typeof(BulletGraphSeries), typeof(StatTileSeries), typeof(SparklineSeries),
-        typeof(TableSeries), typeof(TreeGridSeries), typeof(TreemapSeries), typeof(SunburstSeries), typeof(DendrogramSeries),
+        typeof(TableSeries), typeof(TreeGridSeries), typeof(TreemapSeries), typeof(SunburstSeries), typeof(IcicleSeries), typeof(DendrogramSeries),
         typeof(ClustermapSeries), typeof(PairGridSeries), typeof(SankeySeries),
     ];
 

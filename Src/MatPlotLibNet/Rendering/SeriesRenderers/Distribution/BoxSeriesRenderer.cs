@@ -53,7 +53,7 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
             if (series.Vert)
             {
                 yield return new BoxPixels(
-                    Rect.FromCorners(Transform.DataToPixel(pos - halfW, q3), Transform.DataToPixelClippedY(pos + halfW, q1)),
+                    Transform.BoxOnFoot(CategorySlot.Around(pos, 2 * halfW), q1, q3, rising: true, BarOrientation.Vertical).Rect,
                     new PixelSegment(Transform.DataToPixel(pos - halfW, median), Transform.DataToPixel(pos + halfW, median)),
                     new PixelSegment(Transform.DataToPixelClippedY(pos, q3), Transform.DataToPixel(pos, whisHi)),
                     new PixelSegment(Transform.DataToPixel(pos, q1), Transform.DataToPixelClippedY(pos, whisLo)),
@@ -63,7 +63,7 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
             {
                 // Horizontal orientation — swap axes.
                 yield return new BoxPixels(
-                    Rect.FromCorners(Transform.DataToPixelClippedX(q1, pos + halfW), Transform.DataToPixel(q3, pos - halfW)),
+                    Transform.BoxOnFoot(CategorySlot.Around(pos, 2 * halfW), q1, q3, rising: true, BarOrientation.Horizontal).Rect,
                     new PixelSegment(Transform.DataToPixel(median, pos - halfW), Transform.DataToPixel(median, pos + halfW)),
                     new PixelSegment(Transform.DataToPixelClippedX(q3, pos), Transform.DataToPixel(whisHi, pos)),
                     new PixelSegment(Transform.DataToPixel(q1, pos), Transform.DataToPixelClippedX(whisLo, pos)),

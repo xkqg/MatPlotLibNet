@@ -6,6 +6,7 @@ using System.Reflection;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
@@ -59,7 +60,7 @@ public static class DrawnSeriesFixtures
         typeof(CandlestickSeries), typeof(Contour3DSeries), typeof(ContourSeries), typeof(CountSeries), typeof(DonutSeries),
         typeof(EcdfSeries), typeof(EventplotSeries), typeof(FunnelSeries), typeof(GanttSeries), typeof(GaugeSeries),
         typeof(HistogramSeries), typeof(Line3DSeries), typeof(NetworkGraphSeries), typeof(OhlcBarSeries), typeof(PairGridSeries),
-        typeof(PieSeries), typeof(PointplotSeries), typeof(PolarBarSeries), typeof(PolarLineSeries), typeof(PolarScatterSeries),
+        typeof(PieSeries), typeof(WaffleSeries), typeof(PointAndFigureSeries), typeof(IcicleSeries), typeof(PointplotSeries), typeof(PolarBarSeries), typeof(PolarLineSeries), typeof(PolarScatterSeries),
         typeof(ProgressBarSeries), typeof(Quiver3DSeries), typeof(QuiverKeySeries), typeof(QuiverSeries), typeof(RadarSeries),
         typeof(RegressionSeries), typeof(RelativeRotationSeries), typeof(ResidualSeries), typeof(RugplotSeries),
         typeof(SankeySeries), typeof(SignalSeries), typeof(SignalXYSeries), typeof(SparklineSeries), typeof(StatTileSeries),
@@ -166,6 +167,7 @@ public static class DrawnSeriesFixtures
             (nameof(ClustermapSeries), _) => ax.Clustermap(grid, Set),
             (nameof(DendrogramSeries), _) => ax.Dendrogram(tree, Set),
             (nameof(SunburstSeries), _) => ax.Sunburst(tree, Set),
+            (nameof(IcicleSeries), _) => ax.Icicle(tree, Set),
             (nameof(TreemapSeries), _) => ax.Treemap(tree, Set),
             (nameof(PolarHeatmapSeries), _) => ax.PolarHeatmap(grid, 3, 3, Set),
             (nameof(Scatter3DSeries), _) => ax.Scatter3D(x, y, low, Set),
@@ -192,6 +194,8 @@ public static class DrawnSeriesFixtures
             (nameof(OhlcBarSeries), _) => ax.AddSeries(new OhlcBarSeries([10.0, 11, 12], [15.0, 16, 17], [8.0, 9, 10], [13.0, 12, 14]), Set),
             (nameof(PairGridSeries), _) => ax.AddSeries(new PairGridSeries(sets), Set),
             (nameof(PieSeries), _) => ax.AddSeries(new PieSeries([30.0, 50.0, 20.0]), Set),
+            (nameof(WaffleSeries), _) => ax.AddSeries(new WaffleSeries(["a", "b", "c"], [30.0, 50.0, 20.0]), Set),
+            (nameof(PointAndFigureSeries), _) => ax.AddSeries(new PointAndFigureSeries([20.4, 22.3, 24.4, 21.0, 18.6], 1), Set),
             (nameof(PointplotSeries), _) => ax.AddSeries(new PointplotSeries(sets), Set),
             (nameof(PolarBarSeries), _) => ax.AddSeries(new PolarBarSeries([5.0, 10.0, 7.0], [0.0, 1.0, 2.0]), Set),
             (nameof(PolarLineSeries), _) => ax.AddSeries(new PolarLineSeries([1.0, 2.0, 3.0], [0.0, 1.0, 2.0]), Set),
@@ -388,6 +392,12 @@ public static class DrawnSeriesFixtures
         if (type == typeof(HatchPattern[]))
         {
             return Enumerable.Range(0, Points).Select(i => (HatchPattern)(1 + (i + k) % 3)).ToArray();
+        }
+
+        if (type == typeof(TextAlignment[]))
+        {
+            // Centre and right, a different turn of them per property: never the default left of an unset column.
+            return Enumerable.Range(0, Points).Select(i => (TextAlignment)(1 + (i + k) % 2)).ToArray();
         }
 
         if (type == typeof(string))
