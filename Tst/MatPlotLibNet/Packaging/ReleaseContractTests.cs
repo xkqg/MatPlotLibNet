@@ -990,6 +990,32 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void TheWindowsJobOfCi_IsStoppedByItsOwnLimit_NotByTheSixHourDefault()
+    {
+        // Measured: the Uno suite waited on a dialog nobody could close and the step ran 59 minutes without one line of
+        // output. A job with no timeout-minutes is only stopped by the runner's default of six hours.
+        var job = CiWindowsJob();
+        var limit = Regex.Match(job.Text, @"^    timeout-minutes:\s*(?<minutes>\d+)\s*$", RegexOptions.Multiline);
+
+        Assert.True(limit.Success, $"{job.Name} has no timeout-minutes, so a step that hangs holds the run for six hours.");
+        Assert.InRange(int.Parse(limit.Groups["minutes"].Value, CultureInfo.InvariantCulture), 1, 60);
+    }
+
+    [Fact]
+    public void TheUnoSuite_DoesNotStartTheWindowsAppRuntimeBootstrap()
+    {
+        // The suite is an unpackaged Exe, and for that Microsoft.WindowsAppSDK compiles in an initializer that runs
+        // before Main and, when no matching Windows App Runtime is installed, shows a dialog (OnNoMatch_ShowUI is its
+        // default). A development machine has the runtime. The runner has none and nobody there can close the dialog,
+        // so the step hangs before the test host prints its banner. The suite builds no WinUI object, so it asks for
+        // no runtime.
+        string suite = Read("Tst", "MatPlotLibNet.Uno", "MatPlotLibNet.Uno.Tests.csproj");
+
+        Assert.Contains(
+            "<WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>", suite, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EveryProjectPublishBuildsByName_IsBuiltByCiToo()
     {
         // publish.yml builds the platform packages by name; the CI filter builds the rest. A project only the publish

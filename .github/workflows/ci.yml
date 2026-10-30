@@ -82,6 +82,9 @@ jobs:
   # which is why these projects stay out of MatPlotLibNet.CI.slnf.
   windows-heads:
     runs-on: windows-latest
+    # The job takes about ten minutes. Without a limit of its own a step that hangs is stopped by the runner's default of
+    # six hours, and the run stays yellow all that time.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v5

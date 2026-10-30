@@ -17,6 +17,11 @@
     <!-- WindowsAppSDK 1.4 ships MrtCore.PriGen.targets which invokes VS-only tasks unavailable
          on dotnet CLI. WindowsAppSDK 1.8+ dropped MrtCore.PriGen.targets entirely. -->
     <WindowsPackageType>None</WindowsPackageType>
+    <!-- For an unpackaged Exe, Microsoft.WindowsAppSDK compiles in an initializer that runs before Main and looks for an
+         installed Windows App Runtime; when none matches it shows a dialog (OnNoMatch_ShowUI is the default). A machine
+         with the runtime never notices. A CI runner has none and nobody to close the dialog, so the suite hung there
+         before it printed a line. These tests build no WinUI object and need no runtime, so none is asked for. -->
+    <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
   </PropertyGroup>
 
   <ItemGroup>

@@ -119,7 +119,9 @@ with what it replaces.
 
 - **The Windows heads are built and tested by CI on every push.** The MAUI, WPF and Uno packages were built for the first time by
   the publish job, after the tag. A `windows-heads` job now builds them with the same steps and runs their suites, and the MAUI
-  suite, which needs no workload, runs on Linux too.
+  suite, which needs no workload, runs on Linux too. The job stops itself after 30 minutes, and the Uno suite no longer starts the
+  Windows App Runtime check that an unpackaged program carries: a development machine has the runtime, a runner has none, and
+  the dialog it would show there waited for an hour with nobody to close it.
 
 - **Every public type and member of a package has an XML comment.** `CS1591` was switched off (1,025 members in the packages);
   it is a warning now, and a warning fails the build.
