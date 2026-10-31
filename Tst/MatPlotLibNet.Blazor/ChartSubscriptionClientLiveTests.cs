@@ -199,6 +199,35 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
     }
 
     [Fact]
+    public async Task AViewerWhoLeavesTheChart_IsReportedToTheMessageSubscribersOfTheOthers()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _fixture.Registry.Register("live-7", Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build());
+        var messages = new ConcurrentQueue<(string Method, string Args)>();
+        await using var watcher = new ChartSubscriptionClient();
+        using var token = ((IChartMessageSource)watcher).SubscribeMessages((method, args) =>
+        {
+            messages.Enqueue((method, args.GetRawText()));
+            return Task.CompletedTask;
+        });
+        await watcher.ConnectAsync(_fixture.HubUrl, ct);
+        await watcher.SubscribeAsync("live-7", ct);
+        await using var leaver = new ChartSubscriptionClient();
+        await leaver.ConnectAsync(_fixture.HubUrl, ct);
+        await leaver.SubscribeAsync("live-7", ct);
+        var leaverId = leaver.ConnectionId;
+
+        // Wait on the fact, not on a delay: the message arrives when the server has told the group.
+        await leaver.UnsubscribeAsync("live-7", ct);
+        await WaitAsync(() => messages.Any(m => m.Method == "ViewerLeft"));
+
+        var left = Assert.Single(messages, m => m.Method == "ViewerLeft");
+        Assert.Contains("\"live-7\"", left.Args);
+        Assert.Contains($"\"{leaverId}\"", left.Args);
+        await _fixture.Registry.UnregisterAsync("live-7");
+    }
+
+    [Fact]
     public async Task AClientThatWasNeverConnected_HasNoConnection_AndNothingToSubscribeAgain()
     {
         await using var client = new ChartSubscriptionClient();
