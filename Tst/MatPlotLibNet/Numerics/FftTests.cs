@@ -37,6 +37,38 @@ public class FftTests
     }
 
     [Fact]
+    public void Forward_IsHannThenTransform()
+    {
+        // np.hanning(5) = [0, 0.5, 1, 0.5, 0], so [1, 2, 3, 4, 5] is weighted to [0, 1, 3, 2, 0], padded with zeros to 8
+        // samples and transformed: bin k is the sum of w[j]·x[j]·e^(−2πi·jk/8).
+        double[] weighted = [0, 1, 3, 2, 0];
+
+        Complex[] spectrum = Fft.Forward([1, 2, 3, 4, 5]);
+
+        Assert.Equal(8, spectrum.Length);
+        for (int k = 0; k < 8; k++)
+        {
+            Complex expected = Complex.Zero;
+            for (int j = 0; j < weighted.Length; j++)
+            {
+                double angle = -2 * Math.PI * (j * k % 8) / 8;
+                expected += weighted[j] * new Complex(Math.Cos(angle), Math.Sin(angle));
+            }
+
+            Assert.True((spectrum[k] - expected).Magnitude < 1e-12, $"bin {k}: {spectrum[k]} against {expected}");
+        }
+    }
+
+    [Fact]
+    public void Forward_OneSample_IsFinite()
+    {
+        // A window of one sample is [1] (numpy's hanning(1)); the old formula divided 0 by 0 there and gave NaN.
+        Complex[] spectrum = Fft.Forward([5.0]);
+
+        Assert.Equal([new Complex(5, 0)], spectrum);
+    }
+
+    [Fact]
     public void Stft_Dimensions_CorrectShape()
     {
         double[] signal = new double[512];

@@ -290,6 +290,12 @@ public sealed class Axes
     /// (<see cref="AddInset(InsetBounds)"/> sets it). <see langword="null"/> for an axes that is not an inset.</summary>
     public InsetBounds? InsetBounds { get; internal set; }
 
+    /// <summary>The zoom this axes indicates on its parent when it is an inset (matplotlib's <c>indicate_inset_zoom</c>): the
+    /// parent draws a rectangle over the region this inset shows, and the lines from it to this inset's frame.
+    /// <see langword="null"/> (the default) draws none. Drawn only for an inset (<see cref="InsetBounds"/> set) of a Cartesian
+    /// parent; on any other axes it is kept and draws nothing. <c>AxesBuilder.IndicateZoom</c> on the inset's builder sets it.</summary>
+    public ZoomIndicator? ZoomIndicator { get; set; }
+
     /// <summary>Adds an inset axes at the specified bounds within this axes. This is the
     /// canonical form; the loose-doubles <see cref="AddInset(double,double,double,double)"/>
     /// overload forwards here.</summary>
@@ -304,8 +310,9 @@ public sealed class Axes
 
     /// <summary>Adds an inset axes at the specified fractional position within this axes.
     /// Convenience overload that forwards to <see cref="AddInset(InsetBounds)"/>.</summary>
-    /// <param name="x">Horizontal position as a fraction of parent width (0-1).</param>
-    /// <param name="y">Vertical position as a fraction of parent height (0-1).</param>
+    /// <param name="x">Left edge of the inset as a fraction of the parent width, counted from the parent's left edge (0-1).</param>
+    /// <param name="y">Top edge of the inset as a fraction of the parent height, counted down from the parent's top edge
+    /// (0 is the top), as <see cref="Models.InsetBounds"/> counts it; matplotlib's <c>inset_axes</c> counts up from the bottom.</param>
     /// <param name="width">Width as a fraction of parent width.</param>
     /// <param name="height">Height as a fraction of parent height.</param>
     /// <returns>The newly created inset <see cref="Axes"/> instance.</returns>
@@ -315,7 +322,9 @@ public sealed class Axes
     /// <summary>Adds an inset axes at the given fractional position. Alias for
     /// <see cref="AddInset(InsetBounds)"/>.</summary>
     /// <param name="x">Left edge of the inset as a fraction of the parent axes width [0, 1].</param>
-    /// <param name="y">Bottom edge of the inset as a fraction of the parent axes height [0, 1].</param>
+    /// <param name="y">Top edge of the inset as a fraction of the parent axes height, counted down from the parent's top edge
+    /// [0, 1]: 0 puts the inset against the top, 1 - <paramref name="height"/> against the bottom. matplotlib's
+    /// <c>inset_axes</c> counts up from the bottom instead.</param>
     /// <param name="width">Width of the inset as a fraction of the parent axes width [0, 1].</param>
     /// <param name="height">Height of the inset as a fraction of the parent axes height [0, 1].</param>
     /// <returns>The new inset <see cref="Axes"/> instance.</returns>

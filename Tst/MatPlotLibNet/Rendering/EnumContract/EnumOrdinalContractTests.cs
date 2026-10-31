@@ -201,6 +201,9 @@ public static class EnumOrdinalSnapshot
                 ["Solid"] = 0, ["Dashed"] = 1, ["Dotted"] = 2,
                 ["DashDot"] = 3, ["None"] = 4,
             },
+            [typeof(MagnitudeScale)] = new Dictionary<string, int> {
+                ["Linear"] = 0, ["Decibel"] = 1,
+            },
             [typeof(MarkerStyle)] = new Dictionary<string, int> {
                 ["None"] = 0, ["Circle"] = 1, ["Square"] = 2, ["Triangle"] = 3,
                 ["Diamond"] = 4, ["Cross"] = 5, ["Plus"] = 6, ["Star"] = 7,
@@ -243,6 +246,9 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(SignalDirection)] = new Dictionary<string, int> {
                 ["Buy"] = 0, ["Sell"] = 1,
+            },
+            [typeof(MatPlotLibNet.Numerics.SpectralScaling)] = new Dictionary<string, int> {
+                ["Density"] = 0, ["Spectrum"] = 1,
             },
             [typeof(SpinePosition)] = new Dictionary<string, int> {
                 ["Edge"] = 0, ["Data"] = 1, ["Axes"] = 2,

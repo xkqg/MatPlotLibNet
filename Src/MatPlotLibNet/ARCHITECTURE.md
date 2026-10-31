@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.27.0)
+# MatPlotLibNet Core -- Architecture (v1.28.0)
 
 ## Package dependency graph
 
@@ -98,17 +98,24 @@ MatPlotLibNet/
                                       plot and a candlestick's dates along X; bars that lie down along Y). Also names only
                                       some slots (the months over a calendar's week columns) and names at positions of their
                                       own (the centres of a Marimekko chart's columns)
-    CategoricalAxesExtensions.cs      the 26 chart verbs, five static classes in namespace MatPlotLibNet (see "Where a verb
+    CategoricalAxesExtensions.cs      the 38 chart verbs, six static classes in namespace MatPlotLibNet (see "Where a verb
     DistributionAxesExtensions.cs     lives"): extension methods on AxesBuilder that compose a chart from series that already
     XYAxesExtensions.cs               exist. Categorical: Lollipop, Dumbbell, Pareto, SlopeGraph, DotPlot, ParallelCoordinates,
     GridAxesExtensions.cs             Marimekko. Distribution: Ridgeline, QQPlot, ProbabilityPlot, KaplanMeier, RiskTable, Raincloud, StemAndLeaf. XY:
-    PriceAxesExtensions.cs            BumpChart, ControlChart, ShewhartChart, StreamGraph, Horizon, ConnectedScatter. Grid: CalendarHeatmap, Spy, MatShow,
-                                      CalendarEvents. Price: Renko, Kagi
+    PriceAxesExtensions.cs            BumpChart, ControlChart, ShewhartChart, StreamGraph, Horizon, ConnectedScatter, VLines, HLines, Stairs, Triplot. Grid: CalendarHeatmap, Spy, MatShow,
+    SignalAxesExtensions.cs           CalendarEvents. Price: Renko, Kagi. Signal (an ordered sampled signal, one SpectralOptions for how it is estimated): Psd, Csd, Cohere,
+                                      and (one SpectrumOptions for a single transform of the whole signal) MagnitudeSpectrum, PhaseSpectrum, AngleSpectrum. Each
+                                      draws ONE LineSeries of (frequency, value), sets the titles of its axes and no limit, and estimates through Numerics/Welch.cs
+                                      (averaged segments) or Numerics/Spectrum.cs (one transform). Correlation (one CorrelationOptions): Acorr, Xcorr draw the
+                                      correlation at each lag through Numerics/Correlation.cs, as stems (ONE LineSeries built by SegmentPath, plus a solid
+                                      ReferenceLine at 0) or, with Markers, as ONE LineSeries of circles with LineStyle.None, never both; no axis title, no limit
     DumbbellParts.cs                  what a verb's callback receives when it draws several series types: a readonly record
     ParetoParts.cs                    struct with an internal constructor and get-only properties holding the very series on
     QQPlotParts.cs                    the axes. Dumbbell (Connector, From, To), Pareto (Bars, Cumulative), QQPlot and ProbabilityPlot (Points,
     ControlChartParts.cs              Reference), ControlChart (Values, Violations, Center, Lower, Upper), RiskTable (Counts,
-    RiskTableParts.cs                 Test, LogRank), Renko (Up, Down), Kagi (Thick, Thin), ConnectedScatter (Points, Arrows), StemAndLeaf (Table, Key). LogRankResult (Statistic, DegreesOfFreedom, PValue) is the public result of
+    RiskTableParts.cs                 Test, LogRank), Renko (Up, Down), Kagi (Thick, Thin), ConnectedScatter (Points, Arrows), StemAndLeaf (Table, Key),
+    StairsParts.cs                    Stairs (Outline or Fill, exactly one set: the line without a baseline, the area with one),
+    CorrelationParts.cs               Acorr and Xcorr (Line; Zero, the reference line at 0, null when the correlation is drawn as markers). LogRankResult (Statistic, DegreesOfFreedom, PValue) is the public result of
                                       the log-rank test the risk table states
     ControlLimits.cs                  readonly record struct (Center, Lower, Upper): the limits ControlChart draws as given
                                       instead of estimating them
@@ -117,9 +124,30 @@ MatPlotLibNet/
                                       constants (Numerics/ControlChartConstants.cs); default holds nothing and is refused
     ControlRules.cs                   [Flags] enum, Nelson's eight tests numbered 1 to 8 (None, All); the rule table that judges
                                       them is Numerics/NelsonRules.cs, the constants are Numerics/ControlChartConstants.cs
+    SegmentPath.cs                    internal readonly record struct (X, Y): many segments as the points of ONE line, built by
+                                      Of(x0, y0, x1, y1): segment i adds its start, its end and a missing point; a segment with a
+                                      coordinate that cannot be drawn is left out whole; an array of one value stands for every
+                                      segment; arrays of other lengths are refused by the caller's own names. VLines, HLines,
+                                      Triplot and the stems of Acorr and Xcorr build their line here
+    StaircasePath.cs                  internal readonly record struct (X, Y): a staircase as the points of ONE line, built by
+                                      Of(values, edges): two points for each bin, level along it and upright at each riser; a bin
+                                      with a value or an edge that cannot be drawn is a gap (a missing edge masks both bins that
+                                      meet at it); edges number one more than values, otherwise refused by the caller's own
+                                      names. Stairs draws its outline and its fill from the very points built here
     QQReference.cs                    readonly record struct: the distribution ProbabilityPlot compares a sample with. Normal
                                       (what default means, and what QQPlot uses), Exponential, Uniform, LogNormal,
                                       FittedLogNormal, StudentT, or Of(name, quantile) for one of the caller's own
+    SpectralOptions.cs                readonly record struct (QQReference shape: nullable backing fields, so default = matplotlib's psd defaults):
+                                      SampleRate 2, Window Hann, Detrend None, SegmentLength 256, Overlap 0, PadTo 0 (none), CenterFrequency 0,
+                                      Scaling Density; every init refuses a bad value by its own name. Read by Numerics/Welch.cs
+    SpectrumOptions.cs                readonly record struct (QQReference shape, default = matplotlib's magnitude_spectrum defaults): SampleRate 2,
+                                      Window Hann, PadTo 0 (none), CenterFrequency 0; every init refuses a bad value by its own name. Read by
+                                      Numerics/Spectrum.cs, which refuses a PadTo below the signal's length under the name "options"
+    MagnitudeScale.cs                 public enum: Linear = 0 (|X| / Σw, "Magnitude (energy)"), Decibel = 1 (20·log10, "Magnitude (dB)", a zero
+                                      magnitude a gap); append-only ordinals. Taken by MagnitudeSpectrum
+    CorrelationOptions.cs             readonly record struct (QQReference shape, default = matplotlib's acorr/xcorr defaults): MaxLags 10 (at least 1,
+                                      refused by its own name; the signal must have more samples, refused under "options"), Unnormalised false (÷ √(x·x)·√(y·y)),
+                                      Detrend None (a SpectralDetrend), Markers false (stems and a line at 0; true: circles alone). Read by Numerics/Correlation.cs
     (AxesBuilder.cs)                  SecondaryAxisBuilder and OutwardYAxisBuilder, the two builders 1.23.0 published for a second Y
                                       axis, are [Obsolete] and hold only a YAxisSlotBuilder: every verb forwards to it, so the old
                                       and the new builder cannot differ. Kept so code written against 1.23.0 still compiles
@@ -151,7 +179,11 @@ MatPlotLibNet/
                                       one, AxesTickSourceExtensions.NamesAt) is read as those names and is the
                                       table's key, under the axis title or "category": the x column, or a y
                                       column the Y axis names, moved in front (a dot plot). A series whose rows
-                                      its columns cannot place (ITableNamedByAxes) tables itself with AxisNames
+                                      its columns cannot place (ITableNamedByAxes) tables itself with AxisNames.
+                                      What the figure carries itself is tabled after the subplots: its texts (one
+                                      "text" column, one row each, only the ones that show) and its images (one row
+                                      each saying what it is: "image N", its width and height in pixels, its offsets;
+                                      the pixels are colours, not a series of values)
     ArrayLengthExtensions.cs          internal: ThrowIfMisaligned — the one check, in one wording ("Array lengths must match. Got 3 and 2."; for a
                                       grid "... The values have R rows and C columns; the axes give Y y and X x values."), that a verb makes of the
                                       arrays of a series BEFORE it constructs it. A series is refused at its verb, and a figure read from JSON builds
@@ -170,7 +202,18 @@ MatPlotLibNet/
                                       is cut at the plot edge
 
   Models/
-    Figure.cs                         top-level container (Title, Width, Height, Dpi — sizes a PNG or a GIF frame: a unit of the layout is dpi / 96 pixels, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
+    Figure.cs                         top-level container (Title, Width, Height, Dpi — sizes a PNG or a GIF frame: a unit of the layout is dpi / 96 pixels, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity;
+                                      Texts + AddText: the figure's own texts, drawn above the subplots and the colour bar;
+                                      Legend: a legend for the figure as a whole (figlegend), listing the labelled series of every
+                                      subplot; Images + AddImage: the figure's own images, drawn under the subplots)
+    FigureText.cs                     a text on the figure itself (matplotlib's figtext): Text, X, Y as fractions of the figure counted
+                                        from the bottom-left (pixel y = (1 - Y) * height), Font, Color, Alignment, VerticalAlignment,
+                                        Rotation; a position outside 0..1 or not a number is skipped. FigureBuilder.FigText adds one
+    FigureImage.cs                    an image on the figure itself (matplotlib's figimage): Data[,] (row 0 on top), XOffset/YOffset in
+                                        pixels from the bottom-left, ColorMap, Normalizer, VMin, VMax, Alpha; every cell is one
+                                        pixel, no resampling; an offset that is not a finite number draws nothing. Cells() hands the
+                                        drawing to ImageCells. FigureBuilder.FigImage adds one. FigureBuilder.FigLegend sets
+                                        Figure.Legend (a second call replaces the first: a recorded deviation, for simplicity)
     Axes.cs                           subplot: series, annotations, ref lines, spans, the Y axis container (YAxes), the top X axis,
                                       insets, ShareX/ShareY, EnableInteractiveAttributes; Aspect (the length of a unit of Y over a unit of X
                                       on the page, null = the plot fills its cell; Rendering/PlotAspectExtensions.cs is its one owner).
@@ -228,12 +271,18 @@ MatPlotLibNet/
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
     GridSpec.cs                       unequal subplot layout: Rows, Cols, HeightRatios, WidthRatios
-    InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates);
+    InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates; Y is the inset's top edge
+                                      counted down from the parent's top, unlike matplotlib's inset_axes; InsetAxesOriginTests);
                                       canonical form for Axes.AddInset / AxesBuilder.AddInset — the
                                       double-argument overloads forward here (v1.13.0). AddInset hands its callback a builder
                                       over the inset itself (the internal AxesBuilder(Axes) constructor), so the inset is configured
                                       where it stands and nothing is copied across: an ITickFormatter of your own stays, and a grid
                                       change is a change over the grid of the theme the figure is drawn under
+    ZoomIndicator.cs                  the zoom an inset indicates on its parent (matplotlib's indicate_inset_zoom), set on the INSET as
+                                        Axes.ZoomIndicator (null = none) or by AxesBuilder.IndicateZoom on the inset's builder (refused
+                                        on a subplot that is no inset): Color (null = Theme.Neutral), Alpha 0.5, LineWidth 1, LineStyle,
+                                        Connectors. The parent draws a rectangle over the limits the inset drew and two of the four
+                                        corner connectors (Rendering/ZoomIndicatorPath.cs); only a Cartesian parent and inset draw it
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
     ChartDataTable.cs                 the accessible alternative to the picture: Caption, Columns, Rows, and
                                       ToHtml() / ToMarkdown() / ToCsv() (HTML and markdown cap at
@@ -296,7 +345,7 @@ MatPlotLibNet/
       LegendSwatch.cs                 internal: enum LegendSwatchKind (Patch, Line, LineMarker, SolidLine, Marker, ErrorBar, Stripes) + the readonly
                                       record struct LegendSwatch(Kind, LineWidth, LineStyle, RestingLineWidth, Marker, MarkerSize, States): how one
                                       series is drawn in its legend entry. The series states its own values, the slot's cycler decides the colour
-                                      and AxesRenderer.DrawLegendSwatch draws the shape
+                                      and LegendRenderer draws the shape
       LegendPart.cs                   internal readonly record struct (Label, Swatch, ColorSlotOffset): one entry of a legend. ChartSeries.LegendParts
                                       is one under the series' label unless a series names its own parts (a stack plot's layers)
       RadialExtent.cs                 internal readonly record struct (Max, Sticky): how far out a series reaches on a polar axes — the input of
@@ -606,9 +655,34 @@ MatPlotLibNet/
     ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer.
                                         SubPlotRects is the one rule for the plot areas; the drawing and the layout both ask it.
                                         The figure's colour bar reads the same provider and the same ticks as an axes' (ColorBarRendering/)
-    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry). The legend
-                                        swatch of a line, a step or a scatter draws its marker through MarkerRenderer, the one owner of
-                                        marker shapes, so a swatch shows the marker its series has
+                                        RenderFigureUnderlays (z 0, before the subplots: the images, one pixel for each cell through
+                                        ImageCells) and RenderFigureOverlays (the colour bar, then the texts, then the legend, after the
+                                        subplots) are the one site for what the figure draws itself; Render and
+                                        SvgTransform.Render both call them, also for a figure with no subplot. The figure legend is drawn
+                                        by LegendRenderer in the rectangle that is the figure (Best = UpperRight), static, from the entries
+                                        FigureLegendExtensions gathers over every subplot.
+                                        RenderAxes returns a DrawnView: the parent reads the inset's frame and the limits the inset
+                                        drew from the very render that drew it, and draws the inset's zoom (ZoomIndicatorPath) right
+                                        after it, over its own marks
+    DrawnView.cs                      internal readonly record struct (PlotArea, Transform): what one render of an axes drew, the
+                                        transform being AxesRenderer.DrawnTransform (null for polar and 3-D)
+    ZoomIndicatorPath.cs              internal readonly record struct (Region, Inset) in pixels: the one owner of the zoom indicator's
+                                        geometry and drawing. Of(parent, parentView, inset, insetView) places the inset's drawn range
+                                        (DataTransform.DrawnRange) through the parent's transform; null when either axes is not
+                                        Cartesian (a ternary frame's transform maps the triangle, not data) or a corner cannot be
+                                        placed. Connectors: matplotlib's rule (LL x0^y0, UL x0==y1, LR x1==y0, UR x1^y1) applied in
+                                        pixels, so a reversed or log parent axis and an inverted inset need no case of their own.
+                                        Draw: one group "zoom-indicator", the outline and the kept connectors in one stroke at the
+                                        indicator's opacity (SetOpacity, as an image's cells)
+    ImageCells.cs                     internal readonly record struct (ColorMap, Normalizer, Min, Max, Alpha): the colour range of an image's
+                                        values (Of: NaN and infinities left out, no width = one wide, nothing drawable = 0..1) and the grid of
+                                        rectangles that fills a rectangle (Draw, row by row from the top, the opacity set around it, a missing
+                                        value in the map's bad colour, skipTransparentCells leaves out a cell painted fully transparent).
+                                        ImageSeriesRenderer draws an image series through it, scaled to its plot (every cell, as it always
+                                        has); ChartRenderer draws a figure image through it at native size (transparent cells left out)
+    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry). Owns which
+                                        series its legend lists (Axes.LegendEntries) and the marks a Best legend keeps clear of
+                                        (LegendObstacles); LegendRendering/LegendRenderer lays the legend out and draws it
     MarkObstacles.cs                  the marks a chart drew on one axes, in pixels as drawn: boxes (a bar, a text's box), paths
                                         (a line's vertices) and points (a scatter's centres). ONE obstacle map, ONE score and ONE selector for
                                         legend Best and for the annotations that avoid overlap: Badness is matplotlib's four integer terms
@@ -622,7 +696,7 @@ MatPlotLibNet/
     TextBox.cs                        the one rule for the rectangle a text occupies (Anchor, Size, FontSize, Alignment, Vertical,
                                         Rotation): ascent = the font size, descent = the height less it, a turned text rotated
                                         counter-clockwise about its drawn baseline point; CentreDrop = 0.35 is the one constant for centring
-                                        on a point. The annotations' text boxes and the tick label reach (AxisTickExtensions.Reach) read it,
+                                        on a point. The annotations' text boxes, the contour labels' boxes and the tick label reach (AxisTickExtensions.Reach) read it,
                                         so what is measured is what is drawn
     TextVerticalAlignment.cs          enum {Baseline = 0, Center = 1, Top = 2, Bottom = 3}: public, ordinals are contract
     ThemedFontProvider.cs             the theme's fonts: TickFont, DefaultFont and DataTextFont(theme), the family and size of the
@@ -909,6 +983,13 @@ MatPlotLibNet/
       LegendMeasurer.cs                 the legend box and font, measured from the same LegendEntries list the drawing reads
 
     LegendRendering/                    the legend
+      LegendRenderer.cs                 internal: one legend from a list of entries in a rectangle, under a Legend config, a theme
+                                        and a surface, holding no axes (an axes hands over its entries and its marks; a figure-level
+                                        legend draws with it too). Place (hidden or empty: none; the marks are asked for only by a
+                                        Best legend), Draw (one group: frame, shadow, title, each entry's swatch and text; the
+                                        data-legend-index groups when interactive) and ItemBounds (the hit-test, the very cells Draw
+                                        draws in). The swatch draws a line, a step or a scatter's marker through MarkerRenderer, the
+                                        one owner of marker shapes, so a swatch shows the marker its series has
       LegendLayoutCalculator.cs         the legend's geometry from the Legend config, its labels and the plot area (font, columns,
                                         box, place): drawing and hit-testing read one copy. PositionOf(legend) is the one rule for
                                         the place: the one named, or, for a legend left at Best, Theme.DefaultLegendPosition (the classic
@@ -926,7 +1007,14 @@ MatPlotLibNet/
                                         the whole series and SvgLegendToggleScript dims every entry of it together. RenderLegend,
                                         ComputeLegendBounds (the hit-test) and LegendMeasurer all read it, so drawing, click and
                                         margin cannot disagree. A series that draws its own label (ChartSeries.DrawsOwnLabel: the
-                                        stat tile) never has an entry
+                                        stat tile) never has an entry. LegendEntries(directLabelsDrawn, legendValues) takes the
+                                        label suffix from its caller instead of the axes' own legend
+      FigureLegendExtensions.cs         the legend of a figure (Figure.Legend): Figure.LegendEntries(legend, ctx) gathers the entries of
+                                        every subplot in subplot order by the rule above (whether an end-labelled series leaves is asked of
+                                        the renderer that draws those axes; the label suffix follows the figure legend's LegendValues) and
+                                        lists an entry that is drawn exactly like an earlier one (label, handle, colour slot, colour)
+                                        once; Legend.OnTheFigure(): Best is UpperRight at the figure, a figure having no marks of one axes
+                                        to keep clear of
 
     TextMeasurement/                    text width estimation (new v0.8.1)
       CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
@@ -959,8 +1047,15 @@ MatPlotLibNet/
 
     Downsampling/                       performance helpers for large datasets
       IDownsampler.cs                   interface: Downsample(x, y, targetPoints)
-      LttbDownsampler.cs                Largest-Triangle-Three-Buckets O(n) algorithm
-      ViewportCuller.cs                 static: filter to [xMin,xMax] + one padding point each side
+      LttbDownsampler.cs                Largest-Triangle-Three-Buckets O(n) algorithm. A point that cannot be drawn is a gap and
+                                        a line is never joined across one: each drawable run (MissingValueExtensions.DrawableIndexRuns)
+                                        is sampled on its own and the runs are joined by one NaN point (JoinedAcrossGaps, the one
+                                        split-and-join, which MonotoneCubicSpline's smoothing reads too). The budget counts the
+                                        separators and is shared by run length; every run keeps its two ends, so a line with more runs
+                                        than the budget comes back longer than targetPoints. A line without a gap spends the whole
+                                        budget, as before
+      ViewportCuller.cs                 static: filter to [xMin,xMax] + one padding point each side; one contiguous slice, so the
+                                        NaN separators inside it stay
 
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
@@ -980,12 +1075,14 @@ MatPlotLibNet/
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
                                         A line, a step, an area (its outline too) and a stacked area break at every point that cannot be
                                         drawn (MissingValueExtensions.DrawableRuns), in the renderer, so PNG, PDF and the native controls draw
-                                        the same gap as the SVG
+                                        the same gap as the SVG; downsampling and smoothing reshape each run on its own (LttbDownsampler),
+                                        so a line that carries many segments (VLines, HLines, Triplot, the stems of Acorr) keeps them apart
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, StatTile (single-value KPI, full tile anatomy since v1.14.0), BulletGraph (Few's measure+target+bands strip, v1.14.0), Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
-      Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
+      Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge (its
+                                        value written with InvariantCulture)
       Grid/                             Heatmap (its cells stand at their data coordinates, so a limit or a zoom moves them with the axes;
                                         RenderInArea fills the plot rectangle for a heatmap that is a panel of a larger chart: the clustermap's
-                                        matrix, a filled contour's backdrop), Contour, Contourf (both fill the bands between their levels through ContourBandFillExtensions.FillContourBands: the lowest band over the grid, the bands above it painted over, so the fill stands where the grid stands and follows the axes' range and the limits you set), Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
+                                        matrix, a filled contour's backdrop), Contour, Contourf (both fill the bands between their levels through ContourBandFillExtensions.FillContourBands: the lowest band over the grid, the bands above it painted over, so the fill stands where the grid stands and follows the axes' range and the limits you set; Contour draws every line, then every label: ContourLabelPlacement puts a label at the arc-length middle of a line at least 1.2 label widths long, turned to the pixel chord across its width and folded into [-90, 90), in the line's colour on a turned box in Theme.AxesBackground, the level written with InvariantCulture), Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (Fft.Stft, each frame windowed once; row b centred on StftResult.Frequencies[b], the outer rows ending at 0 and half the sample rate), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill, its triangles from Delaunay.TrianglesOf), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
                                         PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate
                                         PairGridOffDiagonalPainters.cs — IPairGridOffDiagonalPainter strategy + ScatterOffDiagonalPainter / HexbinOffDiagonalPainter / Registry; PairGridGeometry (MapPoint, ComputeAxisSpan); PairGridHue (IsValid, BuildCache, GetColor)
       Graph/                            NetworkGraph (composite: nodes + edges in 2D, directed-edge arrowheads, optional weight labels; layout delegated to Numerics/NetworkGraphLayouts.cs)
@@ -1210,10 +1307,42 @@ MatPlotLibNet/
                                       its source) — and TopEdgesFor — each layer's top edge; read by the stacked-area series and StreamGraph
     ConfidenceBand.cs                 sealed record(Upper[], Lower[]) — returned by LeastSquares.ConfidenceBand()
     Vec.cs                            readonly record struct: Data[], Length, Min/Max/Mean/Std/Sum/Percentile(p)/Quantile(q), element-wise ops, implicit double[] conversions
-    Fft.cs                            public static: Forward (Cooley-Tukey radix-2, Hann window, zero-pad to power-of-2), Stft (sliding window FFT → StftResult)
+    Fft.cs                            public static: Forward (SpectralWindow.Hann, zero-pad to power-of-2, Transform), Stft (sliding window FFT → StftResult:
+                                        each frame weighted ONCE by SpectralWindow.Hann, Transform at exactly windowSize, no padding;
+                                        windowSize / 2 + 1 bins, Frequencies[b] = b · sampleRate / windowSize)
                                         StftResult: double[,] Magnitudes, double[] Frequencies, double[] Times
+                                        SpectrogramSeriesRenderer centres row b on Frequencies[b], outer rows end at 0 and sampleRate / 2
+                                        internal Transform(Complex[]) → Complex[] of the SAME length, no window, no padding (numpy's fft.fft):
+                                        radix-2 Cooley-Tukey for a power of two, Bluestein chirp-z otherwise (chirp phase from k² mod 2N)
+    SpectralWindow.cs                 public readonly record struct (QQReference shape, no enum switch): Hann (= default), Hamming, Blackman,
+                                      Rectangular, Of(Func<int, double[]>) checked for length n and finite weights; internal Coefficients(n),
+                                      the symmetric numpy windows, n = 1 → [1], n ≤ 0 refuses. The ONE owner of the Hann formula (Forward, Stft, Welch, Spectrum)
+    SpectralDetrend.cs                public readonly record struct (QQReference shape): None (= default, matplotlib's detrend_none), Mean, Linear
+                                      (least-squares line against the index; one sample → 0), Of(Func<double[], double[]>) checked for length and
+                                      finite values; internal Removed(segment)
+    SpectralScaling.cs                public enum: Density = 0 (÷ SampleRate·Σw², scale_by_freq=True), Spectrum = 1 (÷ (Σw)²); append-only ordinals
+    Welch.cs                          internal static: Psd(x, options) → SpectralDensity(Frequencies, Power), Csd(x, y, options) →
+                                      CrossSpectralDensity(Frequencies, Complex[] Power) = conj(X)·Y averaged (matplotlib's order), Coherence(x, y,
+                                      options) → |Pxy|² / (Pxx·Pyy). K = ⌊(N − L) / (L − O)⌋ + 1 segments; each detrended, windowed, padded to
+                                      M = PadTo or L, Fft.Transform at exactly M; one-sided: every bin but DC and an even M's Nyquist doubled;
+                                      Frequencies[k] = k·SampleRate / M + CenterFrequency. ONE NaN rule: a segment with a non-finite sample (in either
+                                      signal) is left out; none left → every value NaN, frequencies still given. Refuses (ArgumentException by
+                                      name): null/empty/unequal signals; segment longer than the signal, overlap ≥ segment, PadTo below the segment
+    Spectrum.cs                       internal static: Of(signal, SpectrumOptions) → OneSidedSpectrum(Frequencies, Complex[] Bins, WindowSum), matplotlib's
+                                      _single_spectrum_helper: the whole signal weighted ONCE by the window, padded to M = PadTo or its length,
+                                      Fft.Transform at exactly M, bins 0 .. M / 2, none doubled; bin 0 and an even M's Nyquist bin written real (+0
+                                      imaginary, so a negative one has the angle +π, as numpy). Magnitudes() = |X| / Σw, Angles() = arg X wrapped,
+                                      Phases() = Unwrap(Angles()), numpy's unwrap (a step of exactly +π kept). ONE NaN rule: a non-finite sample →
+                                      every bin NaN, frequencies still given. Refuses: null/empty signal (signal), PadTo below the length (options)
+    Correlation.cs                    internal static: Auto(signal, options) and Cross(x, y, options) → Correlogram(Lags, Values), matplotlib's xcorr:
+                                      the value at lag k is Σn x[n + k]·y[n] (numpy correlate "full": a positive lag is x delayed against y) for the lags
+                                      −MaxLags .. MaxLags, both signals detrended first, each sum ÷ (√Σx² · √Σy²) unless Unnormalised (the roots taken one
+                                      by one, so tiny signals still scale). ONE NaN rule: a non-finite sample in either signal → every value NaN, lags still
+                                      given (the detrend is not asked); a normalised signal with no energy → NaN, never 0. Refuses: null (signal / x / y),
+                                      empty (signal / x), unequal lengths (y), MaxLags ≥ the length (options)
     Delaunay.cs                       public static: Triangulate(x, y) → TriMesh — Bowyer-Watson algorithm, CCW super-triangle, epsilon jitter for collinear points
-                                        TriMesh: int[] Triangles (flat, every 3 = 1 triangle), double[] X, double[] Y
+                                        TriMesh: int[] Triangles (flat, every 3 = 1 triangle), double[] X, double[] Y (X is the JITTERED copy: draw from the caller's own arrays)
+                                        internal TrianglesOf(x, y, given) → int[]: the ONE owner of "given triangles win, otherwise Delaunay" (TripcolorSeriesRenderer, Triplot)
     HierarchicalClustering.cs         public static: Cluster(double[,] distanceMatrix) → Dendrogram — Ward's method (Lance-Williams), O(n³)
                                         Dendrogram: DendrogramNode[] Merges, int[] LeafOrder
                                         DendrogramNode: Left, Right, Distance, Size
@@ -1330,8 +1459,19 @@ MatPlotLibNet/
                                       DescribeSharedSettings) and take them back (RestoreSharedSettings); each
                                       series adds only the settings of its own type.
     LegendDto.cs, ColorBarDto.cs,     the record parts of an axes: each owns its From(model) (null at rest) and its
-    GridDto.cs, TickConfigDto.cs,       To...() back; a field at its resting value is left out
-    TextStyleDto.cs
+    GridDto.cs, TickConfigDto.cs,       To...() back; a field at its resting value is left out. LegendDto.FromPresent is
+    TextStyleDto.cs                     the figure's form: the figure's legend is a setting by being there, so a plain legend is
+                                        written as {} instead of left out
+    FigureTextDto.cs,                 the figure's own texts and images (the "texts" and "images" lists of FigureDto, each null
+    FigureImageDto.cs                   while empty, so a figure with none writes the bytes it always wrote): From(model) and
+                                        AddTo(figure) back. An image travels as a list of rows (a missing cell as "NaN") with its
+                                        colour map and normaliser written as a series' are (ColorMapDescriptionExtensions,
+                                        NormalizableExtensions.DescribeForJson); rows of unequal length are refused as "data".
+                                        The figure's legend is FigureDto.Legend (a LegendDto). A 1.27.0 reader skips all three
+    ZoomIndicatorDto.cs               an inset's zoom indicator (AxesDto.ZoomIndicator): each setting only when it differs from a new
+                                        indicator's, an indicator at its defaults written as {} (a setting by being there), an axes
+                                        without one writes no field, so every existing figure writes the bytes it wrote. RestoreAxes
+                                        (and so RestoreInsets) reads it back; a 1.27.0 reader skips it
     SeriesRegistry.cs                 ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>> mapping each
                                       discriminator to the series' own FromSeriesDto factory; a table
                                       only, no series-specific logic (v1.13.0: cyclomatic complexity 173 -> 1).
@@ -1365,7 +1505,8 @@ MatPlotLibNet/
                                       two grids that differ in every property; ApplyTo over the grid of the theme the figure is drawn under; Then combines a later change property
                                       by property). Axes.GridChange keeps it, Axes.GridUnder(theme) / ShapeGridUnder(theme) resolve it for the Cartesian axes and for the polar rings
                                       and 3-D walls; JSON carries it as gridChange beside the resolved grid. ShowGrid is WithGrid(g => g with { Visible = ... })
-    LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
+    LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None. None draws no line (SeriesRenderer.DrawPolyline and the legend's
+                                      line handle skip a stroke of that style): a series of markers alone, as matplotlib's linestyle='None'
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
     DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI + Skia renderers
     PropCycler.cs                     LCM-based multi-property cycler; CycledProperties record struct (new v0.8.1). Its colours, line
@@ -1404,15 +1545,16 @@ MatPlotLibNet/
 
 A method of `AxesBuilder` itself adds one series or sets one property of the axes. A verb that composes a chart from
 series that already exist (it adds no series type, no `SeriesRegistry` key and no serializer path, so the chart travels
-through JSON as its parts) is an extension method on `AxesBuilder`. 26 verbs live there today, and each one:
+through JSON as its parts) is an extension method on `AxesBuilder`. 38 verbs live there today, and each one:
 
 - sits in namespace `MatPlotLibNet`, so it needs no `using` beyond the one the builder already takes;
 - sits in folder `Builders/`, in one static class per family, the family decided by the shape of the data the caller holds:
   - `CategoricalAxesExtensions`: data keyed by names (categories, a `BarGroup` per group). Verbs: `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`.
   - `DistributionAxesExtensions`: a chart estimated from a sample (a `NamedSample` per group, a `SurvivalGroup` per group of survival data, a `QQReference` for the distribution a sample is compared with). Verbs: `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `StemAndLeaf`.
-  - `XYAxesExtensions`: x and y arrays, values over x positions. Verbs: `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `ConnectedScatter`.
+  - `XYAxesExtensions`: x and y arrays, values over x positions, segments between two limits at each position, values in the bins between edges, the edges of a triangulated mesh. Verbs: `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `ConnectedScatter`, `VLines`, `HLines`, `Stairs`, `Triplot`.
   - `GridAxesExtensions`: cells of a grid. Verbs: `CalendarHeatmap`, `Spy`, `MatShow`, `CalendarEvents`.
   - `PriceAxesExtensions`: a series of prices in time order, drawn without its time axis (the closes as one `double[]`; the indicators take an `OhlcvBars`, these charts need nothing but the closes). Verbs: `Renko`, `Kagi`.
+  - `SignalAxesExtensions`: a signal, samples taken at a steady rate and handed over in the order they were taken as a `double[]`, drawn as what it is made of (a spectrum). The maintainer's decision: an ordered sampled signal is neither x and y arrays (`XYAxesExtensions`) nor a sample (`DistributionAxesExtensions`), because its order is its meaning and the chart is computed from windows of it. How a spectrum is estimated from averaged segments is one `SpectralOptions` value; how the spectrum of the whole signal is taken in one transform is one `SpectrumOptions` value; how a signal is correlated with itself or with another, and drawn as stems or as markers, is one `CorrelationOptions` value. Verbs: `Psd`, `Csd`, `Cohere`, `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum`, `Acorr`, `Xcorr`.
 - takes at most 4 parameters besides `this`, the optional inputs of its computation (a bandwidth, a week start, a
   threshold) before `configure`, which comes last and may be left out. A verb that draws one series type takes
   `Action<TSeries>` and runs it once for each series it draws; one that draws several types takes `Action<XxxParts>` and
@@ -1421,8 +1563,9 @@ through JSON as its parts) is an extension method on `AxesBuilder`. 26 verbs liv
 
 The types the verbs introduce:
 
-- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `RiskTableParts`, `ControlChartParts`, `RaincloudParts`, `HorizonParts`, `CalendarEventsParts`, `RenkoParts`, `ConnectedScatterParts`, `KagiParts`, `StemAndLeafParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
-- Named data: `BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`, `ControlChartData`, `QQReference`. Each is a public readonly record struct: a name and its values, the limits or the data of a control chart, or the distribution a plot compares a sample with.
+- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `RiskTableParts`, `ControlChartParts`, `RaincloudParts`, `HorizonParts`, `CalendarEventsParts`, `RenkoParts`, `ConnectedScatterParts`, `KagiParts`, `StemAndLeafParts`, `StairsParts`, `CorrelationParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
+- Named data: `BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`, `ControlChartData`, `QQReference`, `SpectralOptions`, `SpectrumOptions`, `CorrelationOptions`. Each is a public readonly record struct: a name and its values, the limits or the data of a control chart, the distribution a plot compares a sample with, or how a spectrum is estimated (matplotlib's defaults for the zero value, one value for the sample rate, the segments and their overlap, the padding, the frequency offset and the scaling; for the spectrum of the whole signal, the sample rate, the window, the padding and the frequency offset) or a correlation is worked out and drawn (matplotlib's defaults for the zero value, one value for the number of lags, whether it is left unnormalised, the detrend and whether it is drawn as markers).
+- The spectral options hold three more public types of their own: `SpectralWindow` (Hann, Hamming, Blackman, Rectangular, or one of the caller's own), `SpectralDetrend` (None, Mean, Linear, or one of the caller's own), both readonly record structs of the `QQReference` shape, and the enum `SpectralScaling` (Density, Spectrum). A verb takes them only inside a `SpectralOptions` (the window also inside a `SpectrumOptions`, the detrend also inside a `CorrelationOptions`), so the list of named data above, which is found through the verbs' parameters, does not name them; the documentation test lists them beside it, and with them the enum `MagnitudeScale` (Linear, Decibel) that `MagnitudeSpectrum` takes, since the search through the parameters leaves enums out.
 - A BarGroup (a name and one value per place) is the named-values type of eight verbs: GroupedBar, Dumbbell, SlopeGraph, DotPlot, ParallelCoordinates, Marimekko, BumpChart and StreamGraph. What the name stands for is each verb's to say: a legend entry, the class of a row, a segment of a column.
 
 What holds for every verb:
@@ -1491,6 +1634,7 @@ The verbs share internal owners instead of each holding a copy of a rule:
 | which series a colour bar reads | `ColorBarProviderExtensions.ColorBarProvider` | the axes' bar, the figure's bar, the layout |
 | the radial scale of a polar axes: extent, rings, stacked feet | `RadialScale` | the polar grid and every polar series |
 | the fill of a contour: the bands between its levels, over the grid | `ContourBandFillExtensions.FillContourBands` | `ContourSeries` with `Filled` and `ContourfSeries` |
+| where a contour line's label stands and how it is turned: the arc-length middle of a line at least 1.2 label widths long, the pixel chord across the label's width folded into [-90, 90), the same for the line traced backwards | `ContourLabelPlacement.Along` | `ContourSeries` with `ShowLabels` |
 | the one projection of a map axes | `GeoAxesExtensions` (recorded by `WithProjection`, read by every layer) | `Land`, `Ocean`, `Borders`, `Coastlines`, `Choropleth`, `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram`, `Dorling` |
 | one bandwidth for several groups, a shared grid, a density at given points | `GaussianKde` | `Ridgeline`, the density curve |
 | the inverse of the normal CDF | `StandardNormal.Quantile` | `ProbabilityPlot` (so `QQPlot`), the regression band |
@@ -1500,6 +1644,20 @@ The verbs share internal owners instead of each holding a copy of a rule:
 | the neutral grey of reference graphics | `Theme.Neutral` | reference lines, trendlines, price levels, retracements, a waterfall's connectors, a stem's baseline, a contour without a colour map, a dumbbell's connector (`WearsNeutral`), the outlines of `Borders`, `Choropleth` and `Cartogram` |
 | the grid an axes draws | `Axes.GridUnder`, `Axes.ShapeGridUnder` over `GridChange` | the Cartesian axes, the polar rings and spokes, the 3-D walls, the JSON |
 | the scale axes that share one read | `AxesRangeExtensions.LinkedContributions` | `CartesianAxesRenderer.ComputeDataRanges` (range, margins and sticky edges) |
+| the points of many segments as one line: the two ends and a missing point for each, a segment that cannot be drawn left out whole, a limit given once broadcast | `SegmentPath.Of` | `VLines`, `HLines`, `Triplot`, `Acorr` and `Xcorr` (their stems) |
+| the correlation of two signals at each lag: numpy's "full" sums (a positive lag is x delayed against y), the detrend, the roots of the energies taken one by one, and the one NaN rule (a missing sample, every lag NaN; no energy, NaN and never 0) | `Correlation` (`Auto`, `Cross`) | `Acorr`, `Xcorr` |
+| a line that is `LineStyle.None` draws nothing, in the plot and in the legend | `SeriesRenderer.DrawPolyline`, `LegendRenderer.DrawSwatchLine` | every line-like series (`LineSeries`, `StepSeries`, `EcdfSeries`, the polar and ternary lines, an area's top edge) and their legend handles; the markers of `Acorr` and `Xcorr` |
+| the points of a staircase: two for each bin, a bin with a value or an edge that cannot be drawn a gap (a missing edge masks both bins at it), one more edge than values | `StaircasePath.Of` | `Stairs` (its outline, and the top edge of its fill) |
+| which triangles a point set has: the caller's own when given (even none), the Delaunay triangulation of the points otherwise | `Delaunay.TrianglesOf` | `TripcolorSeriesRenderer`, `Triplot` |
+| the averaged periodogram: segments, detrend, window, padding, scaling, one side, and the one NaN rule (a segment with a missing sample is left out; none left, every value NaN) | `Welch` (`Psd`, `Csd`, `Coherence`) | `Psd`, `Csd`, `Cohere` |
+| the spectrum of a whole signal in one transform: window once, padding, one side, the angle wrapped with a real negative bin at +π, numpy's unwrap for the phase, and the one NaN rule (a missing sample, every value NaN) | `Spectrum` (`Of`, `OneSidedSpectrum.Magnitudes`, `Angles`, `Phases`, `Unwrap`) | `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum` |
+| the Hann window, and a transform of exactly the length it is given | `SpectralWindow.Hann` (`Coefficients`), `Fft.Transform` | `Fft.Forward`, `Fft.Stft`, `Welch`, `Spectrum` |
+| a line reshaped run by run: split at its gaps, each run downsampled or smoothed on its own, joined again by one missing point | `MissingValueExtensions.JoinedAcrossGaps` | `LttbDownsampler`, `MonotoneCubicSpline` |
+| one legend drawn from a list of entries in a rectangle | `LegendRenderer` (`Place`, `Draw`, `ItemBounds`) | the legend of every axes, the figure's legend (`FigLegend`) |
+| the colour range of an image's values and the grid of cells that fills a rectangle | `ImageCells` (`Of`, `Draw`) | `ImageSeriesRenderer`, the figure's images (`FigImage`) |
+| what a figure draws itself, under its subplots (its images) and over them (its colour bar, texts and legend) | `ChartRenderer.RenderFigureUnderlays`, `ChartRenderer.RenderFigureOverlays` | `ChartRenderer.Render`, `SvgTransform.Render`, also for a figure with no subplot |
+| the region an inset zooms into and the connectors kept, from the limits the inset drew | `ZoomIndicatorPath.Of` over the inset's `DrawnView` | the parent's render of an inset that has a `ZoomIndicator` (`IndicateZoom`) |
+| what a power or a magnitude is drawn as in decibels: ten (a power) or twenty (a magnitude) times its logarithm, a value that is not above zero a gap and never minus infinity | `SignalAxesExtensions.ToDecibels` (private) | `Psd`, `Csd`, `MagnitudeSpectrum` |
 | the typical price, and the volume-weighted mean | `PriceSources.TypicalPrice`, `VolumeWeightedMean` | HLC3, `CandleIndicator`, `AdaptiveStochastic`; `Vwap`, `StreamingVwap`, `VwapZScore` |
 | what a light does to a face | `ILightSource.Shade` | `Surface`, `Bar3D`, `Color.Shade` |
 | what NaN and infinity mean to a chart | `MissingValueExtensions` | every renderer and every data range |
@@ -1516,11 +1674,12 @@ FigureBuilder.Build()  produces Figure model
     |
 figure.ToSvg()         calls SvgRendererDefault.Current.Render(figure)
     |
-SvgTransform           renders background sequentially
+SvgTransform           renders background sequentially, then the figure underlays (ChartRenderer.RenderFigureUnderlays: the images)
     |                  computes subplot layout
     |                  renders subplots in PARALLEL (Parallel.For)
     |                  each subplot gets its own SvgRenderContext
-    |                  merges SVG output in order
+    |                  draws the figure overlays (ChartRenderer.RenderFigureOverlays: colour bar, texts, legend) into a fragment of their own
+    |                  merges SVG output in order: background, subplots, overlays
     |
 ChartRenderer          per subplot: computes data ranges, creates DataTransform
     |                  renders spans, reference lines (decorations)
@@ -1529,6 +1688,8 @@ ChartRenderer          per subplot: computes data ranges, creates DataTransform
     |                  places every Y axis slot of the container once (range, transform, ticks, band, offset)
     |                  and draws each with the one slot part, on either side, through its own scale
     |                  renders annotations (text + arrows)
+    |                  renders each inset (RenderAxes returns its DrawnView), then the inset's zoom indicator over
+    |                  the parent's marks (ZoomIndicatorPath, only when both axes are Cartesian)
     |
 SvgSeriesRenderer      visitor dispatches to type-specific rendering
     |                  transforms data points to pixels via DataTransform
@@ -1585,6 +1746,8 @@ ChartSerializer        Figure -> each series via ISeriesSerializable -> JsonSeri
     |                  the Y axis container -> yAxis (primary), secondaryYAxis (right slot 0), the slots past slot 0 of
     |                  each side in extraRightYAxes / leftYAxes (the old caps) and rightYAxesOverflow / leftYAxesOverflow
     |                  (every one past them), yAxisTitleGap only when it is not 4
+    |                  the figure's own texts, images and legend -> texts, images, legend; an inset's zoom
+    |                  indicator -> zoomIndicator; each left out when there is none (a 1.27.0 reader skips them)
     |
 string                 JSON with camelCase, null-ignoring, Color as hex, a number that is not finite as the string "NaN",
                        "Infinity" or "-Infinity"; a value at its default is left out
@@ -1630,7 +1793,6 @@ Things a reader may expect that the library does not do, with the reason:
 
 - **Radar rings stay at fifths of the axis.** They carry no value labels, and every radar is normalised to its own documented `MaxValue`.
 - **`AutoLocator` keeps its nearest-step rule** (matplotlib takes the smallest step at or above). Changing it moves every axis picture. The tick count of a colour bar and of polar rings is chosen by length on purpose (`MaxNLocator.ForLength`); an axis is not.
-- **A colour bar does not follow the normaliser.** Its gradient and its ticks are linear in the value, whatever normaliser the series has. This is a limit of colour mapping, stated on the roadmap, not of tick placement.
 - **A polar axes has no offset origin** (matplotlib's `rmin`): `PolarTransform` maps radius 0 to the centre.
 - **A colour bar's tick count cannot be set.**
 - **A filled `ContourSeries` has no colour bar of its own;** `ContourfSeries` is the contour that backs one.
@@ -1641,6 +1803,9 @@ Things a reader may expect that the library does not do, with the reason:
 - **The MCP server does not know the Geo package.** A map is not an accepted chart type of a spec; the catalog and the schema tests pin it.
 - **Bubble and scatter size formulas stay as they are,** and the map bubbles use the scatter's rule. Changing the bubble series would move its pictures.
 - **A colour bar's extend wedge is 10 % of its length** (matplotlib's is 5 %) **and the polar angle grid is every 30 degrees** (matplotlib's is every 45). Neither is part of any request; changing them moves pictures.
+- **The spectral options have no `sides` and no `Funits`.** The input is real, so a two-sided spectrum only mirrors the one-sided one; the unit of the frequency changes only the title, which `SetXLabel` sets.
+- **A figure has one legend, it reserves no room and it is static.** A second `FigLegend` replaces the first (matplotlib adds another), the layout keeps no margin for it (`TightLayout` included), and clicking an entry hides nothing, as in matplotlib.
+- **The zoom indicator is drawn over the inset** (matplotlib draws it just under), only on a Cartesian parent (a polar, 3-D or ternary parent has no data rectangle to draw the region in), and it is drawn into the picture once, from the limits of that render: it is not made to follow a pan or a zoom made in the browser (how it looks after one has not been checked in a browser).
 
 ## Key design patterns
 
@@ -1671,10 +1836,11 @@ Things a reader may expect that the library does not do, with the reason:
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
 | One obstacle map, one score, one selector | `MarkObstacles` (`Builder`, `Badness`, `FirstLeastCovered`), `AxesRenderer.LegendObstacles` / `CollectMarks`, `SeriesRenderer<T>.AddMarks` | the legend at `Best` and the annotations that avoid overlap look at the same marks as drawn, score a candidate by the same matplotlib terms and take the first least covered one, so the two cannot disagree about what covers what; a renderer reports its marks from the pixel geometry it draws with, never from a copy of it. The order is acyclic: the series' marks, then the legend (marks and the annotations' boxes at their anchors), then the annotations that opted in (marks, the chosen legend box, the annotations that stay, the ones placed already); the legend is still drawn after them |
-| One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry`, one per `LegendPart` | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index, their colour slot, their swatch and their text cannot differ between them; "a series is named in the legend" is decided in one place, and a series with named parts (a stack plot's layers) says them itself |
+| One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry`, one per `LegendPart`; `Figure.LegendEntries(legend, ctx)` over every subplot | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index, their colour slot, their swatch and their text cannot differ between them; "a series is named in the legend" is decided in one place, and a series with named parts (a stack plot's layers) says them itself; the legend of a figure gathers the axes' own entries instead of deciding again which series are named |
+| One owner of an image's cells | `ImageCells` (`Of`, `Draw`) | an image series scaled to its plot and a figure image at one pixel for each cell take the colour range of their values and draw their grid of rectangles from one place, so the two cannot colour the same data differently |
 | One rule for where a category sits | `CategorySlot` (`Of`, `Bar`, `Around`), `BarSeries.SlotOf`, `CategoryTickExtensions` | the bar and count renderers, their data ranges, the category labels, a candlestick body, the indicator shortcuts and the category ticks read one rule, so a label, a mark and the bar it belongs to cannot drift apart: an edge-aligned bar chart's range and a count plot's labels had drifted from their bars before they shared it |
 | One owner of a series' colour and stroke | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`), `SeriesSlot` (`ColorOf`, `LineStyleOf`, `LineWidthOf`, `LineMarkerOf`, `ScatterMarkerOf`, `StrokeOf`) | the primary passes, the part of every Y slot, the line renderers and the legend swatch ask the same owner, so a line on any axis and its swatch cannot wear different colours, dashes, widths or markers under a cycler theme — `SlotIndex` sums every right slot's series before counting a left slot's or the top axis', so two slots on different sides never collide on the same identity; a pie, a donut, a funnel and a stacked area take their colours from the theme through it too, one slot for each part (`ChartSeries.ColorSlotSpan`), and the series after them the slot past them |
-| Compose existing series | `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, the `XxxParts` record structs | a chart that is a drawing of several series adds no series type, no registry key and no serializer path: one drawn unit is one series (a colour slot, a legend entry, a JSON entry), the chart travels as its parts, and the verb draws what the same chain of public calls draws |
+| Compose existing series | `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, `PriceAxesExtensions`, `SignalAxesExtensions`, the `XxxParts` record structs | a chart that is a drawing of several series adds no series type, no registry key and no serializer path: one drawn unit is one series (a colour slot, a legend entry, a JSON entry), the chart travels as its parts, and the verb draws what the same chain of public calls draws |
 | One missing value | `MissingValueExtensions` | a colormap, a renderer and a data range ask one class what NaN and infinity mean: a line breaks at the gap, a mark that cannot be placed is skipped before any render context sees it, and the automatic range leaves it out. When each layer tested `double.IsNaN` for itself, charts wrote NaN into the SVG |
 | A reflected contract | `SeriesDrawnPropertiesRoundTripTests` over `DrawnSeriesFixtures`, `AxesDrawnPropertiesRoundTripTests` over `DrawnAxesFixtures` | every settable property of every series type and every part of an axes is found by reflection, set to a value that is not its default, and compared after a JSON round trip, so a property added without its DTO field turns a Theory red and names itself; a property no JSON can carry is named in a list with the reason, and a series type that is neither under the contract nor named fails a test |
 | Closed polymorphic DTO family | `TickLocatorDto`, `TickFormatterDto`, `NormalizerDto`, `ColorMapDto` with `IJsonDescribed<T>` | a built-in describes itself and a derived record restores it through a virtual, so JSON carries the kind and what it was made with; an unknown kind reads as the base record and emits a diagnostic; no registry and no switch |
@@ -1751,11 +1917,17 @@ MatPlotLibNet.Mcp/
   Program.cs                       host + stdio transport + WithTools<ChartTools>(); no decisions, excluded from coverage
   ChartTools.cs                    the only [McpServerTool] file: five tools, and the one error boundary
   ChartSpec.cs                     readonly record struct ChartSpec(string Json) — a spec cannot be swapped with a path
-  ChartSpecReader.cs               parse -> normalise -> strict DTO pass -> semantic pass -> ChartSerializer.FromJson
+  ChartSpecReader.cs               parse -> normalise -> strict DTO pass -> semantic pass -> ChartSerializer.FromJson. The figure's
+                                   own texts, legend and images are normalised beside its colour bar; an image is cut at the
+                                   figure's edge and never enlarges the picture, so the dpi / canvas check has nothing to count for it.
+                                   A spec with no series is refused as nothing to draw unless the figure it builds shows a text or
+                                   an image of its own (FigureText.IsShownOn, FigureImage.IsShownOn: the rule the data table reads);
+                                   a figure legend or colour bar alone describes series that are not there and stays refused
   AxesSeatShape.cs                 where a subplot keeps its axes and series, read off the wire records (AxesDto,
                                    SecondaryAxisSlotDto): a new axis or series list on the wire is a seat on the next build
   AxesSeatWalk.cs                  the one seat walk, over the JSON nodes (normalise) and the DTO records (validate)
-  SpecVocabulary.cs                the accepted values of every enum-valued spec field, per node kind
+  SpecVocabulary.cs                the accepted values of every enum-valued spec field, per node kind (FigureText: the two alignments;
+                                   ZoomIndicator: the line style of an inset's zoomIndicator)
   ChartTypeCatalog.cs              SeriesRegistry.Discriminators minus the types whose reader ignores the document
   ChartRendering.cs                spec -> Figure -> bytes; one owner, two sinks (inline PNG, or a file)
   OutputPathResolver.cs            the single directory save_chart may write under
@@ -1797,7 +1969,7 @@ rule, so the reader holds none: it builds the series through the registry on a s
 when the library refuses it, names the place from its own seat walk with the library's reason (`The 'surface' series at
 $.subPlots[0].series[1] was refused: Array lengths must match. ...`). A rule the library gains is a rule here, at every seat.
 
-A chart the library composes from several series travels as those series: none of the 26 chart verbs is a chart type of
+A chart the library composes from several series travels as those series: none of the 38 chart verbs is a chart type of
 this server, in its catalog, its served list or its vocabulary, and a spec that asks for one is refused like any unknown
 type (ComposedVerbVocabularyTests holds that). A document the library writes for a composed chart is accepted whole, a
 missing value as the string "NaN" (ComposedChartSpecTests runs every composed shape through the reader).

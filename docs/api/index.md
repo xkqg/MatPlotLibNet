@@ -11,7 +11,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `Plt` | Static entry point — `Plt.Create()` starts the fluent builder |
 | `FigureBuilder` | Top-level builder: title, theme, size, subplots, export |
 | `AxesBuilder` | Per-subplot builder: series, labels, legends, ticks, camera |
-| `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, `PriceAxesExtensions` | 26 chart verbs on `AxesBuilder` that draw a whole chart from your data in one call, such as `Pareto`, `Ridgeline`, `CalendarHeatmap`, `KaplanMeier` and `BumpChart`. Each is built from series the library already has, so it adds no series type and goes through JSON as those series |
+| `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, `PriceAxesExtensions`, `SignalAxesExtensions` | 38 chart verbs on `AxesBuilder` that draw a whole chart from your data in one call, such as `Pareto`, `Ridgeline`, `CalendarHeatmap`, `KaplanMeier`, `BumpChart`, `Stairs` and `Psd`. Each is built from series the library already has, so it adds no series type and goes through JSON as those series |
 | `Figure` | Immutable chart model — the output of `.Build()` |
 | `ChartSeries` | Abstract base for all 91 series types |
 | `ChartDataTable` | The figure's data as a table — `figure.ToDataTables()`, then `ToHtml()` / `ToMarkdown()` / `ToCsv()` |
@@ -23,11 +23,11 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 
 | Namespace | Package | Notes |
 |---|---|---|
-| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 91 series types, the 26 chart verbs and the types they take (`BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`, `ControlChartData`, `QQReference`) |
-| `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.) |
+| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 91 series types, the 38 chart verbs and the types they take (`BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`, `ControlChartData`, `QQReference`, `SpectralOptions`, `SpectrumOptions`, `CorrelationOptions`, `MagnitudeScale`) |
+| `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.), and what a figure or an inset draws itself: `FigureText`, `FigureImage`, `ZoomIndicator` |
 | `MatPlotLibNet.Rendering` | Core | SVG render pipeline |
 | `MatPlotLibNet.Styling` | Core | Themes, colors, colormaps |
-| `MatPlotLibNet.Numerics` | Core | `Vec`, `Mat`, SIMD math |
+| `MatPlotLibNet.Numerics` | Core | `Vec`, `Mat`, SIMD math, `Fft`, and the window and detrend of the signal verbs (`SpectralWindow`, `SpectralDetrend`, `SpectralScaling`) |
 | `MatPlotLibNet.Interaction` | Core | Managed interaction modifiers + events |
 | `MatPlotLibNet.Animation` | Core | `IAnimation<TState>`, `AnimationController` |
 | `MatPlotLibNet.Skia` | `MatPlotLibNet.Skia` | PNG, PDF and GIF export via SkiaSharp |

@@ -10,8 +10,8 @@ namespace MatPlotLibNet.Rendering.LegendRendering;
 /// <summary>
 /// Computes the pixel geometry of a legend (fonts, column widths, box
 /// dimensions, position) from a <see cref="Legend"/> config + label list +
-/// plot area. Encapsulates the formulas that drawing (<c>AxesRenderer.RenderLegend</c>)
-/// and hit-testing (<c>AxesRenderer.ComputeLegendBounds</c>) share.
+/// plot area. Encapsulates the formulas that drawing and hit-testing
+/// (<c>LegendRenderer.Draw</c> and <c>LegendRenderer.ItemBounds</c>) share.
 /// </summary>
 /// <remarks>
 /// Drawing and hit-testing read one copy of the layout math, so a change to the

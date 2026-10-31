@@ -33,14 +33,13 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         var bgCtx = new SvgRenderContext();
         var resolvedSpacing = Renderer.PrepareSpacing(figure, bgCtx);
 
-        // Render background + title sequentially into the bgCtx fragment.
+        // Render background + title sequentially into the bgCtx fragment, and after them what the figure draws under its
+        // subplots: the same pass ChartRenderer.Render calls.
         double plotAreaTop = Renderer.RenderBackground(figure, bgCtx, resolvedSpacing);
-
-        if (figure.SubPlots.Count == 0)
-            return BuildSvgDocument(w, h, figure, sb => bgCtx.WriteTo(sb));
+        Renderer.RenderFigureUnderlays(figure, bgCtx);
 
         // Compute subplot layout with the resolved spacing — guarantees margins and
-        // gutters match the PNG pipeline.
+        // gutters match the PNG pipeline. A figure without subplots lays out none.
         var plotAreas = Renderer.ComputeSubPlotLayout(figure, plotAreaTop, resolvedSpacing);
         var theme = figure.Theme;
 
@@ -76,21 +75,25 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             subplotContexts[i] = ctx;
         });
 
-        // Render figure-level colorbar (if present) after all subplots — pass the
-        // resolved spacing so colorbar positioning matches PNG exactly.
-        SvgRenderContext? figCbCtx = null;
-        if (figure.FigureColorBar is { Visible: true } cb)
-        {
-            figCbCtx = new SvgRenderContext();
-            Renderer.RenderFigureColorBar(figure, plotAreas, cb, figCbCtx, resolvedSpacing);
-        }
+        // What the figure draws above its subplots (its colour bar, its texts) goes into a fragment of its own, written after
+        // every subplot: the same pass ChartRenderer.Render calls, with the same resolved spacing, so both pictures agree.
+        var overlayCtx = new SvgRenderContext();
+        Renderer.RenderFigureOverlays(figure, plotAreas, overlayCtx, resolvedSpacing);
+
+        // A figure without subplots has nothing to interact with, so it carries no script.
+        if (figure.SubPlots.Count == 0)
+            return BuildSvgDocument(w, h, figure, sb =>
+            {
+                bgCtx.WriteTo(sb);
+                overlayCtx.WriteTo(sb);
+            });
 
         return BuildSvgDocument(w, h, figure, sb =>
         {
             bgCtx.WriteTo(sb);
             foreach (var ctx in subplotContexts)
                 ctx.WriteTo(sb);
-            figCbCtx?.WriteTo(sb);
+            overlayCtx.WriteTo(sb);
             // ServerInteraction routes browser events through SignalR instead of the local
             // client-side IIFEs — the SignalR dispatcher replaces all four local scripts
             // (zoom/pan, legend-toggle, selection/brush, tooltip) with one unified branch

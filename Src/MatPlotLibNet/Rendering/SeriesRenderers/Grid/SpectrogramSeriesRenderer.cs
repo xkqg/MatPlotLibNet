@@ -8,7 +8,10 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>Renders a <see cref="SpectrogramSeries"/> as colored time-frequency cells computed via STFT.</summary>
+/// <summary>Renders a <see cref="SpectrogramSeries"/> as colored time-frequency cells computed via STFT. Row <c>b</c> is
+/// placed at its bin's frequency, <see cref="StftResult.Frequencies"/>[b]: it runs halfway to the neighbouring bins, so it is
+/// centred on that frequency, and the first and the last row stop at the ends of the frequency axis, 0 and half the sample
+/// rate (the extent <see cref="SpectrogramSeries.ComputeDataRange"/> gives).</summary>
 internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeries>
 {
     /// <inheritdoc />
@@ -32,15 +35,18 @@ internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeri
         double duration = series.Signal.Length / (double)series.SampleRate;
         double maxFreq = series.SampleRate / 2.0;
         double dt = duration / nFrames;
-        double df = maxFreq / nBins;
+        double[] frequencies = stft.Frequencies;
 
         for (int b = 0; b < nBins; b++)
-        for (int f = 0; f < nFrames; f++)
         {
-            var color = cmap.ColorOf(stft.Magnitudes[b, f], norm, min, max);
-            double t0 = f * dt, t1 = t0 + dt;
-            double freq0 = b * df, freq1 = freq0 + df;
-            Ctx.DrawRectangle(Rect.FromCorners(Transform.DataToPixel(t0, freq1), Transform.DataToPixel(t1, freq0)), new ShapeStyle(color, null, 0));
+            double freq0 = b == 0 ? 0 : (frequencies[b - 1] + frequencies[b]) / 2;
+            double freq1 = b == nBins - 1 ? maxFreq : (frequencies[b] + frequencies[b + 1]) / 2;
+            for (int f = 0; f < nFrames; f++)
+            {
+                var color = cmap.ColorOf(stft.Magnitudes[b, f], norm, min, max);
+                double t0 = f * dt, t1 = t0 + dt;
+                Ctx.DrawRectangle(Rect.FromCorners(Transform.DataToPixel(t0, freq1), Transform.DataToPixel(t1, freq0)), new ShapeStyle(color, null, 0));
+            }
         }
     }
 }

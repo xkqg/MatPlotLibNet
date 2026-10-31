@@ -154,6 +154,43 @@ internal static class MissingValueExtensions
         }
     }
 
+    extension(IReadOnlyList<IndexRange> runs)
+    {
+        /// <summary>The line made of these runs of <paramref name="x"/> and <paramref name="y"/> (the drawable runs
+        /// <c>DrawableIndexRuns</c> found), each run passed through <paramref name="map"/> on its own and the results joined
+        /// by one NaN point, so the line still breaks at every gap and no stage that reshapes a line (a downsampler, a
+        /// spline) ever sees a point of two runs at once. The one place a reshaped line is split at its gaps and joined again.
+        /// A single run is mapped and handed back as <paramref name="map"/> returns it.</summary>
+        /// <param name="x">The x values the runs index.</param>
+        /// <param name="y">The y values, parallel to <paramref name="x"/>.</param>
+        /// <param name="map">What is done to one run: its x and y values in, the reshaped run out.</param>
+        /// <returns>The reshaped runs, in order, one NaN point between each two; empty when there is no run.</returns>
+        internal XYData JoinedAcrossGaps(double[] x, double[] y, Func<XYData, XYData> map)
+        {
+            if (runs.Count == 1)
+            {
+                return map(new(x.Slice(runs[0]), y.Slice(runs[0])));
+            }
+
+            var outX = new List<double>();
+            var outY = new List<double>();
+            foreach (var run in runs)
+            {
+                if (outX.Count > 0)
+                {
+                    outX.Add(double.NaN);
+                    outY.Add(double.NaN);
+                }
+
+                var part = map(new(x.Slice(run), y.Slice(run)));
+                outX.AddRange(part.X);
+                outY.AddRange(part.Y);
+            }
+
+            return new([.. outX], [.. outY]);
+        }
+    }
+
     extension(IEnumerable<double[]> arrays)
     {
         /// <summary>The smallest and the largest value over several arrays (the datasets of a box plot, the two edges of an

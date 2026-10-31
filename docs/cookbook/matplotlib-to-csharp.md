@@ -74,6 +74,10 @@ Plt.Create()
 | `plt.subplots_adjust(hspace=…)` | `figure.WithSubPlotSpacing(sp => sp with { VerticalGap = … })` | |
 | `plt.subplot_mosaic('AB;CC')` | `Plt.Mosaic("AB;CC")` | Same string layout language. |
 | `fig.add_axes([…])` | `ax.AddInset(bounds, inset => …)` | An inset belongs to the axes it sits in. |
+| `ax.indicate_inset_zoom(inset)` | `ax.IndicateZoom()` | Called on the inset's own builder, inside `AddInset`: the parent draws the region the inset shows and the two connectors matplotlib keeps. See [insets](subplots.md#zoom-indicator). |
+| `fig.text(0.5, 0.97, '…')` / `plt.figtext` | `figure.FigText("…", 0.5, 0.97)` | Fractions of the figure from its bottom-left corner, as in matplotlib. |
+| `fig.legend()` / `plt.figlegend` | `figure.FigLegend()` | One legend for the labelled series of every subplot. It reserves no room, and a second call replaces the first. |
+| `fig.figimage(data, xo, yo)` | `figure.FigImage(data, xo, yo)` | One pixel for each value, the offsets in pixels from the bottom-left corner, under every subplot. |
 | `plt.savefig('c.png')` | `figure.Save("c.png")` | The extension picks the format: `.svg` and `.json` from core, `.png` and `.pdf` with the `MatPlotLibNet.Skia` package loaded (without it they are refused, not written as SVG); an animation is saved as `.gif` from its builder. |
 | `fig.canvas.tostring_rgb()` | `figure.ToSvg()` | The markup as a string, for a web response. |
 | `plt.show()` | — | Nothing renders to a screen by itself; see the [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) or the Blazor, WPF, MAUI, Avalonia and Uno controls. |
@@ -91,6 +95,9 @@ Plt.Create()
 | `ax.bar` with an offset per group | `ax.GroupedBar(categories, groups)` | The offset arithmetic every grouped bar chart repeats is done for you. |
 | `ax.barh(labels, widths)` | `ax.Bar(labels, values, s => s.Orientation = BarOrientation.Horizontal)` | One series flag rather than a second verb. |
 | `ax.step(x, y)` | `ax.Step(x, y)` | |
+| `ax.stairs(values, edges)` | `ax.Stairs(values, edges)` | One more edge than values. Left out, `baseline` draws the outline alone (matplotlib's `baseline=None`); given, the staircase is filled down to it. |
+| `ax.vlines(x, ymin, ymax)` | `ax.VLines(x, yMin, yMax)` | One line series for all the segments; a limit given as one value serves every segment. |
+| `ax.hlines(y, xmin, xmax)` | `ax.HLines(y, xMin, xMax)` | |
 | `ax.stem(x, y)` | `ax.Stem(x, y)` | |
 | `ax.stackplot(x, ys)` | `ax.StackPlot(x, ySets)` | Name the layers with `Labels` and each is a legend entry. |
 | `ax.fill_between(x, y1, y2)` | `ax.FillBetween(x, y, y2)` | |
@@ -219,6 +226,7 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | `ax.spines['left'].set_bounds(lo, hi)` | `ax.WithSpines(s => s with { Left = s.Left with { BoundsFrom = lo, BoundsTo = hi } })` | An axis line that spans only part of its axis, in data units. |
 | `ax.pcolormesh(x, y, z)` | `ax.Pcolormesh(xEdges, yEdges, values)` | |
 | `ax.contour(x, y, z)` | `ax.Contour(x, y, z)` | |
+| `ax.clabel(cs)` | `ax.Contour(x, y, z, s => s.ShowLabels = true)` | Each label stands at the middle of its line, turned along it, as `clabel` places it inline; `LabelFormat` and `LabelFontSize` set the text. |
 | `ax.contourf(x, y, z)` | `ax.Contourf(x, y, z)` | |
 | `ax.quiver(x, y, u, v)` | `ax.Quiver(x, y, u, v)` | |
 | `ax.quiverkey(q, …)` | `ax.QuiverKey(x, y, u, "5 m/s")` | |
@@ -226,7 +234,28 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | `ax.barbs(x, y, u, v)` | `ax.Barbs(x, y, u, v)` | |
 | `ax.tricontour(…)` | `ax.Tricontour(x, y, z)` | |
 | `ax.tripcolor(…)` | `ax.Tripcolor(x, y, z)` | |
-| `ax.specgram(signal)` | `ax.Spectrogram(signal)` | |
+| `ax.triplot(x, y)` | `ax.Triplot(x, y)` | The edges of the mesh, each once. Give the triangles as a flat list of indices, or leave them out for the Delaunay triangulation `Tripcolor` uses. |
+| `ax.specgram(signal, Fs=fs)` | `ax.Spectrogram(signal, fs)` | |
+
+## Signals
+
+One value holds the settings matplotlib passes as keywords, and its `default` is matplotlib's defaults: `SpectralOptions`
+for the averaged spectra (`NFFT` is `SegmentLength`, `noverlap` is `Overlap`, `pad_to` is `PadTo`, `Fc` is
+`CenterFrequency`, `scale_by_freq=False` is `Scaling = SpectralScaling.Spectrum`), `SpectrumOptions` for the spectra of
+the whole signal, and `CorrelationOptions` for the correlations (`maxlags`, `normed=False`, `detrend` and
+`usevlines=False` are `MaxLags`, `Unnormalised`, `Detrend` and `Markers`). A window or a detrend is a `SpectralWindow` or a
+`SpectralDetrend`. The [signal analysis](signal-analysis.md) page shows each with its picture.
+
+| matplotlib | MatPlotLibNet | Notes |
+|---|---|---|
+| `ax.psd(x, NFFT=256, Fs=fs)` | `ax.Psd(signal, new SpectralOptions { SampleRate = fs })` | Welch's method; the line is in dB, a frequency with no power a gap. |
+| `ax.csd(x, y, Fs=fs)` | `ax.Csd(x, y, new SpectralOptions { SampleRate = fs })` | The magnitude of the cross density, in dB. |
+| `ax.cohere(x, y, Fs=fs)` | `ax.Cohere(x, y, new SpectralOptions { SampleRate = fs })` | From 0 to 1; the signals must hold at least two segments. |
+| `ax.magnitude_spectrum(x, Fs=fs)` | `ax.MagnitudeSpectrum(signal, new SpectrumOptions { SampleRate = fs })` | `scale='dB'` is `MagnitudeScale.Decibel`. |
+| `ax.phase_spectrum(x, Fs=fs)` | `ax.PhaseSpectrum(signal, new SpectrumOptions { SampleRate = fs })` | Unwrapped. |
+| `ax.angle_spectrum(x, Fs=fs)` | `ax.AngleSpectrum(signal, new SpectrumOptions { SampleRate = fs })` | Wrapped between −π and π. |
+| `ax.acorr(x, maxlags=10)` | `ax.Acorr(signal)` | Stems and a line at 0, or markers alone. |
+| `ax.xcorr(x, y, maxlags=10)` | `ax.Xcorr(x, y)` | A positive lag is x delayed against y, as in matplotlib. |
 
 ## Three dimensions
 
@@ -259,4 +288,5 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 - [Heatmaps and colormaps](heatmaps.md) — all 148 maps and how to normalise a scale.
 - [Subplots and GridSpec](subplots.md) — the layouts `plt.subplots` and `gridspec` give you.
 - [3D charts](threed.md) — surfaces, wireframes and the camera.
+- [Signal analysis](signal-analysis.md) — spectra, coherence and correlation of a sampled signal.
 - The [API reference](https://xkqg.github.io/MatPlotLibNet/api/) — every verb, with its overloads.

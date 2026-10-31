@@ -515,6 +515,252 @@ public static class XYAxesExtensions
             configure?.Invoke(new HorizonParts(positive, negativeFolds));
             return axes;
         }
+
+        /// <summary>Draws a vertical line segment at each x position, from <paramref name="yMin"/> to <paramref name="yMax"/>
+        /// (matplotlib's <c>vlines</c>): the ranges of a quantity over several days, the extent of each of several events, drop
+        /// lines from a set of points to a baseline.
+        /// <para>The segments are ONE <see cref="LineSeries"/>, wearing one colour of the theme's cycle and named by one legend
+        /// entry, whatever their number: the points of the line are the two ends of every segment with a missing point after
+        /// it, so each segment is a polyline of its own and none is joined to the next. What <paramref name="configure"/> sets
+        /// on the series (the colour, the width, the dash pattern, the legend label) is set for every segment. The segments are
+        /// drawn in the order of the positions, and a segment may run downward: the ends are where they are given, not sorted.</para>
+        /// <para>A limit may be given once for all the segments: <c>yMin</c> of one value stands for every x position, as a
+        /// single <c>x</c> of one value stands for every pair of limits, so <c>VLines([1, 2, 3], [0], [5, 6, 7])</c> draws three
+        /// segments from 0. The three arrays otherwise hold one value for each segment.</para>
+        /// <para>A segment with a position or an end that is missing (NaN) or infinite is left out whole: it leaves no stub,
+        /// and the segments on either side of it stay parted. The verb sets no axis limits.</para>
+        /// <para>The chart is its one line: written to JSON it is a line series whose missing points are the string "NaN", and
+        /// read back it draws the same picture. It is not worked out again; change the data and call the verb again.</para></summary>
+        /// <param name="x">The x position of each segment.</param>
+        /// <param name="yMin">The y coordinate of each segment's start, one per x position, or a single value that serves them
+        /// all.</param>
+        /// <param name="yMax">The y coordinate of each segment's end, one per x position, or a single value that serves them
+        /// all.</param>
+        /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
+        /// colour, the width, the dash pattern, a label for the legend.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="x"/>, <paramref name="yMin"/> or <paramref name="yMax"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException">Two of the arrays differ in length and neither is a single value; the exception
+        /// names the array that disagrees.</exception>
+        /// <example>
+        /// <code>
+        /// double[] week = [1, 2, 3, 4, 5, 6];
+        /// double[] low = [12, 14, 11, 15, 13, 16];
+        /// double[] high = [18, 21, 17, 22, 19, 25];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Daily temperature range")
+        ///     .AddSubPlot(1, 1, 1, ax => ax
+        ///         .VLines(week, low, high, line => { line.Label = "range"; line.LineWidth = 3; })
+        ///         .SetXLabel("Week")
+        ///         .SetYLabel("Temperature (°C)")
+        ///         .WithLegend())
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder VLines(double[] x, double[] yMin, double[] yMax, Action<LineSeries>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+
+            // The segments are worked out (and the arguments refused, by their own names) before the line is added, so a refused
+            // call leaves the axes as it was.
+            var path = SegmentPath.Of(x, yMin, x, yMax);
+            return axes.AddSeries(new LineSeries(path.X, path.Y), configure);
+        }
+
+        /// <summary>Draws a horizontal line segment at each y position, from <paramref name="xMin"/> to
+        /// <paramref name="xMax"/> (matplotlib's <c>hlines</c>): the span of each of several tasks, the range of each of several
+        /// groups, a set of levels each reaching as far as it holds.
+        /// <para>The segments are ONE <see cref="LineSeries"/>, wearing one colour of the theme's cycle and named by one legend
+        /// entry, whatever their number: the points of the line are the two ends of every segment with a missing point after
+        /// it, so each segment is a polyline of its own and none is joined to the next. What <paramref name="configure"/> sets
+        /// on the series (the colour, the width, the dash pattern, the legend label) is set for every segment. The segments are
+        /// drawn in the order of the positions, and a segment may run leftward: the ends are where they are given, not sorted.</para>
+        /// <para>A limit may be given once for all the segments: <c>xMin</c> of one value stands for every y position, as a
+        /// single <c>y</c> of one value stands for every pair of limits, so <c>HLines([1, 2, 3], [0], [5, 6, 7])</c> draws three
+        /// segments from 0. The three arrays otherwise hold one value for each segment.</para>
+        /// <para>A segment with a position or an end that is missing (NaN) or infinite is left out whole: it leaves no stub,
+        /// and the segments on either side of it stay parted. The verb sets no axis limits.</para>
+        /// <para>The chart is its one line: written to JSON it is a line series whose missing points are the string "NaN", and
+        /// read back it draws the same picture. It is not worked out again; change the data and call the verb again.</para></summary>
+        /// <param name="y">The y position of each segment.</param>
+        /// <param name="xMin">The x coordinate of each segment's start, one per y position, or a single value that serves them
+        /// all.</param>
+        /// <param name="xMax">The x coordinate of each segment's end, one per y position, or a single value that serves them
+        /// all.</param>
+        /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
+        /// colour, the width, the dash pattern, a label for the legend.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="y"/>, <paramref name="xMin"/> or <paramref name="xMax"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException">Two of the arrays differ in length and neither is a single value; the exception
+        /// names the array that disagrees.</exception>
+        /// <example>
+        /// <code>
+        /// double[] task = [1, 2, 3, 4];
+        /// double[] start = [0, 2, 3, 6];
+        /// double[] finish = [3, 5, 7, 9];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Task schedule")
+        ///     .AddSubPlot(1, 1, 1, ax => ax
+        ///         .HLines(task, start, finish, line => line.LineWidth = 8)
+        ///         .SetXLabel("Day")
+        ///         .SetYLabel("Task"))
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder HLines(double[] y, double[] xMin, double[] xMax, Action<LineSeries>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+
+            // The segments are worked out (and the arguments refused, by their own names) before the line is added, so a refused
+            // call leaves the axes as it was.
+            var path = SegmentPath.Of(xMin, y, xMax, y);
+            return axes.AddSeries(new LineSeries(path.X, path.Y), configure);
+        }
+
+        /// <summary>Draws a staircase (matplotlib's <c>stairs</c>): a value for each bin, held level from the bin's left edge to its
+        /// right edge and stepping to the next value where the bins meet, the way a histogram that has already been counted or the
+        /// value of a quantity that changes at known moments is drawn.
+        /// <para>Without a <paramref name="baseline"/> the staircase is its outline alone: ONE <see cref="LineSeries"/> that runs
+        /// along the first bin, steps up or down at each edge and ends at the last bin, with no drop to a baseline before the first
+        /// edge or after the last (matplotlib's <c>baseline=None</c>). It wears one colour of the theme's cycle and is named by one
+        /// legend entry. The callback receives it as <see cref="StairsParts.Outline"/>.</para>
+        /// <para>With a <paramref name="baseline"/> the staircase is a fill: ONE <see cref="AreaSeries"/> between the staircase and
+        /// the baseline, one colour slot, one legend entry. Its top edge is the staircase's only stroke, and the fill itself is not
+        /// outlined, so no edge is ever drawn twice; the fill is lighter than the stroke (the area's own transparency), which
+        /// <see cref="StairsParts.Fill"/> lets the callback change. A baseline of 0 is the area's own fill to zero, so a staircase
+        /// of values that are all above zero begins exactly on the axis. Exactly one of <see cref="StairsParts.Outline"/> and
+        /// <see cref="StairsParts.Fill"/> is set.</para>
+        /// <para>The edges need not be equally spaced, but there must be exactly one more of them than there are values: bin
+        /// <c>i</c> lies between <c>edges[i]</c> and <c>edges[i + 1]</c>. A missing value (NaN) is a gap, in the line and in the fill:
+        /// the bin is not drawn and its neighbours are not joined across it, and it is never drawn as a zero. A missing edge masks
+        /// both bins that meet at it, because neither can be placed. The verb sets no axis limits.</para>
+        /// <para>The chart is its one series: written to JSON it is a line or an area whose missing points are the string "NaN", and
+        /// read back it draws the same picture. It is not expanded again; change the data and call the verb again.</para></summary>
+        /// <param name="values">The height of each bin.</param>
+        /// <param name="edges">The edges of the bins: one more than there are values, bin <c>i</c> lying between edge <c>i</c> and
+        /// edge <c>i + 1</c>.</param>
+        /// <param name="baseline">The level the staircase is filled down to, which draws it as a fill instead of an outline;
+        /// <see langword="null"/> (the default) draws the outline alone.</param>
+        /// <param name="configure">Optional styling of the staircase, run once after the verb has built it, so what it sets wins:
+        /// the colour, the width, the dash pattern, the transparency, a label for the legend. Exactly one of the parts it receives
+        /// is set.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="values"/> or <paramref name="edges"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="edges"/> does not number one more than <paramref name="values"/> (the
+        /// message names both counts); or <paramref name="baseline"/> is NaN or an infinity, which cannot be drawn.</exception>
+        /// <example>
+        /// <code>
+        /// double[] edges = [0, 10, 20, 30, 40, 50];
+        /// double[] counts = [3, 8, 14, 9, 4];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Orders by size")
+        ///     .AddSubPlot(1, 1, 1, ax => ax
+        ///         .Stairs(counts, edges, 0, parts => parts.Fill!.Label = "orders")
+        ///         .SetXLabel("Order size")
+        ///         .SetYLabel("Orders")
+        ///         .WithLegend())
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder Stairs(double[] values, double[] edges, double? baseline = null, Action<StairsParts>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+            if (baseline is { } level && !level.IsDrawable())
+            {
+                throw new ArgumentException("The baseline is NaN or an infinity; a staircase is filled down to a level that can be drawn.", nameof(baseline));
+            }
+
+            // The staircase is worked out once, here, and the outline and the fill are drawn from the same points. It is worked out
+            // (and the arguments refused, by their own names) before the series is added, so a refused call leaves the axes as it was.
+            var path = StaircasePath.Of(values, edges);
+            if (baseline is not { } floor)
+            {
+                var outline = new LineSeries(path.X, path.Y);
+                axes.AddSeries(outline);
+                configure?.Invoke(new StairsParts(outline));
+                return axes;
+            }
+
+            // A fill to zero is the area's own default, which also lets a staircase of positive values begin on the axis; any other
+            // baseline is a second curve, the same level at every point.
+            var fill = new AreaSeries(path.X, path.Y) { YData2 = floor == 0 ? null : [.. Enumerable.Repeat(floor, path.X.Length)] };
+            axes.AddSeries(fill);
+            configure?.Invoke(new StairsParts(fill));
+            return axes;
+        }
+
+        /// <summary>Draws the edges of a triangulated set of points (matplotlib's <c>triplot</c>): the lines of the mesh that a
+        /// triangle plot or a triangular contour is built on, so the triangles themselves can be seen.
+        /// <para>The triangles are <paramref name="triangles"/> when they are given, as a flat list of point indices, three for
+        /// each triangle, into <paramref name="x"/> and <paramref name="y"/>. Without them the points are triangulated (Delaunay),
+        /// by the very rule the triangle plot (<c>Tripcolor</c>) triangulates its points by, so the two draw one mesh. A given
+        /// list is the caller's mesh even when it is empty, and an empty one draws no edge.</para>
+        /// <para>The edges are ONE <see cref="LineSeries"/>, wearing one colour of the theme's cycle and named by one legend entry,
+        /// whatever their number: an edge two triangles share is drawn once, not twice, and each edge is a polyline of its own,
+        /// parted from the next by a missing point, so none is joined to another. What <paramref name="configure"/> sets on the
+        /// series (the colour, the width, the dash pattern, the legend label) is set for every edge. The edges are drawn at the
+        /// coordinates you gave, never at the slightly nudged copy a triangulation returns.</para>
+        /// <para>A point with a coordinate that is missing (NaN) or infinite cannot be placed: every edge that runs to it is left
+        /// out whole, leaving no stub, and the edges on either side of it stay parted. Without given triangles such a point is no
+        /// vertex at all and the others are triangulated as without it. Fewer than three points, or no triangles, add one line
+        /// with no points. The verb sets no axis limits.</para>
+        /// <para>The chart is its one line: written to JSON it is a line series whose missing points are the string "NaN", and
+        /// read back it draws the same picture. It is not triangulated again; change the data and call the verb again.</para></summary>
+        /// <param name="x">The x coordinate of each point.</param>
+        /// <param name="y">The y coordinate of each point, one per x position.</param>
+        /// <param name="triangles">The triangles to draw, as a flat list of point indices, three for each, counted from 0;
+        /// <see langword="null"/> (the default) to triangulate the points.</param>
+        /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
+        /// colour, the width, the dash pattern, a label for the legend.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="x"/> or <paramref name="y"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length;
+        /// <paramref name="triangles"/> does not hold a whole number of triangles (a multiple of three indices); or an index in
+        /// it names no point (the message names its place in the list and the number of points).</exception>
+        /// <example>
+        /// <code>
+        /// double[] x = [0, 4, 8, 2, 6];
+        /// double[] y = [0, 0, 0, 3, 3];
+        ///
+        /// string svg = Plt.Create()
+        ///     .WithTitle("Sensor mesh")
+        ///     .AddSubPlot(1, 1, 1, ax => ax
+        ///         .Triplot(x, y, configure: line => line.Label = "mesh")
+        ///         .Scatter(x, y)
+        ///         .SetXLabel("East (m)")
+        ///         .SetYLabel("North (m)")
+        ///         .WithLegend())
+        ///     .ToSvg();
+        /// </code>
+        /// </example>
+        public AxesBuilder Triplot(double[] x, double[] y, int[]? triangles = null, Action<LineSeries>? configure = null)
+        {
+            ArgumentNullException.ThrowIfNull(axes);
+            ArgumentNullException.ThrowIfNull(x);
+            ArgumentNullException.ThrowIfNull(y);
+            if (x.Length != y.Length)
+            {
+                throw new ArgumentException($"x has {x.Length} values and y has {y.Length}; there must be one y per x.", nameof(y));
+            }
+
+            // Everything is checked before the line is added, so a refused call leaves the axes as it was.
+            if (triangles is not null)
+            {
+                triangles.ThrowIfNotCornersOf(x.Length);
+            }
+
+            // Fewer than three points make no triangle: the verb adds a line with no points, as the triangle plot draws nothing.
+            int[] corners = x.Length < 3 ? [] : Delaunay.TrianglesOf(x, y, triangles);
+            var path = corners.EdgesAmong(x, y);
+            return axes.AddSeries(new LineSeries(path.X, path.Y), configure);
+        }
     }
 
     extension(ControlLimits limits)
@@ -536,6 +782,67 @@ public static class XYAxesExtensions
             return limits;
         }
     }
+
+    extension(int[] triangles)
+    {
+        /// <summary>Refuses a list of triangles that is not whole triangles, or that names a point there is not: the corners of a
+        /// triangle are indices into the points, counted from 0.</summary>
+        /// <param name="points">How many points there are.</param>
+        /// <exception cref="ArgumentException">The list does not hold a multiple of three indices (the message names how many it
+        /// holds), or an index is below 0 or not below <paramref name="points"/> (the message names its place in the list).
+        /// </exception>
+        private void ThrowIfNotCornersOf(int points)
+        {
+            if (triangles.Length % CornersPerTriangle != 0)
+            {
+                throw new ArgumentException(
+                    $"triangles holds {triangles.Length} indices; a triangle has three corners, so give a multiple of three.", nameof(triangles));
+            }
+
+            for (int i = 0; i < triangles.Length; i++)
+            {
+                if ((uint)triangles[i] >= (uint)points)
+                {
+                    string valid = points == 0 ? "there are no points to name" : $"a corner is a point from 0 to {points - 1}";
+                    throw new ArgumentException(
+                        $"triangles[{i}] is {triangles[i].ToString(CultureInfo.InvariantCulture)}; {valid}.", nameof(triangles));
+                }
+            }
+        }
+
+        /// <summary>The edges of these triangles as the segments of one path, drawn at the given coordinates: each edge once
+        /// however many triangles share it and whichever way round each runs it, in the order the triangles first meet them
+        /// (a triangle's three sides in the order of its corners), and none for a corner a triangle names twice. An edge to a
+        /// point that cannot be placed is left out by the path.</summary>
+        /// <param name="x">The x coordinate of each point.</param>
+        /// <param name="y">The y coordinate of each point, one per x position.</param>
+        /// <returns>The segments, three points for each edge; empty for no triangles.</returns>
+        private SegmentPath EdgesAmong(double[] x, double[] y)
+        {
+            var met = new HashSet<long>();
+            var starts = new List<int>();
+            var ends = new List<int>();
+            for (int first = 0; first + CornersPerTriangle <= triangles.Length; first += CornersPerTriangle)
+            {
+                for (int side = 0; side < CornersPerTriangle; side++)
+                {
+                    int a = triangles[first + side], b = triangles[first + (side + 1) % CornersPerTriangle];
+                    if (a != b && met.Add(Math.Min(a, b) * (long)x.Length + Math.Max(a, b)))
+                    {
+                        starts.Add(a);
+                        ends.Add(b);
+                    }
+                }
+            }
+
+            return SegmentPath.Of(
+                [.. starts.Select(i => x[i])], [.. starts.Select(i => y[i])],
+                [.. ends.Select(i => x[i])], [.. ends.Select(i => y[i])]);
+        }
+    }
+
+    /// <summary>The corners of a triangle: the indices three to a triangle in a flat list.</summary>
+    private const int CornersPerTriangle = 3;
 
     /// <summary>The name of a control chart's centre line, at its right end.</summary>
     private const string CenterLineName = "CL";

@@ -22,8 +22,11 @@ public class ComposedVerbDocumentationTests
     private static IReadOnlyList<Type> Families => VerbFamilies.All;
 
     /// <summary>The types the verbs introduce: the parts a callback receives and the named data they take, found through the
-    /// verbs' parameters, and the result of the log-rank test, which a verb hands out inside the risk table's parts.</summary>
-    private static readonly Type[] VerbTypes = [.. VerbFamilies.TypesTheVerbsIntroduce(), typeof(LogRankResult)];
+    /// verbs' parameters; the result of the log-rank test, which a verb hands out inside the risk table's parts; the window,
+    /// the detrend and the scaling, which a verb takes inside its <see cref="SpectralOptions"/>; and the scale of a magnitude
+    /// spectrum, an enum the search through the parameters leaves out.</summary>
+    private static readonly Type[] VerbTypes =
+        [.. VerbFamilies.TypesTheVerbsIntroduce(), typeof(LogRankResult), typeof(SpectralWindow), typeof(SpectralDetrend), typeof(SpectralScaling), typeof(MagnitudeScale)];
 
     [Fact]
     public void TheTypesItChecks_AreEveryTypeTheVerbsIntroduce()

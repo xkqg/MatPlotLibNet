@@ -210,4 +210,161 @@ public class FigureDataTablesTests
         Assert.Contains("500 more rows", table.ToHtml());
         Assert.Equal(1501, table.ToCsv().Split("\r\n").Length - 1);
     }
+
+    // ---- what the figure itself carries: its texts and its images ------------------------------------------------
+
+    [Fact]
+    public void AFigureWithNoTextAndNoImage_HasNoTableForThem()
+    {
+        var figure = Plt.Create().WithTitle("Revenue").Plot([1.0, 2.0], [1.0, 2.0]).Build();
+
+        var table = Assert.Single(figure.ToDataTables());
+
+        Assert.Equal("Revenue", table.Caption);
+    }
+
+    /// <summary>The words placed on the figure are part of what it says (a source line, a note, a panel letter): a reader who
+    /// cannot see the picture needs them as much as the values, so they are a table of their own, one row for each, in the
+    /// order they were added.</summary>
+    [Fact]
+    public void TheTextsOfAFigure_AreATableOfTheirOwn_OneRowEach_AfterTheSubplots()
+    {
+        var figure = Plt.Create().WithTitle("Revenue")
+            .Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "2026")
+            .FigText("Source: ECB", 0.02, 0.03)
+            .FigText("(a)", 0.5, 0.97)
+            .Build();
+
+        var tables = figure.ToDataTables();
+
+        Assert.Equal(2, tables.Count);
+        var texts = tables[1];
+        Assert.Equal("Revenue — figure text", texts.Caption);
+        var column = Assert.Single(texts.Columns);
+        Assert.Equal(new ChartDataColumn("text", DataColumnKind.Text), column);
+        Assert.Equal(["Source: ECB", "(a)"], texts.Rows.Select(row => row[0].Text));
+    }
+
+    [Fact]
+    public void AFigureWithNothingButATextOnIt_TablesThatText()
+    {
+        var figure = Plt.Create().FigText("only a note", 0.5, 0.5).Build();
+
+        var table = Assert.Single(figure.ToDataTables());
+
+        Assert.Equal("figure text", table.Caption);
+        Assert.Equal("only a note", Assert.Single(table.Rows)[0].Text);
+        Assert.Contains("only a note", table.ToHtml());
+        Assert.Contains("only a note", table.ToCsv());
+    }
+
+    /// <summary>The table says what the picture shows, as it leaves out an invisible series: a text with no place on the figure
+    /// is not drawn, and a text of nothing but blanks shows nothing.</summary>
+    [Theory]
+    [InlineData("hidden", 1.5, 0.5)]
+    [InlineData("hidden", 0.5, -0.1)]
+    [InlineData("hidden", double.NaN, 0.5)]
+    [InlineData("   ", 0.5, 0.5)]
+    [InlineData("", 0.5, 0.5)]
+    public void ATextThatShowsNothing_IsNotInTheTable(string text, double x, double y)
+    {
+        var figure = Plt.Create().Plot([1.0], [1.0]).FigText(text, x, y).FigText("shown", 0.5, 0.5).Build();
+
+        var tables = figure.ToDataTables();
+
+        var texts = tables[^1];
+        Assert.Equal(["shown"], texts.Rows.Select(row => row[0].Text));
+    }
+
+    [Fact]
+    public void AFigureWhoseOnlyTextShowsNothing_HasNoTextTable()
+    {
+        var figure = Plt.Create().Plot([1.0], [1.0]).FigText("hidden", 2, 2).Build();
+
+        Assert.Single(figure.ToDataTables());
+    }
+
+    /// <summary>A figure image is a grid of pixels laid on the figure under its subplots (a logo, a watermark, a texture), and
+    /// its table says so: what it is, how many pixels across and down, and where it stands, so a reader who cannot see it knows
+    /// it is there and that it is a picture of pixels rather than a series of values.</summary>
+    [Fact]
+    public void TheImagesOfAFigure_AreATableOfTheirOwn_OneRowEach_SayingWhatTheyAre()
+    {
+        var figure = Plt.Create().WithTitle("Revenue")
+            .Plot([1.0, 2.0], [1.0, 2.0])
+            .FigText("note", 0.5, 0.5)
+            .FigImage(new double[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 12, 34)
+            .FigImage(new double[,] { { 9 } }, 0, 0)
+            .Build();
+
+        var tables = figure.ToDataTables();
+
+        Assert.Equal(3, tables.Count);
+        var images = tables[2];
+        Assert.Equal("Revenue — figure images", images.Caption);
+        Assert.Equal(
+            [
+                new ChartDataColumn("image", DataColumnKind.Text),
+                new ChartDataColumn("width (pixels)"),
+                new ChartDataColumn("height (pixels)"),
+                new ChartDataColumn("from left (pixels)"),
+                new ChartDataColumn("from bottom (pixels)"),
+            ],
+            images.Columns);
+        Assert.Equal(2, images.RowCount);
+        Assert.Equal("image 1", images.Rows[0][0].Text);
+        Assert.Equal([3.0, 2.0, 12.0, 34.0], images.Rows[0].Skip(1).Select(cell => cell.Number));
+        Assert.Equal("image 2", images.Rows[1][0].Text);
+        Assert.Equal([1.0, 1.0, 0.0, 0.0], images.Rows[1].Skip(1).Select(cell => cell.Number));
+    }
+
+    [Fact]
+    public void AFigureWithNothingButAnImageOnIt_TablesThatImage()
+    {
+        var figure = Plt.Create().FigImage(new double[,] { { 1, 2 } }, 5, 6).Build();
+
+        var table = Assert.Single(figure.ToDataTables());
+
+        Assert.Equal("figure images", table.Caption);
+        Assert.Contains("image 1", table.ToMarkdown());
+    }
+
+    /// <summary>An image with no place on the figure (an offset that is no number) or with no pixel to draw shows nothing, so
+    /// the table leaves it out (a grid of rows with no column included); the numbering stays the order the images were added, so
+    /// "image 4" is still the fourth added.</summary>
+    [Fact]
+    public void AnImageThatShowsNothing_IsNotInTheTable_AndTheNumberingKeepsTheOrderAdded()
+    {
+        var figure = Plt.Create().Plot([1.0], [1.0])
+            .FigImage(new double[,] { { 1 } }, double.NaN, 0)
+            .FigImage(new double[0, 0], 0, 0)
+            .FigImage(new double[2, 0], 0, 0)
+            .FigImage(new double[,] { { 1, 2 } }, 7, 8)
+            .Build();
+
+        var images = figure.ToDataTables()[^1];
+
+        var row = Assert.Single(images.Rows);
+        Assert.Equal("image 4", row[0].Text);
+        Assert.Equal([2.0, 1.0, 7.0, 8.0], row.Skip(1).Select(cell => cell.Number));
+    }
+
+    [Fact]
+    public void AFigureWhoseOnlyImageShowsNothing_HasNoImageTable()
+    {
+        var figure = Plt.Create().Plot([1.0], [1.0]).FigImage(new double[,] { { 1 } }, double.PositiveInfinity, 0).Build();
+
+        Assert.Single(figure.ToDataTables());
+    }
+
+    [Fact]
+    public void TheOffsetsOfAnImage_AreWrittenInFull_InEveryForm()
+    {
+        var figure = Plt.Create().FigImage(new double[,] { { 1, 2 }, { 3, 4 } }, 1.5, 2.5).Build();
+
+        var table = Assert.Single(figure.ToDataTables());
+
+        Assert.Equal("image,width (pixels),height (pixels),from left (pixels),from bottom (pixels)\r\nimage 1,2,2,1.5,2.5\r\n", table.ToCsv());
+        Assert.Contains("| image 1 | 2 | 2 | 1.5 | 2.5 |", table.ToMarkdown());
+    }
 }

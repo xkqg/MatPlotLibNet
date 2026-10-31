@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
@@ -14,7 +15,11 @@ namespace MatPlotLibNet;
 /// column, because a series only knows it is "x" and the axes knows it is "Quarter". The axes also names the
 /// positions it shows names at: a mark on the centre of a named slot reads as that name (<see cref="KeyedByName"/>),
 /// by the rule the picture writes the names with, so a chart built in one call tables its categories, not the
-/// positions of their slots.</para></summary>
+/// positions of their slots.</para>
+/// <para>What the figure carries itself, outside every subplot, is part of what the picture shows and is tabled after the
+/// subplots: the texts placed on it, one row for each, and its images, one row for each, which say what they are (a picture
+/// of so many pixels standing at such a place) because their pixels are colours and not a series of values. What the picture
+/// does not show is left out, as an invisible series is.</para></summary>
 public static class FigureDataTableExtensions
 {
     extension(Figure figure)
@@ -37,7 +42,61 @@ public static class FigureDataTableExtensions
                 }
             }
 
-            return UniteSingleRowRuns(candidates, name);
+            var tables = UniteSingleRowRuns(candidates, name);
+            tables.AddRange(TablesOfWhatTheFigureCarries(figure, name));
+            return tables;
+        }
+    }
+
+    private static readonly ChartDataColumn[] TextColumns = [new("text", DataColumnKind.Text)];
+
+    private static readonly ChartDataColumn[] ImageColumns =
+    [
+        new("image", DataColumnKind.Text),
+        new("width (pixels)"),
+        new("height (pixels)"),
+        new("from left (pixels)"),
+        new("from bottom (pixels)"),
+    ];
+
+    /// <summary>The tables of what the figure itself carries, in the order the picture stacks it: the texts, then the images. A
+    /// kind the figure carries none of (that shows) gives no table. A text with no place on the figure or with nothing but blanks
+    /// in it, and an image with no place or no pixel, are not drawn, so they are not tabled; the images keep the numbers they
+    /// were added under, so "image 3" is the third one added.</summary>
+    private static IEnumerable<ChartDataTable> TablesOfWhatTheFigureCarries(Figure figure, string figureName)
+    {
+        var texts = figure.Texts
+            .Where(text => text.IsShownOn(figure.Width, figure.Height))
+            .Select(text => (IReadOnlyList<DataCell>)[DataCell.FromText(text.Text)])
+            .ToList();
+        if (texts.Count > 0)
+        {
+            yield return new ChartDataTable(Caption(figureName, null, "figure text"), TextColumns, texts);
+        }
+
+        var images = new List<IReadOnlyList<DataCell>>();
+        for (int i = 0; i < figure.Images.Count; i++)
+        {
+            var image = figure.Images[i];
+            if (!image.IsShownOn(figure.Height))
+            {
+                continue;
+            }
+
+            int rows = image.Data.GetLength(0), columns = image.Data.GetLength(1);
+
+            images.Add([
+                DataCell.FromText(string.Create(CultureInfo.InvariantCulture, $"image {i + 1}")),
+                DataCell.FromNumber(columns),
+                DataCell.FromNumber(rows),
+                DataCell.FromNumber(image.XOffset),
+                DataCell.FromNumber(image.YOffset),
+            ]);
+        }
+
+        if (images.Count > 0)
+        {
+            yield return new ChartDataTable(Caption(figureName, null, "figure images"), ImageColumns, images);
         }
     }
 

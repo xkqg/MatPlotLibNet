@@ -1,8 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Numerics;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -69,6 +71,21 @@ public static class ComposedChartShapes
         new("connected-scatter", ConnectedScatter, 1, 0, "ConnectedScatter"),
         new("kagi", Kagi, 1, 0, "Kagi"),
         new("stem-and-leaf", StemAndLeaf, null, 0, "StemAndLeaf"),
+        new("vlines", VLines, 1, 1, "VLines"),
+        new("hlines", HLines, 1, 1, "HLines"),
+        new("stairs", Stairs, 1, 1, "Stairs"),
+        new("stairs-filled", StairsFilled, 1, 1),
+        new("triplot", Triplot, 1, 1, "Triplot"),
+        new("psd", Psd, 1, 1, "Psd"),
+        new("csd", Csd, 1, 1, "Csd"),
+        new("cohere", Cohere, 1, 1, "Cohere"),
+        new("magnitude-spectrum", MagnitudeSpectrum, 1, 1, "MagnitudeSpectrum"),
+        new("phase-spectrum", PhaseSpectrum, 1, 1, "PhaseSpectrum"),
+        new("angle-spectrum", AngleSpectrum, 1, 1, "AngleSpectrum"),
+        new("acorr", Acorr, 1, 1, "Acorr"),
+        new("acorr-markers", AcorrMarkers, 1, 1),
+        new("xcorr", Xcorr, 1, 1, "Xcorr"),
+        new("xcorr-markers", XcorrMarkers, 1, 1),
     ];
 
     /// <summary>The names of <see cref="All"/>, as a Theory carries them.</summary>
@@ -1311,4 +1328,562 @@ public static class ComposedChartShapes
             .FillBetween(x, Fold(0, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 0.5; })
             .FillBetween(x, Fold(1, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 1.0; }));
     }
+
+    // ---- segments -----------------------------------------------------------------------------------------------
+
+    private static readonly double[] SegmentPositions = [1, 2, 4, 5, 7];
+
+    private static readonly double[] SegmentLows = [0, 1, 0, 2, 1];
+
+    /// <summary>The far end of each of five segments (integer data); the variant with a missing value leaves the third one's far
+    /// end out, which leaves that segment out of the picture.</summary>
+    private static double[] SegmentHighs(bool missing)
+    {
+        double[] highs = [3, 4, 5, 6, 4];
+        if (missing) highs[2] = double.NaN;
+        return highs;
+    }
+
+    /// <summary>The line of segments a hand recipe draws: the two ends of every segment that can be drawn and a missing point
+    /// after it, so the segments are parted and no stub is left of the one whose end is missing.</summary>
+    /// <param name="positions">Where each segment stands on the axis it is perpendicular to.</param>
+    /// <param name="lows">The near end of each segment.</param>
+    /// <param name="highs">The far end of each segment.</param>
+    /// <param name="vertical">Whether the segments are vertical, the positions along X and the ends along Y.</param>
+    private static FigureBuilder SegmentsByHand(double[] positions, double[] lows, double[] highs, bool vertical)
+    {
+        var along = new List<double>();
+        var across = new List<double>();
+        for (int i = 0; i < positions.Length; i++)
+        {
+            if (!double.IsFinite(positions[i]) || !double.IsFinite(lows[i]) || !double.IsFinite(highs[i])) continue;
+            along.AddRange([positions[i], positions[i], double.NaN]);
+            across.AddRange([lows[i], highs[i], double.NaN]);
+        }
+
+        double[] x = vertical ? [.. along] : [.. across];
+        double[] y = vertical ? [.. across] : [.. along];
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(x, y, s => s.Label = "levels")
+            .WithLegend());
+    }
+
+    /// <summary>Five vertical segments between two limits, built by <c>VLines</c>: ONE line series of two ends and a missing point
+    /// for each segment, so one colour and one legend entry stand for all five, and a segment with a missing end is left out.</summary>
+    private static FigureBuilder VLines(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .VLines(SegmentPositions, SegmentLows, SegmentHighs(missing), line => line.Label = "levels")
+            .WithLegend());
+
+    /// <summary>The call chain the <c>VLines</c> verb replaces, written by hand with the public building blocks: one line through
+    /// the two ends of every segment that can be drawn, each followed by a missing point, named for the legend. The verb must draw
+    /// exactly this picture.</summary>
+    /// <param name="missing">Whether the far end of the third segment is missing (NaN).</param>
+    public static FigureBuilder VLinesByHand(bool missing) =>
+        SegmentsByHand(SegmentPositions, SegmentLows, SegmentHighs(missing), vertical: true);
+
+    /// <summary>Five horizontal segments between two limits, built by <c>HLines</c>: the same line of segments as
+    /// <c>VLines</c>, along X instead of along Y.</summary>
+    private static FigureBuilder HLines(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .HLines(SegmentPositions, SegmentLows, SegmentHighs(missing), line => line.Label = "levels")
+            .WithLegend());
+
+    /// <summary>The call chain the <c>HLines</c> verb replaces, written by hand with the public building blocks: one line through
+    /// the two ends of every segment that can be drawn, each followed by a missing point, named for the legend. The verb must draw
+    /// exactly this picture.</summary>
+    /// <param name="missing">Whether the far end of the third segment is missing (NaN).</param>
+    public static FigureBuilder HLinesByHand(bool missing) =>
+        SegmentsByHand(SegmentPositions, SegmentLows, SegmentHighs(missing), vertical: false);
+
+    // ---- stairs -------------------------------------------------------------------------------------------------------
+
+    /// <summary>Five bins of uneven width (integer data): the edges, one more than there are values.</summary>
+    private static double[] StairEdges(bool missing)
+    {
+        double[] edges = [0, 1, 2, 4, 5, 6];
+        if (missing) edges[3] = double.NaN;   // the edge between the third and the fourth bin
+        return edges;
+    }
+
+    private static double[] StairValues(bool missing)
+    {
+        double[] values = [3, 5, 2, 6, 4];
+        if (missing) values[2] = double.NaN;
+        return values;
+    }
+
+    /// <summary>Five bins as a staircase outline, built by <c>Stairs</c> with no baseline: ONE line series of two points for each
+    /// bin, level along the bin and upright at each riser, with no drop at either end. The variant with a missing value leaves the
+    /// third bin's value out, which leaves a gap where that bin stands.</summary>
+    private static FigureBuilder Stairs(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Stairs(StairValues(missing), StairEdges(false), configure: parts => parts.Outline!.Label = "counts")
+            .WithLegend());
+
+    /// <summary>The call chain the <c>Stairs</c> verb replaces without a baseline, written by hand with the public building
+    /// blocks: one line through the two ends of every bin at its value, the bins' edges as the x coordinates, named for the
+    /// legend. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether the value of the third bin is missing (NaN).</param>
+    public static FigureBuilder StairsByHand(bool missing)
+    {
+        double[] x = [0, 1, 1, 2, 2, 4, 4, 5, 5, 6];
+        double n = double.NaN;
+        double[] y = missing ? [3, 3, 5, 5, n, n, 6, 6, 4, 4] : [3, 3, 5, 5, 2, 2, 6, 6, 4, 4];
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(x, y, s => s.Label = "counts")
+            .WithLegend());
+    }
+
+    /// <summary>Five bins as a filled staircase, built by <c>Stairs</c> with a baseline of 1: ONE area series whose top edge is the
+    /// only stroke, filled down to the baseline. The variant with a missing value leaves the fourth edge out, which masks the third
+    /// and the fourth bin, the two that edge stands between.</summary>
+    private static FigureBuilder StairsFilled(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Stairs(StairValues(false), StairEdges(missing), 1, parts => parts.Fill!.Label = "counts")
+            .WithLegend());
+
+    /// <summary>The call chain the <c>Stairs</c> verb replaces with a baseline, written by hand with the public building blocks: one
+    /// area through the two ends of every bin at its value, filled down to the baseline at every point, named for the legend. The
+    /// verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether the fourth edge is missing (NaN), which masks the two bins next to it.</param>
+    public static FigureBuilder StairsFilledByHand(bool missing)
+    {
+        double n = double.NaN;
+        double[] x = missing ? [0, 1, 1, 2, 2, n, n, 5, 5, 6] : [0, 1, 1, 2, 2, 4, 4, 5, 5, 6];
+        double[] y = missing ? [3, 3, 5, 5, n, n, n, n, 4, 4] : [3, 3, 5, 5, 2, 2, 6, 6, 4, 4];
+        double[] floor = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .FillBetween(x, y, floor, s => s.Label = "counts")
+            .WithLegend());
+    }
+
+    // ---- triplot ------------------------------------------------------------------------------------------------------
+
+    /// <summary>The corners of a square and its centre (integer data); the variant with a missing value leaves the x of the third
+    /// corner out, which leaves that vertex, and every edge that runs to it, out of the picture.</summary>
+    private static double[] MeshX(bool missing)
+    {
+        double[] x = [0, 2, 2, 0, 1];
+        if (missing) x[2] = double.NaN;
+        return x;
+    }
+
+    private static readonly double[] MeshY = [0, 0, 2, 2, 1];
+
+    /// <summary>The four triangles of the square, given: each of the four corners' sides with the centre.</summary>
+    private static readonly int[] MeshTriangles = [0, 1, 4, 1, 2, 4, 2, 3, 4, 3, 0, 4];
+
+    /// <summary>A square cut into four triangles by its centre, built by <c>Triplot</c>: ONE line series of the eight edges, each
+    /// with its two ends and a missing point, so one colour and one legend entry stand for all of them. The variant with a missing
+    /// value leaves the third corner out, and with it the three edges that run to it.</summary>
+    private static FigureBuilder Triplot(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Triplot(MeshX(missing), MeshY, MeshTriangles, line => line.Label = "mesh")
+            .WithLegend());
+
+    /// <summary>The call chain the <c>Triplot</c> verb replaces, written by hand with the public building blocks: one line through
+    /// the two ends of each edge, in the order the triangles meet them (the three of the first triangle, then the new ones of each
+    /// next), every edge once and each followed by a missing point, named for the legend. The verb must draw exactly this
+    /// picture.</summary>
+    /// <param name="missing">Whether the x of the third corner is missing (NaN), which leaves out its three edges.</param>
+    public static FigureBuilder TriplotByHand(bool missing)
+    {
+        double n = double.NaN;
+        double[] x = missing
+            ? [0, 2, n, 2, 1, n, 1, 0, n, 0, 1, n, 0, 0, n]
+            : [0, 2, n, 2, 1, n, 1, 0, n, 2, 2, n, 2, 1, n, 2, 0, n, 0, 1, n, 0, 0, n];
+        double[] y = missing
+            ? [0, 0, n, 0, 1, n, 1, 0, n, 2, 1, n, 2, 0, n]
+            : [0, 0, n, 0, 1, n, 1, 0, n, 0, 2, n, 2, 1, n, 2, 2, n, 2, 1, n, 2, 0, n];
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(x, y, s => s.Label = "mesh")
+            .WithLegend());
+    }
+
+    // ---- psd, csd, cohere ---------------------------------------------------------------------------------------------
+
+    /// <summary>The sample rate of the spectral shapes, in samples per unit of time.</summary>
+    private const double SpectralSampleRate = 1;
+
+    /// <summary>The samples of each spectral signal: with segments of <see cref="SpectralSegment"/> that start
+    /// <see cref="SpectralSegment"/> − <see cref="SpectralOverlap"/> apart it holds two segments, the fewest a coherence is
+    /// computed from.</summary>
+    private const int SpectralSamples = 32;
+
+    private const int SpectralSegment = 16;
+
+    private const int SpectralOverlap = 4;
+
+    private static readonly double[] SpectralWave = [0, 1, 0, -1];
+
+    /// <summary>The first spectral signal: a tone of period four and a pseudo-random part, made by integer arithmetic. The variant
+    /// leaves out sample 13, which both segments hold (samples 12 to 15 are in the first and in the second), so a spectrum has no
+    /// segment to be estimated from and nothing is drawn.</summary>
+    private static double[] SpectralX(bool missing)
+    {
+        double[] x = [.. Enumerable.Range(0, SpectralSamples).Select(i => 10 * SpectralWave[i % 4] + (i * 7919 % 11) - 5)];
+        if (missing) x[13] = double.NaN;
+        return x;
+    }
+
+    /// <summary>The second spectral signal: the same tone a quarter of a period later, with a pseudo-random part of its own.</summary>
+    private static readonly double[] SpectralY =
+        [.. Enumerable.Range(0, SpectralSamples).Select(i => 6 * SpectralWave[(i + 1) % 4] + (i * 104729 % 13) - 6)];
+
+    private static SpectralOptions SpectralShapeOptions => new() { SampleRate = SpectralSampleRate, SegmentLength = SpectralSegment, Overlap = SpectralOverlap };
+
+    /// <summary>The power spectral density of a signal, built by <c>Psd</c>: ONE line series of the frequencies and the decibels of
+    /// the density, named for the legend. The variant has no segment to estimate from, so the line holds no value to draw.</summary>
+    private static FigureBuilder Psd(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Psd(SpectralX(missing), SpectralShapeOptions, line => line.Label = "x")
+            .WithLegend());
+
+    /// <summary>The cross spectral density of two signals, built by <c>Csd</c>: ONE line series of the frequencies and the decibels of
+    /// the magnitude of the cross density.</summary>
+    private static FigureBuilder Csd(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Csd(SpectralX(missing), SpectralY, SpectralShapeOptions, line => line.Label = "x with y")
+            .WithLegend());
+
+    /// <summary>The coherence of two signals, built by <c>Cohere</c>: ONE line series of the frequencies and the coherence, a number
+    /// between 0 and 1.</summary>
+    private static FigureBuilder Cohere(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Cohere(SpectralX(missing), SpectralY, SpectralShapeOptions, line => line.Label = "x with y")
+            .WithLegend());
+
+    /// <summary>The averaged periodograms of two signals, worked out from the definition with the public building blocks: each
+    /// segment goes through <see cref="Fft.Forward(double[])"/> (the Hann window, then the transform: a segment of 16 samples is
+    /// a power of two, so nothing is padded), the products conj(X)·Y, |X|² and |Y|² are added over the segments that hold no
+    /// missing sample in either signal, divided by the number of segments times the sample rate times the energy of the window, and
+    /// folded to one side (every bin but the first and the last doubled). Without a segment every value is NaN.</summary>
+    /// <param name="Frequencies">The frequency of each bin.</param>
+    /// <param name="X">The power of the first signal.</param>
+    /// <param name="Y">The power of the second signal.</param>
+    /// <param name="Cross">The cross power: conj(X)·Y.</param>
+    private readonly record struct HandSpectra(double[] Frequencies, double[] X, double[] Y, Complex[] Cross);
+
+    private static double Squared(Complex value) => value.Real * value.Real + value.Imaginary * value.Imaginary;
+
+    private static HandSpectra WelchByHand(double[] x, double[] y)
+    {
+        const int bins = SpectralSegment / 2 + 1;
+        double[] hann = [.. Enumerable.Range(0, SpectralSegment).Select(k => 0.5 - 0.5 * Math.Cos(2 * Math.PI * k / (SpectralSegment - 1)))];
+        double[] powerX = new double[bins], powerY = new double[bins];
+        var cross = new Complex[bins];
+        int used = 0;
+        for (int start = 0; start + SpectralSegment <= x.Length; start += SpectralSegment - SpectralOverlap)
+        {
+            double[] xs = x[start..(start + SpectralSegment)], ys = y[start..(start + SpectralSegment)];
+            if (!xs.All(double.IsFinite) || !ys.All(double.IsFinite)) continue;
+
+            used++;
+            Complex[] spectrumX = Fft.Forward(xs), spectrumY = Fft.Forward(ys);
+            for (int k = 0; k < bins; k++)
+            {
+                cross[k] += Complex.Conjugate(spectrumX[k]) * spectrumY[k];
+                powerX[k] += Squared(spectrumX[k]);
+                powerY[k] += Squared(spectrumY[k]);
+            }
+        }
+
+        double scale = used == 0 ? double.NaN : 1.0 / (used * (SpectralSampleRate * hann.Sum(w => w * w)));
+        for (int k = 0; k < bins; k++)
+        {
+            double factor = scale * (k == 0 || k == SpectralSegment / 2 ? 1 : 2);
+            cross[k] *= factor;
+            powerX[k] *= factor;
+            powerY[k] *= factor;
+        }
+
+        return new([.. Enumerable.Range(0, bins).Select(k => k * SpectralSampleRate / SpectralSegment)], powerX, powerY, cross);
+    }
+
+    /// <summary>Ten times the logarithm of a power; a bin with no power (zero, or NaN for a missing one) has no decibels, a gap.</summary>
+    private static double PowerDecibels(double power) => power > 0 ? 10 * Math.Log10(power) : double.NaN;
+
+    /// <summary>The call chain the <c>Psd</c> verb replaces, written by hand with the public building blocks: the averaged
+    /// periodogram worked out from its definition, one line of the frequencies and ten times the logarithm of the density, the axes
+    /// titled and the line named for the legend. The verb must draw exactly this picture.
+    /// <para>The window and the transform use <see cref="Math.Cos(double)"/>, so this shape is compared in-process only, never
+    /// against stored bytes.</para></summary>
+    /// <param name="missing">Whether sample 13 of the signal is missing (NaN), which both segments hold.</param>
+    public static FigureBuilder PsdByHand(bool missing)
+    {
+        var spectra = WelchByHand(SpectralX(missing), SpectralX(missing));
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(spectra.Frequencies, [.. spectra.X.Select(PowerDecibels)], line => line.Label = "x")
+            .SetXLabel("Frequency")
+            .SetYLabel("Power Spectral Density (dB/Hz)")
+            .WithLegend());
+    }
+
+    /// <summary>The call chain the <c>Csd</c> verb replaces, written by hand with the public building blocks: the averaged cross
+    /// periodogram worked out from its definition, one line of the frequencies and ten times the logarithm of its magnitude, the
+    /// axes titled and the line named for the legend. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 13 of the first signal is missing (NaN), which both segments hold.</param>
+    public static FigureBuilder CsdByHand(bool missing)
+    {
+        var spectra = WelchByHand(SpectralX(missing), SpectralY);
+        double[] magnitude = [.. spectra.Cross.Select(Complex.Abs)];
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(spectra.Frequencies, [.. magnitude.Select(PowerDecibels)], line => line.Label = "x with y")
+            .SetXLabel("Frequency")
+            .SetYLabel("Cross Spectrum Magnitude (dB)")
+            .WithLegend());
+    }
+
+    /// <summary>The call chain the <c>Cohere</c> verb replaces, written by hand with the public building blocks: the averaged
+    /// periodograms worked out from their definition, one line of the frequencies and |Pxy|² / (Pxx · Pyy), the axes titled and the
+    /// line named for the legend. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 13 of the first signal is missing (NaN), which both segments hold.</param>
+    public static FigureBuilder CohereByHand(bool missing)
+    {
+        var spectra = WelchByHand(SpectralX(missing), SpectralY);
+        double[] coherence = [.. Enumerable.Range(0, spectra.Frequencies.Length).Select(k =>
+            Squared(spectra.Cross[k]) / (spectra.X[k] * spectra.Y[k]))];
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(spectra.Frequencies, coherence, line => line.Label = "x with y")
+            .SetXLabel("Frequency")
+            .SetYLabel("Coherence")
+            .WithLegend());
+    }
+
+    // ---- magnitude, phase and angle spectrum ----------------------------------------------------------------------------
+
+    /// <summary>The signal of the single-transform spectra: the first <see cref="SpectralSegment"/> samples of the first spectral
+    /// signal, a power of two, so <see cref="Fft.Forward(double[])"/> pads nothing. The variant leaves out sample 13, and a
+    /// spectrum of the whole signal with a sample missing is missing everywhere, so nothing is drawn.</summary>
+    private static double[] SpectrumSignal(bool missing) => SpectralX(missing)[..SpectralSegment];
+
+    private static SpectrumOptions SpectrumShapeOptions => new() { SampleRate = SpectralSampleRate };
+
+    /// <summary>The magnitude spectrum of a signal, built by <c>MagnitudeSpectrum</c>: ONE line series of the frequencies and the
+    /// magnitudes on the linear scale, named for the legend.</summary>
+    private static FigureBuilder MagnitudeSpectrum(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .MagnitudeSpectrum(SpectrumSignal(missing), SpectrumShapeOptions, MagnitudeScale.Linear, line => line.Label = "x")
+            .WithLegend());
+
+    /// <summary>The phase spectrum of a signal, built by <c>PhaseSpectrum</c>: ONE line series of the frequencies and the unwrapped
+    /// phase.</summary>
+    private static FigureBuilder PhaseSpectrum(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .PhaseSpectrum(SpectrumSignal(missing), SpectrumShapeOptions, line => line.Label = "x")
+            .WithLegend());
+
+    /// <summary>The angle spectrum of a signal, built by <c>AngleSpectrum</c>: ONE line series of the frequencies and the wrapped
+    /// angle.</summary>
+    private static FigureBuilder AngleSpectrum(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .AngleSpectrum(SpectrumSignal(missing), SpectrumShapeOptions, line => line.Label = "x")
+            .WithLegend());
+
+    /// <summary>The one-sided transform of a whole signal, worked out with the public building blocks.</summary>
+    /// <param name="Frequencies">The frequency of each bin.</param>
+    /// <param name="Bins">The transform of the Hann-weighted signal, bins 0 to M / 2, the first and the last made real.</param>
+    /// <param name="WindowSum">The sum of the Hann window's weights.</param>
+    private readonly record struct HandSpectrum(double[] Frequencies, Complex[] Bins, double WindowSum);
+
+    /// <summary>The transform of the signal by <see cref="Fft.Forward(double[])"/> (the Hann window, then the transform: 16 samples
+    /// are a power of two, so nothing is padded), kept on one side. The first bin and the Nyquist bin of a real signal are real, so
+    /// their imaginary part is written as zero, which keeps their angle at 0 or +π.</summary>
+    private static HandSpectrum SpectrumByHand(bool missing)
+    {
+        const int count = SpectralSegment / 2 + 1;
+        double[] hann = [.. Enumerable.Range(0, SpectralSegment).Select(k => 0.5 - 0.5 * Math.Cos(2 * Math.PI * k / (SpectralSegment - 1)))];
+        Complex[] bins = Fft.Forward(SpectrumSignal(missing))[..count];
+        bins[0] = new Complex(bins[0].Real, 0);
+        bins[^1] = new Complex(bins[^1].Real, 0);
+        return new([.. Enumerable.Range(0, count).Select(k => k * SpectralSampleRate / SpectralSegment)], bins, hann.Sum());
+    }
+
+    /// <summary>numpy's <c>unwrap</c> of a run of angles, written out: each step brought into [−π, π) by whole turns (a step of
+    /// exactly +π kept), the turns added up along the run, a step below π in size left alone.</summary>
+    private static double[] UnwrapByHand(double[] angles)
+    {
+        var unwrapped = new double[angles.Length];
+        double turns = 0;
+        for (int k = 0; k < angles.Length; k++)
+        {
+            if (k > 0)
+            {
+                double step = angles[k] - angles[k - 1];
+                double remainder = (step + Math.PI) % (2 * Math.PI);
+                double wrapped = (remainder < 0 ? remainder + 2 * Math.PI : remainder) - Math.PI;
+                if (wrapped == -Math.PI && step > 0) wrapped = Math.PI;
+                if (!(Math.Abs(step) < Math.PI)) turns += wrapped - step;
+            }
+
+            unwrapped[k] = angles[k] + turns;
+        }
+
+        return unwrapped;
+    }
+
+    /// <summary>The call chain the <c>MagnitudeSpectrum</c> verb replaces, written by hand with the public building blocks: the
+    /// one-sided transform of the Hann-weighted signal, one line of the frequencies and |X| divided by the sum of the window, the
+    /// axes titled and the line named for the legend. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 13 of the signal is missing (NaN).</param>
+    public static FigureBuilder MagnitudeSpectrumByHand(bool missing)
+    {
+        var spectrum = SpectrumByHand(missing);
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(spectrum.Frequencies, [.. spectrum.Bins.Select(bin => Complex.Abs(bin) / spectrum.WindowSum)], line => line.Label = "x")
+            .SetXLabel("Frequency")
+            .SetYLabel("Magnitude (energy)")
+            .WithLegend());
+    }
+
+    /// <summary>The call chain the <c>PhaseSpectrum</c> verb replaces, written by hand with the public building blocks: the angle of
+    /// each bin of the one-sided transform, unwrapped along the frequencies, the axes titled and the line named for the legend.</summary>
+    /// <param name="missing">Whether sample 13 of the signal is missing (NaN).</param>
+    public static FigureBuilder PhaseSpectrumByHand(bool missing)
+    {
+        var spectrum = SpectrumByHand(missing);
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(spectrum.Frequencies, UnwrapByHand([.. spectrum.Bins.Select(bin => bin.Phase)]), line => line.Label = "x")
+            .SetXLabel("Frequency")
+            .SetYLabel("Phase (radians)")
+            .WithLegend());
+    }
+
+    /// <summary>The call chain the <c>AngleSpectrum</c> verb replaces, written by hand with the public building blocks: the angle of
+    /// each bin of the one-sided transform, the axes titled and the line named for the legend.</summary>
+    /// <param name="missing">Whether sample 13 of the signal is missing (NaN).</param>
+    public static FigureBuilder AngleSpectrumByHand(bool missing)
+    {
+        var spectrum = SpectrumByHand(missing);
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(spectrum.Frequencies, [.. spectrum.Bins.Select(bin => bin.Phase)], line => line.Label = "x")
+            .SetXLabel("Frequency")
+            .SetYLabel("Angle (radians)")
+            .WithLegend());
+    }
+
+    // ---- acorr, xcorr -------------------------------------------------------------------------------------------------
+
+    /// <summary>The first correlated signal: twelve integers. The variant leaves out sample 5, and a correlation of a signal with a
+    /// sample missing is missing at every lag, so no stem and no marker is drawn.</summary>
+    private static double[] CorrelationX(bool missing)
+    {
+        double[] x = [3, -1, 4, 1, -5, 9, 2, -6, 5, 3, -5, 4];
+        if (missing) x[5] = double.NaN;
+        return x;
+    }
+
+    /// <summary>The second correlated signal: twelve integers of their own.</summary>
+    private static readonly double[] CorrelationY = [2, 7, 1, -8, 2, 8, 1, -8, 2, 8, 4, -5];
+
+    /// <summary>Four lags either side of zero, as stems.</summary>
+    private static CorrelationOptions CorrelationStems => new() { MaxLags = 4 };
+
+    /// <summary>Four lags either side of zero, as markers.</summary>
+    private static CorrelationOptions CorrelationMarkers => new() { MaxLags = 4, Markers = true };
+
+    /// <summary>The autocorrelation of a signal at matplotlib's default of ten lags either side, built by <c>Acorr</c> as stems:
+    /// ONE line series of a segment from 0 to the correlation at each lag, and a reference line at 0 that takes no colour of its
+    /// own, so one colour and one legend entry stand for the chart. The variant has no correlation to draw, so the line holds no
+    /// segment.</summary>
+    private static FigureBuilder Acorr(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Acorr(CorrelationX(missing), default, parts => parts.Line.Label = "x")
+            .WithLegend());
+
+    /// <summary>The autocorrelation built by <c>Acorr</c> as markers: ONE line series of the lags and the correlations, drawn as
+    /// circles with no line between them, and no reference line. The variant has no correlation to draw, so every value is a gap.</summary>
+    private static FigureBuilder AcorrMarkers(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Acorr(CorrelationX(missing), CorrelationMarkers, parts => parts.Line.Label = "x")
+            .WithLegend());
+
+    /// <summary>The cross-correlation of two signals, built by <c>Xcorr</c> as stems: the same ONE line series and reference line
+    /// at 0 as <c>Acorr</c> draws.</summary>
+    private static FigureBuilder Xcorr(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Xcorr(CorrelationX(missing), CorrelationY, CorrelationStems, parts => parts.Line.Label = "x with y")
+            .WithLegend());
+
+    /// <summary>The cross-correlation of two signals, built by <c>Xcorr</c> as markers.</summary>
+    private static FigureBuilder XcorrMarkers(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Xcorr(CorrelationX(missing), CorrelationY, CorrelationMarkers, parts => parts.Line.Label = "x with y")
+            .WithLegend());
+
+    /// <summary>The lags and the correlation at each, worked out from the definition with nothing of the library's: the sum over n
+    /// of x[n + k] · y[n] (numpy's <c>correlate</c> in "full" mode) at each lag k from −<c>maxLags</c> to <c>maxLags</c>, divided by
+    /// the root of the energy of x times the root of the energy of y. A missing sample in either signal makes every value missing.
+    /// The data is integers, so every sum is exact and the root a correctly rounded one: the figure is the same on every
+    /// platform.</summary>
+    /// <param name="Lags">The lags, from −maxLags to maxLags.</param>
+    /// <param name="Values">The correlation at each lag.</param>
+    private readonly record struct HandCorrelogram(double[] Lags, double[] Values);
+
+    private static HandCorrelogram CorrelogramByHand(double[] x, double[] y, int maxLags)
+    {
+        double[] lags = [.. Enumerable.Range(-maxLags, 2 * maxLags + 1).Select(k => (double)k)];
+        if (!x.All(double.IsFinite) || !y.All(double.IsFinite))
+        {
+            return new(lags, [.. lags.Select(_ => double.NaN)]);
+        }
+
+        double norm = Math.Sqrt(x.Sum(v => v * v)) * Math.Sqrt(y.Sum(v => v * v));
+        double[] values = [.. lags.Select(k => Enumerable.Range(0, x.Length)
+            .Where(n => n + (int)k >= 0 && n + (int)k < x.Length)
+            .Sum(n => x[n + (int)k] * y[n]) / norm)];
+        return new(lags, values);
+    }
+
+    /// <summary>The stems a hand recipe draws: one line through a segment from 0 to the correlation at each lag that has one, each
+    /// followed by a missing point, and the reference line at 0, drawn solid.</summary>
+    private static FigureBuilder StemsByHand(HandCorrelogram correlogram, string label)
+    {
+        var lag = new List<double>();
+        var height = new List<double>();
+        for (int i = 0; i < correlogram.Lags.Length; i++)
+        {
+            if (!double.IsFinite(correlogram.Values[i])) continue;
+            lag.AddRange([correlogram.Lags[i], correlogram.Lags[i], double.NaN]);
+            height.AddRange([0, correlogram.Values[i], double.NaN]);
+        }
+
+        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([.. lag], [.. height], s => s.Label = label)
+            .AxHLine(0, line => line.LineStyle = LineStyle.Solid)
+            .WithLegend());
+    }
+
+    /// <summary>The markers a hand recipe draws: one line through the lags and the correlations, circles and no line.</summary>
+    private static FigureBuilder MarkersByHand(HandCorrelogram correlogram, string label) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(correlogram.Lags, correlogram.Values, s => { s.Marker = MarkerStyle.Circle; s.LineStyle = LineStyle.None; s.Label = label; })
+            .WithLegend());
+
+    /// <summary>The call chain the <c>Acorr</c> verb replaces, written by hand with the public building blocks: the correlation of
+    /// the signal with itself worked out from its definition, one line of a segment from 0 to the correlation at each lag, a
+    /// reference line at 0, the line named for the legend. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 5 of the signal is missing (NaN), which leaves no stem.</param>
+    public static FigureBuilder AcorrByHand(bool missing) =>
+        StemsByHand(CorrelogramByHand(CorrelationX(missing), CorrelationX(missing), 10), "x");
+
+    /// <summary>The call chain the <c>Acorr</c> verb replaces when it draws markers, written by hand with the public building
+    /// blocks: one line of the lags and the correlations, circles and no line. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 5 of the signal is missing (NaN), which makes every correlation a gap.</param>
+    public static FigureBuilder AcorrMarkersByHand(bool missing) =>
+        MarkersByHand(CorrelogramByHand(CorrelationX(missing), CorrelationX(missing), 4), "x");
+
+    /// <summary>The call chain the <c>Xcorr</c> verb replaces, written by hand with the public building blocks: the correlation of
+    /// the two signals worked out from its definition, one line of a segment from 0 to the correlation at each lag, a reference
+    /// line at 0, the line named for the legend. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 5 of the first signal is missing (NaN), which leaves no stem.</param>
+    public static FigureBuilder XcorrByHand(bool missing) =>
+        StemsByHand(CorrelogramByHand(CorrelationX(missing), CorrelationY, 4), "x with y");
+
+    /// <summary>The call chain the <c>Xcorr</c> verb replaces when it draws markers, written by hand with the public building
+    /// blocks: one line of the lags and the correlations, circles and no line. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether sample 5 of the first signal is missing (NaN), which makes every correlation a gap.</param>
+    public static FigureBuilder XcorrMarkersByHand(bool missing) =>
+        MarkersByHand(CorrelogramByHand(CorrelationX(missing), CorrelationY, 4), "x with y");
 }

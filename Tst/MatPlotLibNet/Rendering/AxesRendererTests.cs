@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// Targets the largest gaps:
 /// - <c>RenderLegend</c> per <see cref="LegendPosition"/> arm (was 84%L/69%B)
 /// - <c>ComputeLegendBounds</c> (was 79%L/50%B)
-/// - <c>DrawLegendSwatch</c> for line, scatter, bar, hist series (was 31%L/60%B)
+/// - <c>LegendRenderer.DrawSwatch</c> for line, scatter, bar, hist series (was 31%L/60%B)
 /// - <c>RenderTitle</c> per <see cref="TitleLocation"/> arm + math title (was 82%L/67%B)
 /// - <c>RenderAxisLabels</c> with rotated and math labels (was 96%L/71%B)
 /// - <c>RenderColorBar</c> for orientation + label arms (was 55%L/45%B)
@@ -49,7 +49,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Series B<", svg);
     }
 
-    // ── DrawLegendSwatch for different series types ────────────────────────
+    // ── LegendRenderer.DrawSwatch for different series types ────────────────────────
 
     [Fact]
     public void RenderLegend_LineSeriesSwatch_DrawsCorrectShape()
@@ -661,7 +661,7 @@ public class AxesRendererCoverageTests
         Assert.Contains("data-legend-index", svg);
     }
 
-    /// <summary>DrawLegendSwatch — SignalSeries arm: horizontal line swatch.</summary>
+    /// <summary>LegendRenderer.DrawSwatch — SignalSeries arm: horizontal line swatch.</summary>
     [Fact]
     public void RenderLegend_SignalSeriesSwatch_DrawsLine()
     {
@@ -672,7 +672,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Signal<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — StepSeries arm: horizontal line swatch.</summary>
+    /// <summary>LegendRenderer.DrawSwatch — StepSeries arm: horizontal line swatch.</summary>
     [Fact]
     public void RenderLegend_StepSeriesSwatch_DrawsLine()
     {
@@ -682,7 +682,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Step<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — EcdfSeries arm: horizontal line swatch.</summary>
+    /// <summary>LegendRenderer.DrawSwatch — EcdfSeries arm: horizontal line swatch.</summary>
     [Fact]
     public void RenderLegend_EcdfSeriesSwatch_DrawsLine()
     {
@@ -692,7 +692,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">ECDF<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — RegressionSeries arm: horizontal line swatch.</summary>
+    /// <summary>LegendRenderer.DrawSwatch — RegressionSeries arm: horizontal line swatch.</summary>
     [Fact]
     public void RenderLegend_RegressionSeriesSwatch_DrawsLine()
     {
@@ -702,7 +702,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Fit<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — ErrorBarSeries arm: centre line + two caps.</summary>
+    /// <summary>LegendRenderer.DrawSwatch — ErrorBarSeries arm: centre line + two caps.</summary>
     [Fact]
     public void RenderLegend_ErrorBarSeriesSwatch_DrawsLineWithCaps()
     {
@@ -712,8 +712,8 @@ public class AxesRendererCoverageTests
         Assert.Contains(">ErrBar<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — LineSeries with Marker set (L379 TRUE arm) →
-    /// DrawLegendMarker is also called beside the line segment.</summary>
+    /// <summary>LegendRenderer.DrawSwatch — LineSeries with Marker set (L379 TRUE arm) →
+    /// LegendRenderer.DrawSwatchMarker is also called beside the line segment.</summary>
     [Fact]
     public void RenderLegend_LineSeriesWithMarker_DrawsMarker()
     {
@@ -724,7 +724,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Marked<", svg);
     }
 
-    /// <summary>DrawLegendMarker L431 TRUE arm — Square marker → DrawRectangle called
+    /// <summary>LegendRenderer.DrawSwatchMarker L431 TRUE arm — Square marker → DrawRectangle called
     /// instead of DrawCircle.</summary>
     [Fact]
     public void RenderLegend_ScatterSquareMarker_DrawsSquareSwatch()
@@ -736,7 +736,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Squares<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — SignalXYSeries arm (previously uncovered).</summary>
+    /// <summary>LegendRenderer.DrawSwatch — SignalXYSeries arm (previously uncovered).</summary>
     [Fact]
     public void RenderLegend_SignalXYSeriesSwatch_DrawsLine()
     {
@@ -749,7 +749,7 @@ public class AxesRendererCoverageTests
         Assert.Contains(">SignalXY<", svg);
     }
 
-    /// <summary>DrawLegendSwatch — SparklineSeries arm (previously uncovered).</summary>
+    /// <summary>LegendRenderer.DrawSwatch — SparklineSeries arm (previously uncovered).</summary>
     [Fact]
     public void RenderLegend_SparklineSeriesSwatch_DrawsLine()
     {

@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Tests.Extensions;
 
@@ -364,6 +365,157 @@ public class ComposedChartDataTablesTests
 
         Assert.Equal(["x", "gappy"], Headers(table));
         Assert.Equal(5, table.RowCount);
+    }
+
+    /// <summary>The line of segments <c>VLines</c> draws holds a missing point after every segment, and the table says what the
+    /// series holds, as it does for any gapped line: three rows for a segment, the last of them the separator, spelled NaN in every
+    /// form. A segment that cannot be drawn is not in the series, so it has no row.</summary>
+    [Fact]
+    public void AVLinesChart_TablesItsDrawnPoints_ASeparatorRowAfterEverySegment()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.VLines([1, 2, 3], [0, 10, 0], [5, 20, double.NaN], line => line.Label = "range")));
+
+        Assert.Equal(["x", "range"], Headers(table));
+        Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
+        Assert.Equal(6, table.RowCount);
+        Assert.Equal([1.0, 1.0, double.NaN, 2.0, 2.0, double.NaN], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([0.0, 5.0, double.NaN, 10.0, 20.0, double.NaN], table.Rows.Select(row => row[1].Number));
+        Assert.Equal(["x,range", "1,0", "1,5", "NaN,NaN", "2,10", "2,20", "NaN,NaN"],
+            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    /// <summary>The horizontal twin tables the same way: the x column holds the ends along X, the y column the position.</summary>
+    [Fact]
+    public void AnHLinesChart_TablesItsDrawnPoints_ASeparatorRowAfterEverySegment()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.HLines([1, 2], [0, 10], [5, 20], line => line.Label = "range")));
+
+        Assert.Equal(["x", "range"], Headers(table));
+        Assert.Equal(6, table.RowCount);
+        Assert.Equal([0.0, 5.0, double.NaN, 10.0, 20.0, double.NaN], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([1.0, 1.0, double.NaN, 2.0, 2.0, double.NaN], table.Rows.Select(row => row[1].Number));
+        Assert.Contains("NaN,NaN", table.ToCsv());
+    }
+
+    /// <summary>The edges <c>Triplot</c> draws are one line of segments, and the table says what the series holds as it does for
+    /// any gapped line: three rows for an edge, the last of them the separator, spelled NaN in every form, at the coordinates of
+    /// the caller's own points. An edge to a vertex that cannot be placed is not in the series, so it has no row.</summary>
+    [Fact]
+    public void ATriplotChart_TablesItsDrawnPoints_ASeparatorRowAfterEveryEdge()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Triplot([0, 2, 1, double.NaN], [0, 0, 2, 5], [0, 1, 2, 1, 2, 3], line => line.Label = "mesh")));
+
+        Assert.Equal(["x", "mesh"], Headers(table));
+        Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
+        Assert.Equal(9, table.RowCount);
+        Assert.Equal([0.0, 2.0, double.NaN, 2.0, 1.0, double.NaN, 1.0, 0.0, double.NaN], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([0.0, 0.0, double.NaN, 0.0, 2.0, double.NaN, 2.0, 0.0, double.NaN], table.Rows.Select(row => row[1].Number));
+        Assert.Equal(["x,mesh", "0,0", "2,0", "NaN,NaN", "2,0", "1,2", "NaN,NaN", "1,2", "0,0", "NaN,NaN"],
+            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    /// <summary>The line <c>Psd</c> draws is one series of (frequency, decibels), and the table says what it holds: a row for each
+    /// frequency, named for the X axis the verb titled, and a bin with no power as a gap, NaN in every form, never minus infinity.</summary>
+    [Fact]
+    public void APsdChart_TablesItsFrequenciesAndDecibels_ABinWithNoPowerIsNaN()
+    {
+        // A constant under a rectangular window has power in the first bin only: 8 · 8 / 8 = 8, which is 9.03 dB.
+        var options = new SpectralOptions { SampleRate = 1, SegmentLength = 8, Window = SpectralWindow.Rectangular };
+
+        var table = Assert.Single(TablesOf(ax => ax.Psd([1, 1, 1, 1, 1, 1, 1, 1], options)));
+
+        Assert.Equal("Frequency", Headers(table)[0]);
+        Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
+        Assert.Equal(5, table.RowCount);
+        Assert.Equal([0.0, 0.125, 0.25, 0.375, 0.5], table.Rows.Select(row => row[0].Number));
+        Assert.Equal(10 * Math.Log10(8), table.Rows[0][1].Number, 9);
+        Assert.All(table.Rows.Skip(1), row => Assert.True(double.IsNaN(row[1].Number)));
+        Assert.Equal(["0.125,NaN", "0.25,NaN", "0.375,NaN", "0.5,NaN"],
+            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(2));
+    }
+
+    /// <summary>The line <c>MagnitudeSpectrum</c> draws in decibels is one series of (frequency, decibels), and the table says what
+    /// it holds: a row for each frequency, named for the X axis the verb titled, and a frequency with no magnitude as a gap, NaN in
+    /// every form, never minus infinity.</summary>
+    [Fact]
+    public void AMagnitudeSpectrumInDecibels_TablesItsFrequenciesAndDecibels_AZeroMagnitudeIsNaN()
+    {
+        // Two equal samples under the rectangular window: magnitude 1 (0 dB) at frequency 0 and exactly 0 at the Nyquist frequency.
+        var options = new SpectrumOptions { SampleRate = 1, Window = SpectralWindow.Rectangular };
+
+        var table = Assert.Single(TablesOf(ax => ax.MagnitudeSpectrum([1, 1], options, MagnitudeScale.Decibel)));
+
+        Assert.Equal("Frequency", Headers(table)[0]);
+        Assert.Equal(2, table.RowCount);
+        Assert.Equal([0.0, 0.5], table.Rows.Select(row => row[0].Number));
+        Assert.Equal(0.0, table.Rows[0][1].Number, 12);
+        Assert.True(double.IsNaN(table.Rows[1][1].Number));
+        Assert.Equal("0.5,NaN", table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries)[^1]);
+    }
+
+    /// <summary>The stems <c>Acorr</c> draws are one line of a segment from 0 to the correlation at each lag, and the table says what
+    /// the series holds: three rows for each lag, the foot of its stem, its top and the gap that parts it from the next. The
+    /// reference line at 0 is an overlay, not a series, and has no row.</summary>
+    [Fact]
+    public void AnAcorrOfStems_TablesTheFootAndTheTopOfEveryStem_AGapPartsThem()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Acorr([1, 2, 3], new CorrelationOptions { MaxLags = 1 }, parts => parts.Line.Label = "autocorrelation")));
+
+        Assert.Equal(["x", "autocorrelation"], Headers(table));
+        Assert.Equal(9, table.RowCount);
+        Assert.Equal([-1.0, -1.0, double.NaN, 0.0, 0.0, double.NaN, 1.0, 1.0, double.NaN], table.Rows.Select(row => row[0].Number));
+        Assert.Equal(0.0, table.Rows[0][1].Number);
+        Assert.Equal(8 / 14.0, table.Rows[1][1].Number, 12);
+        Assert.Equal(1.0, table.Rows[4][1].Number);
+        Assert.Equal(["x,autocorrelation", "-1,0", "NaN,NaN"], table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Where((_, i) => i is 0 or 1 or 3));
+    }
+
+    /// <summary>The markers <c>Xcorr</c> draws are one line of the lags and the correlations, and the table is a row for each lag; a
+    /// signal with a missing sample has no correlation, NaN in every form, never a zero.</summary>
+    [Fact]
+    public void AnXcorrOfMarkers_TablesALagAndItsCorrelation_AMissingSampleIsNaN()
+    {
+        var options = new CorrelationOptions { MaxLags = 1, Markers = true };
+
+        var whole = Assert.Single(TablesOf(ax => ax.Xcorr([0, 1], [1, 0], options, parts => parts.Line.Label = "cross-correlation")));
+        var gappy = Assert.Single(TablesOf(ax => ax.Xcorr([0, double.NaN], [1, 0], options, parts => parts.Line.Label = "cross-correlation")));
+
+        Assert.Equal(["x", "cross-correlation"], Headers(whole));
+        Assert.Equal([-1.0, 0.0, 1.0], whole.Rows.Select(row => row[0].Number));
+        Assert.Equal([0.0, 0.0, 1.0], whole.Rows.Select(row => row[1].Number));
+        Assert.Equal([-1.0, 0.0, 1.0], gappy.Rows.Select(row => row[0].Number));
+        Assert.All(gappy.Rows, row => Assert.True(double.IsNaN(row[1].Number)));
+        Assert.Equal(["x,cross-correlation", "-1,NaN", "0,NaN", "1,NaN"], gappy.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    /// <summary>The staircase <c>Stairs</c> draws without a baseline is one line, and the table says what the series holds: two
+    /// rows for each bin, the bin's two edges at its value. A missing value is a bin with no height, NaN in every form.</summary>
+    [Fact]
+    public void AStairsOutline_TablesItsDrawnPoints_TwoRowsForEveryBin()
+    {
+        var table = Assert.Single(TablesOf(ax => ax.Stairs([5, double.NaN, 7], [0, 1, 2, 3], configure: parts => parts.Outline!.Label = "counts")));
+
+        Assert.Equal(["x", "counts"], Headers(table));
+        Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
+        Assert.Equal(6, table.RowCount);
+        Assert.Equal([0.0, 1.0, 1.0, 2.0, 2.0, 3.0], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([5.0, 5.0, double.NaN, double.NaN, 7.0, 7.0], table.Rows.Select(row => row[1].Number));
+        Assert.Equal(["x,counts", "0,5", "1,5", "1,NaN", "2,NaN", "2,7", "3,7"],
+            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    /// <summary>The filled staircase is one area, so its table carries the baseline it is filled down to as a second curve; a
+    /// staircase filled down to zero has none, as an area to zero never has.</summary>
+    [Fact]
+    public void AFilledStairs_TablesItsBaselineAsASecondCurve_WhenItIsNotZero()
+    {
+        var raised = Assert.Single(TablesOf(ax => ax.Stairs([5, 7], [0, 1, 2], 2, parts => parts.Fill!.Label = "counts")));
+        var grounded = Assert.Single(TablesOf(ax => ax.Stairs([5, 7], [0, 1, 2], 0, parts => parts.Fill!.Label = "counts")));
+
+        Assert.Equal(["x", "counts", "y2"], Headers(raised));
+        Assert.Equal([2.0, 2.0, 2.0, 2.0], raised.Rows.Select(row => row[2].Number));
+        Assert.Equal(["x", "counts"], Headers(grounded));
+        Assert.Equal([5.0, 5.0, 7.0, 7.0], grounded.Rows.Select(row => row[1].Number));
     }
 
     /// <summary>A column that is the same in two fragments, header and every cell, is one column of the merged table.</summary>

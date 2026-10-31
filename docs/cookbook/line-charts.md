@@ -107,6 +107,74 @@ Plt.Create()
     .Save("step_styles.svg");
 ```
 
+## Staircase (stairs)
+
+`Stairs` draws a value for each bin, held level from the bin's left edge to its right edge, the way a histogram that is
+already counted is drawn. There is one more edge than there are values, and the edges need not be equally spaced. Without
+a baseline the staircase is its outline alone, with no drop at either end (matplotlib's `baseline=None`); with one it is a
+fill down to that level, whose top edge is the only stroke:
+
+```csharp
+double[] edges = [0, 10, 20, 30, 40, 50];
+double[] counts = [3, 8, 14, 9, 4];
+
+Plt.Create()
+    .WithSize(860, 380)
+    .TightLayout()
+    .AddSubPlot(1, 2, 1, ax => ax
+        .WithTitle("Outline")
+        .Stairs(counts, edges)
+        .SetXLabel("Order size")
+        .SetYLabel("Orders"))
+    .AddSubPlot(1, 2, 2, ax => ax
+        .WithTitle("Filled down to 0")
+        .Stairs(counts, edges, 0)
+        .SetXLabel("Order size")
+        .SetYLabel("Orders"))
+    .Save("stairs_orders.svg");
+```
+
+![A staircase of order counts drawn as an outline and as a fill down to zero](../images/stairs_orders.png)
+
+The callback receives a `StairsParts` with exactly one part set: `Outline` (a `LineSeries`) without a baseline, `Fill`
+(an `AreaSeries`) with one. A missing value is a gap in the line and in the fill, and a missing edge leaves out both bins
+that meet at it. Edges that do not number one more than the values are refused, with both counts.
+
+## Segments between two limits (vlines, hlines)
+
+`VLines` draws a vertical segment at each x position from a lower to an upper limit, and `HLines` a horizontal one at each
+y position. All the segments are one line series, one colour and one legend entry, and a limit given as an array of one
+value serves every segment:
+
+```csharp
+double[] week = [1, 2, 3, 4, 5, 6];
+double[] low = [12, 14, 11, 15, 13, 16];
+double[] high = [18, 21, 17, 22, 19, 25];
+double[] task = [1, 2, 3, 4];
+double[] start = [0, 2, 3, 6];
+double[] finish = [3, 5, 7, 9];
+
+Plt.Create()
+    .WithSize(860, 380)
+    .TightLayout()
+    .AddSubPlot(1, 2, 1, ax => ax
+        .WithTitle("Daily temperature range")
+        .VLines(week, low, high, line => { line.Label = "range"; line.LineWidth = 3; })
+        .SetXLabel("Week")
+        .SetYLabel("Temperature (°C)")
+        .WithLegend())
+    .AddSubPlot(1, 2, 2, ax => ax
+        .WithTitle("Task schedule")
+        .HLines(task, start, finish, line => line.LineWidth = 8)
+        .SetXLabel("Day")
+        .SetYLabel("Task"))
+    .Save("segments_ranges.svg");
+```
+
+![Vertical segments for each day's temperature range, and horizontal bars for a task schedule](../images/segments_ranges.png)
+
+A segment with a coordinate that is missing or infinite is left out whole, and the segments beside it stay apart.
+
 ## Marker customization
 
 ```csharp
@@ -143,7 +211,8 @@ Plt.Create()
 
 The shared `MarkerRenderer` draws every shape the same way for lines, steps and scatters, and the legend entry of
 a series draws the marker the series has: a triangle in the plot is a triangle in the legend, and a line with
-`Marker = MarkerStyle.None` shows no marker there either.
+`Marker = MarkerStyle.None` shows no marker there either. The other way round, `LineStyle = LineStyle.None` with a marker
+draws the markers alone, with no line between them, in the plot and in the legend (matplotlib's `linestyle='None'`).
 
 ## Missing values: a gap, not a bridge
 
@@ -306,6 +375,11 @@ Plt.Create()
 ```
 
 ![LTTB downsampling](../images/lttb_downsampling.png)
+
+A line with gaps is downsampled one unbroken run at a time, and the runs are joined by a missing point again, so the
+downsampled line breaks where the data does and never joins two runs across a gap. Every run keeps its first and last
+point, so a line with more runs than the budget (the segments of `VLines`, the edges of `Triplot`) is drawn with more
+points than the budget rather than lose a run.
 
 ## Where the legend stands
 

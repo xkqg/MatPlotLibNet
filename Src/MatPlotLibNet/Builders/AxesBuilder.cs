@@ -1868,6 +1868,37 @@ public sealed class AxesBuilder
     /// Convenience overload that forwards to <see cref="AddInset(InsetBounds,System.Action{AxesBuilder})"/>.</summary>
     public AxesBuilder AddInset(double x, double y, double width, double height, Action<AxesBuilder> configure)
         => AddInset(new InsetBounds(x, y, width, height), configure);
+
+    /// <summary>Has the parent of this inset draw the zoom it shows (matplotlib's <c>indicate_inset_zoom</c>): a rectangle over
+    /// the region the inset shows, in the parent's data coordinates, and the two lines from it to the inset's frame that
+    /// matplotlib's rule keeps. Called on the inset's builder, inside the <c>AddInset</c> callback; it sets the inset's
+    /// <see cref="Axes.ZoomIndicator"/>, replacing one set before. The rectangle spans the limits the inset draws, so it
+    /// follows a limit set on the inset, and the margins of one that scales itself to its data.</summary>
+    /// <param name="configure">Sets the indicator's colour, opacity, line width, line style and whether the connectors are
+    /// drawn; left out, the indicator is matplotlib's: the theme's neutral grey at half opacity, one pixel, solid, with
+    /// connectors.</param>
+    /// <returns>This builder, so the inset's configuration goes on.</returns>
+    /// <exception cref="InvalidOperationException">This builder is not an inset's: a subplot has no parent to draw its zoom on.</exception>
+    /// <example>
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(x, y)
+    ///     .AddInset(0.55, 0.05, 0.4, 0.4, inset => inset
+    ///         .Plot(x, y)
+    ///         .SetXLim(2, 3).SetYLim(0.5, 1)
+    ///         .IndicateZoom(zoom => zoom.Color = Colors.Red)));
+    /// </code>
+    /// </example>
+    public AxesBuilder IndicateZoom(Action<ZoomIndicator>? configure = null)
+    {
+        if (_axes.InsetBounds is null)
+            throw new InvalidOperationException("IndicateZoom is called on the builder of an inset (inside the AddInset callback): only an inset has a parent to draw its zoom on.");
+
+        var zoom = new ZoomIndicator();
+        configure?.Invoke(zoom);
+        _axes.ZoomIndicator = zoom;
+        return this;
+    }
 }
 
 /// <summary>Fluent builder for configuring the first right-hand Y axis and adding series that scale against it.</summary>

@@ -32,13 +32,8 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
     {
         foreach (var annotation in Axes.Annotations)
         {
-            // A font a caller supplies carries no colour of its own, and a text drawn with no colour at all
-            // comes out black whatever the theme is. The colour set beside it on the annotation is the answer,
-            // and the theme's text colour is the answer when neither says anything. A colour written on the
-            // font itself is the more specific instruction and still wins.
-            var annotFont = annotation.Font is { } supplied
-                ? supplied with { Color = supplied.Color ?? annotation.Color ?? Theme.ForegroundText }
-                : ThemedFontProvider.DataTextFont(Theme) with { Color = annotation.Color ?? Theme.ForegroundText };
+            // The font's own colour, else the annotation's, else the theme's: the one rule every placed text follows.
+            var annotFont = ThemedFontProvider.DataTextFont(Theme, annotation.Font, annotation.Color);
             // An axes-fraction annotation is placed on the PANEL, not the data: (0,0) bottom-left, (1,1) top-right,
             // so a panel label sits in its corner whatever the limits are (matplotlib's 'axes fraction').
             var anchor = annotation.Coordinates == AnnotationCoordinates.AxesFraction

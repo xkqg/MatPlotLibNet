@@ -143,12 +143,20 @@ public class ContourExplicitLevelRenderTests
         Assert.Equal(10, Lines(RenderContour(null)).Count);
     }
 
+    /// <summary>Each level is labelled on its own line: the ramp's lines are vertical and 90 pixels long, so each label
+    /// stands at the middle (y = 255), turned to -90, with its baseline 0.35 of the 10-point font to the left of the line
+    /// (x = L / 2 at 40 pixels a unit), on its own box.</summary>
     [Fact]
     public void AContour_LabelsEachExplicitLevel()
     {
-        var texts = RenderContour([9, 1, 5], labels: true).OfKind("DrawText").Select(c => Arg<string>(c, "text"));
+        var ctx = RenderContour([9, 1, 5], labels: true);
+        var labels = ctx.OfKind("DrawText");
 
-        Assert.Equal(["1", "5", "9"], texts);
+        Assert.Equal(["1", "5", "9"], labels.Select(c => Arg<string>(c, "text")));
+        Assert.Equal([20 - 3.5, 100 - 3.5, 180 - 3.5], labels.Select(c => Math.Round(Arg<Point>(c, "position").X, 6)));
+        Assert.All(labels, c => Assert.Equal(255, Arg<Point>(c, "position").Y, 6));
+        Assert.All(labels, c => Assert.Equal(-90, Arg<double>(c, "rotation"), 6));
+        Assert.Equal(3, ctx.CountOf("DrawPolygon"));
     }
 
     // ---- ContourfSeries: the bands and the lines over them ---------------------------------------------------------------

@@ -36,6 +36,17 @@ public class ChartTabulationTests
         Assert.Contains("no tabular", text, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>A spec of nothing but a text on the figure is a picture (the reader takes it), and its data is the words on it.</summary>
+    [Fact]
+    public void AFigureOfOnlyAText_IsTabulatedAsThatText()
+    {
+        var result = _tabulation.Tabulate(Spec(
+            """{"width":400,"height":300,"texts":[{"text":"only a note","x":0.5,"y":0.5}]}"""));
+
+        Assert.Contains("only a note", result.Markdown);
+        Assert.Equal("only a note", Assert.Single(Assert.Single(Assert.Single(result.Tables).Rows)));
+    }
+
     [Fact]
     public void TwoSubplots_AreTwoTables()
     {

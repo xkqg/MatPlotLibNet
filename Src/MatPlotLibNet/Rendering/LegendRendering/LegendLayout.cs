@@ -11,8 +11,8 @@ namespace MatPlotLibNet.Rendering.LegendRendering;
 /// fonts, column widths, per-entry X/Y offsets).
 /// </summary>
 /// <remarks>
-/// Drawing the legend (<c>AxesRenderer.RenderLegend</c>) and hit-testing it
-/// (<c>AxesRenderer.ComputeLegendBounds</c>) both take their geometry from this
+/// Drawing the legend (<c>LegendRenderer.Draw</c>) and hit-testing it
+/// (<c>LegendRenderer.ItemBounds</c>) both take their geometry from this
 /// record, which <see cref="LegendLayoutCalculator"/> returns; there is exactly ONE
 /// authoritative implementation of the formulas.
 /// </remarks>

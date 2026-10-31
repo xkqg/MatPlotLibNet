@@ -4,7 +4,6 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Interpolation;
 using MatPlotLibNet.Styling.ColorMaps;
-using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -39,31 +38,9 @@ internal sealed class ImageSeriesRenderer : SeriesRenderer<ImageSeries>
 
         var data = engine.Resample(series.Data, targetRows, targetCols);
 
-        // The value range the colours span: a missing value is left out of it (Math.Min used to carry one NaN into
-        // the range, and every pixel with it).
-        var drawable = series.Data.DrawableRange() ?? new Range1D(0, 1);
-        double min = series.VMin ?? drawable.Lo, max = series.VMax ?? drawable.Hi;
-        if (min == max) max = min + 1;
-
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.NormalizerOrLinear();
-
-        double cellW = Area.PlotBounds.Width  / targetCols;
-        double cellH = Area.PlotBounds.Height / targetRows;
-
-        if (series.Alpha < 1.0)
-            Ctx.SetOpacity(series.Alpha);
-
-        for (int r = 0; r < targetRows; r++)
-        for (int c = 0; c < targetCols; c++)
-        {
-            var color = cmap.ColorOf(data[r, c], norm, min, max);
-            Ctx.DrawRectangle(
-                new Rect(Area.PlotBounds.X + c * cellW, Area.PlotBounds.Y + r * cellH, cellW, cellH),
-                new ShapeStyle(color, null, 0));
-        }
-
-        if (series.Alpha < 1.0)
-            Ctx.SetOpacity(1.0);
+        // The cells (the colour range of the image's own values, the grid of rectangles) are the ones a figure image draws too.
+        ImageCells
+            .Of(series.Data, series.GetColorMapOrDefault(ColorMaps.Viridis), series.NormalizerOrLinear(), series.VMin, series.VMax, series.Alpha)
+            .Draw(Ctx, data, Area.PlotBounds);
     }
 }

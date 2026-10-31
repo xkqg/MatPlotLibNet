@@ -57,6 +57,38 @@ public class DataTextFontTests
         Assert.Equal(FontWeight.Normal, font.Weight);
     }
 
+    /// <summary>A text the caller places (an annotation, a figure text) is drawn in the font it was given, or the theme's
+    /// text font; its colour is the font's own, else the colour set beside it, else the theme's text colour.</summary>
+    [Fact]
+    public void APlacedTextWithoutAFont_TakesTheThemesTextFont_InTheColourBesideIt()
+    {
+        var font = ThemedFontProvider.DataTextFont(Theme.Default, null, Colors.Red);
+
+        Assert.Equal(ThemedFontProvider.DataTextFont(Theme.Default) with { Color = Colors.Red }, font);
+    }
+
+    [Fact]
+    public void APlacedTextWithoutAFontOrAColour_TakesTheThemesTextFont() =>
+        Assert.Equal(ThemedFontProvider.DataTextFont(Theme.Default), ThemedFontProvider.DataTextFont(Theme.Default, null, null));
+
+    [Fact]
+    public void ASuppliedFontWithoutAColour_TakesTheColourBesideIt_ElseTheThemes()
+    {
+        var supplied = new Font { Family = "serif", Size = 20 };
+
+        Assert.Equal(supplied with { Color = Colors.Red }, ThemedFontProvider.DataTextFont(Theme.Default, supplied, Colors.Red));
+        Assert.Equal(supplied with { Color = Theme.Default.ForegroundText },
+            ThemedFontProvider.DataTextFont(Theme.Default, supplied, null));
+    }
+
+    [Fact]
+    public void AColourOnTheSuppliedFont_Wins()
+    {
+        var supplied = new Font { Family = "serif", Size = 20, Color = Colors.Blue };
+
+        Assert.Equal(supplied, ThemedFontProvider.DataTextFont(Theme.Default, supplied, Colors.Red));
+    }
+
     [Theory]
     [MemberData(nameof(ThemeNames))]
     public void AnAnnotation_WithoutAFont_IsDrawnAtTheSizeOfTheThemesText(string themeName)

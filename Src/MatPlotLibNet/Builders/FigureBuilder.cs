@@ -596,6 +596,114 @@ public sealed class FigureBuilder
 
     private ColorBar? _figureColorBar;
 
+    /// <summary>Places a text on the figure itself rather than in a subplot (matplotlib's <c>figtext</c>): a note, a source
+    /// line, a panel letter. The position is a pair of fractions of the figure counted from its bottom-left corner, so
+    /// (0.5, 0.97) is centred just under the top edge whatever the subplots show. The text is drawn in the theme's text font
+    /// above every subplot and the figure's colour bar, in the SVG and in every raster or native output alike, and it is
+    /// drawn on a figure that has no subplot at all. A position outside 0 to 1, or one that is not a number, draws nothing.</summary>
+    /// <param name="text">The text to draw.</param>
+    /// <param name="x">The horizontal position as a fraction of the figure's width, from the left.</param>
+    /// <param name="y">The vertical position as a fraction of the figure's height, from the bottom.</param>
+    /// <param name="configure">Optional action that sets the text's font, colour, alignment or rotation.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="text"/> is <see langword="null"/>.</exception>
+    /// <example>
+    /// A source line in the bottom-left corner and a centred note across the top:
+    /// <code>
+    /// string svg = Plt.Create()
+    ///     .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0])
+    ///     .FigText("Source: field survey", 0.01, 0.01)
+    ///     .FigText("Preliminary", 0.5, 0.97, t =>
+    ///     {
+    ///         t.Alignment = TextAlignment.Center;
+    ///         t.VerticalAlignment = TextVerticalAlignment.Top;
+    ///         t.Color = Colors.Red;
+    ///     })
+    ///     .ToSvg();
+    /// </code>
+    /// </example>
+    public FigureBuilder FigText(string text, double x, double y, Action<FigureText>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        _pendingTexts.Add(new(text, x, y, configure));
+        return this;
+    }
+
+    private readonly record struct PendingText(string Text, double X, double Y, Action<FigureText>? Configure);
+
+    private readonly List<PendingText> _pendingTexts = [];
+
+    /// <summary>Gives the figure a legend of its own (matplotlib's <c>figlegend</c>) that lists the labelled series of every
+    /// subplot, in subplot order, each entry that looks the same once. It stands in the rectangle that is the figure, at the
+    /// place its <see cref="Legend.Position"/> names (<see cref="LegendPosition.Best"/> is the upper right here: a figure has no
+    /// marks of one axes to keep clear of), above the subplots, the colour bar and the figure's texts, in the SVG and in every
+    /// raster or native output alike. It is static, as in matplotlib: clicking an entry hides nothing. It reserves no room, so
+    /// turn the legends of the subplots off with <c>WithLegend(visible: false)</c> and leave a margin for it with
+    /// <c>WithSubPlotSpacing</c>, or stand it in a corner the charts leave free.
+    /// <para>A deviation from matplotlib, for simplicity: a figure has ONE legend. A second call replaces the first, starting
+    /// again from a new legend, instead of adding another.</para></summary>
+    /// <param name="configure">Optional function that changes the legend (its position, title, columns, fonts, frame and
+    /// whether the entries carry their last value), given a new default <see cref="Legend"/>.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <example>
+    /// A grid of two charts that share one legend, in the lower centre of the figure:
+    /// <code>
+    /// string svg = Plt.Create()
+    ///     .AddSubPlot(1, 2, 1, ax => ax.WithLegend(visible: false)
+    ///         .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0], s => s.Label = "Observed"))
+    ///     .AddSubPlot(1, 2, 2, ax => ax.WithLegend(visible: false)
+    ///         .Plot([1.0, 2.0, 3.0], [3.0, 1.0, 2.0], s => s.Label = "Observed"))
+    ///     .FigLegend(legend => legend with { Position = LegendPosition.LowerCenter, NCols = 2 })
+    ///     .ToSvg();
+    /// </code>
+    /// </example>
+    public FigureBuilder FigLegend(Func<Legend, Legend>? configure = null)
+    {
+        var legend = new Legend();
+        _figureLegend = configure is null ? legend : configure(legend);
+        return this;
+    }
+
+    private Legend? _figureLegend;
+
+    /// <summary>Places an image on the figure itself rather than in a subplot (matplotlib's <c>figimage</c>): a logo, a
+    /// watermark, a texture behind the charts. Each value of <paramref name="data"/> is one pixel of the figure, drawn at its
+    /// native size with no resampling and coloured through a colour map as an image series is (viridis unless the
+    /// configuration names another), the first row on top. The offsets are pixels (the units of the figure's size) from the
+    /// bottom-left corner of the figure. The image stands under every subplot, in the SVG and in every raster or native output
+    /// alike, and it is drawn on a figure that has no subplot at all. A NaN value is a gap, an offset that is not a number draws
+    /// nothing, and an image that reaches past the figure is cut at its edge.</summary>
+    /// <param name="data">The pixel values, indexed [row, column].</param>
+    /// <param name="xOffset">The distance from the left edge of the figure to the left edge of the image, in pixels.</param>
+    /// <param name="yOffset">The distance from the bottom edge of the figure to the bottom edge of the image, in pixels.</param>
+    /// <param name="configure">Optional action that sets the image's colour map, normalizer, colour range or opacity.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="data"/> is <see langword="null"/>.</exception>
+    /// <example>
+    /// A small gradient in the lower-left corner, under a chart:
+    /// <code>
+    /// var gradient = new double[8, 32];
+    /// for (int row = 0; row &lt; 8; row++)
+    ///     for (int column = 0; column &lt; 32; column++)
+    ///         gradient[row, column] = column;
+    ///
+    /// string svg = Plt.Create()
+    ///     .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0])
+    ///     .FigImage(gradient, 20, 20, image => image.Alpha = 0.6)
+    ///     .ToSvg();
+    /// </code>
+    /// </example>
+    public FigureBuilder FigImage(double[,] data, double xOffset = 0, double yOffset = 0, Action<FigureImage>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        _pendingImages.Add(new(data, xOffset, yOffset, configure));
+        return this;
+    }
+
+    private readonly record struct PendingImage(double[,] Data, double XOffset, double YOffset, Action<FigureImage>? Configure);
+
+    private readonly List<PendingImage> _pendingImages = [];
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>
@@ -662,8 +770,22 @@ public sealed class FigureBuilder
             ResponsiveSvg = _responsiveSvg,
             Spacing = _spacing,
             GridSpec = _gridSpec,
-            FigureColorBar = _figureColorBar
+            FigureColorBar = _figureColorBar,
+            Legend = _figureLegend
         };
+
+        // Each build gets texts and images of its own, so a figure built twice from one builder shares nothing it can change.
+        foreach (var pending in _pendingTexts)
+        {
+            var text = figure.AddText(pending.Text, pending.X, pending.Y);
+            pending.Configure?.Invoke(text);
+        }
+
+        foreach (var pending in _pendingImages)
+        {
+            var image = figure.AddImage(pending.Data, pending.XOffset, pending.YOffset);
+            pending.Configure?.Invoke(image);
+        }
 
         // Only add the default axes when it carries actual series OR when no subplots were
         // defined. FigureBuilder-level helpers (WithCamera, WithLighting, …) call

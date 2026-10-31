@@ -89,11 +89,11 @@ public class VerbPlacementContractTests
     private static string Show(IEnumerable<string> names) => names.Any() ? string.Join(", ", names) : "(none)";
 
     [Fact]
-    public void TheFiveFamiliesAndTheirVerbs_AreFound()
+    public void TheSixFamiliesAndTheirVerbs_AreFound()
     {
-        Assert.Equal(5, Families.Count);
-        Assert.Equal(26, AllVerbs.Length);
-        Assert.Equal(18, TypesTheVerbsIntroduce().Length);
+        Assert.Equal(6, Families.Count);
+        Assert.Equal(38, AllVerbs.Length);
+        Assert.Equal(23, TypesTheVerbsIntroduce().Length);
     }
 
     [Theory]
@@ -311,7 +311,7 @@ public class VerbPlacementContractTests
     {
         var parts = TypesTheVerbsIntroduce().Where(type => type.Name.EndsWith("Parts", StringComparison.Ordinal)).ToArray();
 
-        Assert.Equal(12, parts.Length);
+        Assert.Equal(14, parts.Length);
         foreach (var type in parts)
         {
             Assert.True(type.PartsViolations().Count == 0, $"{type.Name}: {Show(type.PartsViolations())}.");

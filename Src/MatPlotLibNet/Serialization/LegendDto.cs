@@ -50,6 +50,13 @@ internal sealed record LegendDto
         LegendValues = legend.LegendValues.OrNullAtRest(Rest.LegendValues),
     };
 
+    /// <summary>The JSON's form of a legend whose presence is itself a setting: the figure's, which draws none while it is
+    /// <see langword="null"/>. A legend that equals a new legend's is written as an empty object here, not left out as
+    /// <see cref="From"/> leaves it out, because leaving it out would read back as no legend. <see langword="null"/> when
+    /// there is no legend.</summary>
+    /// <param name="legend">The legend, or <see langword="null"/> for none.</param>
+    internal static LegendDto? FromPresent(Legend? legend) => legend is null ? null : From(legend) ?? new LegendDto();
+
     /// <summary>The legend this record describes.</summary>
     internal Legend ToLegend() => new()
     {

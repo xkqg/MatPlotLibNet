@@ -4,6 +4,214 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.28.0]
+
+**1.28.0** draws more of what matplotlib draws. `Stairs`, `VLines`, `HLines` and `Triplot` join the chart verbs, and a
+new family of signal verbs (`Psd`, `Csd`, `Cohere`, `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum`, `Acorr`,
+`Xcorr`) draws a sampled signal in the frequency domain, and its correlation. A contour label follows its line, a
+figure carries text, a legend and an image of its own, and an inset can mark the area it zooms into. The spectrogram
+windows each frame once and labels its rows with the frequencies they are, a line that is downsampled keeps its gaps,
+and a line set to `LineStyle.None` draws no line. Every new verb is built from series the library already has, so the
+chart types stay as they were and each chart travels through JSON as its parts. The sections below list each change
+with what it replaces.
+
+### Added
+
+- **`Stairs(values, edges, baseline = null, configure = null)`: a staircase, as matplotlib's `stairs` draws it.** A value for
+  each bin, held level from the bin's left edge to its right edge. Without a `baseline` the staircase is its outline alone,
+  one `LineSeries` with no drop to a baseline at either end (matplotlib's `baseline=None`); with one it is a fill, one
+  `AreaSeries` down to that level whose top edge is the only stroke, so no edge is drawn twice. The callback receives a
+  `StairsParts` with exactly one of `Outline` and `Fill` set. There must be one more edge than values, or the call is refused
+  with both counts; a missing value is a gap in the line and in the fill, a missing edge masks both bins that meet at it, and
+  a baseline that is NaN or infinite is refused.
+
+  ```csharp
+  double[] edges = [0, 10, 20, 30, 40, 50];
+  double[] counts = [3, 8, 14, 9, 4];
+
+  Plt.Create()
+      .AddSubPlot(1, 1, 1, ax => ax
+          .Stairs(counts, edges, 0, parts => parts.Fill!.Label = "orders")
+          .SetXLabel("Order size")
+          .WithLegend())
+      .Save("stairs.svg");
+  ```
+
+- **`VLines(x, yMin, yMax, configure = null)` and `HLines(y, xMin, xMax, configure = null)`: a segment at each position,
+  between two limits.** The segments are one `LineSeries` (one colour, one legend entry), each a polyline of its own, parted
+  from the next by a missing point. A limit given as an array of one value stands for every segment, so
+  `VLines([1, 2, 3], [0], [5, 6, 7])` draws three segments from 0; arrays of other unequal lengths are refused by the name of
+  the one that disagrees. A segment with a coordinate that is missing or infinite is left out whole, with no stub.
+- **`Triplot(x, y, triangles = null, configure = null)`: the edges of a triangulated set of points.** The triangles are the
+  ones given (a flat list of point indices, three for each), and without them the Delaunay triangulation of the points, by
+  the very rule `Tripcolor` triangulates by, so the two draw one mesh. The edges are one `LineSeries`; an edge two triangles
+  share is drawn once, and the edges are drawn at the coordinates you gave, not at the nudged copy a triangulation works
+  with. A point that cannot be placed takes every edge that runs to it out whole. A list that is not whole triangles, or an
+  index that names no point, is refused.
+- **`SignalAxesExtensions`, a sixth family of chart verbs: charts of a signal sampled at a steady rate.** A signal is
+  neither the x and y arrays of `XYAxesExtensions` nor the sample of `DistributionAxesExtensions`: its order is its meaning,
+  and the chart is computed from windows of it. Every verb draws one `LineSeries` of the frequencies (or the lags) and a
+  value, sets no axis limit, and refuses a signal or options it cannot use before it adds anything.
+  - `Psd(signal, options = default, configure = null)` draws the power spectral density (matplotlib's `psd`), estimated by
+    Welch's method: segments of `SegmentLength` samples, `SegmentLength - Overlap` apart, each detrended, weighted by the
+    window, padded and transformed, their powers averaged. The line is 10 · log10 of the density, under "Power Spectral
+    Density (dB/Hz)", or "(dB)" when `Scaling` is `Spectrum`.
+  - `Csd(x, y, options = default, configure = null)` draws the cross spectral density (matplotlib's `csd`): conj(X)·Y
+    averaged over the same segments, drawn as 10 · log10 of its magnitude. The cross density of a signal with itself is its
+    power density.
+  - `Cohere(x, y, options = default, configure = null)` draws the coherence (matplotlib's `cohere`), |Pxy|² / (Pxx · Pyy),
+    from 0 to 1 on the linear scale. A coherence of one segment is 1 everywhere, so signals shorter than two segments are
+    refused, as matplotlib refuses them.
+  - `MagnitudeSpectrum(signal, options = default, scale = MagnitudeScale.Linear, configure = null)` draws the magnitude of
+    each frequency of the whole signal in one transform (matplotlib's `magnitude_spectrum`): |X| divided by the sum of the
+    window's weights, or 20 · log10 of it with `MagnitudeScale.Decibel`.
+  - `PhaseSpectrum(signal, options = default, configure = null)` draws the phase, unwrapped along the frequencies as numpy's
+    `unwrap` does, so a delay is a straight line (matplotlib's `phase_spectrum`). `AngleSpectrum(signal, options = default,
+    configure = null)` draws the angle wrapped above −π and up to π, a real negative bin at +π (matplotlib's `angle_spectrum`).
+  - `Acorr(signal, options = default, configure = null)` and `Xcorr(x, y, options = default, configure = null)` draw the
+    correlation of a signal with itself and of two signals (matplotlib's `acorr` and `xcorr`) for the lags −`MaxLags` to
+    `MaxLags`: the value at lag k is the sum of x[n + k] · y[n], so a positive lag is x delayed against y, divided by
+    √(x·x) · √(y·y) unless `Unnormalised` is set. They are drawn as stems (one `LineSeries` of a segment from 0 to each
+    value, and a solid reference line at 0) or, with `Markers`, as circles and no line, never both. The callback receives a
+    `CorrelationParts` (`Line`, and `Zero`, null for markers). The signal needs more samples than `MaxLags`.
+
+  ```csharp
+  double[] signal = [.. Enumerable.Range(0, 1000).Select(i =>
+      Math.Sin(2 * Math.PI * 50 * i / 1000.0) + 0.4 * Math.Sin(2 * Math.PI * 120 * i / 1000.0))];
+  var options = new SpectralOptions { SampleRate = 1000, SegmentLength = 200, Overlap = 100 };
+
+  Plt.Create()
+      .AddSubPlot(1, 2, 1, ax => ax.Psd(signal, options).SetXLabel("Frequency (Hz)"))
+      .AddSubPlot(1, 2, 2, ax => ax.Acorr(signal, new CorrelationOptions { MaxLags = 40 }).SetXLabel("Lag (samples)"))
+      .Save("signal.svg");
+  ```
+
+- **The options of the signal verbs, each one value whose `default` is matplotlib's defaults.** `SpectralOptions`
+  (`SampleRate` 2, `Window` Hann, `Detrend` None, `SegmentLength` 256, `Overlap` 0, `PadTo` 0 for none, `CenterFrequency` 0,
+  `Scaling` Density) for the averaged spectra; `SpectrumOptions` (`SampleRate` 2, `Window` Hann, `PadTo` 0, `CenterFrequency` 0)
+  for the spectra of the whole signal; `CorrelationOptions` (`MaxLags` 10, `Unnormalised` false, `Detrend` None, `Markers`
+  false). Every value refuses a bad setting by its own name when it is set, and the verb refuses one that does not fit the
+  others or the signal (an overlap as long as the segment, a segment longer than the signal) before it draws anything. `SpectralWindow` (`Hann`, `Hamming`, `Blackman`,
+  `Rectangular`, or `Of` your own weights) and `SpectralDetrend` (`None`, `Mean`, `Linear`, or `Of` your own) live in
+  `MatPlotLibNet.Numerics`, with the enum `SpectralScaling` (`Density = 0`, `Spectrum = 1`); `MagnitudeScale` (`Linear = 0`,
+  `Decibel = 1`) is taken by `MagnitudeSpectrum`. matplotlib's `sides` and `Funits` are left out: the input is real, so the
+  two-sided spectrum only mirrors the one-sided one, and the unit of the frequency is the title `SetXLabel` already sets.
+- **One rule for a missing sample in a signal: a value worked out from it is missing.** A Welch segment that holds a missing
+  or infinite sample (in either signal) is left out of the average, and when none is left nothing is drawn. A spectrum of
+  the whole signal and a correlation are worked out from every sample, so one missing sample leaves them empty (a
+  correlation keeps its reference line). A power, a magnitude or a coherence of exactly zero is a gap in decibels, never
+  minus infinity, and a normalised correlation of a signal with no energy is a gap, never zero.
+- **`FigText(text, x, y, configure = null)`, `FigLegend(configure = null)` and `FigImage(data, xOffset = 0, yOffset = 0,
+  configure = null)`: text, a legend and an image on the figure itself** (matplotlib's `figtext`, `figlegend` and
+  `figimage`). A text stands at fractions of the figure counted from its bottom-left corner, so (0.5, 0.97) is centred just
+  under the top edge; a position outside 0 to 1 draws nothing. The legend lists the labelled series of every subplot, in
+  subplot order, an entry drawn exactly like an earlier one once. An image is one pixel for each value, at its native size,
+  coloured through a colour map (viridis unless one is named), its offsets in pixels from the bottom-left corner, cut at the
+  figure's edge. The model is `Figure.Texts` with `AddText`, `Figure.Legend` and `Figure.Images` with `AddImage`, of the new
+  types `FigureText` and `FigureImage`. The images are drawn under every subplot; the figure's colour bar, then the texts,
+  then the legend are drawn over them. One pass draws them for the SVG, the PNG, the PDF and the native controls alike, and
+  it draws them on a figure that has no subplot at all.
+
+  ```csharp
+  using MatPlotLibNet.Models;
+
+  Plt.Create()
+      .AddSubPlot(1, 2, 1, ax => ax.WithLegend(visible: false)
+          .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0], s => s.Label = "North"))
+      .AddSubPlot(1, 2, 2, ax => ax.WithLegend(visible: false)
+          .Plot([1.0, 2.0, 3.0], [3.0, 1.0, 2.0], s => s.Label = "North"))
+      .FigLegend(legend => legend with { Position = LegendPosition.LowerCenter })
+      .FigText("Source: field survey", 0.01, 0.01)
+      .Save("overlays.svg");
+  ```
+
+- **`IndicateZoom(configure = null)`: an inset marks the region it zooms into** (matplotlib's `indicate_inset_zoom`). Called
+  on the inset's builder inside `AddInset`, it sets `Axes.ZoomIndicator` on the inset; the parent draws a rectangle over the
+  limits the inset drew (the ones you set, or the ones it scaled to its data, margins included) and the two lines to the
+  inset's corners that matplotlib's rule keeps, none when the inset stands inside its region or the region inside the inset.
+  `ZoomIndicator` holds `Color` (the theme's neutral grey when left out), `Alpha` 0.5, `LineWidth` 1, `LineStyle` solid and
+  `Connectors` true. Called on a subplot that is no inset, it throws `InvalidOperationException`.
+
+  ```csharp
+  double[] x = [.. Enumerable.Range(0, 200).Select(i => i / 20.0)];
+  double[] y = [.. x.Select(v => Math.Sin(v) + 0.3 * Math.Sin(5 * v))];
+
+  Plt.Create()
+      .AddSubPlot(1, 1, 1, ax => ax
+          .Plot(x, y)
+          .AddInset(0.5, 0.03, 0.45, 0.35, inset => inset
+              .Plot(x, y)
+              .SetXLim(6, 7.5)
+              .SetYLim(-0.7, 1)
+              .IndicateZoom()))
+      .Save("inset_zoom.svg");
+  ```
+
+- **The JSON and the MCP server carry what a figure draws itself.** A figure writes `texts`, `images` (the pixels as a list of
+  rows, a missing one as the string "NaN") and `legend`, and an inset its `zoomIndicator`, each left out when there is none,
+  so a figure that has none of them writes the bytes it wrote. The MCP server reads and checks them like every other field
+  (the alignments, the legend position and the line style by name), `describe_chart_schema` lists their fields, and a spec
+  that holds no series but a text or an image of the figure is drawn; a figure legend or colour bar alone is still refused,
+  since it describes series that are not there.
+- **The data table holds the words on the figure.** `ToDataTables()` adds, after the tables of the subplots, a table with a
+  `text` column and a row for each figure text that shows, and a table with a row for each figure image that says what it
+  is (`image 1`, its width and height and its offsets from the left and the bottom, in pixels), because its pixels are
+  colours, not a series of values.
+
+### Changed
+
+- **The spectrogram windows each frame once, at exactly its window size.** `Fft.Stft` weighted every frame by its Hann window
+  and then handed it to `Fft.Forward`, which weighted it again and padded it to the next power of two. Each frame is now
+  weighted once and transformed at exactly `windowSize`, so its `windowSize / 2 + 1` bins stand at b · sampleRate /
+  windowSize, the frequencies `StftResult.Frequencies` names, for a window of any length. Its values change: what a steady
+  tone reads is 4/3 of what it read (a frame of eight ones gives 3.5 at frequency 0, the sum of the window's weights, as
+  matplotlib's `specgram` does, where it gave 2.625), and the shape of a peak is that of the Hann window instead of its square.
+- **The spectrogram draws each row at its frequency.** The renderer spread its rows evenly from 0 to half the sample rate;
+  row b is now centred on `Frequencies[b]`, half way to each neighbouring bin, and the first and the last row end at 0 and at
+  half the sample rate.
+- **A line that is downsampled keeps its gaps.** LTTB read a missing point as a value, so a line with a gap, downsampled,
+  could be drawn as one polyline across the gap. Each unbroken run is now downsampled on its own and the runs are joined by
+  one missing point, as smoothing already did. The budget counts those points and is shared between the runs by their
+  length, and every run keeps its two ends, so a line with more runs than `MaxDisplayPoints` comes back with more points
+  than that rather than lose a run or join two.
+- **A line set to `LineStyle.None` draws no line,** in the plot and in its legend entry, as matplotlib's `linestyle='None'`:
+  a series of markers alone. A line, a step, an ECDF, a polar or ternary line and the edge of an area that set it were drawn
+  solid.
+- **A contour label follows its line.** It stands at the middle of the line's length, turned along it and never upside
+  down, in the line's colour on a box of the theme's background, after every line is drawn, so no later line runs across
+  it; a line shorter than 1.2 times its label carries none. It stood upright at the middle point of the line, on white, in
+  the loop that drew the lines.
+- **`Fft.Forward` of a one-sample signal is that sample,** where it was NaN; its documentation names the Hann window and the
+  padding to a power of two it applies. Every other output of `Forward` is as it was.
+- **The chart verbs number 38, in six families.** They were 26 in five: `Stairs`, `VLines`, `HLines`, `Triplot` and the eight
+  signal verbs are new, and `SignalAxesExtensions` is the new family. The series count is 91, as it was.
+
+### Fixed
+
+- **A contour label and a gauge's value are written in the same way on every machine.** Both were formatted in the
+  current culture, so a German or Dutch machine wrote `0,5` where another wrote `0.5`.
+- **A figure with no subplot draws its colour bar.** Both renderers returned before the figure-level drawing on such a
+  figure.
+- **The documentation of `Axes.InsetAxes` and `AddInset` says where `y` is.** It said the inset's bottom edge; the inset is
+  placed with `y` as its top edge, counted down from the parent's top (matplotlib counts up from the bottom), as
+  `InsetBounds` said, and a test now holds the two together.
+
+### Upgrading
+
+- **Spectrogram values.** An application that pinned the values of `Fft.Stft` or of a spectrogram picture pins the new ones:
+  a steady tone reads 4/3 of the old value, and a window that is not a power of two now has its bins at its own frequencies.
+- **A 1.27 reader meets a 1.28 figure.** It skips `texts`, `images`, `legend` and `zoomIndicator` without a word and draws
+  the figure without them.
+- **A line with many gaps and a point budget** can be drawn with more points than the budget, rather than joined across a
+  gap.
+- **What is left to say plainly.** `AddSubPlot(rows, cols, index)` is not carried through JSON: an axes keeps no field for its
+  place in that grid, so a figure laid out by it is read back with its subplots side by side in one row (a layout made
+  with `WithGridSpec` comes back as it was). The figure legend reserves no
+  room and ignores `TightLayout`: turn the legends of the subplots off and leave a margin for it, or stand it in a corner the
+  charts leave free; `LegendPosition.Best` is the upper right on a figure, a figure has one legend, and a second `FigLegend`
+  replaces the first. The zoom indicator is drawn over the inset (matplotlib draws it just under), only a Cartesian parent
+  draws one, and it does not follow a pan or a zoom made in the browser, which has not been checked in a browser.
+
 ## [1.27.0]
 
 Every row that stood under "still to come" on the roadmap is done: a word cloud, a chord diagram, a ternary plot and a

@@ -32,6 +32,11 @@ Plt.Create()
 
 ![Contour with labels](../images/contour_labels.png)
 
+Every line is drawn first and every label after them, as matplotlib's `clabel` does, so no line runs across a label. A
+label stands at the middle of its line's length, turned along the line and never upside down (it follows an inverted Y
+axis too), in the line's colour on a box of the theme's background. A line shorter than 1.2 times its label carries none.
+The level is written the same way on every machine, with a point for the decimals whatever the culture.
+
 > **A colour map name is checked.** `AxesBuilder.WithColorMap(string)` throws `ArgumentException` when the name is unknown, for example the typo `"virdis"`, and the exception lists the registered names, so a typo never falls back to a default map in silence. If you want a lookup that does not throw, fetch the instance yourself with `ColorMapRegistry.Get(name)` and call the `WithColorMap(IColorMap)` overload only when the result is not null.
 
 ## Filled contour (contourf)
@@ -121,6 +126,32 @@ Plt.Create()
         .WithColorBar())
     .Save("tricontour.svg");
 ```
+
+## The mesh of a triangulation (triplot)
+
+`Triplot` draws the edges of the triangles a triangulated contour or a triangle plot is built on. Give the triangles as a
+flat list of point indices, three for each, or leave them out and the points are triangulated by the rule `Tripcolor` uses,
+so the two draw one mesh. An edge two triangles share is drawn once, and all the edges are one line series:
+
+```csharp
+double[] x = [0, 4, 8, 2, 6, 10, 5];
+double[] y = [0, 1, 0, 3, 3.5, 3, 6];
+
+Plt.Create()
+    .WithTitle("Sensor mesh")
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Triplot(x, y, configure: line => line.Label = "mesh")
+        .Scatter(x, y)
+        .SetXLabel("East (m)")
+        .SetYLabel("North (m)")
+        .WithLegend())
+    .Save("mesh_sensors.svg");
+```
+
+![The Delaunay mesh of seven sensor positions, with the sensors as points](../images/mesh_sensors.png)
+
+The edges are drawn at the coordinates you gave. A point that is missing or infinite takes every edge that runs to it out
+whole; a list that is not whole triangles, or an index that names no point, is refused.
 
 ## Fluent API reference — ContourSeries
 

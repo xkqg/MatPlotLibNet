@@ -37,6 +37,8 @@ internal enum SpecNodeKind
     Normalizer,
     ColorMap,
     PropCycler,
+    FigureText,
+    ZoomIndicator,
 }
 
 /// <summary>The values the spec's enum-valued string fields accept. The DTOs carry these as strings and the
@@ -137,6 +139,11 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.Annotation, "alignment")] = Names<TextAlignment>(),
         [(SpecNodeKind.Annotation, "verticalAlignment")] = Names<TextVerticalAlignment>(),
         [(SpecNodeKind.Annotation, "arrowStyle")] = Names<ArrowStyle>(),
+        // A text placed on the figure itself stands against its point as an annotation's text does.
+        [(SpecNodeKind.FigureText, "alignment")] = Names<TextAlignment>(),
+        [(SpecNodeKind.FigureText, "verticalAlignment")] = Names<TextVerticalAlignment>(),
+        // The zoom an inset indicates on its parent: the dash pattern of its rectangle and connectors.
+        [(SpecNodeKind.ZoomIndicator, "lineStyle")] = Names<LineStyle>(),
         [(SpecNodeKind.TickLocator, "type")] = KindsOf<TickLocatorDto>(),
         [(SpecNodeKind.TickFormatter, "type")] = KindsOf<TickFormatterDto>(),
         [(SpecNodeKind.Normalizer, "type")] = KindsOf<NormalizerDto>(),

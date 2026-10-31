@@ -61,6 +61,53 @@ public sealed class Figure
     /// either.</summary>
     public ColorBar? FigureColorBar { get; set; }
 
+    /// <summary>The texts placed on the figure itself (matplotlib's <c>figtext</c>), in the order they were added; they are
+    /// drawn above the subplots and the figure's colour bar, the later over the earlier. Empty by default.</summary>
+    public IReadOnlyList<FigureText> Texts => _texts;
+    private readonly List<FigureText> _texts = [];
+
+    /// <summary>Adds a text to the figure at a place given as fractions of the figure, counted from its bottom-left corner,
+    /// and returns it so its font, colour, alignment and rotation can be set.</summary>
+    /// <param name="text">The text to draw.</param>
+    /// <param name="x">The horizontal position as a fraction of the figure's width, from the left.</param>
+    /// <param name="y">The vertical position as a fraction of the figure's height, from the bottom.</param>
+    /// <returns>The new <see cref="FigureText"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="text"/> is <see langword="null"/>.</exception>
+    public FigureText AddText(string text, double x, double y)
+    {
+        var figureText = new FigureText(text, x, y);
+        _texts.Add(figureText);
+        return figureText;
+    }
+
+    /// <summary>A legend for the figure as a whole (matplotlib's <c>figlegend</c>): it lists the labelled series of every subplot,
+    /// in subplot order, each entry that looks the same once, however many subplots show it (the rule that decides which series
+    /// of an axes have an entry decides here too). It stands in the rectangle that is the figure, at the place
+    /// <see cref="Models.Legend.Position"/> names; <see cref="LegendPosition.Best"/> looks for room among the marks of one axes,
+    /// which a figure has none of, so here it is the upper right. It reserves no room, draws above the subplots, the colour bar
+    /// and the figure's texts, and is static: clicking an entry hides nothing. <see langword="null"/> (the default) draws none;
+    /// a legend that is not <see cref="Models.Legend.Visible"/>, or that has no entry to list, is not drawn either.</summary>
+    public Legend? Legend { get; set; }
+
+    /// <summary>The images placed on the figure itself (matplotlib's <c>figimage</c>), in the order they were added; they are drawn
+    /// under the subplots, the later over the earlier. Empty by default.</summary>
+    public IReadOnlyList<FigureImage> Images => _images;
+    private readonly List<FigureImage> _images = [];
+
+    /// <summary>Adds an image to the figure at a place given in pixels from its bottom-left corner, and returns it so its colour
+    /// map, normalizer, colour range and opacity can be set.</summary>
+    /// <param name="data">The pixel values, indexed [row, column]; the first row is the top row of the image.</param>
+    /// <param name="xOffset">The distance from the left edge of the figure to the left edge of the image, in pixels.</param>
+    /// <param name="yOffset">The distance from the bottom edge of the figure to the bottom edge of the image, in pixels.</param>
+    /// <returns>The new <see cref="FigureImage"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="data"/> is <see langword="null"/>.</exception>
+    public FigureImage AddImage(double[,] data, double xOffset = 0, double yOffset = 0)
+    {
+        var image = new FigureImage(data, xOffset, yOffset);
+        _images.Add(image);
+        return image;
+    }
+
     /// <summary>Optional chart identifier used by the bidirectional SignalR interaction pipeline.
     /// When set together with <see cref="ServerInteraction"/>, the dispatcher script embedded in
     /// the SVG output routes interaction events back to the server for this id via the

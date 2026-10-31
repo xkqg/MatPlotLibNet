@@ -153,6 +153,34 @@ public class AreaSeriesRendererTests
         Assert.Contains("<polygon", svg);
     }
 
+    /// <summary>What <c>Stairs</c> with a baseline relies on: an area whose top edge is a staircase (two points for each bin, a
+    /// missing value for a bin that is missing) is filled once and stroked once for each unbroken run. The fill is not outlined
+    /// (so no edge of the staircase is drawn twice) and the one stroke follows the top edge only.</summary>
+    [Fact]
+    public void Render_AStaircaseWithAGap_FillsAndStrokesEachRunOnce()
+    {
+        var svg = Render(new AreaSeries([0.0, 1, 1, 2, 2, 3], [5.0, 5, double.NaN, double.NaN, 7, 7]));
+
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polygon").Count);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
+        Assert.DoesNotContain("NaN", svg);
+    }
+
+    /// <summary>The same staircase over a raised baseline (a second curve of the same length): the gap splits the fill there
+    /// too, and the baseline is the lower edge of each run.</summary>
+    [Fact]
+    public void Render_AStaircaseWithAGapOverARaisedBaseline_FillsAndStrokesEachRunOnce()
+    {
+        var svg = Render(new AreaSeries([0.0, 1, 1, 2, 2, 3], [5.0, 5, double.NaN, double.NaN, 7, 7])
+        {
+            YData2 = [2.0, 2, 2, 2, 2, 2]
+        });
+
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polygon").Count);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
+        Assert.DoesNotContain("NaN", svg);
+    }
+
     /// <summary>Explicit EdgeColor arm (line 65 — `series.EdgeColor ?? color`).</summary>
     [Fact]
     public void Render_ExplicitEdgeColor_UsesItForBoundary()

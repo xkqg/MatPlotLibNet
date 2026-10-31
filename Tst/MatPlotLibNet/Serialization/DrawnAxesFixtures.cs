@@ -41,7 +41,55 @@ public static class DrawnAxesFixtures
     {
         [nameof(Figure.Theme)] = "a part of its own (Theme), held property by property",
         [nameof(Figure.FigureColorBar)] = "a part of its own (FigureColorBar), held property by property",
+        [nameof(Figure.Legend)] = "a part of its own (FigureLegend), held property by property",
     };
+
+    /// <summary>The get-only list properties of <see cref="Figure"/> other than its subplots (the texts and the images placed on
+    /// the figure itself). A list has no setter, so <see cref="FigureSettings"/> never sees it: each list is held by the parts
+    /// of its items ("FigureText", "FigureImage"), by the values of its items that the parts cannot set
+    /// (<see cref="FigureListValues"/>) and by its length. Reflected, so a list added tomorrow is walked too, and the contract
+    /// goes red until the fixture holds an item of it and the JSON carries the list.</summary>
+    public static IReadOnlyList<PropertyInfo> FigureLists { get; } =
+        [.. typeof(Figure).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.SetMethod is null && p.GetIndexParameters().Length == 0)
+            .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
+            .Where(p => p.PropertyType.GetGenericArguments()[0] != typeof(Axes))
+            .OrderBy(p => p.Name, StringComparer.Ordinal)];
+
+    /// <summary>The length of each list of <see cref="FigureLists"/> and every readable value of every item of it, the ones
+    /// with a setter and the ones given to the constructor alike, keyed by where it stands (<c>Texts[0].X</c>). A grid of
+    /// numbers is held as its size and its cells in row order, since a flat comparison of the cells alone would take a
+    /// 2 by 3 image for a 3 by 2 one.</summary>
+    /// <param name="figure">The figure, built by <see cref="Build"/>.</param>
+    public static IReadOnlyDictionary<string, object?> FigureListValues(Figure figure)
+    {
+        var values = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var list in FigureLists)
+        {
+            var items = ((System.Collections.IEnumerable)list.GetValue(figure)!).Cast<object>().ToList();
+            values[$"{list.Name}.Count"] = items.Count;
+            for (int i = 0; i < items.Count; i++)
+            {
+                foreach (var property in items[i].GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                             .Where(p => p.GetMethod is { IsPublic: true } && p.GetIndexParameters().Length == 0))
+                {
+                    string at = $"{list.Name}[{i}].{property.Name}";
+                    if (property.GetValue(items[i]) is double[,] grid)
+                    {
+                        values[$"{at}.Rows"] = grid.GetLength(0);
+                        values[$"{at}.Columns"] = grid.GetLength(1);
+                        values[at] = grid.Cast<double>().ToArray();
+                    }
+                    else
+                    {
+                        values[at] = property.GetValue(items[i]);
+                    }
+                }
+            }
+        }
+
+        return values;
+    }
 
     /// <summary>The figure's settable properties the "Figure" part holds: all of them, less <see cref="FigureExemptions"/>.</summary>
     private static IReadOnlyList<string> FigureSettings { get; } =
@@ -63,6 +111,7 @@ public static class DrawnAxesFixtures
         [nameof(Axes.Spines)] = "a part of its own (Spine), held property by property",
         [nameof(Axes.Pane3D)] = "a part of its own (Pane3D), held property by property",
         [nameof(Axes.ColorBar)] = "a part of its own (ColorBar), held property by property",
+        [nameof(Axes.ZoomIndicator)] = "a part of its own (ZoomIndicator, on the inset: only an inset draws it), held property by property",
         [nameof(Axes.LightSource)] = "only DirectionalLight is written today (roadmap: a light that is not directional); ILightSource has one implementation, so there is nothing else to reflect yet",
         [nameof(Axes.Projection)] = "a render-time cache rebuilt from Elevation/Azimuth/CameraDistance (Rotate3DEvent.cs nulls it to force a rebuild), not authored state",
     };
@@ -110,8 +159,16 @@ public static class DrawnAxesFixtures
         new("Title", TheAxes, "", typeof(Axes), [nameof(Axes.TitleStyle), nameof(Axes.TitleLoc)]),
         new("Legend", TheAxes, nameof(Axes.Legend), typeof(Legend)),
         new("InsetLegend", TheInset, nameof(Axes.Legend), typeof(Legend)),
+        // The zoom an inset indicates on its parent: a setting of the inset, created once a property of it is set.
+        new("ZoomIndicator", TheInset, nameof(Axes.ZoomIndicator), typeof(ZoomIndicator)),
         new("ColorBar", TheAxes, nameof(Axes.ColorBar), typeof(ColorBar)),
         new("FigureColorBar", figure => figure, nameof(Figure.FigureColorBar), typeof(ColorBar)),
+        // What the figure itself draws besides its subplots: its legend (settable, held property by property as the axes' is),
+        // its texts and its images (get-only lists, held through their first item: the constructor's own values are held by
+        // FigureListValues).
+        new("FigureLegend", figure => figure, nameof(Figure.Legend), typeof(Legend)),
+        new("FigureText", figure => figure.Texts[0], "", typeof(FigureText)),
+        new("FigureImage", figure => figure.Images[0], "", typeof(FigureImage)),
         new("Grid", TheAxes, nameof(Axes.Grid), typeof(GridStyle)),
         new("Spine", TheAxes, $"{nameof(Axes.Spines)}.{nameof(SpinesConfig.Left)}", typeof(SpineConfig)),
         new("ReferenceLine", figure => TheAxes(figure).ReferenceLines[0], "", typeof(ReferenceLine)),
@@ -158,6 +215,10 @@ public static class DrawnAxesFixtures
     /// <summary>One row per part and drawn property path.</summary>
     public static TheoryData<string, string> Rows { get; } = RowsOf(Parts);
 
+    /// <summary>One row per key of <see cref="FigureListValues"/> for a figure built by <see cref="Build"/>. Declared after
+    /// <see cref="Parts"/>, which <see cref="Build"/> reads.</summary>
+    public static TheoryData<string> FigureListValueKeys { get; } = new(FigureListValues(Build(everyPropertySet: true)).Keys);
+
     /// <summary>The rows of <paramref name="parts"/>: one per part and drawn property path.</summary>
     public static TheoryData<string, string> RowsOf(IEnumerable<DrawnPart> parts)
     {
@@ -176,7 +237,8 @@ public static class DrawnAxesFixtures
     /// <summary>A figure with one subplot that holds every part: a labelled line, three right Y axes and two left Y axes
     /// past the primary (so every wire seat of a Y axis is taken: slot 0, the frozen list's one slot and a slot past it, on
     /// both sides) and a secondary X axis, with a line each, a reference line, an annotation, a span, a trendline, a level,
-    /// a Fibonacci retracement and an inset with a line. At rest, or with every drawn property of every part set to a
+    /// a Fibonacci retracement and an inset with a line, and on the figure itself one text and one image (the figure's legend
+    /// and colour bar are parts that exist only once set). At rest, or with every drawn property of every part set to a
     /// value that is not its default.</summary>
     public static Figure Build(bool everyPropertySet)
     {
@@ -197,6 +259,10 @@ public static class DrawnAxesFixtures
         axes.AddLevel(3);
         axes.AddFibonacci(4, 2);
         axes.AddInset(0.6, 0.6, 0.3, 0.3).Plot(x, y);
+
+        // What the figure carries itself: a text and an image (with a missing cell, which the JSON writes as "NaN").
+        figure.AddText("note", 0.25, 0.75);
+        figure.AddImage(new double[,] { { 1, double.NaN, 3 }, { 4, 5, 6 } }, 12, 34);
 
         if (everyPropertySet)
         {

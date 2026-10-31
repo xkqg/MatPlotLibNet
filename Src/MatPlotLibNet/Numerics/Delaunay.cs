@@ -23,7 +23,9 @@ public static class Delaunay
     /// <param name="y">Y coordinates of the points. Must be the same length as <paramref name="x"/>.</param>
     /// <returns>A <see cref="TriMesh"/> with the triangulation result. A point with a coordinate that is missing (NaN)
     /// or infinite cannot be placed, so it is no vertex: the other points are triangulated as without it, and the
-    /// triangles index the given arrays.</returns>
+    /// triangles index the given arrays. The mesh's <see cref="TriMesh.X"/> is NOT the given <paramref name="x"/>: it
+    /// carries the small deterministic nudge that keeps collinear points apart, so draw from the arrays you passed and
+    /// take only the triangles from the mesh.</returns>
     public static TriMesh Triangulate(double[] x, double[] y)
     {
         int n = x.Length;
@@ -97,6 +99,18 @@ public static class Delaunay
 
         return new TriMesh(flat, x, y);
     }
+
+    /// <summary>The triangles of a point set, as a flat list of point indices, three per triangle: the ones the caller
+    /// <paramref name="given"/> when there are any (a given list, even an empty one, is the caller's mesh), otherwise the
+    /// Delaunay triangulation of the points. The one owner of that rule, asked by everything that draws a triangulated
+    /// point set (the triangle renderer, the <c>Triplot</c> verb), so none of them can disagree about which triangles a
+    /// point set has.</summary>
+    /// <param name="x">X coordinates of the points.</param>
+    /// <param name="y">Y coordinates of the points. Must be the same length as <paramref name="x"/>.</param>
+    /// <param name="given">The caller's own triangles, or <see langword="null"/> to triangulate the points.</param>
+    /// <returns><paramref name="given"/> itself when it is not <see langword="null"/>, otherwise the triangles of
+    /// <see cref="Triangulate"/>: empty for fewer than three points.</returns>
+    internal static int[] TrianglesOf(double[] x, double[] y, int[]? given) => given ?? Triangulate(x, y).Triangles;
 
     /// <summary>Triangulates only the points at <paramref name="placed"/> and maps the triangles back onto the indices of
     /// <paramref name="x"/> and <paramref name="y"/>; a point left out keeps its coordinates and is in no triangle.</summary>

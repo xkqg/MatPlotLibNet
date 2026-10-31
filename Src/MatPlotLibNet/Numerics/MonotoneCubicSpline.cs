@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.Downsampling;
+
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>
@@ -29,29 +31,12 @@ internal static class MonotoneCubicSpline
         int n = x.Length;
         if (n < 2 || resolution <= 1) return new(x, y);
 
-        var runs = x.DrawableIndexRuns(y).ToList();
-        if (runs.Count == 1 && runs[0].Count == n) return InterpolateRun(x, y, resolution);
-
-        var outX = new List<double>();
-        var outY = new List<double>();
-        foreach (var run in runs)
-        {
-            if (outX.Count > 0)
-            {
-                outX.Add(double.NaN);
-                outY.Add(double.NaN);
-            }
-
-            var part = InterpolateRun(x.Slice(run), y.Slice(run), resolution);
-            outX.AddRange(part.X);
-            outY.AddRange(part.Y);
-        }
-
-        return new([.. outX], [.. outY]);
+        var curve = x.DrawableIndexRuns(y).ToList().JoinedAcrossGaps(x, y, run => InterpolateRun(run.X, run.Y, resolution));
+        return new(curve.X, curve.Y);
     }
 
     /// <summary>The spline through one run of drawable points.</summary>
-    private static XYCurve InterpolateRun(double[] x, double[] y, int resolution)
+    private static XYData InterpolateRun(double[] x, double[] y, int resolution)
     {
         int n = x.Length;
         if (n < 2) return new(x, y);

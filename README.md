@@ -18,6 +18,15 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.28.0** draws more of what matplotlib draws. `Stairs`, `VLines`, `HLines` and `Triplot` join the chart verbs, and a
+sixth family of verbs (`Psd`, `Csd`, `Cohere`, `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum`, `Acorr`,
+`Xcorr`) draws a sampled signal in the frequency domain, and its correlation, with matplotlib's defaults; the twelve
+bring the chart verbs to thirty-eight. A contour label follows its line, upright and in the line's colour; a figure
+carries text, a legend and an image of its own (`FigText`, `FigLegend`, `FigImage`), drawn on a figure with no subplot
+too; and an inset marks the region it zooms into (`IndicateZoom`). The spectrogram windows each frame once and draws
+its rows at the frequencies they are, a line that is downsampled keeps its gaps, and a line set to `LineStyle.None`
+draws no line. A figure's texts, legend and images and an inset's zoom travel through JSON and the MCP server.
+
 **1.27.0** finishes the roadmap. A word cloud, a chord diagram, a ternary plot and a Piper diagram are new charts, a
 selection in one chart can light the same rows in another, and an animation can be saved as one SVG that steps through
 its frames. A live chart sends its own gestures, one handler interface receives them, and several viewers of one chart
@@ -126,8 +135,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,094 classes, at
-99.8 % line / 98.8 % branch) across 25,667 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,120 classes, at
+99.8 % line / 98.9 % branch) across 27,290 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib, and CI runs it.
 
 ---
@@ -194,7 +203,11 @@ Plt.Create()
 
 ## Features
 
-**91 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, Point and Figure, treemap, sunburst, icicle, Sankey, chord, word cloud, ternary (scatter and line), Piper, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waffle, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, twenty-six one-call chart verbs (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud`, `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `CalendarHeatmap`, `Spy`, `MatShow`, `CalendarEvents`, `Renko`, `Kagi`, `ConnectedScatter`, `StemAndLeaf`) are built from those series, so they add none to the count and travel through JSON as their parts.
+**91 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, Point and Figure, treemap, sunburst, icicle, Sankey, chord, word cloud, ternary (scatter and line), Piper, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waffle, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, thirty-eight one-call chart verbs in six families are built from those series, so they add none to the count and travel through JSON as their parts: for data keyed by names `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates` and `Marimekko`; for a sample `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud` and `StemAndLeaf`; for x and y arrays `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `ConnectedScatter`, `VLines`, `HLines`, `Stairs` and `Triplot`; for the cells of a grid `CalendarHeatmap`, `Spy`, `MatShow` and `CalendarEvents`; for prices `Renko` and `Kagi`; and for a sampled signal `Psd`, `Csd`, `Cohere`, `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum`, `Acorr` and `Xcorr`.
+
+**Signals** — `Psd`, `Csd` and `Cohere` estimate a spectrum by Welch's method (one `SpectralOptions` value holds the sample rate, the segments, the window, the detrend, the padding and the scaling, its default matplotlib's), `MagnitudeSpectrum`, `PhaseSpectrum` and `AngleSpectrum` take one transform of the whole signal, and `Acorr` and `Xcorr` draw a correlation at each lag as stems or as markers. A missing sample leaves out what was worked out from it, never a zero. `Spectrogram` draws the short-time transform of a signal (`Fft.Stft`), each frame weighted once by its window and each row at its frequency.
+
+**On the figure itself** — `FigText`, `FigLegend` and `FigImage` put text, one legend for the series of every subplot and an image on the figure rather than in a subplot, in every output, and an inset marks the region it zooms into with `IndicateZoom`.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over

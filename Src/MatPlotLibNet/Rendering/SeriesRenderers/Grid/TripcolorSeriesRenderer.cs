@@ -19,7 +19,7 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
     {
         if (series.X.Length < 3) return;
 
-        int[] tris = series.Triangles ?? Delaunay.Triangulate(series.X, series.Y).Triangles;
+        int[] tris = Delaunay.TrianglesOf(series.X, series.Y, series.Triangles);
         if (tris.Length == 0) return;
 
         // The series' own colour range, the one its colour bar shows.

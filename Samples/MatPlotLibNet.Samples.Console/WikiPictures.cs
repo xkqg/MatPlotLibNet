@@ -7,6 +7,8 @@ using MatPlotLibNet.Indicators.Streaming;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -35,6 +37,17 @@ internal static class WikiPictures
 
     private static IEnumerable<WikiPicture> All()
     {
+        yield return new("stairs_orders", StairsOrders());
+        yield return new("segments_ranges", SegmentsRanges());
+        yield return new("mesh_sensors", MeshSensors());
+        yield return new("psd_vibration", PsdVibration());
+        yield return new("csd_casing", CsdCasing());
+        yield return new("cohere_casing", CohereCasing());
+        yield return new("echo_spectra", EchoSpectra());
+        yield return new("correlation_lags", CorrelationLags());
+        yield return new("figure_overlays", FigureOverlays());
+        yield return new("inset_zoom", InsetZoom());
+        yield return new("spectrogram_tone", SpectrogramTone());
         yield return new("survey_words", SurveyWords());
         yield return new("region_chord", RegionChord());
         yield return new("soil_ternary", SoilTernary());
@@ -1374,6 +1387,267 @@ internal static class WikiPictures
                 .SetXLabel("Bar")
                 .SetYLabel("Transfer entropy (nats)")
                 .TransferEntropy(source, target, new TransferEntropyOptions(Neighbours: 4, Window: 100, Stride: 5)))
+            .Build();
+        return figure;
+    }
+
+    // The pictures of release 1.28.0: the staircase, the segments, the mesh, the spectra, the correlations, the overlays of a
+    // figure and the zoom of an inset.
+    private static Figure StairsOrders()
+    {
+        double[] edges = [0, 10, 20, 30, 40, 50];
+        double[] counts = [3, 8, 14, 9, 4];
+
+        var figure = Plt.Create()
+            .WithSize(860, 380)
+            .TightLayout()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithTitle("Outline")
+                .Stairs(counts, edges)
+                .SetXLabel("Order size")
+                .SetYLabel("Orders"))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithTitle("Filled down to 0")
+                .Stairs(counts, edges, 0)
+                .SetXLabel("Order size")
+                .SetYLabel("Orders"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure SegmentsRanges()
+    {
+        double[] week = [1, 2, 3, 4, 5, 6];
+        double[] low = [12, 14, 11, 15, 13, 16];
+        double[] high = [18, 21, 17, 22, 19, 25];
+        double[] task = [1, 2, 3, 4];
+        double[] start = [0, 2, 3, 6];
+        double[] finish = [3, 5, 7, 9];
+
+        var figure = Plt.Create()
+            .WithSize(860, 380)
+            .TightLayout()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithTitle("Daily temperature range")
+                .VLines(week, low, high, line => { line.Label = "range"; line.LineWidth = 3; })
+                .SetXLabel("Week")
+                .SetYLabel("Temperature (°C)")
+                .WithLegend())
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithTitle("Task schedule")
+                .HLines(task, start, finish, line => line.LineWidth = 8)
+                .SetXLabel("Day")
+                .SetYLabel("Task"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure MeshSensors()
+    {
+        double[] x = [0, 4, 8, 2, 6, 10, 5];
+        double[] y = [0, 1, 0, 3, 3.5, 3, 6];
+
+        var figure = Plt.Create()
+            .WithTitle("Sensor mesh")
+            .WithSize(640, 420)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Triplot(x, y, configure: line => line.Label = "mesh")
+                .Scatter(x, y)
+                .SetXLabel("East (m)")
+                .SetYLabel("North (m)")
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    // The two signals of the three spectral pictures: the vibration of a machine (tones at 50 and 170 Hz) and a sensor on its
+    // casing (the 50 Hz, three samples behind, and a tone of its own at 310 Hz), each with noise of its own.
+    private readonly record struct VibrationAndCasing(double[] Vibration, double[] Casing, SpectralOptions Options);
+
+    private static VibrationAndCasing MachineSignals()
+    {
+        const int rate = 1000;
+        ulong state = 7;
+        double Noise()
+        {
+            state = unchecked(state * 6364136223846793005UL + 1442695040888963407UL);
+            return (state >> 11) / (double)(1UL << 53) - 0.5;
+        }
+
+        double[] vibration = [.. Enumerable.Range(0, 4000).Select(i =>
+            Math.Sin(2 * Math.PI * 50 * i / rate) + 0.5 * Math.Sin(2 * Math.PI * 170 * i / rate) + Noise())];
+        double[] casing = [.. Enumerable.Range(0, 4000).Select(i =>
+            0.7 * Math.Sin(2 * Math.PI * 50 * (i - 3) / rate) + 0.4 * Math.Sin(2 * Math.PI * 310 * i / rate) + Noise())];
+        var options = new SpectralOptions { SampleRate = rate, SegmentLength = 256, Overlap = 128 };
+
+        return new(vibration, casing, options);
+    }
+
+    private static Figure PsdVibration()
+    {
+        var (vibration, _, options) = MachineSignals();
+
+        var figure = Plt.Create()
+            .WithTitle("Where the vibration holds its power")
+            .WithSize(760, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Psd(vibration, options, line => line.Label = "vibration")
+                .SetXLabel("Frequency (Hz)")
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    private static Figure CsdCasing()
+    {
+        var (vibration, casing, options) = MachineSignals();
+
+        var figure = Plt.Create()
+            .WithTitle("What the casing shares with the vibration")
+            .WithSize(760, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Csd(vibration, casing, options, line => line.Label = "vibration with casing")
+                .SetXLabel("Frequency (Hz)")
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    private static Figure CohereCasing()
+    {
+        var (vibration, casing, options) = MachineSignals();
+
+        var figure = Plt.Create()
+            .WithTitle("Where the casing follows the vibration")
+            .WithSize(760, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Cohere(vibration, casing, options, line => line.Label = "coherence")
+                .SetXLabel("Frequency (Hz)")
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    private static Figure EchoSpectra()
+    {
+        double[] echo = [.. Enumerable.Range(0, 256).Select(i => i == 10 ? 1.0 : i == 40 ? 0.5 : 0.0)];
+        var options = new SpectrumOptions { SampleRate = 1000, Window = SpectralWindow.Rectangular };
+
+        var figure = Plt.Create()
+            .WithSize(1100, 380)
+            .TightLayout()
+            .AddSubPlot(1, 3, 1, ax => ax
+                .WithTitle("Magnitude")
+                .MagnitudeSpectrum(echo, options, MagnitudeScale.Decibel)
+                .SetXLabel("Frequency (Hz)"))
+            .AddSubPlot(1, 3, 2, ax => ax
+                .WithTitle("Phase")
+                .PhaseSpectrum(echo, options)
+                .SetXLabel("Frequency (Hz)"))
+            .AddSubPlot(1, 3, 3, ax => ax
+                .WithTitle("Angle")
+                .AngleSpectrum(echo, options)
+                .SetXLabel("Frequency (Hz)"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure CorrelationLags()
+    {
+        double[] signal = [.. Enumerable.Range(0, 200).Select(i => Math.Sin(2 * Math.PI * i / 25.0) + 0.3 * Math.Sin(2 * Math.PI * i / 7.0))];
+        double[] sent = [.. Enumerable.Range(0, 120).Select(i => i % 20 < 3 ? 1.0 : 0.0)];
+        double[] received = [.. Enumerable.Range(0, 120).Select(i => i >= 4 && (i - 4) % 20 < 3 ? 1.0 : 0.0)];
+
+        var figure = Plt.Create()
+            .WithSize(960, 400)
+            .TightLayout()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithTitle("A signal that repeats every 25 samples")
+                .Acorr(signal, new CorrelationOptions { MaxLags = 60 })
+                .SetXLabel("Lag (samples)"))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithTitle("The echo runs 4 samples behind")
+                .Xcorr(sent, received, new CorrelationOptions { MaxLags = 12, Markers = true })
+                .SetXLabel("Lag (samples)"))
+            .Build();
+        return figure;
+    }
+
+    private static Figure FigureOverlays()
+    {
+        double[] month = [1, 2, 3, 4, 5, 6];
+        double[] northOrders = [12, 15, 14, 18, 21, 24];
+        double[] southOrders = [9, 11, 15, 14, 17, 19];
+        double[] northRevenue = [30, 36, 33, 41, 47, 52];
+        double[] southRevenue = [22, 27, 35, 33, 38, 44];
+        var strip = new double[10, 140];
+        for (int row = 0; row < 10; row++)
+        {
+            for (int column = 0; column < 140; column++)
+            {
+                strip[row, column] = column;
+            }
+        }
+
+        var figure = Plt.Create()
+            .WithTitle("Orders and revenue by region")
+            .WithSize(860, 480)
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithTitle("Orders")
+                .WithLegend(visible: false)
+                .Plot(month, northOrders, s => s.Label = "North")
+                .Plot(month, southOrders, s => s.Label = "South")
+                .SetXLabel("Month"))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithTitle("Revenue")
+                .WithLegend(visible: false)
+                .Plot(month, northRevenue, s => s.Label = "North")
+                .Plot(month, southRevenue, s => s.Label = "South")
+                .SetXLabel("Month"))
+            .FigLegend(legend => legend with { Position = LegendPosition.UpperRight })
+            .FigText("Source: field survey", 0.01, 0.01)
+            .FigText("Preliminary", 0.01, 0.97, text =>
+            {
+                text.VerticalAlignment = TextVerticalAlignment.Top;
+                text.Color = Colors.Red;
+            })
+            .FigImage(strip, 700, 8)
+            .Build();
+        return figure;
+    }
+
+    private static Figure InsetZoom()
+    {
+        double[] x = [.. Enumerable.Range(0, 200).Select(i => i / 20.0)];
+        double[] y = [.. x.Select(v => Math.Sin(v) + 0.3 * Math.Sin(5 * v))];
+
+        var figure = Plt.Create()
+            .WithTitle("A closer look at the wiggle")
+            .WithSize(760, 440)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, y)
+                .SetYLim(-1.5, 3.5)
+                .AddInset(0.5, 0.03, 0.45, 0.35, inset => inset
+                    .Plot(x, y)
+                    .SetXLim(6, 7.5)
+                    .SetYLim(-0.7, 1)
+                    .IndicateZoom()))
+            .Build();
+        return figure;
+    }
+
+    private static Figure SpectrogramTone()
+    {
+        double[] signal = [.. Enumerable.Range(0, 2000).Select(i => Math.Sin(2 * Math.PI * 125 * i / 1000.0))];
+
+        var figure = Plt.Create()
+            .WithTitle("A 125 Hz tone")
+            .WithSize(760, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Spectrogram(signal, 1000, s => { s.WindowSize = 100; s.Overlap = 50; })
+                .AxHLine(125, line => { line.Color = Colors.Red; line.LineStyle = LineStyle.Dashed; })
+                .SetXLabel("Time (s)")
+                .SetYLabel("Frequency (Hz)"))
             .Build();
         return figure;
     }

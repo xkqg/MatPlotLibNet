@@ -105,6 +105,22 @@ area per ridge with the group names as the Y axis' ticks. The server renders suc
 spec that names a verb as its `type` (`"type": "pareto"`) is refused like any type the server does not list. To hand
 a model one of these charts, build it in C# and print its JSON, as above.
 
+### What the figure draws itself
+
+Beside its subplots a figure can carry `texts` (a text at fractions of the figure from its bottom-left corner, with its
+font, colour, alignments and rotation), `images` (rows of values drawn one pixel each, with a colour map, a normaliser and
+offsets in pixels) and a `legend` for the series of every subplot; an inset can carry a `zoomIndicator`. The server checks
+each like any other field (the alignments, the legend position and the line style by name) and `describe_chart_schema`
+lists their fields. A spec with no series is refused as having nothing to draw, unless the figure shows a text or an image
+of its own: a figure legend or colour bar alone describes series that are not there.
+
+```json
+{
+  "width": 600, "height": 200,
+  "texts": [ { "text": "No data for this week", "x": 0.5, "y": 0.5, "alignment": "Center" } ]
+}
+```
+
 ## It refuses before it renders
 
 `FromJson` is a round-trip reader for the library's own writer. It drops an unknown series type, skips an unknown

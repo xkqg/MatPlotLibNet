@@ -68,6 +68,8 @@ public class AxesDrawnPropertiesRoundTripTests
     [InlineData("Title", "TitleStyle.Pad")]
     [InlineData("Legend", "NCols")]
     [InlineData("ColorBar", "Label")]
+    [InlineData("ZoomIndicator", "Alpha")]
+    [InlineData("ZoomIndicator", "Connectors")]
     [InlineData("Grid", "Axis")]
     [InlineData("Figure", "Spacing.MarginLeft")]
     [InlineData("Figure", "InteractionTheme.TooltipOffsetY")]

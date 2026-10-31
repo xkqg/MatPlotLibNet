@@ -313,12 +313,6 @@ public abstract class AxesRenderer
     internal static string WithLegendValue(string baseLabel, double value) =>
         baseLabel + " = " + value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
-    /// <summary>The slot a legend entry's series holds, decided by the same owner the series passes use
-    /// (<see cref="SeriesSlotExtensions"/>): the swatch wears the colour, dash pattern, marker and width the series is
-    /// drawn with. Reads the entry's COLOUR slot, not its identity one, so a series sharing a
-    /// <see cref="Models.Series.ChartSeries.ColorGroup"/> shows the swatch its group is actually drawn in.</summary>
-    private SeriesSlot LegendEntrySlot(LegendRendering.LegendEntry entry) => Theme.SeriesSlot(entry.ColorSlotIndex);
-
     /// <summary>The marks this axes has drawn or is about to draw, as a legend at <see cref="LegendPosition.Best"/> must keep
     /// clear of them, worked out without drawing or measuring anything beyond text: each series adds the rectangles, paths
     /// and points it draws (<see cref="SeriesRenderers.SeriesRenderer{T}.AddMarks"/>) at the pixels the draw pass puts
@@ -354,23 +348,19 @@ public abstract class AxesRenderer
     /// <summary>The legend as this renderer lays it out: the entries it lists and the box they stand in.</summary>
     private readonly record struct ResolvedLegend(IReadOnlyList<LegendEntry> Entries, LegendLayout Layout);
 
+    /// <summary>The legend of this axes, drawn by the one legend drawer (<see cref="LegendRenderer"/>) on this surface.</summary>
+    private LegendRenderer AxesLegend() => new(Axes.Legend, Theme, Ctx);
+
     /// <summary>The ONE place the legend is laid out. The draw pass (<see cref="RenderLegend"/>) and the hit-test pass
     /// (<see cref="ComputeLegendBounds"/>, which feeds the interactive heads on every paint with no drawing) both read it,
-    /// so the box a pointer is tested against is the box that is drawn.</summary>
+    /// so the box a pointer is tested against is the box that is drawn. The axes owns which series are entries
+    /// (<see cref="AxesLegendEntryExtensions.LegendEntries(Axes, bool)"/>) and the marks a Best legend keeps clear of
+    /// (<see cref="LegendObstacles"/>, collected only when asked for); <see cref="LegendRenderer"/> lays them out in the plot area.</summary>
     /// <returns>The legend's entries and layout; <see langword="null"/> when the legend is hidden or lists nothing.</returns>
     private ResolvedLegend? ResolveLegend()
     {
-        var legend = Axes.Legend;
-        if (!legend.Visible) return null;
-
         var entries = Axes.LegendEntries(DrawsDirectLabels);
-        if (entries.Count == 0) return null;
-
-        // Only a legend that looks for its place needs the marks, and only then are they collected.
-        var calculator = new LegendLayoutCalculator(Theme, Ctx);
-        var obstacles = calculator.PositionOf(legend) == LegendPosition.Best ? LegendObstacles() : MarkObstacles.None;
-        var layout = calculator.Compute(legend, entries.Select(e => e.Label).ToList(), PlotArea, obstacles);
-        return new ResolvedLegend(entries, layout);
+        return AxesLegend().Place(entries, PlotArea, LegendObstacles) is { } layout ? new ResolvedLegend(entries, layout) : null;
     }
 
     /// <summary>The legend resolved by <see cref="PlaceLegend"/> for the pass being drawn; read once by <see cref="RenderLegend"/>.</summary>
@@ -397,81 +387,9 @@ public abstract class AxesRenderer
         _placedLegend = null;
         if (placed is not { } resolved) return;
 
-        var legend = Axes.Legend;
-        var (entries, layout) = resolved;
-
-        // Open the legend group FIRST — frame, shadow, title, and entries all live inside
-        // it as siblings. Phase S (2026-04-19) — the legend-drag script applies a
-        // transform="translate(dx,dy)" to this <g class="legend">; the frame rect MUST be
-        // inside so it moves with the items it frames. Pre-Phase S the frame was emitted
-        // as a sibling of the group, leaving it stranded when the user dragged the legend.
-        if (Ctx is SvgRenderContext svgCtxLegendGroup)
-            svgCtxLegendGroup.BeginAccessibleGroup("legend", "Chart legend");
-        else
-            Ctx.BeginGroup("legend");
-
-        // Frame background
-        if (legend.FrameOn)
-        {
-            var faceColor = legend.FaceColor ?? Theme.Background;
-            var bgAlpha = (byte)(legend.FrameAlpha * 255);
-            var bgColor = faceColor.WithAlpha(bgAlpha);
-            // matplotlib v2 default `legend.edgecolor = '0.8'` = #CCCCCC (light grey).
-            // Falls back to the theme foreground only if no override is set.
-            var edgeColor = legend.EdgeColor ?? Color.FromHex("#CCCCCC");
-
-            if (legend.Shadow)
-            {
-                var shadowColor = new Color(0, 0, 0, 80);
-                Ctx.DrawRectangle(new Rect(layout.BoxX + 3, layout.BoxY + 3, layout.BoxWidth, layout.BoxHeight), new ShapeStyle(shadowColor, null, 0));
-            }
-
-            // FancyBox: rounded corners are expressed via SVG rx/ry — DrawRectangle doesn't expose
-            // corner radius, so we use an SVG comment/group attribute via the context when available.
-            // For now render normally; FancyBox is a visual hint recognised by advanced renderers.
-            Ctx.DrawRectangle(new Rect(layout.BoxX, layout.BoxY, layout.BoxWidth, layout.BoxHeight), new ShapeStyle(bgColor, edgeColor, 0.5));
-        }
-
-        // Title
-        if (!string.IsNullOrEmpty(legend.Title))
-        {
-            Ctx.DrawText(legend.Title,
-                new Point(layout.BoxX + layout.Padding + layout.TotalContentWidth / 2, layout.BoxY + layout.Padding + layout.TitleFont.Size),
-                layout.TitleFont, TextAlignment.Center);
-        }
-
+        var bounds = AxesLegend().Draw(resolved.Entries, resolved.Layout, Axes.EnableInteractiveAttributes);
         LegendBounds.Clear();
-        var svgCtxLegend = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
-        for (int i = 0; i < entries.Count; i++)
-        {
-            int row = i / layout.NCols;
-            int col = i % layout.NCols;
-            var entry = entries[i];
-
-            double colX = layout.ColumnX(col);
-            double entryY = layout.EntryY(row);
-
-            // Capture hit-test bounds for this legend entry (swatch + label)
-            LegendBounds.Add(new LegendItemBounds(entry.OriginalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
-
-            // The group carries the SERIES index (data-legend-index maps straight onto data-series-index), never the
-            // entry's position in the legend: an unlabelled series ahead of this one has no entry but still has an index.
-            svgCtxLegend?.BeginLegendItemGroup(entry.OriginalIndex, entry.Label);
-
-            // Swatch dispatch: line segment for line-type series, marker for scatter,
-            // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
-            DrawLegendSwatch(entry.Series, entry.Swatch, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, LegendEntrySlot(entry));
-
-            // Text anchor sits just past the swatch.
-            var textPoint = new Point(colX + layout.SwatchWidth + layout.SwatchGap, entryY + layout.SwatchHeight - 1);
-            if (MathTextParser.ContainsMath(entry.Label))
-                Ctx.DrawRichText(MathTextParser.Parse(entry.Label), textPoint, layout.Font, TextAlignment.Left);
-            else
-                Ctx.DrawText(entry.Label, textPoint, layout.Font, TextAlignment.Left);
-            if (svgCtxLegend is not null) Ctx.EndGroup();
-        }
-
-        Ctx.EndGroup();
+        LegendBounds.AddRange(bounds);
     }
 
     /// <summary>Computes legend item bounds without rendering any visuals. Called by
@@ -482,83 +400,7 @@ public abstract class AxesRenderer
         LegendBounds.Clear();
         if (ResolveLegend() is not { } resolved) return;
 
-        var (entries, layout) = resolved;
-        for (int i = 0; i < entries.Count; i++)
-        {
-            int row = i / layout.NCols;
-            int col = i % layout.NCols;
-            double colX = layout.ColumnX(col);
-            double entryY = layout.EntryY(row);
-            LegendBounds.Add(new LegendItemBounds(entries[i].OriginalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
-        }
-    }
-
-    /// <summary>Draws the legend handle a series says it has (<see cref="Models.Series.ChartSeries.LegendSwatch"/>) at (x, y):
-    /// a line segment for a line, a single marker for a scatter, a line with caps for an error bar, a filled rectangle for
-    /// patches. The colour-cycle slot decides what the series leaves to it (its colour, and the width, dash and marker it
-    /// names no value for), the same rules the series renderer strokes the series by.</summary>
-    private void DrawLegendSwatch(Models.Series.ISeries series, Models.Series.LegendSwatch swatch, double x, double y, double wMax,
-        double h, SeriesSlot slot)
-    {
-        double midY = y + h / 2;
-        var color = slot.ColorOf(series);
-
-        switch (swatch.Kind)
-        {
-            case Models.Series.LegendSwatchKind.Line:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
-                    slot.StrokeOf(color, swatch.LineWidth, swatch.LineStyle, swatch.RestingLineWidth));
-                break;
-            case Models.Series.LegendSwatchKind.LineMarker:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
-                    slot.StrokeOf(color, swatch.LineWidth, swatch.LineStyle, swatch.RestingLineWidth));
-                if (slot.LineMarkerOf(swatch.Marker) is { } marker and not MarkerStyle.None)
-                    DrawLegendMarker(x + wMax / 2, midY, marker, swatch.MarkerSize, color);
-                break;
-            case Models.Series.LegendSwatchKind.SolidLine:
-                // solid, as the series itself: the slot decides only the width
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
-                    new StrokeStyle(color, slot.LineWidthOf(swatch.LineWidth), LineStyle.Solid));
-                break;
-            case Models.Series.LegendSwatchKind.Marker:
-            {
-                // matplotlib legend marker size ≈ series point size, scaled down slightly.
-                double radius = Math.Min(h / 2 - 1, Math.Sqrt(swatch.MarkerSize / Math.PI) * (100.0 / 72.0));
-                DrawLegendMarker(x + h / 2, midY, slot.ScatterMarkerOf(swatch.Marker ?? SeriesSlot.RestingScatterMarker), radius * radius * Math.PI, color);
-                break;
-            }
-            case Models.Series.LegendSwatchKind.ErrorBar:
-            {
-                double width = slot.LineWidthOf(swatch.LineWidth);
-                Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), new StrokeStyle(color, width, LineStyle.Solid));
-                Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), new StrokeStyle(color, width, LineStyle.Solid));
-                Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), new StrokeStyle(color, width, LineStyle.Solid));
-                break;
-            }
-            case Models.Series.LegendSwatchKind.Stripes when (swatch.States ?? []).DistinctFills(Theme) is { Count: > 0 } fills:
-            {
-                // One stripe for each distinct state, side by side across the swatch, each in the fill the series draws it in.
-                double stripeWidth = wMax / fills.Count;
-                for (int i = 0; i < fills.Count; i++)
-                    Ctx.DrawRectangle(new Rect(x + i * stripeWidth, y, stripeWidth, h), fills[i]);
-                break;
-            }
-            default:
-                // Patch-like: bar/hist/area/violin/pie/etc → filled RECTANGLE (matplotlib uses
-                // handlelength × handleheight; our wMax carries handlelength, h carries handleheight).
-                // Previous `Math.Min(wMax, h)` clamped it to a square which matplotlib never does.
-                Ctx.DrawRectangle(new Rect(x, y, wMax, h), new ShapeStyle(color, null, 0));
-                break;
-        }
-    }
-
-    /// <summary>Draws a single legend marker at (cx, cy) in the shape the plot draws it in: the one owner of marker
-    /// shapes (<see cref="MarkerRenderer"/>) draws it, so a triangle, a star or a cross in the plot is the same in the
-    /// legend, and <see cref="MarkerStyle.None"/> draws nothing.</summary>
-    private void DrawLegendMarker(double cx, double cy, MarkerStyle marker, double size_pt2, Color color)
-    {
-        double radius = Math.Sqrt(Math.Max(size_pt2, 1) / Math.PI) * (100.0 / 72.0);
-        Ctx.DrawMarker(marker, new Point(cx, cy), 2 * radius, new ShapeStyle(color, null, 0));
+        LegendBounds.AddRange(LegendRenderer.ItemBounds(resolved.Entries, resolved.Layout));
     }
 
     /// <summary>Renders a color bar gradient alongside the plot area if configured.

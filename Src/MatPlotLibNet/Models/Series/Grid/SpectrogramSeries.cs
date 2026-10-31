@@ -18,8 +18,9 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
     /// axis at half this rate. Default 1.</summary>
     public int SampleRate { get; set; } = 1;
 
-    /// <summary>The number of samples in each analysis window, rounded to a power of two; longer windows resolve
-    /// frequency better and time worse. Default 256.</summary>
+    /// <summary>The number of samples in each analysis window, any length (it is not rounded to a power of two): each window
+    /// is weighted once by a Hann window and gives <c>WindowSize / 2 + 1</c> frequency rows, <c>SampleRate / WindowSize</c>
+    /// Hz apart. Longer windows resolve frequency better and time worse. Default 256.</summary>
     public int WindowSize { get; set; } = 256;
 
     /// <summary>The number of samples that neighbouring windows share. Default 128.</summary>

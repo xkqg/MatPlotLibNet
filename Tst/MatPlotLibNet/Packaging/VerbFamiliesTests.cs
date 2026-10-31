@@ -11,14 +11,14 @@ public class VerbFamiliesTests
     public void TheFamilies_AreEveryPublicClassThatHoldsVerbsOfTheBuilder()
     {
         Assert.Equal(
-            ["CategoricalAxesExtensions", "DistributionAxesExtensions", "GridAxesExtensions", "PriceAxesExtensions", "XYAxesExtensions"],
+            ["CategoricalAxesExtensions", "DistributionAxesExtensions", "GridAxesExtensions", "PriceAxesExtensions", "SignalAxesExtensions", "XYAxesExtensions"],
             VerbFamilies.All.Select(family => family.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]
     public void TheVerbs_AreOnTheBuilder_AndTheirCountIsThePinnedOne()
     {
-        Assert.Equal(26, VerbFamilies.AllVerbs.Length);
+        Assert.Equal(38, VerbFamilies.AllVerbs.Length);
         Assert.All(VerbFamilies.AllVerbs, verb => Assert.Equal(typeof(AxesBuilder), verb.GetParameters()[0].ParameterType));
     }
 
@@ -37,9 +37,14 @@ public class VerbFamiliesTests
     {
         var names = VerbFamilies.TypesTheVerbsIntroduce().Select(type => type.Name).ToArray();
 
-        Assert.Equal(18, names.Length);
+        Assert.Equal(23, names.Length);
         Assert.Contains("DumbbellParts", names);
         Assert.Contains("HorizonParts", names);
+        Assert.Contains("StairsParts", names);
+        Assert.Contains("CorrelationParts", names);
+        Assert.Contains("SpectralOptions", names);
+        Assert.Contains("SpectrumOptions", names);
+        Assert.Contains("CorrelationOptions", names);
         Assert.Contains("BarGroup", names);
     }
 }

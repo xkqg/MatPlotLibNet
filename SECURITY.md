@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 1.27.x  | :white_check_mark: |
-| < 1.27  | :x:                |
+| 1.28.x  | :white_check_mark: |
+| < 1.28  | :x:                |
 
 Security fixes land in the newest release.
 

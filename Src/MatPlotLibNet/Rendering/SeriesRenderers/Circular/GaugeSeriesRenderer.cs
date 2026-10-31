@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -38,6 +39,6 @@ internal sealed class GaugeSeriesRenderer : SeriesRenderer<GaugeSeries>
         double needleAngle = Math.PI - valFrac * Math.PI;
         Ctx.DrawLine(new Point(cx, cy), new Point(cx + radius * 0.85 * Math.Cos(needleAngle), cy - radius * 0.85 * Math.Sin(needleAngle)), new StrokeStyle(series.NeedleColor, 2.5, LineStyle.Solid));
         Ctx.DrawCircle(new Point(cx, cy), 4, new ShapeStyle(series.NeedleColor, null, 0));
-        Ctx.DrawText(series.Value.ToString("G5"), new Point(cx, cy + 20), new Font { Size = 12, Weight = FontWeight.Bold }, TextAlignment.Center);
+        Ctx.DrawText(series.Value.ToString("G5", CultureInfo.InvariantCulture),new Point(cx, cy + 20), new Font { Size = 12, Weight = FontWeight.Bold }, TextAlignment.Center);
     }
 }

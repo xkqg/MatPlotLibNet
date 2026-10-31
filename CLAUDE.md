@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All contributor rules — versions, TDD, class design, dead-code deletion, git workflow, CHANGELOG, the
 documentation sweep — live in [**CONTRIBUTING.md**](CONTRIBUTING.md). Read it before any commit. This file
 covers only what that document does not: the commands that actually work, and the shape of the code.
-**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:154). It overrides any
-attribution default the tooling suggests. Commits stay local and several are fine; the maintainer says when to push
-(one push per finished strand) and he alone tags (CONTRIBUTING.md:152-155).
+**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md § "Git — main repo"). It
+overrides any attribution default the tooling suggests. Commits stay local and several are fine — the maintainer's standing
+word, looser than the stage-only default in that same section; he says when to push (one push per finished strand) and he
+alone tags.
 Deeper design notes: `Src/MatPlotLibNet/ARCHITECTURE.md` (there is no root-level ARCHITECTURE.md).
 
 ## Commands
@@ -24,6 +25,10 @@ dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj -c Release    
 # one test class (or one test) — the built exe takes an xunit v3 filter
 Tst/MatPlotLibNet/bin/Release/net10.0/MatPlotLibNet.Tests.exe -filter "/*/*/LegendTests/*"
 ```
+
+Core multi-targets `net10.0;net8.0`, so the exe sits under the `net10.0` folder. A change to how something is *drawn* also needs
+`Tst/MatPlotLibNet.Fidelity` (CI runs it): it scores the SVG against matplotlib's own pictures with a perceptual diff, and a
+reference picture is made again with `tools/mpl_reference/generate.py`.
 
 ```powershell
 tools/coverage/run.ps1 -Check -Strict    # all suites + the per-class gate (>=90/90 line+branch, no regression)
@@ -134,7 +139,7 @@ JSON can carry goes in `DrawnSeriesFixtures.NotCarried` with its reason; a serie
 
 **A chart composed of existing series is a verb, not a series.** Pareto, ridgeline and calendar heatmap are
 extension methods on `AxesBuilder` in the family class that matches the caller's data (`Categorical`, `Distribution`,
-`XY` or `GridAxesExtensions`, in `Builders/`): no `ISeries`, no `SeriesRegistry` key, `SeriesCountContractTests`
+`XY`, `Grid`, `Price` or `SignalAxesExtensions`, in `Builders/`; a sampled signal drawn in the frequency domain or as lags is the last): no `ISeries`, no `SeriesRegistry` key, `SeriesCountContractTests`
 untouched. It needs a `ComposedChartShapes` entry and a row in `ARCHITECTURE.md` § "Where a verb lives"
 (`VerbPlacementContractTests`); the full recipe is CONTRIBUTING.md § "Adding a chart verb".
 
@@ -182,8 +187,7 @@ Interactive (browser popup), GraphQL, Avalonia/Uno/Wpf/Maui (native controls), D
 formatter). **`MatPlotLibNet.Notebooks` is frozen** at the version it reached and is deliberately out of
 `CI.slnf` and both workflows; `ReleaseContractTests.Frozen` holds that with its reason.
 
-**The release contract is executable.** `Tst/MatPlotLibNet/Packaging/ReleaseContractTests.cs` (1200+ lines, 50+
-tests) reads the csprojs, the workflows, `docs/docfx.json`, `docs/index.md`, the cookbook pages, the coverage
+**The release contract is executable.** `Tst/MatPlotLibNet/Packaging/ReleaseContractTests.cs` reads the csprojs, the workflows, `docs/docfx.json`, `docs/index.md`, the cookbook pages, the coverage
 runsettings and `run.sh`, and fails when a hand-kept list drifts — every package must carry the same version, be
 built and pushed by some workflow, be measured by the coverage gate, and be linked from the docs. It reaches past
 packaging into SEO/accessibility (search-engine description, analytics tag, IndexNow key, social-card size, the

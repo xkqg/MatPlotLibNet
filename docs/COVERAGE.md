@@ -2,6 +2,15 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.28.0, nine roadmap rows: the signal-analysis verbs, stairs, line segments and the triangulation mesh, contour labels along their line, text, a legend and an image on the figure, and the zoom indicator of an inset):** **1,120/1,120 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 1120 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.8L / 98.9B**; **27,290 tests, 0 failures** (4 skipped) across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite
+run beside the gate and are not measured by it). The gate counts 26 more classes than it did at 1.27.0, among them the windows (`SpectralWindow`), the Welch estimator
+(`Welch`), the single-transform spectrum (`Spectrum`), the correlation (`Correlation`), the segment and staircase paths (`SegmentPath`, `StaircasePath`), the contour label
+placement (`ContourLabelPlacement`), the legend and image-cell drawing the figure legend and figure image share (`LegendRenderer`, `ImageCells`), and the zoom indicator
+(`ZoomIndicator`, `ZoomIndicatorPath`, `DrawnView`). The first strict run passed with no class short and none under its baseline. The tests of each class were written before
+its code, and a mutation of a production line (a sign, a doubled bin, a dropped check) turned them red before the line was put back.
+
 **Status (v1.27.0, the last fourteen roadmap rows: new charts, streaming forms for 57 indicators, one interaction host for the native heads, and the Windows heads in CI):** **1,094/1,094 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 1094 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.8L / 98.8B**; **25,667 tests, 0 failures** across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite run beside the

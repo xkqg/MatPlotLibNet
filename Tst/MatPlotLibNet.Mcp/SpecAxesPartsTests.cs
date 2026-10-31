@@ -252,6 +252,44 @@ public class SpecAxesPartsTests
         Assert.Equal(LegendPosition.OutsideRight, figure.SubPlots[0].Legend.Position);
     }
 
+    /// <summary>The zoom an inset indicates passes the reader with its colour named, its line style in any case, and reaches the
+    /// inset it was written on.</summary>
+    [Fact]
+    public void AnInsetsZoomIndicator_PassesTheSpecReader_AndReachesTheInset()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec(
+            """{"insets":[{"insetBounds":{"x":0.6,"y":0.1,"width":0.3,"height":0.3},"series":[{"type":"line","xData":[1,2],"yData":[1,2]}],"zoomIndicator":{"color":"red","alpha":0.3,"lineWidth":2,"lineStyle":"dashed","connectors":false}}]}""")));
+
+        var zoom = figure.SubPlots[0].Insets[0].ZoomIndicator;
+        Assert.NotNull(zoom);
+        Assert.Equal(Colors.Red, zoom.Color);
+        Assert.Equal(0.3, zoom.Alpha);
+        Assert.Equal(2, zoom.LineWidth);
+        Assert.Equal(LineStyle.Dashed, zoom.LineStyle);
+        Assert.False(zoom.Connectors);
+    }
+
+    [Fact]
+    public void AMisspelledLineStyleOfAZoomIndicator_IsRefusedWithTheAcceptedValuesAndItsPath()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(
+            """{"insets":[{"insetBounds":{"x":0.6,"y":0.1,"width":0.3,"height":0.3},"zoomIndicator":{"lineStyle":"wavy"}}]}"""))));
+
+        Assert.Contains("'wavy'", refusal.Message);
+        Assert.Contains("Dotted", refusal.Message);
+        Assert.Contains("insets[0].zoomIndicator.lineStyle", refusal.Message);
+    }
+
+    /// <summary>An opacity the library refuses is refused by the reader, with the library's reason.</summary>
+    [Fact]
+    public void AZoomIndicatorOpacityAboveOne_IsRefused()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(
+            """{"insets":[{"insetBounds":{"x":0.6,"y":0.1,"width":0.3,"height":0.3},"zoomIndicator":{"alpha":2}}]}"""))));
+
+        Assert.Contains("alpha", refusal.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>A series on the top axis is checked the way a series on the other axes is.</summary>
     [Fact]
     public void AMisspelledMarkerOfATopAxisSeries_IsRefusedWithTheAcceptedValues()

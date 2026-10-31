@@ -86,11 +86,17 @@ internal abstract class SeriesRenderer
     /// value (NaN), an infinity, or a value the transform could not place (a non-positive value on a log axis, a value
     /// inside an axis break). Each unbroken run of two or more points is one polyline; a point alone between two gaps
     /// joins nothing and draws no line, as in matplotlib. The one place a line breaks, so every render context receives
-    /// only points it can draw.</summary>
+    /// only points it can draw. A stroke of <see cref="LineStyle.None"/> draws no line at all (matplotlib's
+    /// <c>linestyle='None'</c>): the markers of a series that names no line are all there is of it.</summary>
     /// <param name="points">The points of the line, in drawing order.</param>
     /// <param name="stroke">The stroke every run is drawn with.</param>
     protected void DrawPolyline(IReadOnlyList<Point> points, StrokeStyle stroke)
     {
+        if (stroke.Style == LineStyle.None)
+        {
+            return;
+        }
+
         foreach (var run in points.DrawableRuns())
         {
             if (run.Count >= 2)

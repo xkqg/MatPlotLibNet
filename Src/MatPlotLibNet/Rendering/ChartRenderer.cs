@@ -5,6 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -44,17 +45,83 @@ public sealed class ChartRenderer : IChartRenderer
     {
         var resolvedSpacing = PrepareSpacing(figure, ctx);
         double plotAreaTop = RenderBackground(figure, ctx, resolvedSpacing);
+        RenderFigureUnderlays(figure, ctx);
 
-        if (figure.SubPlots.Count == 0) return;
-
+        // A figure without subplots lays out no plot area and draws none, but still draws what it carries itself.
         var plotAreas = ComputeSubPlotLayout(figure, plotAreaTop, resolvedSpacing);
 
         for (int i = 0; i < figure.SubPlots.Count; i++)
             RenderAxes(figure, figure.SubPlots[i], new RenderPass(plotAreas[i], ctx, figure.Theme));
 
-        // Figure-level colorbar — rendered after all subplots
+        RenderFigureOverlays(figure, plotAreas, ctx, resolvedSpacing);
+    }
+
+    /// <summary>Draws what the figure carries under its subplots: after the background and the title, before the first
+    /// subplot (z 0). The one site for it, called by <see cref="Render"/> and by <see cref="Transforms.SvgTransform.Render"/>
+    /// alike, also for a figure with no subplot. The figure's own images (<see cref="Figure.Images"/>) are drawn here, in the
+    /// order they were added, each later one over the earlier.</summary>
+    /// <param name="figure">The figure being drawn.</param>
+    /// <param name="ctx">The surface it is drawn on.</param>
+    internal void RenderFigureUnderlays(Figure figure, IRenderContext ctx)
+    {
+        foreach (var image in figure.Images)
+            RenderFigureImage(figure, image, ctx);
+    }
+
+    /// <summary>Draws what the figure carries above its subplots, after every subplot, in this order: the figure's colour
+    /// bar, then its texts in the order they were added, each later one over the earlier, then its legend. The one site for
+    /// these, called by <see cref="Render"/> and by <see cref="Transforms.SvgTransform.Render"/> alike, also for a figure with
+    /// no subplot, so the SVG and every raster or native picture carry the same overlays at the same places.</summary>
+    /// <param name="figure">The figure being drawn.</param>
+    /// <param name="plotAreas">The plot area of each subplot, empty for a figure with none; the colour bar stands beside them.</param>
+    /// <param name="ctx">The surface it is drawn on.</param>
+    /// <param name="spacing">The resolved spacing the subplots were laid out with.</param>
+    internal void RenderFigureOverlays(Figure figure, List<Rect> plotAreas, IRenderContext ctx, SubPlotSpacing spacing)
+    {
         if (figure.FigureColorBar is { Visible: true } cb)
-            RenderFigureColorBar(figure, plotAreas, cb, ctx, resolvedSpacing);
+            RenderFigureColorBar(figure, plotAreas, cb, ctx, spacing);
+
+        foreach (var text in figure.Texts)
+            RenderFigureText(figure, text, ctx);
+
+        if (figure.Legend is { Visible: true } legend)
+            RenderFigureLegend(figure, legend, ctx);
+    }
+
+    /// <summary>Draws one figure image at its place on the figure: each cell of its data is one rectangle of one pixel, no
+    /// resampling, its first row on top; an image with no place on the figure is skipped. A cell that would be painted
+    /// transparent (a missing value under a colour map with no bad colour) is left out, so a masked pixel costs no element.</summary>
+    private static void RenderFigureImage(Figure figure, FigureImage image, IRenderContext ctx)
+    {
+        if (image.BoundsOn(figure.Height) is not { } bounds) return;
+
+        image.Cells().Draw(ctx, image.Data, bounds, skipTransparentCells: true);
+    }
+
+    /// <summary>Draws the figure's legend in the rectangle that is the figure: the entries of every subplot
+    /// (<see cref="FigureLegendExtensions"/>), laid out and drawn by the one legend drawer (<see cref="LegendRenderer"/>) at the
+    /// place the legend names, static (no entry carries the series index a legend toggle reads). A legend with no entry
+    /// draws nothing.</summary>
+    private static void RenderFigureLegend(Figure figure, Legend legend, IRenderContext ctx)
+    {
+        var entries = figure.LegendEntries(legend, ctx);
+        var renderer = new LegendRenderer(legend.OnTheFigure(), figure.Theme, ctx);
+        if (renderer.Place(entries, new Rect(0, 0, figure.Width, figure.Height), () => MarkObstacles.None) is not { } layout) return;
+
+        renderer.Draw(entries, layout, interactive: false);
+    }
+
+    /// <summary>Draws one figure text at its place on the figure, in the font a placed text takes
+    /// (<see cref="ThemedFontProvider.DataTextFont(Theme, Font, Color?)"/>), standing against its point as its alignments
+    /// say and turned about it; a text with no place on the figure is skipped.</summary>
+    private static void RenderFigureText(Figure figure, FigureText text, IRenderContext ctx)
+    {
+        if (text.AnchorOn(figure.Width, figure.Height) is not { } anchor) return;
+
+        var font = ThemedFontProvider.DataTextFont(figure.Theme, text.Font, text.Color);
+        var size = ctx.MeasureText(text.Text, font);
+        var at = new TextBox(anchor, size, font.Size, text.Alignment, text.VerticalAlignment, text.Rotation).Baseline;
+        ctx.DrawText(text.Text, at, font, text.Alignment, text.Rotation);
     }
 
     /// <summary>
@@ -293,14 +360,23 @@ public sealed class ChartRenderer : IChartRenderer
         return areas;
     }
 
-    /// <summary>Renders a single <see cref="Axes"/> subplot, including all series, decorations, and nested insets.</summary>
-    internal void RenderAxes(Figure figure, Axes axes, RenderPass pass, int depth = 0)
+    /// <summary>Renders a single <see cref="Axes"/> subplot, including all series, decorations, and nested insets, and the
+    /// zoom each inset indicates (<see cref="Axes.ZoomIndicator"/>): drawn on this axes right after the inset, from the
+    /// <see cref="DrawnView"/> the inset's render returns, so the rectangle spans the limits the inset really drew. Only a
+    /// Cartesian axes draws its insets' zoom; a polar, 3-D or ternary one has no data rectangle to draw it in.</summary>
+    /// <param name="figure">The figure the axes belongs to.</param>
+    /// <param name="axes">The axes to draw.</param>
+    /// <param name="pass">Where it is drawn, on what, under which theme.</param>
+    /// <param name="depth">How deep the axes is nested in insets; insets past the third level are not drawn.</param>
+    /// <returns>What was drawn: the plot area and the transform the primary series were drawn with.</returns>
+    internal DrawnView RenderAxes(Figure figure, Axes axes, RenderPass pass, int depth = 0)
     {
         // Pass figure size through so 3-D renderer can compute matplotlib's exact square bbox.
         var figSize = (Size?)new Size(figure.Width, figure.Height);
         var axesRenderer = AxesRenderer.Create(axes, pass.PlotArea, pass.Context, pass.Theme, figSize);
         axesRenderer.Render();
         axesRenderer.WriteServerView();
+        var drawn = new DrawnView(pass.PlotArea, axesRenderer.DrawnTransform);
 
         // Render inset axes recursively (max depth guard)
         if (depth < 3)
@@ -319,9 +395,13 @@ public sealed class ChartRenderer : IChartRenderer
                     referenceArea.Y + bounds.Y * referenceArea.Height,
                     bounds.Width * referenceArea.Width,
                     bounds.Height * referenceArea.Height), pass.Theme);
-                RenderAxes(figure, inset, pass with { PlotArea = insetRect }, depth + 1);
+                var insetView = RenderAxes(figure, inset, pass with { PlotArea = insetRect }, depth + 1);
+                if (inset.ZoomIndicator is { } zoom && ZoomIndicatorPath.Of(axes, drawn, inset, insetView) is { } path)
+                    path.Draw(pass.Context, zoom, pass.Theme);
             }
         }
+
+        return drawn;
     }
 
     /// <summary>Renders a figure-level color bar placed outside all subplot areas.</summary>

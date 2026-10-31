@@ -2,7 +2,7 @@
 
 **matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 91 series types, 148 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 15 NuGet packages + 3 npm bindings.
 
-Beyond the 91 chart types, 26 chart verbs draw whole charts from your data in one call: a Pareto chart, a ridgeline, a calendar heatmap, a control chart, a Kaplan-Meier curve, a Q-Q plot and fourteen more. A verb adds no chart type of its own. It is built from series the library already has, so the figure still goes through JSON, the MCP server and every native control as those series.
+Beyond the 91 chart types, 38 chart verbs draw whole charts from your data in one call: a Pareto chart, a ridgeline, a calendar heatmap, a control chart, a Kaplan-Meier curve, a Q-Q plot, a power spectral density and thirty-one more. A verb adds no chart type of its own. It is built from series the library already has, so the figure still goes through JSON, the MCP server and every native control as those series.
 
 For operations screens, `Plt.OpsDashboard()` composes KPI tiles, state timelines and a trend panel on one time window that you supply.
 

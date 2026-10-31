@@ -12,6 +12,11 @@ namespace MatPlotLibNet.Rendering.Downsampling;
 /// The first and last data points are always preserved. Input X data must be sorted in ascending
 /// order; unsorted data produces undefined output. When the input already contains fewer points
 /// than <c>targetPoints</c>, the original arrays are returned unchanged without allocation.
+/// <para>A point that cannot be drawn (NaN, the missing value, or an infinity) is a gap, and a line is never joined
+/// across a gap: each unbroken run is downsampled on its own and the runs are joined by one NaN point. The budget counts
+/// those separators and is shared between the runs in proportion to their length, but every run keeps its first and last
+/// point (a run of one point stays), so a line with more runs than the budget can hold comes back with more than
+/// <c>targetPoints</c> points rather than lose a run or join two.</para>
 /// </remarks>
 public sealed class LttbDownsampler : IDownsampler
 {
@@ -20,6 +25,24 @@ public sealed class LttbDownsampler : IDownsampler
     {
         int n = x.Length;
         if (n == 0) return new([], []);
+        if (n <= targetPoints) return new(x, y);
+
+        var runs = x.DrawableIndexRuns(y).ToList();
+        int drawable = runs.Sum(run => run.Count);
+        long budget = targetPoints - (runs.Count - 1);
+
+        // One run has no gap to keep: it spends the whole budget, exactly as a line without a gap always did.
+        int ShareOf(int length) =>
+            runs.Count == 1 ? targetPoints : Math.Max(Math.Min(length, 2), (int)(length * budget / drawable));
+
+        return runs.JoinedAcrossGaps(x, y, run => DownsampleRun(run.X, run.Y, ShareOf(run.X.Length)));
+    }
+
+    /// <summary>The LTTB selection over one unbroken run: <paramref name="targetPoints"/> of its points, its first and
+    /// last among them; the run itself when it holds no more than that.</summary>
+    private static XYData DownsampleRun(double[] x, double[] y, int targetPoints)
+    {
+        int n = x.Length;
         if (n <= targetPoints) return new(x, y);
 
         var sampledX = new double[targetPoints];

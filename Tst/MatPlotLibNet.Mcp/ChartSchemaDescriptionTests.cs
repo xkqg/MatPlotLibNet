@@ -217,6 +217,122 @@ public class ChartSchemaDescriptionTests
         Assert.Contains("leftYAxes[].series[]", schema);
     }
 
+    /// <summary>The fields of a section of the overview, up to the blank line that ends it.</summary>
+    private static string[] SectionOf(string schema, string heading)
+    {
+        int at = schema.IndexOf(heading, StringComparison.Ordinal);
+        Assert.True(at >= 0, $"'{heading}' is not in the schema.");
+        return schema[at..].Split(Environment.NewLine).Skip(1).TakeWhile(line => line.Trim().Length > 0).Select(line => line.Trim()).ToArray();
+    }
+
+    /// <summary>What the figure draws on itself — its texts, its legend, its images — is listed with the figure's own fields,
+    /// each with the section that says what an item of it holds.</summary>
+    [Theory]
+    [InlineData("texts: object[]")]
+    [InlineData("images: object[]")]
+    [InlineData("legend: object")]
+    public void TheFigureFields_ListTheTextsTheLegendAndTheImages(string field)
+    {
+        var figureFields = SectionOf(Description.Describe(null), "Figure fields:");
+
+        Assert.Contains(figureFields, line => line.StartsWith(field, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Figure text fields", "text: string")]
+    [InlineData("Figure text fields", "x: number")]
+    [InlineData("Figure text fields", "y: number")]
+    [InlineData("Figure text fields", "font: object")]
+    [InlineData("Figure text fields", "color: string (colour)")]
+    [InlineData("Figure text fields", "alignment: string (enum)")]
+    [InlineData("Figure text fields", "verticalAlignment: string (enum)")]
+    [InlineData("Figure text fields", "rotation: number")]
+    [InlineData("Figure image fields", "data: number[][]")]
+    [InlineData("Figure image fields", "xOffset: number")]
+    [InlineData("Figure image fields", "yOffset: number")]
+    [InlineData("Figure image fields", "colorMapName: string")]
+    [InlineData("Figure image fields", "colorMap: object")]
+    [InlineData("Figure image fields", "normalizer: object")]
+    [InlineData("Figure image fields", "vMin: number")]
+    [InlineData("Figure image fields", "vMax: number")]
+    [InlineData("Figure image fields", "alpha: number")]
+    public void TheSchema_ListsTheFieldsOfAFigureTextAndOfAFigureImage(string section, string field)
+    {
+        var fields = SectionOf(Description.Describe(null), section);
+
+        Assert.Contains(fields, line => line.StartsWith(field, StringComparison.Ordinal));
+    }
+
+    /// <summary>The legend section says it serves the figure's legend as well as the subplots'.</summary>
+    [Fact]
+    public void TheLegendSection_NamesTheFiguresLegendToo()
+    {
+        string schema = Description.Describe(null);
+
+        string heading = schema.Split(Environment.NewLine).Single(line => line.StartsWith("Legend fields", StringComparison.Ordinal));
+        Assert.Contains("subPlots[].legend", heading);
+        Assert.Contains("figure", heading, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The fields whose names say little are explained where they are listed, with the enum names the reader accepts:
+    /// the alignments, the offsets (pixels from the bottom-left corner), the place as fractions, and the legend that lists
+    /// every subplot.</summary>
+    [Theory]
+    [InlineData("Figure text fields", "x:", "fraction")]
+    [InlineData("Figure text fields", "y:", "bottom")]
+    [InlineData("Figure text fields", "alignment:", "Center")]
+    [InlineData("Figure text fields", "verticalAlignment:", "Baseline")]
+    [InlineData("Figure text fields", "verticalAlignment:", "Bottom")]
+    [InlineData("Figure text fields", "rotation:", "degrees")]
+    [InlineData("Figure image fields", "data:", "row")]
+    [InlineData("Figure image fields", "xOffset:", "pixels")]
+    [InlineData("Figure image fields", "yOffset:", "bottom")]
+    public void AFieldOfAFigureTextOrImage_IsExplainedWhereItIsListed(string section, string field, string explanation)
+    {
+        var fields = SectionOf(Description.Describe(null), section);
+
+        var line = fields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("texts:", "figtext")]
+    [InlineData("images:", "figimage")]
+    [InlineData("legend:", "every subplot")]
+    public void TheFiguresTextsImagesAndLegend_AreExplainedWhereTheyAreListed(string field, string explanation)
+    {
+        var figureFields = SectionOf(Description.Describe(null), "Figure fields:");
+
+        var line = figureFields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The zoom an inset indicates on its parent is listed with the subplot's fields, said to work on an inset only,
+    /// and has a section of its own whose fields say what they draw.</summary>
+    [Fact]
+    public void TheSubplotFields_ListTheZoomIndicator_AsAnInsetsSetting()
+    {
+        var subplotFields = SectionOf(Description.Describe(null), "Subplot fields");
+
+        var line = subplotFields.Single(l => l.StartsWith("zoomIndicator: object", StringComparison.Ordinal));
+        Assert.Contains("inset", line, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("indicate_inset_zoom", line, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("color: string (colour)", "neutral grey")]
+    [InlineData("alpha: number", "0.5")]
+    [InlineData("lineWidth: number", "pixels")]
+    [InlineData("lineStyle: string (enum)", "Dashed")]
+    [InlineData("connectors: boolean", "two")]
+    public void TheZoomIndicatorFields_AreListedAndExplained(string field, string explanation)
+    {
+        var fields = SectionOf(Description.Describe(null), "Zoom indicator fields");
+
+        var line = fields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>The normaliser is not a public member of the series record, so its line is written by hand: one chart
     /// type's description still names it.</summary>
     [Fact]

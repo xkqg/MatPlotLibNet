@@ -146,9 +146,30 @@ table, the legend and the SVG groups hold those series, and nothing more:
   from 0 and gives the date (`yyyy-MM-dd`), kept as the date of the first cell and worked out from the column and the row; a
   padding cell keeps the date it stands for with no value. A Marimekko chart's table has a row for each column, with its
   name, the edge it begins at, the edge it ends at and the share of the cell in it, and names its segments.
+- **A line of many segments tables what it holds.** `VLines`, `HLines`, `Triplot` and the stems of `Acorr` and `Xcorr`
+  are one line each, with a missing point after each segment, and the table says what the series holds, as it does for any
+  line with a gap: a row for each end of each segment and, after them, a row that reads `NaN` in every column. A spectrum
+  is one table of the frequencies and the values drawn, a gap as `NaN`.
 
 The tick labels themselves are inside the picture, which a screen reader announces by its alt text. Say what the
 chart is in `WithAltText` and `WithDescription`.
+
+### What the figure carries itself
+
+Text and images placed on the figure rather than in a subplot (`FigText`, `FigImage`) are part of what the picture
+shows, so `ToDataTables()` adds them after the tables of the subplots. The texts are one table with a `text` column and a
+row for each text that shows; a text placed off the figure, or holding nothing but blanks, is not drawn and is not
+tabled. The images are one table with a row for each image that says what it is, because its pixels are colours, not a
+series of values:
+
+```
+| image | width (pixels) | height (pixels) | from left (pixels) | from bottom (pixels) |
+| --- | --- | --- | --- | --- |
+| image 1 | 140 | 10 | 700 | 8 |
+```
+
+An image keeps the number it was added under, so `image 3` is the third one added. The figure's legend adds no table:
+its entries are the series the tables above already name.
 
 ### A dashboard
 

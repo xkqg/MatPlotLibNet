@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Algorithms;
 using MatPlotLibNet.Styling;
@@ -44,9 +45,8 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
                 MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, thresholds), cmap, LinearNormalizer.Instance);
         }
 
-        var labelFont = new Font { Size = series.LabelFontSize };
-        string fmt = series.LabelFormat ?? "G4";
-
+        // Every line first, then every label: a line traced after a label would run across the label's box.
+        var drawn = new List<DrawnContour>(contours.Length);
         foreach (var contour in contours)
         {
             if (contour.Points.Length < 2) continue;
@@ -60,22 +60,36 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
                 pixelPoints.Add(Transform.DataToPixel(pt.X, pt.Y));
 
             Ctx.DrawLines(pixelPoints, new StrokeStyle(color, 1.5, LineStyle.Solid));
-
-            // Label at midpoint of the polyline
-            if (series.ShowLabels && pixelPoints.Count >= 2)
-            {
-                int mid = pixelPoints.Count / 2;
-                var labelPt = pixelPoints[mid];
-                string text = contour.Level.ToString(fmt);
-
-                // White background rectangle for readability
-                double approxW = text.Length * labelFont.Size * 0.6;
-                double approxH = labelFont.Size * 1.4;
-                Ctx.DrawRectangle(new Rect(labelPt.X - approxW / 2, labelPt.Y - approxH / 2, approxW, approxH),
-                    new ShapeStyle(Colors.White, null, 0));
-
-                Ctx.DrawText(text, labelPt, labelFont, TextAlignment.Center);
-            }
+            drawn.Add(new DrawnContour(contour.Level, pixelPoints, color));
         }
+
+        if (series.ShowLabels)
+        {
+            foreach (var line in drawn) DrawLabel(series, line);
+        }
+    }
+
+    /// <summary>A contour line as drawn: its level, its points in pixels and its colour.</summary>
+    private readonly record struct DrawnContour(double Level, List<Point> Pixels, Color Color);
+
+    /// <summary>Draws the level of <paramref name="line"/> on it, as matplotlib's <c>clabel</c> does: at the middle of the
+    /// line, turned along it (<see cref="ContourLabelPlacement"/>), in the line's colour, on a box in the plot's background
+    /// that covers the line under the text and <see cref="ContourLabelPlacement.InlineSpacing"/> on each side. A line too
+    /// short for its label gets none.</summary>
+    private void DrawLabel(ContourSeries series, DrawnContour line)
+    {
+        var font = new Font { Size = series.LabelFontSize, Color = line.Color };
+        string text = line.Level.ToString(series.LabelFormat ?? "G4", CultureInfo.InvariantCulture);
+        var size = Ctx.MeasureText(text, font);
+        if (ContourLabelPlacement.Along(line.Pixels, size.Width) is not { } label) return;
+
+        // The text is centred on the line: its baseline stands below the centre in the text's own frame, turned with it.
+        double radians = label.Rotation * Math.PI / 180, drop = TextBox.CentreDrop * font.Size;
+        var baseline = new Point(label.Centre.X + drop * Math.Sin(radians), label.Centre.Y + drop * Math.Cos(radians));
+        var box = new TextBox(baseline, new Size(size.Width + 2 * ContourLabelPlacement.InlineSpacing, size.Height), font.Size,
+            TextAlignment.Center, TextVerticalAlignment.Baseline, label.Rotation).Corners();
+
+        Ctx.DrawPolygon([box.TopLeft, box.TopRight, box.BottomRight, box.BottomLeft], new ShapeStyle(Context.Theme.AxesBackground, null, 0));
+        Ctx.DrawText(text, baseline, font, TextAlignment.Center, label.Rotation);
     }
 }

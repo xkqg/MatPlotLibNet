@@ -58,6 +58,18 @@ internal static class ThemedFontProvider
         Color  = theme.ForegroundText,
     };
 
+    /// <summary>Font for a text the caller places, an annotation or a figure text: the font it was given, else
+    /// <see cref="DataTextFont(Theme)"/>. A font supplied without a colour carries none of its own, and a text drawn with no
+    /// colour comes out black whatever the theme, so its colour is the font's own when it has one, else the colour set
+    /// beside it, else the theme's text colour.</summary>
+    /// <param name="theme">The theme of the figure.</param>
+    /// <param name="font">The font the text was given, or <see langword="null"/>.</param>
+    /// <param name="color">The colour set beside the font, or <see langword="null"/>.</param>
+    /// <returns>The font the text is drawn in.</returns>
+    public static Font DataTextFont(Theme theme, Font? font, Color? color) => font is { } supplied
+        ? supplied with { Color = supplied.Color ?? color ?? theme.ForegroundText }
+        : DataTextFont(theme) with { Color = color ?? theme.ForegroundText };
+
     /// <summary>Font for the per-subplot axes title — 2 points larger than axis labels,
     /// bold. Matches matplotlib's <c>axes.titlesize = 'large'</c> default.</summary>
     public static Font TitleFont(Theme theme) => new()

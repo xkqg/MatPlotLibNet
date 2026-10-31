@@ -57,10 +57,37 @@ internal sealed class ChartSchemaDescription
         ["leftYAxes"] = "the left Y axes past the primary yAxis, outward from the plot: entry i is the left axis i + 1; each entry is a Y axis slot, below",
         ["leftYAxesOverflow"] = "more left Y axes, in the same outward order: it continues where leftYAxes stops, and the reader takes both lists in that order; each entry is a Y axis slot",
         ["yAxisTitleGap"] = "the blank gap in pixels between each Y axis title and its tick labels, and between two stacked Y axes; 4 when absent, never negative",
+        ["legend"] = "the legend box: its place (position), columns, frame and title. A subplot draws its own legend whether or not this is written. On the figure it is the legend of the whole figure (matplotlib's figlegend): it lists the labelled series of every subplot, each entry that looks the same once, and is static; absent draws none, and {} is a legend at its defaults",
+        ["texts"] = "the texts placed on the figure itself, outside every subplot (matplotlib's figtext): a note, a source line, a panel letter; drawn above the subplots in the order written, each entry a figure text, below",
+        ["images"] = "the images placed on the figure itself, under every subplot (matplotlib's figimage): a logo, a watermark, a texture; drawn in the order written, each entry a figure image, below",
+        ["alignment"] = "how the text stands against its point horizontally: Left (the default; the text starts at the point), Center or Right (the text ends at the point)",
+        ["verticalAlignment"] = "how the text stands against its point vertically: Baseline (the default; the baseline is on the point), Center, Top (the text hangs from the point) or Bottom (the text stands on it)",
+        ["rotation"] = "the angle the text is turned through about its point, in degrees, counter-clockwise when positive; absent for 0",
+        ["zoomIndicator"] = "on an inset (an entry of insets[]) only: the zoom the inset indicates on its parent (matplotlib's indicate_inset_zoom), a rectangle over the region the inset shows, spanning the limits the inset draws, and the lines from it to the inset's frame; drawn on a Cartesian parent only; absent draws none, {} is an indicator at its defaults; its fields are below",
     };
 
-    /// <summary>One field as the spec writes it: its wire name and what kind of value it takes.</summary>
-    private readonly record struct WireField(string Name, string Type);
+    /// <summary>Notes that hold for the field of one record only, where the same wire name means something else in another:
+    /// <c>x</c> is a data coordinate on an annotation and a fraction of the figure on a figure text. Read before <see cref="Notes"/>.</summary>
+    private static readonly IReadOnlyDictionary<(string Record, string Field), string> RecordNotes = new Dictionary<(string, string), string>
+    {
+        [("FigureTextDto", "text")] = "the words to draw",
+        [("FigureTextDto", "x")] = "the place of the text's point as a fraction of the figure's width from the left: 0 is the left edge, 1 the right; a place outside 0 to 1 is kept and not drawn",
+        [("FigureTextDto", "y")] = "the place of the text's point as a fraction of the figure's height counted up from the bottom, as in matplotlib: 0 is the bottom edge, 1 the top, so 0.97 is just under the top",
+        [("FigureImageDto", "data")] = "the pixel values as a list of rows of equal length, the first row being the top row of the image; each value is one pixel of the figure, drawn at its native size through the colour map; a missing cell is the string \"NaN\"",
+        [("FigureImageDto", "xOffset")] = "pixels from the left edge of the figure to the left edge of the image",
+        [("FigureImageDto", "yOffset")] = "pixels from the bottom edge of the figure to the bottom edge of the image, counted up as in matplotlib's figimage",
+        [("FigureImageDto", "vMin")] = "the value at the low end of the colour range; absent for the smallest value that can be drawn (a missing cell and an infinity are left out)",
+        [("FigureImageDto", "vMax")] = "the value at the high end of the colour range; absent for the largest value that can be drawn",
+        [("FigureImageDto", "alpha")] = "the opacity of the whole image, 0 (clear) to 1 (opaque); absent for 1",
+        [("ZoomIndicatorDto", "color")] = "the colour of the rectangle and the connectors, a CSS4 colour name or #RRGGBB; absent for the theme's neutral grey (matplotlib's 0.5 grey)",
+        [("ZoomIndicatorDto", "alpha")] = "the opacity of the rectangle and the connectors, 0 (clear) to 1 (opaque); absent for 0.5, matplotlib's",
+        [("ZoomIndicatorDto", "lineWidth")] = "the width of their lines in pixels, 0 or more; absent for 1",
+        [("ZoomIndicatorDto", "lineStyle")] = "the dash pattern of their lines: Solid (the default), Dashed, Dotted, DashDot or None (draws nothing)",
+        [("ZoomIndicatorDto", "connectors")] = "true (the default) draws the two of the four corner lines matplotlib's rule keeps for where the inset stands against the region (none when one holds the other); false draws the rectangle alone",
+    };
+
+    /// <summary>One field as the spec writes it: its wire name, what kind of value it takes and the record it is a field of.</summary>
+    private readonly record struct WireField(string Name, string Type, string Record);
 
     private readonly ChartTypeCatalog _catalog;
 
@@ -124,10 +151,16 @@ internal sealed class ChartSchemaDescription
         AppendFields(text, FieldsOf(TypeNamed("TickConfigDto")));
         text.AppendLine().AppendLine("Text style fields (subPlots[].titleStyle, an axis's labelStyle):");
         AppendFields(text, FieldsOf(TypeNamed("TextStyleDto")));
-        text.AppendLine().AppendLine("Legend fields (subPlots[].legend):");
+        text.AppendLine().AppendLine("Legend fields (subPlots[].legend, and the legend of the figure as a whole):");
         AppendFields(text, FieldsOf(TypeNamed("LegendDto")));
         text.AppendLine().AppendLine("Colour bar fields (subPlots[].colorBar, and the figure's figureColorBar):");
         AppendFields(text, FieldsOf(TypeNamed("ColorBarDto")));
+        text.AppendLine().AppendLine("Zoom indicator fields (subPlots[].insets[].zoomIndicator: the zoom an inset indicates on its parent):");
+        AppendFields(text, FieldsOf(TypeNamed("ZoomIndicatorDto")));
+        text.AppendLine().AppendLine("Figure text fields (an entry of the figure's texts[]: a text placed on the figure itself, in fractions of it):");
+        AppendFields(text, FieldsOf(TypeNamed("FigureTextDto")));
+        text.AppendLine().AppendLine("Figure image fields (an entry of the figure's images[]: an image placed on the figure itself, in pixels of it):");
+        AppendFields(text, FieldsOf(TypeNamed("FigureImageDto")));
         text.AppendLine().AppendLine("Grid fields (subPlots[].grid, and a theme's defaultGrid):");
         AppendFields(text, FieldsOf(TypeNamed("GridDto")));
         text.AppendLine().AppendLine("Grid change fields (subPlots[].gridChange: only the fields named change the theme's grid, the rest stay the theme's):");
@@ -146,9 +179,9 @@ internal sealed class ChartSchemaDescription
         AppendKinds(text, typeof(TickLocatorDto));
         text.AppendLine().AppendLine("Tick formatters (an axis's tickFormatter):");
         AppendKinds(text, typeof(TickFormatterDto));
-        text.AppendLine().AppendLine("Normalisers (the normalizer of a series drawn through a colour map):");
+        text.AppendLine().AppendLine("Normalisers (the normalizer of a series, or of a figure image, drawn through a colour map):");
         AppendKinds(text, typeof(NormalizerDto));
-        text.AppendLine().AppendLine("Colour maps built in code (a series' or a colour bar's colorMap; colours as names or #RRGGBB; positions rise from 0 to 1, one per colour; a reversed map holds the map it reverses, a named one the name a map is registered under):");
+        text.AppendLine().AppendLine("Colour maps built in code (a series', a colour bar's or a figure image's colorMap; colours as names or #RRGGBB; positions rise from 0 to 1, one per colour; a reversed map holds the map it reverses, a named one the name a map is registered under):");
         AppendKinds(text, typeof(ColorMapDto));
         text.AppendLine().AppendLine($"Series fields (a series stands at {SeatPaths(SeatKind.Series)}) — {FieldsOf(typeof(SeriesDto)).Count} in total, each type uses the ones that apply:");
         AppendFields(text, FieldsOf(typeof(SeriesDto)).Take(24).ToArray());
@@ -170,10 +203,10 @@ internal sealed class ChartSchemaDescription
 
     private static void AppendFields(StringBuilder text, IReadOnlyList<WireField> fields)
     {
-        foreach (var (name, type) in fields)
+        foreach (var (name, type, record) in fields)
         {
             text.Append("  ").Append(name).Append(": ").Append(type);
-            if (Notes.TryGetValue(name, out var note))
+            if (RecordNotes.TryGetValue((record, name), out var note) || Notes.TryGetValue(name, out note))
             {
                 text.Append("  — ").Append(note);
             }
@@ -202,7 +235,7 @@ internal sealed class ChartSchemaDescription
     private static IReadOnlyList<WireField> FieldsOf(Type dto) =>
         [.. dto.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
             .Where(p => p.GetMethod is { IsPublic: true } || p.IsDefined(typeof(JsonIncludeAttribute)))
-            .Select(p => new WireField(JsonNamingPolicy.CamelCase.ConvertName(p.Name), WireTypeOf(p.PropertyType)))];
+            .Select(p => new WireField(JsonNamingPolicy.CamelCase.ConvertName(p.Name), WireTypeOf(p.PropertyType), dto.Name))];
 
     private static Type TypeNamed(string name) =>
         typeof(SeriesDto).Assembly.GetType($"MatPlotLibNet.Serialization.{name}")

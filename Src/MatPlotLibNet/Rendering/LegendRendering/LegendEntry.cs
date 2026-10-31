@@ -42,10 +42,18 @@ internal static class AxesLegendEntryExtensions
         /// (<c>AxesRenderer.DrawsDirectLabels</c>). Only then does a series on a Y axis that asked for one leave the
         /// legend; a top X axis series keeps its entry, since end labels are drawn for the lines of the Y axes only.</param>
         /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
-        internal IReadOnlyList<LegendEntry> LegendEntries(bool directLabelsDrawn)
+        internal IReadOnlyList<LegendEntry> LegendEntries(bool directLabelsDrawn) =>
+            axes.LegendEntries(directLabelsDrawn, axes.Legend.LegendValues);
+
+        /// <summary>The entries of <paramref name="axes"/> by the rule of <c>LegendEntries(bool)</c>, with the text of the
+        /// entries (<see cref="Legend.LegendValues"/>) asked for by the caller instead of by the axes' own legend: the legend of
+        /// a figure lists the entries of several axes under its own say.</summary>
+        /// <param name="directLabelsDrawn">Whether the renderer of these axes draws end-of-line labels.</param>
+        /// <param name="legendValues">Whether each label is suffixed with its series' last value.</param>
+        /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
+        internal IReadOnlyList<LegendEntry> LegendEntries(bool directLabelsDrawn, bool legendValues)
         {
             var entries = new List<LegendEntry>();
-            bool legendValues = axes.Legend.LegendValues;
             var colours = axes.ColorSlots();
 
             // Every trace belongs in the one legend, whatever axis measures it: a chart that draws several lines and names

@@ -19,7 +19,8 @@ namespace MatPlotLibNet.Mcp;
 /// field and path, and only a document it has normalised reaches <see cref="IChartSerializer.FromJson"/>.</summary>
 /// <remarks>Order: parse → normalise (defaults, colours, enum spelling, bounds, text lengths) → strict structural pass
 /// over the SAME DTO records the serializer reads (an unknown field is a refusal with its path) → semantic pass
-/// (types against the catalog, array lengths) → the serializer. A subplot keeps its axes and series at many seats (the
+/// (types against the catalog, array lengths) → the serializer → the figure it built must show something (a series, or a text
+/// or an image on the figure itself). A subplot keeps its axes and series at many seats (the
 /// primary pair, the top and right axes, every Y axis slot of either side): the normalising and the semantic pass both walk
 /// them through <see cref="AxesSeatShape"/>, so a check reaches every seat and a refusal names the seat's path.</remarks>
 internal sealed partial class ChartSpecReader
@@ -48,15 +49,32 @@ internal sealed partial class ChartSpecReader
         _limits = limits;
     }
 
-    /// <summary>The <see cref="Figure"/> the spec describes, or a <see cref="ToolRefusalException"/> naming what is wrong.</summary>
+    /// <summary>The <see cref="Figure"/> the spec describes, or a <see cref="ToolRefusalException"/> naming what is wrong. A spec
+    /// is refused as "Nothing to draw" when it holds no series and the figure carries nothing that shows of its own (a text or an
+    /// image), because that picture would be blank.</summary>
     public Figure Read(ChartSpec spec)
     {
         JsonObject root = ParseObject(spec.Json);
         Normalise(root);
         FigureDto dto = DeserializeStrictly(root);
-        Validate(dto);
-        return Deserialize(root.ToJsonString());
+        int series = Validate(dto);
+        Figure figure = Deserialize(root.ToJsonString());
+        if (series == 0 && !ShowsSomethingOfItsOwn(figure))
+        {
+            throw new ToolRefusalException(
+                "Nothing to draw: the spec has no series, and no text or image on the figure that shows. Put at least one series with a 'type' "
+                + "in subPlots[].series[], or a text in texts[] or an image in images[]. A legend or a colour bar alone draws nothing.");
+        }
+
+        return figure;
     }
+
+    /// <summary>Whether the figure draws something with no series on it: a text that shows or an image that shows, by the one rule
+    /// core's data table reads as well (<see cref="FigureText.IsShownOn"/>, <see cref="FigureImage.IsShownOn"/>). A legend and a
+    /// colour bar are not counted: they describe what series draw, so with none they are no picture.</summary>
+    private static bool ShowsSomethingOfItsOwn(Figure figure) =>
+        figure.Texts.Any(text => text.IsShownOn(figure.Width, figure.Height))
+        || figure.Images.Any(image => image.IsShownOn(figure.Height));
 
     private static JsonObject ParseObject(string json)
     {
@@ -88,8 +106,30 @@ internal sealed partial class ChartSpecReader
         CheckText(figure, "$", "chartId");
         NormaliseColours(figure, "$");
         NormaliseColorBar(figure, "figureColorBar", "$");
+        NormaliseFields(figure, "legend", "$", SpecNodeKind.Legend, "position");
+        ForEachObject(figure, "texts", "$", NormaliseFigureText);
+        ForEachObject(figure, "images", "$", NormaliseFigureImage);
         NormaliseTheme(figure, "$");
         ForEachObject(figure, "subPlots", "$", NormaliseAxes);
+    }
+
+    /// <summary>A text placed on the figure itself: its words, how it stands against its point and its font. Its colours are
+    /// normalised with every other colour of the document.</summary>
+    private void NormaliseFigureText(JsonObject text, string path)
+    {
+        CheckText(text, path, "text");
+        NormaliseEnum(text, SpecNodeKind.FigureText, "alignment", path, seriesType: null);
+        NormaliseEnum(text, SpecNodeKind.FigureText, "verticalAlignment", path, seriesType: null);
+        NormaliseFields(text, "font", path, SpecNodeKind.Font, "weight", "slant");
+    }
+
+    /// <summary>An image placed on the figure itself: the kinds of its normaliser and of its colour map, which are checked and
+    /// moved first as a series' are. Its colours are normalised with every other colour of the document. An image is cut at
+    /// the figure's edge and never makes the picture bigger, so <see cref="EnsurePictureFits"/> has nothing to count for it.</summary>
+    private void NormaliseFigureImage(JsonObject image, string path)
+    {
+        NormaliseKind(image, "normalizer", path, SpecNodeKind.Normalizer);
+        NormaliseColorMap(image, "colorMap", path);
     }
 
     /// <summary>The figure's theme: the enum values of its font and its grid, and the line styles and markers its cycler
@@ -134,6 +174,7 @@ internal sealed partial class ChartSpecReader
         NormaliseFields(axes, "titleStyle", path, SpecNodeKind.TextStyle, "fontWeight", "fontSlant");
         NormaliseFields(axes, "legend", path, SpecNodeKind.Legend, "position");
         NormaliseColorBar(axes, "colorBar", path);
+        NormaliseFields(axes, "zoomIndicator", path, SpecNodeKind.ZoomIndicator, "lineStyle");
         NormaliseFields(axes, "grid", path, SpecNodeKind.Grid, "lineStyle", "which", "axis");
         NormaliseFields(axes, "gridChange", path, SpecNodeKind.Grid, "lineStyle", "which", "axis");
         if (axes["spines"] is JsonObject spines)
@@ -482,19 +523,18 @@ internal sealed partial class ChartSpecReader
 
     // ---- the semantic pass ----------------------------------------------------------------------------------------
 
-    private void Validate(FigureDto dto)
+    /// <summary>Checks every series of every subplot and returns how many there are, which <see cref="Read"/> weighs against what
+    /// the figure draws of its own.</summary>
+    private int Validate(FigureDto dto)
     {
-        int drawn = 0;
+        int series = 0;
         var subPlots = dto.SubPlots ?? [];
         for (int i = 0; i < subPlots.Count; i++)
         {
-            drawn += ValidateAxes(subPlots[i], $"$.subPlots[{i}]");
+            series += ValidateAxes(subPlots[i], $"$.subPlots[{i}]");
         }
 
-        if (drawn == 0)
-        {
-            throw new ToolRefusalException("Nothing to draw: the spec has no series. Put at least one series with a 'type' in subPlots[].series[].");
-        }
+        return series;
     }
 
     /// <summary>The series of one subplot at every seat (<see cref="AxesSeatShape"/>), each checked once, and the number the

@@ -16,6 +16,8 @@
   href: subplots.md
 - name: Contour Plots
   href: contour.md
+- name: Signal Analysis
+  href: signal-analysis.md
 - name: Financial Charts
   href: financial.md
 - name: Sankey Diagrams

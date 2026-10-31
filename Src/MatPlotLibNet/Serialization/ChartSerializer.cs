@@ -82,6 +82,9 @@ public sealed class ChartSerializer : IChartSerializer
         SubPlots = AxesToDtos(figure.SubPlots, figure.Theme),
         Enable3DRotation = figure.Enable3DRotation.OrNullAtRest(RestingFigure.Enable3DRotation),
         FigureColorBar = ColorBarDto.From(figure.FigureColorBar),
+        Legend = LegendDto.FromPresent(figure.Legend),
+        Texts = figure.Texts.Count > 0 ? [.. figure.Texts.Select(FigureTextDto.From)] : null,
+        Images = figure.Images.Count > 0 ? [.. figure.Images.Select(FigureImageDto.From)] : null,
         Theme = ReferenceEquals(figure.Theme, RestingFigure.Theme) ? null : ThemeDto.From(figure.Theme),
         Spacing = figure.Spacing == RestingFigure.Spacing ? null : SubPlotSpacingDto.From(figure.Spacing),
         ChartId = figure.ChartId,
@@ -181,6 +184,7 @@ public sealed class ChartSerializer : IChartSerializer
                 X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
             } : null,
             Insets = axes.Insets.Count > 0 ? AxesToDtos(axes.Insets, theme) : null,
+            ZoomIndicator = ZoomIndicatorDto.From(axes.ZoomIndicator),
             Elevation = axes.Elevation != 30 ? axes.Elevation : null,
             Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
             CameraDistance = axes.CameraDistance,
@@ -389,6 +393,7 @@ public sealed class ChartSerializer : IChartSerializer
             BackgroundColor = dto.BackgroundColor,
             Enable3DRotation = dto.Enable3DRotation ?? RestingFigure.Enable3DRotation,
             FigureColorBar = dto.FigureColorBar?.ToColorBar(),
+            Legend = dto.Legend?.ToLegend(),
             Theme = dto.Theme?.ToTheme() ?? RestingFigure.Theme,
             Spacing = dto.Spacing?.ToSpacing() ?? RestingFigure.Spacing,
             ChartId = dto.ChartId,
@@ -414,6 +419,11 @@ public sealed class ChartSerializer : IChartSerializer
                 Rows = gsDto.Rows, Cols = gsDto.Cols,
                 HeightRatios = gsDto.HeightRatios, WidthRatios = gsDto.WidthRatios
             };
+
+        foreach (var textDto in dto.Texts ?? [])
+            textDto.AddTo(figure);
+        foreach (var imageDto in dto.Images ?? [])
+            imageDto.AddTo(figure);
 
         foreach (var axDto in dto.SubPlots ?? [])
         {
@@ -460,6 +470,7 @@ public sealed class ChartSerializer : IChartSerializer
         if (axDto.TitleLoc is { } titleLoc) axes.TitleLoc = titleLoc;
         if (axDto.Legend is { } legend) axes.Legend = legend.ToLegend();
         if (axDto.ColorBar is { } colorBar) axes.ColorBar = colorBar.ToColorBar();
+        axes.ZoomIndicator = axDto.ZoomIndicator?.ToZoomIndicator();
 
         if (axDto.XAxis is not null) ApplyAxis(axes.XAxis, axDto.XAxis);
         if (axDto.YAxis is not null) ApplyAxis(axes.YAxis, axDto.YAxis);
@@ -1051,6 +1062,13 @@ internal sealed record FigureDto
     public bool? Enable3DRotation { get; init; }
     /// <summary>The colour bar the figure draws beside all its subplots; absent when it has none.</summary>
     public ColorBarDto? FigureColorBar { get; init; }
+    /// <summary>The legend of the figure as a whole, which lists the labelled series of every subplot; absent when the figure has
+    /// none. An empty object is a legend at its defaults (which draws), so a missing field and an empty one differ.</summary>
+    public LegendDto? Legend { get; init; }
+    /// <summary>The texts placed on the figure itself, in the order they were added; absent when there are none.</summary>
+    public List<FigureTextDto>? Texts { get; init; }
+    /// <summary>The images placed on the figure itself, in the order they were added; absent when there are none.</summary>
+    public List<FigureImageDto>? Images { get; init; }
 
     // The figure's own settings. Each is absent at a new figure's value, so a figure that sets none of them writes the
     // bytes it wrote before they reached the JSON, and a JSON written before then reads back at those values.
@@ -1197,6 +1215,10 @@ internal sealed record AxesDto
     public List<FibonacciRetracementDto>? FibonacciRetracements { get; init; }
     public InsetBoundsDto? InsetBounds { get; init; }
     public List<AxesDto>? Insets { get; init; }
+    /// <summary>The zoom this axes indicates on its parent when it is an inset: the rectangle over the region it shows and the
+    /// lines to its frame. Absent when it indicates none; an empty object is an indicator at its defaults. A 1.27.0 reader
+    /// skips it.</summary>
+    public ZoomIndicatorDto? ZoomIndicator { get; init; }
     public double? Elevation { get; init; }
     public double? Azimuth { get; init; }
     public double? CameraDistance { get; init; }
