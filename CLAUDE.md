@@ -47,6 +47,11 @@ mounts beside each other (the committed state with LF endings, as on the runner,
 `dotnet tool install -g docfx`, `docfx metadata docs/docfx.json` and `docfx build docs/docfx.json` with
 `DOTNET_ROLL_FORWARD=Major` (the image has the 10 runtime only). Measured on the 1.27.0 tree, on the noble and the resolute image: 0 warnings, 0 errors,
 all 14 suites green, docfx 0 errors. `tools/prepush.ps1` calls `git` in its docfx step, so the PowerShell that runs it needs `git` on its PATH.
+**The runner's `coverage` job is part of the ubuntu half, and the steps above do not run it.** A line reached only by a timing-dependent
+path is measured on a Windows run and missed on Linux (1.28.0: `ChartSubscriptionClient` 100 % -> 99 % on the runner, green here). In the
+container install `dotnet-coverage` and `dotnet-reportgenerator-globaltool`, run `bash tools/coverage/run.sh` (no `--check`: the image has
+no `pwsh`), copy `out/coverage/coverage.cobertura.xml` out through a mounted directory, and run `tools/coverage/check-thresholds.ps1
+-Cobertura <file> -Strict` on the host. A class whose line or branch figure differs from the Windows merge needs a test that waits on the fact.
 
 `tools/coverage/thresholds.json` carries no exemptions by policy (`90/90`, `exemptions: {}`); a class that is
 legitimately untestable gets `[ExcludeFromCodeCoverage]` at the source instead, so it drops out of the cobertura
