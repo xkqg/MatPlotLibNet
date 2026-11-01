@@ -107,4 +107,24 @@ public class MinorTickSpacingTests
         Assert.IsType<MatPlotLibNet.Rendering.TickFormatters.AutoDateFormatter>(fig.SubPlots[0].XAxis.TickFormatter);
         Assert.IsType<MatPlotLibNet.Rendering.TickLocators.AutoDateLocator>(fig.SubPlots[0].XAxis.TickLocator);
     }
+
+    [Theory]
+    [InlineData(AxisScale.Log)]
+    [InlineData(AxisScale.SymLog)]
+    public void AScaledAxisWithMinorTicks_DrawsNoMarkAtAPositionItCannotPlace(AxisScale scale)
+    {
+        // The five-way split of a decade step runs below the first major tick, where a log scale has no place (log of a
+        // number at or below 0): that position is not a number, and an SVG line written at it is not a line.
+        var svg = Plt.Create()
+            .WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 10, 100, 1000], [1.0, 2, 3, 4])
+                .SetXScale(scale)
+                .SetYScale(scale)
+                .WithMinorTicks())
+            .Build()
+            .ToSvg();
+
+        Assert.DoesNotContain("NaN", svg, StringComparison.Ordinal);
+    }
 }

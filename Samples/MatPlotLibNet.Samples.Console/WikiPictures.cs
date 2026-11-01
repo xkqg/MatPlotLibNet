@@ -5,6 +5,7 @@ using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Indicators.Streaming;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Numerics;
@@ -37,6 +38,10 @@ internal static class WikiPictures
 
     private static IEnumerable<WikiPicture> All()
     {
+        yield return new("patch_kinds", PatchKinds());
+        yield return new("patches_log_axis", PatchesLogAxis());
+        yield return new("linked_fahrenheit", LinkedFahrenheit());
+        yield return new("linked_period", LinkedPeriod());
         yield return new("stairs_orders", StairsOrders());
         yield return new("segments_ranges", SegmentsRanges());
         yield return new("mesh_sensors", MeshSensors());
@@ -1387,6 +1392,86 @@ internal static class WikiPictures
                 .SetXLabel("Bar")
                 .SetYLabel("Transfer entropy (nats)")
                 .TransferEntropy(source, target, new TransferEntropyOptions(Neighbours: 4, Window: 100, Stride: 5)))
+            .Build();
+        return figure;
+    }
+
+    // The pictures of release 1.29.0: every kind of patch, the patches on a log axis, and the axes that show the primary's values in
+    // another unit.
+    private static Figure PatchKinds()
+    {
+        var figure = Plt.Create()
+            .WithTitle("Every kind of patch")
+            .WithSize(900, 560)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .SetAspect(1)
+                .AddPatch(new Rectangle(new(0.8, 0.8), 3, 1.6) { Angle = 15, FaceColor = Colors.Tab10Blue, Label = "Rectangle" })
+                .AddPatch(new Polygon([new(5, 0.8), new(8, 0.8), new(8.4, 2.6), new(6.6, 3.6), new(4.8, 2.6)]) { FaceColor = Colors.Tab10Orange, Label = "Polygon" })
+                .AddPatch(new Arrow(new(9.2, 0.9), 1.6, 1.2) { Width = 0.3, HeadWidth = 0.9, FaceColor = Colors.Tab10Green, Label = "Arrow" })
+                .AddPatch(new Circle(new(2, 6.2), 1.2) { FaceColor = Color.FromHex("#D62728"), Label = "Circle" })
+                .AddPatch(new Ellipse(new(5.8, 6.2), 3.6, 1.8) { Angle = 30, FaceColor = Color.FromHex("#9467BD"), Label = "Ellipse" })
+                .AddPatch(new Wedge(new(9.6, 6.2), 1.4, 30, 150) { FaceColor = Color.FromHex("#8C564B"), Label = "Wedge" })
+                .AddPatch(new Arc(new(13.6, 2.2), 2.4, 2.4) { Theta1 = 20, Theta2 = 250, EdgeWidth = 3, Label = "Arc" })
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
+    private static Figure PatchesLogAxis()
+    {
+        var figure = Plt.Create()
+            .WithSize(860, 400)
+            .TightLayout()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithTitle("Linear X axis")
+                .AddPatch(new Circle(new(4, 6), 2.5))
+                .AddPatch(new Rectangle(new(7, 1), 4, 2))
+                .AddPatch(new Polygon([new(1, 1), new(5, 1), new(1, 4)])))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithTitle("Log X axis")
+                .SetXScale(AxisScale.Log)
+                .AddPatch(new Circle(new(4, 6), 2.5))
+                .AddPatch(new Rectangle(new(7, 1), 4, 2))
+                .AddPatch(new Polygon([new(1, 1), new(5, 1), new(1, 4)])))
+            .Build();
+        return figure;
+    }
+
+    private static Figure LinkedFahrenheit()
+    {
+        double[] hour = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+        double[] celsius = [3, 2, 1, 7, 14, 19, 17, 10, 6];
+
+        var figure = Plt.Create()
+            .WithSize(760, 420)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTitle("A day's temperature in two units")
+                .Plot(hour, celsius)
+                .SetXLabel("Hour")
+                .SetYLabel("Temperature (°C)")
+                .WithAddRightYAxis(right => right
+                    .SetYLabel("Temperature (°F)")
+                    .Link(AxisTransform.Linear(1.8, 32))))
+            .Build();
+        return figure;
+    }
+
+    private static Figure LinkedPeriod()
+    {
+        double[] frequency = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+        double[] gain = [1.00, 1.00, 0.99, 0.98, 0.93, 0.71, 0.45, 0.24, 0.10, 0.05];
+
+        var figure = Plt.Create()
+            .WithSize(760, 440)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTitle("A low-pass filter, by frequency and by period")
+                .Plot(frequency, gain)
+                .SetXScale(AxisScale.Log)
+                .SetXLabel("Frequency (Hz)")
+                .SetYLabel("Gain")
+                .WithSecondaryXAxis(top => top
+                    .SetXLabel("Period (s)")
+                    .Link(AxisTransform.Reciprocal())))
             .Build();
         return figure;
     }

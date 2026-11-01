@@ -173,10 +173,12 @@ public class FigLegendTests
         var entries = figure.LegendEntries(new Legend(), new RecordingRenderContext());
 
         Assert.Equal(["line", "points"], entries.Select(e => e.Label));
-        Assert.Same(figure.SubPlots[0].Series[0], entries[0].Series);
-        Assert.Same(figure.SubPlots[1].Series[0], entries[1].Series);
-        Assert.Equal(LegendSwatchKind.LineMarker, entries[0].Swatch.Kind);
-        Assert.Equal(LegendSwatchKind.Marker, entries[1].Swatch.Kind);
+        var line = Assert.IsType<SeriesLegendEntry>(entries[0]);
+        var points = Assert.IsType<SeriesLegendEntry>(entries[1]);
+        Assert.Same(figure.SubPlots[0].Series[0], line.Series);
+        Assert.Same(figure.SubPlots[1].Series[0], points.Series);
+        Assert.Equal(LegendSwatchKind.LineMarker, line.Swatch.Kind);
+        Assert.Equal(LegendSwatchKind.Marker, points.Swatch.Kind);
     }
 
     [Fact]

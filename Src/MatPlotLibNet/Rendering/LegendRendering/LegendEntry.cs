@@ -4,56 +4,66 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.LegendRendering;
 
-/// <summary>One row of an axes' legend: the series it names, the index that series has in the whole legend list,
-/// and the text the legend prints for it.</summary>
-/// <param name="Series">The series the entry stands for.</param>
-/// <param name="OriginalIndex">The series' IDENTITY slot (<see cref="SeriesSlotExtensions.SlotIndex"/>): its place in
-/// <see cref="Axes.AllSeries"/>. It is the one number the drawn group (<c>data-legend-index</c>) and the hit-test bounds
-/// use, so a primary series keeps its own index and a series on any other axis continues where the series before it
-/// stopped — unaffected by
-/// <see cref="Models.Series.ChartSeries.ColorGroup"/>, so a click never crosses from one member of a group to
-/// another.</param>
-/// <param name="ColorSlotIndex">The series' COLOUR slot (<see cref="SeriesSlotExtensions.ColorSlotIndex"/>): the
-/// swatch reads this, not <paramref name="OriginalIndex"/>, so a grouped series' swatch wears the colour its group
-/// is actually drawn in.</param>
-/// <param name="Label">The display label: the series label plus the legend-values suffix when
-/// <see cref="Legend.LegendValues"/> is on.</param>
-/// <param name="Swatch">How the entry's handle is drawn.</param>
-internal readonly record struct LegendEntry(ISeries Series, int OriginalIndex, int ColorSlotIndex, string Label, LegendSwatch Swatch);
+/// <summary>One row of a legend: the text it prints and the handle drawn before it. A row stands for a series
+/// (<see cref="SeriesLegendEntry"/>) or for a patch (<see cref="PatchLegendEntry"/>). What differs between the two (the handle, the
+/// index a click toggles, what makes two rows look alike) each kind says for itself, so the drawing, the hit-test, the margin
+/// reservation and the legend of a figure read every row alike and never ask which kind it is.</summary>
+/// <param name="Label">The text the legend prints for the row.</param>
+internal abstract record LegendEntry(string Label)
+{
+    /// <summary>The series index a click on the row toggles: the number its drawn group carries (<c>data-legend-index</c>) and its
+    /// hit-test bounds carry. <see langword="null"/> for a row a click toggles nothing with, which has neither.</summary>
+    internal abstract int? ToggleIndex { get; }
 
-/// <summary>The single place that decides which series of an axes appear in its legend.</summary>
-/// <remarks>The drawing (<c>AxesRenderer.RenderLegend</c>), the hit-test (<c>AxesRenderer.ComputeLegendBounds</c>)
-/// and the margin reservation (<c>LegendMeasurer.MeasureBox</c>) all read this list, so they cannot disagree about
-/// how many rows there are, in which order, or what they say.</remarks>
+    /// <summary>Draws the row's handle in <paramref name="swatch"/> through <paramref name="legend"/>, the one drawer of handles,
+    /// which draws each kind of row its own way.</summary>
+    /// <param name="legend">The legend being drawn.</param>
+    /// <param name="swatch">The handle's box: matplotlib's handle length wide and handle height high.</param>
+    internal abstract void DrawSwatch(LegendRenderer legend, Rect swatch);
+
+    /// <summary>What the row looks like once drawn under <paramref name="theme"/>, compared by value: two rows whose looks are equal
+    /// are the same row to the eye, which the legend of a figure lists once.</summary>
+    /// <param name="theme">The theme the row is drawn under.</param>
+    /// <returns>A value whose equality is the row's look.</returns>
+    internal abstract object LookUnder(Theme theme);
+}
+
+/// <summary>The single place that decides which series and which patches of an axes have a row in its legend.</summary>
+/// <remarks>The renderer of the axes joins the two (<see cref="AxesRenderer.LegendEntries(bool)"/>, series rows first) into the
+/// one list the drawing (<c>AxesRenderer.RenderLegend</c>), the hit-test (<c>AxesRenderer.ComputeLegendBounds</c>), the margin
+/// reservation (<c>LegendMeasurer.MeasureBox</c>) and the legend of the figure all read, so they cannot disagree about how many
+/// rows there are, in which order, or what they say.</remarks>
 internal static class AxesLegendEntryExtensions
 {
     extension(Axes axes)
     {
-        /// <summary>Lists the legend entries of <paramref name="axes"/> in identity order (<see cref="Axes.AllSeries"/>):
+        /// <summary>Lists the series rows of <paramref name="axes"/> in identity order (<see cref="Axes.AllSeries"/>):
         /// the series of every Y axis of the container (the primary's, then every right slot's, then every left slot's),
-        /// then the series of the top X axis, an entry for each part of each that has one
+        /// then the series of the top X axis, a row for each part of each that has one
         /// (<see cref="ChartSeries.LegendParts"/>, unless <c>IsListed</c> says its name is drawn elsewhere). The parts of one
         /// series carry the same index.</summary>
         /// <param name="directLabelsDrawn">Whether the renderer of these axes draws end-of-line labels
         /// (<c>AxesRenderer.DrawsDirectLabels</c>). Only then does a series on a Y axis that asked for one leave the
-        /// legend; a top X axis series keeps its entry, since end labels are drawn for the lines of the Y axes only.</param>
-        /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
-        internal IReadOnlyList<LegendEntry> LegendEntries(bool directLabelsDrawn) =>
+        /// legend; a top X axis series keeps its row, since end labels are drawn for the lines of the Y axes only.</param>
+        /// <returns>The rows in drawing order; empty when no series has a row.</returns>
+        internal IReadOnlyList<SeriesLegendEntry> LegendEntries(bool directLabelsDrawn) =>
             axes.LegendEntries(directLabelsDrawn, axes.Legend.LegendValues);
 
-        /// <summary>The entries of <paramref name="axes"/> by the rule of <c>LegendEntries(bool)</c>, with the text of the
-        /// entries (<see cref="Legend.LegendValues"/>) asked for by the caller instead of by the axes' own legend: the legend of
-        /// a figure lists the entries of several axes under its own say.</summary>
+        /// <summary>The series rows of <paramref name="axes"/> by the rule of <c>LegendEntries(bool)</c>, with the text of the
+        /// rows (<see cref="Legend.LegendValues"/>) asked for by the caller instead of by the axes' own legend: the legend of
+        /// a figure lists the rows of several axes under its own say.</summary>
         /// <param name="directLabelsDrawn">Whether the renderer of these axes draws end-of-line labels.</param>
         /// <param name="legendValues">Whether each label is suffixed with its series' last value.</param>
-        /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
-        internal IReadOnlyList<LegendEntry> LegendEntries(bool directLabelsDrawn, bool legendValues)
+        /// <returns>The rows in drawing order; empty when no series has a row.</returns>
+        internal IReadOnlyList<SeriesLegendEntry> LegendEntries(bool directLabelsDrawn, bool legendValues)
         {
-            var entries = new List<LegendEntry>();
+            var entries = new List<SeriesLegendEntry>();
             var colours = axes.ColorSlots();
 
             // Every trace belongs in the one legend, whatever axis measures it: a chart that draws several lines and names
@@ -69,7 +79,7 @@ internal static class AxesLegendEntryExtensions
                     foreach (var part in PartsOf(one))
                     {
                         if (string.IsNullOrEmpty(part.Label)) continue;
-                        entries.Add(new LegendEntry(one, index, colours[index] + part.ColorSlotOffset,
+                        entries.Add(new SeriesLegendEntry(one, index, colours[index] + part.ColorSlotOffset,
                             AxesRenderer.BuildLegendDisplayLabel(part.Label, one, legendValues), part.Swatch));
                     }
                 }
@@ -78,6 +88,25 @@ internal static class AxesLegendEntryExtensions
             foreach (var seat in axes.YSlotSeats())
                 Collect(seat.Pair, seat.FirstIndexInPair, seat.Slot.Series, directLabelsDrawn);
             Collect(SeriesAxisPair.SecondaryX, 0, axes.XSecondarySeries, endLabelled: false);
+            return entries;
+        }
+
+        /// <summary>The patch rows of <paramref name="axes"/>, in the order the patches were added: one for each patch whose
+        /// <see cref="Patch.Label"/> names it, matplotlib's rule (<c>_get_legend_handles_labels</c>): the label is neither missing
+        /// nor empty and does not start with an underscore. Neither a patch's opacity nor its shape decides. A row prints the
+        /// label as it is, with no legend value.</summary>
+        /// <returns>The rows; empty when no patch has a row.</returns>
+        internal IReadOnlyList<PatchLegendEntry> PatchLegendEntries()
+        {
+            List<PatchLegendEntry> entries = [];
+            foreach (var patch in axes.Patches)
+            {
+                if (patch.Label is { Length: > 0 } label && label[0] != '_')
+                {
+                    entries.Add(new PatchLegendEntry(patch, label));
+                }
+            }
+
             return entries;
         }
     }

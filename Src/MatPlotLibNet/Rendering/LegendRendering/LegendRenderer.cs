@@ -35,13 +35,24 @@ internal sealed class LegendRenderer(Legend legend, Theme theme, IRenderContext 
         return calculator.Compute(legend, entries.Select(e => e.Label).ToList(), area, marks);
     }
 
-    /// <summary>The hit-test bounds of each entry (swatch and label) as <paramref name="layout"/> places it, carrying the
-    /// entry's series index. The drawing returns the same bounds, so the box a pointer is tested against is the box drawn.</summary>
+    /// <summary>The hit-test bounds of each entry a click toggles (swatch and label) as <paramref name="layout"/> places it,
+    /// carrying the entry's series index (<see cref="LegendEntry.ToggleIndex"/>). An entry a click toggles nothing with (a
+    /// patch's) has none, and the others keep the cells they are drawn in. The drawing returns the same bounds, so the box a
+    /// pointer is tested against is the box drawn.</summary>
     /// <param name="entries">The entries the layout was made for.</param>
     /// <param name="layout">The layout <see cref="Place"/> returned for them.</param>
-    /// <returns>One bounds per entry, in entry order.</returns>
-    internal static IReadOnlyList<LegendItemBounds> ItemBounds(IReadOnlyList<LegendEntry> entries, LegendLayout layout) =>
-        [.. entries.Select((entry, i) => new LegendItemBounds(entry.OriginalIndex, ItemRect(layout, i)))];
+    /// <returns>One bounds per entry with a toggle index, in entry order.</returns>
+    internal static IReadOnlyList<LegendItemBounds> ItemBounds(IReadOnlyList<LegendEntry> entries, LegendLayout layout)
+    {
+        var bounds = new List<LegendItemBounds>(entries.Count);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (entries[i].ToggleIndex is { } index)
+                bounds.Add(new LegendItemBounds(index, ItemRect(layout, i)));
+        }
+
+        return bounds;
+    }
 
     /// <summary>The rectangle of entry <paramref name="i"/>: entries fill the columns row by row.</summary>
     private static Rect ItemRect(LegendLayout layout, int i)
@@ -54,9 +65,10 @@ internal sealed class LegendRenderer(Legend legend, Theme theme, IRenderContext 
     /// each entry's swatch, then its text past the swatch.</summary>
     /// <param name="entries">The entries the layout was made for.</param>
     /// <param name="layout">The layout <see cref="Place"/> returned for them.</param>
-    /// <param name="interactive">Whether each entry is wrapped in a group carrying its series index
-    /// (<c>data-legend-index</c>), which the legend toggle reads; only an SVG surface writes one.</param>
-    /// <returns>The hit-test bounds of each entry (<see cref="ItemBounds"/>).</returns>
+    /// <param name="interactive">Whether each entry a click toggles is wrapped in a group carrying its series index
+    /// (<c>data-legend-index</c>), which the legend toggle reads; only an SVG surface writes one. An entry a click toggles
+    /// nothing with (a patch's) is drawn without one.</param>
+    /// <returns>The hit-test bounds of each entry a click toggles (<see cref="ItemBounds"/>).</returns>
     internal IReadOnlyList<LegendItemBounds> Draw(IReadOnlyList<LegendEntry> entries, LegendLayout layout, bool interactive)
     {
         // Open the legend group FIRST: the legend-drag script translates this <g class="legend">, so the frame must be
@@ -75,32 +87,48 @@ internal sealed class LegendRenderer(Legend legend, Theme theme, IRenderContext 
                 layout.TitleFont, TextAlignment.Center);
         }
 
-        var bounds = ItemBounds(entries, layout);
         var svgItems = interactive ? ctx as SvgRenderContext : null;
         for (int i = 0; i < entries.Count; i++)
         {
             var entry = entries[i];
-            var cell = bounds[i].Bounds;
+            var cell = ItemRect(layout, i);
 
             // The group carries the SERIES index (data-legend-index maps straight onto data-series-index), never the
             // entry's position in the legend: an unlabelled series ahead of this one has no entry but still has an index.
-            svgItems?.BeginLegendItemGroup(entry.OriginalIndex, entry.Label);
+            // An entry a click toggles nothing with has no group, so neither the toggle nor the hit-test can reach it.
+            SvgRenderContext? group = null;
+            if (svgItems is not null && entry.ToggleIndex is { } index)
+            {
+                group = svgItems;
+                group.BeginLegendItemGroup(index, entry.Label);
+            }
 
-            // The swatch reads the entry's COLOUR slot, so a series sharing a colour group shows the colour it is drawn in.
-            DrawSwatch(entry.Series, entry.Swatch, cell.X, cell.Y, layout.SwatchWidth, layout.SwatchHeight,
-                theme.SeriesSlot(entry.ColorSlotIndex));
+            entry.DrawSwatch(this, new Rect(cell.X, cell.Y, layout.SwatchWidth, layout.SwatchHeight));
 
             var textPoint = new Point(cell.X + layout.SwatchWidth + layout.SwatchGap, cell.Y + layout.SwatchHeight - 1);
             if (MathTextParser.ContainsMath(entry.Label))
                 ctx.DrawRichText(MathTextParser.Parse(entry.Label), textPoint, layout.Font, TextAlignment.Left);
             else
                 ctx.DrawText(entry.Label, textPoint, layout.Font, TextAlignment.Left);
-            if (svgItems is not null) ctx.EndGroup();
+            group?.EndGroup();
         }
 
         ctx.EndGroup();
-        return bounds;
+        return ItemBounds(entries, layout);
     }
+
+    /// <summary>Draws the handle of a series' row in <paramref name="swatch"/>: the one the series says it has, in the colour of the
+    /// entry's COLOUR slot, so a series sharing a colour group shows the colour it is drawn in.</summary>
+    /// <param name="entry">The series' row.</param>
+    /// <param name="swatch">The handle's box.</param>
+    internal void DrawSwatchOf(SeriesLegendEntry entry, Rect swatch) =>
+        DrawSwatch(entry.Series, entry.Swatch, swatch.X, swatch.Y, swatch.Width, swatch.Height, theme.SeriesSlot(entry.ColorSlotIndex));
+
+    /// <summary>Draws the handle of a patch's row in <paramref name="swatch"/>, as matplotlib's <c>HandlerPatch</c> does: a rectangle
+    /// filling the box, in the style the patch is drawn in (<see cref="Models.Patches.Patch.DrawnStyle"/>), whatever its shape.</summary>
+    /// <param name="entry">The patch's row.</param>
+    /// <param name="swatch">The handle's box.</param>
+    internal void DrawSwatchOf(PatchLegendEntry entry, Rect swatch) => ctx.DrawRectangle(swatch, entry.Patch.DrawnStyle);
 
     /// <summary>The frame: a translucent box in the legend's face colour (the theme background unless named), outlined in
     /// light grey (matplotlib's <c>legend.edgecolor = '0.8'</c>) unless named, with an optional drop shadow beneath it.</summary>

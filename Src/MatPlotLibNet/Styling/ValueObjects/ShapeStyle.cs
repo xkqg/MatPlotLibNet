@@ -52,9 +52,25 @@ public readonly record struct ShapeStyle(Color? Fill, Color? Stroke, double Stro
     /// a fill for it to sit on. A hatch without a fill has nothing to hatch.</summary>
     public bool HasVisibleHatch => Hatch != HatchPattern.None && Fill.HasValue;
 
+    /// <summary>The dash pattern of the stroke: <see cref="LineStyle.Solid"/> for a continuous outline (the default), a dashed,
+    /// dotted or dash-dot pattern, or <see cref="LineStyle.None"/> for no outline at all. It is the pattern a line of that
+    /// style is drawn with, in every backend, so an outline and a line of one style look alike.</summary>
+    /// <remarks>An <c>init</c> property for the reason <see cref="Hatch"/> is one: a positional addition would break every
+    /// construction site of this record struct. A shape built without it strokes solid, as every shape did before the property
+    /// existed. The pattern belongs to the stroke, so it has no effect on a shape without one.</remarks>
+    /// <example>
+    /// A dashed outline around a light fill:
+    /// <code>
+    /// var style = new ShapeStyle(Colors.LightGray, Colors.Black, 1.5) { StrokeLineStyle = LineStyle.Dashed };
+    /// </code>
+    /// </example>
+    public LineStyle StrokeLineStyle { get; init; }
+
     /// <summary>
-    /// Gets a value indicating whether the stroke should be painted: a stroke colour is present
-    /// and the thickness is positive. A zero or negative thickness yields no visible stroke.
+    /// Gets a value indicating whether the stroke should be painted: a stroke colour is present,
+    /// the thickness is positive and the line style is not <see cref="LineStyle.None"/>. A zero or negative
+    /// thickness yields no visible stroke, and a style of none is no stroke, as it is for a
+    /// <see cref="StrokeStyle"/>.
     /// </summary>
-    public bool HasVisibleStroke => Stroke.HasValue && StrokeThickness > 0;
+    public bool HasVisibleStroke => Stroke.HasValue && StrokeThickness > 0 && StrokeLineStyle != LineStyle.None;
 }

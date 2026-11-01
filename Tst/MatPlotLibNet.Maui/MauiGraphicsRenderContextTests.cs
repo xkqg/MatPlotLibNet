@@ -285,6 +285,170 @@ public class MauiGraphicsRenderContextTests
             HorizontalAlignment.Center);
     }
 
+    // ── The line style of a shape's stroke ────────────────────────────────────
+    // A shape's stroke is dashed by the rule a line's stroke is dashed by (ToMauiDashPattern: the pattern of the style, set on
+    // the canvas before the stroke is drawn). The canvas keeps the pattern between calls, so a shape sets it every time:
+    // a solid shape drawn after a dashed line must not inherit the line's dashes.
+
+    /// <summary>A canvas that notes, for every stroke it is asked to draw, the dash pattern it held at that moment. The
+    /// canvas' <c>StrokeDashPattern</c> can be set and not read, so the recorder keeps the last pattern it was given.</summary>
+    private sealed class StrokeRecorder
+    {
+        public ICanvas Canvas { get; } = Substitute.For<ICanvas>();
+
+        /// <summary>The dash pattern the canvas holds now: the last one it was given, none before the first.</summary>
+        public float[] Held { get; private set; } = [];
+
+        /// <summary>The dash pattern of the canvas at each stroke, in the order the strokes were drawn.</summary>
+        public List<float[]> PatternsAtStroke { get; } = [];
+
+        public StrokeRecorder()
+        {
+            Canvas.When(c => c.StrokeDashPattern = Arg.Any<float[]>()).Do(call => Held = call.Arg<float[]>());
+            Canvas.When(c => c.DrawPath(Arg.Any<PathF>())).Do(_ => Note());
+            Canvas.When(c => c.DrawRectangle(Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>())).Do(_ => Note());
+            Canvas.When(c => c.DrawEllipse(Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>())).Do(_ => Note());
+        }
+
+        private void Note() => PatternsAtStroke.Add(Held);
+    }
+
+    private static ShapeStyle Stroked(Styling.LineStyle style) =>
+        new(null, MplColor.Black, 2) { StrokeLineStyle = style };
+
+    private static readonly List<MplPoint> Triangle = [new(0, 0), new(50, 0), new(25, 40)];
+
+    private static readonly List<MatPlotLibNet.Rendering.PathSegment> TrianglePath =
+    [
+        new MatPlotLibNet.Rendering.MoveToSegment(new MplPoint(0, 0)),
+        new MatPlotLibNet.Rendering.LineToSegment(new MplPoint(50, 0)),
+        new MatPlotLibNet.Rendering.LineToSegment(new MplPoint(25, 40)),
+        new MatPlotLibNet.Rendering.CloseSegment(),
+    ];
+
+    /// <summary>A path stroked dashed hands the canvas the pattern of a dashed line before it strokes.</summary>
+    [Fact]
+    public void ADashedPathStroke_SetsTheDashPatternOfADashedLine()
+    {
+        var recorder = new StrokeRecorder();
+        new MauiGraphicsRenderContext(recorder.Canvas).DrawPath(TrianglePath, Stroked(Styling.LineStyle.Dashed));
+
+        Assert.Equal(new[] { 5f, 2f }, Assert.Single(recorder.PatternsAtStroke));
+    }
+
+    /// <summary>The dotted and dash-dot styles set the pattern a line of that style sets.</summary>
+    [Theory]
+    [InlineData(Styling.LineStyle.Dotted, new[] { 1f, 3f })]
+    [InlineData(Styling.LineStyle.DashDot, new[] { 5f, 2f, 1f, 2f })]
+    public void ADottedOrDashDotPathStroke_SetsThePatternOfALineOfThatStyle(Styling.LineStyle style, float[] pattern)
+    {
+        var recorder = new StrokeRecorder();
+        new MauiGraphicsRenderContext(recorder.Canvas).DrawPath(TrianglePath, Stroked(style));
+
+        Assert.Equal(pattern, Assert.Single(recorder.PatternsAtStroke));
+    }
+
+    /// <summary>A path stroked solid sets an empty pattern, whatever the canvas held before: after a dashed line it must not
+    /// inherit the dashes.</summary>
+    [Fact]
+    public void ASolidPathStroke_ClearsTheDashesALineLeftOnTheCanvas()
+    {
+        var recorder = new StrokeRecorder();
+        var ctx = new MauiGraphicsRenderContext(recorder.Canvas);
+        ctx.DrawLine(new MplPoint(0, 0), new MplPoint(10, 10), new StrokeStyle(MplColor.Black, 1, Styling.LineStyle.Dashed));
+        Assert.NotEmpty(recorder.Held);
+
+        ctx.DrawPath(TrianglePath, Stroked(Styling.LineStyle.Solid));
+
+        Assert.Empty(Assert.Single(recorder.PatternsAtStroke));
+    }
+
+    /// <summary>A path whose stroke has the line style None draws no stroke, and its fill is still filled.</summary>
+    [Fact]
+    public void ANonePathStroke_DrawsNoStroke()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawPath(TrianglePath, new ShapeStyle(MplColor.Red, MplColor.Black, 2) { StrokeLineStyle = Styling.LineStyle.None });
+
+        canvas.Received(1).FillPath(Arg.Any<PathF>());
+        canvas.DidNotReceive().DrawPath(Arg.Any<PathF>());
+    }
+
+    /// <summary>A polygon stroked dashed hands the canvas the pattern of a dashed line before it strokes.</summary>
+    [Fact]
+    public void ADashedPolygonStroke_SetsTheDashPatternOfADashedLine()
+    {
+        var recorder = new StrokeRecorder();
+        new MauiGraphicsRenderContext(recorder.Canvas).DrawPolygon(Triangle, Stroked(Styling.LineStyle.Dashed));
+
+        Assert.Equal(new[] { 5f, 2f }, Assert.Single(recorder.PatternsAtStroke));
+    }
+
+    /// <summary>A polygon stroked solid sets an empty pattern, whatever the canvas held before.</summary>
+    [Fact]
+    public void ASolidPolygonStroke_ClearsTheDashesALineLeftOnTheCanvas()
+    {
+        var recorder = new StrokeRecorder();
+        var ctx = new MauiGraphicsRenderContext(recorder.Canvas);
+        ctx.DrawLine(new MplPoint(0, 0), new MplPoint(10, 10), new StrokeStyle(MplColor.Black, 1, Styling.LineStyle.Dashed));
+
+        ctx.DrawPolygon(Triangle, Stroked(Styling.LineStyle.Solid));
+
+        Assert.Empty(Assert.Single(recorder.PatternsAtStroke));
+    }
+
+    /// <summary>A polygon whose stroke has the line style None draws no stroke, and its fill is still filled.</summary>
+    [Fact]
+    public void ANonePolygonStroke_DrawsNoStroke()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawPolygon(Triangle, new ShapeStyle(MplColor.Red, MplColor.Black, 2) { StrokeLineStyle = Styling.LineStyle.None });
+
+        canvas.Received(1).FillPath(Arg.Any<PathF>());
+        canvas.DidNotReceive().DrawPath(Arg.Any<PathF>());
+    }
+
+    /// <summary>The circle, the rectangle and the ellipse take the line style the same way the path and the polygon do.</summary>
+    [Fact]
+    public void TheOtherShapes_StrokeByTheSameRule()
+    {
+        var recorder = new StrokeRecorder();
+        var ctx = new MauiGraphicsRenderContext(recorder.Canvas);
+
+        ctx.DrawCircle(new MplPoint(5, 5), 4, Stroked(Styling.LineStyle.Dashed));
+        ctx.DrawRectangle(new MplRect(0, 0, 10, 10), Stroked(Styling.LineStyle.Dashed));
+        ctx.DrawEllipse(new MplRect(0, 0, 10, 6), Stroked(Styling.LineStyle.Dashed));
+
+        Assert.Equal(3, recorder.PatternsAtStroke.Count);
+        Assert.All(recorder.PatternsAtStroke, pattern => Assert.Equal(new[] { 5f, 2f }, pattern));
+
+        var none = Substitute.For<ICanvas>();
+        var noneCtx = new MauiGraphicsRenderContext(none);
+        var unstroked = new ShapeStyle(MplColor.Red, MplColor.Black, 2) { StrokeLineStyle = Styling.LineStyle.None };
+        noneCtx.DrawCircle(new MplPoint(5, 5), 4, unstroked);
+        noneCtx.DrawRectangle(new MplRect(0, 0, 10, 10), unstroked);
+        noneCtx.DrawEllipse(new MplRect(0, 0, 10, 6), unstroked);
+        none.DidNotReceive().DrawRectangle(Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>());
+        // The canvas has no circle of its own: a circle is the ellipse about its centre, so one ellipse call covers both.
+        none.DidNotReceive().DrawEllipse(Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>());
+    }
+
+    /// <summary>A shape with no stroke does not touch the canvas' dash pattern, however its line style is set.</summary>
+    [Fact]
+    public void AShapeWithoutAStroke_LeavesTheDashPatternAlone()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawPolygon(Triangle, new ShapeStyle(MplColor.Red, null, 2) { StrokeLineStyle = Styling.LineStyle.Dashed });
+
+        canvas.DidNotReceive().StrokeDashPattern = Arg.Any<float[]>();
+    }
+
     [Fact]
     public void DrawRectangle_NullFill_NullStroke_NoCanvasCalls()
     {

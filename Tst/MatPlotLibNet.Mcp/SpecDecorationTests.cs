@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Mcp.Tests;
@@ -120,6 +121,118 @@ public class SpecDecorationTests
 
     private static Figure Read2(string series) =>
         Reader.Read(new ChartSpec($$"""{"width":400,"height":300,"subPlots":[{"series":[{{series}}]}]}"""));
+
+    // ---- an axes with no series and something of its own ---------------------------------------------------------
+
+    private static readonly Figure EmptyAxes = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, _ => { }).Build();
+
+    private static string SpecOf(string subPlot) => $$"""{"width":400,"height":300,"subPlots":[{{subPlot}}]}""";
+
+    /// <summary>The library draws an axes that holds a span and no series (its spans, patches, reference lines and the like are
+    /// drawn whatever the axes holds besides), so a spec that holds only a span is a picture, not "nothing to draw": the reader
+    /// takes it and the picture is the one the library draws for the same figure.</summary>
+    [Fact]
+    public void ASpanOnlySpec_IsDrawn()
+    {
+        var figure = Reader.Read(new ChartSpec(SpecOf(
+            """{"spans":[{"min":1,"max":2,"orientation":"vertical","alpha":0.3,"color":"crimson"}]}""")));
+        var library = Plt.Create().WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.AxVSpan(1, 2, span => { span.Alpha = 0.3; span.Color = Color.FromName("crimson"); }))
+            .Build();
+
+        Assert.Empty(figure.SubPlots[0].Series);
+        Assert.Single(figure.SubPlots[0].Spans);
+        Assert.Equal(library.ToSvg(), figure.ToSvg());
+        Assert.NotEqual(EmptyAxes.ToSvg(), figure.ToSvg());
+    }
+
+    /// <summary>Every overlay list of an axes the Cartesian renderer draws counts, not the span alone.</summary>
+    [Theory]
+    [InlineData("annotations", """{"text":"peak","x":2,"y":4}""")]
+    [InlineData("referenceLines", """{"value":3,"orientation":"vertical"}""")]
+    [InlineData("spans", """{"min":1,"max":2,"orientation":"horizontal"}""")]
+    [InlineData("trendlines", """{"x1":1,"y1":1,"x2":3,"y2":3}""")]
+    [InlineData("horizontalLevels", """{"value":2}""")]
+    [InlineData("fibonacciRetracements", """{"priceHigh":10,"priceLow":2}""")]
+    [InlineData("signals", """{"x":1.5,"y":2,"direction":"Buy"}""")]
+    [InlineData("patches", """{"type":"rectangle","anchor":{"dataX":1,"dataY":1},"width":2,"height":1}""")]
+    public void AnAxesWithOnlyAnOverlay_IsDrawn(string list, string entry)
+    {
+        var figure = Reader.Read(new ChartSpec(SpecOf($$"""{"{{list}}":[{{entry}}]}""")));
+
+        Assert.Empty(figure.SubPlots[0].Series);
+        Assert.NotEqual(EmptyAxes.ToSvg(), figure.ToSvg());
+    }
+
+    /// <summary>The overlay lists of an axes, named: each is either counted as something to draw (the theory above has a row for
+    /// it) or left out because it describes what series draw. A list added to the axes turns this red until it is one or the other.</summary>
+    [Fact]
+    public void EveryOverlayListOfAxes_IsCountedAsSomethingToDrawOrNamedAsNot()
+    {
+        string[] counted = ["Annotations", "ReferenceLines", "Trendlines", "HorizontalLevels", "FibonacciRetracements", "Spans", "Signals", "Patches"];
+        string[] describesWhatSeriesDraw = ["XBreaks", "YBreaks"];   // the markers of a gap in an axis that has data
+        string[] holdAxesNotOverlays = ["Insets"];                   // walked in turn: each inset is an axes of its own
+        var overlayLists = typeof(Axes).GetProperties()
+            .Where(property => property.PropertyType.IsGenericType
+                && property.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)
+                && !typeof(ISeries).IsAssignableFrom(property.PropertyType.GetGenericArguments()[0])
+                && property.PropertyType.GetGenericArguments()[0].Name != "SecondaryAxisSlot")
+            .Select(property => property.Name);
+
+        Assert.Equal(
+            counted.Concat(describesWhatSeriesDraw).Concat(holdAxesNotOverlays).Order(StringComparer.Ordinal),
+            overlayLists.Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>An inset is an axes of its own: a span on an inset with no series is a picture too.</summary>
+    [Fact]
+    public void AnInsetWithOnlyAnOverlay_IsDrawn()
+    {
+        var figure = Reader.Read(new ChartSpec(SpecOf(
+            """{"insets":[{"insetBounds":{"x":0.5,"y":0.5,"width":0.3,"height":0.3},"spans":[{"min":1,"max":2}]}]}""")));
+
+        Assert.Single(figure.SubPlots[0].Insets[0].Spans);
+    }
+
+    /// <summary>The renderer skips an inset that has no bounds, so a span on one is no picture.</summary>
+    [Fact]
+    public void AnInsetWithoutBounds_IsNotSomethingToDraw()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(SpecOf(
+            """{"insets":[{"spans":[{"min":1,"max":2}]}]}"""))));
+
+        Assert.Contains("Nothing to draw", refusal.Message);
+    }
+
+    /// <summary>The polar, ternary and 3-D renderers draw no overlay, so a span on such an axes is no picture: the refusal stands.</summary>
+    [Theory]
+    [InlineData("Polar")]
+    [InlineData("ThreeD")]
+    [InlineData("Ternary")]
+    public void AnOverlayOnAnAxesThatDrawsNone_IsStillNothingToDraw(string coordinateSystem)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(SpecOf(
+            $$"""{"coordinateSystem":"{{coordinateSystem}}","spans":[{"min":1,"max":2}]}"""))));
+
+        Assert.Contains("Nothing to draw", refusal.Message);
+    }
+
+    /// <summary>A break marks a gap in an axis that has data, a legend and a colour bar say what series draw: with no series
+    /// they are no picture, and the refusal names what would be one.</summary>
+    [Theory]
+    [InlineData("""{"xBreaks":[{"from":1,"to":2}]}""")]
+    [InlineData("""{"legend":{}}""")]
+    [InlineData("""{"colorBar":{}}""")]
+    [InlineData("""{"spans":[]}""")]
+    public void AnAxesWithOnlyWhatDescribesSeries_IsStillNothingToDraw(string subPlot)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(SpecOf(subPlot))));
+
+        Assert.Contains("Nothing to draw", refusal.Message);
+        Assert.Contains("series", refusal.Message);
+        Assert.Contains("spans", refusal.Message);
+        Assert.Contains("patches", refusal.Message);
+    }
 
     // ---- colours, wherever they sit ---------------------------------------------------------------------------
 

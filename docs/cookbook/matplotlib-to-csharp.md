@@ -177,6 +177,25 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | `ax.xaxis.set_major_locator(l)` | `ax.SetXTickLocator(locator)` | |
 | `mdates.DateFormatter('%H:%M')` | `ax.SetXDateFormat("HH:mm")` | .NET format strings, not strftime. |
 
+## Shapes and a second unit
+
+matplotlib's patches live in the namespace `MatPlotLibNet.Models.Patches` and are added with `AddPatch`, a point written
+`new(x, y)` in data units. A patch is styled through its own properties rather than keywords: `facecolor`, `edgecolor`,
+`linewidth`, `linestyle`, `alpha`, `hatch` and `label` are `FaceColor`, `EdgeColor`, `EdgeWidth`, `EdgeLineStyle`,
+`Alpha`, `Hatch` and `Label`. The [shapes](patches.md) and [linked axes](linked-axes.md) pages show each with its picture.
+
+| matplotlib | MatPlotLibNet | Notes |
+|---|---|---|
+| `ax.add_patch(Rectangle((x, y), w, h, angle=a))` | `ax.AddPatch(new Rectangle(new(x, y), w, h) { Angle = a })` | Turned about the corner; `rotation_point` is not offered (a rectangle turned about its centre is a `Polygon`). |
+| `ax.add_patch(Polygon(xy, closed=True))` | `ax.AddPatch(new Polygon(vertices))` | `Closed = false` leaves it open. |
+| `ax.arrow(x, y, dx, dy)` | `ax.AddPatch(new Arrow(new(x, y), dx, dy))` | matplotlib's `FancyArrow`, its sizes in data units and its defaults: a shaft 0.001 wide, a head three times as wide and one and a half times as long as it is wide. |
+| `ax.add_patch(Circle((x, y), r))` | `ax.AddPatch(new Circle(new(x, y), r))` | Round on the page where a unit of x is as long as a unit of y: `ax.SetAspect(1)`. |
+| `ax.add_patch(Ellipse((x, y), w, h, angle=a))` | `ax.AddPatch(new Ellipse(new(x, y), w, h) { Angle = a })` | The width and the height are diameters. |
+| `ax.add_patch(Wedge((x, y), r, t1, t2, width=w))` | `ax.AddPatch(new Wedge(new(x, y), r, t1, t2) { Width = w })` | Counter-clockwise from `t1` to `t2`, in degrees; without `Width` the slice reaches the centre. |
+| `ax.add_patch(Arc((x, y), w, h, theta1=t1, theta2=t2))` | `ax.AddPatch(new Arc(new(x, y), w, h) { Theta1 = t1, Theta2 = t2 })` | An open curve with no face, as in matplotlib. |
+| `ax.secondary_xaxis('top', functions=(f, g))` | `ax.WithSecondaryXAxis(top => top.Link(AxisTransform.Of(f, g)))` | `AxisTransform.Linear`, `Reciprocal`, `Logarithm` and `Power` name the common pairs and travel through JSON; `Of` takes your own. A bottom or floating secondary axis is not offered. |
+| `ax.secondary_yaxis('right', functions=(f, g))` | `ax.WithAddRightYAxis(right => right.Link(AxisTransform.Of(f, g)))` | `WithAddLeftYAxis` for the left side. A linked axis has no range and no series of its own. |
+
 ## Colour and style
 
 | matplotlib | MatPlotLibNet | Notes |
@@ -287,6 +306,7 @@ the whole signal, and `CorrelationOptions` for the correlations (`maxlags`, `nor
 - [Line charts](line-charts.md) and [bar charts](bar-charts.md) — the two you will reach for first.
 - [Heatmaps and colormaps](heatmaps.md) — all 148 maps and how to normalise a scale.
 - [Subplots and GridSpec](subplots.md) — the layouts `plt.subplots` and `gridspec` give you.
+- [Shapes](patches.md) and [linked axes](linked-axes.md) — `add_patch`, `secondary_xaxis` and `secondary_yaxis`.
 - [3D charts](threed.md) — surfaces, wireframes and the camera.
 - [Signal analysis](signal-analysis.md) — spectra, coherence and correlation of a sampled signal.
 - The [API reference](https://xkqg.github.io/MatPlotLibNet/api/) — every verb, with its overloads.

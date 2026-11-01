@@ -36,7 +36,7 @@ internal sealed class RecordingRenderContext : IRenderContext
         => Calls.Add(new CallRecord("DrawCircle", new { center, radius, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
 
     public void DrawRectangle(Rect rect, ShapeStyle shape)
-        => Calls.Add(new CallRecord("DrawRectangle", new { rect, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
+        => Calls.Add(new CallRecord("DrawRectangle", new { rect, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness, shape }));
 
     public void DrawEllipse(Rect bounds, ShapeStyle shape)
         => Calls.Add(new CallRecord("DrawEllipse", new { bounds, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
@@ -48,7 +48,7 @@ internal sealed class RecordingRenderContext : IRenderContext
         => Calls.Add(new CallRecord("DrawText", new { text, position, font, alignment, rotation }));
 
     public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
-        => Calls.Add(new CallRecord("DrawPath", new { segments = segments.ToArray(), fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
+        => Calls.Add(new CallRecord("DrawPath", new { segments = segments.ToArray(), fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness, shape }));
 
     public void PushClip(Rect clipRect)
         => Calls.Add(new CallRecord("PushClip", new { clipRect }));

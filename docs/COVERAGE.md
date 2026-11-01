@@ -2,6 +2,17 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.29.0, the last three roadmap rows: shapes in data coordinates, circles and arcs, and a second axis in other units; plus the cell of a subplot kept through JSON):** **1,161/1,161 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 1161 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.8L / 98.9B**; **28,839 tests, 0 failures** (4 skipped) across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite
+run beside the gate and are not measured by it). The gate counts 41 more classes than it did at 1.28.0, among them the patch family (`Patch`, `FilledPatch`, the seven
+shapes and the curve builder they share), the link of an axis (`AxisTransform` and its leaves, the placement of a linked tick, the range a link shows), their JSON
+records, and the legend rows of a series and of a patch. The Linux run of the same gate, collected in a container and checked on the host, passes with the same
+total, and its per-class figures agree with the Windows merge but for two classes that stay above 90/90 on both. The first strict run read two classes short on
+branches. Each held a branch no caller can reach (an empty label a legend row never gets, and a null check on an inset that reading a figure already leaves out),
+so the branch was deleted instead of tested. The tests of each class were written before its code, and a mutation of a production line turned them red before the line
+was put back.
+
 **Status (v1.28.0, nine roadmap rows: the signal-analysis verbs, stairs, line segments and the triangulation mesh, contour labels along their line, text, a legend and an image on the figure, and the zoom indicator of an inset):** **1,120/1,120 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 1120 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.8L / 98.9B**; **27,290 tests, 0 failures** (4 skipped) across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite

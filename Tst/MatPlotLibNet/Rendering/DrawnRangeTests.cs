@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
@@ -84,7 +85,15 @@ public class DrawnRangeTests
 
     private static Axes Empty() => new();
 
-    public static TheoryData<string> Names { get; } = new("lines", "bars", "set-limits", "logarithmic", "inverted", "reference-lines", "shared-x", "stacked", "empty");
+    private static Axes WithPatches()
+    {
+        var axes = Lines();
+        axes.AddPatch(new Rectangle(new(12, 2), 3, 1));
+        axes.AddPatch(new Polygon([new(-4, -1), new(0, 0), new(-2, 1)]));
+        return axes;
+    }
+
+    public static TheoryData<string> Names { get; } = new("lines", "bars", "set-limits", "logarithmic", "inverted", "reference-lines", "shared-x", "stacked", "patches", "empty");
 
     private static Axes Build(string name) => name switch
     {
@@ -96,6 +105,7 @@ public class DrawnRangeTests
         "reference-lines" => WithReferenceLine(),
         "shared-x" => ShareX(),
         "stacked" => Stacked(),
+        "patches" => WithPatches(),
         _ => Empty(),
     };
 
@@ -132,5 +142,80 @@ public class DrawnRangeTests
         var wide = axes.ComputeDataRanges(new Theme("wide", Theme.MatplotlibV2) { AxisXMargin = 0.3, AxisYMargin = 0.3 });
 
         Assert.True(wide.XMax > plain.XMax && wide.YMax > plain.YMax);
+    }
+
+    // ---- patches (matplotlib's add_patch updates the data limits) ------------------------------------------------------------
+
+    /// <summary>A patch takes part in the automatic range over its extent, as a line through the same extent would: padded with
+    /// the margin like any data, with no sticky edge (matplotlib's patches have none).</summary>
+    [Fact]
+    public void APatch_ExtendsTheRange_AsASeriesOverItsExtentWould()
+    {
+        var withPatch = Lines();
+        withPatch.AddPatch(new Rectangle(new(12, 2), 3, 1));
+        var withLine = Lines();
+        withLine.Plot([12.0, 15.0], [2.0, 3.0]);
+
+        var range = withPatch.ComputeDataRanges(Theme.MatplotlibV2);
+
+        Assert.Equal(withLine.ComputeDataRanges(Theme.MatplotlibV2), range);
+        Assert.True(range.XMax > 15 && range.YMax > 3, $"the patch is not inside {range}");
+    }
+
+    /// <summary>An axes that holds nothing but patches frames them, as it would frame a line through them. This departs from
+    /// matplotlib, whose <c>add_patch</c> updates the data limits without asking for an autoscale, so an axes of patches only
+    /// stays at 0 to 1 there and shows none of a patch that lies beyond 1.</summary>
+    [Fact]
+    public void APatchOnlyAxes_FramesItsPatches()
+    {
+        var patches = new Axes();
+        patches.AddPatch(new Rectangle(new(2, 2), 1, 1));
+        var line = new Axes();
+        line.Plot([2.0, 3.0], [2.0, 3.0]);
+
+        var range = patches.ComputeDataRanges(Theme.MatplotlibV2);
+
+        Assert.Equal(line.ComputeDataRanges(Theme.MatplotlibV2), range);
+        Assert.True(range.XMin < 2 && range.XMax > 3 && range.YMin < 2 && range.YMax > 3, $"the patch is not inside {range}");
+    }
+
+    /// <summary>An axes that shares a scale with another ranges it over the other's patches too, as over its series.</summary>
+    [Fact]
+    public void ASharedAxes_InheritsAPatchRange()
+    {
+        var wide = new Axes();
+        wide.AddPatch(new Polygon([new(20, 0), new(25, 0), new(22, 1)]));
+        var narrow = Lines();
+        narrow.ShareXWith = wide;
+
+        var range = narrow.ComputeDataRanges(Theme.MatplotlibV2);
+
+        Assert.True(range.XMax >= 25, $"the shared patch is not inside {range}");
+        Assert.True(range.YMax < 2, $"a patch of the X partner reached the Y range {range}");
+    }
+
+    /// <summary>A vertex at a value its axis cannot place (0 on a log axis) adds nothing to that axis' range, the rule a series'
+    /// values follow; the patch is still drawn, that vertex pinned to the edge where the axis begins.</summary>
+    [Fact]
+    public void APatchVertexALogAxisCannotPlace_AddsNothingToThatAxis()
+    {
+        var patch = new Axes();
+        patch.YAxis.Scale = AxisScale.Log;
+        patch.AddPatch(new Polygon([new(1, 10), new(5, 0), new(9, 100)]));
+        var line = new Axes();
+        line.YAxis.Scale = AxisScale.Log;
+        line.Plot([1.0, 9.0], [10.0, 100.0]);
+
+        Assert.Equal(line.ComputeDataRanges(Theme.MatplotlibV2), patch.ComputeDataRanges(Theme.MatplotlibV2));
+    }
+
+    /// <summary>A patch that cannot be drawn (a coordinate that is not a number) adds nothing to the range.</summary>
+    [Fact]
+    public void APatchThatCannotBeDrawn_AddsNothing()
+    {
+        var axes = Lines();
+        axes.AddPatch(new Rectangle(new(double.NaN, 50), 3, 1));
+
+        Assert.Equal(Lines().ComputeDataRanges(Theme.MatplotlibV2), axes.ComputeDataRanges(Theme.MatplotlibV2));
     }
 }

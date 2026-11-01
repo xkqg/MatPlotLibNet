@@ -5,8 +5,9 @@ namespace MatPlotLibNet.Serialization;
 
 /// <summary>A value the figure JSON carries by its kind: it writes its own description (a discriminator and the
 /// arguments it was made with), and the description makes the value again. The built-in tick locators, tick
-/// formatters, colour normalisers and the colour map types implement it; a type written outside the library does not,
-/// so the JSON leaves it out and the figure reads back on the axis's or series' own default.</summary>
+/// formatters, colour normalisers, the colour map types and the four named axis transforms (the link of an axis) implement
+/// it; a type written outside the library does not (nor does a transform made from a pair of functions), so the JSON leaves
+/// it out and the figure reads back on the axis's or series' own default.</summary>
 /// <typeparam name="TDescription">The description record of the value's family.</typeparam>
 /// <remarks>The family closes at compile time: each description type is listed on its family's base record by a
 /// <c>JsonDerivedType</c> attribute, and making the value again is a virtual member of the description. There is no

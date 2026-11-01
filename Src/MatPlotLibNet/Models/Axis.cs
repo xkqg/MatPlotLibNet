@@ -29,6 +29,11 @@ public class Axis
     /// <summary>True when <see cref="Min"/> or <see cref="Max"/> is set: that side is drawn exactly as set.</summary>
     internal bool HasLimit => Min.HasValue || Max.HasValue;
 
+    /// <summary>True when a limit is set and the axis has a range of its own for it to limit: not a linked axis
+    /// (<see cref="Link"/>), which shows the primary's range whatever limit it carries. The one rule by which a top X axis or a
+    /// Y axis past the primary counts as a limit of its axes (<c>Axes.HasExplicitLimit</c>).</summary>
+    internal bool LimitsItsOwnRange => HasLimit && Link is null;
+
     /// <summary>How values are spread along the axis: linearly by default, or logarithmically, symmetric-logarithmically,
     /// by logit or as dates.</summary>
     public AxisScale Scale { get; set; } = AxisScale.Linear;
@@ -83,6 +88,28 @@ public class Axis
     /// written outside the library is code, which a JSON document cannot carry: it is left out, and the axis reads
     /// back with the default ticks.</remarks>
     public ITickLocator? TickLocator { get; set; }
+
+    /// <summary>Links this axis to the primary axis of its direction (matplotlib's <c>secondary_xaxis</c> and
+    /// <c>secondary_yaxis</c>): the axis has no range and no series of its own, and shows the range the primary axis shows, each
+    /// value written through the transform, so a tick for a value stands where the primary axis has the value it maps back to.
+    /// <see langword="null"/> (the default) is an axis with a range of its own.</summary>
+    /// <remarks>Set it through the builder of the axis: <c>SecondaryXAxisBuilder.Link</c> for the top X axis,
+    /// <c>YAxisSlotBuilder.Link</c> for a Y axis stacked past the primary on either side. Those are the axes that draw a link; a
+    /// primary axis, an inset's axis and a 3-D axis have nothing to link to. The builders refuse a link on an axis that holds a
+    /// series and a series on an axis that is linked; set here, the link is taken as it is.
+    /// <para>A figure's JSON (<c>ToJson</c>, the MCP server, the transports) carries a link made with <see cref="AxisTransform.Linear"/>,
+    /// <see cref="AxisTransform.Reciprocal"/>, <see cref="AxisTransform.Logarithm"/> or <see cref="AxisTransform.Power"/>, with what it
+    /// was made with. A link made with <see cref="AxisTransform.Of"/> is a pair of functions, which is code and which a JSON document
+    /// cannot carry: it is left out, and the axis reads back unlinked.</para></remarks>
+    /// <example>
+    /// Through the builder, the period along the top of a plot over frequency:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(frequency, power)
+    ///     .WithSecondaryXAxis(top => top.Link(AxisTransform.Reciprocal())));
+    /// </code>
+    /// </example>
+    public AxisTransform? Link { get; set; }
 
     /// <summary>Shorthand for <see cref="TickConfig.LabelRotation"/> on <see cref="MajorTicks"/>.
     /// Degrees; negative = clockwise (matplotlib convention: <c>-45</c> = schuin rechts-onder).

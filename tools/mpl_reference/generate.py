@@ -1389,6 +1389,93 @@ def fig_bar_label_horizontal_inverted():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Patches in data space, linked axes
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _patch_shapes():
+    """The patches both patch pictures draw: a rectangle, a polygon, an arrow, an arc, a circle, an ellipse and a wedge, all at
+    positive coordinates so the log axis can place them. The numbers are the fidelity test's (PatchFidelityTests). Every colour is
+    written out: the patch defaults of the two styles differ, and the pictures test the shapes, not the defaults."""
+    black = "black"
+    return [
+        mpatches.Rectangle((1.2, 1), 1.0, 2.0, angle=20, facecolor="#1f77b4", edgecolor=black, label="rectangle"),
+        mpatches.Polygon([(3, 1), (5, 1.5), (4.5, 4), (3.4, 3)], closed=True, facecolor="#ff7f0e", edgecolor=black),
+        mpatches.FancyArrow(6, 1, 3, 2.5, width=0.35, facecolor="#2ca02c", edgecolor=black),
+        mpatches.Arc((16, 2.5), 8, 2.4, theta1=0, theta2=270, edgecolor="#d62728", linewidth=2),
+        mpatches.Circle((2, 7), 1.2, facecolor="#9467bd", edgecolor=black, alpha=0.6),
+        mpatches.Ellipse((6, 7), 4, 2, angle=30, facecolor="#8c564b", edgecolor=black, label="ellipse"),
+        mpatches.Wedge((11, 7), 2.0, 30, 300, facecolor="#e377c2", edgecolor=black, label="wedge"),
+    ]
+
+
+def fig_patches_linear():
+    """The seven patches on a linear axes with set limits (the library rounds an automatic range to a step of its own, matplotlib to
+    one that depends on the axes' size: a difference in every chart, left out so this one scores the drawing), with a legend listing
+    the three that carry a label."""
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        for patch in _patch_shapes():
+            ax.add_patch(patch)
+        ax.set_xlim(0, 21)
+        ax.set_ylim(0, 10)
+        ax.set_title("Patches in data space")
+        ax.legend(loc="upper right")
+    return fig
+
+
+def fig_patches_log():
+    """The same seven patches and a ring cut from a wedge on a log X axis with fixed limits: each vertex, a curve's control
+    points included, moves through the scale on its own, so the curves bend."""
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        for patch in _patch_shapes():
+            ax.add_patch(patch)
+        ax.add_patch(mpatches.Wedge((17, 7), 2.5, 40, 320, width=0.8, facecolor="#17becf", edgecolor="black"))
+        ax.set_xscale("log")
+        ax.set_xlim(0.4, 25)
+        ax.set_ylim(0, 10)
+        ax.set_title("Patches on a log axis")
+    return fig
+
+
+def fig_linked_yaxis_fahrenheit():
+    """secondary_yaxis on the right: Fahrenheit beside a plot in Celsius. The limits are set, so the picture scores the linked axis
+    and not the automatic range."""
+    hours = np.array([0, 3, 6, 9, 12, 15, 18, 21, 24], dtype=float)
+    celsius = np.array([8.0, 6.5, 7.5, 13.0, 19.5, 22.0, 18.0, 12.5, 9.0])
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.plot(hours, celsius)
+        ax.set_xlim(0, 24)
+        ax.set_ylim(5, 25)
+        ax.set_title("Celsius and Fahrenheit")
+        ax.set_xlabel("hour")
+        ax.set_ylabel("temperature (°C)")
+        right = ax.secondary_yaxis("right", functions=(lambda c: c * 1.8 + 32, lambda f: (f - 32) / 1.8))
+        right.set_ylabel("temperature (°F)")
+    return fig
+
+
+def fig_linked_xaxis_period():
+    """secondary_xaxis on the top of a plot over frequency on a log scale: the period, the reciprocal. No title: matplotlib stands
+    a title where the top axes' own labels already are. The limits are set, so the picture scores the linked axis and not the
+    automatic range."""
+    frequency = np.array([1, 2, 5, 10, 20, 50, 100, 200, 500, 1000], dtype=float)
+    power = np.array([0.8, 1.6, 3.0, 4.2, 3.1, 1.9, 1.1, 0.6, 0.25, 0.1])
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.plot(frequency, power)
+        ax.set_xscale("log")
+        ax.set_xlim(1, 1000)
+        ax.set_ylim(0, 5)
+        ax.set_xlabel("frequency (Hz)")
+        ax.set_ylabel("power")
+        top = ax.secondary_xaxis("top", functions=(lambda f: 1.0 / f, lambda p: 1.0 / p))
+        top.set_xlabel("period (s)")
+    return fig
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1492,6 +1579,11 @@ CHARTS: dict[str, callable] = {
     "bar_label_inverted":            fig_bar_label_inverted,
     "bar_label_horizontal":          fig_bar_label_horizontal,
     "bar_label_horizontal_inverted": fig_bar_label_horizontal_inverted,
+    # Patches in data space, linked axes (matplotlib 3.11.2, see requirements.txt)
+    "patches_linear":                fig_patches_linear,
+    "patches_log":                   fig_patches_log,
+    "linked_yaxis_fahrenheit":       fig_linked_yaxis_fahrenheit,
+    "linked_xaxis_period":           fig_linked_xaxis_period,
 }
 
 

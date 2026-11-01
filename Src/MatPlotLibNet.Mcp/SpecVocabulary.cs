@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
@@ -39,6 +41,11 @@ internal enum SpecNodeKind
     PropCycler,
     FigureText,
     ZoomIndicator,
+    Signal,
+    Patch,
+    Theme,
+    TreeNode,
+    AxisLink,
 }
 
 /// <summary>The values the spec's enum-valued string fields accept. The DTOs carry these as strings and the
@@ -67,9 +74,10 @@ internal sealed class SpecVocabulary
         [.. typeof(TDescription).GetCustomAttributes<JsonDerivedTypeAttribute>().Select(derived => (string)derived.TypeDiscriminator!)],
         LowerCase: false);
 
-    // The serializer reads these two by exact lowercase literal ("vertical", "stacked"), so they are written back lowercase.
+    // The serializer reads these by exact lowercase literal ("vertical", "stacked", "data"), so they are written back lowercase.
     private static readonly Rule HorizontalOrVertical = new(["horizontal", "vertical"], LowerCase: true);
     private static readonly Rule BarModes = new(["grouped", "stacked"], LowerCase: true);
+    private static readonly Rule SpinePositions = new(Enum.GetNames<SpinePosition>(), LowerCase: true);
 
     private static readonly Rule BarOrientations = Names<BarOrientation>();
     private static readonly Rule LineOrientations = Names<Orientation>();
@@ -129,7 +137,7 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.Grid, "which")] = Names<GridWhich>(),
         [(SpecNodeKind.Grid, "axis")] = Names<GridAxis>(),
         [(SpecNodeKind.Spine, "lineStyle")] = Names<LineStyle>(),
-        [(SpecNodeKind.Spine, "position")] = Names<SpinePosition>(),
+        [(SpecNodeKind.Spine, "position")] = SpinePositions,
         [(SpecNodeKind.Ticks, "direction")] = Names<TickDirection>(),
         [(SpecNodeKind.TextStyle, "fontWeight")] = Names<FontWeight>(),
         [(SpecNodeKind.TextStyle, "fontSlant")] = Names<FontSlant>(),
@@ -144,8 +152,22 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.FigureText, "verticalAlignment")] = Names<TextVerticalAlignment>(),
         // The zoom an inset indicates on its parent: the dash pattern of its rectangle and connectors.
         [(SpecNodeKind.ZoomIndicator, "lineStyle")] = Names<LineStyle>(),
+        // A buy or sell signal: enum-typed on the wire, refused here with the two directions.
+        [(SpecNodeKind.Signal, "direction")] = Names<SignalDirection>(),
+        // A patch of an axes: the kind it is, how its outline is dashed and its face hatched, and which half of an arrow is drawn.
+        [(SpecNodeKind.Patch, "type")] = KindsOf<PatchDto>(),
+        [(SpecNodeKind.Patch, "edgeLineStyle")] = Names<LineStyle>(),
+        [(SpecNodeKind.Patch, "hatch")] = Names<HatchPattern>(),
+        [(SpecNodeKind.Patch, "shape")] = Names<ArrowHeadShape>(),
+        // Where a theme puts the legend of an axes that does not say, and the pattern over one node of a tree: enum-typed on the
+        // wire, refused here with what is accepted.
+        [(SpecNodeKind.Theme, "defaultLegendPosition")] = Names<LegendPosition>(),
+        [(SpecNodeKind.TreeNode, "hatch")] = Names<HatchPattern>(),
         [(SpecNodeKind.TickLocator, "type")] = KindsOf<TickLocatorDto>(),
         [(SpecNodeKind.TickFormatter, "type")] = KindsOf<TickFormatterDto>(),
+        // The link of an axis (the top X axis, a Y axis past the primary): the serializer reads a kind it does not know as no link and
+        // skips it with a diagnostic, so a misspelt kind would draw an axis with nothing on it.
+        [(SpecNodeKind.AxisLink, "type")] = KindsOf<AxisTransformDto>(),
         [(SpecNodeKind.Normalizer, "type")] = KindsOf<NormalizerDto>(),
         [(SpecNodeKind.ColorMap, "type")] = KindsOf<ColorMapDto>(),
         // A theme's cycler: lists of enum values, each item checked as a single value is.
@@ -156,6 +178,13 @@ internal sealed class SpecVocabulary
     /// <summary>The series fields that carry an enum value, including the type-dependent <c>orientation</c>.</summary>
     public IReadOnlyList<string> SeriesFields { get; } =
         Rules.Keys.Where(key => key.Kind == SpecNodeKind.Series).Select(key => key.Field).Append("orientation").ToArray();
+
+    /// <summary>The series fields that hold the root of a tree (a treemap's, a sunburst's, a clustermap's two), by wire name: the
+    /// members of the series record of the node type, so a tree added to the wire format is read here on the next build.</summary>
+    public IReadOnlyList<string> TreeFields { get; } =
+        [.. typeof(SeriesDto).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.PropertyType == typeof(TreeNodeDto))
+            .Select(property => JsonNamingPolicy.CamelCase.ConvertName(property.Name))];
 
     /// <summary>The rule for <paramref name="field"/> at <paramref name="kind"/>, or <see langword="null"/> when the
     /// field is not enum-valued there. <paramref name="seriesType"/> decides which orientation a series carries.</summary>

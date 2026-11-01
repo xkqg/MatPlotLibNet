@@ -250,9 +250,9 @@ public static class DrawnSeriesFixtures
             .GetValue(series);
 
     /// <summary>Whether two property values draw the same: arrays element by element, and a colour map, a tick locator,
-    /// a tick formatter or a normaliser by what it does (the same name colouring the same values and drawing the same
-    /// under, over and bad colours; the same type placing the same ticks, writing the same labels, mapping the same
-    /// values), since what they draw is all a reader of the picture can see of them.</summary>
+    /// a tick formatter, a normaliser or the transform of a linked axis by what it does (the same name colouring the same
+    /// values and drawing the same under, over and bad colours; the same type placing the same ticks, writing the same labels,
+    /// mapping the same values), since what they draw is all a reader of the picture can see of them.</summary>
     public static bool SameValue(object? written, object? read) => (written, read) switch
     {
         (IColorMap a, IColorMap b) => a.Name == b.Name && ColoursOf(a).SequenceEqual(ColoursOf(b)),
@@ -260,6 +260,7 @@ public static class DrawnSeriesFixtures
         (ITickLocator a, ITickLocator b) => a.GetType() == b.GetType() && TicksOf(a).SequenceEqual(TicksOf(b)),
         (ITickFormatter a, ITickFormatter b) => a.GetType() == b.GetType() && LabelsOf(a).SequenceEqual(LabelsOf(b)),
         (INormalizer a, INormalizer b) => a.GetType() == b.GetType() && NormalisedBy(a).SequenceEqual(NormalisedBy(b)),
+        (AxisTransform a, AxisTransform b) => a.GetType() == b.GetType() && MappedBy(a).SequenceEqual(MappedBy(b)),
         (string a, string b) => a == b,
         (IEnumerable a, IEnumerable b) => a.Cast<object?>().SequenceEqual(b.Cast<object?>()),
         _ => Equals(written, read),
@@ -305,6 +306,15 @@ public static class DrawnSeriesFixtures
     public static IReadOnlyList<double> NormalisedBy(INormalizer normalizer) =>
         [.. NormaliseCases.Select(c => normalizer.Normalize(c.Value, c.Min, c.Max))];
 
+    /// <summary>The values a transform is asked to map, both ways: negative, zero, fractions, whole numbers and a thousand (a
+    /// transform that is not defined at some of them maps them to the same not-a-number on both sides).</summary>
+    private static readonly double[] TransformValues = [-2, 0, 0.5, 1, 3, 42.25, 1000];
+
+    /// <summary>Every value <paramref name="transform"/> maps the test values to, forward and then back: what a reader of a
+    /// linked axis can see of its transform.</summary>
+    public static IReadOnlyList<double> MappedBy(AxisTransform transform) =>
+        [.. TransformValues.Select(transform.Forward), .. TransformValues.Select(transform.Inverse)];
+
     /// <summary>A value as a test message shows it.</summary>
     public static string Show(object? value) => value switch
     {
@@ -314,6 +324,7 @@ public static class DrawnSeriesFixtures
         ITickLocator locator => $"{locator.GetType().Name} [{string.Join(", ", locator.Locate(0, 10).Select(t => Show(t)))}]",
         ITickFormatter formatter => $"{formatter.GetType().Name} [{string.Join(", ", LabelsOf(formatter))}]",
         INormalizer normalizer => $"{normalizer.GetType().Name} [{string.Join(", ", NormalisedBy(normalizer).Select(v => Show(v)))}]",
+        AxisTransform transform => $"{transform.GetType().Name} [{string.Join(", ", MappedBy(transform).Select(v => Show(v)))}]",
         string text => $"\"{text}\"",
         IEnumerable items => "[" + string.Join(", ", items.Cast<object?>().Select(Show)) + "]",
         IFormattable number => number.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
@@ -454,6 +465,12 @@ public static class DrawnSeriesFixtures
             return new PercentFormatter(50 + k);
         }
 
+        if (type == typeof(AxisTransform))
+        {
+            // The link of an axis: a named transform the JSON can carry, defined over every range, distinct for every k.
+            return AxisTransform.Linear(1.5 + k / 64.0, 0.25 + k / 32.0);
+        }
+
         if (type == typeof(GaugeBand[]) || type == typeof(IReadOnlyList<GaugeBand>))
         {
             // Ascending thresholds with a colour each, the order a gauge and a bullet graph read their bands in.
@@ -463,6 +480,19 @@ public static class DrawnSeriesFixtures
         if (type == typeof(IReadOnlyList<double>))
         {
             return Enumerable.Range(0, Points).Select(i => k + i + 0.5).ToArray();
+        }
+
+        if (type == typeof(MatPlotLibNet.Interaction.DataPoint))
+        {
+            // A point of a patch (a corner, the start of an arrow): off the origin and distinct for every k.
+            var point = new MatPlotLibNet.Interaction.DataPoint(0.25 + k / 64.0, 0.5 + k / 32.0);
+            return current is MatPlotLibNet.Interaction.DataPoint at && at == point ? point with { DataX = point.DataX + 1 } : point;
+        }
+
+        if (type == typeof(IReadOnlyList<MatPlotLibNet.Interaction.DataPoint>))
+        {
+            // The vertices of a polygon: Points of them, never on one line (y grows as the square of i), distinct for every k.
+            return Enumerable.Range(0, Points).Select(i => new MatPlotLibNet.Interaction.DataPoint(k + i + 0.5, i * i + 0.25 + k / 64.0)).ToArray();
         }
 
         if (type == typeof(Range1D))

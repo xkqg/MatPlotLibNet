@@ -106,6 +106,32 @@ public class AxesDrawnPropertiesRoundTripTests
         Assert.Equal("2023", formatter.Format(new DateTime(2023, 3, 1).ToOADate()));
     }
 
+    /// <summary>A property of an axis named as not carried yet (<see cref="DrawnAxesFixtures.AxisNotCarried"/>) is a settable
+    /// property of an axis that no axis seat holds, and it really is not carried: set on the top axis, it reads back at its
+    /// default. The day the JSON carries it this goes red, the name leaves the list, and every axis seat holds it from then
+    /// on.</summary>
+    [Fact]
+    public void AnAxisPropertyNamedAsNotCarried_IsHeldByNoSeat_AndReadsBackAtItsDefault()
+    {
+        var seatPaths = DrawnAxesFixtures.Parts.Where(part => part.Type == typeof(Axis)).SelectMany(DrawnAxesFixtures.DrawnPaths).ToList();
+        Assert.NotEmpty(seatPaths);
+        foreach (string name in DrawnAxesFixtures.AxisNotCarried.Keys)
+        {
+            var property = typeof(Axis).GetProperty(name);
+            Assert.True(property is { SetMethod.IsPublic: true }, $"Axis.{name} is named as not carried, but an axis has no settable property of that name.");
+            Assert.DoesNotContain(name, seatPaths);
+            var figure = DrawnAxesFixtures.Build(everyPropertySet: false);
+            var top = figure.SubPlots[0].SecondaryXAxis!;
+            object? atRest = property.GetValue(top);
+            property.SetValue(top, DrawnSeriesFixtures.NotTheDefault(property, atRest, 0));
+
+            object? read = property.GetValue(RoundTrip(figure).SubPlots[0].SecondaryXAxis!);
+
+            Assert.True(DrawnSeriesFixtures.SameValue(atRest, read),
+                $"Axis.{name} is named as not carried, yet came back from JSON as {DrawnSeriesFixtures.Show(read)}: take it out of AxisNotCarried.");
+        }
+    }
+
     /// <summary>The fixture refuses a part or a property it does not have, so a renamed property cannot pass for a
     /// carried one.</summary>
     [Fact]

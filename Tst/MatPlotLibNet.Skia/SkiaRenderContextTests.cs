@@ -253,6 +253,104 @@ public class SkiaRenderContextTests : IDisposable
             $"Semi-transparent alpha ({semiPixel.Alpha}) should be less than opaque alpha ({opaquePixel.Alpha})");
     }
 
+    // ── The line style of a shape's stroke ────────────────────────────────────
+    // A shape's stroke is dashed by the rule a line's stroke is dashed by (CreateStrokePaint: the pattern of the style, in
+    // multiples of the thickness). At a thickness of 2 the dashed pattern 5,2 is 10 on and 4 off, so a stroke that starts at
+    // x = 10 is on from 10 to 20, off from 20 to 24 and on again from 24 to 34: pixel 15 is inked and pixel 22 is not.
+
+    private static ShapeStyle Stroked(LineStyle style) =>
+        new(null, Colors.Black, 2) { StrokeLineStyle = style };
+
+    private static readonly PathSegment[] HorizontalStroke =
+        [new MoveToSegment(new Point(10, 50)), new LineToSegment(new Point(90, 50))];
+
+    private static readonly Point[] Square = [new(10, 50), new(90, 50), new(90, 90), new(10, 90)];
+
+    /// <summary>A path stroked dashed leaves the gaps of the dashed line.</summary>
+    [Fact]
+    public void ADashedPathStroke_LeavesTheGapsOfADashedLine()
+    {
+        _ctx.DrawPath(HorizontalStroke, Stroked(LineStyle.Dashed));
+        _canvas.Flush();
+
+        Assert.True(_bitmap.GetPixel(15, 50).Alpha > 0, "the first dash is not inked");
+        Assert.Equal(0, _bitmap.GetPixel(22, 50).Alpha);
+        Assert.True(_bitmap.GetPixel(28, 50).Alpha > 0, "the second dash is not inked");
+    }
+
+    /// <summary>A path stroked solid, the default, has no gap: the figures drawn before a shape had a line style.</summary>
+    [Fact]
+    public void ASolidPathStroke_LeavesNoGap()
+    {
+        _ctx.DrawPath(HorizontalStroke, Stroked(LineStyle.Solid));
+        _canvas.Flush();
+
+        Assert.True(_bitmap.GetPixel(22, 50).Alpha > 0);
+    }
+
+    /// <summary>A path whose stroke has the line style None draws no stroke, and the fill under it is still drawn.</summary>
+    [Fact]
+    public void ANonePathStroke_DrawsNoStroke()
+    {
+        _ctx.DrawPath(HorizontalStroke, new ShapeStyle(null, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _canvas.Flush();
+        Assert.False(HasNonTransparentPixels());
+
+        _ctx.DrawPath([new MoveToSegment(new Point(10, 10)), new LineToSegment(new Point(90, 10)), new LineToSegment(new Point(50, 90)), new CloseSegment()],
+            new ShapeStyle(Colors.Green, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _canvas.Flush();
+        Assert.True(_bitmap.GetPixel(50, 30).Alpha > 0, "the fill is gone");
+        Assert.Equal(0, _bitmap.GetPixel(50, 9).Alpha);
+    }
+
+    /// <summary>A polygon stroked dashed leaves the gaps of the dashed line along its first edge.</summary>
+    [Fact]
+    public void ADashedPolygonStroke_LeavesTheGapsOfADashedLine()
+    {
+        _ctx.DrawPolygon(Square, Stroked(LineStyle.Dashed));
+        _canvas.Flush();
+
+        Assert.True(_bitmap.GetPixel(15, 50).Alpha > 0, "the first dash is not inked");
+        Assert.Equal(0, _bitmap.GetPixel(22, 50).Alpha);
+        Assert.True(_bitmap.GetPixel(28, 50).Alpha > 0, "the second dash is not inked");
+    }
+
+    /// <summary>A polygon stroked solid has no gap along its first edge.</summary>
+    [Fact]
+    public void ASolidPolygonStroke_LeavesNoGap()
+    {
+        _ctx.DrawPolygon(Square, Stroked(LineStyle.Solid));
+        _canvas.Flush();
+
+        Assert.True(_bitmap.GetPixel(22, 50).Alpha > 0);
+    }
+
+    /// <summary>A polygon whose stroke has the line style None draws no stroke, and the fill under it is still drawn.</summary>
+    [Fact]
+    public void ANonePolygonStroke_DrawsNoStroke()
+    {
+        _ctx.DrawPolygon(Square, new ShapeStyle(null, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _canvas.Flush();
+        Assert.False(HasNonTransparentPixels());
+
+        _ctx.DrawPolygon(Square, new ShapeStyle(Colors.Green, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _canvas.Flush();
+        Assert.True(_bitmap.GetPixel(50, 70).Alpha > 0, "the fill is gone");
+        Assert.Equal(0, _bitmap.GetPixel(50, 49).Alpha);
+    }
+
+    /// <summary>The rectangle, the circle and the ellipse stroke through the same fill-then-stroke sequence, so they take
+    /// the line style too: a dashed rectangle has a gap along its top edge.</summary>
+    [Fact]
+    public void ADashedRectangleStroke_LeavesTheGapsOfADashedLine()
+    {
+        _ctx.DrawRectangle(new Rect(10, 50, 80, 40), Stroked(LineStyle.Dashed));
+        _canvas.Flush();
+
+        Assert.True(_bitmap.GetPixel(15, 50).Alpha > 0, "the first dash is not inked");
+        Assert.Equal(0, _bitmap.GetPixel(22, 50).Alpha);
+    }
+
     private bool HasNonTransparentPixels()
     {
         for (int y = 0; y < _bitmap.Height; y++)

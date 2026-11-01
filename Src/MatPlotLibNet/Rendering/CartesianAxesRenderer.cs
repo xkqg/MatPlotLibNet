@@ -25,6 +25,11 @@ public class CartesianAxesRenderer : AxesRenderer
     /// <remarks>Cartesian axes draw end-of-line labels, so a series that asked for one leaves the legend here.</remarks>
     internal override bool DrawsDirectLabels => true;
 
+    /// <inheritdoc />
+    /// <remarks>Cartesian axes draw their patches (<c>CartesianPatchesPart</c>), an inset's included, so a labelled patch has a
+    /// row in their legend.</remarks>
+    internal override bool DrawsPatches => true;
+
     /// <summary>The end labels of the axes being rendered; placed by <see cref="Render"/> before the series pass.</summary>
     private CartesianParts.CartesianDirectLabelsPart? _directLabels;
 
@@ -49,11 +54,14 @@ public class CartesianAxesRenderer : AxesRenderer
     /// The end labels start past it.</summary>
     private double _mirroredYTickBand;
 
-    /// <summary>Whether any right-side slot is drawn: it has series. A drawn secondary axis owns the right edge.</summary>
-    private bool DrawsSecondaryY => Axes.YAxes.Right.Any(s => s.Series.Count > 0);
+    /// <summary>Whether any right-side slot is drawn (<see cref="YAxisSlot.IsDrawn"/>: it has series or is linked). A drawn
+    /// secondary axis owns the right edge.</summary>
+    private bool DrawsSecondaryY => Axes.YAxes.Right.Any(s => s.IsDrawn);
 
-    /// <summary>Whether a secondary X axis is drawn: it has series. A drawn secondary axis owns the top edge.</summary>
-    private bool DrawsSecondaryX => Axes.SecondaryXAxis is not null && Axes.XSecondarySeries.Count > 0;
+    /// <summary>Whether the top X axis is drawn: it has series, or it is linked to the primary X axis (<see cref="Axis.Link"/>),
+    /// when it draws the primary's range in its own unit without any. A top axis with neither is placed nowhere and draws
+    /// nothing. A drawn secondary axis owns the top edge.</summary>
+    private bool DrawsSecondaryX => Axes.SecondaryXAxis is { } top && (Axes.XSecondarySeries.Count > 0 || top.Link is not null);
 
     /// <summary>Whether the primary X ticks are mirrored on the top edge: asked for, and no drawn secondary X axis owns
     /// that edge (matplotlib's <c>twiny</c> moves the host's ticks to the bottom the same way).</summary>
@@ -94,14 +102,15 @@ public class CartesianAxesRenderer : AxesRenderer
     /// tick label's height depends on its font only, so upright numbers and dates, and the upright mirrored top band, are
     /// measured on one label; category names and turned labels over the labels the drawing places, turned as drawn
     /// (<see cref="AxisTickExtensions.LabelExtent"/>). A drawn secondary X axis owns the top edge, so the top band is then
-    /// its band (<see cref="CartesianParts.CartesianSecondaryXAxisPart.MeasureBand"/>), which it draws whatever the series.
-    /// The bottom band is measured for every X axis that draws tick labels; the X axis title below them is measured by the
-    /// rule <see cref="AxesRenderer.RenderAxisLabels"/> places it by (<see cref="AxisTickExtensions.BottomAxisTitleExtent"/>),
+    /// its band (<see cref="CartesianParts.CartesianSecondaryXAxisPart.MeasureBand"/>), placed by <see cref="PlaceTopAxis"/> as
+    /// the drawing places it (its ticks, a linked one's included, depend on this plot's width), which it draws whatever the
+    /// series. The bottom band is measured for every X axis that draws tick labels; the X axis title below them is measured by
+    /// the rule <see cref="AxesRenderer.RenderAxisLabels"/> places it by (<see cref="AxisTickExtensions.BottomAxisTitleExtent"/>),
     /// at its fixed offset when no tick label is drawn, axis-less series included.</remarks>
     internal override Layout.EdgeBands MeasureEndBands()
     {
         double secondaryTop = DrawsSecondaryX
-            ? CartesianParts.CartesianSecondaryXAxisPart.MeasureBand(Axes, Ctx, Theme, ComputeSecondaryXDataRanges(0, 1))
+            ? CartesianParts.CartesianSecondaryXAxisPart.MeasureBand(Axes, Ctx, Theme, PlaceTopAxis(ComputeDataRanges()))
             : 0;
         if (IsAxisLess) return new Layout.EdgeBands(secondaryTop, 0, 0, 0, MeasureBottomTitle(0));
         var xMajor = Axes.XAxis.MajorTicks;
@@ -269,11 +278,14 @@ public class CartesianAxesRenderer : AxesRenderer
     /// with their source (<see cref="AxesTickSourceExtensions"/>' <c>SlotTickSource</c>: its locator, or its scale's). The render, the layout's reserve
     /// (<c>ConstrainedLayoutEngine</c>) and the interaction views (<see cref="ComputeSecondaryViewTransforms"/>) all place a
     /// slot here, so none of them works its range or transform out a second way.</summary>
+    /// <remarks>A linked slot (<see cref="YAxisSlot.IsLinked"/>) has no range of its own and is placed by
+    /// <see cref="PlaceLinkedSlot"/>; <paramref name="x"/> is then not read.</remarks>
     /// <param name="slot">The slot.</param>
     /// <param name="x">The X extent the slot shares with the primary.</param>
     /// <returns>The slot with its range, transform and ticks; its identity, band and offset are the caller's to add.</returns>
     internal PlacedYSlot PlaceSlot(YAxisSlot slot, MinMaxRange x)
     {
+        if (slot.Axis.Link is { } link) return PlaceLinkedSlot(slot, link);
         var range = ComputeSecondaryDataRanges(x.Min, x.Max, slot.Axis, slot.Series);
         return new PlacedYSlot
         {
@@ -284,6 +296,120 @@ public class CartesianAxesRenderer : AxesRenderer
             Source = slot.Axis.SlotTickSource(),
         };
     }
+
+    /// <summary>A slot linked to the primary Y axis (<see cref="Axis.Link"/>, matplotlib's <c>secondary_yaxis</c>) placed: on
+    /// the primary's range and transform (<see cref="ComputeDataRanges"/>, <see cref="ViewTransform"/>), with no range of its
+    /// own, its ticks laid out by the one rule of a linked axis (<see cref="LayOutLinkedTicks"/>), the rule the linked top axis
+    /// follows too.</summary>
+    /// <param name="slot">The linked slot.</param>
+    /// <param name="link">Its link.</param>
+    /// <returns>The slot placed; its identity, band and offset are the caller's to add.</returns>
+    private PlacedYSlot PlaceLinkedSlot(YAxisSlot slot, AxisTransform link)
+    {
+        var range = ComputeDataRanges();
+        var transform = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
+        var linked = LayOutLinkedTicks(slot.Axis, link, transform, isX: false);
+        return new PlacedYSlot
+        {
+            Slot = slot,
+            Range = range,
+            Transform = transform,
+            Placement = linked.Placement,
+            Ticks = linked.Ticks,
+            Source = linked.Source,
+            Diagnostic = linked.Diagnostic,
+        };
+    }
+
+    /// <summary>The ONE place the top X axis is placed, for the primary's range <paramref name="primary"/>
+    /// (<see cref="ComputeDataRanges"/>). The drawing (<see cref="Render"/>), the band the layout reserves for it
+    /// (<see cref="MeasureEndBands"/>) and the marks a legend keeps clear of (<see cref="LegendObstacles"/>) all place it here,
+    /// so none of them works its range, transform or ticks out a second way.
+    /// <para>A top axis linked to the primary X axis (<see cref="Axis.Link"/>, matplotlib's <c>secondary_xaxis</c>) has no range
+    /// of its own: it takes <paramref name="primary"/> and the primary's transform, and its ticks are laid out by the one rule of
+    /// a linked axis (<see cref="LayOutLinkedTicks"/>), the rule a linked Y slot follows. Any other top axis is placed over its
+    /// own range (<see cref="ComputeSecondaryXDataRanges"/>), through its own scale (a log top axis draws its series and its
+    /// ticks on its log scale), with its ticks by its own locator, else the one its scale brings, else its tick spacing, else the
+    /// default placement at full density: the eight intervals a top axis that sets none of these has always drawn, whatever the
+    /// plot's width (<see cref="AxesTickSourceExtensions"/>' <c>OwnTickSource</c> and <c>TickValuesBetween</c>).</para></summary>
+    /// <remarks>The Y of a top axis with a range of its own is the primary's: the same range through the primary's Y scale and
+    /// breaks (matplotlib's <c>twiny</c> shares the Y axis), so a value stands at the height the primary gives it on a log, symlog
+    /// or broken Y axis.</remarks>
+    /// <param name="primary">The primary axes' range: a linked top axis shows its X range, and a top axis with a range of its own
+    /// shares its Y range.</param>
+    /// <returns>The top axis placed.</returns>
+    internal PlacedTopAxis PlaceTopAxis(DataRange primary)
+    {
+        var top = Axes.SecondaryXAxis!;
+        if (top.Link is { } link)
+        {
+            var view = ViewTransform(primary, Axes.YAxis, Axes.YBreaks);
+            var linked = LayOutLinkedTicks(top, link, view, isX: true);
+            return new PlacedTopAxis
+            {
+                Range = primary,
+                Transform = view,
+                Placement = linked.Placement,
+                Ticks = linked.Ticks,
+                Source = linked.Source,
+                Diagnostic = linked.Diagnostic,
+            };
+        }
+
+        var range = ComputeSecondaryXDataRanges(primary.YMin, primary.YMax);
+        var source = top.OwnTickSource(isX: true);
+        return new PlacedTopAxis
+        {
+            Range = range,
+            Transform = TransformOf(range, AxisMapping.Of(top, []), AxisMapping.Of(Axes.YAxis, Axes.YBreaks)),
+            Ticks = top.TickValuesBetween(source, new Range1D(range.XMin, range.XMax), FullTickDensityLength),
+            Source = source,
+        };
+    }
+
+    /// <summary>The ONE rule a linked axis lays its ticks out by, the top X axis (<paramref name="isX"/>) and a Y slot past the
+    /// primary alike: over the image, in the linked unit, of the range the primary shows that way (the drawn range of
+    /// <paramref name="primary"/>), low to high whichever way the link runs (<see cref="AxisTransform.ImageOf"/>), from the
+    /// axis' tick source (<see cref="AxesTickSourceExtensions"/>' <c>LinkedTickSource</c>: its own locator, the log locator on a
+    /// log primary, as matplotlib's <c>functionlog</c> scale, otherwise its spacing or the default placement for the plot's
+    /// length that way). Each tick stands where the primary shows the value it maps back to (<see cref="LinkedTickPlacement"/>),
+    /// and one the primary cannot place (inside a break, or where the link has no inverse) is left out. When the link cannot
+    /// place the primary's range there are no ticks, and the diagnostic the drawing reports says why.</summary>
+    /// <param name="axis">The linked axis: its locator, spacing and formatter.</param>
+    /// <param name="link">Its link.</param>
+    /// <param name="primary">The primary's transform, over the primary's range.</param>
+    /// <param name="isX">The top X axis when <see langword="true"/>, a Y slot past the primary otherwise.</param>
+    /// <returns>Where the ticks stand, the ticks, their source and, when the link cannot place the range, the diagnostic.</returns>
+    private LinkedTicks LayOutLinkedTicks(Axis axis, AxisTransform link, DataTransform primary, bool isX)
+    {
+        var drawn = primary.DrawnRange;
+        var placement = isX ? LinkedTickPlacement.AlongX(primary, link) : LinkedTickPlacement.AlongY(primary, link);
+        var source = axis.LinkedTickSource((isX ? Axes.XAxis : Axes.YAxis).Scale);
+        var shown = isX ? new Range1D(drawn.XMin, drawn.XMax) : new Range1D(drawn.YMin, drawn.YMax);
+        if (link.ImageOf(shown) is not { } image)
+            return new LinkedTicks(placement, [], source, UnplacedLinkDiagnostic(isX ? "top X" : "Y", shown));
+
+        double[] ticks = [.. axis.TickValuesBetween(source, image.Interval, isX ? PlotArea.Width : PlotArea.Height)
+            .Where(tick => (isX ? placement.DataToPixel(tick, drawn.YMin).X : placement.DataToPixel(drawn.XMin, tick).Y).IsDrawable())];
+        return new LinkedTicks(placement, ticks, source, null);
+    }
+
+    /// <summary>The ticks of a linked axis as one render lays them out (<see cref="LayOutLinkedTicks"/>).</summary>
+    /// <param name="Placement">Where a tick of a given value stands: where the primary shows the value it maps back to.</param>
+    /// <param name="Ticks">The tick values, in the linked unit; none when the link cannot place the primary's range.</param>
+    /// <param name="Source">Where the ticks come from and how their labels are written.</param>
+    /// <param name="Diagnostic">Why there are no ticks, when the link cannot place the primary's range; otherwise
+    /// <see langword="null"/>.</param>
+    private readonly record struct LinkedTicks(LinkedTickPlacement Placement, double[] Ticks, TickSource Source,
+        Diagnostics.ChartDiagnostic? Diagnostic);
+
+    /// <summary>What a linked axis reports when its link cannot place the primary's range <paramref name="shown"/>.</summary>
+    /// <param name="axis">Which axis it is, as the message names it: "Y" or "top X".</param>
+    /// <param name="shown">The range the primary shows along that axis.</param>
+    private static Diagnostics.ChartDiagnostic UnplacedLinkDiagnostic(string axis, Range1D shown) => new(nameof(CartesianAxesRenderer),
+        string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"A linked {axis} axis draws no ticks: its transform cannot show the primary range {shown.Lo}..{shown.Hi} (a reciprocal across 0, a logarithm or a power reaching below 0, or a function that is no number at an end or maps both ends to one value)."),
+        null);
 
     /// <summary>From a placed slot's edge to the far side of what it draws, as its part draws it: its tick labels measured
     /// in the context its part draws them with (<see cref="PlacedYSlot.TickDraw"/>), then its title by the one band rule
@@ -382,6 +508,9 @@ public class CartesianAxesRenderer : AxesRenderer
         // Render span regions (Phase B.5 — extracted to CartesianSpansPart)
         new CartesianParts.CartesianSpansPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
 
+        // Patches, in the spans' layer (matplotlib draws both at zorder 1, under the lines): after the spans, before the lines
+        new CartesianParts.CartesianPatchesPart(Axes, PlotArea, Ctx, Theme, transform).Render();
+
         // Render reference lines (Phase B.6 — extracted to CartesianReferenceLinesPart)
         new CartesianParts.CartesianReferenceLinesPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
 
@@ -393,8 +522,8 @@ public class CartesianAxesRenderer : AxesRenderer
         // Every Y axis slot of the container is placed ONCE for this render (PlaceYSlots): its range, its transform, its
         // ticks, where its series stand in the identity order, its band and its offset. A slot without series is still
         // placed and charged its band, by the rule the layout reserves the sides by, so the slot past it stands where the
-        // layout made room for it; only a slot WITH series is drawn. The primary, left slot 0, comes first, with the band
-        // of the tick labels it drew.
+        // layout made room for it; only a slot that is drawn (YAxisSlot.IsDrawn: with series, or linked to the primary) is
+        // drawn. The primary, left slot 0, comes first, with the band of the tick labels it drew.
         var placed = PlaceYSlots(primary with
         {
             Band = Axes.YAxis.YTitleExtent(new YAxisTitleInput(
@@ -413,18 +542,18 @@ public class CartesianAxesRenderer : AxesRenderer
         if (Axes.XBreaks.Count > 0) RenderBreakMarkers(Axes.XBreaks, transform, isXAxis: true);
         if (Axes.YBreaks.Count > 0) RenderBreakMarkers(Axes.YBreaks, transform, isXAxis: false);
 
-        // Every Y axis slot past the primary that has series, right slots then left slots, nearest the plot first, each
-        // at its own offset, through the part that draws every Y axis (the primary's steps are drawn above and below).
-        foreach (var slot in placed.Skip(1).Where(slot => slot.Slot.Series.Count > 0))
+        // Every Y axis slot past the primary that is drawn (it has series, or it is linked), right slots then left slots,
+        // nearest the plot first, each at its own offset, through the part that draws every Y axis (the primary's steps are
+        // drawn above and below).
+        foreach (var slot in placed.Skip(1).Where(slot => slot.Slot.IsDrawn))
             new CartesianParts.CartesianYAxisSlotPart(PartContext, slot, DrawInsideSeriesGroup).Render();
 
-        // Secondary X-axis series (Phase B.8 — extracted to CartesianSecondaryXAxisPart). It owns the top edge, so the
-        // band it draws there is what the axes title rises by.
+        // The top X axis, drawn when it has series or is linked (DrawsSecondaryX), as PlaceTopAxis places it, the placement the
+        // layout measured its band by. It owns the top edge, so the band it draws there is what the axes title rises by.
         if (DrawsSecondaryX)
         {
-            var secXRange = ComputeSecondaryXDataRanges(range.YMin, range.YMax);
             var secondaryX = new CartesianParts.CartesianSecondaryXAxisPart(
-                Axes, PlotArea, Ctx, Theme, transform, secXRange);
+                Axes, PlotArea, Ctx, Theme, transform, PlaceTopAxis(range));
             secondaryX.Render();
             MeasuredTopTickBand = secondaryX.Band;
         }
@@ -485,7 +614,8 @@ public class CartesianAxesRenderer : AxesRenderer
     /// <inheritdoc />
     /// <remarks>Every series of every seat, hidden ones too (a legend that toggles a series must not move from under the
     /// pointer): the primary's through the view transform, each Y slot's through the transform <see cref="PlaceSlot"/>
-    /// gives it and the top axis' through its own, the three <see cref="Render"/> draws them with, none of it drawn.</remarks>
+    /// gives it and the top axis' through the one <see cref="PlaceTopAxis"/> gives it, the three <see cref="Render"/> draws
+    /// them with, none of it drawn.</remarks>
     internal override MarkObstacles LegendObstacles()
     {
         var marks = new MarkObstacles.Builder();
@@ -514,11 +644,7 @@ public class CartesianAxesRenderer : AxesRenderer
         foreach (var seat in Axes.YSlotSeats().Skip(1))
             CollectMarks(seat.Slot.Series, PlaceSlot(seat.Slot, x).Transform, marks);
         if (DrawsSecondaryX)
-        {
-            var secRange = ComputeSecondaryXDataRanges(range.YMin, range.YMax);
-            CollectMarks(Axes.XSecondarySeries,
-                new DataTransform(secRange.XMin, secRange.XMax, secRange.YMin, secRange.YMax, PlotArea), marks);
-        }
+            CollectMarks(Axes.XSecondarySeries, PlaceTopAxis(range).Transform, marks);
         return primaryView;
     }
 
@@ -551,27 +677,52 @@ public class CartesianAxesRenderer : AxesRenderer
     /// <param name="range">The X range and the Y axis' own range.</param>
     /// <param name="yAxis">The Y axis: its scale and symlog threshold.</param>
     /// <param name="yBreaks">The breaks of that Y axis.</param>
-    private DataTransform ViewTransform(DataRange range, Axis yAxis, IReadOnlyList<AxisBreak> yBreaks)
+    private DataTransform ViewTransform(DataRange range, Axis yAxis, IReadOnlyList<AxisBreak> yBreaks) =>
+        TransformOf(range, AxisMapping.Of(Axes.XAxis, Axes.XBreaks), AxisMapping.Of(yAxis, yBreaks));
+
+    /// <summary>The ONE rule a transform of this renderer is built by: the transform that maps <paramref name="range"/> onto the
+    /// plot area, each direction by its <see cref="AxisMapping"/>. Breaks compress a direction, and on a log or symlog axis the
+    /// pixel mapping works in the scaled space (<see cref="AxisScaleExtensions.Forward"/>); with neither, the plain linear
+    /// transform. The primary's and every Y slot's (<see cref="ViewTransform"/>) and the top axis' (<see cref="PlaceTopAxis"/>)
+    /// are built here.</summary>
+    /// <param name="range">The range mapped onto the plot, in data units.</param>
+    /// <param name="x">How the X direction maps its values.</param>
+    /// <param name="y">How the Y direction maps its values.</param>
+    private DataTransform TransformOf(DataRange range, AxisMapping x, AxisMapping y)
     {
         // Apply axis breaks: compress the visible range by removing break gaps
-        var (cXMin, cXMax) = Axes.XBreaks.Count > 0
-            ? AxisBreakMapper.CompressedRange(Axes.XBreaks, range.XMin, range.XMax)
+        var (cXMin, cXMax) = x.Breaks.Count > 0
+            ? AxisBreakMapper.CompressedRange(x.Breaks, range.XMin, range.XMax)
             : new MinMaxRange(range.XMin, range.XMax);
-        var (cYMin, cYMax) = yBreaks.Count > 0
-            ? AxisBreakMapper.CompressedRange(yBreaks, range.YMin, range.YMax)
+        var (cYMin, cYMax) = y.Breaks.Count > 0
+            ? AxisBreakMapper.CompressedRange(y.Breaks, range.YMin, range.YMax)
             : new MinMaxRange(range.YMin, range.YMax);
 
-        var (txMin, txMax) = ScaleRange(cXMin, cXMax, Axes.XAxis.Scale, Axes.XAxis.SymLogLinThresh);
-        var (tyMin, tyMax) = ScaleRange(cYMin, cYMax, yAxis.Scale, yAxis.SymLogLinThresh);
+        var (txMin, txMax) = ScaleRange(cXMin, cXMax, x.Scale, x.LinThresh);
+        var (tyMin, tyMax) = ScaleRange(cYMin, cYMax, y.Scale, y.LinThresh);
 
-        return (Axes.XBreaks.Count > 0 || yBreaks.Count > 0
-                || Axes.XAxis.Scale is AxisScale.Log or AxisScale.SymLog
-                || yAxis.Scale is AxisScale.Log or AxisScale.SymLog)
+        return (x.Breaks.Count > 0 || y.Breaks.Count > 0
+                || x.Scale is AxisScale.Log or AxisScale.SymLog
+                || y.Scale is AxisScale.Log or AxisScale.SymLog)
             ? new DataTransform(txMin, txMax, tyMin, tyMax, PlotArea,
-                Axes.XBreaks, yBreaks,
+                x.Breaks, y.Breaks,
                 range.XMin, range.XMax, range.YMin, range.YMax,
-                Axes.XAxis.Scale, yAxis.Scale, Axes.XAxis.SymLogLinThresh, yAxis.SymLogLinThresh)
+                x.Scale, y.Scale, x.LinThresh, y.LinThresh)
             : new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
+    }
+
+    /// <summary>How one direction of a transform maps its values before they are spread over the plot (<see cref="TransformOf"/>):
+    /// the scale and symlog threshold of its axis, and that axis' breaks.</summary>
+    /// <param name="Scale">The axis' scale.</param>
+    /// <param name="LinThresh">The axis' symlog threshold.</param>
+    /// <param name="Breaks">The axis' breaks.</param>
+    private readonly record struct AxisMapping(AxisScale Scale, double LinThresh, IReadOnlyList<AxisBreak> Breaks)
+    {
+        /// <summary>The mapping of <paramref name="axis"/> with <paramref name="breaks"/>.</summary>
+        /// <param name="axis">The axis: its scale and symlog threshold.</param>
+        /// <param name="breaks">Its breaks.</param>
+        /// <returns>The mapping.</returns>
+        internal static AxisMapping Of(Axis axis, IReadOnlyList<AxisBreak> breaks) => new(axis.Scale, axis.SymLogLinThresh, breaks);
     }
 
     /// <summary>Maps a (raw) data range through the axis scale's Forward function so the
@@ -736,11 +887,18 @@ public class CartesianAxesRenderer : AxesRenderer
         return new DataRange(xMin, xMax, drawn.Lo, drawn.Hi);
     }
 
-    /// <summary>Computes the X data range for series plotted against the secondary X-axis.</summary>
+    /// <summary>Computes the X data range for series plotted against the secondary X-axis: its series' extent, a set limit
+    /// exact, then by the rules a Y slot's range follows (<see cref="ComputeSecondaryDataRanges(double,double,Axis,IReadOnlyList{ISeries})"/>):
+    /// on a log scale a floor it cannot place lifted and the margin taken in log space, a set side left as set, an inverted axis
+    /// drawn high to low.</summary>
+    /// <param name="yMin">The primary's Y minimum, which the top axis shares.</param>
+    /// <param name="yMax">The primary's Y maximum, which the top axis shares.</param>
+    /// <returns>The top axis' own X range beside the primary's Y range.</returns>
     internal DataRange ComputeSecondaryXDataRanges(double yMin, double yMax)
     {
-        double xMin = Axes.SecondaryXAxis?.Min ?? double.MaxValue;
-        double xMax = Axes.SecondaryXAxis?.Max ?? double.MinValue;
+        var axis = Axes.SecondaryXAxis!;
+        double xMin = axis.Min ?? double.MaxValue;
+        double xMax = axis.Max ?? double.MinValue;
 
         var context = new AxesContextAdapter(Axes);
         foreach (var series in Axes.XSecondarySeries)
@@ -754,19 +912,17 @@ public class CartesianAxesRenderer : AxesRenderer
         }
 
         // A set limit is exact, the same rule the primary axes follow (Range1D.WithExplicitLimits).
-        var exact = new Range1D(xMin, xMax).WithExplicitLimits(Axes.SecondaryXAxis!);
+        var exact = new Range1D(xMin, xMax).WithExplicitLimits(axis);
         xMin = exact.Lo;
         xMax = exact.Hi;
 
         if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
         if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
 
-        double xPadding = (xMax - xMin) * 0.05;
-        if (!Axes.SecondaryXAxis!.Min.HasValue) xMin -= xPadding;
-        if (!Axes.SecondaryXAxis!.Max.HasValue) xMax += xPadding;
-
-        // An inverted axis is drawn high to low, the rule the primary axes follow (Range1D.OrientedBy).
-        var drawn = new Range1D(xMin, xMax).OrientedBy(Axes.SecondaryXAxis);
+        // A log axis lifts a floor it cannot place and pads in log space, a set side is left as set, and an inverted axis is
+        // drawn high to low: the rules every other axis follows (Range1D.PositiveForLog, Padded, OrientedBy). On a linear scale
+        // the margin is the five per cent each free side has always had.
+        var drawn = new Range1D(xMin, xMax).PositiveForLog(axis).Padded(0.05, axis).OrientedBy(axis);
         return new DataRange(drawn.Lo, drawn.Hi, yMin, yMax);
     }
 

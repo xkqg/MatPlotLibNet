@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Rendering;
 /// <summary>Transforms data coordinates to pixel coordinates and vice versa within a plot area.
 /// Optionally aware of axis breaks (data values inside break regions return NaN) and axis scales
 /// (Log / SymLog map data through the scale's Forward function before pixel scaling).</summary>
-public sealed class DataTransform
+public sealed class DataTransform : ITickPlacement
 {
     private readonly double _xScale, _xOffset, _yScale, _yOffset;
     private readonly double _dataXMin, _dataXMax, _dataYMin, _dataYMax;
@@ -50,6 +50,10 @@ public sealed class DataTransform
 
     /// <summary>The pixel-space rectangle the data range is mapped onto.</summary>
     internal Rect PlotBounds => _plotBounds;
+
+    /// <summary>The plot area a plain axis keeps its minor ticks inside (<see cref="PlotBounds"/>). As a tick placement a
+    /// transform stands a tick at its own value (<see cref="DataToPixel"/>), as every axis that is not linked does.</summary>
+    Rect ITickPlacement.PlotBounds => _plotBounds;
 
     /// <summary>The range the axes show, in data units, in drawn orientation: X from the left edge to the right edge, Y
     /// from the bottom edge to the top edge. On a log or symlog axis these are the data values at the edges, not their
@@ -163,6 +167,23 @@ public sealed class DataTransform
     {
         var pixel = DataToPixel(x, y);
         return ClipsBase(x, _xAxisScale) ? pixel with { X = XAxisStart } : pixel;
+    }
+
+    /// <summary>Converts a vertex of an outline in data units (a patch's corner, or a control point of its curve) to pixels: as
+    /// <see cref="DataToPixel"/>, except that a finite X the X axis' scale cannot place and a finite Y the Y axis' scale cannot
+    /// place are each clipped to the edge where that axis begins, by the rule of <see cref="DataToPixelClippedX"/> and
+    /// <see cref="DataToPixelClippedY"/> at once. matplotlib maps every vertex of a patch through the log scale's
+    /// <c>nonpositive='clip'</c>, which puts such a vertex a thousand decades beyond that edge, where its axes clip it; the shape
+    /// reaches the same edge here.</summary>
+    /// <remarks>A missing value, an infinity and a value inside an axis break are not clipped: they stay NaN (or infinite), and
+    /// the outline is left open there (<see cref="PathSegmentExtensions"/>).</remarks>
+    /// <param name="x">The X value in data space.</param>
+    /// <param name="y">The Y value in data space.</param>
+    /// <returns>The pixel position, each coordinate clipped where its axis cannot place it.</returns>
+    internal Point DataToPixelClipped(double x, double y)
+    {
+        var pixel = DataToPixel(x, y);
+        return new Point(ClipsBase(x, _xAxisScale) ? XAxisStart : pixel.X, ClipsBase(y, _yAxisScale) ? YAxisStart : pixel.Y);
     }
 
     /// <summary>Batch-transforms the bases of a mark (an area's lower edge, a stacked layer's floor) to pixel Y values: as

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
@@ -42,6 +43,9 @@ public class LegendEntryAgreementTests
         { "stackplot then line",        ["a", "b", "c", "line"],             [0, 0, 0, 1] },
         { "stackplot with a blank part", ["a", "c"],                         [0, 0] },
         { "stackplot named as one",     ["Stack"],                           [0] },
+        // A labelled patch is a row of the drawn and the measured legend but carries no index: the hit-test has no box for it.
+        { "patches after the series",   ["A", "B"],                          [0, 1] },
+        { "patches only",               [],                                  [] },
     };
 
     public static TheoryData<string> CaseNames =>
@@ -49,6 +53,7 @@ public class LegendEntryAgreementTests
         "plain", "secondary series", "legend values suffix", "unlabelled series first", "all of them together",
         "direct-labelled series", "direct-labelled secondary", "second right axis", "left axis", "left and right together",
         "polar axes", "3-D axes", "stackplot 3 labelled", "stackplot then line", "stackplot with a blank part", "stackplot named as one",
+        "patches after the series",
     ];
 
     private static FigureBuilder Build(string name) => name switch
@@ -112,6 +117,14 @@ public class LegendEntryAgreementTests
         // The series' own label is the entry of a stack whose layers are not named; it is not a second row beside them.
         "stackplot named as one" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .StackPlot(X, Layers(), s => s.Label = "Stack")),
+        "patches after the series" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "A")
+            .AddPatch(new Rectangle(new(1, 2), 1, 1) { Label = "a patch with a long name" })
+            .Plot(X, [4.0, 5.0, 6.0], s => s.Label = "B")
+            .AddPatch(new Circle(new(2, 3), 0.5) { Label = "_left out" })),
+        "patches only" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+            .AddPatch(new Rectangle(new(1, 2), 1, 1) { Label = "region" })
+            .AddPatch(new Wedge(new(2, 3), 0.5, 0, 90) { Label = "slice" })),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, null),
     };
 

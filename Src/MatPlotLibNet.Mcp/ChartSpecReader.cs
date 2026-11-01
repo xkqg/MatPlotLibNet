@@ -19,8 +19,8 @@ namespace MatPlotLibNet.Mcp;
 /// field and path, and only a document it has normalised reaches <see cref="IChartSerializer.FromJson"/>.</summary>
 /// <remarks>Order: parse → normalise (defaults, colours, enum spelling, bounds, text lengths) → strict structural pass
 /// over the SAME DTO records the serializer reads (an unknown field is a refusal with its path) → semantic pass
-/// (types against the catalog, array lengths) → the serializer → the figure it built must show something (a series, or a text
-/// or an image on the figure itself). A subplot keeps its axes and series at many seats (the
+/// (types against the catalog, array lengths) → the serializer → the figure it built must show something (a series, an overlay of
+/// a subplot, or a text or an image on the figure itself). A subplot keeps its axes and series at many seats (the
 /// primary pair, the top and right axes, every Y axis slot of either side): the normalising and the semantic pass both walk
 /// them through <see cref="AxesSeatShape"/>, so a check reaches every seat and a refusal names the seat's path.</remarks>
 internal sealed partial class ChartSpecReader
@@ -50,8 +50,8 @@ internal sealed partial class ChartSpecReader
     }
 
     /// <summary>The <see cref="Figure"/> the spec describes, or a <see cref="ToolRefusalException"/> naming what is wrong. A spec
-    /// is refused as "Nothing to draw" when it holds no series and the figure carries nothing that shows of its own (a text or an
-    /// image), because that picture would be blank.</summary>
+    /// is refused as "Nothing to draw" when it holds no series and carries nothing that shows of its own (an overlay of a
+    /// subplot, or a text or an image on the figure), because that picture would be blank.</summary>
     public Figure Read(ChartSpec spec)
     {
         JsonObject root = ParseObject(spec.Json);
@@ -62,18 +62,22 @@ internal sealed partial class ChartSpecReader
         if (series == 0 && !ShowsSomethingOfItsOwn(figure))
         {
             throw new ToolRefusalException(
-                "Nothing to draw: the spec has no series, and no text or image on the figure that shows. Put at least one series with a 'type' "
-                + "in subPlots[].series[], or a text in texts[] or an image in images[]. A legend or a colour bar alone draws nothing.");
+                "Nothing to draw: the spec has no series, no overlay on a Cartesian subplot, and no text or image on the figure that shows. "
+                + "Put at least one series with a 'type' in subPlots[].series[], or an overlay in the subplot (patches, spans, referenceLines, "
+                + "annotations, trendlines, horizontalLevels, fibonacciRetracements or signals), or a text in texts[] or an image in images[]. "
+                + "A legend, a colour bar or axis breaks alone draw nothing.");
         }
 
         return figure;
     }
 
-    /// <summary>Whether the figure draws something with no series on it: a text that shows or an image that shows, by the one rule
-    /// core's data table reads as well (<see cref="FigureText.IsShownOn"/>, <see cref="FigureImage.IsShownOn"/>). A legend and a
-    /// colour bar are not counted: they describe what series draw, so with none they are no picture.</summary>
+    /// <summary>Whether the figure draws something with no series on it: a subplot with an overlay the renderer draws
+    /// (<c>DrawsAnOverlay</c> of <see cref="AxesOverlayExtensions"/>), a text that shows or an image that shows, by the one rule core's data
+    /// table reads as well (<see cref="FigureText.IsShownOn"/>, <see cref="FigureImage.IsShownOn"/>). A legend, a colour bar and the
+    /// breaks of an axis are not counted: they describe what series draw, so with none they are no picture.</summary>
     private static bool ShowsSomethingOfItsOwn(Figure figure) =>
-        figure.Texts.Any(text => text.IsShownOn(figure.Width, figure.Height))
+        figure.SubPlots.Any(axes => axes.DrawsAnOverlay)
+        || figure.Texts.Any(text => text.IsShownOn(figure.Width, figure.Height))
         || figure.Images.Any(image => image.IsShownOn(figure.Height));
 
     private static JsonObject ParseObject(string json)
@@ -132,8 +136,8 @@ internal sealed partial class ChartSpecReader
         NormaliseColorMap(image, "colorMap", path);
     }
 
-    /// <summary>The figure's theme: the enum values of its font and its grid, and the line styles and markers its cycler
-    /// steps through. Its colours are normalised with every other colour of the document.</summary>
+    /// <summary>The figure's theme: the enum values of its font and its grid, where it puts a legend, and the line styles and
+    /// markers its cycler steps through. Its colours are normalised with every other colour of the document.</summary>
     private void NormaliseTheme(JsonObject figure, string path)
     {
         if (figure["theme"] is not JsonObject theme)
@@ -144,6 +148,7 @@ internal sealed partial class ChartSpecReader
         string at = $"{path}.theme";
         NormaliseFields(theme, "defaultFont", at, SpecNodeKind.Font, "weight", "slant");
         NormaliseFields(theme, "defaultGrid", at, SpecNodeKind.Grid, "lineStyle", "which", "axis");
+        NormaliseEnum(theme, SpecNodeKind.Theme, "defaultLegendPosition", at, seriesType: null);
         if (theme["propCycler"] is JsonObject cycler)
         {
             NormaliseEnum(cycler, SpecNodeKind.PropCycler, "lineStyles", $"{at}.propCycler", seriesType: null);
@@ -171,6 +176,7 @@ internal sealed partial class ChartSpecReader
 
         NormaliseEnum(axes, SpecNodeKind.Axes, "barMode", path, seriesType: null);
         NormaliseEnum(axes, SpecNodeKind.Axes, "titleLoc", path, seriesType: null);
+        NormaliseEnum(axes, SpecNodeKind.Axes, "coordinateSystem", path, seriesType: null);
         NormaliseFields(axes, "titleStyle", path, SpecNodeKind.TextStyle, "fontWeight", "fontSlant");
         NormaliseFields(axes, "legend", path, SpecNodeKind.Legend, "position");
         NormaliseColorBar(axes, "colorBar", path);
@@ -181,7 +187,7 @@ internal sealed partial class ChartSpecReader
         {
             foreach (var side in new[] { "top", "bottom", "left", "right" })
             {
-                NormaliseFields(spines, side, $"{path}.spines", SpecNodeKind.Spine, "lineStyle");
+                NormaliseFields(spines, side, $"{path}.spines", SpecNodeKind.Spine, "lineStyle", "position");
             }
         }
 
@@ -208,11 +214,30 @@ internal sealed partial class ChartSpecReader
             NormaliseEnum(span, SpecNodeKind.Span, "orientation", p, null);
             NormaliseEnum(span, SpecNodeKind.Span, "lineStyle", p, null);
         });
+        ForEachObject(axes, "patches", path, NormalisePatch);
         ForEachObject(axes, "trendlines", path, (line, p) => NormaliseEnum(line, SpecNodeKind.Trendline, "lineStyle", p, null));
         ForEachObject(axes, "horizontalLevels", path, (level, p) => NormaliseEnum(level, SpecNodeKind.HorizontalLevel, "lineStyle", p, null));
+        ForEachObject(axes, "signals", path, (signal, p) =>
+        {
+            CheckText(signal, p, "label");
+            NormaliseEnum(signal, SpecNodeKind.Signal, "direction", p, null);
+        });
         ForEachObject(axes, "xBreaks", path, (axisBreak, p) => NormaliseEnum(axisBreak, SpecNodeKind.AxisBreak, "style", p, null));
         ForEachObject(axes, "yBreaks", path, (axisBreak, p) => NormaliseEnum(axisBreak, SpecNodeKind.AxisBreak, "style", p, null));
         ForEachObject(axes, "insets", path, NormaliseAxes);
+    }
+
+    /// <summary>One patch of a subplot: its text, its kind, which stands first as the serializer reads it only there, and the
+    /// enum words of its outline, its hatch and (an arrow's) its shape. The kind is checked here, ahead of the strict pass: a patch
+    /// of a kind this build does not know reads as the base record there, and the first field of its geometry would be reported
+    /// as the unknown one. Its colours are normalised with every other colour of the document.</summary>
+    private void NormalisePatch(JsonObject patch, string path)
+    {
+        CheckText(patch, path, "label");
+        NormaliseKindOf(patch, "patch", path, SpecNodeKind.Patch);
+        NormaliseEnum(patch, SpecNodeKind.Patch, "edgeLineStyle", path, seriesType: null);
+        NormaliseEnum(patch, SpecNodeKind.Patch, "hatch", path, seriesType: null);
+        NormaliseEnum(patch, SpecNodeKind.Patch, "shape", path, seriesType: null);
     }
 
     private void NormaliseSeries(JsonObject series, string path)
@@ -224,9 +249,25 @@ internal sealed partial class ChartSpecReader
             NormaliseEnum(series, SpecNodeKind.Series, field, path, type);
         }
 
+        foreach (var field in _vocabulary.TreeFields)
+        {
+            if (series[field] is JsonObject root)
+            {
+                NormaliseTreeNode(root, $"{path}.{field}");
+            }
+        }
+
         NormaliseKind(series, "normalizer", path, SpecNodeKind.Normalizer);
         NormaliseColorMap(series, "colorMap", path);
         NormaliseColorMap(series, "pairGridOffDiagonalColorMapDescription", path);
+    }
+
+    /// <summary>One node of a tree (a treemap's, a sunburst's, a dendrogram's or a clustermap's), and the nodes below it: the
+    /// pattern over its rectangle. Its colours are normalised with every other colour of the document.</summary>
+    private void NormaliseTreeNode(JsonObject node, string path)
+    {
+        NormaliseEnum(node, SpecNodeKind.TreeNode, "hatch", path, seriesType: null);
+        ForEachObject(node, "children", path, NormaliseTreeNode);
     }
 
     /// <summary>A colour map built in code, described by kind: its kind is checked and moved first as a normaliser's is,
@@ -241,7 +282,8 @@ internal sealed partial class ChartSpecReader
         }
     }
 
-    /// <summary>One axis: its label, its scale, its ticks, its label style, and the kinds of its tick locator and formatter.</summary>
+    /// <summary>One axis: its label, its scale, its ticks, its label style, and the kinds of its tick locator, its tick formatter and
+    /// its link (the transform that shows the primary axis' range in another unit).</summary>
     private void NormaliseAxis(JsonObject axis, string path)
     {
         CheckText(axis, path, "label");
@@ -251,6 +293,7 @@ internal sealed partial class ChartSpecReader
         NormaliseFields(axis, "labelStyle", path, SpecNodeKind.TextStyle, "fontWeight", "fontSlant");
         NormaliseKind(axis, "tickLocator", path, SpecNodeKind.TickLocator);
         NormaliseKind(axis, "tickFormatter", path, SpecNodeKind.TickFormatter);
+        NormaliseKind(axis, "link", path, SpecNodeKind.AxisLink);
     }
 
     private void NormaliseColorBar(JsonObject parent, string field, string path)
@@ -281,16 +324,25 @@ internal sealed partial class ChartSpecReader
     /// field of the object. A value without a <c>type</c> is refused: the serializer would skip it.</summary>
     private void NormaliseKind(JsonObject parent, string field, string path, SpecNodeKind kind)
     {
-        if (parent[field] is not JsonObject node)
+        if (parent[field] is JsonObject node)
         {
-            return;
+            NormaliseKindOf(node, field, $"{path}.{field}", kind);
         }
+    }
 
-        string where = $"{path}.{field}";
+    /// <summary>The kind <paramref name="node"/> names of itself, checked, spelt as the serializer reads it and moved to stand
+    /// first: <see cref="NormaliseKind"/> for a value that is an entry of a list rather than the field of an object.</summary>
+    /// <param name="node">The described value.</param>
+    /// <param name="what">What the value is, as a refusal names it.</param>
+    /// <param name="where">Where <paramref name="node"/> stands.</param>
+    /// <param name="kind">The family of kinds the value belongs to.</param>
+    /// <exception cref="ToolRefusalException">The value has no <c>type</c>, or one that is not a kind of its family.</exception>
+    private void NormaliseKindOf(JsonObject node, string what, string where, SpecNodeKind kind)
+    {
         var rule = _vocabulary.RuleFor(kind, "type", seriesType: null)!;
         if (node["type"] is null)
         {
-            throw new ToolRefusalException($"The {field} at {where} has no 'type'; accepted: {string.Join(", ", rule.Accepted)}.");
+            throw new ToolRefusalException($"The {what} at {where} has no 'type'; accepted: {string.Join(", ", rule.Accepted)}.");
         }
 
         NormaliseEnum(node, kind, "type", where, seriesType: null);

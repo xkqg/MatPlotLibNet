@@ -77,6 +77,29 @@ public abstract class AxesRenderer
     /// renderer, which owns the end-label drawing, overrides it.</summary>
     internal virtual bool DrawsDirectLabels => false;
 
+    /// <summary>Whether this renderer draws the patches of its axes (<see cref="Axes.Patches"/>). Only then does a labelled patch
+    /// have a row in the legend, so a legend never names a shape that is not drawn. <see langword="false"/> here; the Cartesian
+    /// renderer, which draws them, overrides it.</summary>
+    internal virtual bool DrawsPatches => false;
+
+    /// <summary>The rows of this axes' legend as this renderer draws it: the series rows
+    /// (<see cref="AxesLegendEntryExtensions.LegendEntries(Axes, bool, bool)"/>, by <see cref="DrawsDirectLabels"/>), then, where
+    /// this renderer draws patches (<see cref="DrawsPatches"/>), a row for each labelled patch in the order the patches were added
+    /// (<see cref="AxesLegendEntryExtensions.PatchLegendEntries(Axes)"/>). The ONE list the drawing (<see cref="RenderLegend"/>),
+    /// the hit-test (<see cref="ComputeLegendBounds"/>), the margin reservation (<c>LegendMeasurer.MeasureBox</c>) and the legend of
+    /// the figure (<see cref="FigureLegendExtensions"/>) read.</summary>
+    /// <remarks>A recorded departure from matplotlib, which lists the series and the patches in the order they were added: here every
+    /// series row comes first, so a series keeps its place in the legend whatever patches are added around it.</remarks>
+    /// <param name="legendValues">Whether each series row's label is suffixed with its series' last value; a patch row never is.</param>
+    /// <returns>The rows in the order they are listed; empty when nothing has a row.</returns>
+    internal IReadOnlyList<LegendEntry> LegendEntries(bool legendValues)
+    {
+        var series = Axes.LegendEntries(DrawsDirectLabels, legendValues);
+        if (!DrawsPatches) return series;
+
+        return [.. series, .. Axes.PatchLegendEntries()];
+    }
+
     /// <summary>What is drawn past the four spines besides the titles of the axes and the end labels, measured before
     /// anything is drawn, so the layout can reserve it: the sides (<see cref="MeasureSideBands"/>) and the ends
     /// (<see cref="MeasureEndBands"/>) together.</summary>
@@ -353,13 +376,13 @@ public abstract class AxesRenderer
 
     /// <summary>The ONE place the legend is laid out. The draw pass (<see cref="RenderLegend"/>) and the hit-test pass
     /// (<see cref="ComputeLegendBounds"/>, which feeds the interactive heads on every paint with no drawing) both read it,
-    /// so the box a pointer is tested against is the box that is drawn. The axes owns which series are entries
-    /// (<see cref="AxesLegendEntryExtensions.LegendEntries(Axes, bool)"/>) and the marks a Best legend keeps clear of
+    /// so the box a pointer is tested against is the box that is drawn. The rows are this renderer's
+    /// (<see cref="LegendEntries(bool)"/>), and the marks a Best legend keeps clear of are the axes'
     /// (<see cref="LegendObstacles"/>, collected only when asked for); <see cref="LegendRenderer"/> lays them out in the plot area.</summary>
     /// <returns>The legend's entries and layout; <see langword="null"/> when the legend is hidden or lists nothing.</returns>
     private ResolvedLegend? ResolveLegend()
     {
-        var entries = Axes.LegendEntries(DrawsDirectLabels);
+        var entries = LegendEntries(Axes.Legend.LegendValues);
         return AxesLegend().Place(entries, PlotArea, LegendObstacles) is { } layout ? new ResolvedLegend(entries, layout) : null;
     }
 

@@ -86,15 +86,43 @@ public sealed class YAxisSlotBuilder
         return this;
     }
 
+    /// <summary>Links this axis to the primary Y axis, as matplotlib's <c>ax.secondary_yaxis('right', functions=(forward,
+    /// inverse))</c> does: the axis shows the range the primary axis shows, each value written through
+    /// <paramref name="transform"/>, so a tick for a value stands at the height where the primary axis has the value it maps back
+    /// to. A linked axis has no range and no series of its own; its label, colour and ticks are set as on any axis.</summary>
+    /// <param name="transform">From the primary axis' values to this axis' values: <see cref="AxisTransform.Linear"/>,
+    /// <see cref="AxisTransform.Reciprocal"/>, <see cref="AxisTransform.Logarithm"/>, <see cref="AxisTransform.Power"/>, or
+    /// <see cref="AxisTransform.Of"/> for a pair of functions of your own. Called again, the new transform replaces the
+    /// first.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="transform"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">This axis holds a series: a linked axis holds none of its own (the series verbs of a
+    /// linked axis refuse the same way).</exception>
+    /// <example>
+    /// Fahrenheit on the right of a plot in Celsius:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(hours, celsius).SetYLabel("°C")
+    ///     .WithAddRightYAxis(fahrenheit => fahrenheit.SetYLabel("°F").Link(AxisTransform.Linear(1.8, 32))));
+    /// </code>
+    /// </example>
+    public YAxisSlotBuilder Link(AxisTransform transform)
+    {
+        _slot.Axis.LinkThrough(transform, _slot.Series.Count);
+        return this;
+    }
+
     /// <summary>Adds a line series plotted against this axis.</summary>
     /// <param name="x">The X values.</param>
     /// <param name="y">The Y values, in the units of this axis.</param>
     /// <param name="configure">Optional callback that configures the new series.</param>
     /// <returns>This builder, for chaining.</returns>
-    /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length.</exception>
+    /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length, or this axis is
+    /// linked (<see cref="Link"/>), which holds no series of its own.</exception>
     /// <example><code>rate.Plot(days, rates, line => line.Label = "Rate");</code></example>
     public YAxisSlotBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)
     {
+        _slot.Axis.RefuseSeriesWhenLinked(nameof(y));
         x.Length.ThrowIfMisaligned(y.Length);
         var series = _slot.AddSeries(new LineSeries(x, y));
         configure?.Invoke(series);
@@ -106,10 +134,12 @@ public sealed class YAxisSlotBuilder
     /// <param name="y">The Y values, in the units of this axis.</param>
     /// <param name="configure">Optional callback that configures the new series.</param>
     /// <returns>This builder, for chaining.</returns>
-    /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length.</exception>
+    /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length, or this axis is
+    /// linked (<see cref="Link"/>), which holds no series of its own.</exception>
     /// <example><code>rate.Scatter(days, rates, points => points.Label = "Samples");</code></example>
     public YAxisSlotBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
     {
+        _slot.Axis.RefuseSeriesWhenLinked(nameof(y));
         x.Length.ThrowIfMisaligned(y.Length);
         var series = _slot.AddSeries(new ScatterSeries(x, y));
         configure?.Invoke(series);
@@ -122,9 +152,12 @@ public sealed class YAxisSlotBuilder
     /// <returns>The created series, so the caller can <c>AppendPoint</c> to it from any thread. Unlike the other verbs
     /// it does NOT return the builder, because the series IS the handle live data needs (the same shape
     /// <see cref="AxesBuilder.StreamingPlot"/> has on the primary axis).</returns>
+    /// <exception cref="ArgumentException">This axis is linked (<see cref="Link"/>), which holds no series of its own; the
+    /// refusal names <paramref name="capacity"/>, the size of the series it would have made.</exception>
     /// <example><code>var latency = rate.StreamingPlot(capacity: 600, line => line.Label = "Latency");</code></example>
     public StreamingLineSeries StreamingPlot(int capacity = 10_000, Action<StreamingLineSeries>? configure = null)
     {
+        _slot.Axis.RefuseSeriesWhenLinked(nameof(capacity));
         var series = _slot.AddSeries(new StreamingLineSeries(capacity));
         configure?.Invoke(series);
         return series;

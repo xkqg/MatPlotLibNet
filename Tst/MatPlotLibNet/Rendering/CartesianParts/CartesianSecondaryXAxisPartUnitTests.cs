@@ -21,8 +21,24 @@ public class CartesianSecondaryXAxisPartUnitTests
     private static readonly DataRange Range = new(0, 100, 0, 10);
     private static DataTransform PrimaryTransform() => new(0, 10, 0, 10, Plot);
 
+    /// <summary>The top axis of <paramref name="axes"/> placed over <see cref="Range"/>, as the renderer places a top axis with a
+    /// range of its own: its ticks by its own rule at full density (the eight intervals of a top axis that sets none), through the
+    /// linear transform of that range.</summary>
+    private static PlacedTopAxis Placed(Axes axes)
+    {
+        var axis = axes.SecondaryXAxis!;
+        var source = axis.OwnTickSource(isX: true);
+        return new PlacedTopAxis
+        {
+            Range = Range,
+            Transform = new DataTransform(Range.XMin, Range.XMax, Range.YMin, Range.YMax, Plot),
+            Ticks = axis.TickValuesBetween(source, new Range1D(Range.XMin, Range.XMax), AxesRenderer.FullTickDensityLength),
+            Source = source,
+        };
+    }
+
     private static CartesianSecondaryXAxisPart Build(Axes axes, IRenderContext ctx, Theme? theme = null) =>
-        new(axes, Plot, ctx, theme ?? DefaultTheme, PrimaryTransform(), Range);
+        new(axes, Plot, ctx, theme ?? DefaultTheme, PrimaryTransform(), Placed(axes));
 
     [Fact]
     public void Render_WithInteractiveAttributes_DrawsEachSeriesInADataGroupKeyedByItsSlot()
@@ -250,7 +266,7 @@ public class CartesianSecondaryXAxisPartUnitTests
         ax.SecondaryXAxis.MajorTicks = ax.SecondaryXAxis.MajorTicks with { Visible = ticksVisible, LabelSize = 16 };
         var ctx = new RecordingRenderContext();
 
-        double measured = CartesianSecondaryXAxisPart.MeasureBand(ax, ctx, DefaultTheme, Range);
+        double measured = CartesianSecondaryXAxisPart.MeasureBand(ax, ctx, DefaultTheme, Placed(ax));
         var part = Build(ax, ctx);
         part.Render();
 
@@ -277,7 +293,7 @@ public class CartesianSecondaryXAxisPartUnitTests
         part.Render();
 
         Assert.Equal(0, part.Band);
-        Assert.Equal(0, CartesianSecondaryXAxisPart.MeasureBand(ax, ctx, DefaultTheme, Range));
+        Assert.Equal(0, CartesianSecondaryXAxisPart.MeasureBand(ax, ctx, DefaultTheme, Placed(ax)));
     }
 
     [Fact]

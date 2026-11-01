@@ -111,8 +111,7 @@ Beside its subplots a figure can carry `texts` (a text at fractions of the figur
 font, colour, alignments and rotation), `images` (rows of values drawn one pixel each, with a colour map, a normaliser and
 offsets in pixels) and a `legend` for the series of every subplot; an inset can carry a `zoomIndicator`. The server checks
 each like any other field (the alignments, the legend position and the line style by name) and `describe_chart_schema`
-lists their fields. A spec with no series is refused as having nothing to draw, unless the figure shows a text or an image
-of its own: a figure legend or colour bar alone describes series that are not there.
+lists their fields.
 
 ```json
 {
@@ -120,6 +119,46 @@ of its own: a figure legend or colour bar alone describes series that are not th
   "texts": [ { "text": "No data for this week", "x": 0.5, "y": 0.5, "alignment": "Center" } ]
 }
 ```
+
+### A spec with no series
+
+A spec with no series is drawn when it has something of its own to show: a text or an image on the figure, or an overlay
+on a Cartesian subplot (an annotation, a reference line, a span, a patch, a trendline, a level, a Fibonacci retracement
+or a buy or sell signal), an inset with bounds asked in turn. A figure legend, a colour bar, an axis break or a linked
+axis alone describes series that are not there, so such a spec, and a polar, 3-D or ternary subplot with overlays and no
+series, is refused as having nothing to draw, and the refusal names what would do.
+
+### Shapes and an axis in another unit
+
+A subplot carries its shapes as `patches` (matplotlib's patches: see [Shapes](patches.md)), each told apart by `type`
+(`rectangle`, `polygon`, `arrow`, `circle`, `ellipse`, `wedge`, `arc`) with its geometry in data units, a point written
+`{"dataX": …, "dataY": …}`. An axis carries a link to the primary axis as `link` (matplotlib's `secondary_xaxis` and
+`secondary_yaxis`: see [linked axes](linked-axes.md)), by `type` (`linear`, `reciprocal`, `logarithm`, `power`) with its
+numbers. The server checks the kind of each, and a patch's `edgeLineStyle`, `hatch` and an arrow's `shape`, by name at
+every place it stands, an inset included, and `describe_chart_schema` lists the fields each kind adds. This spec draws a
+shaded zone and an arrow with no series, and puts degrees Fahrenheit on the right of an axis in degrees Celsius:
+
+```json
+{
+  "width": 640, "height": 400,
+  "subPlots": [
+    {
+      "xAxis": { "min": 0, "max": 10 },
+      "yAxis": { "label": "°C", "min": 0, "max": 40 },
+      "secondaryYAxis": { "label": "°F", "link": { "type": "linear", "scale": 1.8, "offset": 32 } },
+      "patches": [
+        { "type": "rectangle", "anchor": { "dataX": 2, "dataY": 5 }, "width": 4, "height": 20, "alpha": 0.4, "label": "zone" },
+        { "type": "arrow", "start": { "dataX": 7, "dataY": 30 }, "dx": -1, "dy": -5, "width": 0.2 }
+      ]
+    }
+  ]
+}
+```
+
+A subplot also writes the cell `AddSubPlot(rows, cols, index)` gave it as `subplot` (`rows`, `cols`, `index`) when the
+figure's grid has more than one cell, and its buy and sell markers as `signals`. The server checks the direction of a
+signal, an axes' `coordinateSystem`, the `position` of a spine (in any case: `"DATA"` is read as `data`), a theme's
+`defaultLegendPosition` and the `hatch` of a node of a tree by name, where a misspelt one used to be ignored.
 
 ## It refuses before it renders
 
@@ -135,6 +174,8 @@ server validates the document before it renders, and the error message names the
 | `"x": [...]` | `Unknown field 'x' at $.subPlots[0].series[0]. describe_chart_schema lists the fields a spec accepts.` |
 | `"scale": "logarithmic"` | `'logarithmic' … is not an accepted value; accepted: Linear, Log, SymLog, Logit, Date.` |
 | `"color": "reddish"` | `'reddish' … is not a colour the library knows: use a CSS4 colour name or #RRGGBB.` |
+| `"type": "circel"` on a patch | `'circel' at $.subPlots[0].patches[0].type is not an accepted value; accepted: rectangle, polygon, arrow, circle, ellipse, wedge, arc.` |
+| `"type": "linnear"` on a link | `'linnear' at $.subPlots[0].secondaryXAxis.link.type is not an accepted value; accepted: linear, reciprocal, logarithm, power.` |
 | `xData` of 3, `yData` of 1 | `The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 3 and 1.` |
 | a `surface` of 2 rows over 3 `yData` and 3 `xData` | `The 'surface' series at $.subPlots[0].series[0] was refused: Array lengths must match. The values have 2 rows and 3 columns; the axes give 3 y and 3 x values.` |
 | no `width` | rendered at the library default, 800×600 |

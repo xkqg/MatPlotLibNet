@@ -11,14 +11,17 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 /// Renders the secondary X-axis (twin-Y — top edge of the plot): secondary
 /// X-axis series + top-edge tick marks + optional secondary X-axis label.
 /// </summary>
-/// <remarks>Each series is drawn inside the series group the primary pass opens for a primary one
-/// (<see cref="SeriesGroupExtensions.BeginSeriesGroup"/>, keyed by the series' slot), so the hover highlight and a
-/// streaming diff reach a top-axis line as they reach any other. The axis owns the top edge: its title stands above its
+/// <remarks>It draws the top axis as the renderer placed it for this render (<see cref="PlacedTopAxis"/>,
+/// <see cref="CartesianAxesRenderer.PlaceTopAxis"/>): its series through the placed transform, its major and minor ticks where
+/// the placement stands them (a linked top axis' where the primary shows the value each maps back to), labelled by the placed
+/// source, so what one axis can do the top axis does too. Each series is drawn inside the series group the primary pass opens
+/// for a primary one (<see cref="SeriesGroupExtensions.BeginSeriesGroup"/>, keyed by the series' slot), so the hover highlight
+/// and a streaming diff reach a top-axis line as they reach any other. The axis owns the top edge: its title stands above its
 /// tick labels (<see cref="AxisTickExtensions.TopAxisLabelOffset"/>), and the band it takes (<see cref="Band"/>) is what
 /// the axes title rises by and what the layout reserves (<see cref="MeasureBand"/>), one rule for all three.</remarks>
 internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
 {
-    private readonly DataRange _secRange;
+    private readonly PlacedTopAxis _placed;
 
     /// <summary>Constructs a secondary-X-axis part.</summary>
     /// <param name="axes">The axes model (reads X-secondary series + secondary X-axis config from here).</param>
@@ -26,12 +29,12 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
     /// <param name="ctx">Render context to draw into.</param>
     /// <param name="theme">Active theme (for colors, default font).</param>
     /// <param name="primaryTransform">Data→pixel transform for the primary axes; passed to the base class.</param>
-    /// <param name="secRange">The computed secondary-X-axis range.</param>
+    /// <param name="placed">The top axis as the renderer placed it for this render.</param>
     public CartesianSecondaryXAxisPart(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme,
-                                        DataTransform primaryTransform, DataRange secRange)
+                                        DataTransform primaryTransform, PlacedTopAxis placed)
         : base(axes, plotArea, ctx, theme, primaryTransform)
     {
-        _secRange = secRange;
+        _placed = placed;
     }
 
     /// <summary>What this part drew above the top spine, set by <see cref="Render"/>: from the spine to the top of the
@@ -44,18 +47,18 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
     /// <param name="axes">The axes model; its secondary X axis is measured.</param>
     /// <param name="ctx">The context text is measured with.</param>
     /// <param name="theme">The active theme (fonts).</param>
-    /// <param name="secRange">The secondary X axis range, as the renderer computes it.</param>
+    /// <param name="placed">The top axis as the renderer places it (<see cref="CartesianAxesRenderer.PlaceTopAxis"/>).</param>
     /// <returns>The band in pixels.</returns>
-    internal static double MeasureBand(Axes axes, IRenderContext ctx, Theme theme, DataRange secRange)
+    internal static double MeasureBand(Axes axes, IRenderContext ctx, Theme theme, PlacedTopAxis placed)
     {
-        var ticks = AxesRenderer.ComputeTickValuesInternal(secRange.XMin, secRange.XMax);
         var axis = axes.SecondaryXAxis!;
-        return BandAbove(axes, ctx, theme, ctx.MeasureAxisTicks(ticks, axis.MajorTicks, TickDraw(axes, theme, ticks, 0)));
+        return BandAbove(axes, ctx, theme, ctx.MeasureAxisTicks(placed.Ticks, axis.MajorTicks, TickDraw(axes, theme, placed, 0)));
     }
 
     /// <summary>How the top-edge ticks are drawn: by the axis' own <see cref="TickConfig"/>, through the one tick drawing
-    /// the primary axes use. A rotated label is anchored at its start so it rises away from the axis.</summary>
-    private static TickDrawContext TickDraw(Axes axes, Theme theme, double[] ticks, double edge)
+    /// the primary axes use, labelled by the placed tick source (its own formatter, or the one its scale brings). A rotated
+    /// label is anchored at its start so it rises away from the axis.</summary>
+    private static TickDrawContext TickDraw(Axes axes, Theme theme, PlacedTopAxis placed, double edge)
     {
         var axis = axes.SecondaryXAxis!;
         var rotation = axis.MajorTicks.LabelRotation;
@@ -65,8 +68,8 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
             AxisEdge      = edge,
             SpineHalf     = axes.Spines.Top.LineWidth / 2.0,
             BaseFont      = ThemedFontProvider.TickFont(theme),
-            Formatter     = axis.TickFormatter,
-            UniformFormat = AxesRenderer.BuildUniformTickFormatter(ticks),
+            Formatter     = placed.Source.Formatter,
+            UniformFormat = AxesRenderer.BuildUniformTickFormatter(placed.Ticks),
             Foreground    = theme.ForegroundText,
             LabelRotation = rotation,
             Alignment     = rotation == 0 ? TextAlignment.Center : TextAlignment.Left,
@@ -95,10 +98,13 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
     }
 
     /// <inheritdoc />
+    /// <remarks>Its series, its major ticks, its minor ticks, then its title above the tallest tick label drawn. A linked top
+    /// axis whose link cannot place the primary's range has no ticks, and says why here (<see cref="PlacedTopAxis.Diagnostic"/>),
+    /// once per render: the layout and the legend's marks place the axis but never draw it.</remarks>
     public override void Render()
     {
-        var secXTransform = new DataTransform(_secRange.XMin, _secRange.XMax, _secRange.YMin, _secRange.YMax, PlotArea);
-        var secXTicks = AxesRenderer.ComputeTickValuesInternal(_secRange.XMin, _secRange.XMax);
+        if (_placed.Diagnostic is { } diagnostic) Diagnostics.ChartDiagnostics.Emit(diagnostic);
+        var secXTransform = _placed.Transform;
 
         var colorSlots = Axes.ColorSlots();
         for (int i = 0; i < Axes.XSecondarySeries.Count; i++)
@@ -118,11 +124,13 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
             if (openedGroup) Ctx.EndGroup();
         }
 
-        // Top-edge ticks, then the title above their labels (TitleOffset); the band they take is recorded for the
-        // axes title, by the rule the layout reserves it with (BandAbove).
+        // Top-edge ticks where the placement stands them, then the minor ticks between them, then the title above their
+        // labels (TitleOffset); the band they take is recorded for the axes title, by the rule the layout reserves it with
+        // (BandAbove).
         var axis = Axes.SecondaryXAxis!;
-        double tallest = Ctx.RenderAxisTicks(secXTicks, _secRange.YMax, secXTransform, axis.MajorTicks,
-            TickDraw(Axes, Theme, secXTicks, PlotArea.Y));
+        var draw = TickDraw(Axes, Theme, _placed, PlotArea.Y);
+        double tallest = Ctx.RenderAxisTicks(_placed.Ticks, _placed.Range.YMax, _placed.Placement, axis.MajorTicks, draw);
+        Ctx.RenderMinorTicks(new TickRun(_placed.Ticks, _placed.Range.YMax, _placed.Placement), axis.MinorTicks, draw);
 
         if (axis.Label is not null)
         {

@@ -28,12 +28,22 @@ public class SpecFigureSettingsTests
     [InlineData("""{"defaultGrid":{"visible":true,"axis":"z"}}""", "z", "Both")]
     [InlineData("""{"propCycler":{"lineStyles":["solid","wavy"]}}""", "wavy", "Dashed")]
     [InlineData("""{"propCycler":{"markerStyles":["circle","blob"]}}""", "blob", "Diamond")]
+    [InlineData("""{"defaultLegendPosition":"topRight"}""", "topRight", "UpperRight")]
     public void AMisspelledValueInATheme_IsRefusedWithTheAcceptedValues(string theme, string wrong, string accepted)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(theme))));
 
         Assert.Contains($"'{wrong}'", refusal.Message);
         Assert.Contains(accepted, refusal.Message);
+    }
+
+    /// <summary>Where a theme puts the legend of an axes that does not say is accepted in any case and reaches the theme.</summary>
+    [Fact]
+    public void AnAcceptedDefaultLegendPosition_ReachesTheTheme_InAnyCase()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"defaultLegendPosition":"OUTSIDERIGHT"}""")));
+
+        Assert.Equal(LegendPosition.OutsideRight, figure.Theme.DefaultLegendPosition);
     }
 
     [Fact]

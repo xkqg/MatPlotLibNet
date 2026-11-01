@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Rendering;
@@ -230,9 +231,11 @@ public sealed class Axes
     /// <summary>True when any axis of this axes (X, Y, any outward-stacked Y, or the secondary X) has a limit set,
     /// by <c>SetXLim</c>/<c>SetYLim</c> or by a zoom or pan applied to it. A set limit is exact, so data can then lie
     /// past the plot area and the series are clipped to it; a range that scaled itself encloses every series and
-    /// needs no clip.</summary>
+    /// needs no clip. A linked axis (<see cref="Axis.Link"/>) has no range of its own, so a limit it carries is none of the
+    /// axes' (<see cref="Axis.LimitsItsOwnRange"/>); the primary axes' limits always count.</summary>
     internal bool HasExplicitLimit =>
-        XAxis.HasLimit || YAxes.IdentityOrder.Any(s => s.Axis.HasLimit) || SecondaryXAxis is { HasLimit: true };
+        XAxis.HasLimit || YAxis.HasLimit || YAxes.IdentityOrder.Any(s => s.Axis.LimitsItsOwnRange)
+        || SecondaryXAxis is { LimitsItsOwnRange: true };
 
     /// <summary>Gets the collection of reference lines on this axes.</summary>
     public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;
@@ -257,6 +260,32 @@ public sealed class Axes
     /// <summary>Gets the collection of buy/sell signal markers on this axes.</summary>
     public IReadOnlyList<SignalMarker> Signals => _signals;
     private readonly List<SignalMarker> _signals = [];
+
+    /// <summary>The patches of this axes (matplotlib's <c>Axes.patches</c>): shapes in data coordinates, in the order they were
+    /// added with <see cref="AddPatch{TPatch}"/>.</summary>
+    public IReadOnlyList<Patch> Patches => _patches;
+    private readonly List<Patch> _patches = [];
+
+    /// <summary>Adds a patch the caller has made (a <see cref="Rectangle"/>, a <see cref="Polygon"/>, an <see cref="Arrow"/>) to
+    /// this axes, as matplotlib's <c>add_patch</c> does. The axes holds that very patch, so a change made to it afterwards is
+    /// drawn.</summary>
+    /// <typeparam name="TPatch">The kind of patch, so the caller keeps the concrete type.</typeparam>
+    /// <param name="patch">The patch to add.</param>
+    /// <returns>The same patch, so the caller can keep configuring it.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="patch"/> is null.</exception>
+    /// <example>
+    /// <code>
+    /// var axes = new Figure().AddSubPlot();
+    /// var circle = axes.AddPatch(new Circle(new(2, 3), 1.5));
+    /// circle.Label = "Reach";
+    /// </code>
+    /// </example>
+    public TPatch AddPatch<TPatch>(TPatch patch) where TPatch : Patch
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+        _patches.Add(patch);
+        return patch;
+    }
 
     /// <summary>Gets the collection of inset axes rendered within this axes.</summary>
     public IReadOnlyList<Axes> Insets => _insets;

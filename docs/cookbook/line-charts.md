@@ -280,7 +280,9 @@ Plt.Create()
 ```
 
 To name each line where it ends and colour each axis like its line, so the chart needs no legend, see
-[Direct labels and axis colours](direct-labels-and-axis-colours.md).
+[Direct labels and axis colours](direct-labels-and-axis-colours.md). An axis that shows the same values in another unit
+(degrees Fahrenheit beside degrees Celsius) holds no series of its own: `Link` makes one, see
+[A second axis in another unit](linked-axes.md).
 
 ### Any number of Y axes
 

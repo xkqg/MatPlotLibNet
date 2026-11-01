@@ -902,6 +902,25 @@ public sealed class FigureBuilder
         return this;
     }
 
+    /// <summary>Adds a patch the caller has made (a rectangle, a polygon, an arrow: a shape in data coordinates) to the default
+    /// axes, as matplotlib's <c>add_patch</c> does; <see cref="AxesBuilder.AddPatch"/> adds one to a subplot.</summary>
+    /// <param name="patch">The patch to add.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="patch"/> is null.</exception>
+    /// <example>
+    /// <code>
+    /// Plt.Create()
+    ///     .Plot(x, y)
+    ///     .AddPatch(new Polygon([new(0, 0), new(2, 0), new(1, 1.5)]) { Alpha = 0.4 })
+    ///     .ToSvg();
+    /// </code>
+    /// </example>
+    public FigureBuilder AddPatch(Models.Patches.Patch patch)
+    {
+        EnsureDefaultAxes().AddPatch(patch);
+        return this;
+    }
+
     /// <summary>Adds a threshold marker on the default axes: a dashed <see cref="Models.ReferenceLine"/>
     /// at <paramref name="value"/> plus a shaded <see cref="Models.SpanRegion"/> covering the breach
     /// zone on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is added

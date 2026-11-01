@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.28.0)
+# MatPlotLibNet Core -- Architecture (v1.29.0)
 
 ## Package dependency graph
 
@@ -88,7 +88,10 @@ MatPlotLibNet/
                                       WithDirectLabel, over one YAxisSlot. The callback of AxesBuilder.WithAddRightYAxis/WithAddLeftYAxis
                                       receives it; the builder's own Y verbs are it over the primary axis (left slot 0), so a setting
                                       is made the same way on every Y axis. SetYAxisColor colours the slot's ticks, tick labels and
-                                      title, and the spine of its edge for slot 0 of a side only
+                                      title, and the spine of its edge for slot 0 of a side only. Link(transform) links the slot to
+                                      the primary Y axis (Axis.Link); a slot that holds a series refuses it, and a linked slot refuses
+                                      Plot, Scatter and StreamingPlot (Models/AxisLinkExtensions.cs). The top-X builder
+                                      (SecondaryXAxisBuilder, in AxesBuilder.cs) has the same Link and the same two refusals
     CategoryTickExtensions.cs         internal: SetXCategoryTicks(names) / SetYCategoryTicks(names, topDown) — categories written as
                                       an axis's ticks: a FixedLocator on each slot centre (CategorySlot) and the CategoryFormatter
                                       that reads the name there, made as one pair (names.AsCategoryTicks() → CategoryTicks) so
@@ -214,7 +217,7 @@ MatPlotLibNet/
                                         pixel, no resampling; an offset that is not a finite number draws nothing. Cells() hands the
                                         drawing to ImageCells. FigureBuilder.FigImage adds one. FigureBuilder.FigLegend sets
                                         Figure.Legend (a second call replaces the first: a recorded deviation, for simplicity)
-    Axes.cs                           subplot: series, annotations, ref lines, spans, the Y axis container (YAxes), the top X axis,
+    Axes.cs                           subplot: series, annotations, ref lines, spans, patches (Patches, AddPatch), the Y axis container (YAxes), the top X axis,
                                       insets, ShareX/ShareY, EnableInteractiveAttributes; Aspect (the length of a unit of Y over a unit of X
                                       on the page, null = the plot fills its cell; Rendering/PlotAspectExtensions.cs is its one owner).
                                       YAxis is YAxes.Left[0].Axis and Series is YAxes.Left[0].Series: the primary Y axis is the first
@@ -229,7 +232,31 @@ MatPlotLibNet/
                                       indexed past the primary), TwinX() (FirstOrAdd on the right stack), AddOutwardYAxis(side) (Add
                                       on that side's stack, no cap) and AddSecondarySeries (a series on right slot 0)
     Axis.cs                           label, min/max, scale, ticks, Inverted (drawn high to low: Range1D.OrientedBy, the rule a
-                                      limit set high to low follows; a state like matplotlib's set_inverted, never a second turn)
+                                      limit set high to low follows; a state like matplotlib's set_inverted, never a second turn),
+                                      Link (an AxisTransform, null = a range of its own): the top X axis or a Y axis past the primary
+                                      linked to the primary shows the primary's range in other units (matplotlib's secondary_xaxis /
+                                      secondary_yaxis); set through SecondaryXAxisBuilder.Link and YAxisSlotBuilder.Link, written to the JSON as the "link"
+                                      field of the axis (Serialization/AxisTransformDto.cs). Internal
+                                      LimitsItsOwnRange (a limit set, no link): the one rule by which Axes.HasExplicitLimit counts a
+                                      Y slot or the top axis, so a limit on a linked axis never turns the series clip on
+    AxisTransform.cs                  abstract class, internal constructor (only the library derives one): how a linked axis writes the
+                                      primary's values, Forward(value) and Inverse(value), matplotlib's functions=(forward, inverse).
+                                      Factories, each refusing as it is made a number it cannot map with (ArgumentOutOfRangeException by
+                                      its own name): Linear(scale, offset = 0) (scale 0 or not finite refused), Reciprocal(numerator = 1)
+                                      (0 refused), Logarithm(base = 10) (not above 0, 1 or not finite refused), Power(exponent) (0 refused;
+                                      defined on 0 and above only, NaN below 0 both ways), Of(forward, inverse) (null refused; a function
+                                      is code, which no JSON carries). The internal sealed leaves (LinearAxisTransform,
+                                      ReciprocalAxisTransform, LogarithmAxisTransform, PowerAxisTransform, FunctionAxisTransform) sit in
+                                      the same file; the four named ones implement IJsonDescribed<AxisTransformDto> (what they were
+                                      made with), FunctionAxisTransform does not, so a link made with Of is left out of the JSON and
+                                      the axis reads back unlinked. Internal ImageOf(primary range) -> LinkedRange? (Rendering/ValueObjects): the images
+                                      of the two ends low to high and whether the transform runs up; null when it cannot place the range
+                                      (an end maps to no finite number, both ends to one value, or a break between them: BreaksBetween,
+                                      overridden by the reciprocal only, its pole at 0 strictly inside), so the drawing says so once and
+                                      draws no ticks
+    AxisLinkExtensions.cs             internal: the ONE rule between an axis' link and its series (a linked axis holds none):
+                                      Axis.LinkThrough(transform, seriesHeld) and Axis.RefuseSeriesWhenLinked(parameter), the two
+                                      refusals (ArgumentException, before anything changes) both seat builders call, in either order
     YAxisContainer.cs                 every Y axis of an Axes: Left and Right, one YAxisStack per side, and TitleGap (4 by default,
                                       matplotlib's axes.labelpad; set with AxesBuilder.WithYAxisTitleGap; negative, NaN or infinite is
                                       refused). TitleGap is ONE value for the whole subplot: the blank gap between a Y title's ink and
@@ -242,7 +269,9 @@ MatPlotLibNet/
                                       outward numbering the interaction wire and the 1.23.0 JSON fields use (see Interaction/ below)
     YAxisSlot.cs                      sealed class (Axis, Side, Series, AddSeries): one Y axis and the series plotted against it.
                                       A class, held by the stack, the builders and the renderer alike, so a setting made through one
-                                      reaches the others. Stack rank is the slot's position in its stack, nothing stores it twice
+                                      reaches the others. Stack rank is the slot's position in its stack, nothing stores it twice.
+                                      Internal IsLinked (its Axis.Link is set) and IsDrawn (series OR linked): the one predicate
+                                      the renderer draws a slot past the primary by, and by which a drawn right slot owns the edge
     SecondaryAxisSlot.cs              [Obsolete] readonly record struct: a value view of a YAxisSlot, what the obsolete RightYAxes and
                                       LeftYAxes lists hand out (SecondaryAxisSlotView is their live list). Two views of one slot are equal
     AxisSide.cs                       enum: Left, Right (ordinals pinned, EnumOrdinalContractTests) — which side a Y axis stands on
@@ -270,6 +299,52 @@ MatPlotLibNet/
     ArrowStyle.cs                     enum: None, Simple, FancyArrow
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
+    Patches/                          shapes drawn on an axes in data coordinates, matplotlib's patches: Axes.Patches, added with
+                                      Axes.AddPatch<TPatch> (returns the patch), AxesBuilder.AddPatch(Patch) and FigureBuilder.AddPatch(Patch)
+                                      (the default axes): one method for every kind, the caller makes the patch and styles it through its
+                                      own properties. Geometry refuses no number (matplotlib's does not); an outline with a vertex that is
+                                      not finite is empty and draws nothing, and so is a curved shape with a size of 0 or less. Curves are
+                                      cubic Beziers in data units (EllipticArc), so a log axis bends them as matplotlib's (control points
+                                      mapped) and they stay out of byte-compared goldens (Sin/Cos)
+      Patch.cs                        abstract base, a private protected constructor (only the library derives one): EdgeColor
+                                        (Colors.Transparent = none, matplotlib's 'none'), EdgeWidth (1; refused below 0 or not finite),
+                                        EdgeLineStyle, Alpha (0..1, refused outside; it SCALES the opacity of face, edge and hatch, where
+                                        matplotlib replaces it), Label (the name a legend lists it under; null, empty or starting with '_'
+                                        = no row, matplotlib's rule), Hatch, HatchColor (null = the
+                                        edge colour, black with no edge). Internal: Outline() — the outline in DATA units as PathSegments,
+                                        one per step of matplotlib's path (move, line, cubic Bezier = 3 of its vertices, close), control
+                                        points in data units too, needing no transform, so the range and the drawing read one outline (never
+                                        an ArcSegment, which is in pixels); DrawnFaceColor / DrawnEdgeColor / DrawnHatchColor — the colours
+                                        drawn, the one rule the plot and the legend swatch read; DrawnStyle — the ShapeStyle built from
+                                        them (a face or an edge of none is no fill or stroke; a hatched face of none stays a clear fill);
+                                        Describe() — the PatchDto the figure JSON carries, one override per leaf
+      FilledPatch.cs                  abstract: a patch with a face, FaceColor (Colors.Tab10Blue = matplotlib's C0, the same for every
+                                        patch, never cycled)
+      Rectangle.cs                    sealed: Anchor (Interaction.DataPoint), Width, Height (negative = left of / below the anchor),
+                                        Angle (degrees counter-clockwise about the anchor, in data space); corners in matplotlib's order
+      Polygon.cs                      sealed: Vertices (IReadOnlyList<DataPoint>, a copy kept), Closed (true by default); fewer than
+                                        three vertices draws nothing
+      Arrow.cs                        sealed: matplotlib's FancyArrow (Axes.arrow) in data units: Start, Dx, Dy, Width (0.001), HeadWidth
+                                        (null = 3 x Width), HeadLength (null = 1.5 x the head width), LengthIncludesHead (false: the tip a
+                                        head length past the end), Shape, Overhang (0); eight vertices, a black edge. An arrow that points
+                                        at something from a text is an Annotation (head in pixels)
+      ArrowHeadShape.cs               enum: Full, Left, Right (ordinals pinned, EnumOrdinalContractTests)
+      Circle.cs                       sealed: Center, Radius; matplotlib's unit circle (8 cubics, 26 vertices) scaled and moved
+      Ellipse.cs                      sealed: Center, Width and Height (FULL diameters, as matplotlib's), Angle (degrees counter-clockwise
+                                        about the centre); the unit circle scaled, turned, moved
+      Wedge.cs                        sealed: Center, Radius, Theta1, Theta2 (degrees counter-clockwise; a first angle past the second
+                                        sweeps through 0), Width (null = to the centre; else the ring from Radius - Width): Path.arc, a line
+                                        to the centre (or the inner ring run backwards), a close; a whole turn (1e-12) is the whole disc
+                                        from 0 with a move instead of the line; equal angles enclose nothing (an edge draws the radius)
+      Arc.cs                          sealed, derives from Patch (no face: matplotlib refuses to fill an arc; DrawnFaceColor = none, a black
+                                        edge): Center, Width, Height, Angle, Theta1 (0), Theta2 (360); Path.arc OPEN, its angles directions
+                                        from the centre stretched to the unit circle on an ellipse (matplotlib's _theta_stretch); a hatch is
+                                        drawn over the region the arc and its chord enclose, as matplotlib draws it
+      EllipticArc.cs                  internal readonly record struct (Center, Width, Height, Angle): the ONE curve rule of the four curved
+                                        leaves. UnitCircle (matplotlib's Path.unit_circle), UnitArc(theta1, theta2) (Path.arc: the sweep
+                                        unwrapped, 2^ceil(quarter turns) cubics, a whole turn to 1e-12), Curves(chain, joined), Place(unit):
+                                        matplotlib's patch transform scale(w/2, h/2).rotate_deg(angle).translate(center) into data units;
+                                        empty for a size of 0 or less or a point that is not finite. Vertices equal matplotlib's to 1e-12
     GridSpec.cs                       unequal subplot layout: Rows, Cols, HeightRatios, WidthRatios
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates; Y is the inset's top edge
                                       counted down from the parent's top, unlike matplotlib's inset_axes; InsetAxesOriginTests);
@@ -680,8 +755,10 @@ MatPlotLibNet/
                                         value in the map's bad colour, skipTransparentCells leaves out a cell painted fully transparent).
                                         ImageSeriesRenderer draws an image series through it, scaled to its plot (every cell, as it always
                                         has); ChartRenderer draws a figure image through it at native size (transparent cells left out)
-    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry). Owns which
-                                        series its legend lists (Axes.LegendEntries) and the marks a Best legend keeps clear of
+    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry). Owns the
+                                        rows its legend lists (LegendEntries(legendValues): the series rows of Axes.LegendEntries by
+                                        DrawsDirectLabels, then a row per labelled patch where DrawsPatches, the one list the drawing, the
+                                        hit-test, LegendMeasurer and the figure legend read) and the marks a Best legend keeps clear of
                                         (LegendObstacles); LegendRendering/LegendRenderer lays the legend out and draws it
     MarkObstacles.cs                  the marks a chart drew on one axes, in pixels as drawn: boxes (a bar, a text's box), paths
                                         (a line's vertices) and points (a scatter's centres). ONE obstacle map, ONE score and ONE selector for
@@ -703,22 +780,37 @@ MatPlotLibNet/
                                         default font in the foreground text colour — the font of the annotations, the radar's, the
                                         funnel's and the network graph's labels and the bar's value labels; the pie's percentages
                                         take its family and size, in white
-    CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
+    CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, patches, series, annotations, signals
                                         internal helpers: RenderGridLines(Orientation,…), DrawBreakSegments(Orientation,BreakStyle,…)
                                         Its ticks come from AxesTickSourceExtensions.PrimaryTickSource, the rule the data table shares.
                                         PrimaryXDraw / XLabelRotation: the one decision whether the X labels turn, taken at the width the
                                         plot is drawn at; the layout asks the same code through MeasureEdgeBands
                                         Every Y axis slot is PLACED once per render, here: PlacePrimary (left slot 0: the axes' own range
                                         and transform) and PlaceSlot (a slot past it: its own range, the transform through its own scale
-                                        and symlog threshold, its ticks by its own locator or its scale's) make a PlacedYSlot; SlotBand is
+                                        and symlog threshold, its ticks by its own locator or its scale's; a linked slot, PlaceLinkedSlot:
+                                        the primary's range and transform, its ticks over the image of the primary's Y range sorted low
+                                        to high, by its own locator, else LogLocator on a log primary, else the default, each stood by a
+                                        LinkedTickPlacement and left out where the primary cannot place it, none and a diagnostic when
+                                        the link cannot place the range) make a PlacedYSlot; SlotBand is
                                         its band by the one band rule; PlaceYSlots adds the identity and the outward offset of each slot
                                         (each side stacked once, the container's gap between each pair). The drawing, the layout's
                                         reserve (ConstrainedLayoutEngine asks PlaceSlot and SlotBand) and the interaction views
                                         (ComputeSecondaryViewTransforms) all read these, so none works a slot's range, transform or band
-                                        out a second way
+                                        out a second way.
+                                        The top X axis is PLACED in one place too, PlaceTopAxis, read by the drawing, the band
+                                        MeasureEndBands reserves and the legend's marks (CollectSeriesMarks); it is drawn when it has
+                                        series or is linked (DrawsSecondaryX). With a range of its own: over that range
+                                        (ComputeSecondaryXDataRanges, padded by the Range1D rules, in log space on a log scale) through
+                                        its own scale, its ticks by its own locator, its scale's, its spacing, else the eight intervals it
+                                        has always drawn whatever the width; its Y is the primary's: the same range through its scale and breaks. Linked: the
+                                        primary's range and transform. LayOutLinkedTicks is the ONE rule a linked axis lays its ticks
+                                        out by, PlaceLinkedSlot and PlaceTopAxis alike. TransformOf (an AxisMapping per direction:
+                                        scale, symlog threshold, breaks) builds every transform here: ViewTransform for the primary
+                                        and the Y slots, PlaceTopAxis for the top axis
     CartesianInsetAxesRenderer.cs     inset axes (Axes.InsetBounds; chosen by the Cartesian factory entry): draws like
                                         Cartesian but answers DrawsDirectLabels = false — an inset has no right margin, so
-                                        a directly-labelled line keeps its legend entry instead of a label over the parent
+                                        a directly-labelled line keeps its legend entry instead of a label over the parent.
+                                        DrawsPatches stays true (the Cartesian answer): an inset draws and lists its patches
     SeriesSlot.cs                     the owner of a series' colour AND its stroke: SeriesAxisPair (Primary / SecondaryY = every right
                                         slot / SecondaryLeftY = every left slot past the primary / SecondaryX; append-only, in the
                                         order AllSeries concatenates), YSlotSeat + Axes.YSlotSeats() (every Y slot in identity order
@@ -751,7 +843,19 @@ MatPlotLibNet/
                                         BottomAxisTitleExtent is the room the X title takes below the labels (the layout reserves it);
                                         the Y titles call it through YAxisTitleExtent, with the container's gap
                                         LabelExtent is how far a label reaches past the mark and its pad, turned or upright, so a
-                                        label turned by a set rotation or by the 30 degrees of crowded labels is measured turned
+                                        label turned by a set rotation or by the 30 degrees of crowded labels is measured turned.
+                                        A label reads the tick's value; where the mark stands comes from an ITickPlacement, which
+                                        RenderAxisTicks takes and RenderMinorTicks reads off its TickRun (minor ticks are split in
+                                        the values' unit, each stood by the placement)
+    ITickPlacement.cs                 internal interface (DataToPixel, PlotBounds): where the one tick drawing stands a tick of a
+                                        given value. DataTransform implements it (a tick at its own value, every axis that is not
+                                        linked; PlotBounds explicitly, so the public surface does not grow), so every caller of
+                                        RenderAxisTicks hands over its transform as before
+    LinkedTickPlacement.cs            internal sealed ITickPlacement of a linked axis (Axis.Link): the tick of value v stands where
+                                        the primary's transform puts AxisTransform.Inverse(v), so its scale, direction and breaks
+                                        place it (matplotlib's secondary_xaxis / secondary_yaxis). AlongX (the top axis) and AlongY (a
+                                        Y slot) link one coordinate; the other goes through Linear(1), whose inverse is the value bit
+                                        for bit, so no flag tells them apart
     FacingInk.cs                      internal readonly record struct (Facing, Outward): how far an axis title's ink reaches each way
                                         from its placing line, as fractions of its font size. The font metrics measure a box, not an
                                         ascent and a descent, so the X titles are placed by an ascent of 0.8 em (Ascent) and a descent
@@ -783,9 +887,16 @@ MatPlotLibNet/
                                         ascent of a bracket, which is why the right title did not move
     PlacedYSlot.cs                    internal readonly record struct: one Y slot as ONE render draws it: the slot, its Range, its
                                         Transform (through the slot's own scale), its Ticks and TickSource, where its series stand in
-                                        the identity order (Pair, FirstIndexInPair), its Band and its Offset past the plot's edge;
+                                        the identity order (Pair, FirstIndexInPair), its Band and its Offset past the plot's edge,
+                                        Placement (where its ticks stand: its Transform, or a linked slot's LinkedTickPlacement) and
+                                        Diagnostic (why a linked slot draws no ticks, reported by the part once per render);
                                         TickDraw(theme) is how its labels are drawn and measured. Placed once per render
                                         (CartesianAxesRenderer) and read by the part, the end labels and the interaction views
+    PlacedTopAxis.cs                  internal readonly record struct: the top X axis as ONE render places it
+                                        (CartesianAxesRenderer.PlaceTopAxis): its Range, the Transform its series are drawn with (its
+                                        own scale, or a linked one's the primary's), Placement (where its ticks stand: its Transform, or a
+                                        LinkedTickPlacement), its Ticks and TickSource, and Diagnostic (why a linked one draws no ticks,
+                                        reported by the part once per render). Read by the part, the layout's band and the legend's marks
     YSideTerms.cs                     internal readonly record struct: everything that differs between a Y axis on the left and one on
                                         the right, derived once from AxisSide (Left, Right, Of(side)): the tick side, the outward
                                         sign, the edge fraction, the label alignment, the spine, the series list that numbers the side's
@@ -797,13 +908,19 @@ MatPlotLibNet/
     AxesTickSourceExtensions.cs       TickSource (Locator, Formatter, NamesCategories) + PrimaryTickSource: the one rule for X and Y
                                         that decides where an axis' ticks stand and whether they label numbers or names (the series
                                         stand categories along it, or its formatter is a CategoryFormatter, whoever set it); ScaleLocator,
-                                        ScaleFormatter, CategoryNames. NamesAt: the names the axis shows at given positions, all of them
+                                        ScaleFormatter, CategoryNames; OwnTickSource(isX) (an axis on a range and scale of its own: a
+                                        Y slot, SlotTickSource, and the top X axis) / LinkedTickSource(primary scale: LogLocator
+                                        only on a log primary, matplotlib's functionlog) and TickValuesBetween, the one layout of the
+                                        ticks of every axis past the primary. NamesAt: the names the axis shows at given positions, all of them
                                         on named ticks or none. The axes renderer draws and measures by it, the data table reads a
                                         position by it, so the table and the picture cannot name one place differently
     AxesRangeExtensions.cs            the automatic range of an axes: SnapshotContributions evaluates every series' ComputeDataRange
                                         once, then adds one contribution for each line drawn across the plot at a data value
                                         (LineContributions: a reference line, a level, a Fibonacci level), as matplotlib's axhline
-                                        and axvline update the data limits, so a line beyond the data is drawn inside the plot.
+                                        and axvline update the data limits, so a line beyond the data is drawn inside the plot,
+                                        then one for each patch over its outline's true extent (PatchContributions over
+                                        PathSegmentExtensions.ExtremePoints, a curve's turning points and not its control points; no
+                                        sticky edge; an axes of patches only frames them, where matplotlib's add_patch stays at 0..1).
                                         LinkedContributions(link) is the contributions of the axes this one shares X or Y with: they
                                         range, pad and clamp the scale together with the axes' own, sticky edges included, so axes
                                         that share a scale have the same one (ComputeDataRanges)
@@ -813,9 +930,17 @@ MatPlotLibNet/
     ValueObjects/LineSegmentExtensions.cs  the one place a straight line is cut to the area it is drawn in (ClippedTo, the
                                         Liang-Barsky cut; HorizontalAcross / VerticalAcross for a line across the plot); an end inside
                                         the area comes back bit for bit
+    ValueObjects/LinkedRange.cs       internal readonly record struct (Interval, Increasing): the range a linked axis shows, the image
+                                        of the primary's range low to high, and whether the transform runs up over it
+                                        (AxisTransform.ImageOf)
     CartesianParts/                   one responsibility per class, walked by CartesianAxesRenderer.Render in a fixed order:
       CartesianSpansPart.cs             shaded spans behind the series, cut at the plot edge (an edge beyond the range runs to the
                                         plot edge, a span wholly beyond it draws nothing, a threshold's zone with it)
+      CartesianPatchesPart.cs           the patches (Axes.Patches), right after the spans and before the reference lines (matplotlib's
+                                        zorder 1, under the lines; the grid stays under them, a recorded departure), in the order added,
+                                        one DrawPath each: the outline through PathSegmentExtensions.ToPixels, the style Patch.DrawnStyle.
+                                        Clipped to the plot only under a set limit (BeginSeriesClip, one clip around all of them): the
+                                        automatic range takes every patch in. An inset draws its patches; polar, ternary and 3-D draw none
       CartesianReferenceLinesPart.cs    full-width reference lines; a line beyond a limit the caller set is not drawn
                                         (LineSegmentExtensions.HorizontalAcross / VerticalAcross)
       CartesianToolsPart.cs             trendlines, levels, Fibonacci overlays; a trendline is cut to the plot area
@@ -836,13 +961,17 @@ MatPlotLibNet/
                                         text), from its PlacedYSlot (range, transform, ticks, identity, offset — placed once
                                         per render by CartesianAxesRenderer) and YSideTerms (edge sign, tick side, label
                                         anchor, spine; derived once from AxisSide, no side branch in the part). A slot past
-                                        the primary WITH series is drawn whole (Render); the primary goes through the same
+                                        the primary that is drawn (YAxisSlot.IsDrawn: with series, or linked) is drawn whole
+                                        (Render), its ticks through PlacedYSlot.Placement; the primary goes through the same
                                         part in the axes' drawing order (ticks with the X ticks, title with the X title).
                                         What one axis can do every axis does: a log or symlog scale, a tick locator or spacing,
                                         minor ticks, turned tick labels, a title in math markup. It replaces two parts that
                                         differed only in their side (a right part and a left part) and the primary's own inline copy
       CartesianPartContext.cs           the axes, plot area, context and theme every part of one render draws with
-      CartesianSecondaryXAxisPart.cs    the top axis likewise; MeasureBand is the band the layout reserves for it
+      CartesianSecondaryXAxisPart.cs    the top axis likewise, from its PlacedTopAxis: its series through the placed transform, its major
+                                        and minor ticks where the placement stands them (a linked one's where the primary shows the
+                                        value each maps back to), labelled by the placed source, its title above them; MeasureBand is
+                                        the band the layout reserves for it, from the same placement
       CartesianDirectLabelsPart.cs      the end labels: placed ONCE per axes (the lines of every Y axis together, spread by
                                         Interval1DExtensions.SpreadApart), each at the height its own slot's transform puts the end of
                                         its line at (PlacedYSlot), in one column right of the plot past the right axes. Drawn by each
@@ -880,9 +1009,24 @@ MatPlotLibNet/
     IRenderContext.cs                  drawing primitives: DrawLine/DrawRect/etc. take StrokeStyle(Color,Thickness,Style)
                                         / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
                                         centralizes the Thickness<=0 visibility guard across every backend);
+                                        ShapeStyle.StrokeLineStyle (init, default Solid) dashes a shape's outline by the
+                                        rule a line of that style uses in each backend (SVG AppendDashArray, Skia
+                                        CreateStrokePaint, Maui ToMauiDashPattern); None = no stroke, via HasVisibleStroke;
+                                        a colour's alpha is painted wherever it stands: its hex colour carries none, so the SVG
+                                        writes it beside the colour by one rule (SvgWriterExtensions.AppendAlpha): stroke-opacity
+                                        on every translucent stroke (a line, a polyline, a shape's outline, a hatch line, all
+                                        written by AppendStroke), fill-opacity on a fill, a hatch tile's face and a text,
+                                        opacity on a hatch dot, stop-opacity on a gradient stop, as Skia and Maui paint it;
+                                        an opaque colour writes the bytes it did;
                                         DrawText, DrawText(…,rotation), DrawRichText (default method)
     ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 91 series types
-    DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
+    DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc);
+                                        DataToPixelClippedX / Y pin a base a log axis cannot place to where the axis begins
+                                        (matplotlib's nonpositive='clip'), DataToPixelClipped does it on both axes for an outline vertex
+    PathSegmentExtensions.cs          internal: the one rule for an outline in data units (a patch's). ToPixels(transform): every point,
+                                        control points included, through DataToPixelClipped; a point inside a break leaves the outline
+                                        open there and it resumes with a move. ExtremePoints(): the vertices and where a curve turns
+                                        back along X or Y, the extent the automatic range reads
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment; internal Rect.FromCorners(a, b) is the
                                       one way a mark placed by two data corners becomes a rectangle (smaller coordinates, absolute
@@ -980,14 +1124,16 @@ MatPlotLibNet/
       Interval1D.cs                     readonly record struct (Start, Size): a span on one axis
       Interval1DExtensions.cs           SpreadApart: order-preserving collision sweep over spans; Sankey node padding and the end
                                         labels call the same one
-      LegendMeasurer.cs                 the legend box and font, measured from the same LegendEntries list the drawing reads
+      LegendMeasurer.cs                 the legend box and font, measured from the same rows the drawing reads (the renderer's
+                                        LegendEntries, patch rows included)
 
     LegendRendering/                    the legend
       LegendRenderer.cs                 internal: one legend from a list of entries in a rectangle, under a Legend config, a theme
                                         and a surface, holding no axes (an axes hands over its entries and its marks; a figure-level
                                         legend draws with it too). Place (hidden or empty: none; the marks are asked for only by a
                                         Best legend), Draw (one group: frame, shadow, title, each entry's swatch and text; the
-                                        data-legend-index groups when interactive) and ItemBounds (the hit-test, the very cells Draw
+                                        data-legend-index groups when interactive, only for a row with a ToggleIndex) and ItemBounds (the
+                                        hit-test of the rows a click toggles, the very cells Draw
                                         draws in). The swatch draws a line, a step or a scatter's marker through MarkerRenderer, the
                                         one owner of marker shapes, so a swatch shows the marker its series has
       LegendLayoutCalculator.cs         the legend's geometry from the Legend config, its labels and the plot area (font, columns,
@@ -998,23 +1144,34 @@ MatPlotLibNet/
                                         ten places, in matplotlib's order, that MarkObstacles.FirstLeastCovered scores lowest; with no
                                         marks it is the upper right. Best works over the marks of Cartesian, polar and 3-D axes
                                         (AxesRenderer.LegendObstacles); a map (Geo) hands over none
-      LegendEntry.cs                    readonly record struct (Series, OriginalIndex, ColorSlotIndex, Label, Swatch) +
-                                        Axes.LegendEntries(directLabelsDrawn):
+      LegendEntry.cs                    abstract record LegendEntry(Label): one row of a legend, which says for itself its ToggleIndex
+                                        (the series index a click toggles; null = no data-legend-index group and no hit-test bounds),
+                                        DrawSwatch(legend, box) (double dispatch to LegendRenderer.DrawSwatchOf, the one drawer of
+                                        handles) and LookUnder(theme) (a value-compared look the figure legend lists once), so no reader
+                                        asks which kind a row is. + AxesLegendEntryExtensions: Axes.LegendEntries(directLabelsDrawn):
                                         the ONE enumerator of which series are named in a legend, in which order, under which
                                         index (the series slot), in which colour slot, with which text and swatch: every Y slot's series
                                         in identity order, then the top X axis' (a labelled series on the top axis has an entry), an entry
                                         for each of a series' LegendParts. The parts of one series share its index, so a click hides or shows
-                                        the whole series and SvgLegendToggleScript dims every entry of it together. RenderLegend,
-                                        ComputeLegendBounds (the hit-test) and LegendMeasurer all read it, so drawing, click and
-                                        margin cannot disagree. A series that draws its own label (ChartSeries.DrawsOwnLabel: the
-                                        stat tile) never has an entry. LegendEntries(directLabelsDrawn, legendValues) takes the
-                                        label suffix from its caller instead of the axes' own legend
-      FigureLegendExtensions.cs         the legend of a figure (Figure.Legend): Figure.LegendEntries(legend, ctx) gathers the entries of
-                                        every subplot in subplot order by the rule above (whether an end-labelled series leaves is asked of
-                                        the renderer that draws those axes; the label suffix follows the figure legend's LegendValues) and
-                                        lists an entry that is drawn exactly like an earlier one (label, handle, colour slot, colour)
-                                        once; Legend.OnTheFigure(): Best is UpperRight at the figure, a figure having no marks of one axes
-                                        to keep clear of
+                                        the whole series and SvgLegendToggleScript dims every entry of it together. A series that draws its
+                                        own label (ChartSeries.DrawsOwnLabel: the stat tile) never has an entry. LegendEntries(directLabelsDrawn,
+                                        legendValues) takes the label suffix from its caller instead of the axes' own legend.
+                                        Axes.PatchLegendEntries(): a row per patch in add order whose Label is set, not empty and does not
+                                        start with '_' (matplotlib's rule; opacity does not decide), no legend value. AxesRenderer.LegendEntries
+                                        joins the two, series rows first (recorded departure: matplotlib lists in add order), so drawing,
+                                        click and margin cannot disagree
+      SeriesLegendEntry.cs              sealed record (Series, OriginalIndex, ColorSlotIndex, Label, Swatch): ToggleIndex = OriginalIndex;
+                                        its swatch is the handle the series says it has in its colour slot; its look is (label, swatch,
+                                        slot, colour)
+      PatchLegendEntry.cs               sealed record (Patch): the label of the patch; ToggleIndex null (a click toggles nothing); its
+                                        swatch is matplotlib's HandlerPatch, a rectangle filling the handle box in Patch.DrawnStyle (face,
+                                        edge, width, dash, hatch, opacity inside each colour) whatever the shape; its look is (label, style)
+      FigureLegendExtensions.cs         the legend of a figure (Figure.Legend): Figure.LegendEntries(legend, ctx) gathers the rows of
+                                        every subplot in subplot order by the rule above (asked of the renderer that draws those axes:
+                                        whether an end-labelled series leaves, whether its patches have rows; the label suffix follows the
+                                        figure legend's LegendValues) and lists a row that looks exactly like an earlier one
+                                        (LegendEntry.LookUnder) once; Legend.OnTheFigure(): Best is UpperRight at the figure, a figure
+                                        having no marks of one axes to keep clear of
 
     TextMeasurement/                    text width estimation (new v0.8.1)
       CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
@@ -1121,6 +1278,9 @@ MatPlotLibNet/
       SvgIdScope.cs                   internal: the one owner of the ids a render context writes (Clip, Hatch, Gradient): the first subplot keeps the plain ids,
                                       each later one writes s1-, s2- ...; SaveOptions.SvgIdPrefix is put in front of all of them afterwards
       SvgGradientRegistry.cs          gradient ids and the <defs> emission; RegisterShared(LinearGradient) defines a gradient once for every shape that carries it
+      SvgWriterExtensions.cs          internal: the attribute writers every SVG writer shares. AppendAlpha(attribute, colour) is the one rule for a colour's
+                                      alpha (written beside the hex colour when it is translucent, nothing when opaque); AppendStroke(StrokeStyle) the one writer
+                                      of a stroke drawn from a colour (colour, width, stroke-opacity, dashes); AppendFillStroke, AppendDashArray, ToSvgNumber
       SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx, ariaLabel?), BeginLegendItemGroup(idx, ariaLabel?), BeginAccessibleGroup(cssClass, ariaLabel); uses string.EscapeForXml() extension
       SvgXml.cs                       internal static: EscapeForXml(this string) — DRY XML escaping extension used by SvgRenderContext and SvgTransform (v1.8.0: renamed from SvgXmlHelper)
       SvgDocumentExtensions.cs        internal: WithSaveOptions(svg, options) — the settings of SaveOptions an SVG can use, applied to the
@@ -1229,7 +1389,9 @@ MatPlotLibNet/
                                       the SAME additive idiom InView already set) so a gesture moves every Y axis
                                       stacked past the primary too, each by its own range; a
                                       slot whose own series fix their Y range is skipped the same way the primary
-                                      is, independently (AxisRangeEventExtensions.ApplySecondaryRanges, an
+                                      is, independently, and a linked slot (YAxisSlot.IsLinked) is skipped as it owns no range:
+                                      it keeps its view and its number on the wire, so the slots past it keep theirs
+                                      (AxisRangeEventExtensions.ApplySecondaryRanges, an
                                       extension(Axes) block and the ONE place either event family writes a change onto a
                                       slot; a change for a slot the axes does not have is skipped). The modifiers compute
                                       each slot's new range before sending: Zoom/RectangleZoom re-read the SAME
@@ -1430,8 +1592,8 @@ MatPlotLibNet/
     SubPlotSpacingDto.cs,             the figure's spacing (and a theme's default spacing) and the interaction
     InteractionThemeDto.cs              tokens: each field left out at a new value's
     IJsonDescribed.cs                 internal interface IJsonDescribed<TDescription>: Describe(). The built-in tick
-                                      locators, tick formatters and normalisers, and the colour maps built in code,
-                                      implement it explicitly; a type written outside the library does not, and the JSON
+                                      locators, tick formatters and normalisers, the colour maps built in code and the four named axis
+                                      transforms implement it explicitly; a type written outside the library does not, and the JSON
                                       leaves it out. Describe may return null (the reverse of a map that cannot be described).
     TickLocatorDto.cs                 the described families: one base record per family, closed by
     TickFormatterDto.cs                 [JsonPolymorphic] + [JsonDerivedType] ("type" is the discriminator);
@@ -1472,6 +1634,38 @@ MatPlotLibNet/
                                         indicator's, an indicator at its defaults written as {} (a setting by being there), an axes
                                         without one writes no field, so every existing figure writes the bytes it wrote. RestoreAxes
                                         (and so RestoreInsets) reads it back; a 1.27.0 reader skips it
+    SubplotCellDto.cs                 the cell of a rows-by-columns grid a subplot was added to (AxesDto.Subplot, the "subplot"
+                                        field: rows, cols, index, as matplotlib's add_subplot names them). Of(axes, subPlots) is the
+                                        one rule for when it is written: never for an axes that names no cell, nor for a figure whose
+                                        only subplot stands in the one cell of a 1 by 1 grid (it draws the same without it, so every
+                                        golden file keeps its bytes); two subplots in that cell write it. AddTo(figure) reads it back
+                                        through Figure.AddSubPlot(rows, cols, index), so both layouts see the cell they saw before
+    SignalMarkerDto.cs                a buy or sell signal (the "signals" list of AxesDto, null while empty): place, direction, and
+                                        colour, size and label each only when set. From(model) and AddTo(axes) back. A 1.28.0
+                                        reader skips this field and the "subplot" field
+    PatchDto.cs                       the patches of an axes (the "patches" list of AxesDto, null while empty; a 1.28.0 reader skips it),
+                                        one polymorphic record family told apart by "type" (rectangle, polygon, arrow, circle, ellipse,
+                                        wedge, arc), the way NormalizerDto is. Stacked: PatchDto (the style every patch has: edgeColor,
+                                        edgeWidth, edgeLineStyle, alpha, label, hatch, hatchColor), the abstract FilledPatchDto (faceColor),
+                                        and a sealed leaf per kind (its geometry; Angle, Theta1/2, the arrow's sizes and the wedge's Width
+                                        as options). Each layer writes its own fields in its constructor against a new patch of the kind
+                                        (OrNullAtRest, so a patch at rest writes its kind and geometry only; an arrow and an arc rest at
+                                        a black edge) and sets them again in its AddTo step. Patch.Describe() makes the record (no switch
+                                        on the kind), RestoreAxes calls AddTo. The base PatchDto is NOT abstract: a kind this build does
+                                        not know falls back to it, adds nothing and reports through ChartDiagnostics, where an abstract
+                                        base would fail the whole figure. Enum fields (edgeLineStyle, hatch, shape) travel as lower-camel
+                                        names; a point is a DataPoint ({"dataX", "dataY"})
+    AxisTransformDto.cs               the link of an axis (the "link" field of AxisDto, null for an axis with a range of its own; a
+                                        1.28.0 reader skips it): one polymorphic record family told apart by "type" (linear: scale, offset;
+                                        reciprocal: numerator; logarithm: base; power: exponent), closed like NormalizerDto. The leaf
+                                        writes what its transform was made with (IJsonDescribed<AxisTransformDto>.Describe on the model
+                                        leaf), Restore calls the factory again, so a number the transform refuses (a scale of 0, a base
+                                        of 1) is refused when it is read, by the same parameter name; an absent offset, numerator or base
+                                        reads as the factory's default. A transform made with Of is not described and is left out. The
+                                        base AxisTransformDto is NOT abstract: a kind this build does not know (or no kind) falls back to
+                                        it, restores nothing and reports through ChartDiagnostics, the axis stays unlinked and the figure
+                                        still loads. ChartSerializer.AxisToDto writes it and ApplyAxis reads it, so every axis seat
+                                        (primary, top, every Y slot, an inset's) carries it
     SeriesRegistry.cs                 ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>> mapping each
                                       discriminator to the series' own FromSeriesDto factory; a table
                                       only, no series-specific logic (v1.13.0: cyclomatic complexity 173 -> 1).
@@ -1497,7 +1691,9 @@ MatPlotLibNet/
                                       Color constants: Tab10Blue, Tab10Orange, Tab10Green, GridGray,
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
     ColorExtensions.cs                Color.Luminance() (Rec. 709 Y'), Color.ContrastingTextColor() — auto black/white for readable cell labels; internal
-                                      RelativeLuminance / ContrastRatioWith (WCAG) / CompositedOver / NeutralGrey — the contrast arithmetic Theme.Neutral resolves by
+                                      RelativeLuminance / ContrastRatioWith (WCAG) / CompositedOver / NeutralGrey — the contrast arithmetic Theme.Neutral resolves by;
+                                      internal ScaleAlpha(alpha) — a colour's own opacity times a factor, the one rule a series' alpha
+                                      (SeriesRenderer.ScaleAlpha) and a patch's Alpha are applied by
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
     Theme.cs                          30 built-in themes (incl. OpsNight/OpsPanel/OpsWarm/OpsContrast operator backgrounds); DefaultLegendPosition (matplotlib's legend.loc: UpperRight for the classic theme, Best for every other; carried by ThemeDto, omitted at rest) + AlarmPalette (Resting/Warning/Critical/Unknown — colour is reserved for what needs attention; the resting state wears none) + NeutralColor (the grey reference lines, trendlines, price levels, a dumbbell's connector and a map's outlines wear; without one Theme.Neutral derives it from the plot, over the figure background when translucent: #808080 where that reaches 3 : 1, else the nearest grey that does; a colour set on the graphic wins; AlarmPalette is a different thing: colour for abnormal states, the neutral is the grey of everything else) + the grid each matplotlib theme keeps hidden until asked (classic: black, dotted, 0.5; v2: #b0b0b0 solid 0.8)
     AlarmPalette.cs                   readonly record struct: the colours a theme reserves for abnormal states (+ ColorBlindSafe Okabe-Ito, HighContrast WCAG AAA) + GridStyle sealed record + PropCycler? property (new v0.8.8)
@@ -1581,7 +1777,7 @@ What holds for every verb:
   contiguous run of one group into ONE rendered colour slot; a group that is not contiguous is not supported — every verb
   that groups series adds them one after another, and nothing in the library splits a group apart afterward. The
   decoration members of a group carry no label of their own, so only the series the group is named for gets a legend
-  entry (`AxesLegendEntryExtensions.HasLegendEntry` already decides that from the label alone, unchanged).
+  entry (`AxesLegendEntryExtensions.LegendEntries` already decides that from the label alone, unchanged).
 - A verb sets no axis limit unless the chart cannot be read without it: `Pareto` puts its two Y axes on one scale,
   `BumpChart` puts rank 1 on top, `Spy` leaves half a cell past the grid. A limit the caller sets afterwards wins.
 - A missing value (NaN) is left out of a sample or left as a gap in a line, and never drawn as a zero or bridged; the one
@@ -1600,6 +1796,14 @@ container, not a composed chart, so they are instance methods of `AxesBuilder`. 
 and hands a `YAxisSlotBuilder` to a required `configure` callback that comes last; they return the builder and take no more
 than four parameters. `VerbPlacementContractTests` finds them through that callback type, so a container verb added later is
 held to the same shape without an edit.
+
+`AddPatch` is no verb either: it is an instance method that adds an overlay the caller has made, as `AxHSpan` and `Annotate`
+add theirs. `Axes.AddPatch` returns the patch it was given; `AxesBuilder.AddPatch` and `FigureBuilder.AddPatch` (the default
+axes) take that one patch and return the builder. One method takes every kind of patch (a `Rectangle`, a `Polygon`, an
+`Arrow`), so a kind added later needs no new method, and the patch is styled through its own properties rather than a
+callback.
+
+A new public instance method of a builder (`AxesBuilder`, `FigureBuilder`, `YAxisSlotBuilder`, `SecondaryXAxisBuilder`, and every other `*Builder` class of the library) takes at most four parameters, gathering its inputs in one value (a `DataPoint`, an options value, the object itself) instead of adding loose arguments; the older methods over that count (`AddTrendline` with five, `Annotate` with an arrow tip with six, and the others the test lists) are published exceptions, because a changed signature is a binary break that package validation rejects, and `InstanceMethodBudgetContractTests` names every one of them and goes red on a new method over the limit or on a name whose method has gone.
 
 The verbs of `MatPlotLibNet.Geo` (`GeoAxesExtensions`: `WithProjection`, `Land`, `Ocean`, `Borders`, `Coastlines`, `Choropleth`,
 `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram`, `Dorling`) live in that package, in namespace `MatPlotLibNet.Geo`, because the
@@ -1654,6 +1858,7 @@ The verbs share internal owners instead of each holding a copy of a rule:
 | the Hann window, and a transform of exactly the length it is given | `SpectralWindow.Hann` (`Coefficients`), `Fft.Transform` | `Fft.Forward`, `Fft.Stft`, `Welch`, `Spectrum` |
 | a line reshaped run by run: split at its gaps, each run downsampled or smoothed on its own, joined again by one missing point | `MissingValueExtensions.JoinedAcrossGaps` | `LttbDownsampler`, `MonotoneCubicSpline` |
 | one legend drawn from a list of entries in a rectangle | `LegendRenderer` (`Place`, `Draw`, `ItemBounds`) | the legend of every axes, the figure's legend (`FigLegend`) |
+| which rows a legend lists and how each kind of row is drawn, toggled and compared: series rows, then a row per labelled patch where the renderer draws patches | `AxesRenderer.LegendEntries` over `AxesLegendEntryExtensions` (`LegendEntries`, `PatchLegendEntries`); `LegendEntry` (`ToggleIndex`, `DrawSwatch`, `LookUnder`) | `RenderLegend`, `ComputeLegendBounds`, `LegendMeasurer.MeasureBox`, `FigureLegendExtensions` |
 | the colour range of an image's values and the grid of cells that fills a rectangle | `ImageCells` (`Of`, `Draw`) | `ImageSeriesRenderer`, the figure's images (`FigImage`) |
 | what a figure draws itself, under its subplots (its images) and over them (its colour bar, texts and legend) | `ChartRenderer.RenderFigureUnderlays`, `ChartRenderer.RenderFigureOverlays` | `ChartRenderer.Render`, `SvgTransform.Render`, also for a figure with no subplot |
 | the region an inset zooms into and the connectors kept, from the limits the inset drew | `ZoomIndicatorPath.Of` over the inset's `DrawnView` | the parent's render of an inset that has a `ZoomIndicator` (`IndicateZoom`) |
@@ -1661,7 +1866,13 @@ The verbs share internal owners instead of each holding a copy of a rule:
 | the typical price, and the volume-weighted mean | `PriceSources.TypicalPrice`, `VolumeWeightedMean` | HLC3, `CandleIndicator`, `AdaptiveStochastic`; `Vwap`, `StreamingVwap`, `VwapZScore` |
 | what a light does to a face | `ILightSource.Shade` | `Surface`, `Bar3D`, `Color.Shade` |
 | what NaN and infinity mean to a chart | `MissingValueExtensions` | every renderer and every data range |
+| how an outline in data units is drawn: every point and control point through the axes' transform, a coordinate a log axis cannot place pinned to where the axis begins, a point inside a break leaving the outline open with a move after the gap | `PathSegmentExtensions.ToPixels` over `DataTransform.DataToPixelClipped` | `CartesianPatchesPart` (every kind of patch, straight or curved) |
+| how far a patch reaches in the automatic range: its vertices and a curve's turning points, a coordinate its axis cannot place left out, no sticky edge | `AxesRangeExtensions.PatchContributions` over `PathSegmentExtensions.ExtremePoints` | `Axes.ComputeDataRanges`, so the axes that share a scale (`LinkedContributions`) too |
+| how a patch is written to the figure JSON and read back: its kind, its geometry, and each style or option only while it differs from a new patch of the kind | `PatchDto` and its leaves (`Patch.Describe()` writes, `AddTo` reads) | `ChartSerializer.AxesToDto`, `RestoreAxes` (so a subplot and an inset alike) |
+| how the link of an axis is written to the figure JSON and read back: the named transform's kind and what it was made with, a transform of functions left out, a number the factory refuses refused on reading | `AxisTransformDto` and its leaves (`IJsonDescribed<AxisTransformDto>.Describe()` on the model leaves writes, `Restore()` reads) | `ChartSerializer.AxisToDto`, `ApplyAxis` (every axis seat), the MCP reader (`NormaliseAxis`) |
+| the curves of a curved patch: matplotlib's cubic Béziers of the unit circle (`Path.unit_circle`, `Path.arc`) placed on an ellipse in data units, control points included | `EllipticArc` (`UnitCircle`, `UnitArc`, `Curves`, `Place`) | `Circle`, `Ellipse`, `Wedge`, `Arc` |
 | the rectangle between two data corners | `Rect.FromCorners` | every renderer that draws a bar, box, cell or segment from two corners |
+| a linked axis holds no series of its own: a link is refused on an axis that holds a series, and a series on an axis that is linked, whichever comes first, before anything changes | `AxisLinkExtensions` (`LinkThrough`, `RefuseSeriesWhenLinked`) | `YAxisSlotBuilder` (`Link`, `Plot`, `Scatter`, `StreamingPlot`), `SecondaryXAxisBuilder` (`Link`, `PlotXSecondary`, `ScatterXSecondary`) |
 
 ## Data flow
 
@@ -1682,11 +1893,13 @@ SvgTransform           renders background sequentially, then the figure underlay
     |                  merges SVG output in order: background, subplots, overlays
     |
 ChartRenderer          per subplot: computes data ranges, creates DataTransform
-    |                  renders spans, reference lines (decorations)
+    |                  renders spans, patches, reference lines (decorations)
     |                  renders grid, ticks, axis labels
     |                  for each series: creates SvgSeriesRenderer (visitor)
     |                  places every Y axis slot of the container once (range, transform, ticks, band, offset)
     |                  and draws each with the one slot part, on either side, through its own scale
+    |                  places the top X axis once (PlaceTopAxis: its own range and scale, or, linked, the
+    |                  primary's), and stands each tick of a linked axis through a LinkedTickPlacement
     |                  renders annotations (text + arrows)
     |                  renders each inset (RenderAxes returns its DrawnView), then the inset's zoom indicator over
     |                  the parent's marks (ZoomIndicatorPath, only when both axes are Cartesian)
@@ -1748,6 +1961,10 @@ ChartSerializer        Figure -> each series via ISeriesSerializable -> JsonSeri
     |                  (every one past them), yAxisTitleGap only when it is not 4
     |                  the figure's own texts, images and legend -> texts, images, legend; an inset's zoom
     |                  indicator -> zoomIndicator; each left out when there is none (a 1.27.0 reader skips them)
+    |                  a subplot's patches -> patches (Patch.Describe, by "type"), its signals -> signals, its
+    |                  AddSubPlot cell -> subplot (only for a grid of more than one cell); an axis' link -> link
+    |                  (the named AxisTransform leaves describe themselves, one made with Of is left out); each
+    |                  left out when there is none (a 1.28.0 reader skips them)
     |
 string                 JSON with camelCase, null-ignoring, Color as hex, a number that is not finite as the string "NaN",
                        "Infinity" or "-Infinity"; a value at its default is left out
@@ -1756,6 +1973,9 @@ ChartSerializerDefault.Current.FromJson(json)
     |
 ChartSerializer        JsonSerializer.Deserialize() -> SeriesRegistry resolves type -> Figure
     |                  each frozen list, then its overflow list, stacks its slots on the container in outward order
+    |                  a subplot with a subplot cell is added with Figure.AddSubPlot(rows, cols, index); a patch or a
+    |                  link of a kind this build does not know reads as the base record, restores nothing and reports
+    |                  on ChartDiagnostics, so the rest of the figure loads
     |
 SeriesRegistry         ConcurrentDictionary<string, Func<...>> maps type discriminator to factory
 ```
@@ -1806,12 +2026,21 @@ Things a reader may expect that the library does not do, with the reason:
 - **The spectral options have no `sides` and no `Funits`.** The input is real, so a two-sided spectrum only mirrors the one-sided one; the unit of the frequency changes only the title, which `SetXLabel` sets.
 - **A figure has one legend, it reserves no room and it is static.** A second `FigLegend` replaces the first (matplotlib adds another), the layout keeps no margin for it (`TightLayout` included), and clicking an entry hides nothing, as in matplotlib.
 - **The zoom indicator is drawn over the inset** (matplotlib draws it just under), only on a Cartesian parent (a polar, 3-D or ternary parent has no data rectangle to draw the region in), and it is drawn into the picture once, from the limits of that render: it is not made to follow a pan or a zoom made in the browser (how it looks after one has not been checked in a browser).
+- **Patches and spans are drawn above the grid** (matplotlib's grid stands at zorder 1.5, a patch and a span at 1). No theme setting moves them under it: the grid stays where it was, so no picture moved.
+- **A patch has no zorder of its own and a rectangle no `rotation_point`.** The library draws in layers, and a series' `ZOrder` sorts series among themselves only; a rectangle turned about its centre is a `Polygon` of its four corners.
+- **A patch's `Alpha` multiplies the opacity of its face, edge and hatch** (matplotlib's replaces it); the two draw the same for opaque colours, and a colour of none stays none.
+- **An axes of patches alone frames them, and a rectangle of no size counts in the range** (matplotlib's `add_patch` asks for no autoscale and leaves an empty rectangle out). On a log axis a coordinate of 0 or below is pinned to where the axis begins, the `nonpositive='clip'` rule `DataTransform` already follows, where matplotlib pushes the vertex a thousand decades out and clips it at the same edge. A curved patch of size 0 or less draws nothing (matplotlib mirrors a negative size).
+- **Patches are drawn and listed on Cartesian axes and insets only.** The polar, ternary and 3-D renderers read no overlay. The legend lists the series rows first and then the patch rows (matplotlib keeps the order they were added in); a patch row is never toggled; a figure legend lists a patch drawn identically in two subplots once. No patch has a table beside the chart, as no overlay has.
+- **A linked axis exists on the top X axis and on a Y axis past the primary only.** A bottom or floating linked X axis is left out (matplotlib's bottom one draws over the primary's ticks, and the library has no stack of X axes), and a link set on a primary axis is ignored. `AxisTransform.Power` is defined on 0 and above (above 0 for a negative exponent): a value-to-value inverse cannot know which side of 0 a range lies on. A link made with `Of` is not written to JSON. The builders refuse a series on a linked axis; a document written by hand that gives one series draws the link.
 
 ## Key design patterns
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, YAxisSlotBuilder | matplotlib-style method chaining |
+| Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, YAxisSlotBuilder, SecondaryXAxisBuilder | matplotlib-style method chaining; a public instance method of a builder takes at most four parameters (`InstanceMethodBudgetContractTests` names the published exceptions) |
+| Shapes the caller makes | `Patch` (abstract, private protected constructor) → `FilledPatch` → sealed `Rectangle`, `Polygon`, `Arrow`, `Circle`, `Ellipse`, `Wedge`; `Arc : Patch`; one `AddPatch` on `Axes`, `AxesBuilder` and `FigureBuilder` | a patch knows its outline in data units (`Outline()`, the path matplotlib builds), its drawn style (`DrawnStyle`) and its JSON (`Describe()`), so the drawing, the range, the legend swatch and the serializer read the patch and hold no switch on its kind; one method adds every kind, so a kind added later needs no builder edit, and the outline needs no pixel, so the range never depends on the drawing it decides |
+| One placement for a tick | `ITickPlacement` (internal): `DataTransform` (a tick at its value) and `LinkedTickPlacement` (a tick at the primary's place of `AxisTransform.Inverse(v)`) | the one tick drawing (`RenderAxisTicks`, `RenderMinorTicks`) labels a tick by its value and asks the placement where it stands, so a linked axis draws through the same code as every other axis and no caller changed |
+| One place for the top axis | `CartesianAxesRenderer.PlaceTopAxis` → `PlacedTopAxis` (the counterpart of `PlaceSlot` → `PlacedYSlot`) | the drawing, the room the layout makes for it and the marks the legend avoids read one placement: its own range, scale, locator, spacing and minor ticks, or, linked, the primary's range and transform. It replaced three code paths that each placed the axis linearly and ignored its own settings |
 | Visitor | ISeriesVisitor + ChartSeries.Accept() | extensible per-series rendering without switch |
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D, Ternary) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
@@ -1836,14 +2065,14 @@ Things a reader may expect that the library does not do, with the reason:
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
 | One obstacle map, one score, one selector | `MarkObstacles` (`Builder`, `Badness`, `FirstLeastCovered`), `AxesRenderer.LegendObstacles` / `CollectMarks`, `SeriesRenderer<T>.AddMarks` | the legend at `Best` and the annotations that avoid overlap look at the same marks as drawn, score a candidate by the same matplotlib terms and take the first least covered one, so the two cannot disagree about what covers what; a renderer reports its marks from the pixel geometry it draws with, never from a copy of it. The order is acyclic: the series' marks, then the legend (marks and the annotations' boxes at their anchors), then the annotations that opted in (marks, the chosen legend box, the annotations that stay, the ones placed already); the legend is still drawn after them |
-| One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry`, one per `LegendPart`; `Figure.LegendEntries(legend, ctx)` over every subplot | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index, their colour slot, their swatch and their text cannot differ between them; "a series is named in the legend" is decided in one place, and a series with named parts (a stack plot's layers) says them itself; the legend of a figure gathers the axes' own entries instead of deciding again which series are named |
+| One enumerator for the legend | `AxesRenderer.LegendEntries(legendValues)`: `Axes.LegendEntries(directLabelsDrawn)` → `SeriesLegendEntry`, one per `LegendPart`, then `Axes.PatchLegendEntries()` → `PatchLegendEntry` where the renderer draws patches; `Figure.LegendEntries(legend, ctx)` over every subplot | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index, their colour slot, their swatch and their text cannot differ between them; "a series is named in the legend" is decided in one place, and a series with named parts (a stack plot's layers) says them itself; the legend of a figure gathers the axes' own entries instead of deciding again which series are named |
 | One owner of an image's cells | `ImageCells` (`Of`, `Draw`) | an image series scaled to its plot and a figure image at one pixel for each cell take the colour range of their values and draw their grid of rectangles from one place, so the two cannot colour the same data differently |
 | One rule for where a category sits | `CategorySlot` (`Of`, `Bar`, `Around`), `BarSeries.SlotOf`, `CategoryTickExtensions` | the bar and count renderers, their data ranges, the category labels, a candlestick body, the indicator shortcuts and the category ticks read one rule, so a label, a mark and the bar it belongs to cannot drift apart: an edge-aligned bar chart's range and a count plot's labels had drifted from their bars before they shared it |
 | One owner of a series' colour and stroke | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`), `SeriesSlot` (`ColorOf`, `LineStyleOf`, `LineWidthOf`, `LineMarkerOf`, `ScatterMarkerOf`, `StrokeOf`) | the primary passes, the part of every Y slot, the line renderers and the legend swatch ask the same owner, so a line on any axis and its swatch cannot wear different colours, dashes, widths or markers under a cycler theme — `SlotIndex` sums every right slot's series before counting a left slot's or the top axis', so two slots on different sides never collide on the same identity; a pie, a donut, a funnel and a stacked area take their colours from the theme through it too, one slot for each part (`ChartSeries.ColorSlotSpan`), and the series after them the slot past them |
 | Compose existing series | `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, `PriceAxesExtensions`, `SignalAxesExtensions`, the `XxxParts` record structs | a chart that is a drawing of several series adds no series type, no registry key and no serializer path: one drawn unit is one series (a colour slot, a legend entry, a JSON entry), the chart travels as its parts, and the verb draws what the same chain of public calls draws |
 | One missing value | `MissingValueExtensions` | a colormap, a renderer and a data range ask one class what NaN and infinity mean: a line breaks at the gap, a mark that cannot be placed is skipped before any render context sees it, and the automatic range leaves it out. When each layer tested `double.IsNaN` for itself, charts wrote NaN into the SVG |
 | A reflected contract | `SeriesDrawnPropertiesRoundTripTests` over `DrawnSeriesFixtures`, `AxesDrawnPropertiesRoundTripTests` over `DrawnAxesFixtures` | every settable property of every series type and every part of an axes is found by reflection, set to a value that is not its default, and compared after a JSON round trip, so a property added without its DTO field turns a Theory red and names itself; a property no JSON can carry is named in a list with the reason, and a series type that is neither under the contract nor named fails a test |
-| Closed polymorphic DTO family | `TickLocatorDto`, `TickFormatterDto`, `NormalizerDto`, `ColorMapDto` with `IJsonDescribed<T>` | a built-in describes itself and a derived record restores it through a virtual, so JSON carries the kind and what it was made with; an unknown kind reads as the base record and emits a diagnostic; no registry and no switch |
+| Closed polymorphic DTO family | `TickLocatorDto`, `TickFormatterDto`, `NormalizerDto`, `ColorMapDto`, `AxisTransformDto` with `IJsonDescribed<T>`; `PatchDto` through `Patch.Describe()` | a built-in describes itself and a derived record restores it through a virtual, so JSON carries the kind and what it was made with; an unknown kind reads as the base record and emits a diagnostic; no registry and no switch |
 | A series states what it is | `ChartSeries.DrawsWithoutAxes`, `LegendSwatch`, `LegendParts`, `ColorSlotSpan`, `ProvidesColorBar`, `RadialExtent`, `DrawsOwnLabel`, `FixesYRange` (internal virtual) | the axes, the legend, the colour bar and the polar scale ask the series; none of them holds a list of series types, so a new kind of series (or one in a package) needs no edit in any of them. `AxisLessCapabilityContractTests` checks each `DrawsWithoutAxes` answer against a measurement (the same marks under any limits, or marks that move with them) |
 | One scale per concern | `ColorBarScale`, `RadialScale`, `MaxNLocator.ForLength` | where a colour bar names its values and where polar rings stand are each decided once, from the length they are drawn along; the drawing, the layout's reserve and every series that draws on them read the same value, so a tick and a mark cannot disagree |
 | Refused at the verb | `ArrayLengthExtensions`, the series verbs, `ChartSpecReader.RefuseWhatTheLibraryRefuses` | a series that cannot be drawn from its data is refused when it is built, in one wording, and a figure read from JSON builds through the same verbs; the MCP reader asks the library whether a series fits and names only the place it stands |
@@ -1920,14 +2149,26 @@ MatPlotLibNet.Mcp/
   ChartSpecReader.cs               parse -> normalise -> strict DTO pass -> semantic pass -> ChartSerializer.FromJson. The figure's
                                    own texts, legend and images are normalised beside its colour bar; an image is cut at the
                                    figure's edge and never enlarges the picture, so the dpi / canvas check has nothing to count for it.
-                                   A spec with no series is refused as nothing to draw unless the figure it builds shows a text or
-                                   an image of its own (FigureText.IsShownOn, FigureImage.IsShownOn: the rule the data table reads);
-                                   a figure legend or colour bar alone describes series that are not there and stays refused
+                                   A spec with no series is refused as nothing to draw unless the figure it builds shows something of
+                                   its own: an overlay on a Cartesian subplot (AxesOverlayExtensions.DrawsAnOverlay: patches, spans,
+                                   reference lines, annotations, trendlines, levels, Fibonacci retracements, signals; an inset with
+                                   bounds is asked in turn), or a text or an image on the figure (FigureText.IsShownOn,
+                                   FigureImage.IsShownOn: the rule the data table reads); a legend, a colour bar or the breaks of an
+                                   axis alone describe series that are not there and stay refused. A patch is checked like any other
+                                   overlay: its kind (NormaliseKindOf: refused by name before the strict pass, which would read a
+                                   misspelt kind as the base record and blame its first field) and the enum words of its outline, its
+                                   hatch and an arrow's shape. The link of an axis is a described value like a
+                                   tick locator (NormaliseAxis: its kind checked and moved first at every axis seat; a linked axis
+                                   describes what series draw in another unit, so a spec that holds only a link is still nothing to draw)
   AxesSeatShape.cs                 where a subplot keeps its axes and series, read off the wire records (AxesDto,
                                    SecondaryAxisSlotDto): a new axis or series list on the wire is a seat on the next build
   AxesSeatWalk.cs                  the one seat walk, over the JSON nodes (normalise) and the DTO records (validate)
   SpecVocabulary.cs                the accepted values of every enum-valued spec field, per node kind (FigureText: the two alignments;
-                                   ZoomIndicator: the line style of an inset's zoomIndicator)
+                                   ZoomIndicator: the line style of an inset's zoomIndicator; Patch: its kind, outline style, hatch and
+                                   an arrow's shape; Theme: the default legend position; TreeNode: the hatch of one node of a tree;
+                                   AxisLink: the kinds of an axis's link, read off AxisTransformDto like the tick locators).
+                                   SpecVocabularyTests holds it to every enum-typed field of every record the figure JSON reaches, and
+                                   to a row of kinds for every described family (a base record closed by JsonDerivedType) it reaches
   ChartTypeCatalog.cs              SeriesRegistry.Discriminators minus the types whose reader ignores the document
   ChartRendering.cs                spec -> Figure -> bytes; one owner, two sinks (inline PNG, or a file)
   OutputPathResolver.cs            the single directory save_chart may write under
@@ -1944,6 +2185,7 @@ MatPlotLibNet.Mcp/
                                    problems to log; a host starts this process, so a font file arrives by variable
   ToolRefusalException.cs          a refusal the boundary turns into an McpException the model can act on
   Extensions/StringDistanceExtensions.cs   edit distance, for "did you mean 'line'?"
+  Extensions/AxesOverlayExtensions.cs      whether a subplot draws an overlay of its own (the reader's "is this a picture" question)
   .mcp/server.json                 the registry manifest; its version is pinned to the project's by a test
 ```
 

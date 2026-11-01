@@ -23,7 +23,10 @@ public class LegendRendererTests
     private static LineSeries Line(Color? color = null) => new(X, X) { Label = "line", Color = color ?? Colors.Red };
 
     private static LegendEntry Entry(ISeries series, LegendSwatch swatch, string label = "entry", int index = 0) =>
-        new(series, index, index, label, swatch);
+        new SeriesLegendEntry(series, index, index, label, swatch);
+
+    private static LegendEntry PatchEntry(string label) =>
+        new PatchLegendEntry(new MatPlotLibNet.Models.Patches.Rectangle(new(0, 0), 1, 1) { Label = label }, label);
 
     private static LegendEntry LineEntry(string label = "entry", int index = 0) =>
         Entry(Line(), new LegendSwatch(LegendSwatchKind.Line), label, index);
@@ -305,6 +308,40 @@ public class LegendRendererTests
         Assert.Equal([3, 7], hitTest.Select(b => b.SeriesIndex));
     }
 
+    /// <summary>A row a click toggles nothing with (a patch's) has no hit-test box; the rows around it keep the cells they are drawn
+    /// in, so a box is never shifted onto the wrong row.</summary>
+    [Fact]
+    public void ItemBounds_LeaveOutARowThatTogglesNothing_TheOthersKeepTheirCells()
+    {
+        var entries = new[] { LineEntry("a", 3), PatchEntry("patch"), LineEntry("b", 7) };
+        var renderer = new LegendRenderer(Named, Theme.Default, new RecordingRenderContext());
+        var layout = PlaceOrFail(renderer, entries);
+
+        var hitTest = LegendRenderer.ItemBounds(entries, layout);
+
+        Assert.Equal(
+        [
+            new LegendItemBounds(3, new Rect(layout.ColumnX(0), layout.EntryY(0), layout.ItemWidth(0), layout.LineHeight)),
+            new LegendItemBounds(7, new Rect(layout.ColumnX(0), layout.EntryY(2), layout.ItemWidth(0), layout.LineHeight)),
+        ], hitTest);
+        Assert.Equal(renderer.Draw(entries, layout, interactive: false), hitTest);
+    }
+
+    [Fact]
+    public void Draw_Interactive_OnSvg_WrapsOnlyTheRowsAClickToggles_AndDrawsEveryRow()
+    {
+        var entries = new[] { LineEntry("first", 2), PatchEntry("patch") };
+        var ctx = new SvgRenderContext();
+        var renderer = new LegendRenderer(Named, Theme.Default, ctx);
+        renderer.Draw(entries, PlaceOrFail(renderer, entries), interactive: true);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("<g data-legend-index=\"2\" style=\"cursor:pointer\" aria-label=\"first\">", svg);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(svg, "data-legend-index="));
+        Assert.Contains(">patch<", svg);
+        Assert.Equal(2, svg.Split("</g>").Length - 1);
+    }
+
     [Fact]
     public void ItemBounds_NoEntries_IsEmpty()
     {
@@ -398,7 +435,7 @@ public class LegendRendererTests
     [Fact]
     public void Swatch_Line_WearsTheColourOfItsColourSlot_WhenTheSeriesNamesNone()
     {
-        var entry = new LegendEntry(new LineSeries(X, X) { Label = "line" }, 0, 2, "entry", new LegendSwatch(LegendSwatchKind.Line));
+        var entry = new SeriesLegendEntry(new LineSeries(X, X) { Label = "line" }, 0, 2, "entry", new LegendSwatch(LegendSwatchKind.Line));
 
         Assert.Equal(Theme.Default.CycleColors[2], (Color)Args(Assert.Single(SwatchOf(entry))).color);
     }

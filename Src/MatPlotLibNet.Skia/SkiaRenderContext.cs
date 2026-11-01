@@ -248,7 +248,7 @@ public sealed class SkiaRenderContext : IRenderContext
     /// <see cref="DrawPath(IReadOnlyList{PathSegment}, ShapeStyle)"/>) otherwise duplicated inline.
     /// Fill always paints before stroke so the stroke sits visibly on top of the fill.</summary>
     /// <param name="shape">The fill/stroke style to test via <see cref="ShapeStyle.HasVisibleFill"/>
-    /// and <see cref="ShapeStyle.HasVisibleStroke"/>.</param>
+    /// and <see cref="ShapeStyle.HasVisibleStroke"/>; the stroke is dashed by <see cref="ShapeStyle.StrokeLineStyle"/>.</param>
     /// <param name="draw">Invoked with the created <see cref="SKPaint"/> — once for fill, once for
     /// stroke — to perform the actual canvas draw call for the caller's shape geometry.</param>
     private void FillThenStroke(ShapeStyle shape, Action<SKPaint> draw)
@@ -269,7 +269,8 @@ public sealed class SkiaRenderContext : IRenderContext
         }
         if (shape.HasVisibleStroke)
         {
-            using var paint = CreateStrokePaint(shape.Stroke!.Value, shape.StrokeThickness, LineStyle.Solid);
+            // The pattern a line of the shape's stroke style is drawn with (a line's stroke goes through the same paint).
+            using var paint = CreateStrokePaint(shape.Stroke!.Value, shape.StrokeThickness, shape.StrokeLineStyle);
             draw(paint);
         }
     }

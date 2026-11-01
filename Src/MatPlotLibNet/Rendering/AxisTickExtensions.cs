@@ -72,11 +72,12 @@ internal readonly struct TickDrawContext
 internal readonly record struct LabelReach(double Away, double Before, double After);
 
 /// <summary>The major ticks of one axis as they stand on the plot: what the minor ticks between them are placed by.</summary>
-/// <param name="Ticks">The major tick values, in data space.</param>
+/// <param name="Ticks">The major tick values, in the axis' own unit: the minor ticks are split between them in that unit.</param>
 /// <param name="FixedCoord">The data value on the other axis the ticks are mapped at; only the coordinate along the edge
 /// is used.</param>
-/// <param name="Transform">The data-to-pixel transform of the axis; its plot bounds clip the minor ticks.</param>
-internal readonly record struct TickRun(double[] Ticks, double FixedCoord, DataTransform Transform);
+/// <param name="Placement">Where a tick of a given value stands: the axis' data-to-pixel transform, or the placement of a linked
+/// axis (<see cref="LinkedTickPlacement"/>); its plot bounds clip the minor ticks.</param>
+internal readonly record struct TickRun(double[] Ticks, double FixedCoord, ITickPlacement Placement);
 
 /// <summary>The one drawing of axis ticks. The primary axes, their mirrored side and every Y axis slot call it, so
 /// every tick honours its <see cref="TickConfig"/> by the same rule: mark length, width, colour and direction, label
@@ -251,11 +252,13 @@ internal static class AxisTickExtensions
             return maxDim;
         }
 
-        /// <summary>Draws the mark and the label of every tick in <paramref name="ticks"/> on one edge.</summary>
-        /// <param name="ticks">The tick values, in data space.</param>
+        /// <summary>Draws the mark and the label of every tick in <paramref name="ticks"/> on one edge: the label reads the
+        /// value, and <paramref name="placement"/> decides where it stands.</summary>
+        /// <param name="ticks">The tick values, in the axis' own unit.</param>
         /// <param name="fixedCoord">The data value on the other axis the ticks are mapped at; only the coordinate along the
         /// edge is used.</param>
-        /// <param name="transform">The data-to-pixel transform of the axis.</param>
+        /// <param name="placement">Where a tick of a given value stands: the axis' data-to-pixel transform (a tick at its own
+        /// value), or the placement of a linked axis (<see cref="LinkedTickPlacement"/>).</param>
         /// <param name="config">The axis' major tick settings.</param>
         /// <param name="draw">Which edge, where it is and how the labels are formatted.</param>
         /// <returns>The farthest any label reaches past the mark and the pad (<see cref="LabelExtent"/>): on a
@@ -263,7 +266,7 @@ internal static class AxisTickExtensions
         /// one; on a <see cref="TickSide.Left"/>/<see cref="TickSide.Right"/> edge the widest; 0 when
         /// <see cref="TickConfig.Visible"/> is false.</returns>
         internal double RenderAxisTicks(double[] ticks, double fixedCoord,
-            DataTransform transform, TickConfig config, TickDrawContext draw)
+            ITickPlacement placement, TickConfig config, TickDrawContext draw)
         {
             if (!config.Visible) return 0;
             bool alongX = draw.Side is TickSide.Bottom or TickSide.Top;
@@ -278,7 +281,7 @@ internal static class AxisTickExtensions
                 maxDim = Math.Max(maxDim, draw.LabelExtent(draw.LabelSize(ctx, ticks, i, font), font.Size));
                 if (alongX)
                 {
-                    double x = transform.DataToPixel(tick, fixedCoord).X;
+                    double x = placement.DataToPixel(tick, fixedCoord).X;
                     ctx.DrawTickMark(x, draw.AxisEdge, draw.Side, config.Length, color, config.Width, config.Direction, draw.SpineHalf);
                     double labelY = draw.Side == TickSide.Bottom
                         ? draw.AxisEdge + reach + font.Size
@@ -287,7 +290,7 @@ internal static class AxisTickExtensions
                 }
                 else
                 {
-                    double y = transform.DataToPixel(fixedCoord, tick).Y;
+                    double y = placement.DataToPixel(fixedCoord, tick).Y;
                     ctx.DrawTickMark(y, draw.AxisEdge, draw.Side, config.Length, color, config.Width, config.Direction, draw.SpineHalf);
                     double labelX = draw.Side == TickSide.Right
                         ? draw.AxisEdge + reach
@@ -300,9 +303,12 @@ internal static class AxisTickExtensions
 
         /// <summary>Draws the minor tick marks of one axis, no labels, on the edge <paramref name="draw"/> hangs from, by its
         /// <see cref="TickConfig"/>: between the major ticks of <paramref name="run"/>, its own spacing when it set one and
-        /// matplotlib's five-way subdivision otherwise, skipping a position a major tick stands on and one outside the plot.
+        /// matplotlib's five-way subdivision otherwise, skipping a position a major tick stands on, one outside the plot and one
+        /// the scale cannot place (a log scale has no place at or below 0, and the split runs a step below the first major tick).
+        /// The split runs in the unit of the major values, and each minor stands where the run's placement puts its value, so
+        /// a linked axis splits in its own unit and stands each minor where the primary shows its inverse.
         /// Every axis draws its minor ticks here, the X axis, the primary Y axis and every Y slot alike.</summary>
-        /// <param name="run">The major ticks, the coordinate they are mapped at and the transform.</param>
+        /// <param name="run">The major ticks, the coordinate they are mapped at and the placement.</param>
         /// <param name="minor">The axis' minor tick settings; nothing is drawn when they are not visible.</param>
         /// <param name="draw">The edge, its side, half its spine and the foreground a mark without a colour takes.</param>
         internal void RenderMinorTicks(TickRun run, TickConfig minor, TickDrawContext draw)
@@ -318,16 +324,16 @@ internal static class AxisTickExtensions
             double minorStep = minor.Spacing is { } spacing && spacing > 0 ? spacing : majorStep / 5;
             double rangeStart = majorTicks[0] - majorStep;
             double rangeEnd   = majorTicks[^1] + majorStep;
-            var bounds = run.Transform.PlotBounds;
+            var bounds = run.Placement.PlotBounds;
             double areaMin = alongX ? bounds.X : bounds.Y;
             double areaMax = alongX ? bounds.X + bounds.Width : bounds.Y + bounds.Height;
             for (double mt = rangeStart; mt <= rangeEnd + minorStep * 0.01; mt += minorStep)
             {
                 mt = Math.Round(mt, 10);
                 if (Array.Exists(majorTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
-                var pt = alongX ? run.Transform.DataToPixel(mt, run.FixedCoord) : run.Transform.DataToPixel(run.FixedCoord, mt);
+                var pt = alongX ? run.Placement.DataToPixel(mt, run.FixedCoord) : run.Placement.DataToPixel(run.FixedCoord, mt);
                 double pos = alongX ? pt.X : pt.Y;
-                if (pos < areaMin || pos > areaMax) continue;
+                if (!pos.IsDrawable() || pos < areaMin || pos > areaMax) continue;
                 ctx.DrawTickMark(pos, draw.AxisEdge, draw.Side, minor.Length, color, minor.Width, minor.Direction, draw.SpineHalf);
             }
         }

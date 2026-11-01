@@ -65,7 +65,9 @@ internal sealed class SvgHatchRegistry
             // A fill that is not there (a hatch laid over a gradient) leaves the tile to the strokes alone.
             _sb.Append("<rect width=\"").Append(Tile.ToSvgNumber())
                .Append("\" height=\"").Append(Tile.ToSvgNumber())
-               .Append("\" fill=\"").Append(fill.ToHex()).Append("\" />");
+               .Append("\" fill=\"").Append(fill.ToHex()).Append('"')
+               .AppendAlpha("fill-opacity", fill)
+               .Append(" />");
         }
 
         AppendStrokes(hatch, hatchColor);
@@ -92,21 +94,28 @@ internal sealed class SvgHatchRegistry
         }
     }
 
+    /// <summary>A dot of the hatch, filled and stroked in its one colour: a translucent colour writes its alpha as
+    /// <c>opacity</c> (<see cref="SvgWriterExtensions.AppendAlpha"/>), which fades the dot as one, so its fill and its stroke
+    /// do not add up where they overlap.</summary>
     private void AppendDot(double cx, double cy, Color color)
     {
         _sb.Append("<circle cx=\"").Append(cx.ToSvgNumber())
            .Append("\" cy=\"").Append(cy.ToSvgNumber())
            .Append("\" r=\"1\" fill=\"").Append(color.ToHex())
-           .Append("\" stroke=\"").Append(color.ToHex()).Append("\" />");
+           .Append("\" stroke=\"").Append(color.ToHex()).Append('"')
+           .AppendAlpha("opacity", color)
+           .Append(" />");
     }
 
+    /// <summary>A line of the hatch, a stroke drawn from a colour, written by <see cref="SvgWriterExtensions.AppendStroke"/> as
+    /// every line of the chart is: a translucent colour writes <c>stroke-opacity</c> after the width.</summary>
     private void AppendLine(double x1, double y1, double x2, double y2, Color color)
     {
         _sb.Append("<line x1=\"").Append(x1.ToSvgNumber())
            .Append("\" y1=\"").Append(y1.ToSvgNumber())
            .Append("\" x2=\"").Append(x2.ToSvgNumber())
-           .Append("\" y2=\"").Append(y2.ToSvgNumber())
-           .Append("\" stroke=\"").Append(color.ToHex())
-           .Append("\" stroke-width=\"1\" />");
+           .Append("\" y2=\"").Append(y2.ToSvgNumber()).Append('"')
+           .AppendStroke(new StrokeStyle(color, 1, LineStyle.Solid))
+           .Append(" />");
     }
 }

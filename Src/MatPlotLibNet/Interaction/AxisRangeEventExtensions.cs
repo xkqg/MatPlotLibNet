@@ -15,7 +15,10 @@ internal static class AxisRangeEventExtensions
     extension(Axes axes)
     {
         /// <summary>Writes each change's range onto its own slot, unless that slot's own series fix their Y range (a
-        /// state timeline on a secondary axis — independent of the primary's <see cref="Axes.HasFixedYRange"/>).
+        /// state timeline on a secondary axis — independent of the primary's <see cref="Axes.HasFixedYRange"/>) or the
+        /// slot is linked to the primary (<see cref="YAxisSlot.IsLinked"/>): a linked slot shows the primary's range, which the
+        /// gesture moves, and owns none to write. Its view still travels the wire (its place keeps the numbering of the slots
+        /// past it), so whatever a sender says for it is passed over here.
         /// <para>The index of a change is the interaction wire's, OUTWARD only: <see cref="SecondaryAxisRange.SlotIndex"/> 0
         /// on a side is the first slot PAST the primary Y axis, which is never addressable here.
         /// <see cref="YAxisStack.SlotAtOutward"/> is the one place that turns it into a slot of the container.</para>
@@ -28,7 +31,7 @@ internal static class AxisRangeEventExtensions
             foreach (var change in ranges ?? [])
             {
                 if (axes.YAxes.StackOn(change.Side).SlotAtOutward(change.SlotIndex) is not { } slot) continue;
-                if (slot.Series.HasFixedYRange()) continue;
+                if (slot.IsLinked || slot.Series.HasFixedYRange()) continue;
                 slot.Axis.Min = change.Range.YMin;
                 slot.Axis.Max = change.Range.YMax;
             }

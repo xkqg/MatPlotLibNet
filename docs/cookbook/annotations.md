@@ -92,6 +92,10 @@ Plt.Create()
     .Save("spans.svg");
 ```
 
+A span runs across the whole plot. A shape of your own in data coordinates (a rectangle over part of the range, a
+polygon, a circle, an arrow with no text, sized in the units of the data) is a patch, added with `AddPatch`: see
+[Shapes in data coordinates](patches.md).
+
 ## Multiple reference lines
 
 ```csharp

@@ -4,6 +4,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.CartesianParts;
@@ -438,6 +439,29 @@ public class MissingValueGeometryTests
         AssertNothingUndrawableReached(ctx);
         Assert.Equal(["c", "d"], ctx.OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text));
         Assert.Equal(0, ctx.CountOf("DrawPath") + ctx.CountOf("DrawPolygon") + ctx.CountOf("DrawRectangle"));
+    }
+
+    /// <summary>A patch with a coordinate that is not a number is skipped whole; one with a vertex a log axis cannot place is
+    /// drawn with that vertex at the axis' edge, and one with a vertex inside an axis break is drawn open at the gap: no NaN
+    /// reaches the context in any of them.</summary>
+    [Fact]
+    public void APatchWithAPointThatCannotBePlaced_HandsTheContextNoValueItCannotDraw()
+    {
+        var axes = new Axes();
+        axes.AddPatch(new Polygon([new(1, NaN), new(2, 2), new(3, 1)]));
+        axes.AddPatch(new Rectangle(new(1, 0), 2, 5));
+        axes.AddPatch(new Polygon([new(1, 2), new(5, 50), new(9, 2), new(9, 3)]));
+        var onLog = new RecordingRenderContext();
+        var onBreak = new RecordingRenderContext();
+
+        new CartesianPatchesPart(axes, Bounds, onLog, Theme.Default, LogY()).Render();
+        new CartesianPatchesPart(axes, Bounds, onBreak, Theme.Default,
+            new DataTransform(0, 10, 0, 80, Bounds, null, [new AxisBreak(40, 60)], 0, 10, 0, 100)).Render();
+
+        AssertNothingUndrawableReached(onLog);
+        AssertNothingUndrawableReached(onBreak);
+        Assert.Equal(2, onLog.CountOf("DrawPath"));
+        Assert.Equal(2, onBreak.CountOf("DrawPath"));
     }
 
     // ---- the legend ---------------------------------------------------------------------------------------------------

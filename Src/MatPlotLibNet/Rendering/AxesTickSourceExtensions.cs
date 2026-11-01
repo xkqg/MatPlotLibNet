@@ -103,24 +103,47 @@ internal static class AxesTickSourceExtensions
     extension(Axis axis)
     {
         /// <summary>The ticks of an axis that a locator places, the first rule of every axis' tick source
-        /// (<see cref="PrimaryTickSource"/>, <see cref="SlotTickSource"/>): its own locator; otherwise the one its scale
+        /// (<see cref="PrimaryTickSource"/>, <see cref="OwnTickSource"/>): its own locator; otherwise the one its scale
         /// brings (<see cref="ScaleLocator"/>), with that scale's formatter. The axis' own formatter is kept, and its labels
         /// are names when that formatter is a <see cref="CategoryFormatter"/>.</summary>
         /// <param name="isX">Whether the axis is the X axis: only an X axis brings date ticks with its scale.</param>
         /// <returns>The source, or <see langword="null"/> when no locator places the axis' ticks.</returns>
-        internal TickSource? LocatedTickSource(bool isX)
+        internal TickSource? LocatedTickSource(bool isX) => axis.LocatedBy(axis.ScaleLocator(isX));
+
+        /// <summary>The ticks a locator places: the axis' own, otherwise <paramref name="scaleLocator"/>, the one the scale it is
+        /// drawn on brings, with that scale's formatter. The axis' own formatter is kept, and its labels are names when that
+        /// formatter is a <see cref="CategoryFormatter"/>.</summary>
+        /// <param name="scaleLocator">The locator the scale the axis is drawn on brings, or <see langword="null"/>.</param>
+        /// <returns>The source, or <see langword="null"/> when no locator places the axis' ticks.</returns>
+        private TickSource? LocatedBy(ITickLocator? scaleLocator)
         {
-            if ((axis.TickLocator ?? axis.ScaleLocator(isX)) is not { } locator) return null;
+            if ((axis.TickLocator ?? scaleLocator) is not { } locator) return null;
             var formatter = axis.TickFormatter ?? (axis.TickLocator is null ? locator.ScaleFormatter() : null);
             return new TickSource(locator, formatter, formatter is CategoryFormatter);
         }
 
-        /// <summary>The source of the ticks of a Y axis slot stacked beside the plot, by the rule the primary's ticks follow
-        /// (<see cref="LocatedTickSource"/>): its own locator, otherwise the one its scale brings (a log slot's decades, a
-        /// symlog slot's), each with its formatter; otherwise its spacing or the default placement, in its own formatter
+        /// <summary>The source of the ticks of a linked axis (<see cref="Axis.Link"/>), which is drawn on the scale of the primary
+        /// axis it shows, not on a scale of its own: its own locator; otherwise, when the primary is logarithmic, the log
+        /// locator with the log formatter, as matplotlib draws a linked axis over a log primary on its <c>functionlog</c> scale
+        /// (decades); otherwise its spacing or the default placement, in its own formatter, as matplotlib's <c>function</c> scale
+        /// over every other primary (symlog, logit and dates included) places them.</summary>
+        /// <param name="primaryScale">The scale of the primary axis the linked axis shows.</param>
+        /// <returns>Where the linked axis' ticks come from.</returns>
+        internal TickSource LinkedTickSource(AxisScale primaryScale) =>
+            axis.LocatedBy(primaryScale == AxisScale.Log ? new LogLocator() : null) ?? new TickSource(null, axis.TickFormatter, false);
+
+        /// <summary>The source of the ticks of an axis drawn over a range and a scale of its own, a Y axis slot stacked beside the
+        /// plot or the top X axis, by the rule the primary's ticks follow (<see cref="LocatedTickSource"/>): its own locator,
+        /// otherwise the one its scale brings (a log axis' decades, a symlog axis', a date X axis' dates), each with its
+        /// formatter; otherwise its spacing or the default placement, in its own formatter (<see cref="TickValuesBetween"/>).</summary>
+        /// <param name="isX">Whether the axis is an X axis: only an X axis brings date ticks with its scale.</param>
+        /// <returns>Where the axis' ticks come from.</returns>
+        internal TickSource OwnTickSource(bool isX) => axis.LocatedTickSource(isX) ?? new TickSource(null, axis.TickFormatter, false);
+
+        /// <summary>The source of the ticks of a Y axis slot stacked beside the plot: <see cref="OwnTickSource"/> of a Y axis
         /// (<see cref="SlotTickValues"/>).</summary>
         /// <returns>Where the slot's ticks come from.</returns>
-        internal TickSource SlotTickSource() => axis.LocatedTickSource(isX: false) ?? new TickSource(null, axis.TickFormatter, false);
+        internal TickSource SlotTickSource() => axis.OwnTickSource(isX: false);
 
         /// <summary>The major tick values a Y axis slot stacked beside the plot draws over <paramref name="range"/>'s Y
         /// extent, the one source its drawing and the layout's reserve share: the locator of its tick source
@@ -130,11 +153,26 @@ internal static class AxesTickSourceExtensions
         /// <param name="range">The slot's data range; only its Y extent is read.</param>
         /// <param name="plotPixels">The height of the plot the slot stands beside.</param>
         /// <returns>The tick values.</returns>
-        internal double[] SlotTickValues(DataRange range, double plotPixels)
+        internal double[] SlotTickValues(DataRange range, double plotPixels) =>
+            axis.TickValuesBetween(axis.SlotTickSource(), new Range1D(range.YMin, range.YMax), plotPixels);
+
+        /// <summary>The major tick values an axis past the primary draws between the two ends of <paramref name="span"/>: the
+        /// locator of <paramref name="source"/>, otherwise its tick spacing (<see cref="TickConfig.Spacing"/>), otherwise the
+        /// default placement for the length of the plot (<see cref="AxesRenderer.DefaultTickValues"/>). A Y slot with a range of
+        /// its own (<see cref="SlotTickValues"/>), the top X axis with a range of its own (laid out at
+        /// <see cref="AxesRenderer.FullTickDensityLength"/>, the eight intervals it has always drawn whatever the plot's width)
+        /// and a linked axis on either edge, over the image of the primary's range in its own unit, are laid out by this one
+        /// rule.</summary>
+        /// <param name="source">Where the axis' ticks come from.</param>
+        /// <param name="span">The ends of the range the ticks are laid out over.</param>
+        /// <param name="plotPixels">The length of the plot along the axis: its height beside a Y axis, its width under the top
+        /// axis.</param>
+        /// <returns>The tick values.</returns>
+        internal double[] TickValuesBetween(TickSource source, Range1D span, double plotPixels)
         {
-            if (axis.SlotTickSource().Locator is { } locator) return locator.LocateInterval(range.YMin, range.YMax);
-            if (axis.MajorTicks.Spacing is { } spacing) return new MultipleLocator(spacing).LocateInterval(range.YMin, range.YMax);
-            return AxesRenderer.DefaultTickValues(range.YMin, range.YMax, plotPixels);
+            if (source.Locator is { } locator) return locator.LocateInterval(span.Lo, span.Hi);
+            if (axis.MajorTicks.Spacing is { } spacing) return new MultipleLocator(spacing).LocateInterval(span.Lo, span.Hi);
+            return AxesRenderer.DefaultTickValues(span.Lo, span.Hi, plotPixels);
         }
 
         /// <summary>The tick locator a scale brings when the axis has none: <see cref="AutoDateLocator"/> for a date X

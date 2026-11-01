@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Serialization;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -213,6 +214,34 @@ public class SpecSeatsTests
         Assert.Equal(AxisScale.Log, axis.Scale);
         Assert.IsType<MultipleLocator>(axis.TickLocator);
         Assert.Equal(TickDirection.In, axis.MajorTicks.Direction);
+    }
+
+    /// <summary>The link of an axis is a described value as a tick locator is: its kind is spelt as the serializer reads it and
+    /// moved first at every axis seat, so a link written the way a model writes it reads the way the top axis' does.</summary>
+    [Theory]
+    [MemberData(nameof(AxisSeats))]
+    public void ALinkOnEverySeat_IsNormalised(string name)
+    {
+        var seat = AxisSeat(name);
+
+        var figure = Reader.Read(new ChartSpec(Spec(seat, """{"link":{"scale":1.8,"offset":32,"type":"LINEAR"}}""")));
+
+        var link = AxisOf[name](figure.SubPlots[0]).Link;
+        Assert.True(DrawnSeriesFixtures.SameValue(AxisTransform.Linear(1.8, 32), link), $"{name}: read as {DrawnSeriesFixtures.Show(link)}.");
+    }
+
+    [Theory]
+    [MemberData(nameof(AxisSeats))]
+    public void AMisspelledLinkOnEverySeat_IsRefusedWithItsPath(string name)
+    {
+        var seat = AxisSeat(name);
+
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            Reader.Read(new ChartSpec(Spec(seat, """{"link":{"type":"linnear","scale":2}}"""))));
+
+        Assert.Contains("'linnear'", refusal.Message);
+        Assert.Contains($"$.subPlots[0].{seat.Path}.link.type", refusal.Message);
+        Assert.Contains("reciprocal", refusal.Message);
     }
 
     // ---- an entry that is not an object --------------------------------------------------------------------------

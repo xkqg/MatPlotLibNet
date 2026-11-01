@@ -132,6 +132,117 @@ public class SvgWriterExtensionsTests
         Assert.Same(sb, result);
     }
 
+    [Fact]
+    public void AppendFillStroke_DashedStroke_EmitsTheDashArrayAfterTheWidth()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFillStroke(new ShapeStyle(null, Color.FromHex("#00FF00"), 2.5) { StrokeLineStyle = LineStyle.Dashed });
+        Assert.Equal(" fill=\"none\" stroke=\"#00FF00\" stroke-width=\"2.5\" stroke-dasharray=\"5,2\"", sb.ToString());
+    }
+
+    [Fact]
+    public void AppendFillStroke_SolidStroke_EmitsNoDashArray()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFillStroke(new ShapeStyle(null, Color.FromHex("#00FF00"), 2.5));
+        Assert.Equal(" fill=\"none\" stroke=\"#00FF00\" stroke-width=\"2.5\"", sb.ToString());
+    }
+
+    [Fact]
+    public void AppendFillStroke_NoneStroke_EmitsNoStrokeAtAll()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFillStroke(new ShapeStyle(Color.FromHex("#123456"), Color.FromHex("#00FF00"), 2.5) { StrokeLineStyle = LineStyle.None });
+        Assert.Equal(" fill=\"#123456\"", sb.ToString());
+    }
+
+    [Fact]
+    public void AppendFillStroke_DashedLineStyleWithoutAStroke_EmitsNoDashArray()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFillStroke(new ShapeStyle(Color.FromHex("#123456"), null, 2.5) { StrokeLineStyle = LineStyle.Dashed });
+        Assert.DoesNotContain("stroke", sb.ToString());
+    }
+
+    /// <summary>A stroke's colour keeps its opacity in the SVG, as its fill's does and as Skia and MAUI paint it: the hex colour
+    /// carries none, so a translucent stroke writes <c>stroke-opacity</c> after its width, before its dashes. Before, the SVG drew
+    /// a half-transparent edge opaque while the PNG of the same figure drew it half-transparent.</summary>
+    [Fact]
+    public void AppendFillStroke_TranslucentStroke_WritesItsOpacity()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFillStroke(new ShapeStyle(null, new Color(0, 255, 0, 128), 2.5) { StrokeLineStyle = LineStyle.Dashed });
+        Assert.Equal($" fill=\"none\" stroke=\"#00FF00\" stroke-width=\"2.5\" stroke-opacity=\"{(128 / 255.0).ToSvgNumber()}\" stroke-dasharray=\"5,2\"",
+            sb.ToString());
+    }
+
+    [Fact]
+    public void AppendFillStroke_TranslucentStrokeThatIsNotDrawn_WritesNoOpacity()
+    {
+        var sb = new StringBuilder();
+        sb.AppendFillStroke(new ShapeStyle(Color.FromHex("#123456"), new Color(0, 255, 0, 128), 0));
+        Assert.Equal(" fill=\"#123456\"", sb.ToString());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // AppendAlpha — the one rule for the alpha of a colour: the hex colour carries none, so a translucent
+    // colour writes its alpha in the attribute of the paint it colours, and an opaque one writes nothing.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void AppendAlpha_TranslucentColour_WritesItsAlphaAsTheAttribute()
+    {
+        var sb = new StringBuilder();
+        sb.AppendAlpha("stroke-opacity", new Color(0, 0, 255, 64));
+        Assert.Equal($" stroke-opacity=\"{(64 / 255.0).ToSvgNumber()}\"", sb.ToString());
+    }
+
+    [Fact]
+    public void AppendAlpha_OpaqueColour_WritesNothing()
+    {
+        var sb = new StringBuilder();
+        sb.AppendAlpha("fill-opacity", Color.FromHex("#123456"));
+        Assert.Equal("", sb.ToString());
+    }
+
+    [Fact]
+    public void AppendAlpha_ReturnsSameStringBuilder_ForChaining()
+    {
+        var sb = new StringBuilder();
+        Assert.Same(sb, sb.AppendAlpha("opacity", new Color(1, 2, 3, 4)));
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // AppendStroke — the one writer of a stroke drawn from a colour: a line, a polyline and a shape's outline.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>An opaque solid stroke writes its colour and width and nothing else: the bytes a line wrote before its alpha
+    /// was carried.</summary>
+    [Fact]
+    public void AppendStroke_OpaqueSolid_WritesColourAndWidth()
+    {
+        var sb = new StringBuilder();
+        sb.AppendStroke(new StrokeStyle(Color.FromHex("#00FF00"), 2.5, LineStyle.Solid));
+        Assert.Equal(" stroke=\"#00FF00\" stroke-width=\"2.5\"", sb.ToString());
+    }
+
+    /// <summary>A translucent dashed stroke writes its opacity after its width and before its dashes.</summary>
+    [Fact]
+    public void AppendStroke_TranslucentDashed_WritesItsOpacityBeforeItsDashes()
+    {
+        var sb = new StringBuilder();
+        sb.AppendStroke(new StrokeStyle(new Color(0, 255, 0, 128), 2.5, LineStyle.Dashed));
+        Assert.Equal($" stroke=\"#00FF00\" stroke-width=\"2.5\" stroke-opacity=\"{(128 / 255.0).ToSvgNumber()}\" stroke-dasharray=\"5,2\"",
+            sb.ToString());
+    }
+
+    [Fact]
+    public void AppendStroke_ReturnsSameStringBuilder_ForChaining()
+    {
+        var sb = new StringBuilder();
+        Assert.Same(sb, sb.AppendStroke(new StrokeStyle(Colors.Black, 1, LineStyle.Solid)));
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // AppendDashArray — one test per LineStyle branch (F.2.c)
     // ──────────────────────────────────────────────────────────────────────────

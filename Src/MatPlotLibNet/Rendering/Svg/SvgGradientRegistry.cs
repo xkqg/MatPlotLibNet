@@ -80,9 +80,8 @@ internal sealed class SvgGradientRegistry
     private void AppendStop(double offset, Color color)
     {
         _sb.Append("<stop offset=\"").Append(offset.ToSvgNumber())
-           .Append("\" stop-color=\"").Append(color.ToHex()).Append('"');
-        if (color.A < 255)
-            _sb.Append(" stop-opacity=\"").Append((color.A / 255.0).ToSvgNumber()).Append('"');
-        _sb.Append(" />");
+           .Append("\" stop-color=\"").Append(color.ToHex()).Append('"')
+           .AppendAlpha("stop-opacity", color)
+           .Append(" />");
     }
 }

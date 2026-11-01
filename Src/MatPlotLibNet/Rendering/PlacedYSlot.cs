@@ -12,17 +12,35 @@ namespace MatPlotLibNet.Rendering;
 /// that draws a slot (<c>CartesianYAxisSlotPart</c>), the end labels (<c>CartesianDirectLabelsPart</c>) and the
 /// interaction views all read the same value, so none of them works the range or the transform out again.</summary>
 /// <remarks>The primary Y axis is left slot 0: its range is the axes' own (autoscale, margins, limits), its ticks those
-/// its grid is drawn through, and its band is known once its tick labels are drawn.</remarks>
+/// its grid is drawn through, and its band is known once its tick labels are drawn. A linked slot takes the primary's range
+/// and transform, and its ticks stand through <see cref="Placement"/>.</remarks>
 internal readonly record struct PlacedYSlot
 {
     /// <summary>The slot: its axis and its series.</summary>
     internal required YAxisSlot Slot { get; init; }
 
-    /// <summary>The range the slot is drawn over: the primary's X range and the slot's own Y range.</summary>
+    /// <summary>The range the slot is drawn over: the primary's X range and the slot's own Y range; for a linked slot
+    /// (<see cref="YAxisSlot.IsLinked"/>), which has no range of its own, the primary's range whole.</summary>
     internal required DataRange Range { get; init; }
 
-    /// <summary>The data-to-pixel transform the slot's series and ticks are drawn with, through the slot's own scale.</summary>
+    /// <summary>The data-to-pixel transform the slot's series are drawn with, through the slot's own scale; for a linked slot
+    /// the primary's.</summary>
     internal required DataTransform Transform { get; init; }
+
+    /// <summary>Where the slot's ticks stand: its own <see cref="Transform"/>, a tick at its own value, unless set; for a
+    /// linked slot a <see cref="LinkedTickPlacement"/>, a tick of value v where the primary shows the value v maps back
+    /// to.</summary>
+    internal ITickPlacement Placement
+    {
+        get => _placement ?? Transform;
+        init => _placement = value;
+    }
+    private readonly ITickPlacement? _placement;
+
+    /// <summary>What the drawing of the slot reports through <see cref="Diagnostics.ChartDiagnostics"/>: why a linked slot
+    /// draws no ticks, when its link cannot place the primary's range; <see langword="null"/> otherwise. Only the drawing
+    /// reports it, so a render says it once, however often the layout and the interaction views place the slot.</summary>
+    internal Diagnostics.ChartDiagnostic? Diagnostic { get; init; }
 
     /// <summary>The major tick values the slot draws.</summary>
     internal required double[] Ticks { get; init; }

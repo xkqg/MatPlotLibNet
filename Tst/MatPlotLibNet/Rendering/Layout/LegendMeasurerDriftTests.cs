@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Layout;
@@ -39,6 +40,33 @@ public class LegendMeasurerDriftTests
         var measured = LegendMeasurer.MeasureBox(axes, ctx, figure.Theme);
         var laidOut = new LegendLayoutCalculator(figure.Theme, ctx)
             .Compute(axes.Legend, axes.LegendEntries(false).Select(e => e.Label).ToList(), new Rect(0, 0, 500, 300));
+
+        Assert.Equal(laidOut.BoxWidth, measured.Width, 9);
+        Assert.Equal(laidOut.BoxHeight, measured.Height, 9);
+    }
+
+    /// <summary>A labelled patch is a row of the legend, after the series' rows, so the margin an outside legend reserves holds it;
+    /// a patch whose label starts with an underscore has no row and takes no room.</summary>
+    [Theory]
+    [InlineData(LegendPosition.OutsideRight)]
+    [InlineData(LegendPosition.OutsideBottom)]
+    [InlineData(LegendPosition.UpperRight)]
+    public void TheMeasuredBox_HoldsThePatchRows_AfterTheSeriesRows(LegendPosition position)
+    {
+        var figure = Plt.Create().WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AddPatch(new Rectangle(new(0, 0), 1, 1) { Label = "a much longer patch name" })
+                .Plot([0.0, 1.0], [0.0, 1.0], s => s.Label = "alpha")
+                .AddPatch(new Circle(new(0.5, 0.5), 0.1) { Label = "_skipped" })
+                .Plot([0.0, 1.0], [1.0, 0.0], s => s.Label = "beta gamma")
+                .WithLegend(l => l with { Position = position }))
+            .Build();
+        var axes = figure.SubPlots[0];
+        var ctx = new SvgRenderContext();
+
+        var measured = LegendMeasurer.MeasureBox(axes, ctx, figure.Theme);
+        var laidOut = new LegendLayoutCalculator(figure.Theme, ctx)
+            .Compute(axes.Legend, ["alpha", "beta gamma", "a much longer patch name"], new Rect(0, 0, 500, 300));
 
         Assert.Equal(laidOut.BoxWidth, measured.Width, 9);
         Assert.Equal(laidOut.BoxHeight, measured.Height, 9);

@@ -91,4 +91,75 @@ public class ShapeStyleTests
     {
         Assert.False(new ShapeStyle(null, Colors.Black, -2.0).HasVisibleStroke);
     }
+
+    /// <summary>A shape built without a line style strokes solid, so every figure drawn before the property existed is
+    /// drawn as it was.</summary>
+    [Fact]
+    public void TheStrokeLineStyle_DefaultsToSolid()
+    {
+        Assert.Equal(LineStyle.Solid, new ShapeStyle(null, Colors.Black, 1.0).StrokeLineStyle);
+    }
+
+    /// <summary>A stroke whose line style is <see cref="LineStyle.None"/> draws no line, as a <see cref="StrokeStyle"/> with
+    /// that style does. The guard is <see cref="ShapeStyle.HasVisibleStroke"/>, which every backend already consults, so none
+    /// of them has to know the rule; the fill is not touched.</summary>
+    [Fact]
+    public void ANoneStrokeLineStyle_DrawsNoStroke()
+    {
+        var shape = new ShapeStyle(Colors.Red, Colors.Black, 2.0) { StrokeLineStyle = LineStyle.None };
+
+        Assert.False(shape.HasVisibleStroke);
+        Assert.True(shape.HasVisibleFill);
+    }
+
+    /// <summary>Every style that is drawn as a line keeps the stroke visible; only <see cref="LineStyle.None"/> removes it.</summary>
+    [Theory]
+    [InlineData(LineStyle.Solid)]
+    [InlineData(LineStyle.Dashed)]
+    [InlineData(LineStyle.Dotted)]
+    [InlineData(LineStyle.DashDot)]
+    public void ADrawnStrokeLineStyle_KeepsTheStrokeVisible(LineStyle style)
+    {
+        Assert.True(new ShapeStyle(null, Colors.Black, 1.0) { StrokeLineStyle = style }.HasVisibleStroke);
+    }
+
+    /// <summary>The line style is part of the value: two shapes that stroke differently are different shapes.</summary>
+    [Fact]
+    public void Equality_DifferentStrokeLineStyle_AreNotEqual()
+    {
+        var solid = new ShapeStyle(Colors.Blue, Colors.White, 3.0);
+        var dashed = solid with { StrokeLineStyle = LineStyle.Dashed };
+
+        Assert.NotEqual(solid, dashed);
+        Assert.Equal(dashed, new ShapeStyle(Colors.Blue, Colors.White, 3.0) { StrokeLineStyle = LineStyle.Dashed });
+    }
+
+    /// <summary>A shape with both a gradient and a hatch is drawn as two layers; the lower one is the shape itself, so it
+    /// carries the stroke, and the stroke carries its line style.</summary>
+    [Fact]
+    public void TheLayerUnderTheHatch_KeepsTheStrokeLineStyle()
+    {
+        var shape = new ShapeStyle(Colors.Red, Colors.Black, 2.0)
+        {
+            Hatch = HatchPattern.Cross,
+            StrokeLineStyle = LineStyle.Dotted,
+        };
+
+        Assert.Equal(LineStyle.Dotted, shape.UnderTheHatch.StrokeLineStyle);
+    }
+
+    /// <summary>The hatch layer paints strokes of hatch marks over a fill that is not there and has no outline of its own,
+    /// so it keeps the default line style and draws no stroke whatever the shape's was.</summary>
+    [Fact]
+    public void TheHatchLayer_HasNoStroke_WhateverTheShapesLineStyle()
+    {
+        var shape = new ShapeStyle(Colors.Red, Colors.Black, 2.0)
+        {
+            Hatch = HatchPattern.Cross,
+            StrokeLineStyle = LineStyle.Dashed,
+        };
+
+        Assert.False(shape.HatchLayer.HasVisibleStroke);
+        Assert.Equal(LineStyle.Solid, shape.HatchLayer.StrokeLineStyle);
+    }
 }

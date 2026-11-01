@@ -40,6 +40,10 @@
   href: styling.md
 - name: Annotations
   href: annotations.md
+- name: Shapes (patches)
+  href: patches.md
+- name: A second axis in another unit
+  href: linked-axes.md
 - name: Pie & Donut
   href: pie-donut.md
 - name: Distribution

@@ -24,7 +24,8 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | Namespace | Package | Notes |
 |---|---|---|
 | `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 91 series types, the 38 chart verbs and the types they take (`BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`, `ControlChartData`, `QQReference`, `SpectralOptions`, `SpectrumOptions`, `CorrelationOptions`, `MagnitudeScale`) |
-| `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.), and what a figure or an inset draws itself: `FigureText`, `FigureImage`, `ZoomIndicator` |
+| `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.), what a figure or an inset draws itself (`FigureText`, `FigureImage`, `ZoomIndicator`), and `AxisTransform`, the unit a linked axis shows the primary's values in (`Axis.Link`, matplotlib's `secondary_xaxis` and `secondary_yaxis`) |
+| `MatPlotLibNet.Models.Patches` | Core | Shapes in data coordinates, matplotlib's patches, added with `AddPatch`: `Rectangle`, `Polygon`, `Arrow` (with `ArrowHeadShape`), `Circle`, `Ellipse`, `Wedge` and `Arc`, over the abstract `Patch` and `FilledPatch` |
 | `MatPlotLibNet.Rendering` | Core | SVG render pipeline |
 | `MatPlotLibNet.Styling` | Core | Themes, colors, colormaps |
 | `MatPlotLibNet.Numerics` | Core | `Vec`, `Mat`, SIMD math, `Fft`, and the window and detrend of the signal verbs (`SpectralWindow`, `SpectralDetrend`, `SpectralScaling`) |

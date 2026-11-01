@@ -32,6 +32,13 @@ public static class ColorExtensions
                 color.A);
         }
 
+        /// <summary>This colour with its own opacity scaled by <paramref name="alpha"/> (held between 0 and 1): a colour that is
+        /// already translucent becomes that much more translucent, and a colour with no opacity stays without. The one rule a
+        /// series' alpha and a patch's alpha are applied by.</summary>
+        /// <param name="alpha">The factor, from 0 (clear) to 1 (the colour as it is).</param>
+        internal Color ScaleAlpha(double alpha) =>
+            color.WithAlpha((byte)Math.Round(color.A * Math.Clamp(alpha, 0.0, 1.0)));
+
         /// <summary>Relative luminance per Rec. 709: <c>L = 0.2126·R + 0.7152·G + 0.0722·B</c>
         /// on channels normalised to [0,1]. Returned value is in [0,1]; alpha is ignored.
         /// Used by renderers (e.g. heatmap cell annotations) to pick black or white text

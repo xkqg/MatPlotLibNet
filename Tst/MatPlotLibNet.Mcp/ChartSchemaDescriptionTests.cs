@@ -307,6 +307,21 @@ public class ChartSchemaDescriptionTests
         Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>The cell of a grid a subplot was added to, and its buy and sell signals, are listed with the subplot's fields and
+    /// say what they hold: the cell as matplotlib's add_subplot names it, a signal with the directions the reader accepts.</summary>
+    [Theory]
+    [InlineData("subplot: object", "add_subplot")]
+    [InlineData("subplot: object", "index")]
+    [InlineData("signals: object[]", "Buy")]
+    [InlineData("signals: object[]", "Sell")]
+    public void TheSubplotFields_ListTheCellOfAGridAndTheSignals_AndSayWhatTheyHold(string field, string explanation)
+    {
+        var subplotFields = SectionOf(Description.Describe(null), "Subplot fields");
+
+        var line = subplotFields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line, StringComparison.Ordinal);
+    }
+
     /// <summary>The zoom an inset indicates on its parent is listed with the subplot's fields, said to work on an inset only,
     /// and has a section of its own whose fields say what they draw.</summary>
     [Fact]

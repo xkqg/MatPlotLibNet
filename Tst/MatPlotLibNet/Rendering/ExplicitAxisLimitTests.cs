@@ -211,6 +211,25 @@ public class ExplicitAxisLimitTests
     }
 
     [Fact]
+    public void TheLimitOfALinkedTopAxis_IsNoLimit_SoNothingIsClipped()
+    {
+        // A linked axis shows the primary's range in other units and has no range of its own (AxisTransform), so a limit set
+        // on it is not a limit of the axes: the series keep the clip-free drawing of an autoscaled figure.
+        static string Svg(bool limited) => Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, Y, s => s.Label = "A")
+            .WithSecondaryXAxis(top =>
+            {
+                if (limited) top.SetXLim(5, 6);
+                top.Link(AxisTransform.Reciprocal());
+            })).ToSvg();
+
+        string limited = Svg(limited: true);
+
+        Assert.DoesNotContain("clip-path", limited, StringComparison.Ordinal);
+        Assert.Equal(Svg(limited: false), limited);
+    }
+
+    [Fact]
     public void AnAutoscaledFigure_DrawsNoClip()
     {
         // Autoscale encloses every series, so nothing can lie outside the plot area: the figure keeps its bytes.

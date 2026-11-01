@@ -197,6 +197,300 @@ public class SvgRenderContextTests
         Assert.Contains("Z", svg);
     }
 
+    // --- The line style of a shape's stroke ---
+    // A shape's stroke is dashed by the rule a line's stroke is dashed by (AppendDashArray, the one writer of
+    // stroke-dasharray), and a stroke whose style is None is not written. A shape without a line style writes the
+    // bytes it always wrote.
+
+    private static readonly Point[] Triangle = [new(0, 0), new(10, 0), new(5, 10)];
+
+    private static readonly PathSegment[] TrianglePath =
+        [new MoveToSegment(new Point(0, 0)), new LineToSegment(new Point(10, 0)), new LineToSegment(new Point(5, 10)), new CloseSegment()];
+
+    private static ShapeStyle Stroked(LineStyle style) =>
+        new(null, Colors.Black, 2) { StrokeLineStyle = style };
+
+    /// <summary>A path stroked dashed carries the dash array of the dashed line, after the stroke and its width.</summary>
+    [Fact]
+    public void ADashedPathStroke_WritesStrokeDasharrayAfterTheWidth()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPath(TrianglePath, Stroked(LineStyle.Dashed));
+
+        Assert.Contains("stroke=\"#000000\" stroke-width=\"2\" stroke-dasharray=\"5,2\"", ctx.GetOutput());
+    }
+
+    /// <summary>The dotted and dash-dot styles write the pattern a line of that style writes.</summary>
+    [Theory]
+    [InlineData(LineStyle.Dotted, "1,3")]
+    [InlineData(LineStyle.DashDot, "5,2,1,2")]
+    public void ADottedOrDashDotPathStroke_WritesThePatternOfALineOfThatStyle(LineStyle style, string pattern)
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPath(TrianglePath, Stroked(style));
+
+        Assert.Contains($"stroke-dasharray=\"{pattern}\"", ctx.GetOutput());
+    }
+
+    /// <summary>A path stroked solid, the default, writes no dash array: the bytes of every figure drawn before a shape
+    /// had a line style.</summary>
+    [Fact]
+    public void ASolidPathStroke_WritesNoDasharray()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPath(TrianglePath, Stroked(LineStyle.Solid));
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("stroke=\"#000000\" stroke-width=\"2\"", svg);
+        Assert.DoesNotContain("stroke-dasharray", svg);
+    }
+
+    /// <summary>A path whose stroke has the line style None is filled and not stroked.</summary>
+    [Fact]
+    public void ANonePathStroke_WritesNoStroke()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPath(TrianglePath, new ShapeStyle(Colors.Red, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("fill=\"#FF0000\"", svg);
+        Assert.DoesNotContain("stroke", svg);
+    }
+
+    /// <summary>A polygon stroked dashed carries the dash array of the dashed line, after the stroke and its width.</summary>
+    [Fact]
+    public void ADashedPolygonStroke_WritesStrokeDasharrayAfterTheWidth()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPolygon(Triangle, Stroked(LineStyle.Dashed));
+
+        Assert.Contains("stroke=\"#000000\" stroke-width=\"2\" stroke-dasharray=\"5,2\"", ctx.GetOutput());
+    }
+
+    /// <summary>The dotted and dash-dot styles write the pattern a line of that style writes.</summary>
+    [Theory]
+    [InlineData(LineStyle.Dotted, "1,3")]
+    [InlineData(LineStyle.DashDot, "5,2,1,2")]
+    public void ADottedOrDashDotPolygonStroke_WritesThePatternOfALineOfThatStyle(LineStyle style, string pattern)
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPolygon(Triangle, Stroked(style));
+
+        Assert.Contains($"stroke-dasharray=\"{pattern}\"", ctx.GetOutput());
+    }
+
+    /// <summary>A polygon stroked solid writes no dash array.</summary>
+    [Fact]
+    public void ASolidPolygonStroke_WritesNoDasharray()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPolygon(Triangle, Stroked(LineStyle.Solid));
+
+        Assert.DoesNotContain("stroke-dasharray", ctx.GetOutput());
+    }
+
+    /// <summary>A polygon whose stroke has the line style None is filled and not stroked.</summary>
+    [Fact]
+    public void ANonePolygonStroke_WritesNoStroke()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPolygon(Triangle, new ShapeStyle(Colors.Red, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("fill=\"#FF0000\"", svg);
+        Assert.DoesNotContain("stroke", svg);
+    }
+
+    /// <summary>The circle, the rectangle and the ellipse write their stroke through the same writer as the path and the
+    /// polygon, so a dashed one is dashed and a None one is not stroked, whichever shape it is.</summary>
+    [Fact]
+    public void TheOtherShapes_StrokeByTheSameRule()
+    {
+        var dashed = new SvgRenderContext();
+        dashed.DrawCircle(new Point(5, 5), 4, Stroked(LineStyle.Dashed));
+        dashed.DrawRectangle(new Rect(0, 0, 10, 10), Stroked(LineStyle.Dashed));
+        dashed.DrawEllipse(new Rect(0, 0, 10, 6), Stroked(LineStyle.Dashed));
+
+        var none = new SvgRenderContext();
+        none.DrawCircle(new Point(5, 5), 4, new ShapeStyle(Colors.Red, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        none.DrawRectangle(new Rect(0, 0, 10, 10), new ShapeStyle(Colors.Red, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        none.DrawEllipse(new Rect(0, 0, 10, 6), new ShapeStyle(Colors.Red, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+
+        Assert.Equal(3, dashed.GetOutput().Split("stroke-dasharray=\"5,2\"").Length - 1);
+        Assert.DoesNotContain("stroke", none.GetOutput());
+    }
+
+    /// <summary>A line style belongs to a stroke: a shape that has no stroke writes no dash array, however it is set.</summary>
+    [Fact]
+    public void AShapeWithoutAStroke_WritesNoDasharray_WhateverItsLineStyle()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawPolygon(Triangle, new ShapeStyle(Colors.Red, null, 2) { StrokeLineStyle = LineStyle.Dashed });
+
+        Assert.DoesNotContain("stroke-dasharray", ctx.GetOutput());
+    }
+
+    /// <summary>A shape with a gradient and a hatch is two elements. The lower one is the shape with its outline and the
+    /// upper one the hatch alone, so the dashes are written once, on the outline.</summary>
+    [Fact]
+    public void AGradientAndHatchedShape_DashesItsOutlineOnce()
+    {
+        var gradient = new LinearGradient(new Point(0, 0), new Point(10, 0), Colors.Red, Colors.Blue);
+        var shape = new ShapeStyle(Colors.Red, Colors.Black, 2)
+        {
+            Gradient = gradient,
+            Hatch = HatchPattern.Cross,
+            StrokeLineStyle = LineStyle.Dashed,
+        };
+
+        var ctx = new SvgRenderContext();
+        ctx.DrawPolygon(Triangle, shape);
+
+        string svg = ctx.GetOutput();
+        Assert.Equal(2, svg.Split("<polygon ").Length - 1);
+        Assert.Equal(1, svg.Split("stroke-dasharray=\"5,2\"").Length - 1);
+    }
+
+    // --- The alpha of a stroke colour ---
+    // A hex colour carries no alpha, so the SVG writes a translucent stroke's alpha as stroke-opacity, the one rule a shape's
+    // outline already followed. Skia paints a stroke's alpha; before this a line or polyline in a translucent colour (the minor
+    // grid at half the grid's alpha, a residual's dashed zero line) was opaque in the SVG and translucent in the PNG.
+
+    private static readonly Color HalfRed = new(255, 0, 0, 128);
+
+    private static string Opacity(byte alpha) => (alpha / 255.0).ToSvgNumber();
+
+    [Fact]
+    public void ATranslucentLine_WritesItsStrokeOpacity()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawLine(new Point(0, 0), new Point(10, 10), new StrokeStyle(HalfRed, 2, LineStyle.Solid));
+
+        Assert.Equal($"<line x1=\"0\" y1=\"0\" x2=\"10\" y2=\"10\" stroke=\"#FF0000\" stroke-width=\"2\" stroke-opacity=\"{Opacity(128)}\" />",
+            ctx.GetOutput().TrimEnd());
+    }
+
+    [Fact]
+    public void ATranslucentPolyline_WritesItsStrokeOpacity()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawLines([new Point(0, 0), new Point(10, 10), new Point(20, 5)], new StrokeStyle(new Color(0, 0, 255, 64), 1.5, LineStyle.Solid));
+
+        Assert.Equal($"<polyline points=\"0,0 10,10 20,5\" fill=\"none\" stroke=\"#0000FF\" stroke-width=\"1.5\" stroke-opacity=\"{Opacity(64)}\" />",
+            ctx.GetOutput().TrimEnd());
+    }
+
+    /// <summary>A translucent dashed line writes its opacity after its width and before its dashes, the order of a shape's
+    /// outline.</summary>
+    [Fact]
+    public void ATranslucentDashedLine_WritesItsOpacityBeforeItsDashes()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawLine(new Point(0, 0), new Point(10, 0), new StrokeStyle(HalfRed, 1, LineStyle.Dashed));
+        ctx.DrawLines([new Point(0, 0), new Point(10, 10)], new StrokeStyle(HalfRed, 1, LineStyle.Dashed));
+
+        Assert.Equal(2, ctx.GetOutput().Split($"stroke=\"#FF0000\" stroke-width=\"1\" stroke-opacity=\"{Opacity(128)}\" stroke-dasharray=\"5,2\"").Length - 1);
+    }
+
+    /// <summary>An opaque line and polyline write the bytes they always wrote: no new attribute.</summary>
+    [Fact]
+    public void AnOpaqueLineAndPolyline_WriteTheBytesTheyAlwaysWrote()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawLine(new Point(0, 0), new Point(10, 10), new StrokeStyle(Colors.Red, 2, LineStyle.Solid));
+        ctx.DrawLines([new Point(0, 0), new Point(10, 10)], new StrokeStyle(Colors.Blue, 1.5, LineStyle.Dashed));
+
+        string[] written = ctx.GetOutput().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(
+            new[]
+            {
+                "<line x1=\"0\" y1=\"0\" x2=\"10\" y2=\"10\" stroke=\"#FF0000\" stroke-width=\"2\" />",
+                "<polyline points=\"0,0 10,10\" fill=\"none\" stroke=\"#0000FF\" stroke-width=\"1.5\" stroke-dasharray=\"5,2\" />",
+            },
+            written);
+    }
+
+    /// <summary>The outline of a gradient-filled path (the older Sankey surface) is a stroke drawn from a colour too.</summary>
+    [Fact]
+    public void ATranslucentOutlineOfAGradientFilledPath_WritesItsStrokeOpacity()
+    {
+        var ctx = new SvgRenderContext();
+#pragma warning disable CS0618 // the obsolete surface still writes a stroke, by the one rule
+        ctx.DrawPathWithGradientFill(TrianglePath, "g", HalfRed, 2);
+        ctx.DrawPathWithGradientFill(TrianglePath, "g", Colors.Red, 2);
+#pragma warning restore CS0618
+
+        string[] written = ctx.GetOutput().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.EndsWith($" fill=\"url(#g)\" stroke=\"#FF0000\" stroke-width=\"2\" stroke-opacity=\"{Opacity(128)}\" />", written[0]);
+        Assert.EndsWith(" fill=\"url(#g)\" stroke=\"#FF0000\" stroke-width=\"2\" />", written[1]);
+    }
+
+    // --- The alpha of a text colour ---
+    // The same root: a text's colour is written as a hex fill, and Skia paints the text in that colour's alpha.
+
+    [Fact]
+    public void ATranslucentTextColour_WritesItsFillOpacity_AsATextElement()
+    {
+        var prev = GlyphPathProviderDefault.Current;
+        try
+        {
+            GlyphPathProviderDefault.Current = null;
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font { Color = HalfRed }, TextAlignment.Left);
+
+            Assert.Contains($" fill=\"#FF0000\" fill-opacity=\"{Opacity(128)}\"", ctx.GetOutput());
+        }
+        finally { GlyphPathProviderDefault.Current = prev; }
+    }
+
+    [Fact]
+    public void ATranslucentTextColour_WritesItsFillOpacity_AsGlyphOutlines()
+    {
+        var prev = GlyphPathProviderDefault.Current;
+        try
+        {
+            GlyphPathProviderDefault.Current = new StubGlyphProvider("M 0 0");
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font { Color = HalfRed }, TextAlignment.Left);
+
+            Assert.Contains($"<path d=\"M 0 0\" fill=\"#FF0000\" fill-opacity=\"{Opacity(128)}\" transform=", ctx.GetOutput());
+        }
+        finally { GlyphPathProviderDefault.Current = prev; }
+    }
+
+    [Fact]
+    public void ATranslucentTextColour_WritesItsFillOpacity_AsRichText()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawRichText(MatPlotLibNet.Rendering.MathText.MathTextParser.Parse("x$^{2}$"), new Point(50, 50),
+            new Font { Color = HalfRed }, TextAlignment.Left);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("<tspan", svg);
+        Assert.Contains($" fill=\"#FF0000\" fill-opacity=\"{Opacity(128)}\">", svg);
+    }
+
+    [Fact]
+    public void AnOpaqueTextColour_WritesNoFillOpacity()
+    {
+        var prev = GlyphPathProviderDefault.Current;
+        try
+        {
+            var ctx = new SvgRenderContext();
+            GlyphPathProviderDefault.Current = null;
+            ctx.DrawText("Hi", new Point(50, 50), new Font { Color = Colors.Red }, TextAlignment.Left);
+            ctx.DrawRichText(MatPlotLibNet.Rendering.MathText.MathTextParser.Parse("x$^{2}$"), new Point(50, 50),
+                new Font { Color = Colors.Red }, TextAlignment.Left);
+            GlyphPathProviderDefault.Current = new StubGlyphProvider("M 0 0");
+            ctx.DrawText("Hi", new Point(50, 50), new Font { Color = Colors.Red }, TextAlignment.Left);
+
+            string svg = ctx.GetOutput();
+            Assert.Equal(3, svg.Split("fill=\"#FF0000\"").Length - 1);
+            Assert.DoesNotContain("opacity", svg);
+        }
+        finally { GlyphPathProviderDefault.Current = prev; }
+    }
+
     // --- Clipping ---
 
     /// <summary>Verifies that PushClip creates a clipPath definition in the SVG output.</summary>

@@ -43,8 +43,67 @@ public class SpecAxesPartsTests
             $"{part}.{path}: set to {DrawnSeriesFixtures.Show(written)}, read back through the spec reader as {DrawnSeriesFixtures.Show(readBack)}.");
     }
 
+    /// <summary>What the call that adds a subplot sets (its cell of a grid, its place in a grid specification, the axes it shares
+    /// a scale with), an inset's place, the top axis and a grid change pass the reader as the core JSON carries them.</summary>
+    [Theory]
+    [MemberData(nameof(DrawnAxesFixtures.InternallySetRouteRows), MemberType = typeof(DrawnAxesFixtures))]
+    public void AnInternallySetPropertyOfAxes_PassesTheSpecReader(string property, string call)
+    {
+        var figure = DrawnAxesFixtures.Route(property, call).Build();
+
+        var read = Reader.Read(new ChartSpec(figure.ToJson()));
+
+        Assert.Equal(DrawnAxesFixtures.InternallySetValues(figure, property), DrawnAxesFixtures.InternallySetValues(read, property));
+    }
+
+    /// <summary>Every value of every item of an overlay list, the ones it was made with included (a span's edges, a signal's
+    /// place and direction, a break's ends), passes the reader as written.</summary>
+    [Theory]
+    [MemberData(nameof(DrawnAxesFixtures.AxesListValueKeys), MemberType = typeof(DrawnAxesFixtures))]
+    public void AnOverlayListValue_PassesTheSpecReader_AsItWasWritten(string key)
+    {
+        var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
+        object? written = DrawnAxesFixtures.AxesListValues(figure)[key];
+
+        var read = DrawnAxesFixtures.AxesListValues(Reader.Read(new ChartSpec(figure.ToJson())));
+
+        Assert.True(read.ContainsKey(key), $"Axes.{key}: written as {DrawnSeriesFixtures.Show(written)}, and nothing of it came through the spec reader.");
+        Assert.True(DrawnSeriesFixtures.SameValue(written, read[key]),
+            $"Axes.{key}: written as {DrawnSeriesFixtures.Show(written)}, read back through the spec reader as {DrawnSeriesFixtures.Show(read[key])}.");
+    }
+
+    /// <summary>A figure whose subplots stand in cells of a grid, handed back to the reader, draws the same picture.</summary>
+    [Fact]
+    public void CellsOfAGrid_WrittenByTheLibrary_PassTheSpecReader_AndDrawTheSame()
+    {
+        var figure = Plt.Create().WithSize(400, 300)
+            .AddSubPlot(2, 2, 1, ax => ax.Plot([1.0, 2], [1.0, 2]))
+            .AddSubPlot(2, 2, 4, ax => ax.Plot([1.0, 2], [2.0, 1]))
+            .Build();
+
+        var read = Reader.Read(new ChartSpec(figure.ToJson()));
+
+        Assert.Equal(figure.ToSvg(), read.ToSvg());
+    }
+
+    /// <summary>A signal passes the reader with its direction in any case and its colour by name.</summary>
+    [Fact]
+    public void ASignal_PassesTheSpecReader_WithItsDirectionInAnyCase()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"signals":[{"x":1.5,"y":1.25,"direction":"SELL","color":"red","size":9,"label":"exit"}]}""")));
+
+        var signal = Assert.Single(figure.SubPlots[0].Signals);
+        Assert.Equal(1.5, signal.X);
+        Assert.Equal(1.25, signal.Y);
+        Assert.Equal(SignalDirection.Sell, signal.Direction);
+        Assert.Equal(Colors.Red, signal.Color);
+        Assert.Equal(9, signal.Size);
+        Assert.Equal("exit", signal.Label);
+    }
+
     [Theory]
     [InlineData("""{"legend":{"position":"topRight"}}""", "topRight", "UpperRight")]
+    [InlineData("""{"signals":[{"x":1,"y":1,"direction":"short"}]}""", "short", "Sell")]
     [InlineData("""{"colorBar":{"orientation":"diagonal"}}""", "diagonal", "Horizontal")]
     [InlineData("""{"colorBar":{"extend":"up"}}""", "up", "Both")]
     [InlineData("""{"grid":{"visible":true,"axis":"z"}}""", "z", "Both")]
@@ -55,6 +114,8 @@ public class SpecAxesPartsTests
     [InlineData("""{"gridChange":{"lineStyle":"wavy"}}""", "wavy", "Dotted")]
     [InlineData("""{"spines":{"left":{"lineStyle":"wavy"}}}""", "wavy", "Dashed")]
     [InlineData("""{"titleLoc":"middle"}""", "middle", "Center")]
+    [InlineData("""{"coordinateSystem":"polarr"}""", "polarr", "ThreeD")]
+    [InlineData("""{"spines":{"left":{"position":"outward"}}}""", "outward", "Axes")]
     [InlineData("""{"titleStyle":{"fontWeight":"heavy"}}""", "heavy", "Bold")]
     [InlineData("""{"xAxis":{"majorTicks":{"direction":"sideways"}}}""", "sideways", "InOut")]
     [InlineData("""{"secondaryXAxis":{"minorTicks":{"direction":"sideways"}}}""", "sideways", "InOut")]
@@ -71,6 +132,19 @@ public class SpecAxesPartsTests
 
         Assert.Contains($"'{wrong}'", refusal.Message);
         Assert.Contains(accepted, refusal.Message);
+    }
+
+    /// <summary>A spine's position is read by the serializer in lower case only, and a coordinate system by name in any case: the
+    /// reader takes either in any case and hands the serializer the spelling it reads.</summary>
+    [Fact]
+    public void ASpinePositionAndACoordinateSystem_AreAcceptedInAnyCase_AndReachTheAxes()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"coordinateSystem":"THREED","spines":{"left":{"position":"DATA"},"bottom":{"position":"Axes"}}}""")));
+
+        var axes = figure.SubPlots[0];
+        Assert.Equal(CoordinateSystem.ThreeD, axes.CoordinateSystem);
+        Assert.Equal(SpinePosition.Data, axes.Spines.Left.Position);
+        Assert.Equal(SpinePosition.Axes, axes.Spines.Bottom.Position);
     }
 
     /// <summary>A grid change is the properties an agent names over the theme's grid. Read through the spec reader and written

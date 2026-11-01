@@ -69,7 +69,8 @@ internal static class AxesRangeExtensions
         /// <summary>
         /// Snapshots what takes part in the automatic range of the axes into an array: every series'
         /// <see cref="DataRangeContribution"/>, evaluating <c>ComputeDataRange</c> exactly once per series, then one
-        /// contribution for each line drawn across the plot at a data value (<see cref="LineContributions"/>). Critical for
+        /// contribution for each line drawn across the plot at a data value (<see cref="LineContributions"/>), then one for each
+        /// patch (<see cref="PatchContributions"/>). Critical for
         /// performance: histogram and KDE series rebuild bins on every call, and the legacy code in
         /// <see cref="CartesianAxesRenderer.ComputeDataRanges"/> called them three times per render
         /// (once for aggregation, once for sticky clamp, once for sticky-flag collection).
@@ -77,11 +78,38 @@ internal static class AxesRangeExtensions
         public DataRangeContribution[] SnapshotContributions()
         {
             var context = new AxesContextAdapter(axes);
-            var result = new List<DataRangeContribution>(axes.Series.Count + axes.ReferenceLines.Count);
+            var result = new List<DataRangeContribution>(axes.Series.Count + axes.ReferenceLines.Count + axes.Patches.Count);
             for (int i = 0; i < axes.Series.Count; i++)
                 result.Add(axes.Series[i].ComputeDataRange(context));
             result.AddRange(axes.LineContributions());
+            result.AddRange(axes.PatchContributions());
             return [.. result];
+        }
+
+        /// <summary>The patches of the axes (<see cref="Axes.Patches"/>), each over the true extent of its outline
+        /// (<see cref="PathSegmentExtensions.ExtremePoints"/>: its vertices and where a curve turns back, not a curve's control
+        /// points), as matplotlib's <c>add_patch</c> updates the data limits. A coordinate its axis cannot place (0 or less on a
+        /// log axis) adds nothing on that axis, the rule a series' values follow, and a patch that cannot be drawn adds nothing.
+        /// A patch carries no sticky edge, so the range is padded beyond it like any data. Every patch counts, so an axes that holds
+        /// only patches frames them: a departure from matplotlib, whose <c>add_patch</c> asks for no autoscale, so such an axes
+        /// stays at 0 to 1 there.</summary>
+        /// <returns>One contribution per patch; an empty one for a patch with nothing its axes can place.</returns>
+        private IEnumerable<DataRangeContribution> PatchContributions()
+        {
+            foreach (var patch in axes.Patches)
+            {
+                var x = Range1D.Empty;
+                var y = Range1D.Empty;
+                foreach (var point in patch.Outline().ExtremePoints())
+                {
+                    x = x.Including(point.X, axes.XAxis.Scale);
+                    y = y.Including(point.Y, axes.YAxis.Scale);
+                }
+
+                var along = x.OrNone();
+                var up = y.OrNone();
+                yield return new DataRangeContribution(along?.Lo, along?.Hi, up?.Lo, up?.Hi);
+            }
         }
 
         /// <summary>The lines drawn across the plot at a data value, each as a data value there on its own axis: a reference

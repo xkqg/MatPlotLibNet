@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Models.Tools;
@@ -466,6 +467,27 @@ public sealed class AxesBuilder
     {
         var line = _axes.AxVLine(x);
         configure?.Invoke(line);
+        return this;
+    }
+
+    /// <summary>Adds a patch the caller has made (a rectangle, a polygon, an arrow: a shape in data coordinates) to this axes, as
+    /// matplotlib's <c>add_patch</c> does. One method for every kind of patch: the patch is styled through its own properties
+    /// before or after it is added, since the axes holds that very patch.</summary>
+    /// <param name="patch">The patch to add.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="patch"/> is null.</exception>
+    /// <example>
+    /// matplotlib's <c>ax.add_patch(Rectangle((1, 1), 2, 1, angle=30))</c>:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(x, y)
+    ///     .AddPatch(new Rectangle(new(1, 1), 2, 1) { Angle = 30, Alpha = 0.5 })
+    ///     .AddPatch(new Arrow(new(0, 0), 2, 2) { Width = 0.05 }));
+    /// </code>
+    /// </example>
+    public AxesBuilder AddPatch(Patch patch)
+    {
+        _axes.AddPatch(patch);
         return this;
     }
 
@@ -2013,7 +2035,8 @@ public sealed class OutwardYAxisBuilder
 
 /// <summary>Fluent builder for configuring a secondary X-axis (top edge) and adding series that scale against it.</summary>
 /// <remarks>Obtained via <see cref="AxesBuilder.WithSecondaryXAxis"/>. The secondary axis renders ticks and
-/// labels on the top of the plot and uses an independent X-axis data range.</remarks>
+/// labels on the top of the plot and uses an independent X-axis data range, or, linked to the bottom axis
+/// (<see cref="Link"/>), shows the bottom axis' range in other units.</remarks>
 public sealed class SecondaryXAxisBuilder
 {
     private readonly Axes _axes;
@@ -2036,17 +2059,57 @@ public sealed class SecondaryXAxisBuilder
     /// <summary>Sets explicit min/max limits for the secondary X-axis data range.</summary>
     public SecondaryXAxisBuilder SetXLim(double min, double max) { _axes.SecondaryXAxis!.Min = min; _axes.SecondaryXAxis!.Max = max; return this; }
 
+    /// <summary>Links the top X axis to the primary X axis, as matplotlib's <c>ax.secondary_xaxis('top', functions=(forward,
+    /// inverse))</c> does: the axis shows the range the bottom axis shows, each value written through
+    /// <paramref name="transform"/>, so a tick for a value stands above the place where the bottom axis has the value it maps
+    /// back to. A linked axis has no range and no series of its own; its label, colour and ticks are set as on any axis.</summary>
+    /// <param name="transform">From the bottom axis' values to the top axis' values: <see cref="AxisTransform.Linear"/>,
+    /// <see cref="AxisTransform.Reciprocal"/>, <see cref="AxisTransform.Logarithm"/>, <see cref="AxisTransform.Power"/>, or
+    /// <see cref="AxisTransform.Of"/> for a pair of functions of your own. Called again, the new transform replaces the
+    /// first.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="transform"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">The top axis holds a series: a linked axis holds none of its own (the series verbs of a
+    /// linked top axis refuse the same way).</exception>
+    /// <example>
+    /// The period along the top of a plot over frequency:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(frequency, power).SetXLabel("frequency (Hz)")
+    ///     .WithSecondaryXAxis(top => top.SetXLabel("period (s)").Link(AxisTransform.Reciprocal())));
+    /// </code>
+    /// </example>
+    public SecondaryXAxisBuilder Link(AxisTransform transform)
+    {
+        _axes.SecondaryXAxis!.LinkThrough(transform, _axes.XSecondarySeries.Count);
+        return this;
+    }
+
     /// <summary>Adds a line series plotted against the secondary X-axis.</summary>
+    /// <param name="x">The X values, in the units of the top axis.</param>
+    /// <param name="y">The Y values.</param>
+    /// <param name="configure">Optional callback that configures the new series.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentException">The top axis is linked (<see cref="Link"/>), which holds no series of its own, or
+    /// <paramref name="x"/> and <paramref name="y"/> differ in length.</exception>
     public SecondaryXAxisBuilder PlotXSecondary(double[] x, double[] y, Action<LineSeries>? configure = null)
     {
+        _axes.SecondaryXAxis!.RefuseSeriesWhenLinked(nameof(x));
         var series = _axes.PlotXSecondary(x, y);
         configure?.Invoke(series);
         return this;
     }
 
     /// <summary>Adds a scatter series plotted against the secondary X-axis.</summary>
+    /// <param name="x">The X values, in the units of the top axis.</param>
+    /// <param name="y">The Y values.</param>
+    /// <param name="configure">Optional callback that configures the new series.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentException">The top axis is linked (<see cref="Link"/>), which holds no series of its own, or
+    /// <paramref name="x"/> and <paramref name="y"/> differ in length.</exception>
     public SecondaryXAxisBuilder ScatterXSecondary(double[] x, double[] y, Action<ScatterSeries>? configure = null)
     {
+        _axes.SecondaryXAxis!.RefuseSeriesWhenLinked(nameof(x));
         var series = _axes.ScatterXSecondary(x, y);
         configure?.Invoke(series);
         return this;

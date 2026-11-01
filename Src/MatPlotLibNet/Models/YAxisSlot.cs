@@ -30,6 +30,16 @@ public sealed class YAxisSlot
     /// <summary>The list behind <see cref="Series"/>; for left slot 0 it is the list behind <see cref="Axes.Series"/>.</summary>
     internal List<ISeries> SeriesList { get; } = [];
 
+    /// <summary>Whether this slot is linked to the primary Y axis (<see cref="Models.Axis.Link"/>, matplotlib's
+    /// <c>secondary_yaxis</c>): it shows the primary's range in other units and has no range of its own. Read for a slot past
+    /// the primary; the primary has nothing to link to.</summary>
+    internal bool IsLinked => Axis.Link is not null;
+
+    /// <summary>Whether this slot, past the primary, is drawn: it has series, or it is linked, when it draws the primary's
+    /// range in its own unit without any series. A slot with neither is still placed and charged its band, so the slot past it
+    /// stands where the layout made room for it, but draws nothing.</summary>
+    internal bool IsDrawn => SeriesList.Count > 0 || IsLinked;
+
     /// <summary>Adds an already-constructed series to this slot's own axis.</summary>
     /// <typeparam name="TSeries">The series type, so the caller keeps the concrete type.</typeparam>
     /// <param name="series">The series to plot against this slot's axis.</param>

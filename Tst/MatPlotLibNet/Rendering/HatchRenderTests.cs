@@ -101,6 +101,44 @@ public class HatchRenderTests
         Assert.Contains("stroke=", pattern);
     }
 
+    /// <summary>The tile of a hatch keeps the opacity of the face it is laid over and of its own colour, as a flat fill and a
+    /// stroke keep theirs and as Skia paints the tile: the hex colour carries none, so a translucent face writes
+    /// <c>fill-opacity</c> on the tile's face and a translucent hatch line is written by the one writer of a stroke drawn from a
+    /// colour, with <c>stroke-opacity</c> after its width, as a line of the chart is (a line is a stroke alone, so this draws what
+    /// the <c>opacity</c> the tile first wrote drew). Before, a hatched face with an opacity was drawn opaque in the SVG.</summary>
+    [Fact]
+    public void ATranslucentFaceAndHatch_KeepTheirOpacityInTheTile()
+    {
+        string svg = RenderRect(new ShapeStyle(Colors.Gray.WithAlpha(128), null, 0)
+        {
+            Hatch = HatchPattern.Cross,
+            HatchColor = Colors.Black.WithAlpha(64),
+        });
+        string tile = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
+
+        Assert.Contains($"fill=\"{Colors.Gray.ToHex()}\" fill-opacity=\"{(128 / 255.0).ToSvgNumber()}\"", tile);
+        Assert.Equal(2, CountOccurrences(tile, $"stroke=\"#000000\" stroke-width=\"1\" stroke-opacity=\"{(64 / 255.0).ToSvgNumber()}\" />"));
+    }
+
+    [Fact]
+    public void ATranslucentDotHatch_FadesEachDotAsOne()
+    {
+        string svg = RenderRect(new ShapeStyle(Colors.Gray, null, 0) { Hatch = HatchPattern.Dots, HatchColor = Colors.Black.WithAlpha(64) });
+        string tile = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
+
+        Assert.Contains($"fill=\"#000000\" stroke=\"#000000\" opacity=\"{(64 / 255.0).ToSvgNumber()}\"", tile);
+    }
+
+    /// <summary>Opaque colours write the tile they always wrote: no opacity anywhere in it.</summary>
+    [Fact]
+    public void AnOpaqueFaceAndHatch_WriteNoOpacityInTheTile()
+    {
+        string svg = RenderRect(Hatched(HatchPattern.Cross, Colors.Black));
+        string tile = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
+
+        Assert.DoesNotContain("opacity", tile);
+    }
+
     /// <summary>Every declared pattern is reachable: each member of the enum renders its own definition.</summary>
     [Theory]
     [InlineData(HatchPattern.ForwardDiagonal)]

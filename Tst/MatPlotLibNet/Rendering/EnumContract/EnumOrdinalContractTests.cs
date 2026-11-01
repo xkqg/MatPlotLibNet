@@ -6,6 +6,7 @@ using MatPlotLibNet.Animation;
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Playground;
 using MatPlotLibNet.Rendering;
@@ -51,6 +52,9 @@ public static class EnumOrdinalSnapshot
                 ["None"] = 0, ["Simple"] = 1, ["FancyArrow"] = 2, ["Wedge"] = 3,
                 ["CurveA"] = 4, ["CurveB"] = 5, ["CurveAB"] = 6,
                 ["BracketA"] = 7, ["BracketB"] = 8, ["BracketAB"] = 9,
+            },
+            [typeof(ArrowHeadShape)] = new Dictionary<string, int> {
+                ["Full"] = 0, ["Left"] = 1, ["Right"] = 2,
             },
             [typeof(AxisScale)] = new Dictionary<string, int> {
                 ["Linear"] = 0, ["Log"] = 1, ["SymLog"] = 2, ["Logit"] = 3, ["Date"] = 4,

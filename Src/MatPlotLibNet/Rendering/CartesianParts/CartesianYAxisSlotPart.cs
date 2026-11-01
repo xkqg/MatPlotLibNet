@@ -50,9 +50,12 @@ internal sealed class CartesianYAxisSlotPart : CartesianAxesPart
     private Axis Axis => _placed.Slot.Axis;
 
     /// <inheritdoc />
-    /// <remarks>Its series, its major ticks, its minor ticks, then its title past the widest tick label drawn.</remarks>
+    /// <remarks>Its series, its major ticks, its minor ticks, then its title past the widest tick label drawn. A linked slot
+    /// whose link cannot place the primary's range has no ticks, and says why here (<see cref="PlacedYSlot.Diagnostic"/>),
+    /// once per render: the layout and the interaction views place the slot but never draw it.</remarks>
     public override void Render()
     {
+        if (_placed.Diagnostic is { } diagnostic) Diagnostics.ChartDiagnostics.Emit(diagnostic);
         RenderSeries();
         double widest = RenderMajorTicks();
         RenderMinorTicks();
@@ -85,14 +88,16 @@ internal sealed class CartesianYAxisSlotPart : CartesianAxesPart
     }
 
     /// <summary>Draws the slot's major tick marks and labels by its own <see cref="TickConfig"/>, through the one tick
-    /// drawing every axis uses.</summary>
+    /// drawing every axis uses, each where the slot's placement stands it (<see cref="PlacedYSlot.Placement"/>: its own
+    /// transform, or for a linked slot where the primary shows the value it maps back to).</summary>
     /// <returns>The widest tick label drawn; 0 when none was.</returns>
     internal double RenderMajorTicks() =>
-        Ctx.RenderAxisTicks(_placed.Ticks, _placed.Range.XMin, Transform, Axis.MajorTicks, TickDraw);
+        Ctx.RenderAxisTicks(_placed.Ticks, _placed.Range.XMin, _placed.Placement, Axis.MajorTicks, TickDraw);
 
-    /// <summary>Draws the slot's minor tick marks between its major ticks, when its minor ticks are visible.</summary>
+    /// <summary>Draws the slot's minor tick marks between its major ticks, when its minor ticks are visible, each where the
+    /// slot's placement stands it.</summary>
     internal void RenderMinorTicks() =>
-        Ctx.RenderMinorTicks(new TickRun(_placed.Ticks, _placed.Range.XMin, Transform), Axis.MinorTicks, TickDraw);
+        Ctx.RenderMinorTicks(new TickRun(_placed.Ticks, _placed.Range.XMin, _placed.Placement), Axis.MinorTicks, TickDraw);
 
     /// <summary>Draws the slot's title by the one band rule every Y axis shares: the ink that faces the tick labels stands
     /// the container's gap past the widest of them, its style's pad on top; as rich text when it carries math markup.</summary>

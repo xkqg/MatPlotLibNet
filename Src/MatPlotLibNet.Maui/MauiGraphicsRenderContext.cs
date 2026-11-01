@@ -65,8 +65,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
         }
         if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)shape.StrokeThickness;
+            ApplyStroke(shape);
             _canvas.DrawPath(path);
         }
     }
@@ -81,8 +80,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
         }
         if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)shape.StrokeThickness;
+            ApplyStroke(shape);
             _canvas.DrawCircle((float)center.X, (float)center.Y, (float)radius);
         }
     }
@@ -97,8 +95,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
         }
         if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)shape.StrokeThickness;
+            ApplyStroke(shape);
             _canvas.DrawRectangle((float)rect.X, (float)rect.Y, (float)rect.Width, (float)rect.Height);
         }
     }
@@ -113,8 +110,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
         }
         if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)shape.StrokeThickness;
+            ApplyStroke(shape);
             _canvas.DrawEllipse((float)bounds.X, (float)bounds.Y, (float)bounds.Width, (float)bounds.Height);
         }
     }
@@ -179,8 +175,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
         }
         if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)shape.StrokeThickness;
+            ApplyStroke(shape);
             _canvas.DrawPath(path);
         }
     }
@@ -208,6 +203,17 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     public void SetOpacity(double opacity)
     {
         _canvas.Alpha = (float)opacity;
+    }
+
+    /// <summary>Sets the canvas' stroke for a shape: its colour, its thickness and the dash pattern of its line style, the one
+    /// a line of that style is drawn with (<c>ToMauiDashPattern</c>). The canvas keeps its stroke
+    /// state between calls, so the pattern is set every time: a solid shape drawn after a dashed line gets no dashes.</summary>
+    /// <param name="shape">The style, whose stroke is visible.</param>
+    private void ApplyStroke(ShapeStyle shape)
+    {
+        _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
+        _canvas.StrokeSize = (float)shape.StrokeThickness;
+        _canvas.StrokeDashPattern = shape.StrokeLineStyle.ToMauiDashPattern();
     }
 
     /// <summary>Fills a shape the way the other backends do: the flat fill first, a gradient over it when the style has one,

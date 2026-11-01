@@ -36,7 +36,7 @@ internal static class LegendMeasurer
     }
 
     /// <summary>Measures the legend box for an axes, returning zero if the legend is hidden
-    /// or has no labelled series. The returned width / height are already in pixels and
+    /// or has no row (no labelled series or patch). The returned width / height are already in pixels and
     /// include frame padding on all sides.</summary>
     /// <param name="axes">The axes whose legend should be measured.</param>
     /// <param name="ctx">Render context used for <see cref="IRenderContext.MeasureText"/>.</param>
@@ -46,11 +46,10 @@ internal static class LegendMeasurer
     {
         if (!axes.Legend.Visible) return Size.Empty;
 
-        // The SAME entry list AxesRenderer.RenderLegend draws and ComputeLegendBounds hit-tests. Whether an end-label
-        // series leaves the legend is the renderer's answer, asked of the renderer the factory builds for these axes —
-        // the one that will draw them — so the margin is reserved for exactly the box that is drawn.
-        bool directLabelsDrawn = AxesRenderer.Create(axes, default, ctx, theme).DrawsDirectLabels;
-        var labels = axes.LegendEntries(directLabelsDrawn).Select(e => e.Label).ToList();
+        // The SAME row list AxesRenderer.RenderLegend draws and ComputeLegendBounds hit-tests, asked of the renderer the factory
+        // builds for these axes — the one that will draw them, which says whether an end-label series leaves the legend and
+        // whether its patches have rows — so the margin is reserved for exactly the box that is drawn.
+        var labels = AxesRenderer.Create(axes, default, ctx, theme).LegendEntries(axes.Legend.LegendValues).Select(e => e.Label).ToList();
         if (labels.Count == 0) return Size.Empty;
 
         // The box is the one the legend is laid out with, so what is reserved is what is drawn. Where it stands is not

@@ -18,6 +18,17 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.29.0** puts shapes on an axes and lets an axis show another unit. A rectangle, a polygon, an arrow, a circle, an
+ellipse, a wedge and an arc (`AddPatch`) are placed in data coordinates and bend with the axes they stand on, as
+matplotlib's patches do: on a log axis a circle bends and a straight edge stays straight. They count in the automatic
+range, a labelled one has a row in the legend, and they travel through JSON and the MCP server. A top or side axis can
+show the same values in another unit through a function and its inverse (`Link` with an `AxisTransform`: degrees
+Celsius against Fahrenheit, a frequency against its period), as matplotlib's `secondary_xaxis` and `secondary_yaxis`
+do. The top X axis now follows its own tick locator and scale, a series on it follows a log primary Y axis, a
+translucent line or text keeps its opacity in the SVG, a figure built with `AddSubPlot(rows, cols, index)` keeps its
+cell through JSON, and the MCP server draws a spec that holds shapes, spans or annotations and no series. The three
+rows that were still to come on the roadmap are done.
+
 **1.28.0** draws more of what matplotlib draws. `Stairs`, `VLines`, `HLines` and `Triplot` join the chart verbs, and a
 sixth family of verbs (`Psd`, `Csd`, `Cohere`, `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum`, `Acorr`,
 `Xcorr`) draws a sampled signal in the frequency domain, and its correlation, with matplotlib's defaults; the twelve
@@ -135,8 +146,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,120 classes, at
-99.8 % line / 98.9 % branch) across 27,290 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,161 classes, at
+99.8 % line / 98.9 % branch) across 28,839 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib, and CI runs it.
 
 ---
@@ -208,6 +219,8 @@ Plt.Create()
 **Signals** — `Psd`, `Csd` and `Cohere` estimate a spectrum by Welch's method (one `SpectralOptions` value holds the sample rate, the segments, the window, the detrend, the padding and the scaling, its default matplotlib's), `MagnitudeSpectrum`, `PhaseSpectrum` and `AngleSpectrum` take one transform of the whole signal, and `Acorr` and `Xcorr` draw a correlation at each lag as stems or as markers. A missing sample leaves out what was worked out from it, never a zero. `Spectrogram` draws the short-time transform of a signal (`Fft.Stft`), each frame weighted once by its window and each row at its frequency.
 
 **On the figure itself** — `FigText`, `FigLegend` and `FigImage` put text, one legend for the series of every subplot and an image on the figure rather than in a subplot, in every output, and an inset marks the region it zooms into with `IndicateZoom`.
+
+**Shapes and an axis in another unit** — `AddPatch` puts matplotlib's patches on an axes in data coordinates: a `Rectangle`, `Polygon`, `Arrow` (`FancyArrow`), `Circle`, `Ellipse`, `Wedge` or `Arc`, each styled through its own face, edge, dash, hatch and opacity. A patch is drawn through the axes' transform, its curves as matplotlib's Bézier curves with every vertex held to matplotlib's, so it follows a reversed, log or broken axis; it counts in the automatic range, has a row in the legend when it is labelled, and comes back from JSON. `Link` turns the top X axis or a Y axis past the primary into matplotlib's `secondary_xaxis` or `secondary_yaxis`: the primary's range written through an `AxisTransform` (`Linear`, `Reciprocal`, `Logarithm`, `Power` or a pair of functions), with each tick where the primary has the value it maps back to. See the cookbook's [shapes](docs/cookbook/patches.md) and [linked axes](docs/cookbook/linked-axes.md).
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over

@@ -86,17 +86,19 @@ public sealed class SvgRenderContext : IRenderContext
     internal void SetNextElementClass(string className) => _pendingClass = className;
 
     /// <inheritdoc />
+    /// <remarks>The stroke is written by the one writer of a stroke drawn from a colour, so a translucent colour writes its
+    /// alpha as <c>stroke-opacity</c>, as the PNG paints it.</remarks>
     public void DrawLine(Point p1, Point p2, StrokeStyle stroke)
     {
         _sb.Append("<line x1=\"").Append(p1.X.ToSvgNumber()).Append("\" y1=\"").Append(p1.Y.ToSvgNumber())
-           .Append("\" x2=\"").Append(p2.X.ToSvgNumber()).Append("\" y2=\"").Append(p2.Y.ToSvgNumber())
-           .Append("\" stroke=\"").Append(stroke.Color.ToHex()).Append("\" stroke-width=\"").Append(stroke.Thickness.ToSvgNumber()).Append('"');
-        _sb.AppendDashArray(stroke.Style);
+           .Append("\" x2=\"").Append(p2.X.ToSvgNumber()).Append("\" y2=\"").Append(p2.Y.ToSvgNumber()).Append('"');
+        _sb.AppendStroke(stroke);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
+    /// <remarks>The stroke is written as a line's is: a translucent colour writes its alpha as <c>stroke-opacity</c>.</remarks>
     public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke)
     {
         if (points.Count < 2) return;
@@ -111,9 +113,8 @@ public sealed class SvgRenderContext : IRenderContext
             if (written++ > 0) _sb.Append(' ');
             _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
-        _sb.Append("\" fill=\"none\" stroke=\"").Append(stroke.Color.ToHex())
-           .Append("\" stroke-width=\"").Append(stroke.Thickness.ToSvgNumber()).Append('"');
-        _sb.AppendDashArray(stroke.Style);
+        _sb.Append("\" fill=\"none\"");
+        _sb.AppendStroke(stroke);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -272,7 +273,7 @@ public sealed class SvgRenderContext : IRenderContext
         }
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
-        if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        AppendTextFill(font);
         if (_pendingTextLength is { } length)
         {
             _sb.Append(" textLength=\"").Append(length.ToSvgNumber()).Append("\" lengthAdjust=\"spacingAndGlyphs\"");
@@ -281,6 +282,17 @@ public sealed class SvgRenderContext : IRenderContext
 
         FlushPendingData();
         _sb.Append('>').Append(text.EscapeForXml()).AppendLine("</text>");
+    }
+
+    /// <summary>The fill of a text, when its font names a colour: the hex colour and, when the colour is translucent, its alpha
+    /// as <c>fill-opacity</c> (<see cref="SvgWriterExtensions.AppendAlpha"/>), as Skia paints the text. The one writer of a
+    /// text's fill for the <c>&lt;text&gt;</c> element, the glyph outlines and the rich text.</summary>
+    private void AppendTextFill(Font font)
+    {
+        if (font.Color is { } color)
+        {
+            _sb.Append(" fill=\"").Append(color.ToHex()).Append('"').AppendAlpha("fill-opacity", color);
+        }
     }
 
 
@@ -317,7 +329,7 @@ public sealed class SvgRenderContext : IRenderContext
         };
 
         _sb.Append("<path d=\"").Append(d).Append('"');
-        if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        AppendTextFill(font);
         // Transform composition is applied right-to-left: first move the glyph origin
         // by the alignment offset along the UNROTATED baseline, then rotate around the
         // anchor, then translate to the anchor itself. Gives the correct result for
@@ -402,7 +414,7 @@ public sealed class SvgRenderContext : IRenderContext
                .Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(")\"");
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold)  _sb.Append(" font-weight=\"bold\"");
-        if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        AppendTextFill(font);
         _sb.Append('>');
 
         foreach (var span in richText.Spans)
@@ -539,8 +551,7 @@ public sealed class SvgRenderContext : IRenderContext
         foreach (var seg in segments) _sb.Append(seg.ToSvgPathData());
         _sb.Append("\" fill=\"url(#").Append(gradientId).Append(")\"");
         if (stroke.HasValue)
-            _sb.Append(" stroke=\"").Append(stroke.Value.ToHex())
-               .Append("\" stroke-width=\"").Append(strokeThickness.ToSvgNumber()).Append('"');
+            _sb.AppendStroke(new StrokeStyle(stroke.Value, strokeThickness, LineStyle.Solid));
         // Phase G.7 of v1.7.2 follow-on plan — flush pending data (e.g. Sankey's
         // data-sankey-link-source/target) onto the gradient-filled path too.
         FlushPendingData();

@@ -4,6 +4,211 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.29.0]
+
+**1.29.0** puts shapes on an axes and lets an axis show another unit. A rectangle, a polygon, an arrow, a circle, an
+ellipse, a wedge and an arc are placed in data coordinates and bend with the axes they stand on, and a top or side
+axis can show the same values in another unit through a function and its inverse (degrees Celsius against Fahrenheit,
+a wavelength against its frequency). A figure built with `AddSubPlot(rows, cols, index)` keeps its cell through JSON.
+The top X axis now follows its own tick locator and scale, a series on it follows a log primary Y axis, and a
+translucent line or text keeps its opacity in the SVG as it did in the PNG. The three rows that stood under "still to
+come" on the roadmap are done. No public member was removed or changed; the sections below list each addition, each
+change with what a reader sees, and each place where the new shapes and axes differ from matplotlib.
+
+### Added
+
+- **Shapes in data coordinates: `Rectangle`, `Polygon`, `Arrow`, `Circle`, `Ellipse`, `Wedge` and `Arc`, added with
+  `AddPatch`** (matplotlib's patches and `add_patch`). They live in the new namespace `MatPlotLibNet.Models.Patches`. A shape
+  is made by the caller, styled through its own properties and added to an axes with `AxesBuilder.AddPatch(patch)`,
+  `FigureBuilder.AddPatch(patch)` (the default axes) or `Axes.AddPatch(patch)`, which returns the patch it was given; the
+  axes holds that very patch (`Axes.Patches`), so a change made to it afterwards is drawn. One method takes every kind, so a
+  kind added later needs no new method. A point is a `DataPoint`, written `new(x, y)`, and an angle is in degrees,
+  counter-clockwise in data space.
+  - `new Rectangle(anchor, width, height) { Angle }`: turned about its anchor; a negative width extends it left of the
+    anchor and a negative height below it, as in matplotlib.
+  - `new Polygon(vertices) { Closed }`: closed by default; fewer than three vertices draw nothing, and a copy of the
+    vertices is kept.
+  - `new Arrow(start, dx, dy) { Width, HeadWidth, HeadLength, LengthIncludesHead, Shape, Overhang }`: matplotlib's
+    `FancyArrow`, the arrow `Axes.arrow` draws, every size in data units: a shaft 0.001 wide, a head three times as wide as
+    the shaft and one and a half times as long as it is wide, the tip a head length past the end point unless
+    `LengthIncludesHead` is set. `Shape` is the new enum `ArrowHeadShape` (`Full = 0`, `Left = 1`, `Right = 2`). An arrow
+    of no length points up. An arrow from a text to a point, with its head in pixels, stays an `Annotation`.
+  - `new Circle(center, radius)`, `new Ellipse(center, width, height) { Angle }` (the width and the height are diameters),
+    `new Wedge(center, radius, theta1, theta2) { Width }` (a slice of a disc counter-clockwise from `theta1` to `theta2`, or
+    with a `Width` the slice of a ring; a sweep of a whole turn is the whole disc) and `new Arc(center, width, height)
+    { Angle, Theta1 = 0, Theta2 = 360 }` (the open curve of an ellipse, with no face, as matplotlib refuses to fill one).
+  - The style every patch has: `EdgeColor` (none on a filled shape, black on an arrow and an arc), `EdgeWidth` (1 pixel),
+    `EdgeLineStyle` (solid), `Alpha` (1), `Label`, `Hatch` and `HatchColor` (the edge colour, black when there is no edge);
+    a filled shape adds `FaceColor`, matplotlib's first colour of the cycle (`Colors.Tab10Blue`) on every patch, since a patch
+    never moves the colour cycle on. A colour of none is `Colors.Transparent`. An `Alpha` outside 0 to 1 and an `EdgeWidth`
+    below 0 are refused as they are set, by `ArgumentOutOfRangeException`; the geometry refuses no number, as matplotlib's does
+    not, and a shape with a coordinate that is not a finite number draws nothing.
+
+  ```csharp
+  using MatPlotLibNet.Models.Patches;
+
+  Plt.Create()
+      .AddSubPlot(1, 1, 1, ax => ax
+          .SetAspect(1)
+          .AddPatch(new Rectangle(new(0.8, 0.8), 3, 1.6) { Angle = 15, Label = "Rectangle" })
+          .AddPatch(new Circle(new(6, 2), 1.2) { FaceColor = Colors.Tab10Orange, Alpha = 0.6, Label = "Circle" })
+          .AddPatch(new Arrow(new(0.5, 4), 4, 0) { Width = 0.2, HeadWidth = 0.6 })
+          .WithLegend())
+      .Save("patches.svg");
+  ```
+
+- **A patch is drawn as matplotlib draws it, through the axes it stands on.** The patches of an axes are drawn after its
+  spans and before its reference lines and series, in the order they were added. A curve is made of cubic Bézier curves by
+  matplotlib's own rules (`Path.unit_circle`, 26 vertices for a circle or an ellipse, and `Path.arc` for a wedge and an arc),
+  and every point of the outline, the control points included, goes through the axes' transform: on a log axis a circle
+  bends, as in matplotlib, and a straight edge stays straight. Every vertex of every kind is held to the one matplotlib 3.11.2
+  computes for the same patch, to 1e-12 (`FancyArrow(0, 0, 1, 0)` is eight vertices with its tip at 1.0045), and the fidelity
+  suite scores a picture of every kind on a linear and on a log axis against matplotlib's, where in matplotlib's default style
+  the pixels of each filled shape's face overlap matplotlib's at 0.92 to 0.99. A point inside an axis break leaves the outline open and it resumes after
+  the gap. Under a limit the caller set the patches are clipped to the plot as the series are.
+- **The automatic range holds every patch.** Each patch counts over its true extent: its vertices and the points where a
+  curve turns, not its control points (the arc of a unit circle from 310 to 40 degrees reaches x 0.99999824, as matplotlib's
+  data limits say, where its control points stand at 1.0193). A patch adds no sticky edge, and axes that share a scale share
+  its range.
+- **A labelled patch has a row in the legend**, after the rows of the series, with matplotlib's handle: a rectangle in the
+  patch's own face, edge, dash, hatch and opacity, whatever its shape, and an arc's with no face. A label that is empty or
+  starts with an underscore (`"_hidden"`) gives no row, matplotlib's rule, and a patch that is clear keeps its row. The figure
+  legend (`FigLegend`) lists the patch rows of each subplot after its series.
+- **Linked axes: an axis that shows the primary axis' values in another unit** (matplotlib's `secondary_xaxis` and
+  `secondary_yaxis`). `SecondaryXAxisBuilder.Link(transform)` links the top X axis to the bottom one, and
+  `YAxisSlotBuilder.Link(transform)` links a Y axis added with `WithAddRightYAxis` or `WithAddLeftYAxis` to the primary Y axis;
+  both set the new `Axis.Link`. A linked axis has no range and no series of its own: it shows the primary axis' range and
+  scale, each value written through the transform, and each of its ticks stands where the primary axis has the value the
+  tick maps back to, so a Fahrenheit axis beside a Celsius one has its ticks on round Fahrenheit numbers. Its ticks come from
+  its own tick locator, else, on a log primary axis, from a log locator with a tick at each power of ten of its own unit (as
+  matplotlib switches to `functionlog`), else from the default for the length of the plot. A limit set on a linked axis
+  changes nothing, and a pan, a zoom or Home moves it with the primary axis. Its label, colour and tick settings are set as on
+  any axis.
+- **`AxisTransform`, how a linked axis writes the primary axis' values** (in `MatPlotLibNet.Models`). `Forward(value)` maps a
+  primary value to the one shown and `Inverse(value)` maps it back. It is made with a factory, each of which refuses, as it
+  is made, a number it cannot map with (`ArgumentOutOfRangeException` naming the parameter): `Linear(scale, offset = 0)`
+  (Fahrenheit from Celsius is `Linear(1.8, 32)`; a scale of 0 has no inverse), `Reciprocal(numerator = 1)` (a period from a
+  frequency; on either side of 0, never across it), `Logarithm(base = 10)` (above 0), `Power(exponent)` (on 0 and above) and
+  `Of(forward, inverse)` for a pair of functions of your own. A linear transform is exact both ways, and a logarithm in base 10
+  of a power of ten is exact. When the primary axis shows a range the transform cannot place (a reciprocal across 0, a
+  logarithm reaching 0, a function of your own that gives no number at an end or maps both ends to one value), the linked axis
+  draws no ticks and reports it once a render on `ChartDiagnostics`; the library never throws while drawing, and an exception
+  thrown by a function given to `Of` is the caller's and travels as it is.
+
+  ```csharp
+  using MatPlotLibNet.Models;
+
+  Plt.Create()
+      .AddSubPlot(1, 1, 1, ax => ax
+          .Plot([0.0, 6, 12, 18, 24], [3.0, 1, 14, 17, 6])
+          .SetYLabel("Temperature (°C)")
+          .WithAddRightYAxis(right => right
+              .SetYLabel("Temperature (°F)")
+              .Link(AxisTransform.Linear(1.8, 32))))
+      .Save("celsius_fahrenheit.svg");
+  ```
+
+- **A shape's outline takes a line style in every backend.** `ShapeStyle.StrokeLineStyle` is a new init property (solid by
+  default) that the SVG, the PNG and PDF of Skia and the MAUI canvas dash by the rule they dash a line of that style with, so
+  an outline and a line of one style look alike; `LineStyle.None` draws no outline and leaves the fill as it is. A shape
+  built without it strokes solid, as every shape did.
+- **The JSON keeps what the new shapes and axes draw.** A subplot writes its patches as `patches`, each told apart by `type`
+  (`rectangle`, `polygon`, `arrow`, `circle`, `ellipse`, `wedge`, `arc`) with its geometry and every style that differs from a
+  new patch of its kind, a point as `{"dataX", "dataY"}`; an axis writes its link as `link`, by `type` (`linear`, `reciprocal`,
+  `logarithm`, `power`) with the numbers it was made with. A link made with `Of` is code, which a JSON document cannot carry:
+  it is left out, and the axis reads back unlinked. A kind this build does not know is skipped with a `ChartDiagnostics` entry
+  and the rest of the figure loads; a number a patch or a transform refuses is refused when it is read. A figure with neither
+  writes the bytes it wrote.
+- **The JSON keeps the cell of a subplot and its signals.** A subplot added with `AddSubPlot(rows, cols, index)` writes a
+  `subplot` field (`rows`, `cols` and `index`, as matplotlib's `add_subplot` names them) when the figure's grid has more than
+  one cell, and reads back into the same cell under both layouts: a 2 by 1 stack came back side by side, and even a 1 by 2 row
+  came back 1.94 px narrower. A figure of one subplot in a 1 by 1 grid writes none, so its bytes are as they were. The buy and
+  sell markers of `BuyAt` and `SellAt` were drawn and never written; a subplot writes them as `signals` (the place, the
+  direction, and a colour, a size and a label when set).
+- **The MCP server reads patches and links, and draws a spec that holds only overlays.** A patch's kind, outline style, hatch
+  and arrow shape and a link's kind are checked by name at every place they stand, a subplot and an inset alike, and a wrong
+  one is refused with the accepted values, before the strict pass that would blame the first field of the shape;
+  `describe_chart_schema` lists the seven patch kinds and the four link kinds with the fields each adds. A spec with no series
+  is drawn when a Cartesian subplot (or an inset with bounds) holds an annotation, a reference line, a span, a patch, a
+  trendline, a level, a Fibonacci retracement or a signal, where it was refused as having nothing to draw; a legend, a colour
+  bar, an axis break or a link alone still describe series that are not there, and the refusal names what would do.
+
+### Changed
+
+- **A translucent colour keeps its opacity in the SVG.** A hex colour carries no alpha, and the SVG wrote a line, a polyline,
+  the outline of a shape, a hatch tile and a text as a bare hex colour, so a translucent grid, minor grid (drawn at half the
+  grid's opacity), line series, outline or label was opaque in the SVG and translucent in the PNG and in matplotlib. The SVG
+  now writes `stroke-opacity` beside a translucent stroke and `fill-opacity` beside a translucent text or tile, from one rule
+  for every writer; an opaque colour writes the bytes it wrote.
+- **A builder method takes at most four parameters.** A new public instance method of `AxesBuilder`, `FigureBuilder` or any
+  other builder gathers its inputs in one value (a `DataPoint`, an options value, the object itself) instead of a fifth loose
+  argument, as the chart verbs already do. The 27 published methods over that count (19 of `AxesBuilder`, 8 of
+  `FigureBuilder`, `AddTrendline` with five and `Annotate` with an arrow tip with six among them) keep their signatures, since
+  a changed signature breaks every caller compiled against it, and a test names each of them.
+- **Where the new shapes and axes differ from matplotlib, on purpose:**
+  - A patch's `Alpha` multiplies the opacity of its face, its edge and its hatch, where matplotlib's replaces it; the two draw
+    the same for opaque colours, and a colour of none stays none here.
+  - Patches and spans are drawn above the grid, where matplotlib draws the grid above them (its grid stands at 1.5, a patch
+    and a span at 1). The grid stays where it was, so no picture moves.
+  - An axes that holds patches and nothing else frames them; matplotlib's `add_patch` asks for no new range, and such an axes
+    stays at 0 to 1 there.
+  - A rectangle of no size still counts in the range, where matplotlib leaves it out.
+  - On a log axis a coordinate of 0 or below is pinned to where the axis starts, the rule the library's log axes already
+    follow; matplotlib pushes the point a thousand decades out, which its axes then clip at the same edge.
+  - A circle, an ellipse, a wedge or an arc of size 0 or less draws nothing, where matplotlib draws a negative size mirrored.
+  - A patch has no `zorder` of its own, since the library draws in layers, and a rectangle has no `rotation_point`: a
+    rectangle turned about its centre is a `Polygon` of its four corners.
+  - The legend lists the series first and the patches after them, where matplotlib lists both in the order they were added. A
+    patch row is never toggled by a click, a polar, 3-D or ternary axes draws and lists no patch, and the figure legend lists a
+    patch drawn identically in two subplots once.
+  - A linked axis exists on the top X axis and on a Y axis past the primary one. There is no linked axis on the bottom or at a
+    place of your own (matplotlib's bottom one draws over the primary's ticks), and a link set on a primary axis is ignored.
+  - `Power` is defined on 0 and above (above 0 for a negative exponent): below 0 it would run both ways for an even exponent,
+    and a value-to-value inverse cannot say which side of 0 a range lies on.
+  - The builders refuse a series on a linked axis and a link on an axis that holds a series (an `ArgumentException` naming the
+    parameter, before anything changes); a figure or a spec written by hand that gives a linked axis a series draws the link,
+    as matplotlib draws whatever its functions return.
+
+### Fixed
+
+- **The top X axis follows its own settings.** It was placed three ways, in its drawing, in the room the layout made for it and
+  in the marks the legend avoids, none of which read its tick locator, tick spacing, scale or minor ticks: a log or symlog
+  scale, a locator or a spacing set on it drew the ticks of a linear axis. It is placed in one place now, with its range padded
+  as the primary's is (in log space on a log scale). A top axis that sets none of them draws what it drew: eight intervals,
+  whatever the width of the plot.
+- **A series on the top axis stands where the primary Y axis puts it.** It was mapped linearly over the primary's Y range, so
+  over a log, symlog or broken Y axis a value stood at the wrong height; it now takes the primary's Y scale and breaks, as
+  matplotlib's `twiny` shares the Y axis.
+- **Minor ticks a scale cannot place are left out.** On a log axis the minor ticks one step below the first major tick (where a
+  log scale has no place), and the ones inside an axis break, were written into the SVG as line elements with `NaN`
+  coordinates; a tick whose place is not a number is skipped.
+- **The MCP server checks four more fields by name.** A misspelt `coordinateSystem` of an axes and a misspelt `position` of a
+  spine were ignored, and `"DATA"` read as the default edge because the serializer compares that field in lower case; the
+  reader now refuses a wrong one and writes the position in lower case. A theme's `defaultLegendPosition` and the `hatch` of a
+  node of a tree (a treemap's, at any depth, and a clustermap's two trees) are checked too. A test now walks every record the
+  figure JSON reaches and goes red on an enum field the reader does not check.
+- **A subplot placed by `AddSubPlot(GridPosition)` keeps its place without a grid specification.** Its `gridPosition` was
+  written either way and read back only when the figure had a `WithGridSpec`.
+- **A shape on the MAUI canvas no longer takes the dashes of the line before it.** The canvas keeps its dash pattern between
+  calls, so a shape stroked after a dashed line was drawn dashed; every stroke sets its own pattern now.
+
+### Upgrading
+
+- **A 1.28 reader meets a 1.29 figure.** It skips `patches`, `link`, `subplot` and `signals` without a word: the patches and
+  the signals are not drawn, a linked axis is an empty axis with nothing to draw, and the subplots stand side by side in one
+  row, as they did.
+- **SVG bytes.** An application that compares SVG text pins the new bytes of a figure with a translucent line, grid, outline,
+  hatch or text, which gains its `stroke-opacity` or `fill-opacity`; a figure in opaque colours writes what it wrote.
+- **The top axis.** A figure that set a tick locator, a spacing, a log scale or minor ticks on the top axis now draws them,
+  and a series on the top axis over a log or broken Y axis stands at the height the primary axis gives it.
+- **Compatibility.** No public member was removed, renamed or given another signature: the release adds types and members
+  only, `ShapeStyle` gains an init property beside its positional ones, and package validation compares every package with
+  1.28.0.
+- **What is left out on purpose.** A patch has no `zorder` and a rectangle no `rotation_point`; there is no linked axis on the
+  bottom or at a place of your own; patches and spans stay above the grid (no setting moves them under it); a polar, 3-D or
+  ternary axes draws no patch; a patch adds no table to `ToDataTables()`, as no overlay does; a link made with `Of` is not
+  written to JSON; and the arrow of an annotation keeps its head in pixels, apart from `Arrow`.
+
 ## [1.28.0]
 
 **1.28.0** draws more of what matplotlib draws. `Stairs`, `VLines`, `HLines` and `Triplot` join the chart verbs, and a

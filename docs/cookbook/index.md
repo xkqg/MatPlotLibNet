@@ -13,7 +13,7 @@ This cookbook contains code examples with their rendered output. Every example u
 
 | Category | Examples |
 |---|---|
-| [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, colour, statistics, images, signals, 3D and polar |
+| [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, shapes and a second unit, colour, statistics, images, signals, 3D and polar |
 | [Line Charts](line-charts.md) | Line styles, markers, gaps at missing values, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, a second axis or any number of Y axes on either side, where the legend stands (`Best` looks for room), outside legend, legend value display; in one call each: bump chart, control chart (and the other Shewhart charts with Nelson's tests), stream graph, horizon chart; connected scatter, a connected scatter with arrows, an area that lies down; a staircase as an outline or a fill (`Stairs`), segments between two limits (`VLines`, `HLines`) |
 | [Direct labels & axis colours](direct-labels-and-axis-colours.md) | A line's name at the end of the line instead of in the legend, each Y axis coloured like its line, a dual-axis chart that needs no legend, what is kept in JSON |
 | [Bar Charts](bar-charts.md) | Vertical/horizontal bars, bars below zero, bars on a log scale, stacked, grouped, bar labels (beyond the bar's end whichever way it points), hatching, width/alpha control; in one call each: Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko; waterfall with totals, a fill that fades from one colour to another, a waterfall with a target on each bar |
@@ -45,11 +45,13 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export, rotating 3D |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling, Rx integration |
 | [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations, text size, pixel offset and vertical alignment, annotations that move out of the way |
+| [Shapes (patches)](patches.md) | A rectangle, a polygon, an arrow, a circle, an ellipse, a wedge and an arc in data coordinates (`AddPatch`), styled, listed in the legend, bent by a log axis and kept in JSON |
+| [A second axis in another unit](linked-axes.md) | Fahrenheit beside Celsius and a period above a frequency (`Link` with an `AxisTransform`, matplotlib's `secondary_xaxis` and `secondary_yaxis`), how the ticks are placed, a top axis with a range of its own |
 | [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates, a range frame, an equal scale, several figures on one page |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks, turned labels with room beside the plot |
 | [State timeline in WPF](wpf-timeline.md) | A WPF window with a state timeline: tooltip and click per event, pan and zoom along time, stacked categories on one time axis, a marker for the playback position |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition, topology panel (the service map) |
-| [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages |
+| [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages, a spec of shapes and overlays with no series, a linked axis |
 | [Verso notebooks](verso.md) | A chart inside a notebook cell: end the cell on a figure or a builder, how tall a chart may be, what a failed render says |
 | [Accessibility](accessibility.md) | The data table beside the chart (`ToDataTables()` → HTML/markdown/CSV), color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |
 | [International text](international-text.md) | Arabic and Hebrew out of the box, registering a font file for other scripts (`SkiaFonts.Register`), the `MATPLOTLIBNET_FONTS` variable for the MCP server, what kerning changed |

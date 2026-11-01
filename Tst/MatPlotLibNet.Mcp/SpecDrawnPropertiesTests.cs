@@ -73,6 +73,38 @@ public class SpecDrawnPropertiesTests
         Assert.Contains(accepted, refusal.Message);
     }
 
+    /// <summary>The pattern over one node of a tree is checked at any depth, in the root a series holds (a treemap's or a
+    /// dendrogram's) and in each of the two a clustermap holds, and refused with the node's place.</summary>
+    [Theory]
+    [InlineData("""{"type":"treemap","treeRoot":{"label":"all","value":3,"hatch":"zigzag"}}""", "treeRoot.hatch")]
+    [InlineData("""{"type":"treemap","treeRoot":{"label":"all","value":3,"children":[{"label":"a","value":1},{"label":"b","value":2,"children":[{"label":"c","value":2,"hatch":"zigzag"}]}]}}""", "treeRoot.children[1].children[0].hatch")]
+    [InlineData("""{"type":"clustermap","heatmapData":[[1,2],[3,4]],"rowTree":{"label":"r","value":1,"hatch":"zigzag"}}""", "rowTree.hatch")]
+    [InlineData("""{"type":"clustermap","heatmapData":[[1,2],[3,4]],"columnTree":{"label":"c","value":1,"hatch":"zigzag"}}""", "columnTree.hatch")]
+    public void AMisspelledHatchOfATreeNode_IsRefusedWithTheAcceptedValuesAndTheNodesPlace(string series, string where)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(series))));
+
+        Assert.Contains("'zigzag'", refusal.Message);
+        Assert.Contains("DiagonalCross", refusal.Message);
+        Assert.Contains($"$.subPlots[0].series[0].{where}", refusal.Message);
+    }
+
+    [Fact]
+    public void AnAcceptedHatchOfATreeNode_ReachesTheNode_InAnyCase()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec(
+            """{"type":"treemap","treeRoot":{"label":"all","value":3,"children":[{"label":"a","value":3,"hatch":"DOTS"}]}}""")));
+
+        var treemap = Assert.IsType<TreemapSeries>(figure.SubPlots[0].Series[0]);
+        Assert.Equal(HatchPattern.Dots, treemap.Root.Children[0].Hatch);
+    }
+
+    /// <summary>The trees a series holds are found off the series record: a tree field added to the wire format is read on the
+    /// next build, as a seat is.</summary>
+    [Fact]
+    public void TheTreesASeriesHolds_AreFoundOffTheSeriesRecord() =>
+        Assert.Equal(["columnTree", "rowTree", "treeRoot"], new SpecVocabulary().TreeFields.Order(StringComparer.Ordinal));
+
     [Theory]
     [InlineData("diamond")]
     [InlineData("DIAMOND")]

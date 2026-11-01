@@ -1,4 +1,6 @@
 matplotlib==3.10.*
+# The references patches_linear, patches_log, linked_yaxis_fahrenheit and linked_xaxis_period were drawn with matplotlib 3.11.2 (the json
+# beside each picture names its version). Drawn again with 3.10.9 the shapes and the ticks come out where they did: only the pixels of the text move.
 numpy==2.*
 seaborn==0.13.*
 squarify==0.4.*

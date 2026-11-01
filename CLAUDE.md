@@ -27,8 +27,10 @@ Tst/MatPlotLibNet/bin/Release/net10.0/MatPlotLibNet.Tests.exe -filter "/*/*/Lege
 ```
 
 Core multi-targets `net10.0;net8.0`, so the exe sits under the `net10.0` folder. A change to how something is *drawn* also needs
-`Tst/MatPlotLibNet.Fidelity` (CI runs it): it scores the SVG against matplotlib's own pictures with a perceptual diff, and a
-reference picture is made again with `tools/mpl_reference/generate.py`.
+`Tst/MatPlotLibNet.Fidelity` (CI runs it): it scores the PNG that Skia draws straight from the figure (`ToPng`, never through
+the SVG writer) against matplotlib's own pictures with a perceptual diff (RMS, block SSIM, the distance between the dominant
+colours), so a change to the SVG writer alone cannot move a score; a reference picture is made again with
+`tools/mpl_reference/generate.py --chart <name>`, which writes only the charts named.
 
 ```powershell
 tools/coverage/run.ps1 -Check -Strict    # all suites + the per-class gate (>=90/90 line+branch, no regression)
@@ -147,6 +149,13 @@ extension methods on `AxesBuilder` in the family class that matches the caller's
 `XY`, `Grid`, `Price` or `SignalAxesExtensions`, in `Builders/`; a sampled signal drawn in the frequency domain or as lags is the last): no `ISeries`, no `SeriesRegistry` key, `SeriesCountContractTests`
 untouched. It needs a `ComposedChartShapes` entry and a row in `ARCHITECTURE.md` § "Where a verb lives"
 (`VerbPlacementContractTests`); the full recipe is CONTRIBUTING.md § "Adding a chart verb".
+
+**A shape is a patch and a second unit is a link, neither a series nor a verb.** A rectangle, polygon, arrow, circle,
+ellipse, wedge or arc is a `Patch` (`Models/Patches/`, abstract with sealed leaves only the library derives) added with
+the one `AddPatch` on `AxesBuilder`, `FigureBuilder` or `Axes`; a new kind is a leaf with its `Outline()` in data units
+and its `Describe()` (a `PatchDto` leaf), never a new builder method. An axis in another unit (matplotlib's
+`secondary_xaxis` / `secondary_yaxis`) is `Link(AxisTransform)` on `SecondaryXAxisBuilder` or `YAxisSlotBuilder`, which
+sets `Axis.Link`. A new public builder instance method takes at most four parameters (`InstanceMethodBudgetContractTests`).
 
 **Shared behaviour is a C# 14 `extension(T value) { }` block, never a `this`-param static method.** Every
 `*Extensions` class in `Src/` and the satellite packages is written this way (`LangVersion` is 14 repo-wide,

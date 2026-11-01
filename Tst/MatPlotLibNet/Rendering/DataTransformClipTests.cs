@@ -116,6 +116,37 @@ public class DataTransformClipTests
         Assert.Equal(transform.TransformY(bases)[4], pixels[4]);
     }
 
+    /// <summary>A log X and a log Y axis, both from 1 to 100: X from the left edge, Y from the bottom edge.</summary>
+    private static DataTransform LogLog() =>
+        new(0, 2, 0, 2, Bounds, null, null, 1, 100, 1, 100, AxisScale.Log, AxisScale.Log, 1, 1);
+
+    /// <summary>A vertex of an outline (a patch's corner or control point) is clipped on each axis where that axis cannot place
+    /// it, both at once: matplotlib maps every vertex of a patch through the log scale's <c>nonpositive='clip'</c>.</summary>
+    [Theory]
+    [InlineData(0.0, 0.0, 0.0, 300.0)]
+    [InlineData(-3.0, 10.0, 0.0, 150.0)]
+    [InlineData(10.0, -0.5, 200.0, 300.0)]
+    [InlineData(10.0, 10.0, 200.0, 150.0)]
+    public void AnOutlineVertex_IsClippedOnEachAxisThatCannotPlaceIt(double x, double y, double px, double py)
+    {
+        Assert.Equal(new Point(px, py), LogLog().DataToPixelClipped(x, y));
+    }
+
+    [Fact]
+    public void AnOutlineVertex_ThatIsMissingOrInfinite_IsNotClipped()
+    {
+        Assert.True(double.IsNaN(LogLog().DataToPixelClipped(double.NaN, 10).X));
+        Assert.False(double.IsFinite(LogLog().DataToPixelClipped(10, double.PositiveInfinity).Y));
+    }
+
+    [Fact]
+    public void OnReversedLogAxes_AnOutlineVertex_IsClippedWhereEachAxisBegins()
+    {
+        var reversed = new DataTransform(2, 0, 2, 0, Bounds, null, null, 100, 1, 100, 1, AxisScale.Log, AxisScale.Log, 1, 1);
+
+        Assert.Equal(new Point(400, 0), reversed.DataToPixelClipped(0, -1));
+    }
+
     /// <summary>On a linear axis the batch is the plain batch, bit for bit (the SIMD path): no figure on a linear axis
     /// changes a byte.</summary>
     [Fact]

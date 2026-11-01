@@ -79,7 +79,7 @@ public sealed class ChartSerializer : IChartSerializer
             Rows = gs.Rows, Cols = gs.Cols,
             HeightRatios = gs.HeightRatios, WidthRatios = gs.WidthRatios
         } : null,
-        SubPlots = AxesToDtos(figure.SubPlots, figure.Theme),
+        SubPlots = SubPlotsToDtos(figure),
         Enable3DRotation = figure.Enable3DRotation.OrNullAtRest(RestingFigure.Enable3DRotation),
         FigureColorBar = ColorBarDto.From(figure.FigureColorBar),
         Legend = LegendDto.FromPresent(figure.Legend),
@@ -159,6 +159,7 @@ public sealed class ChartSerializer : IChartSerializer
                 Color = s.Color,
                 EdgeColor = s.EdgeColor,
             }).ToList() : null,
+            Patches = axes.Patches.Count > 0 ? [.. axes.Patches.Select(patch => patch.Describe())] : null,
             Trendlines = axes.Trendlines.Count > 0 ? axes.Trendlines.Select(t => new TrendlineDto
             {
                 X1 = t.X1, Y1 = t.Y1, X2 = t.X2, Y2 = t.Y2,
@@ -179,6 +180,7 @@ public sealed class ChartSerializer : IChartSerializer
                 Color = f.Color is { } fc ? fc.ToHex() : null,
                 LineWidth = f.LineWidth, ShowLabels = f.ShowLabels,
             }).ToList() : null,
+            Signals = axes.Signals.Count > 0 ? [.. axes.Signals.Select(SignalMarkerDto.From)] : null,
             InsetBounds = axes.InsetBounds is { } ib ? new InsetBoundsDto
             {
                 X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
@@ -254,6 +256,12 @@ public sealed class ChartSerializer : IChartSerializer
     /// <see cref="AxesToDto"/>.</summary>
     private static List<AxesDto> AxesToDtos(IEnumerable<Axes> axes, Theme theme) => axes.Select(a => AxesToDto(a, theme)).ToList();
 
+    /// <summary>The figure's subplots, each with the cell of a rows-by-columns grid it was added to
+    /// (<see cref="SubplotCellDto.Of"/>): whether a cell needs writing is the figure's to say, since one subplot in the one cell
+    /// of a 1 by 1 grid draws the same without it and two in that cell do not.</summary>
+    private static List<AxesDto> SubPlotsToDtos(Figure figure) =>
+        [.. AxesToDtos(figure.SubPlots, figure.Theme).Select((dto, i) => dto with { Subplot = SubplotCellDto.Of(figure.SubPlots[i], figure.SubPlots.Count) })];
+
     /// <summary>The ONE place a list of series is written: the primary list, every other Y axis' and the top axis',
     /// each series through <see cref="SeriesToDto"/>.</summary>
     private static List<SeriesDto> SeriesToDtos(IEnumerable<ISeries> series) => series.Select(SeriesToDto).ToList();
@@ -265,7 +273,8 @@ public sealed class ChartSerializer : IChartSerializer
     private static readonly double RestingSymLogLinThresh = new Axis().SymLogLinThresh;
 
     /// <summary>Writes one axis. A tick locator or formatter of the library describes itself; one written outside the
-    /// library is left out (see <see cref="Axis.TickLocator"/>). The colours of the major ticks and of the label stay in
+    /// library is left out (see <see cref="Axis.TickLocator"/>), and so is a link made of functions of the caller's own
+    /// (see <see cref="Axis.Link"/>). The colours of the major ticks and of the label stay in
     /// the fields that carried them before the rest of the ticks and the label style reached the JSON.</summary>
     private static AxisDto AxisToDto(Axis axis) => new()
     {
@@ -278,6 +287,7 @@ public sealed class ChartSerializer : IChartSerializer
         LabelColor = axis.LabelStyle?.Color,
         TickLocator = (axis.TickLocator as IJsonDescribed<TickLocatorDto>)?.Describe(),
         TickFormatter = (axis.TickFormatter as IJsonDescribed<TickFormatterDto>)?.Describe(),
+        Link = (axis.Link as IJsonDescribed<AxisTransformDto>)?.Describe(),
         Inverted = axis.Inverted.OrNullAtRest(false),
         Margin = axis.Margin,
         SymLogLinThresh = axis.SymLogLinThresh.OrNullAtRest(RestingSymLogLinThresh),
@@ -426,19 +436,7 @@ public sealed class ChartSerializer : IChartSerializer
             imageDto.AddTo(figure);
 
         foreach (var axDto in dto.SubPlots ?? [])
-        {
-            Axes axes;
-            if (axDto.GridPosition is { } gpDto && figure.GridSpec is not null)
-            {
-                var pos = new GridPosition(gpDto.RowStart, gpDto.RowEnd, gpDto.ColStart, gpDto.ColEnd);
-                axes = figure.AddSubPlot(figure.GridSpec, pos);
-            }
-            else
-            {
-                axes = figure.AddSubPlot();
-            }
-            RestoreAxes(axes, axDto);
-        }
+            RestoreAxes(AddSubPlotFor(figure, axDto), axDto);
 
         // Resolve sharing references by key
         var keyedAxes = new Dictionary<string, Axes>();
@@ -458,6 +456,21 @@ public sealed class ChartSerializer : IChartSerializer
         }
 
         return figure;
+    }
+
+    /// <summary>Adds the subplot <paramref name="axDto"/> describes to <paramref name="figure"/>, placed as it was written: at its
+    /// cells of a grid specification (<c>gridPosition</c>, kept whether or not the figure has the specification, as the writer
+    /// writes it either way), in its cell of a rows-by-columns grid (<c>subplot</c>), or nowhere in particular.</summary>
+    private static Axes AddSubPlotFor(Figure figure, AxesDto axDto)
+    {
+        if (axDto.GridPosition is { } gpDto)
+        {
+            var axes = figure.AddSubPlot();
+            axes.GridPosition = new GridPosition(gpDto.RowStart, gpDto.RowEnd, gpDto.ColStart, gpDto.ColEnd);
+            return axes;
+        }
+
+        return axDto.Subplot?.AddTo(figure) ?? figure.AddSubPlot();
     }
 
     /// <summary>The ONE place an axes is read back: a subplot and an inset alike, everything <see cref="AxesToDto"/> wrote
@@ -492,9 +505,13 @@ public sealed class ChartSerializer : IChartSerializer
         RestoreReferenceLines(axes, axDto.ReferenceLines);
         RestoreSecondaryAxes(axes, axDto);
         RestoreSpans(axes, axDto.Spans);
+        foreach (var patchDto in axDto.Patches ?? [])
+            patchDto.AddTo(axes);
         RestoreTrendlines(axes, axDto.Trendlines);
         RestoreHorizontalLevels(axes, axDto.HorizontalLevels);
         RestoreFibonacciRetracements(axes, axDto.FibonacciRetracements);
+        foreach (var signalDto in axDto.Signals ?? [])
+            signalDto.AddTo(axes);
         RestoreInsets(axes, axDto.Insets);
         RestoreAxisBreaks(axes, axDto);
     }
@@ -754,6 +771,7 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.SymLogLinThresh is { } linThresh) axis.SymLogLinThresh = linThresh;
         if (dto.TickLocator is { } locator) axis.TickLocator = locator.Restore();
         if (dto.TickFormatter is { } formatter) axis.TickFormatter = formatter.Restore(axis.TickLocator);
+        if (dto.Link?.Restore() is { } link) axis.Link = link;
         if (dto.MajorTicks is { } majorTicks) axis.MajorTicks = majorTicks.ToTickConfig(RestingMajorTicks);
         if (dto.MinorTicks is { } minorTicks) axis.MinorTicks = minorTicks.ToTickConfig(RestingMinorTicks);
         if (dto.LabelStyle is { } labelStyle) axis.LabelStyle = labelStyle.ToTextStyle();
@@ -1162,6 +1180,10 @@ internal sealed record AxesDto
     public string? ShareXKey { get; init; }
     public string? ShareYKey { get; init; }
     public GridPositionDto? GridPosition { get; init; }
+    /// <summary>The cell of a rows-by-columns grid the subplot was added to with <c>AddSubPlot(rows, cols, index)</c>; absent
+    /// for a subplot placed another way, and for a figure whose one subplot stands in the one cell of a 1 by 1 grid. A 1.28.0
+    /// reader skips it.</summary>
+    public SubplotCellDto? Subplot { get; init; }
     public SpinesConfigDto? Spines { get; init; }
     public AxisDto? XAxis { get; init; }
     public AxisDto? YAxis { get; init; }
@@ -1210,9 +1232,14 @@ internal sealed record AxesDto
     public List<AnnotationDto>? Annotations { get; init; }
     public List<ReferenceLineDto>? ReferenceLines { get; init; }
     public List<SpanRegionDto>? Spans { get; init; }
+    /// <summary>The patches (shapes in data coordinates), in the order they were added, each told apart by its <c>type</c>
+    /// (<see cref="PatchDto"/>); absent when there are none. A 1.28.0 reader skips it.</summary>
+    public List<PatchDto>? Patches { get; init; }
     public List<TrendlineDto>? Trendlines { get; init; }
     public List<HorizontalLevelDto>? HorizontalLevels { get; init; }
     public List<FibonacciRetracementDto>? FibonacciRetracements { get; init; }
+    /// <summary>The buy and sell signals, in the order they were added; absent when there are none. A 1.28.0 reader skips it.</summary>
+    public List<SignalMarkerDto>? Signals { get; init; }
     public InsetBoundsDto? InsetBounds { get; init; }
     public List<AxesDto>? Insets { get; init; }
     /// <summary>The zoom this axes indicates on its parent when it is an inset: the rectangle over the region it shows and the
@@ -1430,6 +1457,10 @@ internal sealed record AxisDto
     /// <summary>The axis's tick formatter when it is one of the library's; absent for the default labels, and for a
     /// formatter written outside the library.</summary>
     public TickFormatterDto? TickFormatter { get; init; }
+    /// <summary>The link of the axis (<see cref="Axis.Link"/>) when it is one of the library's named transforms: the axis shows
+    /// the primary axis' range in another unit. Absent for an axis with a range of its own, and for a transform made of
+    /// functions of the caller's own (code the JSON cannot carry). A 1.28.0 reader skips it.</summary>
+    public AxisTransformDto? Link { get; init; }
     /// <summary><see langword="true"/> for an axis that runs from its maximum to its minimum.</summary>
     public bool? Inverted { get; init; }
     /// <summary>The data padding as a fraction of the range; absent when the theme's applies.</summary>

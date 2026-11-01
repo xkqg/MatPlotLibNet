@@ -187,7 +187,8 @@ Plt.Create()
 `FigText`, `FigLegend` and `FigImage` put something on the figure itself rather than in a subplot (matplotlib's `figtext`,
 `figlegend` and `figimage`). A text stands at fractions of the figure counted from its bottom-left corner. The figure's
 legend lists the labelled series of every subplot, in subplot order, an entry drawn exactly like an earlier one once, so
-two panels that each draw "North" and "South" in the same colours share two entries. An image is one pixel for each value,
+two panels that each draw "North" and "South" in the same colours share two entries; a subplot's labelled
+[patches](patches.md) follow its series. An image is one pixel for each value,
 at its native size, its offsets in pixels from the bottom-left corner:
 
 ```csharp
