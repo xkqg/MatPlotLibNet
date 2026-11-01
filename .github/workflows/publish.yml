@@ -18,6 +18,10 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+permissions:
+  contents: read
+  id-token: write   # the OIDC token nuget.org's trusted-publishing policy checks
+
 jobs:
   publish-core:
     runs-on: ubuntu-latest
@@ -89,12 +93,20 @@ jobs:
       - name: Pack
         run: dotnet pack MatPlotLibNet.CI.slnf --no-build --configuration Release --output nupkgs
 
+      # nuget.org trusts this workflow (a trusted-publishing policy on the package owner): the login trades the
+      # run's OIDC token for an API key that lives a few minutes, so no long-lived key sits in a repository secret.
+      - name: Log in to nuget.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: RikkieG
+
       - name: Push to NuGet
         run: |
           count=$(ls nupkgs/*.nupkg 2>/dev/null | wc -l)
           echo "Pushing $count package(s)"
           test "$count" -gt 0 || { echo "Pack reported success and produced no package"; exit 1; }
-          dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+          dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   publish-platform:
     runs-on: windows-latest
@@ -155,6 +167,14 @@ jobs:
       # matters at exactly the wrong moment -- a release where a pack step quietly produced nothing looks like
       # a release that went out. It now names what it is pushing, treats an empty directory as an error, and
       # checks each push where it happens rather than leaving the step's verdict to the last one.
+      # nuget.org trusts this workflow (a trusted-publishing policy on the package owner): the login trades the
+      # run's OIDC token for an API key that lives a few minutes, so no long-lived key sits in a repository secret.
+      - name: Log in to nuget.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: RikkieG
+
       - name: Push to NuGet
         run: |
           $pkgs = @(Get-ChildItem nupkgs/*.nupkg)
@@ -163,7 +183,7 @@ jobs:
           }
           Write-Host "Pushing $($pkgs.Count) package(s): $($pkgs.Name -join ', ')"
           foreach ($pkg in $pkgs) {
-            dotnet nuget push $pkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+            dotnet nuget push $pkg.FullName --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
             if ($LASTEXITCODE -ne 0) {
               throw "dotnet nuget push failed for $($pkg.Name) with exit code $LASTEXITCODE"
             }
@@ -224,5 +244,13 @@ jobs:
       - name: Build
         run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore --configuration Release -p:PackageOutputPath=$(pwd)/nupkgs
 
+      # nuget.org trusts this workflow (a trusted-publishing policy on the package owner): the login trades the
+      # run's OIDC token for an API key that lives a few minutes, so no long-lived key sits in a repository secret.
+      - name: Log in to nuget.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: RikkieG
+
       - name: Push to NuGet
-        run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
