@@ -41,11 +41,6 @@ jobs:
           dotnet restore MatPlotLibNet.CI.slnf
           dotnet build MatPlotLibNet.CI.slnf --no-restore --configuration Release
 
-      # Sample images are committed in images/ (generated locally where SkiaSharp
-      # native libraries are available). No need to regenerate on CI.
-      - name: Copy images to docs
-        run: cp -r images docs/images
-
       - name: Build DocFx site
         run: |
           docfx metadata docs/docfx.json

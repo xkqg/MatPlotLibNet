@@ -32,17 +32,26 @@ public class SampleDocumentContractTests
     }
 
     [Fact]
-    public void EveryPictureTheCookbookShows_IsInTheImagesFolder()
+    public void EveryPictureTheCookbookShows_IsInTheImagesFolder_ByAPathThatWorksOnGitHubAndOnTheSite()
     {
-        // The cookbook pages point at ../images/<name>, which the documentation site fills from images/ when it is
-        // built. A name with no file there is a broken picture on the published page, and no build fails on it.
-        var missing = Directory.EnumerateFiles(Path.Combine(Root, "docs", "cookbook"), "*.md")
+        // A cookbook page points at a picture by its place in the repository, ../../images/<name>: GitHub shows the page from
+        // docs/cookbook and finds the file there, and docfx, which takes images/ as a resource (docs/docfx.json), rewrites the
+        // link to the picture it copies into the site. A link to ../images/<name> found the picture only on the site, through a
+        // copy git ignores, and was broken on GitHub for every picture.
+        var pages = Directory.EnumerateFiles(Path.Combine(Root, "docs", "cookbook"), "*.md").ToArray();
+        var siteOnly = pages
             .SelectMany(page => Regex.Matches(File.ReadAllText(page), @"\]\(\.\./images/(?<name>[^)\s]+)\)")
+                .Select(m => $"{Path.GetFileName(page)} -> ../images/{m.Groups["name"].Value}"))
+            .ToArray();
+        var missing = pages
+            .SelectMany(page => Regex.Matches(File.ReadAllText(page), @"\]\(\.\./\.\./images/(?<name>[^)\s]+)\)")
                 .Select(m => m.Groups["name"].Value)
                 .Where(name => !File.Exists(Path.Combine(Root, "images", name)))
                 .Select(name => $"{Path.GetFileName(page)} -> {name}"))
             .ToArray();
 
+        Assert.True(siteOnly.Length == 0,
+            $"{siteOnly.Length} cookbook picture link(s) work on the site only; write ../../images/<name>: {string.Join("; ", siteOnly.Take(5))}");
         Assert.True(missing.Length == 0,
             $"The cookbook shows {missing.Length} picture(s) that images/ does not hold: {string.Join("; ", missing)}");
     }

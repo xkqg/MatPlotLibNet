@@ -41,7 +41,9 @@ public class MplChartSurfaceTests
     {
         var figure = Line();
         var handler = new RecordingChartEventHandler { Throw = new InvalidOperationException("boom") };
-        var control = new MplChartControl { Figure = figure, IsInteractive = true, ChartEventHandler = handler };
+        int made = 0;
+        InteractionControllerFactory factory = context => { made++; return InteractionController.Create(context); };
+        var control = new MplChartControl { Figure = figure, IsInteractive = true, ChartEventHandler = handler, ControllerFactory = factory };
         var failures = new List<Exception>();
         var clicks = new List<PinnedAnnotation>();
         control.ChartEventHandlerFaulted += failures.Add;
@@ -52,6 +54,8 @@ public class MplChartSurfaceTests
         host.HandleScroll(Wheel());
 
         Assert.Same(handler, control.ChartEventHandler);
+        Assert.Same(factory, control.ControllerFactory);   // the control's factory made the controller the gestures went through
+        Assert.Equal(1, made);
         Assert.Contains("ZoomEvent", handler.Names);
         Assert.NotEmpty(failures);
         Assert.All(failures, failure => Assert.IsType<InvalidOperationException>(failure));

@@ -31,7 +31,7 @@ Plt.Create()
     .Save("international.svg");
 ```
 
-![International text](../images/international.png)
+![International text](../../images/international.png)
 
 The library handles the text in three steps:
 

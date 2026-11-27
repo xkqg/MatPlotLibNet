@@ -49,11 +49,14 @@ public class InteractionModifierBaseTests
         Assert.Same(e, Assert.Single(sent));
     }
 
+    /// <summary>A modifier that overrides nothing claims no gesture, sends nothing, does nothing on the moves every modifier is
+    /// told of, and shows no rubber band, crosshair or tooltip: the roles a controller asks every modifier about are the base's,
+    /// so a modifier written outside the library takes one by overriding it.</summary>
     [Fact]
-    public void ByDefaultNothingIsClaimedAndNothingIsSent()
+    public void ByDefaultNothingIsClaimedNothingIsSentAndNothingIsShown()
     {
         var sent = new List<FigureInteractionEvent>();
-        IInteractionModifier modifier = new BareModifier("c", PlainLayout(), sent.Add);
+        InteractionModifier modifier = new BareModifier("c", PlainLayout(), sent.Add);
 
         Assert.False(modifier.HandlesPointerPressed(Press));
         Assert.False(modifier.HandlesScroll(Scroll));
@@ -62,6 +65,7 @@ public class InteractionModifierBaseTests
         {
             modifier.OnPointerPressed(Press);
             modifier.OnPointerMoved(Press);
+            modifier.OnPointerTracked(Press);
             modifier.OnPointerReleased(Press);
             modifier.OnScroll(Scroll);
             modifier.OnKeyDown(Key);
@@ -69,6 +73,9 @@ public class InteractionModifierBaseTests
 
         Assert.Null(thrown);
         Assert.Empty(sent);
+        Assert.Null(modifier.ActiveBrushSelect);
+        Assert.Null(modifier.ActiveCrosshair);
+        Assert.Null(modifier.ActiveTooltip);
     }
 
     [Fact]

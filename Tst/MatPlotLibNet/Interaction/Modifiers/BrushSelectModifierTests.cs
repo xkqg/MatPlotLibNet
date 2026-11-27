@@ -31,6 +31,25 @@ public sealed class BrushSelectModifierTests : InteractionModifierTests<BrushSel
         Assert.Equal(y2, evt.Y2, precision: 3);
     }
 
+    /// <summary>The rubber band a controller draws is the role every modifier is asked for: while the brush is dragged it is the
+    /// brush's band, and once it is released there is none.</summary>
+    [Fact]
+    public void WhileDragged_TheBandShownIsTheBrushs_AndAfterTheReleaseThereIsNone()
+    {
+        var (m, _) = Make();
+        InteractionModifier band = m;
+
+        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.Shift));
+        m.OnPointerMoved(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.Shift));
+        var whileDragged = band.ActiveBrushSelect;
+        var brushWhileDragged = m.ActiveBrush;
+        m.OnPointerReleased(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.Shift));
+
+        Assert.NotNull(whileDragged);
+        Assert.Equal(brushWhileDragged, whileDragged);
+        Assert.Null(band.ActiveBrushSelect);
+    }
+
     /// <summary>A move with no press before it, and a release outside the plot after a press inside it, send nothing.</summary>
     [Fact]
     public void AMoveWithoutAPress_AndAReleaseOutsideAfterAPressInside_SendNothing() => AssertNothingIsSent(m =>

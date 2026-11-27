@@ -166,7 +166,7 @@ Plt.Create()
     .Save("linked_orders.svg");
 ```
 
-![Two scatter charts of the same six orders](../images/linked_orders.png)
+![Two scatter charts of the same six orders](../../images/linked_orders.png)
 
 Open the SVG in a browser and the points of o2 and o5, the rows the chart starts with selected, stand out in both charts while the others
 are dimmed. The picture is a PNG, which has no script, so it shows all six alike.

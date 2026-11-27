@@ -35,16 +35,16 @@ public class CrosshairModifierTests
         m.OnKeyDown(new KeyInputArgs(EscapeKey, ModifierKeys.None));
     }
 
-    /// <summary>CrosshairModifier UpdatePosition outside plot → state cleared
-    /// (`axesIndex is null` true arm). Pins the false-arm short-circuit.</summary>
+    /// <summary>The crosshair follows every move it is told of, as the role a controller asks every modifier about: over the plot
+    /// it is where the pointer is, and outside the plot it is cleared (the move <c>UpdatePosition</c> takes is the same one).</summary>
     [Fact]
-    public void Crosshair_UpdatePosition_OutsidePlot_ClearsState()
+    public void Crosshair_FollowsEveryTrackedMove_AndIsClearedOutsideThePlot()
     {
         var (_, layout) = FigureLayout.Plain();
-        var m = new CrosshairModifier(layout);
-        m.UpdatePosition(60, 35);
-        Assert.NotNull(m.ActiveCrosshair);
-        m.UpdatePosition(500, 500);
+        InteractionModifier m = new CrosshairModifier(layout);
+        m.OnPointerTracked(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
+        Assert.Equal(60, m.ActiveCrosshair?.PixelX);
+        ((CrosshairModifier)m).UpdatePosition(500, 500);
         Assert.Null(m.ActiveCrosshair);
     }
 

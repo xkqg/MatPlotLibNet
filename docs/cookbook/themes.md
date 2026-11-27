@@ -98,7 +98,7 @@ foreach (var name in themes)
 }
 ```
 
-![Theme comparison](../images/theme_comparison.png)
+![Theme comparison](../../images/theme_comparison.png)
 
 ## Custom theme with ThemeBuilder
 

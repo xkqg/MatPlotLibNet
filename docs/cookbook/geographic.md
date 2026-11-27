@@ -24,7 +24,7 @@ Plt.Create()
     .Save("world_robinson.svg");
 ```
 
-![World map — Robinson](../images/geo_robinson.png)
+![World map — Robinson](../../images/geo_robinson.png)
 
 ## Globe view (Orthographic)
 
@@ -45,7 +45,7 @@ Plt.Create()
     .Save("globe.svg");
 ```
 
-![Globe — Orthographic](../images/geo_globe.png)
+![Globe — Orthographic](../../images/geo_globe.png)
 
 A country that crosses the horizon of the globe is cut there, as cartopy cuts it: the land runs up to the globe's edge and the
 coastlines end on it.
@@ -224,7 +224,7 @@ Plt.Create()
     .Save("choropleth_world.svg");
 ```
 
-![A world map with each country coloured by its population](../images/choropleth_world.png)
+![A world map with each country coloured by its population](../../images/choropleth_world.png)
 
 ## Bubbles on a map
 
@@ -255,7 +255,7 @@ Plt.Create()
     .Save("bubble_map.svg");
 ```
 
-![Fourteen amber bubbles at the largest cities on a dark green world map](../images/bubble_map.png)
+![Fourteen amber bubbles at the largest cities on a dark green world map](../../images/bubble_map.png)
 
 ## The cells of the H3 index
 
@@ -294,7 +294,7 @@ Plt.Create()
     .Save("h3_bins.svg");
 ```
 
-![The H3 cells along every coast coloured by how many coastline points each holds, the cells at the antimeridian cut at the edge of the map](../images/h3_bins.png)
+![The H3 cells along every coast coloured by how many coastline points each holds, the cells at the antimeridian cut at the edge of the map](../../images/h3_bins.png)
 
 Cells you already have, by their index:
 
@@ -352,7 +352,7 @@ Plt.Create()
     .Save("flow_map.svg");
 ```
 
-![Five amber curves between ports on a dark green world map, the widest from Tokyo to San Francisco](../images/flow_map.png)
+![Five amber curves between ports on a dark green world map, the widest from Tokyo to San Francisco](../../images/flow_map.png)
 
 ## Countries resized by a value
 
@@ -388,7 +388,7 @@ Plt.Create()
     .Save("cartogram_dorling.svg");
 ```
 
-![Above, the countries resized by population; below, a bubble at the centre of each country](../images/cartogram_dorling.png)
+![Above, the countries resized by population; below, a bubble at the centre of each country](../../images/cartogram_dorling.png)
 
 ## Countries that still meet at their borders
 
@@ -419,7 +419,7 @@ Plt.Create()
     .Save("cartogram_contiguous.svg");
 ```
 
-![The countries resized by population and still meeting at their borders: India and China swollen across Asia, Russia, Canada and Australia thinned](../images/cartogram_contiguous.png)
+![The countries resized by population and still meeting at their borders: India and China swollen across Asia, Russia, Canada and Australia thinned](../../images/cartogram_contiguous.png)
 
 The countries are moved on a lattice 512 cells across the longer side of the map, and the flow is laid again on the moved
 countries until each is within 1 % of its area, at most twenty times. On this map 148 of the 149 countries with a share large enough to
@@ -535,7 +535,7 @@ for (int i = 0; i < projections.Length; i++)
 fig.Save("geo_projection_grid.svg");
 ```
 
-![Four-projection comparison](../images/geo_projection_grid.png)
+![Four-projection comparison](../../images/geo_projection_grid.png)
 
 ## Night-side globe
 
@@ -557,4 +557,4 @@ Plt.Create()
     .Save("geo_nightside.svg");
 ```
 
-![Night-side globe](../images/geo_nightside.png)
+![Night-side globe](../../images/geo_nightside.png)

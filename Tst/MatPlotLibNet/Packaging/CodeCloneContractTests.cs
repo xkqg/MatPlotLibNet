@@ -44,15 +44,17 @@ public class CodeCloneContractTests
     internal readonly record struct DeclaredFamily(string Reason, string[] Paths);
 
     /// <summary>The families of files that are declarations: a copy that stays inside one of them is no block written twice. What the plan
-    /// decided to leave written per file: the three toolkits' controls (S5: the one rule of a gesture is <c>InteractionHost</c>, each
+    /// decided to leave written per file: the four toolkits' controls (S5: the one rule of a gesture is <c>InteractionHost</c>, each
     /// framework control forwards to it), the four interpolation engines (SD8) and the two azimuthal projections (SD4), the six faces of the
     /// cube (SD10), and the table of composed verbs (a row of literals for each verb).</summary>
     internal static readonly DeclaredFamily[] Declared =
     [
         new("Each toolkit's chart and streaming control derives from its own framework control and forwards its input to the one InteractionHost: "
-            + "WPF, Avalonia and Uno share no base type, so the forwarding members stand once per toolkit (the surface is the owner inside each).",
+            + "WPF, Avalonia, Uno and MAUI share no base type, so the forwarding members (the handler, the controller factory) stand once per "
+            + "toolkit (the surface is the owner inside each; on MAUI the chart view the streaming view derives from).",
             [
                 "Src/MatPlotLibNet.Wpf/MplChartSurface.cs", "Src/MatPlotLibNet.Uno/MplChartSurface.cs", "Src/MatPlotLibNet.Avalonia/MplChartSurface.cs",
+                "Src/MatPlotLibNet.Maui/MplChartView.cs",
                 "Src/MatPlotLibNet.Wpf/MplChartControl.cs", "Src/MatPlotLibNet.Uno/MplChartElement.cs",
                 "Src/MatPlotLibNet.Wpf/MplStreamingChartControl.cs", "Src/MatPlotLibNet.Uno/MplStreamingChartElement.cs",
             ]),

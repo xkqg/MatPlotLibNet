@@ -66,7 +66,9 @@ public sealed partial class WikiNavigationTests
     [Fact]
     public void TheMigrationPage_NamesEveryMemberTheChangeLogSaysIsRemoved_ASingleLineHoldingAllOfABulletsMembers()
     {
-        var released = SourceFile.SectionOf(File.ReadAllText(Path.Join(RepositoryRoot.Folder, "CHANGELOG.md")), $"[{Repository.PackageVersion}]");
+        // The page is about the release it names, whichever release the packages carry now.
+        var release = MigrationName["Migrating-to-".Length..^".md".Length];
+        var released = SourceFile.SectionOf(File.ReadAllText(Path.Join(RepositoryRoot.Folder, "CHANGELOG.md")), $"[{release}]");
         var removed = SourceFile.BulletsOf(SourceFile.SubsectionOf(released, "Removed"));
 
         Assert.NotEmpty(removed);

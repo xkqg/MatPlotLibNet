@@ -23,7 +23,7 @@ Plt.Create()
     .Save("broken_y.svg");
 ```
 
-![Broken Y-axis](../images/broken_y.png)
+![Broken Y-axis](../../images/broken_y.png)
 
 ## Under the matplotlib themes
 

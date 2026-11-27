@@ -30,7 +30,7 @@ Plt.Create()
     .Save("contour_labels.svg");
 ```
 
-![Contour with labels](../images/contour_labels.png)
+![Contour with labels](../../images/contour_labels.png)
 
 Every line is drawn first and every label after them, as matplotlib's `clabel` does, so no line runs across a label. A
 label stands at the middle of its line's length, turned along the line and never upside down (it follows an inverted Y
@@ -191,7 +191,7 @@ Plt.Create()
     .Save("mesh_sensors.svg");
 ```
 
-![The Delaunay mesh of seven sensor positions, with the sensors as points](../images/mesh_sensors.png)
+![The Delaunay mesh of seven sensor positions, with the sensors as points](../../images/mesh_sensors.png)
 
 The edges are drawn at the coordinates you gave. A point that is missing or infinite takes every edge that runs to it out
 whole; a list that is not whole triangles, or an index that names no point, is refused.

@@ -11,14 +11,18 @@ public sealed class CrosshairModifier : InteractionModifier
     private CrosshairState? _state;
 
     /// <summary>Current crosshair state, or <c>null</c> when the mouse is outside the plot area.</summary>
-    public CrosshairState? ActiveCrosshair => _state;
+    public override CrosshairState? ActiveCrosshair => _state;
 
     /// <summary>Creates a crosshair modifier.</summary>
     public CrosshairModifier(IChartLayout layout) : base(layout)
     {
     }
 
-    /// <summary>Updates crosshair state on every pointer move (called by controller in passive block).</summary>
+    /// <inheritdoc />
+    /// <remarks>The crosshair moves to the pointer (<see cref="UpdatePosition"/>).</remarks>
+    public override void OnPointerTracked(PointerInputArgs args) => UpdatePosition(args.X, args.Y);
+
+    /// <summary>Updates the crosshair state to a pixel: the crosshair is there over a plot area, and gone outside every one.</summary>
     public void UpdatePosition(double pixelX, double pixelY)
     {
         var axesIndex = Layout.HitTestAxes(pixelX, pixelY);

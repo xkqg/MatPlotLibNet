@@ -233,10 +233,18 @@ internal sealed class SourceFile
     /// <param name="heading">What the heading says after its <c>### </c>.</param>
     public static string SubsectionOf(string section, string heading)
     {
-        var block = BlocksOf(Cut(section, out _), line => line.StartsWith("### ", StringComparison.Ordinal)).FirstOrDefault(lines => lines[0] == "### " + heading);
+        var block = SubsectionOrNull(section, heading);
         Xunit.Assert.True(block is not null, $"The section has no subsection \"### {heading}\".");
-        return string.Join('\n', block!);
+        return block!;
     }
+
+    /// <summary>The part of a section under the line <c>### heading</c>, as <see cref="SubsectionOf"/> reads it, or <see langword="null"/>
+    /// when the section has no such heading (a release that removed nothing has no Removed list).</summary>
+    /// <param name="section">The text of a section (<see cref="SectionOf"/>).</param>
+    /// <param name="heading">What the heading says after its <c>### </c>.</param>
+    public static string? SubsectionOrNull(string section, string heading) =>
+        BlocksOf(Cut(section, out _), line => line.StartsWith("### ", StringComparison.Ordinal)).FirstOrDefault(lines => lines[0] == "### " + heading)
+            is { } block ? string.Join('\n', block) : null;
 
     /// <summary>The lines between the two <c>---</c> lines that open a markdown document (its YAML header); none when it has none.</summary>
     public static IReadOnlyList<string> FrontMatterOf(string markdown) =>

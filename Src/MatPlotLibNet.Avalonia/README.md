@@ -44,6 +44,8 @@ Set `IsInteractive="True"` and the control handles pan, zoom, reset, and brush-s
 | Home / Escape | Reset to original limits |
 | Shift + left-drag | Brush select (fires `BrushSelectEvent` to your custom sink) |
 
+To change which gestures the control has, or to put your own controller in, set `ControllerFactory` (for example, start from `InteractionController.DefaultModifiers(context)` and remove the legend toggle).
+
 ## Server mode
 
 `WithServerInteraction` makes a control (`MplChartControl` or `MplStreamingChartControl`) interactive and sends each gesture

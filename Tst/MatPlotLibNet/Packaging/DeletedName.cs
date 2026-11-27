@@ -126,6 +126,8 @@ internal readonly record struct DeletedName(string Name, string ReplacedBy, bool
         new("ToolbarState", "InteractionToolbar (Buttons, ActiveToolId); no member of the library made or took one", Published: true),
         new("SnappedPoint", "nothing: the library never set it, so it was always null", Published: true),
         new("InteractionHost.InvalidateRequested", "the repaint a control gives its host when it makes it (new InteractionHost(repaint))", Published: true),
+        new("IHostedInteractionController", "InteractionContext: the host makes the context, so it hears the clicked point and every event from its sink whichever controller sends them"),
+        new("InteractionController.For", "InteractionContext.For, the context a host makes for a figure, handed to InteractionHost.ControllerFactory"),
         new("IThemedSeriesVisitor", "ISeriesRendererHost: a package's series is drawn by its renderer over the context of the pass (SeriesRenderContext.Theme, SeriesColor)"),
         new("IViewedSeriesVisitor", "ISeriesRendererHost: a package's series is drawn by its renderer over the context of the pass (SeriesRenderContext.Transform)"),
         new("ThemeDrawnUnder", "SeriesRenderContext.Theme, read by the renderer of a package's series"),

@@ -22,7 +22,7 @@ Plt.Create()
     .Save("dashboard.svg");
 ```
 
-![Dashboard](../images/dashboard.png)
+![Dashboard](../../images/dashboard.png)
 
 ## GridSpec with ratio control
 
@@ -38,7 +38,7 @@ Plt.Create()
     .Save("gridspec_layout.svg");
 ```
 
-![GridSpec](../images/gridspec_layout.png)
+![GridSpec](../../images/gridspec_layout.png)
 
 ## Mosaic layout (string-based)
 
@@ -129,7 +129,7 @@ Plt.Create()
     .Save("inset_legend.svg");
 ```
 
-![A damped sine wave with the legend "Full signal" at the lower left and an inset of its first 1.5 units, whose own legend reads "Detail"](../images/inset_legend.png)
+![A damped sine wave with the legend "Full signal" at the lower left and an inset of its first 1.5 units, whose own legend reads "Detail"](../../images/inset_legend.png)
 
 The four numbers are fractions of the parent's plot: the inset's left edge, its top edge counted down from the parent's top,
 its width and its height. matplotlib's `inset_axes` counts its y up from the bottom instead, so (0.55, 0.55) stands lower
@@ -159,7 +159,7 @@ Plt.Create()
     .Save("inset_zoom.svg");
 ```
 
-![A wave with an inset of the stretch from 6 to 7.5, its region marked by a grey rectangle on the parent and two lines to the inset](../images/inset_zoom.png)
+![A wave with an inset of the stretch from 6 to 7.5, its region marked by a grey rectangle on the parent and two lines to the inset](../../images/inset_zoom.png)
 
 The indicator is matplotlib's: the theme's neutral grey at half opacity, one pixel wide, solid, with connectors; the callback
 of `IndicateZoom(zoom => …)` sets its `Color`, `Alpha`, `LineWidth`, `LineStyle` and `Connectors`. An inset that stands
@@ -238,7 +238,7 @@ Plt.Create()
     .Save("figure_overlays.svg");
 ```
 
-![Two line charts with one legend for both at the upper right of the figure, a source line at the bottom left, a red note at the top left and a gradient strip at the bottom right](../images/figure_overlays.png)
+![Two line charts with one legend for both at the upper right of the figure, a source line at the bottom left, a red note at the top left and a gradient strip at the bottom right](../../images/figure_overlays.png)
 
 The images are drawn under every subplot; the figure's colour bar, then its texts, then its legends over them, in the SVG,
 the PNG, the PDF and the native controls alike, and on a figure that has no subplot at all. A text or an image placed off
@@ -364,4 +364,4 @@ Plt.Create()
 
 `GridPosition(rowStart, rowEnd, colStart, colEnd)` uses zero-based exclusive indices.
 
-![Scatter with marginals](../images/scatter_marginals.png)
+![Scatter with marginals](../../images/scatter_marginals.png)

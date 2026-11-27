@@ -7,7 +7,7 @@ Runnable sample projects that demonstrate the MatPlotLibNet charting library. Al
 > the chart needs at once: pan/zoom, **legend toggle + press-and-hold legend drag**,
 > treemap drilldown, sankey hover, 3D rotation, rich tooltips,
 > highlight, brush selection. The library detects which scripts each chart needs and
-> emits only those. There is no per-feature toggle for the user to manage.
+> emits only those. There is no per-feature toggle for the user to manage. (A native control's `ControllerFactory` can still change which gestures it has; see [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls).)
 
 ## Playground
 

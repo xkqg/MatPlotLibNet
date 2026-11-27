@@ -57,7 +57,7 @@ Plt.Create()
     .Save("math_text.svg");
 ```
 
-![Math text](../images/math_text.png)
+![Math text](../../images/math_text.png)
 
 ## Fractions, square roots, accents, font variants
 
@@ -81,7 +81,7 @@ Plt.Create()
     .Save("math_text_v130.svg");
 ```
 
-![Fractions, square roots, accents and font variants](../images/math_text_v130.png)
+![Fractions, square roots, accents and font variants](../../images/math_text_v130.png)
 
 ## Operator limits — integrals, sums, products
 

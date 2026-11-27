@@ -55,7 +55,7 @@ Plt.Create()
     .Save("styled.svg");
 ```
 
-![PropCycler](../images/prop_cycler.png)
+![PropCycler](../../images/prop_cycler.png)
 
 ## Grid and spine styling
 
@@ -107,7 +107,7 @@ Plt.Create()
     .Save("polar_grid.svg");
 ```
 
-![A three-petalled blue curve on a polar axes whose rings and spokes are dashed crimson lines](../images/polar_grid.png)
+![A three-petalled blue curve on a polar axes whose rings and spokes are dashed crimson lines](../../images/polar_grid.png)
 
 
 ## The neutral grey
@@ -137,7 +137,7 @@ Plt.Create()
     .Save("neutral_colour.svg");
 ```
 
-![A line chart on Nord's dark background with two dashed grey reference lines, Target at 5 and Floor at 3](../images/neutral_colour.png)
+![A line chart on Nord's dark background with two dashed grey reference lines, Target at 5 and Floor at 3](../../images/neutral_colour.png)
 
 
 ## Tight margins
@@ -172,7 +172,7 @@ FigureTemplates.ScientificPaper(
 .Save("scientific.svg");
 ```
 
-![Scientific paper](../images/scientific_paper.png)
+![Scientific paper](../../images/scientific_paper.png)
 
 ## Sparkline dashboard
 
@@ -190,7 +190,7 @@ FigureTemplates.SparklineDashboard(
 .Save("sparklines.svg");
 ```
 
-![Sparkline dashboard](../images/sparkline_dashboard.png)
+![Sparkline dashboard](../../images/sparkline_dashboard.png)
 
 ## Hide all axes chrome
 
@@ -247,7 +247,7 @@ Plt.Create()
     .Save("range_frame.svg");
 ```
 
-![A line chart whose left line spans only the data](../images/range_frame.png)
+![A line chart whose left line spans only the data](../../images/range_frame.png)
 
 ## Equal scale
 

@@ -154,7 +154,7 @@ var waveSteps = new AnimationBuilder(frameCount: 8, frame =>
 waveSteps.SaveStepThroughSvg("wave_steps.svg");
 ```
 
-![A sine wave on a plot titled Wave, phase 0](../images/wave_steps.svg)
+![A sine wave on a plot titled Wave, phase 0](../../images/wave_steps.svg)
 
 Without its script the file is its first frame, which is what an `<img>`, a README or a viewer that runs nothing shows, and a reader who
 asked their system for reduced motion gets no autoplay. Open the file itself to step: Home and End go to the ends, the space bar plays and

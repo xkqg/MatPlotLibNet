@@ -72,7 +72,7 @@ Plt.Create()
     .Save("psd_vibration.svg");
 ```
 
-![The power spectral density of the vibration, with peaks at 50 and 170 Hz](../images/psd_vibration.png)
+![The power spectral density of the vibration, with peaks at 50 and 170 Hz](../../images/psd_vibration.png)
 
 The Y axis is titled "Power Spectral Density (dB/Hz)", or "(dB)" with `Scaling = SpectralScaling.Spectrum` (matplotlib's
 `scale_by_freq=False`). A title of your own set after the call replaces it. What is left at the end of the signal, less
@@ -96,7 +96,7 @@ Plt.Create()
     .Save("psd_two_sided.svg");
 ```
 
-![The power spectral density of the vibration over negative and positive frequencies, mirrored about zero](../images/psd_two_sided.png)
+![The power spectral density of the vibration over negative and positive frequencies, mirrored about zero](../../images/psd_two_sided.png)
 
 ## Cross spectral density (csd)
 
@@ -114,7 +114,7 @@ Plt.Create()
     .Save("csd_casing.svg");
 ```
 
-![The cross spectral density of the two signals, with one clear peak at 50 Hz](../images/csd_casing.png)
+![The cross spectral density of the two signals, with one clear peak at 50 Hz](../../images/csd_casing.png)
 
 ## Coherence (cohere)
 
@@ -132,7 +132,7 @@ Plt.Create()
     .Save("cohere_casing.svg");
 ```
 
-![The coherence of the two signals, close to 1 at 50 Hz and low elsewhere](../images/cohere_casing.png)
+![The coherence of the two signals, close to 1 at 50 Hz and low elsewhere](../../images/cohere_casing.png)
 
 ## Magnitude, phase and angle spectrum
 
@@ -166,7 +166,7 @@ Plt.Create()
     .Save("echo_spectra.svg");
 ```
 
-![The magnitude, phase and angle spectrum of an impulse and its echo](../images/echo_spectra.png)
+![The magnitude, phase and angle spectrum of an impulse and its echo](../../images/echo_spectra.png)
 
 ## Autocorrelation and cross-correlation (acorr, xcorr)
 
@@ -196,7 +196,7 @@ Plt.Create()
     .Save("correlation_lags.svg");
 ```
 
-![The autocorrelation of a periodic signal as stems, and the cross-correlation of a pulse train and its echo as markers peaking at lag -4](../images/correlation_lags.png)
+![The autocorrelation of a periodic signal as stems, and the cross-correlation of a pulse train and its echo as markers peaking at lag -4](../../images/correlation_lags.png)
 
 The signal needs more samples than `MaxLags`, or the call is refused.
 
@@ -230,7 +230,7 @@ Plt.Create()
     .Save("spectrogram_tone.svg");
 ```
 
-![A spectrogram of a 125 Hz tone with the bright row on the dashed line at 125 Hz](../images/spectrogram_tone.png)
+![A spectrogram of a 125 Hz tone with the bright row on the dashed line at 125 Hz](../../images/spectrogram_tone.png)
 
 The arrays behind the picture are `Fft.Stft(signal, windowSize, overlap, sampleRate)` in `MatPlotLibNet.Numerics`: the
 magnitudes, the frequency of each row and the time of each column.

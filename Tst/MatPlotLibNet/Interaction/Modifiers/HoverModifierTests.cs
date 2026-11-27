@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Tests.Interaction.Modifiers;
 public sealed class HoverModifierTests : InteractionModifierTests<HoverModifier>
 {
     protected override HoverModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
+        new("c1", layout, fig, sink);
 
     [Fact]
     public void OnPointerMoved_NoButton_InsidePlot_ProducesHoverEvent()
@@ -40,6 +40,30 @@ public sealed class HoverModifierTests : InteractionModifierTests<HoverModifier>
         var evt = Assert.IsType<HoverEvent>(events[0]);
         Assert.Equal(5.0, evt.X, precision: 3);
         Assert.Equal(2.5, evt.Y, precision: 3);
+    }
+
+    /// <summary>The hover owns the tooltip of the point under the pointer: a move with no button over the plot names the nearest
+    /// point, a move off the plot clears it, a move with a button down (a drag) leaves it as it was, and a hover made without the
+    /// figure has no points to name.</summary>
+    [Fact]
+    public void TheTooltip_NamesTheNearestPoint_IsClearedOffThePlot_AndIsLeftAloneDuringADrag()
+    {
+        var (m, _) = Make();
+        InteractionModifier hover = m;
+
+        hover.OnPointerTracked(new PointerInputArgs(20, 30, PointerButton.None, ModifierKeys.None));
+        var named = hover.ActiveTooltip;
+        hover.OnPointerTracked(new PointerInputArgs(80, 50, PointerButton.Left, ModifierKeys.None));
+        var duringTheDrag = hover.ActiveTooltip;
+        hover.OnPointerTracked(new PointerInputArgs(500, 500, PointerButton.None, ModifierKeys.None));
+
+        Assert.Equal(0, named?.PointIndex);
+        Assert.Equal(0, named?.SeriesIndex);
+        Assert.Same(named, duringTheDrag);
+        Assert.Null(hover.ActiveTooltip);
+        var withoutTheFigure = new HoverModifier("c1", FigureLayout.Plain().Layout, _ => { });
+        withoutTheFigure.OnPointerTracked(new PointerInputArgs(20, 30, PointerButton.None, ModifierKeys.None));
+        Assert.Null(withoutTheFigure.ActiveTooltip);
     }
 
     [Fact]

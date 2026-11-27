@@ -25,7 +25,7 @@ Plt.Create()
     .Save("survey_words.svg");
 ```
 
-![Twelve words in different colours and sizes with no overlap, price and support the largest in the middle](../images/survey_words.png)
+![Twelve words in different colours and sizes with no overlap, price and support the largest in the middle](../../images/survey_words.png)
 
 ## What it does when the words do not fit
 

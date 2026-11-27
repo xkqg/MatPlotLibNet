@@ -301,6 +301,80 @@ public class InteractionControllerTests
         Assert.Null(ctrl.ActiveTooltip);
     }
 
+    // ── the gestures a chart has are the caller's ──────────────────────────────
+    //
+    // The fifteen gestures used to be a list written inside the controller, so a caller who wanted one gesture less, or a zoom
+    // of their own, had to write a whole controller. The default set is now a list the caller gets and edits, in the order its
+    // members claim a gesture, and the controller is made from the context and that list.
+
+    /// <summary>A gesture of the caller's own: it claims every wheel turn, counts the moves it is told of and shows a tooltip of
+    /// its own, so it can stand in the place of the zoom and take the role of the hover.</summary>
+    private sealed class OwnGesture(InteractionContext context) : InteractionModifier(context.ChartId, context.Layout, context.Sink)
+    {
+        public int Scrolls;
+        public int Tracked;
+
+        public override bool HandlesScroll(ScrollInputArgs args) => true;
+        public override void OnScroll(ScrollInputArgs args) => Scrolls++;
+        public override void OnPointerTracked(PointerInputArgs args) => Tracked++;
+        public override HoverTooltipContent? ActiveTooltip => new("own", 0, 0);
+    }
+
+    [Fact]
+    public void TheDefaultGestures_AreTheFifteen_InTheOrderTheyClaim_OverTheContextsToolbar()
+    {
+        var (fig, layout) = Make();
+        var context = new InteractionContext(fig, layout, _ => { });
+
+        var names = InteractionController.DefaultModifiers(context).Select(m => m.GetType().Name);
+
+        Assert.Equal(
+            ["LegendToggleModifier", "HomeModifier", "Rotate3DModifier", "RectangleZoomModifier", "BrushSelectModifier",
+             "SpanSelectModifier", "TrendlineDrawingModifier", "LevelDrawingModifier", "FibonacciDrawingModifier",
+             "DrawingToolSelectionModifier", "DataCursorModifier", "PanModifier", "ZoomModifier", "CrosshairModifier", "HoverModifier"],
+            names);
+        Assert.Equal(string.Empty, context.ChartId);   // a figure with no chart id addresses its events to none
+        Assert.Same(context.Toolbar, InteractionController.Create(context).Toolbar);
+    }
+
+    [Fact]
+    public void AGestureTakenOutOfTheSet_IsGone_TheOthersStay_AndTheListIsTheCallersAfterwards()
+    {
+        var (fig, layout) = Make();
+        var events = new List<FigureInteractionEvent>();
+        var context = new InteractionContext(fig, layout, events.Add);
+        var modifiers = InteractionController.DefaultModifiers(context);
+        modifiers.RemoveAll(m => m is ZoomModifier);
+        var ctrl = InteractionController.Create(context, modifiers);
+        modifiers.Clear();
+
+        ctrl.HandleScroll(new ScrollInputArgs(60, 35, 0, -1));
+        ctrl.HandleKeyDown(new KeyInputArgs("Home"));
+
+        Assert.IsType<ResetEvent>(Assert.Single(events));
+    }
+
+    [Fact]
+    public void AGestureOfTheCallersOwn_InPlaceOfABuiltInOne_ClaimsWhatThatOneClaimed_AndTakesTheRoleOfTheHover()
+    {
+        var (fig, layout) = Make();
+        var events = new List<FigureInteractionEvent>();
+        var context = new InteractionContext(fig, layout, events.Add);
+        var own = new OwnGesture(context);
+        var modifiers = InteractionController.DefaultModifiers(context);
+        modifiers[modifiers.FindIndex(m => m is ZoomModifier)] = own;
+        modifiers.RemoveAll(m => m is HoverModifier);
+        var ctrl = InteractionController.Create(context, modifiers);
+
+        ctrl.HandleScroll(new ScrollInputArgs(60, 35, 0, -1));
+        ctrl.HandlePointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
+
+        Assert.Equal(1, own.Scrolls);
+        Assert.Equal(1, own.Tracked);
+        Assert.Equal("own", ctrl.ActiveTooltip?.Text);
+        Assert.Empty(events);   // no zoom and no hover: both were the caller's to take out
+    }
+
     // ── the clicked data point ─────────────────────────────────────────────────
     //
     // A click on a point produced a DataCursorEvent, the sink swallowed it, and that was the end of it: local
@@ -352,12 +426,15 @@ public class InteractionControllerTests
         var published = new List<FigureInteractionEvent>();
         var ctrl = InteractionController.Create(figure, layout, published.Add);
         var pinned = new List<PinnedAnnotation>();
+        var handled = new List<FigureInteractionEvent>();
         ctrl.DataPointClicked += pinned.Add;
+        ctrl.EventHandled += handled.Add;
 
         ctrl.HandlePointerPressed(Click(100, 50));
 
         Assert.Equal(1.0, Assert.Single(pinned).DataX);
         Assert.IsType<DataCursorEvent>(Assert.Single(published));
+        Assert.Same(published[0], Assert.Single(handled));   // told once the sink has it
     }
 
     [Fact]
@@ -381,12 +458,21 @@ public class InteractionControllerTests
     [Fact]
     public void AClickOnADataPoint_WithNobodyListening_IsStillJustAClick()
     {
+        // Nobody listening includes a listener that has left: both events let go of the handler they were given.
         var (figure, layout) = Pinnable();
         var ctrl = InteractionController.CreateLocal(figure, layout);
+        var pinned = new List<PinnedAnnotation>();
+        var handled = new List<FigureInteractionEvent>();
+        ctrl.DataPointClicked += pinned.Add;
+        ctrl.EventHandled += handled.Add;
+        ctrl.DataPointClicked -= pinned.Add;
+        ctrl.EventHandled -= handled.Add;
 
         ctrl.HandlePointerPressed(Click(100, 50));
 
         Assert.Null(ctrl.ActiveTooltip);
+        Assert.Empty(pinned);
+        Assert.Empty(handled);
     }
 
     [Fact]

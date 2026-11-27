@@ -23,7 +23,7 @@ Plt.Create()
     .Save("chart.svg");
 ```
 
-![Line chart](../images/chart.png)
+![Line chart](../../images/chart.png)
 
 ## Line styles, markers, and width
 
@@ -134,7 +134,7 @@ Plt.Create()
     .Save("stairs_orders.svg");
 ```
 
-![A staircase of order counts drawn as an outline and as a fill down to zero](../images/stairs_orders.png)
+![A staircase of order counts drawn as an outline and as a fill down to zero](../../images/stairs_orders.png)
 
 The callback receives a `StairsParts` with exactly one part set: `Outline` (a `LineSeries`) without a baseline, `Fill`
 (an `AreaSeries`) with one. A missing value is a gap in the line and in the fill, and a missing edge leaves out both bins
@@ -171,7 +171,7 @@ Plt.Create()
     .Save("segments_ranges.svg");
 ```
 
-![Vertical segments for each day's temperature range, and horizontal bars for a task schedule](../images/segments_ranges.png)
+![Vertical segments for each day's temperature range, and horizontal bars for a task schedule](../../images/segments_ranges.png)
 
 A segment with a coordinate that is missing or infinite is left out whole, and the segments beside it stay apart.
 
@@ -352,7 +352,7 @@ Plt.Create()
     .Save("prop_cycler.svg");
 ```
 
-![PropCycler](../images/prop_cycler.png)
+![PropCycler](../../images/prop_cycler.png)
 
 The series at place i takes the cycler's entry i: its colour, line style, line width and marker, in the plot and in
 its legend entry. A series that sets one of these itself keeps its own; one that leaves it at what a new series holds
@@ -377,7 +377,7 @@ Plt.Create()
     .Save("lttb.svg");
 ```
 
-![LTTB downsampling](../images/lttb_downsampling.png)
+![LTTB downsampling](../../images/lttb_downsampling.png)
 
 A line with gaps is downsampled one unbroken run at a time, and the runs are joined by a missing point again, so the
 downsampled line breaks where the data does and never joins two runs across a gap. Every run keeps its first and last
@@ -419,7 +419,7 @@ Plt.Create()
     .Save("legend_outside.svg");
 ```
 
-![Outside legend](../images/legend_outside.png)
+![Outside legend](../../images/legend_outside.png)
 
 ## Legend customization
 
@@ -544,7 +544,7 @@ Plt.Create()
     .Save("bump_chart.svg");
 ```
 
-![Bump chart](../images/bump_chart.png)
+![Bump chart](../../images/bump_chart.png)
 
 `BumpChart` draws one marked line per group in one colour of the theme's cycle and names each group at the end of
 its line, in the line's colour, so the chart needs no legend. It sets the Y limits itself, because they make the
@@ -578,7 +578,7 @@ Plt.Create()
     .Save("control_chart.svg");
 ```
 
-![Control chart](../images/control_chart.png)
+![Control chart](../../images/control_chart.png)
 
 Unless you pass `limits`, they are estimated the individuals chart's way: the centre is the mean of the values, and
 sigma is the average moving range (the mean distance between each value and the one before it) divided by 1.128.
@@ -630,7 +630,7 @@ Plt.Create()
     .Save("xbar_chart.svg");
 ```
 
-![An X-bar chart marked by Nelson's tests](../images/xbar_chart.png)
+![An X-bar chart marked by Nelson's tests](../../images/xbar_chart.png)
 
 Subgroups 19 and 20, the ninth and tenth of the run above the centre, are flagged by test 2, and subgroup 12 is beyond the upper limit.
 A value on a limit is not beyond it, so a count of 0 on a lower limit of 0 is not flagged.
@@ -667,7 +667,7 @@ Plt.Create()
     .Save("stackplot_legend_line.svg");
 ```
 
-![Three stacked areas with a red target line above them and a legend that names the layers and the line](../images/stackplot_legend_line.png)
+![Three stacked areas with a red target line above them and a legend that names the layers and the line](../../images/stackplot_legend_line.png)
 
 A stack without layer names keeps one legend entry under the series' name. A layer must hold a value for every x; the MCP
 server accepts a stacked-area spec.
@@ -700,7 +700,7 @@ Plt.Create()
     .Save("stream_graph.svg");
 ```
 
-![Stream graph](../images/stream_graph.png)
+![Stream graph](../../images/stream_graph.png)
 
 A layer's value is the thickness of its stream, read as the distance between its two edges; the first layer is
 the lowest. Where the stream lies up and down means nothing, so the Y axis has no ticks:
@@ -734,7 +734,7 @@ Plt.Create()
     .Save("horizon_chart.svg");
 ```
 
-![Horizon chart](../images/horizon_chart.png)
+![Horizon chart](../../images/horizon_chart.png)
 
 A band's height is the largest finite `|y|` divided by `bands`; band *k* folds the part of the series between
 `k × height` and `(k + 1) × height` down onto one strip, so a series many times taller than the plot still fits
@@ -763,7 +763,7 @@ Plt.Create()
     .Save("connected_scatter.svg");
 ```
 
-![A connected scatter with an arrow along each segment](../images/connected_scatter.png)
+![A connected scatter with an arrow along each segment](../../images/connected_scatter.png)
 
 The path is a scatter and a quiver in one colour; each arrow's head lands on the next point (the arrows ask for data units, `AutoScale = false`, whatever the theme) and points along the segment as the
 page draws it. The points keep the order given, so the x values may go back and forth. `ConnectedScatterParts` hands you the
@@ -788,5 +788,5 @@ Plt.Create()
     .Save("fill_betweenx_speed.svg");
 ```
 
-![An area that runs from the left axis out to a jagged curve](../images/fill_betweenx_speed.png)
+![An area that runs from the left axis out to a jagged curve](../../images/fill_betweenx_speed.png)
 

@@ -28,7 +28,7 @@ FigureTemplates.FinancialDashboard(
     .Save("financial_dashboard.svg");
 ```
 
-![Financial dashboard](../images/financial_dashboard.png)
+![Financial dashboard](../../images/financial_dashboard.png)
 
 ## Technical indicators
 
@@ -64,7 +64,7 @@ Plt.Create()
     .Save("phase_f_indicators.svg");
 ```
 
-![Technical indicators](../images/phase_f_indicators.png)
+![Technical indicators](../../images/phase_f_indicators.png)
 
 ### Anchored VWAP and volume profile
 
@@ -89,7 +89,7 @@ Plt.Create()
     .Save("volume_profile.svg");
 ```
 
-![Volume by price and a VWAP anchored at bar 30](../images/volume_profile.png)
+![Volume by price and a VWAP anchored at bar 30](../../images/volume_profile.png)
 
 The streaming form is `StreamingVwap`, whose `AnchorHere()` forgets the sums so the average restarts at the next bar, and
 `new Vwap(df.Hlcv(highCol, lowCol, closeCol, volumeCol), anchor)` reads the bars from a data frame. `Vwap(prices, volumes)` refuses arrays of
@@ -130,7 +130,7 @@ Plt.Create()
     .Save("rrg_centre.svg");
 ```
 
-![A relative rotation graph of three assets in the upper right quadrant, with the 100/100 centre and the three other quadrants in the lower left corner](../images/rrg_centre.png)
+![A relative rotation graph of three assets in the upper right quadrant, with the 100/100 centre and the three other quadrants in the lower left corner](../../images/rrg_centre.png)
 
 
 ### Basic usage
@@ -219,7 +219,7 @@ Plt.Create()
     .Save("point_and_figure_closes.svg");
 ```
 
-![Point and Figure chart](../images/point_and_figure_closes.png)
+![Point and Figure chart](../../images/point_and_figure_closes.png)
 
 `PointAndFigure(prices, boxSize, reversal = 3)` draws columns of boxes, an X where the price rose and an O where it fell. A
 column grows while the price reaches the next box in its direction and gives way to the other kind once the price has come
@@ -237,7 +237,7 @@ Plt.Create()
     .Save("renko_closes.svg");
 ```
 
-![Renko chart](../images/renko_closes.png)
+![Renko chart](../../images/renko_closes.png)
 
 `Renko(prices, brickSize)` is a staircase of bricks of one size, anchored on the first close. A close on the next brick's
 trigger draws it, a close that covers several bricks draws each, and a reversal needs two bricks from the far edge, so a
@@ -253,7 +253,7 @@ Plt.Create()
     .Save("kagi_closes.svg");
 ```
 
-![Kagi chart](../images/kagi_closes.png)
+![Kagi chart](../../images/kagi_closes.png)
 
 `Kagi(prices, reversal)` is one path of vertical lines and short connectors that turns thick exactly where the price breaks
 above the last shoulder and thin exactly where it breaks below the last waist, in the middle of a line. `KagiParts` hands you

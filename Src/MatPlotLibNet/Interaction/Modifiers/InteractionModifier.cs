@@ -6,7 +6,11 @@ namespace MatPlotLibNet.Interaction;
 /// <summary>The common base of the modifiers: it holds the chart id, the layout and the event sink every modifier
 /// is made with, and answers "I claim nothing" and "I do nothing" to every gesture until a derived class overrides
 /// the ones it cares about. A modifier that only presses and drags overrides the pointer members and leaves the scroll
-/// and key members as they are.</summary>
+/// and key members as they are.
+/// <para>Beyond the gestures it claims, a controller asks every modifier for a role: what it does on each move of the pointer
+/// (<see cref="OnPointerTracked"/>, the crosshair and the hover) and what it shows (<see cref="ActiveBrushSelect"/>,
+/// <see cref="ActiveCrosshair"/>, <see cref="ActiveTooltip"/>). A modifier of your own derives from this class and overrides the
+/// ones it takes, so it can stand in the place of a built-in one in <see cref="InteractionController.DefaultModifiers"/>.</para></summary>
 public abstract class InteractionModifier : IInteractionModifier
 {
     private readonly Action<FigureInteractionEvent> _sink;
@@ -56,4 +60,19 @@ public abstract class InteractionModifier : IInteractionModifier
     public virtual bool HandlesKeyDown(KeyInputArgs args) => false;
     /// <inheritdoc />
     public virtual void OnKeyDown(KeyInputArgs args) { }
+
+    /// <summary>Told of every move of the pointer, whichever modifier is dragging (the one dragging is told through
+    /// <see cref="OnPointerMoved"/> instead). The crosshair follows the pointer here and the hover names the point under it.
+    /// Does nothing unless overridden.</summary>
+    /// <param name="args">The pointer position, button and held keys.</param>
+    public virtual void OnPointerTracked(PointerInputArgs args) { }
+
+    /// <summary>The rubber band this modifier is dragging, for the control to draw, or <see langword="null"/> for none.</summary>
+    public virtual BrushSelectState? ActiveBrushSelect => null;
+
+    /// <summary>The crosshair this modifier shows under the pointer, or <see langword="null"/> for none.</summary>
+    public virtual CrosshairState? ActiveCrosshair => null;
+
+    /// <summary>The tooltip this modifier shows for the point under the pointer, or <see langword="null"/> for none.</summary>
+    public virtual HoverTooltipContent? ActiveTooltip => null;
 }

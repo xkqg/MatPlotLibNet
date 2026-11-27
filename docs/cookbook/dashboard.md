@@ -301,7 +301,7 @@ Plt.Create()
     .Save("ops_dashboard_full.svg");
 ```
 
-![Ops dashboard](../images/ops_dashboard_full.png)
+![Ops dashboard](../../images/ops_dashboard_full.png)
 
 See [Threshold convenience](annotations.md#threshold-convenience) and
 [Legend value display](line-charts.md#legend-value-display) for the full parameter
@@ -468,7 +468,7 @@ calls it — says *where* it is wrong and *what else is downstream of it*. `AddT
 dashboard: one node per service, one directed edge per call, coloured by the same alarm ramp the tiles use, so
 the sick node is the only coloured thing on the panel.
 
-![Service topology](../images/ops_topology.png)
+![Service topology](../../images/ops_topology.png)
 
 ```csharp
 var services = new List<GraphNode>

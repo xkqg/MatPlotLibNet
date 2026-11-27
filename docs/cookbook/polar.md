@@ -27,7 +27,7 @@ Plt.Create()
     .Save("polar_line.svg");
 ```
 
-![Polar line](../images/polar_line.png)
+![Polar line](../../images/polar_line.png)
 
 ## Multi-series polar
 
@@ -75,7 +75,7 @@ Plt.Create()
     .Save("radar_comparison.svg");
 ```
 
-![Radar comparison](../images/radar_comparison.png)
+![Radar comparison](../../images/radar_comparison.png)
 
 Two radars on one axes share one web under the matplotlib themes, as matplotlib's polar axes has one radial axis: the outer ring is
 the largest outer value of the two (here Player 1's 95, so Player 2's 88 stops short of it), the rings are labelled once and the
@@ -153,7 +153,7 @@ Plt.Create()
     .Save("wind_rose.svg");
 ```
 
-![Wind rose](../images/wind_rose.png)
+![Wind rose](../../images/wind_rose.png)
 
 ## Wind rose stacked by speed
 
@@ -184,7 +184,7 @@ Plt.Create()
     .Save("wind_rose_stacked.svg");
 ```
 
-![A wind rose of eight wedges, each of three stacked layers, the palest nearest the centre](../images/wind_rose_stacked.png)
+![A wind rose of eight wedges, each of three stacked layers, the palest nearest the centre](../../images/wind_rose_stacked.png)
 
 The wedges of one direction are the same index of every series. One series alone is not a stack, a radius that is not drawn
 (missing, infinite or below zero) adds nothing, and the stacking is worked out when the chart is drawn and written into no

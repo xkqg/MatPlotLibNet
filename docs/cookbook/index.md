@@ -49,7 +49,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [A second axis in another unit](linked-axes.md) | Fahrenheit beside Celsius and a period above a frequency (`Link` with an `AxisTransform`, matplotlib's `secondary_xaxis` and `secondary_yaxis`), how the ticks are placed, a top axis with a range of its own |
 | [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates, a range frame, an equal scale, several figures on one page |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks, turned labels with room beside the plot |
-| [State timeline in WPF](wpf-timeline.md) | A WPF window with a state timeline: tooltip and click per event, pan and zoom along time, stacked categories on one time axis, a marker for the playback position |
+| [State timeline in WPF](wpf-timeline.md) | A WPF window with a state timeline: tooltip and click per event, pan and zoom along time, stacked categories on one time axis, a marker for the playback position, only the gestures you want |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition, topology panel (the service map) |
 | [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages, a spec of shapes and overlays with no series, a linked axis |
 | [Verso notebooks](verso.md) | A chart inside a notebook cell: end the cell on a figure or a builder, how tall a chart may be, what a failed render says |

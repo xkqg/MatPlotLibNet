@@ -24,7 +24,7 @@ Plt.Create()
     .Save("tick_locators.svg");
 ```
 
-![Tick locators](../images/tick_locators.png)
+![Tick locators](../../images/tick_locators.png)
 
 ## Date axes
 
@@ -45,7 +45,7 @@ Plt.Create()
     .Save("date_axis.svg");
 ```
 
-![Date axis](../images/date_axis.png)
+![Date axis](../../images/date_axis.png)
 
 ## Rotated tick labels
 

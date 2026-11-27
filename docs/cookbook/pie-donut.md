@@ -19,7 +19,7 @@ Plt.Create()
     .Save("pie.svg");
 ```
 
-![Pie chart](../images/pie_chart.png)
+![Pie chart](../../images/pie_chart.png)
 
 ## Pie with explode, shadow, and percentage labels
 
@@ -66,7 +66,7 @@ Plt.Create()
     .Save("pie_styled.svg");
 ```
 
-![Donut chart](../images/donut_chart.png)
+![Donut chart](../../images/donut_chart.png)
 
 ## Donut chart
 
@@ -152,7 +152,7 @@ Plt.Create()
 
 `Ranges` defines the color bands. Each `GaugeBand(Threshold, Color)` entry covers the range from the previous threshold (or `Min`) up to `Threshold`.
 
-![Gauge chart](../images/gauge_chart.png)
+![Gauge chart](../../images/gauge_chart.png)
 
 ## Funnel chart
 
@@ -177,7 +177,7 @@ Plt.Create()
     .Save("funnel_chart.svg");
 ```
 
-![Funnel chart](../images/funnel_chart.png)
+![Funnel chart](../../images/funnel_chart.png)
 
 ## Waffle chart
 
@@ -198,7 +198,7 @@ Plt.Create()
     .Save("heating_waffle.svg");
 ```
 
-![Waffle chart of households by heating](../images/heating_waffle.png)
+![Waffle chart of households by heating](../../images/heating_waffle.png)
 
 Each category takes the whole number of cells its share comes to, and the cells left over go one each to the categories
 whose shares left the largest remainders (a tie goes to the category that comes first), so the cells always add up to the

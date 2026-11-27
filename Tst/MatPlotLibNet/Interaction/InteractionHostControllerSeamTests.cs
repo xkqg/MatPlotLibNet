@@ -7,23 +7,24 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Interaction;
 
-/// <summary><see cref="IInteractionController"/> had one implementation and no reader: the host every native control shares
-/// held the concrete controller, so the interface described a seam nothing went through. The host now talks to the
-/// controller through the interface (and hears the clicked point and every handled event through the internal interface
-/// beside it), and is built with the factory that makes a controller; these tests hand it a stand-in.</summary>
+/// <summary>A native control's host builds its controller through the factory it is given and talks to it through
+/// <see cref="IInteractionController"/> only, so a controller written outside the library takes the built-in one's place. What
+/// the controller sends it sends through its context's sink, which the host made: the gesture reaches the figure (or the
+/// server), the control's clicked point and its handler, whichever controller sent it. These tests hand the host a stand-in.</summary>
 public class InteractionHostControllerSeamTests
 {
     private static readonly Rect Area = new(10, 10, 200, 100);
 
-    private sealed class StandInController : IHostedInteractionController
+    /// <summary>A controller of the caller's own: it records what the host forwards and sends what a test tells it to through
+    /// the context it was made with.</summary>
+    private sealed class StandInController(InteractionContext context) : IInteractionController
     {
+        public InteractionContext Context { get; } = context;
         public readonly List<string> Calls = [];
         public IChartLayout? Layout;
         public HoverTooltipContent? Tooltip { get; set; }
 
         public event Action? InvalidateRequested;
-        public event Action<PinnedAnnotation>? DataPointClicked;
-        public event Action<FigureInteractionEvent>? EventHandled;
 
         public void HandlePointerPressed(PointerInputArgs args) => Calls.Add("pressed");
         public void HandlePointerMoved(PointerInputArgs args) => Calls.Add("moved");
@@ -36,8 +37,7 @@ public class InteractionHostControllerSeamTests
         public void UpdateLayout(IChartLayout layout) => Layout = layout;
 
         public void Invalidate() => InvalidateRequested?.Invoke();
-        public void Click(PinnedAnnotation point) => DataPointClicked?.Invoke(point);
-        public void Handled(FigureInteractionEvent evt) => EventHandled?.Invoke(evt);
+        public void Send(FigureInteractionEvent evt) => Context.Sink(evt);
     }
 
     private static Figure NewFigure()
@@ -47,73 +47,113 @@ public class InteractionHostControllerSeamTests
         return figure;
     }
 
+    /// <summary>A host whose factory makes a stand-in, and the list of every stand-in it made.</summary>
+    private static (InteractionHost Host, List<StandInController> Made) HostOfStandIns(Action? repaint = null)
+    {
+        var made = new List<StandInController>();
+        var host = repaint is null ? new InteractionHost() : new InteractionHost(repaint);
+        host.ControllerFactory = context =>
+        {
+            var controller = new StandInController(context);
+            made.Add(controller);
+            return controller;
+        };
+        return (host, made);
+    }
+
     [Fact]
     public void TheHost_BuildsItsControllerThroughTheFactory_AndTalksToItThroughTheInterface()
     {
-        var made = new List<(Figure Figure, Action<FigureInteractionEvent>? Sink)>();
-        var controller = new StandInController { Tooltip = new HoverTooltipContent("y = 4", 1, 2) };
-        var host = new InteractionHost((figure, _, sink) =>
-        {
-            made.Add((figure, sink));
-            return controller;
-        });
+        var (host, made) = HostOfStandIns();
         var figure = NewFigure();
         var firstLayout = ChartLayout.Create(figure, [Area]);
         var secondLayout = ChartLayout.Create(figure, [Area]);
 
         host.Update(figure, firstLayout);
         host.Update(figure, secondLayout);
+        var controller = Assert.Single(made);                     // one controller for one figure
+        controller.Tooltip = new HoverTooltipContent("y = 4", 1, 2);
         host.HandlePointerPressed(new PointerInputArgs(1, 1, PointerButton.Left, ModifierKeys.None));
         host.HandlePointerMoved(new PointerInputArgs(1, 1, PointerButton.None, ModifierKeys.None));
         host.HandlePointerReleased(new PointerInputArgs(1, 1, PointerButton.Left, ModifierKeys.None));
         host.HandleScroll(new ScrollInputArgs(1, 1, 0, 1));
         host.HandleKeyDown(new KeyInputArgs("Home"));
 
-        Assert.Same(figure, Assert.Single(made).Figure);              // one controller for one figure
-        Assert.Null(made[0].Sink);                                    // no server sink: the controller keeps the figure
-        Assert.Same(secondLayout, controller.Layout);                 // a repaint replaced the layout only
+        Assert.Same(figure, controller.Context.Figure);
+        Assert.Equal("c", controller.Context.ChartId);
+        Assert.Same(secondLayout, controller.Layout);              // a repaint replaced the layout only
         Assert.Equal(["pressed", "moved", "released", "scroll", "key"], controller.Calls);
         Assert.Equal("y = 4", host.ActiveTooltip?.Text);
     }
 
     [Fact]
-    public void WhatTheControllerSays_ReachesTheControl()
+    public void WhatACallersControllerSends_ReachesTheFigure_TheClickedPoint_AndTheHandler()
     {
-        var controller = new StandInController();
-        var handler = new RecordingChartEventHandler();
         int repaints = 0;
-        var host = new InteractionHost((_, _, _) => controller, () => repaints++) { Handler = handler };
+        var (host, made) = HostOfStandIns(() => repaints++);
+        var handler = new RecordingChartEventHandler();
+        host.Handler = handler;
         var clicked = new List<PinnedAnnotation>();
         host.DataPointClicked += clicked.Add;
         var figure = NewFigure();
         host.Update(figure, ChartLayout.Create(figure, [Area]));
+        var controller = Assert.Single(made);
         var point = new PinnedAnnotation("s", 1, 2, 3, 4, 0);
-        var zoom = new ZoomEvent("c", 0, 0, 1, 0, 1);
+        var zoom = new ZoomEvent("c", 0, 1.5, 2.5, 0, 1);
+        var pin = new DataCursorEvent("c", 0, point);
 
+        controller.Send(zoom);
+        controller.Send(pin);
         controller.Invalidate();
-        controller.Click(point);
-        controller.Handled(zoom);
 
-        Assert.Equal(1, repaints);
+        Assert.Equal(1.5, figure.SubPlots[0].XAxis.Min);           // no server: the gesture is applied to the figure in place
+        Assert.Equal(2, repaints);                                 // once for the zoom that changed it, once when asked; the pin changes nothing
         Assert.Equal(point, Assert.Single(clicked));
+        Assert.Equal([zoom, pin], handler.Events);
+    }
+
+    [Fact]
+    public void WithAServerSink_WhatACallersControllerSends_GoesToTheServer_AndTheFigureIsLeftForIt()
+    {
+        int repaints = 0;
+        var (host, made) = HostOfStandIns(() => repaints++);
+        var handler = new RecordingChartEventHandler();
+        host.Handler = handler;
+        var sent = new List<FigureInteractionEvent>();
+        host.ServerEventSink = sent.Add;
+        var figure = NewFigure();
+        host.Update(figure, ChartLayout.Create(figure, [Area]));
+        var zoom = new ZoomEvent("c", 0, 1.5, 2.5, 0, 1);
+
+        Assert.Single(made).Send(zoom);
+
+        Assert.Same(zoom, Assert.Single(sent));
+        Assert.Null(figure.SubPlots[0].XAxis.Min);
+        Assert.Equal(0, repaints);
         Assert.Same(zoom, Assert.Single(handler.Events));
     }
 
     [Fact]
-    public void AServerSink_IsHandedToTheFactory()
+    public void AFactorySetAfterAPaint_MakesTheControllerOfTheNextPaint()
     {
-        Action<FigureInteractionEvent>? given = null;
-        var host = new InteractionHost((_, _, sink) =>
-        {
-            given = sink;
-            return new StandInController();
-        });
-        Action<FigureInteractionEvent> sink = _ => { };
-        host.ServerEventSink = sink;
+        var host = new InteractionHost();
         var figure = NewFigure();
-
         host.Update(figure, ChartLayout.Create(figure, [Area]));
+        var made = new List<StandInController>();
 
-        Assert.Same(sink, given);
+        host.ControllerFactory = context =>
+        {
+            var controller = new StandInController(context);
+            made.Add(controller);
+            return controller;
+        };
+        var attachedBeforeThePaint = host.IsAttached;
+        host.HandleScroll(new ScrollInputArgs(1, 1, 0, 1));
+        host.Update(figure, ChartLayout.Create(figure, [Area]));
+        host.HandleScroll(new ScrollInputArgs(1, 1, 0, 1));
+
+        Assert.False(attachedBeforeThePaint);
+        Assert.Equal(["scroll"], Assert.Single(made).Calls);
+        Assert.Throws<ArgumentNullException>(() => host.ControllerFactory = null!);
     }
 }

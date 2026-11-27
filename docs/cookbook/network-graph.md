@@ -115,7 +115,7 @@ Plt.Create()
     .Save("arc_diagram.svg");
 ```
 
-![An arc diagram](../images/arc_diagram.png)
+![An arc diagram](../../images/arc_diagram.png)
 
 ### Hierarchical
 This layout walks the graph breadth-first from node 0 and lays out one layer per depth,

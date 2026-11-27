@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.DataFrame</PackageId>
-    <Version>1.30.0</Version>
+    <Version>1.31.0</Version>
     <Description>Microsoft.Data.Analysis.DataFrame extension methods for MatPlotLibNet — plot directly from typed DataFrames (Line, Scatter, Hist with hue grouping), read the bars of every financial / signal-processing indicator of the library (SMA, EMA, RSI, MACD, Bollinger, ADX, ATR, VWAP, Ichimoku, Supertrend, MAMA/FAMA, Garman-Klass, Yang-Zhang, VPIN, BOCPD, Transfer Entropy, and more) by one call for each shape of bars (Hlc, Hlcv, Ohlc, Cv, Hl, Hlv) or one column (Values), and run polynomial regression with confidence bands — all from named column strings.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;dataframe;indicators;finance;sma;ema;macd;bollinger</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

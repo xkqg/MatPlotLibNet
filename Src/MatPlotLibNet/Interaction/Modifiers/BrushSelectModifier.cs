@@ -19,6 +19,10 @@ public sealed class BrushSelectModifier : RubberBandModifier
         Band.Showing(static (x0, y0, x1, y1, axes) => new BrushSelectState(x0, y0, x1, y1, axes));
 
     /// <inheritdoc />
+    /// <remarks>The brush being dragged (<see cref="ActiveBrush"/>).</remarks>
+    public override BrushSelectState? ActiveBrushSelect => ActiveBrush;
+
+    /// <inheritdoc />
     /// <remarks>The selected box is normalised, low ends first, whichever way the pointer was dragged.</remarks>
     private protected override void Released(Drag drag)
     {

@@ -27,7 +27,7 @@ Plt.Create()
     .Save("surface.svg");
 ```
 
-![3D Surface](../images/threed_surface_sinc.png)
+![3D Surface](../../images/threed_surface_sinc.png)
 
 ## 3D Scatter
 
@@ -40,7 +40,7 @@ Plt.Create()
     .Save("scatter3d.svg");
 ```
 
-![3D Scatter](../images/threed_scatter3d_paraboloid.png)
+![3D Scatter](../../images/threed_scatter3d_paraboloid.png)
 
 `MarkerStyle` names the shape of each point (a circle by default; a square, triangle, diamond, pentagon, hexagon, star, cross or
 plus, or none), in the plot and in the legend entry:
@@ -61,7 +61,7 @@ Plt.Create()
     .Save("scatter3d_markers.svg");
 ```
 
-![Six points in 3-D space, the first three round and the last three square, with a legend naming both kinds](../images/scatter3d_markers.png)
+![Six points in 3-D space, the first three round and the last three square, with a legend naming both kinds](../../images/scatter3d_markers.png)
 
 ## 3D Bar chart with interactive rotation
 
@@ -76,7 +76,7 @@ Plt.Create()
     .Save("bar3d.svg");
 ```
 
-![3D Bar](../images/threed_bar3d_interactive.png)
+![3D Bar](../../images/threed_bar3d_interactive.png)
 
 ### The strength of the light
 
@@ -111,9 +111,9 @@ Plt.Create()
     .Save("light_ambient.svg");
 ```
 
-![Six tomato-coloured bars; the faces turned away from the light are almost black](../images/light_direct.png)
+![Six tomato-coloured bars; the faces turned away from the light are almost black](../../images/light_direct.png)
 
-![The same six bars, every face in the same tomato colour](../images/light_ambient.png)
+![The same six bars, every face in the same tomato colour](../../images/light_ambient.png)
 
 
 With no ambient part the faces turned away from the light are almost black; with no direct part every face has the same colour.
@@ -149,13 +149,13 @@ Plt.Create()
 
 Every 3-D series on one axes shares one depth sort, so several Bar3D series composite correctly whatever order they were added in:
 
-![Grouped 3D bars](../images/threed_bar3d_grouped.png)
+![Grouped 3D bars](../../images/threed_bar3d_grouped.png)
 
 ## Planar 3D bars
 
 Planar 3D bars are flat translucent rectangles on discrete Y planes:
 
-![Planar 3D bars](../images/threed_planar_bars.png)
+![Planar 3D bars](../../images/threed_planar_bars.png)
 
 ## Line3D — helix polyline
 
@@ -174,7 +174,7 @@ Plt.Create()
     .Save("line3d.svg");
 ```
 
-![Line3D helix](../images/threed_line3d_helix.png)
+![Line3D helix](../../images/threed_line3d_helix.png)
 
 ## Trisurf3D — Delaunay triangulated surface
 
@@ -193,7 +193,7 @@ Plt.Create()
     .Save("trisurf.svg");
 ```
 
-![Trisurf3D](../images/threed_trisurf.png)
+![Trisurf3D](../../images/threed_trisurf.png)
 
 ## Contour3D — contour lines in 3D
 
@@ -212,7 +212,7 @@ Plt.Create()
     .Save("contour3d.svg");
 ```
 
-![Contour3D](../images/threed_contour3d.png)
+![Contour3D](../../images/threed_contour3d.png)
 
 ## Quiver3D — 3D vector field
 
@@ -227,7 +227,7 @@ Plt.Create()
     .Save("quiver3d.svg");
 ```
 
-![Quiver3D](../images/threed_quiver3d.png)
+![Quiver3D](../../images/threed_quiver3d.png)
 
 ## Voxels — volumetric cubes
 
@@ -245,7 +245,7 @@ Plt.Create()
     .Save("voxels.svg");
 ```
 
-![Voxels](../images/threed_voxels.png)
+![Voxels](../../images/threed_voxels.png)
 
 ## Text3D — 3D annotations
 
@@ -261,4 +261,4 @@ Plt.Create()
     .Save("text3d.svg");
 ```
 
-![Text3D](../images/threed_text3d.png)
+![Text3D](../../images/threed_text3d.png)

@@ -28,7 +28,6 @@ public class DeletedNamesTests
         var published = DeletedName.All.Where(deleted => deleted.Published).Select(deleted => deleted.Name[(deleted.Name.LastIndexOf('.') + 1)..]).ToHashSet(StringComparer.Ordinal);
         var unlisted = RemovedSinceBaseline.Names.Where(name => !published.Contains(name)).Order(StringComparer.Ordinal).ToList();
 
-        Assert.True(RemovedSinceBaseline.Names.Count >= FewestRemoved, $"the suppression files give {RemovedSinceBaseline.Names.Count} removed names, fewer than the {FewestRemoved} measured");
         Assert.True(unlisted.Count == 0, $"{unlisted.Count} names the packages removed that DeletedName.All does not list as published: " + string.Join(", ", unlisted));
     }
 
@@ -37,12 +36,23 @@ public class DeletedNamesTests
     [Fact]
     public void EveryNameThePackagesRemovedSinceTheReleaseBefore_IsListedUnderRemovedInTheChangeLog()
     {
-        var released = SourceFile.SectionOf(File.ReadAllText(Path.Join(RepositoryRoot.Folder, "CHANGELOG.md")), $"[{Repository.PackageVersion}]");
-
-        var unlisted = UnlistedIn(SourceFile.SubsectionOf(released, "Removed"), RemovedSinceBaseline.Names);
+        var unlisted = UnlistedIn(RemovedListOfThisRelease() ?? string.Empty, RemovedSinceBaseline.Names);
 
         Assert.True(unlisted.Count == 0, $"{unlisted.Count} names the packages removed that the change log's Removed list does not name: " + string.Join(", ", unlisted));
     }
+
+    /// <summary>The change log of this release has a Removed list exactly when the suppression files remove a name: a reader that
+    /// looks for the files in the wrong place finds no name while the list has some, and a release that removed nothing (a minor
+    /// one) has neither.</summary>
+    [Fact]
+    public void TheChangeLog_HasARemovedList_ExactlyWhenTheSuppressionFilesRemoveAName()
+    {
+        Assert.Equal(RemovedListOfThisRelease() is not null, RemovedSinceBaseline.Names.Count > 0);
+    }
+
+    // The Removed list of this release's section of the change log, or null when the release removed nothing.
+    private static string? RemovedListOfThisRelease() => SourceFile.SubsectionOrNull(
+        SourceFile.SectionOf(File.ReadAllText(Path.Join(RepositoryRoot.Folder, "CHANGELOG.md")), $"[{Repository.PackageVersion}]"), "Removed");
 
     [Fact]
     public void ANameTheRemovedListDoesNotHoldInCode_IsUnlisted()
@@ -58,8 +68,4 @@ public class DeletedNamesTests
         var listed = SourceFile.CodeSpansOf(removed).SelectMany(span => System.Text.RegularExpressions.Regex.Matches(span.Code, @"\w+").Select(word => word.Value)).ToHashSet(StringComparer.Ordinal);
         return [.. names.Where(name => !listed.Contains(name))];
     }
-
-    /// <summary>How many names the suppression files remove that the packages no longer have, at least: a reader that finds fewer reads
-    /// the files from the wrong place. Measured, not chosen.</summary>
-    private const int FewestRemoved = 25;
 }

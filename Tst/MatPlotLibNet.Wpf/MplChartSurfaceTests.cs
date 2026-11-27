@@ -29,7 +29,12 @@ public class MplChartSurfaceTests
     {
         using var stream = new StreamingFigure(Line());
         var handler = new RecordingChartEventHandler { Throw = new InvalidOperationException("boom") };
-        var control = new MplStreamingChartControl { StreamingFigure = stream, IsInteractive = true, ChartEventHandler = handler };
+        int made = 0;
+        InteractionControllerFactory factory = context => { made++; return InteractionController.Create(context); };
+        var control = new MplStreamingChartControl
+        {
+            StreamingFigure = stream, IsInteractive = true, ChartEventHandler = handler, ControllerFactory = factory,
+        };
         var failures = new List<Exception>();
         var clicks = new List<PinnedAnnotation>();
         control.ChartEventHandlerFaulted += failures.Add;
@@ -39,6 +44,8 @@ public class MplChartSurfaceTests
         control.Host.HandlePointerPressed(new PointerInputArgs(100, 50, PointerButton.Left, ModifierKeys.None));
 
         Assert.Same(handler, control.ChartEventHandler);
+        Assert.Same(factory, control.ControllerFactory);   // the control's factory made the controller the gestures went through
+        Assert.Equal(1, made);
         Assert.NotEmpty(handler.Names);
         Assert.All(failures, failure => Assert.IsType<InvalidOperationException>(failure));
         Assert.NotEmpty(failures);

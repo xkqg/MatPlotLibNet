@@ -28,7 +28,7 @@ Plt.Create()
     .Save("accessibility_colorblind.svg");
 ```
 
-![Color-blind safe](../images/accessibility_colorblind.png)
+![Color-blind safe](../../images/accessibility_colorblind.png)
 
 ## High-contrast theme
 
@@ -48,7 +48,7 @@ Plt.Create()
     .Save("high_contrast.svg");
 ```
 
-![High contrast](../images/accessibility_highcontrast.png)
+![High contrast](../../images/accessibility_highcontrast.png)
 
 ## SVG semantics
 

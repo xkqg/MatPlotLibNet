@@ -35,7 +35,7 @@ Plt.Create()
     .Save("soil_ternary.svg");
 ```
 
-![Soil samples in a triangle with Clay at the top, Silt at the bottom left and Sand at the bottom right](../images/soil_ternary.png)
+![Soil samples in a triangle with Clay at the top, Silt at the bottom left and Sand at the bottom right](../../images/soil_ternary.png)
 
 The ticks run counter-clockwise: the right part along the base, the top part up the right edge, the left part down the left edge,
 and the grid stands at every fifth. The amounts can be counts, percentages or masses, because they are closed to fractions only to
@@ -70,7 +70,7 @@ Plt.Create()
     .Save("piper_water.svg");
 ```
 
-![Two triangles and a diamond with a marker for each of three waters](../images/piper_water.png)
+![Two triangles and a diamond with a marker for each of three waters](../../images/piper_water.png)
 
 The percentages are of milliequivalents. The table gives the six percentages, the charge balance error and the word "balanced" or
 "unbalanced" for each water: a water whose charges do not balance, beyond 5 %, is flagged and not dropped. A water with an amount

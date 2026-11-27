@@ -56,7 +56,7 @@ Plt.Create()
     .Save("linked_fahrenheit.svg");
 ```
 
-![A day's temperature over the hours with a left axis in degrees Celsius from 0 to 20 and a right axis in degrees Fahrenheit from 35 to 65](../images/linked_fahrenheit.png)
+![A day's temperature over the hours with a left axis in degrees Celsius from 0 to 20 and a right axis in degrees Fahrenheit from 35 to 65](../../images/linked_fahrenheit.png)
 
 The left axis reads 0 to 20 °C, and the right axis reads the same heights in °F, with a tick at every 5 °F: the tick at
 65 °F stands at the height of 18.3 °C. The Celsius line is the only series; the right axis holds none.
@@ -84,7 +84,7 @@ Plt.Create()
     .Save("linked_period.svg");
 ```
 
-![A gain curve over frequencies from 1 to 1000 Hz on a log axis along the bottom, and along the top a log axis of periods from 1 s at the left to 0.001 s at the right](../images/linked_period.png)
+![A gain curve over frequencies from 1 to 1000 Hz on a log axis along the bottom, and along the top a log axis of periods from 1 s at the left to 0.001 s at the right](../../images/linked_period.png)
 
 Over a log primary axis the linked axis is a log axis too, with a tick at each power of ten of its own unit, as
 matplotlib's `functionlog` draws it. A reciprocal turns the order around, so the period falls from 1 s at the left, where

@@ -38,12 +38,13 @@ internal static class InteractionRules
     private static IEnumerable<OwnedRule> OnePerPackageSurface() =>
         Packages.Select(package => new OwnedRule(
             $"what a native control is apart from its figure (its host made with its own facts, the five gestures behind the host's guard, its handler, the failure and the clicked point it passes on, its painter, the host it routes to a server) is written once, by the package's surface: the chart and the streaming control only say where their figure comes from ({package})",
-            @"\b_host\.(?:Handle\w+\(|Listening\b)|\bnew (?:[\w.]+\.)?InteractionHost\(|(?<![.\w])(?:[\w.]+\.)?(?:InteractionHost|SkiaChartPainter)\s+_\w+|\bIChartEventHandler\? ChartEventHandler\b|\bevent Action<(?:Exception|PinnedAnnotation)>\? (?:ChartEventHandlerFaulted|DataPointClicked)\b|\bIServerInteractive\.Host\b",
+            @"\b_host\.(?:Handle\w+\(|Listening\b)|\bnew (?:[\w.]+\.)?InteractionHost\(|(?<![.\w])(?:[\w.]+\.)?(?:InteractionHost|SkiaChartPainter)\s+_\w+|\bIChartEventHandler\? ChartEventHandler\b|\bInteractionControllerFactory ControllerFactory\b|\bevent Action<(?:Exception|PinnedAnnotation)>\? (?:ChartEventHandlerFaulted|DataPointClicked)\b|\bIServerInteractive\.Host\b",
             SurfaceOf(package)) { Under = FolderOf(package), Finds = [
             "        _host.HandleScroll(ToScrollArgs(e, this));",
             "        if (!_host.Listening) return;",
             "        _host = new InteractionHost(() => IsInteractive, _follower.Redraw);",
             "    public event Action<Exception>? ChartEventHandlerFaulted;",
+            "    public InteractionControllerFactory ControllerFactory",
             "    InteractionHost IServerInteractive.Host => _host;",
             "    private readonly SkiaChartPainter _painter = new();",
             "    private readonly MatPlotLibNet.Skia.SkiaChartPainter _painterCopy = new();",
@@ -57,6 +58,12 @@ internal static class InteractionRules
     internal static OwnedRule[] All { get; } =
     [
         ZoomNotchFactor,
+        OwnedRule.Nowhere("a controller asks every modifier for its role through the members of InteractionModifier (OnPointerTracked for every move, ActiveBrushSelect, ActiveCrosshair and ActiveTooltip for what is shown), so a modifier of the caller's own can take one: no code of the interaction tests a modifier's class",
+            @"\bis\s+(?:not\s+)?\w+Modifier\b|\bOfType<\w+Modifier>",
+            under: Interaction) with { Finds = [
+            "            if (m is CrosshairModifier cm) cm.UpdatePosition(args.X, args.Y);",
+            "        _modifiers.OfType<BrushSelectModifier>().FirstOrDefault()?.ActiveBrush;",
+            "        if (_activeModifier is BrushSelectModifier)"] },
         new("an event of the library is applied to the subplot it names, or dropped when the figure has none, through FigureInteractionEvent's OnTargetAxes (OnMovableAxes for a view that moves): no event tests the target and answers false itself",
             @"\bif\s*\(\s*!\s*TryTarget(?:Movable)?Axes\(",
             "Src/MatPlotLibNet/Interaction/FigureInteractionEvent.cs") { Under = Interaction, Finds = [

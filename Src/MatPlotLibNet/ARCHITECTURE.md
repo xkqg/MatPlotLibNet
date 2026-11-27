@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.30.0)
+# MatPlotLibNet Core -- Architecture (v1.31.0)
 
 What the library is made of today and why it is shaped that way. Read it in this order: the packages, how a figure is
 drawn, where each file of the core library sits, which class owns each shared rule, where a chart verb lives, the design
@@ -905,9 +905,13 @@ Each kind of series is one file named after it; its settings are in the API refe
 ```
   Interaction/ — the managed interaction layer — in the CORE package
     IInteractionController.cs — what a host talks to: five Handle* methods, three read-only state properties, UpdateLayout
-    IHostedInteractionController.cs (internal) — what the host hears beyond it: DataPointClicked and EventHandled
-    InteractionController.cs — the one implementation
-    InteractionHost.cs — where a native control's wiring lives: it is handed the figure and the layout of every paint (Painted)
+    InteractionContext.cs — what a controller is made from: figure, chart id, layout slot, toolbar, and the one sink that hands an
+                            event on, then raises the clicked point and tells the handler, whichever controller sent it
+    InteractionControllerFactory.cs — public delegate: context → IInteractionController; a control's ControllerFactory
+    InteractionController.cs — the built-in one: the first modifier that claims a gesture takes it, every other is told of each move
+                               (OnPointerTracked), what is shown is the first modifier's that shows it; DefaultModifiers = the fifteen
+    InteractionHost.cs — where a native control's wiring lives: it is handed the figure and the layout of every paint (Painted),
+                         makes the context and asks its ControllerFactory for the controller
     IServerInteractive.cs, ServerRouteExtensions.cs (internal) — a control says whether it is interactive and holds its host
     AnimationSourceFollower.cs (internal) — what a native control does with its IAnimationSource: let go of the one before
     StreamingFigureFollower.cs (internal) — what a native streaming control does with its StreamingFigure: listen
@@ -919,7 +923,9 @@ Each kind of series is one file named after it; its settings are in the API refe
     RowSelectionEvent.cs — the keys of the points a brush covers
     TouchGestureTranslator.cs — what a touch surface reports
     Modifiers/IInteractionModifier.cs — one gesture, one class: Handles*(args) claims, On*(args) acts
-    Modifiers/InteractionModifier.cs — the base of all of them: it holds the chart id, the layout and the event sink
+    Modifiers/InteractionModifier.cs — the base of all of them: it holds the chart id, the layout and the event sink, and the roles
+                                       a controller asks every modifier for (OnPointerTracked, ActiveBrushSelect, ActiveCrosshair,
+                                       ActiveTooltip); a caller's own modifier derives from it
     ChartLayout.cs / IChartLayout.cs — what a modifier measures against: plot rectangles, HitTestAxes(x, y), PixelToData
     ChartLayoutViewExtensions.cs — ViewOf(layout, axes): that transform for every modifier
     NearestPointFinder.cs — which data point is under the cursor in one axes, with the pixel distance it was found at
@@ -1566,6 +1572,9 @@ type to 20 methods of its own, a type over it named with the reason it holds the
 | how a gesture's change is written onto a Y slot | `AxisRangeEventExtensions.ApplySecondaryRanges` | `PanEvent`, `AxisRangeEvent` |
 | the transform a modifier converts a pixel through, for the primary and for every slot | `ChartLayoutViewExtensions` (`ViewOf`, `SecondaryViewsOf`) | every modifier |
 | the chart id, the layout and the sink of a modifier, and its "claims nothing, does nothing" answers | `InteractionModifier` (`ChartId`, `Layout`, `Emit`, the virtual `Handles*`/`On*`) | every modifier, which overrides only the gestures it acts on |
+| the roles a controller asks every modifier for: each move of the pointer, and the rubber band, crosshair and tooltip it shows | `InteractionModifier` (`OnPointerTracked`, `ActiveBrushSelect`, `ActiveCrosshair`, `ActiveTooltip`) | `InteractionController`, which tests no modifier's class (the crosshair, the hover and the brush override them; so can a caller's own) |
+| the gestures a chart has, and their order | `InteractionController.DefaultModifiers` (a list the caller edits) | `InteractionController.Create(context, modifiers)`, a control's `ControllerFactory` |
+| where an event goes once a controller sent it: the figure or the server, the clicked point, the handler | `InteractionContext.Sink` (made by `InteractionContext.For`) | `InteractionHost`, every controller and modifier, built in or the caller's own |
 | the name of every hub method: an event, a message to a viewer, a subscription | `HubMethodNames` (public; held to the hub and its client by the server package's routing contract) | the hub, the sink of a native control, the server script, the Interactive page |
 | the names a chart carries for its scripts (chart id, axes, series, legend, an axes' view, the namespace) and the marker of a part | `SvgAttributes`, `SvgPartMarker` | the SVG writers, the diff engine, every script, the Blazor client |
 | how a script finds its chart, holds a pointer, reads a pointer in chart units and reads a token | `SvgScriptPreamble` | every embedded script (the one-owner scan refuses each spelled elsewhere) |
@@ -1574,7 +1583,7 @@ type to 20 methods of its own, a type over it named with the reason it holds the
 | the state a rubber band shows while its drag is in progress | `DragTrack.Showing` | `RectangleZoomModifier`, `SpanSelectModifier`, `BrushSelectModifier` |
 | a number a script reads back off the chart | `SvgWriterExtensions.AppendExactAttribute` | the root view and tokens, every axes' view, an alpha |
 | where the local chart server is reached | `ChartServer` (Loopback, HubPath; its page reaches the hub on its own origin) | the listen URL, the figure URL, the page |
-| a native control's wiring: figure, layout, controller, server sink, handler, tooltip | `InteractionHost` (its controller through `IInteractionController`) | the WPF, Avalonia, Uno and MAUI controls |
+| a native control's wiring: figure, layout, controller, server sink, handler, tooltip | `InteractionHost` (its controller through `IInteractionController`, made by its `ControllerFactory`) | the WPF, Avalonia, Uno and MAUI controls |
 | what a native control is apart from where its figure comes from: its host made with its facts, the five gestures, its handler | `MplChartSurface` of each of the WPF, Avalonia and Uno packages | the sealed leaves `MplChartControl` |
 | whether a native control may act on a gesture, and the hand-off of the layout of a paint to its host | `InteractionHost.Listening` and `InteractionHost.Painted` | the five inputs of each WPF |
 | wiring a native control to a server | `ServerRouteExtensions.RouteToServer` over `IServerInteractive` | each package's one `WithServerInteraction`, generic over its surface |

@@ -19,7 +19,7 @@ Plt.Create()
     .Save("nested_pie.svg");
 ```
 
-![Nested pie](../images/nested_pie.png)
+![Nested pie](../../images/nested_pie.png)
 
 ## Treemap with expand/collapse
 
@@ -87,7 +87,7 @@ Plt.Create()
 > `document.elementFromPoint`, so expanding and collapsing works in real browsers with
 > pan and zoom switched on.
 
-![Treemap drilldown](../images/treemap_drilldown.png)
+![Treemap drilldown](../../images/treemap_drilldown.png)
 
 ## Icicle chart
 
@@ -133,7 +133,7 @@ Plt.Create()
     .Save("budget_icicle.svg");
 ```
 
-![An icicle chart of a budget](../images/budget_icicle.png)
+![An icicle chart of a budget](../../images/budget_icicle.png)
 
 The widths follow the rule the sunburst divides an angle by, and the cells are in the order stored. It is a series
 (`IcicleSeries`) that takes the colour map, labels and limits every hierarchical series takes.

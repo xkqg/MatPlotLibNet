@@ -12,7 +12,8 @@ public interface IInteractionModifier
     bool HandlesPointerPressed(PointerInputArgs args);
     /// <summary>Called when a pointer-pressed event is claimed by this modifier.</summary>
     void OnPointerPressed(PointerInputArgs args);
-    /// <summary>Called on every pointer-moved event while this modifier is active, or always for passive modifiers (hover).</summary>
+    /// <summary>Called on every pointer-moved event while this modifier is active (it claimed the press). The moves a modifier that
+    /// claims nothing follows (the crosshair, the hover) reach it through <see cref="InteractionModifier.OnPointerTracked"/>.</summary>
     void OnPointerMoved(PointerInputArgs args);
     /// <summary>Called on pointer-released. Modifier should release any captured state.</summary>
     void OnPointerReleased(PointerInputArgs args);

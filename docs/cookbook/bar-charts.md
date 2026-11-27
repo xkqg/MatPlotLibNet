@@ -23,7 +23,7 @@ Plt.Create()
     .Save("bar_labels.svg");
 ```
 
-![Bar labels](../images/bar_labels.png)
+![Bar labels](../../images/bar_labels.png)
 
 ## Horizontal bars
 
@@ -44,7 +44,7 @@ Plt.Create()
     .Save("horizontal_bars.svg");
 ```
 
-![Horizontal bars](../images/horizontal_bars.png)
+![Horizontal bars](../../images/horizontal_bars.png)
 
 A bar that lies down measures its value along X, every bar from 0, and its category stands along Y, each bar 0.8
 of its category's slot thick. The names are the Y axis' tick labels, level with their bars, and the first category
@@ -139,7 +139,7 @@ Plt.Create()
     .Save("likert_diverging_bars.svg");
 ```
 
-![Five stacked columns with the disagreeing answers below the zero line and the others above it](../images/likert_diverging_bars.png)
+![Five stacked columns with the disagreeing answers below the zero line and the others above it](../../images/likert_diverging_bars.png)
 
 A value of zero goes with the answers above the line, and a value that is not a number adds to neither sum. The range of the
 axes takes in every foot and end of the stack.
@@ -183,7 +183,7 @@ Plt.Create()
     .Save("grouped_horizontal_bars.svg");
 ```
 
-![Grouped horizontal bars](../images/grouped_horizontal_bars.png)
+![Grouped horizontal bars](../../images/grouped_horizontal_bars.png)
 
 **The groups are an ordered list, not a dictionary.** That order is the picture: it decides which bar sits
 where inside every category and which colour each group takes from the theme's cycle. A dictionary has no
@@ -278,7 +278,7 @@ Plt.Create()
     .Save("bar_labels_beyond_the_end.svg");
 ```
 
-![Bar labels beyond the end of the bars](../images/bar_labels_beyond_the_end.png)
+![Bar labels beyond the end of the bars](../../images/bar_labels_beyond_the_end.png)
 
 ## Fluent API reference — BarSeries
 
@@ -328,7 +328,7 @@ Plt.Create()
     .Save("pareto_chart.svg");
 ```
 
-![Pareto chart](../images/pareto_chart.png)
+![Pareto chart](../../images/pareto_chart.png)
 
 `Pareto` does what the chart needs and is easy to get wrong by hand:
 
@@ -368,7 +368,7 @@ Plt.Create()
     .Save("lollipop_chart.svg");
 ```
 
-![Lollipop chart](../images/lollipop_chart.png)
+![Lollipop chart](../../images/lollipop_chart.png)
 
 A lollipop chart is one stem series: each stem stands on the centre of its category, on the baseline at 0, and
 ends in its head. So the chart wears one colour, has one legend entry, and a click on that entry hides all of it.
@@ -395,7 +395,7 @@ Plt.Create()
     .Save("dumbbell_chart.svg");
 ```
 
-![Dumbbell chart](../images/dumbbell_chart.png)
+![Dumbbell chart](../../images/dumbbell_chart.png)
 
 The dots are two scatter series named after the groups, in the theme's first two colours. The connector runs from
 the lower of a category's two values to the higher one, whichever group is higher, so a category that went down
@@ -432,7 +432,7 @@ Plt.Create()
     .Save("slope_graph.svg");
 ```
 
-![Slope graph](../images/slope_graph.png)
+![Slope graph](../../images/slope_graph.png)
 
 Each category is one line with a marker at each end, in one colour of the theme's cycle. The two moments are named
 on the X axis by the groups' names. A category's name stands at both ends: right of the end point in the line's
@@ -462,7 +462,7 @@ Plt.Create()
     .Save("dot_plot.svg");
 ```
 
-![Dot plot](../images/dot_plot.png)
+![Dot plot](../../images/dot_plot.png)
 
 The rows are sorted by the first group, largest on top; equal values keep the order you gave them in, and a category
 whose first value is missing goes to the bottom. Each group is one scatter series named in the legend. The guide
@@ -501,7 +501,7 @@ Plt.Create()
     .Save("parallel_coordinates.svg");
 ```
 
-![Parallel coordinates](../images/parallel_coordinates.png)
+![Parallel coordinates](../../images/parallel_coordinates.png)
 
 Rows that share a name are one class: one line series in one colour, named once in the legend, so a click on the
 entry hides every row of the class. Each column is scaled to 0..1 by its own smallest and largest value over all
@@ -537,7 +537,7 @@ Plt.Create()
     .Save("marimekko.svg");
 ```
 
-![Marimekko chart](../images/marimekko.png)
+![Marimekko chart](../../images/marimekko.png)
 
 A column's width is its share of the grand total and a cell's height its share of the column, from the first segment
 at the bottom. The X axis runs from 0 to 100 % of the total and names each column under its centre; the Y axis reads
@@ -572,7 +572,7 @@ Plt.Create()
     .Save("waterfall_pnl.svg");
 ```
 
-![Monthly P&L waterfall](../images/waterfall_pnl.png)
+![Monthly P&L waterfall](../../images/waterfall_pnl.png)
 
 Each step starts where the one before it ended, green when it rises and red when it falls. A bar named in
 `TotalIndices` is a total: a level, not a change, so it stands on zero, reaches the value it holds and wears
@@ -614,7 +614,7 @@ Plt.Create()
     .Save("gradient_fills.svg");
 ```
 
-![Bars and an area that fade](../images/gradient_fills.png)
+![Bars and an area that fade](../../images/gradient_fills.png)
 
 The blend is a property of the fill, so the SVG, the PNG and the PDF all paint it (the PDF as a vector shading), and a hatch is
 laid over it. A gradient colour with an alpha of its own, such as `Colors.Tab10Orange.WithAlpha(0)`, fades to clear. The MAUI view
@@ -642,7 +642,7 @@ Plt.Create()
     .Save("budget_waterfall.svg");
 ```
 
-![A waterfall with a target mark across each bar](../images/budget_waterfall.png)
+![A waterfall with a target mark across each bar](../../images/budget_waterfall.png)
 
 Each level is a short mark across the bar and a little past it, drawn over the bar in the theme's text colour or in
 `TargetColor`. A missing level (`double.NaN`) is a step with no mark, the value axis makes room for the levels, the table gains

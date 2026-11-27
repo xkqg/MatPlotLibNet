@@ -191,10 +191,9 @@ Step "Samples that run: start and probe" {
 Step "docfx metadata + site" {
     $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
     if (-not (Get-Command docfx -ErrorAction SilentlyContinue)) { throw "docfx not installed: dotnet tool install -g docfx" }
-    # The copy replaces the last one: with docs/images in place, Copy-Item puts the folder INSIDE it (docs/images/images) and the
-    # site keeps showing the pictures of the first run. A fresh checkout, which the Pages workflow builds from, has no such folder.
+    # The site takes its pictures from images/ (docs/docfx.json names it as a resource). An older run of this gate copied them to
+    # docs/images, which docfx would publish a second time over the same path: that copy goes.
     if (Test-Path docs/images) { Remove-Item -Recurse -Force docs/images }
-    Copy-Item -Recurse -Force images docs/images
     # Stale pages for types that no longer exist are gitignored, so only a local checkout ever sees them --
     # and they produce InvalidBookmark warnings that read exactly like a real broken link.
     $cutoff = (Get-Date).AddMinutes(-1)

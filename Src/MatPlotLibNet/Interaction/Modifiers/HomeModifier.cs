@@ -7,10 +7,10 @@ namespace MatPlotLibNet.Interaction;
 /// <c>Escape</c> key. The event takes the axes back to the view the figure remembers from before the reader first moved
 /// it; the range the event carries is read from the layout when the key is pressed, and is used only for an axes the
 /// figure remembers nothing for.</summary>
-internal sealed class HomeModifier : InteractionModifier
+public sealed class HomeModifier : InteractionModifier
 {
     /// <summary>Creates the modifier for the given chart.</summary>
-    internal HomeModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
+    public HomeModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
         : base(chartId, layout, sink)
     {
     }

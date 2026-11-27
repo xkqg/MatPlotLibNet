@@ -54,7 +54,7 @@
        project's own `IsPackable` is not yet known in this file. -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'Src'))))">
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.29.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.30.0</PackageValidationBaselineVersion>
     <!-- The code-style rules Src/.editorconfig sets to warning (IDE0052: a private member written and never read) run in the
          build, so dead state fails it as any other warning does. -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>

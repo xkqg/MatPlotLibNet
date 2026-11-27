@@ -59,7 +59,7 @@ Plt.Create()
     .Save("patch_kinds.svg");
 ```
 
-![A turned blue rectangle, an orange pentagon, a green arrow, a red circle, a purple turned ellipse, a brown wedge and a black open arc, with a legend that lists all seven](../images/patch_kinds.png)
+![A turned blue rectangle, an orange pentagon, a green arrow, a red circle, a purple turned ellipse, a brown wedge and a black open arc, with a legend that lists all seven](../../images/patch_kinds.png)
 
 A patch is sized in data units, so a circle is round on the page only where a unit of x is as long as a unit of y:
 `SetAspect(1)` makes it so. On axes of different scales a circle is an ellipse on the page, as it is in matplotlib.
@@ -161,7 +161,7 @@ Plt.Create()
     .Save("patches_log_axis.svg");
 ```
 
-![The same circle, rectangle and triangle on a linear and on a log X axis: on the log axis the circle is stretched on its left and narrow on its right, while the rectangle and the triangle keep their straight edges](../images/patches_log_axis.png)
+![The same circle, rectangle and triangle on a linear and on a log X axis: on the log axis the circle is stretched on its left and narrow on its right, while the rectangle and the triangle keep their straight edges](../../images/patches_log_axis.png)
 
 A coordinate a log axis cannot place, 0 or below, stands far outside the axis, where matplotlib's log scale puts it, and
 the outline is cut where it leaves the plot: an edge to such a point dives almost straight to the edge of the plot, and a

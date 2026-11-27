@@ -42,6 +42,8 @@ chart.WithServerInteraction((method, payload) => hubConnection.SendAsync(method,
 
 Set `IsInteractive="True"` and the chart control handles all 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click; a series with several legend entries, such as the named layers of a stack plot, toggles whole), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. Pointer positions are converted with the range and scale the chart is drawn with, on log and symlog axes too.
 
+To change which gestures the control has, or to put your own controller in, set `ControllerFactory` (for example, start from `InteractionController.DefaultModifiers(context)` and remove the legend toggle).
+
 Clicking a data point raises `DataPointClicked` (on `MplChartControl` and `MplStreamingChartControl` alike) with the
 point's position in the arrays you plotted; on a
 `StateTimelineSeries` it is the segment's position in the list you passed, and hovering a segment shows the event

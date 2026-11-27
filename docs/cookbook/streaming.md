@@ -150,7 +150,7 @@ for (int i = 0; i < 60; i++)
 figure.Save("streaming_obv.svg");
 ```
 
-![Sixty candles with an orange five-bar average over them and a line of on-balance volume below](../images/streaming_obv.png)
+![Sixty candles with an orange five-bar average over them and a line of on-balance volume below](../../images/streaming_obv.png)
 
 After the bar at index *i*, the value of every form is the last value of the batch indicator over the bars up to *i*, to 1e-9, so a live
 chart and a chart drawn from the same history agree. `FibonacciRetracement` and `VolumeProfile` have no streaming form: neither has a
@@ -160,7 +160,7 @@ Transfer entropy follows a window too. `TransferEntropyOptions(Neighbours: 4, Wi
 value for each bar, from the last 100 bars, with the Kraskov nearest-neighbour estimate (no bins), and `StreamingTransferEntropy` says the
 same as bars arrive:
 
-![A line near zero until bar 200 that climbs to about 0.35 nats, where the target starts to follow the source](../images/rolling_transfer_entropy.png)
+![A line near zero until bar 200 that climbs to about 0.35 nats, where the target starts to follow the source](../../images/rolling_transfer_entropy.png)
 
 ## Axis scale modes
 

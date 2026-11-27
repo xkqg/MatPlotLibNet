@@ -25,7 +25,7 @@ Plt.Create()
     .Save("heatmap.svg");
 ```
 
-![Heatmap](../images/heatmap_colormap.png)
+![Heatmap](../../images/heatmap_colormap.png)
 
 Each cell stands where its column and row put it in data coordinates, one unit wide and one high, so the cells move
 with the axes: `.SetXLim(2, 6)` shows columns 2 to 5 across the whole plot, a limit set high to low turns the grid
@@ -54,7 +54,7 @@ for (int i = 0; i < maps.Length; i++)
 builder.TightLayout().Save("colormap_comparison.svg");
 ```
 
-![Colormap comparison](../images/colormap_comparison.png)
+![Colormap comparison](../../images/colormap_comparison.png)
 
 ## Colorbar customization
 
@@ -120,7 +120,7 @@ and the bar names the powers of ten of its range, and, when the range holds one 
 matplotlib labels too (10², 2×10², 3×10², 4×10², 6×10²). The library's own themes keep the documented formula of the
 normaliser, `log(1 + value - min) / log(1 + max - min)`, and name values as any other bar does:
 
-![A colour bar under a log normaliser, 100 to 1000](../images/heatmap_log_colorbar.png)
+![A colour bar under a log normaliser, 100 to 1000](../../images/heatmap_log_colorbar.png)
 
 ## Heatmap with custom series config
 
@@ -288,7 +288,7 @@ Plt.Create()
     .Save("calendar_heatmap.svg");
 ```
 
-![Calendar heatmap](../images/calendar_heatmap.png)
+![Calendar heatmap](../../images/calendar_heatmap.png)
 
 `CalendarHeatmap` lays the days out itself: the grid runs from the week of the earliest date to the week of the
 latest, the week start in the top row (Monday unless you pass another `DayOfWeek`), all seven weekdays named on
@@ -335,7 +335,7 @@ Plt.Create()
     .Save("spy_plot.svg");
 ```
 
-![Spy plot](../images/spy_plot.png)
+![Spy plot](../../images/spy_plot.png)
 
 A cell is marked when `Math.Abs(value) > threshold` (0 unless you pass one): a negative value counts by its size,
 a cell exactly at the threshold is not marked, and a missing value (`double.NaN`) is no marker. Column numbers run
@@ -369,7 +369,7 @@ Plt.Create()
     .Save("calendar_events.svg");
 ```
 
-![Calendar of events](../images/calendar_events.png)
+![Calendar of events](../../images/calendar_events.png)
 
 Events on one day stand side by side in the order given. The kinds take the theme's colours in the order they first appear
 and are the legend's entries. The callback receives `CalendarEventsParts`, the days and one bar series for each kind, and the
@@ -396,6 +396,6 @@ Plt.Create()
     .Save("matshow_correlation.svg");
 ```
 
-![A correlation matrix as square cells](../images/matshow_correlation.png)
+![A correlation matrix as square cells](../../images/matshow_correlation.png)
 
 The last argument styles the heatmap series. The cells are square at any figure size, since the verb sets an aspect of one.

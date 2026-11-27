@@ -22,7 +22,7 @@ Plt.Create()
     .Save("histogram.svg");
 ```
 
-![Histogram](../images/histogram.png)
+![Histogram](../../images/histogram.png)
 
 ## Histogram with density normalization
 
@@ -114,7 +114,7 @@ Plt.Create()
     .Save("boxplot.svg");
 ```
 
-![Box plot](../images/boxplot.png)
+![Box plot](../../images/boxplot.png)
 
 Under the library's own themes the boxes stand at 0, 1, 2, ... half a unit wide, as `Positions` and `Widths` say they do when
 you give none. Under the matplotlib themes, the default among them, a box you give no position stands where matplotlib's
@@ -135,7 +135,7 @@ Plt.Create()
     .Save("violin.svg");
 ```
 
-![Violin plot](../images/violin.png)
+![Violin plot](../../images/violin.png)
 
 A violin's width at a height is the Gaussian kernel density of the sample there (the estimator `Kde` uses), smoothed by the
 theme's bandwidth: Scott's factor under the matplotlib themes, as matplotlib's `violinplot`, Silverman's rule under the library's own
@@ -157,7 +157,7 @@ Plt.Create()
     .Save("violin_density.svg");
 ```
 
-![A purple violin of twelve observations: one smooth hump, widest near 3, a thin tail up to 6.3](../images/violin_density.png)
+![A purple violin of twelve observations: one smooth hump, widest near 3, a thin tail up to 6.3](../../images/violin_density.png)
 
 
 ### Placing violins and boxes
@@ -289,7 +289,7 @@ Plt.Create()
     .Save("ridge_plot.svg");
 ```
 
-![Ridgeline](../images/ridge_plot.png)
+![Ridgeline](../../images/ridge_plot.png)
 
 `Ridgeline` estimates the density of every group and lays the ridges out; what used to take a hand-written kernel
 estimate, offsets and a baseline per ridge is one call:
@@ -327,7 +327,7 @@ Plt.Create()
     .Save("qq_plot.svg");
 ```
 
-![Q-Q plot](../images/qq_plot.png)
+![Q-Q plot](../../images/qq_plot.png)
 
 Points on the line mean a normal sample; an S shape means tails lighter or heavier than normal; a bow means the
 sample is skewed. The conventions are scipy's `probplot`: Filliben's plotting positions, and a least-squares line
@@ -363,7 +363,7 @@ Plt.Create()
     .Save("probability_plot.svg");
 ```
 
-![Waiting times against the exponential distribution](../images/probability_plot.png)
+![Waiting times against the exponential distribution](../../images/probability_plot.png)
 
 A sample that follows the reference lies on the line up to location and scale: the line's slope estimates the scale and
 its height at 0 the location, so the reference is the standard member of its family. The X axis names a reference other
@@ -395,7 +395,7 @@ Plt.Create()
     .Save("kaplan_meier.svg");
 ```
 
-![Kaplan-Meier curve](../images/kaplan_meier.png)
+![Kaplan-Meier curve](../../images/kaplan_meier.png)
 
 The estimate is the product-limit estimator. At a time when d events happen among n subjects still at risk, the
 curve drops to its level times (1 − d/n). All events at one time are one step, and a subject censored at an event
@@ -428,7 +428,7 @@ Plt.Create()
     .Save("risk_table.svg");
 ```
 
-![A survival curve with the number at risk and the log-rank test under it](../images/risk_table.png)
+![A survival curve with the number at risk and the log-rank test under it](../../images/risk_table.png)
 
 `times` chooses the columns; without it they are the ticks the automatic locator gives from 0 to the longest follow-up
 (at most nine). The test is the Mantel-Cox form, as R's `survdiff` and lifelines' `multivariate_logrank_test` compute it:
@@ -460,7 +460,7 @@ Plt.Create()
     .Save("raincloud.svg");
 ```
 
-![Raincloud](../images/raincloud.png)
+![Raincloud](../../images/raincloud.png)
 
 A multi-dataset `ViolinSeries` and `BoxSeries` already draw one shape per group on their own, so the verb adds one
 violin and one box for the whole chart, not one pair per group, plus one scatter of every group's points together.
@@ -485,7 +485,7 @@ Plt.Create()
     .Save("stem_and_leaf_ages.svg");
 ```
 
-![A stem-and-leaf plot of ages](../images/stem_and_leaf_ages.png)
+![A stem-and-leaf plot of ages](../../images/stem_and_leaf_ages.png)
 
 The leaf unit, a power of ten, is chosen from the sample when you give none. Negative values have negative stems and the stem
 `-0`, and a stem nobody falls on is a row of no leaves. Each leaf has a column of its own, so the leaves stand under each other

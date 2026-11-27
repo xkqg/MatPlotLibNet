@@ -35,7 +35,8 @@ var chart = new MplChartView
 
 `MplChartView` extends `GraphicsView` and re-renders automatically when the `Figure` property changes. Set `IsInteractive`
 and a finger works the chart: a drag does what `DragAction` says (a pan unless told otherwise), a pinch zooms, a tap picks
-the point under it and a double tap goes Home. `WithServerInteraction` sends the gestures through a delegate (typically
+the point under it and a double tap goes Home. `ControllerFactory` changes which gestures the view has, or puts your own
+controller in (start from `InteractionController.DefaultModifiers(context)` and remove or replace one). `WithServerInteraction` sends the gestures through a delegate (typically
 `hubConnection.SendAsync`) instead of applying them to the figure, and `AnimationSource` shows the frames of an
 `IAnimationSource`. `MplStreamingChartView` draws a `StreamingFigure` and redraws it when data arrives.
 

@@ -36,7 +36,7 @@ Plt.Create()
     .Save("direct_labels.svg");
 ```
 
-![Three lines named at their ends](../images/direct_labels.png)
+![Three lines named at their ends](../../images/direct_labels.png)
 
 What you get:
 
@@ -116,7 +116,7 @@ Plt.Create()
     .Save("direct_labels_dual_axis.svg");
 ```
 
-![Dual axis with coloured axes and end labels](../images/direct_labels_dual_axis.png)
+![Dual axis with coloured axes and end labels](../../images/direct_labels_dual_axis.png)
 
 The end labels stand past the right-hand axis's tick labels and title, so the labels never cover the axis of
 the line they name. Each label is drawn inside the group of its series, so the interactive legend toggle,

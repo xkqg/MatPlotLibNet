@@ -159,6 +159,24 @@ void OnPlaybackTick(double seconds)
 }
 ```
 
+## Only the gestures you want
+
+The control's `ControllerFactory` makes the controller its gestures go through. Start from the built-in gestures and leave out
+the ones a replay has no use for, here the legend toggle (a timeline has no legend to click) and the rectangle zoom:
+
+```csharp
+Chart.ControllerFactory = context =>
+{
+    var modifiers = InteractionController.DefaultModifiers(context);
+    modifiers.RemoveAll(m => m is LegendToggleModifier or RectangleZoomModifier);
+    return InteractionController.Create(context, modifiers);
+};
+```
+
+The click, the tooltip, the drag and the wheel stay as they were. A gesture of your own, or a controller that zooms only while
+Ctrl is held so the wheel scrolls the page around the chart, is on the wiki's
+[Custom Interaction](https://github.com/xkqg/MatPlotLibNet/wiki/Custom-Interaction) page.
+
 ## All of it in one window
 
 The sample project has this as a running window: three categories, a clock standing in for the video, a click that

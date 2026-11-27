@@ -6,13 +6,14 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Interaction;
 
-/// <summary>The interaction of one native chart control: it owns the <see cref="InteractionController"/> and keeps it
+/// <summary>The interaction of one native chart control: it owns the controller and keeps it
 /// aimed at the figure the control is showing, so a control only forwards its input and hands over the layout of each
 /// paint. The WPF, Avalonia, Uno and MAUI controls derive from four different base classes, so what they share is this
 /// object, composed, and not a class they could inherit; inside one package the chart control and the streaming control derive
 /// from the one surface that composes it (<c>MplChartSurface</c>; on MAUI the streaming view derives from the chart view).
-/// <para>The host talks to its controller through <see cref="IInteractionController"/> only (and hears the clicked point
-/// and every handled event through an internal interface beside it).</para>
+/// <para>The host talks to its controller through <see cref="IInteractionController"/> only, and makes the controller with
+/// <see cref="ControllerFactory"/> from the <see cref="InteractionContext"/> it makes for the figure. It hears the clicked point
+/// and every handled event from that context's sink, so they reach the control whichever controller sends them.</para>
 /// <para>A control gives the host the facts that are its own when it makes it: whether it is interactive, how it is painted
 /// again after a gesture changed the figure, and how it reaches its UI thread. The host then answers whether a gesture may act (<c>Listening</c>), takes the layout of each
 /// paint (<c>Painted</c>) and routes the gestures to a server (<c>RouteToServer</c>), so no control writes any of them.</para>
@@ -27,32 +28,24 @@ public sealed class InteractionHost
     /// <summary>The repaint of a host made with no control: nothing is drawn again.</summary>
     private static readonly Action NoRepaint = static () => { };
 
-    private readonly InteractionControllerFactory _createController;
     private readonly Func<bool> _isInteractive;
     private readonly Action _repaint;
     private readonly UiThreadDispatch? _post;
-    private IHostedInteractionController? _controller;
+    private InteractionControllerFactory _controllerFactory = InteractionController.Create;
+    private IInteractionController? _controller;
     private Figure? _figure;
     private Action<FigureInteractionEvent>? _serverEventSink;
 
-    /// <summary>Creates a host that draws nothing again after a gesture, which builds an <see cref="InteractionController"/> for each
-    /// figure it is shown: the figure changes in place, for whoever draws it next.</summary>
-    public InteractionHost() : this(InteractionController.For, AlwaysInteractive, NoRepaint, null)
+    /// <summary>Creates a host that draws nothing again after a gesture, which makes a controller (<see cref="ControllerFactory"/>)
+    /// for each figure it is shown: the figure changes in place, for whoever draws it next.</summary>
+    public InteractionHost() : this(AlwaysInteractive, NoRepaint, null)
     {
     }
 
-    /// <summary>Creates the host of one control, which builds an <see cref="InteractionController"/> for each figure it is
+    /// <summary>Creates the host of one control, which makes a controller (<see cref="ControllerFactory"/>) for each figure it is
     /// shown.</summary>
     /// <param name="repaint">How the control is painted again (its invalidate), called when a gesture changed the figure.</param>
-    public InteractionHost(Action repaint) : this(InteractionController.For, AlwaysInteractive, repaint, null)
-    {
-    }
-
-    /// <summary>Creates a host that gets the controller for a figure from <paramref name="createController"/>.</summary>
-    /// <param name="createController">Makes the controller for a figure, its layout and the server sink set then.</param>
-    /// <param name="repaint">How the control is painted again, or <see langword="null"/> for nothing.</param>
-    internal InteractionHost(InteractionControllerFactory createController, Action? repaint = null)
-        : this(createController, AlwaysInteractive, repaint ?? NoRepaint, null)
+    public InteractionHost(Action repaint) : this(AlwaysInteractive, repaint, null)
     {
     }
 
@@ -64,13 +57,7 @@ public sealed class InteractionHost
     /// <param name="post">How the control runs work on its UI thread, for a control that paints on another thread (Avalonia
     /// renders on its own thread, Uno on its render pass); <see langword="null"/> for a control that paints on its UI thread.</param>
     internal InteractionHost(Func<bool> isInteractive, Action repaint, UiThreadDispatch? post = null)
-        : this(InteractionController.For, isInteractive, repaint, post)
     {
-    }
-
-    private InteractionHost(InteractionControllerFactory createController, Func<bool> isInteractive, Action repaint, UiThreadDispatch? post)
-    {
-        _createController = createController;
         _isInteractive = isInteractive;
         _repaint = repaint;
         _post = post;
@@ -92,6 +79,31 @@ public sealed class InteractionHost
         set
         {
             _serverEventSink = value;
+            _controller = null;
+        }
+    }
+
+    /// <summary>Makes the controller of each figure the host is shown, from the <see cref="InteractionContext"/> the host made for
+    /// it. By default <see cref="InteractionController.Create(InteractionContext)"/>: the fifteen built-in gestures. Set it to give
+    /// the control other gestures, or a controller of your own:
+    /// <code>
+    /// chart.ControllerFactory = context =&gt;
+    /// {
+    ///     var modifiers = InteractionController.DefaultModifiers(context);
+    ///     modifiers.RemoveAll(m =&gt; m is LegendToggleModifier);
+    ///     return InteractionController.Create(context, modifiers);
+    /// };
+    /// </code>
+    /// Setting it drops the controller, which the next <see cref="Update"/> makes again with the factory now set; a gesture in
+    /// progress ends, and Home still goes back to the view the figure remembers.</summary>
+    /// <exception cref="ArgumentNullException">Set to <see langword="null"/>.</exception>
+    public InteractionControllerFactory ControllerFactory
+    {
+        get => _controllerFactory;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _controllerFactory = value;
             _controller = null;
         }
     }
@@ -121,7 +133,7 @@ public sealed class InteractionHost
     /// <summary>The crosshair under the pointer, or <see langword="null"/>.</summary>
     public CrosshairState? ActiveCrosshair => _controller?.ActiveCrosshair;
 
-    /// <summary>Gives the host what the latest paint drew. The first paint of a figure builds the controller for it; a
+    /// <summary>Gives the host what the latest paint drew. The first paint of a figure makes its context and the controller for it; a
     /// paint of a different figure builds a new one, so the next gesture acts on the figure now on screen; a repaint of
     /// the same figure only replaces the layout, and a gesture that is going on keeps going.</summary>
     /// <param name="figure">The figure that was painted.</param>
@@ -131,10 +143,11 @@ public sealed class InteractionHost
         if (_controller is null || !ReferenceEquals(_figure, figure))
         {
             _figure = figure;
-            _controller = _createController(figure, layout, _serverEventSink);
+            var context = InteractionContext.For(figure, layout, _serverEventSink, _repaint);
+            context.DataPointClicked += point => DataPointClicked?.Invoke(point);
+            context.EventHandled += evt => Deliver(figure, evt);
+            _controller = _controllerFactory(context);
             _controller.InvalidateRequested += _repaint;
-            _controller.DataPointClicked += point => DataPointClicked?.Invoke(point);
-            _controller.EventHandled += evt => Deliver(figure, evt);
             return;
         }
 

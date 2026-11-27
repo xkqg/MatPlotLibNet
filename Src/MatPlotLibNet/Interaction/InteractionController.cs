@@ -6,106 +6,127 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Default implementation of <see cref="IInteractionController"/>.
-/// Composes the fifteen <see cref="IInteractionModifier"/> implementations in a fixed order and gives the event to
-/// the first one that claims it. Supports two event sinks:
+/// Gives each gesture to the first of its modifiers that claims it, in the order they were given, tells every other one of each
+/// move of the pointer (<see cref="InteractionModifier.OnPointerTracked"/>), and shows what its modifiers show: the rubber band,
+/// the crosshair and the tooltip. It is made from an <see cref="InteractionContext"/> and a list of modifiers; the list a native
+/// control uses is <see cref="DefaultModifiers"/>, the fifteen built-in gestures, which a caller can edit before making the
+/// controller from it (see <see cref="InteractionHost.ControllerFactory"/>). Supports two event sinks:
 /// <list type="bullet">
 ///   <item><b>Local mode</b> (default): <see cref="CreateLocal"/> — applies events directly to
 ///   the figure in-process and fires <see cref="InvalidateRequested"/>.</item>
-///   <item><b>Custom sink</b>: <see cref="Create"/> — caller provides any
+///   <item><b>Custom sink</b>: <see cref="Create(Figure, IChartLayout, Action{FigureInteractionEvent})"/> — caller provides any
 ///   <c>Action&lt;FigureInteractionEvent&gt;</c> (e.g. publish to SignalR).</item>
 /// </list>
 /// </summary>
-public sealed class InteractionController : IInteractionController, IHostedInteractionController
+public sealed class InteractionController : IInteractionController
 {
-    private readonly IReadOnlyList<IInteractionModifier> _modifiers;
-    private IInteractionModifier? _activeModifier;
-    private readonly Figure _figure;
-    private readonly Action<FigureInteractionEvent> _sink;
+    private readonly InteractionContext _context;
+    private readonly InteractionModifier[] _modifiers;
+    private InteractionModifier? _activeModifier;
 
-    /// <summary>The layout of the latest repaint, which every modifier and this controller read. A repaint replaces
-    /// the layout in the slot (<see cref="UpdateLayout"/>); the modifiers are built once and keep their gestures.</summary>
-    private readonly LayoutSlot _layout;
-    private HoverTooltipContent? _activeTooltip;
+    private InteractionController(InteractionContext context, IEnumerable<InteractionModifier> modifiers)
+    {
+        _context = context;
+        // A copy: the list the caller edited is theirs again once the controller is made.
+        _modifiers = [.. modifiers];
+    }
 
-    /// <summary>The toolbar managed by this controller. Activate drawing tools via <see cref="InteractionToolbar.Activate"/>.</summary>
-    public InteractionToolbar Toolbar { get; } = new();
+    /// <summary>The toolbar managed by this controller (its context's). Activate drawing tools via
+    /// <see cref="InteractionToolbar.Activate"/>.</summary>
+    public InteractionToolbar Toolbar => _context.Toolbar;
 
     /// <inheritdoc />
     public event Action? InvalidateRequested;
 
     /// <inheritdoc cref="InteractionHost.DataPointClicked"/>
-    /// <remarks>It is raised in both hosting modes because a click is a question about the data, not a change to it. Nothing
-    /// else receives it: applying the event to the figure does nothing by design, and a server sink has no arm for it. The sink
-    /// is told first, so a handler that throws cannot stop the event reaching it. It sits on the controller itself rather than
-    /// on <see cref="IInteractionController"/>, so that public interface is unchanged; the <see cref="InteractionHost"/> hears it
-    /// through an internal interface beside it.</remarks>
-    public event Action<PinnedAnnotation>? DataPointClicked;
+    /// <remarks>It is raised in both hosting modes because a click is a question about the data, not a change to it: the context's
+    /// sink raises it after it has handed the click on, so a handler that throws cannot stop the event reaching the sink.</remarks>
+    public event Action<PinnedAnnotation>? DataPointClicked
+    {
+        add => _context.DataPointClicked += value;
+        remove => _context.DataPointClicked -= value;
+    }
 
     /// <summary>Raised for every event this controller produced, after the sink has applied it or sent it and after
-    /// <see cref="DataPointClicked"/> (for a click). The host that owns the controller forwards it to the chart's
-    /// <see cref="IChartEventHandler"/>.</summary>
-    public event Action<FigureInteractionEvent>? EventHandled;
-
-    /// <inheritdoc />
-    public BrushSelectState? ActiveBrushSelect =>
-        _modifiers.OfType<BrushSelectModifier>().FirstOrDefault()?.ActiveBrush;
-
-    /// <inheritdoc />
-    public HoverTooltipContent? ActiveTooltip => _activeTooltip;
-
-    /// <inheritdoc />
-    public CrosshairState? ActiveCrosshair =>
-        _modifiers.OfType<CrosshairModifier>().FirstOrDefault()?.ActiveCrosshair;
-
-    private InteractionController(
-        Figure figure,
-        IChartLayout layout,
-        Action<FigureInteractionEvent> sink)
+    /// <see cref="DataPointClicked"/> (for a click).</summary>
+    public event Action<FigureInteractionEvent>? EventHandled
     {
-        _figure = figure;
-        _layout = new LayoutSlot(layout);
-
-        // Every modifier writes through this one wrapper, so a clicked point is seen whichever sink the caller
-        // gave us. Wrapping here rather than inside CreateLocal is the whole point: the server-driven hosts build
-        // the controller with their own sink and never go through that factory.
-        _sink = evt =>
-        {
-            sink(evt);
-            if (evt is DataCursorEvent pinned)
-            {
-                DataPointClicked?.Invoke(pinned.Annotation);
-            }
-
-            EventHandled?.Invoke(evt);
-        };
-
-        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, _layout, _sink, figure, Toolbar);
+        add => _context.EventHandled += value;
+        remove => _context.EventHandled -= value;
     }
+
+    /// <inheritdoc />
+    public BrushSelectState? ActiveBrushSelect => _modifiers.Select(m => m.ActiveBrushSelect).FirstOrDefault(s => s is not null);
+
+    /// <inheritdoc />
+    public HoverTooltipContent? ActiveTooltip => _modifiers.Select(m => m.ActiveTooltip).FirstOrDefault(s => s is not null);
+
+    /// <inheritdoc />
+    public CrosshairState? ActiveCrosshair => _modifiers.Select(m => m.ActiveCrosshair).FirstOrDefault(s => s is not null);
+
+    /// <summary>The fifteen built-in gestures over <paramref name="context"/>, in the order they claim a gesture: the first whose
+    /// <c>Handles*</c> says yes takes it. A new list each time, the caller's to edit (take a gesture out, put one of your own in
+    /// its place, add one) before making the controller from it with <see cref="Create(InteractionContext, IEnumerable{InteractionModifier})"/>.</summary>
+    /// <param name="context">The context the gestures are made over.</param>
+    /// <returns>The legend toggle, home, 3-D rotation, rectangle zoom, brush, span, the three drawing tools, the drawing
+    /// selection, the data cursor, pan, wheel zoom, crosshair and hover.</returns>
+    public static List<InteractionModifier> DefaultModifiers(InteractionContext context)
+    {
+        var (id, layout, sink, figure, toolbar) = (context.ChartId, context.Layout, context.Sink, context.Figure, context.Toolbar);
+        // Order matters — first modifier whose Handles* returns true claims the event:
+        //   1. LegendToggle: click on legend item (specific hit-test, highest priority for clicks)
+        //   2. Home: double-click wins before Pan (both claim left-button; ClickCount distinguishes)
+        //   3. Rotate3D: right-drag on 3D axes, arrow keys/Home for 3D
+        //   4. RectangleZoom: Ctrl+drag draws zoom box
+        //   5. BrushSelect: Shift+drag before Pan (Shift distinguishes)
+        //   6. SpanSelect: Alt+drag selects X-range
+        //   7. Drawing tools: toolbar-mode-gated, claim left-click only when active
+        //   8. DrawingToolSelection: Delete key for selected drawing tool
+        //   9. DataCursor: proximity click, before Pan so the hit test wins; a miss falls through to Pan
+        //  10. Pan: plain left-drag
+        //  11. Zoom: scroll wheel
+        //  12. Crosshair and Hover: claim nothing, follow every move
+        var pan = new PanModifier(id, layout, sink);
+        return
+        [
+            new LegendToggleModifier(id, layout, sink),
+            new HomeModifier(id, layout, sink),
+            new Rotate3DModifier(id, layout, sink, figure),
+            new RectangleZoomModifier(id, layout, sink),
+            new BrushSelectModifier(id, layout, sink),
+            new SpanSelectModifier(id, layout, sink),
+            new TrendlineDrawingModifier(id, layout, sink, toolbar),
+            new LevelDrawingModifier(id, layout, sink, toolbar),
+            new FibonacciDrawingModifier(id, layout, sink, toolbar),
+            new DrawingToolSelectionModifier(id, layout, sink),
+            new DataCursorModifier(id, layout, figure, sink, pan),
+            pan,
+            new ZoomModifier(id, layout, sink),
+            new CrosshairModifier(layout),
+            new HoverModifier(id, layout, figure, sink),
+        ];
+    }
+
+    /// <summary>Creates the controller of <paramref name="context"/> with the fifteen built-in gestures
+    /// (<see cref="DefaultModifiers"/>): the one a native control makes unless it is given another.</summary>
+    /// <param name="context">The context the controller acts in.</param>
+    public static InteractionController Create(InteractionContext context) => Create(context, DefaultModifiers(context));
+
+    /// <summary>Creates the controller of <paramref name="context"/> with the gestures of <paramref name="modifiers"/>, in their
+    /// order: typically <see cref="DefaultModifiers"/> edited.</summary>
+    /// <param name="context">The context the controller acts in.</param>
+    /// <param name="modifiers">The gestures, in the order they claim one. Made over the same context.</param>
+    public static InteractionController Create(InteractionContext context, IEnumerable<InteractionModifier> modifiers) =>
+        new(context, modifiers);
 
     /// <summary>Creates a controller in local mode: events are applied directly to the figure
     /// and <see cref="InvalidateRequested"/> is raised after each mutation.</summary>
     public static InteractionController CreateLocal(Figure figure, IChartLayout layout)
     {
         InteractionController? ctrl = null;
-        Action<FigureInteractionEvent> localSink = evt =>
-        {
-            evt.ApplyTo(figure);
-            // Notification events have a sealed no-op ApplyTo — they don't mutate.
-            // Only fire InvalidateRequested for mutation events.
-            if (evt is not FigureNotificationEvent)
-                ctrl!.InvalidateRequested?.Invoke();
-        };
-        ctrl = new InteractionController(figure, layout, localSink);
+        ctrl = Create(InteractionContext.For(figure, layout, null, () => ctrl!.InvalidateRequested?.Invoke()));
         return ctrl;
     }
-
-    /// <summary>The controller an <see cref="InteractionHost"/> builds for a figure it is shown: one that sends the gestures
-    /// through <paramref name="serverEventSink"/> when there is one, else one that applies them to the figure in place.</summary>
-    /// <param name="figure">The figure that was painted.</param>
-    /// <param name="layout">The layout of that paint.</param>
-    /// <param name="serverEventSink">Where the gestures are sent, or <see langword="null"/>.</param>
-    internal static InteractionController For(Figure figure, IChartLayout layout, Action<FigureInteractionEvent>? serverEventSink) =>
-        serverEventSink is not null ? Create(figure, layout, serverEventSink) : CreateLocal(figure, layout);
 
     /// <summary>Creates a controller with a custom event sink.
     /// The sink is responsible for applying or publishing the event.</summary>
@@ -113,90 +134,38 @@ public sealed class InteractionController : IInteractionController, IHostedInter
         Figure figure,
         IChartLayout layout,
         Action<FigureInteractionEvent> sink)
-        => new(figure, layout, sink);
+        => Create(new InteractionContext(figure, layout, sink));
 
     /// <inheritdoc />
-    /// <remarks>Only the layout the modifiers read is replaced. They are not built again: a rubber band or a drag that is
-    /// going on keeps going across the repaint, and "home" is the view the figure remembers
+    /// <remarks>Only the layout the modifiers read is replaced (<see cref="InteractionContext.UpdateLayout"/>). They are not built
+    /// again: a rubber band or a drag that is going on keeps going across the repaint, and "home" is the view the figure remembers
     /// (see <see cref="ResetEvent"/>), not whatever range the latest repaint drew.</remarks>
-    public void UpdateLayout(IChartLayout layout) => _layout.Current = layout;
+    public void UpdateLayout(IChartLayout layout) => _context.UpdateLayout(layout);
 
     /// <inheritdoc />
     public void HandlePointerPressed(PointerInputArgs args)
     {
-        _activeModifier = null;
-        foreach (var m in _modifiers)
-        {
-            if (m.HandlesPointerPressed(args))
-            {
-                _activeModifier = m;
-                m.OnPointerPressed(args);
-                return;
-            }
-        }
+        _activeModifier = _modifiers.FirstOrDefault(m => m.HandlesPointerPressed(args));
+        _activeModifier?.OnPointerPressed(args);
     }
 
     /// <inheritdoc />
+    /// <remarks>The modifier dragging is told through <see cref="InteractionModifier.OnPointerMoved"/>, and while it shows a
+    /// rubber band the control is asked to repaint so it draws it; every other modifier is told through
+    /// <see cref="InteractionModifier.OnPointerTracked"/>.</remarks>
     public void HandlePointerMoved(PointerInputArgs args)
     {
-        // Phase H.3 of v1.7.2 follow-on plan — crosshair is passive and runs on every
-        // move regardless of which drag modifier (if any) is active. Kept in a dedicated
-        // pre-loop so any future modifier ordering changes don't silently drop it.
-        foreach (var m in _modifiers)
-            if (m is CrosshairModifier cm) cm.UpdatePosition(args.X, args.Y);
-
-        // Active drag modifier gets priority; hover modifier always processes moves.
-        _activeModifier?.OnPointerMoved(args);
-
-        // If the active modifier is a brush select, repaint so the control draws the rubber band.
-        if (_activeModifier is BrushSelectModifier)
-            InvalidateRequested?.Invoke();
-
-        // If no active modifier (or active is not the hover modifier), let hover run too.
-        bool hoverRan = false;
-        foreach (var m in _modifiers)
+        if (_activeModifier is { } active)
         {
-            if (m is HoverModifier && m != _activeModifier)
-            {
-                m.OnPointerMoved(args);
-                hoverRan = true;
-                break;
-            }
+            active.OnPointerMoved(args);
+            if (active.ActiveBrushSelect is not null)
+                InvalidateRequested?.Invoke();
         }
 
-        // Compute hover tooltip from the nearest data point when no drag is active.
-        if (hoverRan && _activeModifier is null)
+        foreach (var m in _modifiers)
         {
-            int? axesIndex = _layout.HitTestAxes(args.X, args.Y);
-            if (axesIndex is not null)
-            {
-                var coords = _layout.PixelToData(args.X, args.Y, axesIndex.Value);
-                if (coords is { } c)
-                {
-                    var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, c.DataX, c.DataY, _layout);
-                    _activeTooltip = nearest is not null
-                        ? new HoverTooltipContent(
-                            nearest.Detail is { } detail
-                                ? $"{nearest.SeriesLabel}: {detail}"
-                                : string.Invariant($"{nearest.SeriesLabel}: ({nearest.DataX:G5}, {nearest.DataY:G5})"),
-                            args.X, args.Y)
-                        {
-                            // Hover resolves its point through the same search the click uses; a host that
-                            // highlights the matching row needs the same two numbers.
-                            PointIndex = nearest.PointIndex,
-                            SeriesIndex = nearest.SeriesIndex,
-                        }
-                        : null;
-                }
-                else
-                {
-                    _activeTooltip = null;
-                }
-            }
-            else
-            {
-                _activeTooltip = null;
-            }
+            if (m != _activeModifier)
+                m.OnPointerTracked(args);
         }
     }
 
@@ -208,74 +177,8 @@ public sealed class InteractionController : IInteractionController, IHostedInter
     }
 
     /// <inheritdoc />
-    public void HandleScroll(ScrollInputArgs args)
-    {
-        foreach (var m in _modifiers)
-        {
-            if (m.HandlesScroll(args))
-            {
-                m.OnScroll(args);
-                return;
-            }
-        }
-    }
+    public void HandleScroll(ScrollInputArgs args) => _modifiers.FirstOrDefault(m => m.HandlesScroll(args))?.OnScroll(args);
 
     /// <inheritdoc />
-    public void HandleKeyDown(KeyInputArgs args)
-    {
-        foreach (var m in _modifiers)
-        {
-            if (m.HandlesKeyDown(args))
-            {
-                m.OnKeyDown(args);
-                return;
-            }
-        }
-    }
-
-    private static IReadOnlyList<IInteractionModifier> BuildModifiers(
-        string chartId,
-        IChartLayout layout,
-        Action<FigureInteractionEvent> sink,
-        Figure figure,
-        InteractionToolbar toolbar)
-    {
-        // Order matters — first modifier whose Handles* returns true claims the event:
-        //   1. LegendToggle: click on legend item (specific hit-test, highest priority for clicks)
-        //   2. Home: double-click wins before Pan (both claim left-button; ClickCount distinguishes)
-        //   3. Rotate3D: right-drag on 3D axes, arrow keys/Home for 3D (v1.4.1)
-        //   4. RectangleZoom: Ctrl+drag draws zoom box (v1.4.1)
-        //   5. BrushSelect: Shift+drag before Pan (Shift distinguishes)
-        //   6. SpanSelect: Alt+drag selects X-range (v1.4.1)
-        //   7. Drawing tools: toolbar-mode-gated, claim left-click only when active
-        //   8. DrawingToolSelection: Delete key for selected drawing tool
-        //   9. Pan: plain left-drag
-        //  10. Zoom: scroll wheel
-        //  11. DataCursor: proximity click (passive when drawing tools active)
-        //  12. Crosshair: passive — every move (v1.4.1)
-        //  13. Hover: passive, always last
-        var pan = new PanModifier(chartId, layout, sink);
-        return
-        [
-            new LegendToggleModifier(chartId, layout, sink),
-            new HomeModifier(chartId, layout, sink),
-            new Rotate3DModifier(chartId, layout, sink, figure),
-            new RectangleZoomModifier(chartId, layout, sink),
-            new BrushSelectModifier(chartId, layout, sink),
-            new SpanSelectModifier(chartId, layout, sink),
-            new TrendlineDrawingModifier(chartId, layout, sink, toolbar),
-            new LevelDrawingModifier(chartId, layout, sink, toolbar),
-            new FibonacciDrawingModifier(chartId, layout, sink, toolbar),
-            new DrawingToolSelectionModifier(chartId, layout, sink),
-            // DataCursor claims plain left-click only when the cursor is within 10 px
-            // of an actual data point (via NearestPointFinder). Placed before PanModifier
-            // so hit-test wins; when the click misses, HandlesPointerPressed returns false
-            // and Pan takes over.
-            new DataCursorModifier(chartId, layout, figure, sink, pan),
-            pan,
-            new ZoomModifier(chartId, layout, sink),
-            new CrosshairModifier(layout),
-            new HoverModifier(chartId, layout, sink),
-        ];
-    }
+    public void HandleKeyDown(KeyInputArgs args) => _modifiers.FirstOrDefault(m => m.HandlesKeyDown(args))?.OnKeyDown(args);
 }

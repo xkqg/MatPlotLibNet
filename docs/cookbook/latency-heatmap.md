@@ -11,7 +11,7 @@ A latency heatmap answers the question an average cannot: **did the slow request
 simply more of them?** It is a histogram over time. Each column is one slice of the clock, each row is one
 latency bucket, and the colour of a cell is how many requests landed in that bucket during that minute.
 
-![Latency heatmap](../images/latency_heatmap.png)
+![Latency heatmap](../../images/latency_heatmap.png)
 
 Read it as a shape. The bright band is where most requests are. When it drifts upward, everything got slower.
 When a second band appears above the first, one code path got slow while the rest stayed fine — and that is

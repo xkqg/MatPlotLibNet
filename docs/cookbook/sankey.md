@@ -33,20 +33,20 @@ Plt.Create()
     .Save("sankey.svg");
 ```
 
-![Sankey — process distribution](../images/sankey_process_distribution.png)
+![Sankey — process distribution](../../images/sankey_process_distribution.png)
 
 ## Income statement (J&J-style flow)
 
 Sub-labels show year-over-year change indicators. They are coloured green for
 profit and red for cost:
 
-![Sankey — income statement](../images/sankey_income_statement.png)
+![Sankey — income statement](../../images/sankey_income_statement.png)
 
 ## Customer journey alluvial (4 timesteps)
 
 Explicit column pinning places the same page labels across time-steps:
 
-![Sankey — customer journey](../images/sankey_customer_journey.png)
+![Sankey — customer journey](../../images/sankey_customer_journey.png)
 
 ## Vertical orientation (top-to-bottom)
 
@@ -62,14 +62,14 @@ Plt.Create()
     .Save("sankey_vertical.svg");
 ```
 
-![Sankey — vertical](../images/sankey_vertical.png)
+![Sankey — vertical](../../images/sankey_vertical.png)
 
 ## Severity cascade (4 timepoints)
 
 This chart has dense many-to-many transitions. The relaxation iterations
 minimize the crossings:
 
-![Sankey — severity cascade](../images/sankey_severity_cascade.png)
+![Sankey — severity cascade](../../images/sankey_severity_cascade.png)
 
 ## Chord diagram: flows that go round
 
@@ -97,7 +97,7 @@ Plt.Create()
     .Save("region_chord.svg");
 ```
 
-![A ring of four arcs, North, South, East and West, joined through the centre by ribbons](../images/region_chord.png)
+![A ring of four arcs, North, South, East and West, joined through the centre by ribbons](../../images/region_chord.png)
 
 The ribbons inside an arc run in the order that makes the ribbons of a complete graph cross least, the names stand outside the ring
 and never read upside down, and a matrix that cannot be drawn (not square, a negative flow, all zero) is refused by name. The table

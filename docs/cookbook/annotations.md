@@ -29,7 +29,7 @@ Plt.Create()
     .Save("annotations.svg");
 ```
 
-![Annotations](../images/annotations_enhanced.png)
+![Annotations](../../images/annotations_enhanced.png)
 
 ## Horizontal reference line
 
@@ -244,7 +244,7 @@ Plt.Create()
     .Save("annotations_avoid_overlap.svg");
 ```
 
-![Annotations that move out of the way](../images/annotations_avoid_overlap.png)
+![Annotations that move out of the way](../../images/annotations_avoid_overlap.png)
 
 ## Text size, offset and alignment
 

@@ -6,6 +6,7 @@ using MatPlotLibNet.Geo;
 using MatPlotLibNet.Geo.Data;
 using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Indicators.Streaming;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Patches;
@@ -146,6 +147,7 @@ internal static class WikiPictures
         yield return new("dates_in_year_9999", DatesInYear9999());
         yield return new("ggplot_axes_background", GgplotAxesBackground());
         yield return new("ggplot_heatmap_missing", GgplotHeatmapMissing());
+        yield return new("gestures_without_legend_toggle", GesturesWithoutLegendToggle());
         yield return new("legend_toggle_load", LegendToggleLoad());
         yield return new("load_panels", LoadPanels());
         yield return new("marimekko_table", MarimekkoTable());
@@ -2073,6 +2075,21 @@ internal static class WikiPictures
             .WithLegendToggle()
             .Plot([1.0, 2, 3], [2.0, 4, 3], s => s.Label = "load")
             .Build();
+
+    // The 1.31.0 example of the Examples page: the built-in gestures without the legend toggle, after one turn of the wheel.
+    private static Figure GesturesWithoutLegendToggle()
+    {
+        var figure = Plt.Create().Plot([1.0, 2, 3], [2.0, 4, 3]).Build();
+        var layout = ChartLayout.Create(figure, [new Rect(0, 0, 400, 300)]);
+        var context = new InteractionContext(figure, layout, evt => evt.ApplyTo(figure));
+
+        var modifiers = InteractionController.DefaultModifiers(context);
+        modifiers.RemoveAll(m => m is LegendToggleModifier);
+        var controller = InteractionController.Create(context, modifiers);
+
+        controller.HandleScroll(new ScrollInputArgs(200, 150, 0, -1));
+        return figure;
+    }
 
     private static Figure MathtextSubscriptTitle() =>
         Plt.Create().WithTitle(@"$a_\alpha$").Plot([1.0, 2, 3], [2.0, 4, 3]).Build();

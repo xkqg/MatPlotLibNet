@@ -18,6 +18,10 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.31.0** lets you choose what a native chart does with the pointer and the keyboard. The WPF, Avalonia, Uno and MAUI controls take a
+`ControllerFactory`: start from `InteractionController.DefaultModifiers`, take out the legend toggle or change the zoom and keep the other
+gestures, or hand the control a controller of your own ([Custom Interaction](https://github.com/xkqg/MatPlotLibNet/wiki/Custom-Interaction) on the wiki). A control you leave alone behaves as before.
+
 **1.30.0** cleans up, speeds up and makes the library object-oriented again. The releases before it added verbs, themes, legends,
 maps and indicators faster than the structure under them grew; now each rule has one owner that every reader asks, what differs
 between two themes or two kinds of series is a value and not a copied member, and each step was measured before and after by the

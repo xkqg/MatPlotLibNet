@@ -67,6 +67,13 @@ public class MplChartView : GraphicsView, IServerInteractive
         set => _host.Handler = value;
     }
 
+    /// <inheritdoc cref="InteractionHost.ControllerFactory"/>
+    public InteractionControllerFactory ControllerFactory
+    {
+        get => _host.ControllerFactory;
+        set => _host.ControllerFactory = value;
+    }
+
     /// <inheritdoc cref="InteractionHost.HandlerFaulted"/>
     public event Action<Exception>? ChartEventHandlerFaulted;
 
