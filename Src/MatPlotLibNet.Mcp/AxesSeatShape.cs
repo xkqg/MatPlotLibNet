@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using MatPlotLibNet.Serialization;
 
@@ -24,20 +23,15 @@ internal enum SeatKind
 internal readonly record struct SeatName(SeatKind Kind, string Path);
 
 /// <summary>Where a subplot's spec keeps its axes and its series, found once from the very records the serializer
-/// reads: every member of <see cref="AxesDto"/> that holds an axis, a list of series or a list of Y axis slots (a slot
-/// holds an axis and a list of series of its own) is a seat. A seat added to the wire format, an overflow list included,
+/// reads: every member of <see cref="AxesDto"/> that holds an axis, a list of series, a list of Y axis slots (a slot
+/// holds an axis and a list of series of its own) or the list of X axes below the plot (each an axis and no series) is a seat. A seat added to the wire format, an overflow list included,
 /// is therefore a seat of the reader's checks on the next build, without a loop written for it: both the normalising pass
 /// (over the JSON nodes) and the validating pass (over the DTO records) walk this one shape.</summary>
-/// <remarks>The names are the serializer's own wire names (its naming policy and attributes, read from its options), so
-/// there is no second copy of a field name here. An inset subplot is not a seat but a subplot of its own: the reader
+/// <remarks>The names are the serializer's own wire names (its naming policy and attributes, read from its options through
+/// <see cref="WireContractExtensions"/>), so there is no second copy of a field name here. An inset subplot is not a seat but a subplot of its own: the reader
 /// walks it with this shape in turn.</remarks>
 internal sealed class AxesSeatShape
 {
-    /// <summary>A copy of the serializer's read options that carries the default resolver: the serializer's own instance
-    /// takes its resolver only when it first reads a document, and asking it for a record's members before that fails.
-    /// The copy keeps its naming policy, so a member's name is the one the serializer reads it by.</summary>
-    private static readonly JsonSerializerOptions Wire = new(ChartSerializer.ReadOptions) { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
-
     /// <summary>The shape of a subplot, the <see cref="AxesDto"/> a figure's <c>subPlots</c> entry is.</summary>
     internal static readonly AxesSeatShape OfSubplot = Of(typeof(AxesDto));
 
@@ -47,13 +41,17 @@ internal sealed class AxesSeatShape
 
     /// <summary>The seat-bearing members of <paramref name="dto"/>, in the order the record declares them.</summary>
     private static AxesSeatShape Of(Type dto) =>
-        new([.. Wire.GetTypeInfo(dto).Properties.Select(SeatMember.Of).OfType<SeatMember>()]);
+        new([.. dto.WireFields.Select(SeatMember.Of).OfType<SeatMember>()]);
 
     /// <summary>Every seat of this shape, by name and without indices.</summary>
     internal IReadOnlyList<SeatName> Names => [.. _members.SelectMany(member => member.Names())];
 
-    /// <summary>The members that hold a list of Y axis slots, by wire name.</summary>
-    internal IReadOnlyList<string> SlotLists => [.. _members.OfType<SlotListMember>().Select(member => member.Name)];
+    /// <summary>The members that hold a list of <paramref name="entry"/> records, by wire name: the lists of Y axis slots
+    /// (<see cref="SecondaryAxisSlotDto"/>) or the list of X axes below the plot (<see cref="XAxisSlotDto"/>).</summary>
+    /// <param name="entry">The record an entry of the list is.</param>
+    /// <returns>The wire names of the members that hold such a list; empty when the record is none of the lists.</returns>
+    internal IReadOnlyList<string> SlotListsOf(Type entry) =>
+        [.. _members.OfType<SlotListMember>().Where(member => member.Entry == entry).Select(member => member.Name)];
 
     /// <summary>Every seat that stands in <paramref name="owner"/>, in the order the shape lists them; a list is walked
     /// in order and each entry names its index.</summary>
@@ -75,11 +73,14 @@ internal sealed class AxesSeatShape
 
         /// <summary>The seat-bearing member the serializer's <paramref name="property"/> is, or <see langword="null"/> when
         /// it holds no axis and no series.</summary>
+        /// <param name="property">A property of the serializer's description of the axes record.</param>
+        /// <returns>The seat member the property is, or <see langword="null"/> when it holds neither an axis nor a series.</returns>
         internal static SeatMember? Of(JsonPropertyInfo property) => property.PropertyType switch
         {
             var type when type == typeof(AxisDto) => new AxisMember(property),
             var type when type == typeof(List<SeriesDto>) => new SeriesListMember(property),
-            var type when type == typeof(List<SecondaryAxisSlotDto>) => new SlotListMember(property, AxesSeatShape.Of(typeof(SecondaryAxisSlotDto))),
+            var type when type == typeof(List<SecondaryAxisSlotDto>) => new SlotListMember(property, typeof(SecondaryAxisSlotDto)),
+            var type when type == typeof(List<XAxisSlotDto>) => new SlotListMember(property, typeof(XAxisSlotDto)),
             _ => null,
         };
 
@@ -98,7 +99,7 @@ internal sealed class AxesSeatShape
             {
                 if (entry.Node is null)
                 {
-                    throw new ToolRefusalException($"The entry at {path}.{Name}[{entry.Index}] is null; it must be an object.");
+                    throw new ToolRefusalException(string.Invariant($"The entry at {path}.{Name}[{entry.Index}] is null; it must be an object."));
                 }
 
                 yield return entry;
@@ -122,18 +123,24 @@ internal sealed class AxesSeatShape
     private sealed class SeriesListMember(JsonPropertyInfo property) : SeatMember(property)
     {
         internal override IEnumerable<SpecSeat<TNode>> Walk<TNode>(TNode owner, string path, ISeatNodes<TNode> nodes) =>
-            ObjectsIn(owner, path, nodes).Select(entry => new SpecSeat<TNode>(SeatKind.Series, $"{path}.{Name}[{entry.Index}]", entry.Node!));
+            ObjectsIn(owner, path, nodes).Select(entry => new SpecSeat<TNode>(SeatKind.Series, string.Invariant($"{path}.{Name}[{entry.Index}]"), entry.Node!));
 
         internal override IEnumerable<SeatName> Names() => [new(SeatKind.Series, $"{Name}[]")];
     }
 
-    /// <summary>A list of Y axis slots: each entry is an object that holds seats of its own.</summary>
-    private sealed class SlotListMember(JsonPropertyInfo property, AxesSeatShape slot) : SeatMember(property)
+    /// <summary>A list of slots, Y axis slots or X axes below the plot: each entry is an object that holds seats of its own,
+    /// the seats its record <paramref name="entry"/> declares.</summary>
+    private sealed class SlotListMember(JsonPropertyInfo property, Type entry) : SeatMember(property)
     {
+        private readonly AxesSeatShape _slot = AxesSeatShape.Of(entry);
+
+        /// <summary>The record an entry of the list is.</summary>
+        internal Type Entry { get; } = entry;
+
         internal override IEnumerable<SpecSeat<TNode>> Walk<TNode>(TNode owner, string path, ISeatNodes<TNode> nodes) =>
-            ObjectsIn(owner, path, nodes).SelectMany(entry => slot.Seats(entry.Node!, $"{path}.{Name}[{entry.Index}]", nodes));
+            ObjectsIn(owner, path, nodes).SelectMany(item => _slot.Seats(item.Node!, string.Invariant($"{path}.{Name}[{item.Index}]"), nodes));
 
         internal override IEnumerable<SeatName> Names() =>
-            slot.Names.Select(inner => inner with { Path = $"{Name}[].{inner.Path}" });
+            _slot.Names.Select(inner => inner with { Path = $"{Name}[].{inner.Path}" });
     }
 }

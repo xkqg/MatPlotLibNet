@@ -18,7 +18,38 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one place that finds the repository's root: every suite reads the folder from this file. -->
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryRoot.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests.Packaging" />
+    <Using Include="MatPlotLibNet.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A number or a sequence of numbers said to be finite, the core suite's one way. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\FiniteAssertions.cs" LinkBase="Shared" />
+    <!-- A line in runs said to hold the one form of gap, the core suite's one way. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\GapAssertions.cs" LinkBase="Shared" />
+    <!-- A figure read back from its JSON, the core suite's one way. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\FigureRoundTripExtensions.cs" LinkBase="Shared" />
+    <!-- The one reader of the markup a figure draws, the core suite's one way. -->
+    <Compile Include="..\MatPlotLibNet\Rendering\SvgMarkupExtensions.cs" LinkBase="Shared" />
+    <!-- A fact that only draws and looks for tokens is a row of a theory over this one type. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\DrawnToken.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\DiagnosticsCapture.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ThemeCases.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\PlotAreaExtensions.cs" LinkBase="Shared" />
+    <!-- The sentence a verb refuses arrays of another length in, written once. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\LengthRefusals.cs" LinkBase="Shared" />
+    <!-- The public concrete classes of a root, counted the one way every published count reads them. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ConcreteSubtypesExtensions.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryTree.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\TreeWalk.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\OwnedRule.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\SourceFile.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>

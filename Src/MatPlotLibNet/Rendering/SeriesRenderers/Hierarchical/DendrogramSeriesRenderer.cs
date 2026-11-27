@@ -31,17 +31,19 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
         ComputeLayout(series.Root, leaves, layout);
 
         double maxMerge = ComputeMaxMerge(layout);
-        var clusterColors = AssignClusterColors(series, layout);
+        var clusterColors = AssignClusterColors(series, Context.Theme);
         var bounds = Context.Area.PlotBounds;
         Color stroke = SeriesColor;
+        // Where the tree stands is resolved once: every leg, the cut line and the labels are placed through the frame.
+        var frame = DendrogramFrame.Of(series.Orientation);
 
-        DrawSegments(series, layout, bounds, leaves.Count, maxMerge, clusterColors, stroke);
+        DrawSegments(series, frame, layout, bounds, leaves.Count, maxMerge, clusterColors, stroke);
 
         if (series.CutHeight is double cut)
-            DrawCutLine(series, bounds, leaves.Count, maxMerge, cut);
+            DrawCutLine(series, frame, bounds, leaves.Count, maxMerge, cut);
 
         if (series.ShowLabels)
-            DrawLabels(series, leaves, layout, bounds, maxMerge);
+            DrawLabels(frame, leaves, layout, bounds, maxMerge);
     }
 
     // ── Layout ───────────────────────────────────────────────────────────────
@@ -52,7 +54,7 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
     private readonly record struct NodeLayout(double LeafCoord, double MergeCoord);
 
     /// <summary>Recursively assigns each node its leaf-axis and merge-axis coordinates.</summary>
-    /// <remarks>For binary trees (the standard <c>scipy.linkage</c> output) the
+    /// <remarks>For binary trees (the standard <c>scipy.cluster.hierarchy.linkage</c> output) the
     /// mean-of-immediate-children leaf-coord is identical to SciPy's
     /// <c>(left_child + right_child) / 2</c> placement. For N-ary trees this is a natural
     /// generalisation but is not the canonical SciPy algorithm — heavily unbalanced N-ary
@@ -88,8 +90,7 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
     /// Nodes whose merge distance is at-or-above the cut stay uncoloured (rendered with
     /// the series' cycle colour). Returns an empty map when no cut height is set or when
     /// <see cref="DendrogramSeries.ColorByCluster"/> is <see langword="false"/>.</summary>
-    private static Dictionary<TreeNode, Color> AssignClusterColors(DendrogramSeries series,
-        Dictionary<TreeNode, NodeLayout> layout)
+    private static Dictionary<TreeNode, Color> AssignClusterColors(DendrogramSeries series, Theme theme)
     {
         // ReferenceEqualityComparer: see Render() comment — keyed by node identity, not value.
         var map = new Dictionary<TreeNode, Color>(ReferenceEqualityComparer.Instance);
@@ -98,7 +99,7 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
         var roots = new List<TreeNode>();
         CollectClusterRoots(series.Root, cut, roots);
 
-        IColorMap cmap = series.GetColorMapOrDefault(QualitativeColorMaps.Tab10);
+        IColorMap cmap = series.ColorMap ?? theme.CycleMap;
         for (int k = 0; k < roots.Count; k++)
         {
             Color color = cmap.GetColor(k.ColormapFraction(roots.Count, singletonT: 0.0));
@@ -132,141 +133,71 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
 
     // ── Segment emission ─────────────────────────────────────────────────────
 
-    private void DrawSegments(DendrogramSeries series, Dictionary<TreeNode, NodeLayout> layout,
+    private void DrawSegments(DendrogramSeries series, DendrogramFrame frame, Dictionary<TreeNode, NodeLayout> layout,
         Rect bounds, int leafCount, double maxMerge, Dictionary<TreeNode, Color> clusterColors,
         Color defaultStroke)
     {
-        DrawNodeSegments(series, series.Root, layout, bounds, leafCount, maxMerge, clusterColors, defaultStroke);
+        DrawNodeSegments(frame, series.Root, layout, bounds, leafCount, maxMerge, clusterColors, defaultStroke);
     }
 
-    private void DrawNodeSegments(DendrogramSeries series, TreeNode node,
+    private void DrawNodeSegments(DendrogramFrame frame, TreeNode node,
         Dictionary<TreeNode, NodeLayout> layout, Rect bounds, int leafCount, double maxMerge,
         Dictionary<TreeNode, Color> clusterColors, Color defaultStroke)
     {
         if (node.Children.Count == 0) return;
 
         var parentLayout = layout[node];
-        double parentMergePx = MergePixel(series.Orientation, parentLayout.MergeCoord, bounds, maxMerge);
+        double parentMergePx = frame.MergePixel(parentLayout.MergeCoord, bounds, maxMerge);
 
         foreach (var child in node.Children)
         {
-            DrawNodeSegments(series, child, layout, bounds, leafCount, maxMerge, clusterColors, defaultStroke);
+            DrawNodeSegments(frame, child, layout, bounds, leafCount, maxMerge, clusterColors, defaultStroke);
 
             var childLayout = layout[child];
-            double childLeafPx = LeafPixel(series.Orientation, childLayout.LeafCoord, bounds, leafCount);
-            double childMergePx = MergePixel(series.Orientation, childLayout.MergeCoord, bounds, maxMerge);
+            double childLeafPx = frame.LeafPixel(childLayout.LeafCoord, bounds, leafCount);
+            double childMergePx = frame.MergePixel(childLayout.MergeCoord, bounds, maxMerge);
             Color stroke = clusterColors.TryGetValue(child, out var c) ? c : defaultStroke;
-            DrawAxisAlignedLine(series.Orientation, parentMergePx, childLeafPx, childMergePx, childLeafPx, stroke);
+            DrawLeg(frame.At(parentMergePx, childLeafPx), frame.At(childMergePx, childLeafPx), stroke);
         }
 
         var first = layout[node.Children[0]];
         var last  = layout[node.Children[^1]];
-        double firstLeafPx = LeafPixel(series.Orientation, first.LeafCoord, bounds, leafCount);
-        double lastLeafPx  = LeafPixel(series.Orientation, last.LeafCoord,  bounds, leafCount);
+        double firstLeafPx = frame.LeafPixel(first.LeafCoord, bounds, leafCount);
+        double lastLeafPx  = frame.LeafPixel(last.LeafCoord,  bounds, leafCount);
         Color spanStroke = clusterColors.TryGetValue(node, out var sc) ? sc : defaultStroke;
-        DrawAxisAlignedLine(series.Orientation, parentMergePx, firstLeafPx, parentMergePx, lastLeafPx, spanStroke);
+        DrawLeg(frame.At(parentMergePx, firstLeafPx), frame.At(parentMergePx, lastLeafPx), spanStroke);
     }
 
-    /// <summary>Emits one "U"-segment leg whose endpoints are expressed in (merge-axis,
-    /// leaf-axis) coordinates. The actual <c>(x,y)</c> mapping depends on
-    /// <see cref="DendrogramOrientation"/>.</summary>
-    private void DrawAxisAlignedLine(DendrogramOrientation orientation,
-        double mergePx1, double leafPx1, double mergePx2, double leafPx2, Color stroke)
-    {
-        Point p1, p2;
-        if (orientation == DendrogramOrientation.Top || orientation == DendrogramOrientation.Bottom)
-        {
-            p1 = new Point(leafPx1, mergePx1);
-            p2 = new Point(leafPx2, mergePx2);
-        }
-        else
-        {
-            p1 = new Point(mergePx1, leafPx1);
-            p2 = new Point(mergePx2, leafPx2);
-        }
-        Ctx.DrawLine(p1, p2, new StrokeStyle(stroke, HierarchicalLayout.Dendrogram.LineThickness, LineStyle.Solid));
-    }
+    /// <summary>Emits one leg of a "U" between two points the frame placed.</summary>
+    private void DrawLeg(Point p1, Point p2, Color stroke) =>
+        Ctx.DrawLine(p1, p2, StrokeStyle.Solid(stroke, HierarchicalLayout.Dendrogram.LineThickness));
 
     // ── Cut line ─────────────────────────────────────────────────────────────
 
-    private void DrawCutLine(DendrogramSeries series, Rect bounds, int leafCount, double maxMerge, double cut)
+    private void DrawCutLine(DendrogramSeries series, DendrogramFrame frame, Rect bounds, int leafCount, double maxMerge,
+        double cut)
     {
         Color color = series.CutLineColor ?? Colors.DarkGray;
-        double mergePx = MergePixel(series.Orientation, cut, bounds, maxMerge);
-        double firstLeafPx = LeafPixel(series.Orientation, 0,             bounds, leafCount);
-        double lastLeafPx  = LeafPixel(series.Orientation, leafCount - 1, bounds, leafCount);
+        double mergePx = frame.MergePixel(cut, bounds, maxMerge);
+        double firstLeafPx = frame.LeafPixel(0,             bounds, leafCount);
+        double lastLeafPx  = frame.LeafPixel(leafCount - 1, bounds, leafCount);
 
-        Point p1, p2;
-        if (series.Orientation is DendrogramOrientation.Top or DendrogramOrientation.Bottom)
-        {
-            p1 = new Point(firstLeafPx, mergePx);
-            p2 = new Point(lastLeafPx,  mergePx);
-        }
-        else
-        {
-            p1 = new Point(mergePx, firstLeafPx);
-            p2 = new Point(mergePx, lastLeafPx);
-        }
-        Ctx.DrawLine(p1, p2, new StrokeStyle(color, HierarchicalLayout.Dendrogram.CutLineThickness, LineStyle.Dashed));
+        Ctx.DrawLine(frame.At(mergePx, firstLeafPx), frame.At(mergePx, lastLeafPx),
+            Slot.StrokeOf(color, LineWidthRule.OwnPixel, LineStyle.Dashed));
     }
 
     // ── Labels ───────────────────────────────────────────────────────────────
 
-    private void DrawLabels(DendrogramSeries series, List<TreeNode> leaves,
+    private void DrawLabels(DendrogramFrame frame, List<TreeNode> leaves,
         Dictionary<TreeNode, NodeLayout> layout, Rect bounds, double maxMerge)
     {
-        var font = Context.Theme.DefaultFont;
+        var font = Context.Theme.DataTextFontInThemeWeight();
         for (int i = 0; i < leaves.Count; i++)
         {
             var leaf = leaves[i];
-            double leafPx = LeafPixel(series.Orientation, layout[leaf].LeafCoord, bounds, leaves.Count);
-            double mergeBaselinePx = MergePixel(series.Orientation, 0, bounds, maxMerge);
-
-            switch (series.Orientation)
-            {
-                case DendrogramOrientation.Top:
-                    Ctx.DrawText(leaf.Label, new Point(leafPx, mergeBaselinePx + HierarchicalLayout.Dendrogram.LabelOffsetPx + font.Size),
-                        font, TextAlignment.Center);
-                    break;
-                case DendrogramOrientation.Bottom:
-                    Ctx.DrawText(leaf.Label, new Point(leafPx, mergeBaselinePx - HierarchicalLayout.Dendrogram.LabelOffsetPx),
-                        font, TextAlignment.Center);
-                    break;
-                case DendrogramOrientation.Left:
-                    Ctx.DrawText(leaf.Label, new Point(mergeBaselinePx + HierarchicalLayout.Dendrogram.LabelOffsetPx, leafPx),
-                        font, TextAlignment.Left, rotation: 90);
-                    break;
-                default:
-                    Ctx.DrawText(leaf.Label, new Point(mergeBaselinePx - HierarchicalLayout.Dendrogram.LabelOffsetPx, leafPx),
-                        font, TextAlignment.Right, rotation: 90);
-                    break;
-            }
+            double leafPx = frame.LeafPixel(layout[leaf].LeafCoord, bounds, leaves.Count);
+            double mergeBaselinePx = frame.MergePixel(0, bounds, maxMerge);
+            frame.DrawLabel(Ctx, leaf.Label, leafPx, mergeBaselinePx, font);
         }
-    }
-
-    // ── Pixel mapping ────────────────────────────────────────────────────────
-
-    /// <summary>Maps a leaf index (0..N-1) to its pixel coordinate along the leaf axis.
-    /// For a single-leaf tree (<paramref name="leafCount"/> ≤ 1) the leaf is centred at
-    /// the midpoint of the plot extent so the lone leaf is visually anchored.</summary>
-    private static double LeafPixel(DendrogramOrientation orientation, double leafCoord, Rect bounds, int leafCount)
-    {
-        double t = leafCount <= 1 ? 0.5 : (leafCoord + 0.5) / leafCount;
-        return orientation is DendrogramOrientation.Top or DendrogramOrientation.Bottom
-            ? bounds.X + t * bounds.Width
-            : bounds.Y + t * bounds.Height;
-    }
-
-    /// <summary>Maps a merge distance to its pixel coordinate along the merge axis.</summary>
-    private static double MergePixel(DendrogramOrientation orientation, double mergeCoord, Rect bounds, double maxMerge)
-    {
-        double t = mergeCoord / maxMerge;
-        return orientation switch
-        {
-            DendrogramOrientation.Top    => bounds.Bottom - t * bounds.Height,
-            DendrogramOrientation.Bottom => bounds.Y      + t * bounds.Height,
-            DendrogramOrientation.Left   => bounds.Right  - t * bounds.Width,
-            _                            => bounds.X      + t * bounds.Width,
-        };
     }
 }

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Mcp.Tests;
 
 /// <summary>The schema a model reads has to be the schema the reader enforces, or the server documents one thing
@@ -11,27 +13,29 @@ public class ChartSchemaDescriptionTests
     private static readonly ChartTypeCatalog Catalog = new();
     private static readonly ChartSchemaDescription Description = new(Catalog);
 
-    [Fact]
-    public void TheSchema_ShowsTheFieldsAFigureSpecNeeds()
+    private static readonly MatPlotLibNet.Models.Figure Fresh = new();
+
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string schema = Description.Describe(null);
+        new DrawnToken("TheSchema_ShowsTheFieldsAFigureSpecNeeds", () => Description.Describe(null), "width: number", "height: number", "subPlots", "series", "xData: number[]"),
+        new DrawnToken("AskingAboutOneChartType_DescribesThatOne", () => Description.Describe("candlestick"), "'candlestick'", "open: number[]", "close: number[]"),
+        new DrawnToken("TheFieldNames_AreTheWireNames_NotTheClrNames", () => Description.Describe(null), "altText") { Absent = ["AltText"] },
+        new DrawnToken("TheDescriptionOfOneChartType_NamesEverySeatASeriesMayStandAt", () => Description.Describe("line"), "leftYAxes[].series[]"),
+        new DrawnToken("TheNotesOfTheFiguresSizeAndResolution_SayWhatAFreshFigureStartsAt", () => Description.Describe(null),
+            FormattableString.Invariant($"width: number  — the width of the figure in pixels; absent for {Fresh.Width}"),
+            FormattableString.Invariant($"height: number  — the height of the figure in pixels; absent for {Fresh.Height}"),
+            FormattableString.Invariant($"the resolution, {Fresh.Dpi} by default: a PNG is drawn with dpi / {Fresh.Dpi} pixels")),
+        //  The legend section says it serves the figure's legend as well as the subplots'.
+        new DrawnToken("TheLegendSection_NamesTheFiguresLegendToo", LegendHeading, "subPlots[].legend"),
+        new DrawnToken("TheLegendSection_NamesTheFiguresLegendToo_InAnyCase", LegendHeading, "figure") { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.Contains("width: number", schema);
-        Assert.Contains("height: number", schema);
-        Assert.Contains("subPlots", schema);
-        Assert.Contains("series", schema);
-        Assert.Contains("xData: number[]", schema);
-    }
+    private static string LegendHeading() => Description.Describe(null).HeadingLine("Legend fields");
 
-    [Fact]
-    public void AskingAboutOneChartType_DescribesThatOne()
-    {
-        string schema = Description.Describe("candlestick");
-
-        Assert.Contains("'candlestick'", schema);
-        Assert.Contains("open: number[]", schema);
-        Assert.Contains("close: number[]", schema);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void AskingAboutAnUnknownChartType_IsRefusedByName_WithTheNearest()
@@ -42,11 +46,25 @@ public class ChartSchemaDescriptionTests
         Assert.Contains("'candlestick'", refusal.Message);
     }
 
-    [Theory]
-    [InlineData("geo_polygon")] // MatPlotLibNet.Geo's own discriminator, but nothing registers a factory for it
-    [InlineData("nope")]
-    public void AChartTypeThisServerDoesNotList_IsRefusedToo(string type) =>
-        Assert.Throws<ToolRefusalException>(() => Description.Describe(type));
+    [Fact]
+    public void AChartTypeThisServerDoesNotList_IsRefusedToo() =>
+        Assert.Throws<ToolRefusalException>(() => Description.Describe("nope"));
+
+    /// <summary>A map keeps its projection and its features in the package data of its series: the schema says what that holds,
+    /// with the names of the projections, the numbers a projection takes and the built-in feature sets, read off the Geo package.</summary>
+    [Fact]
+    public void AMap_IsDescribed_WithWhatItsPackageDataHolds()
+    {
+        string schema = Description.Describe("geo_polygon");
+
+        var packageData = schema.FieldLine("packageData:");
+        Assert.Contains("Robinson", packageData);
+        Assert.Contains("Orthographic (lat_0, lon_0)", packageData);
+        Assert.Contains("ne_110m_admin_0_countries", packageData);
+        Assert.Contains("ne_110m_coastline", packageData);
+        Assert.Contains("FeatureCollection", packageData);
+        Assert.DoesNotContain("reads none", packageData);
+    }
 
     [Fact]
     public void TheExampleInTheSchema_IsItselfARenderableSpec()
@@ -65,7 +83,7 @@ public class ChartSchemaDescriptionTests
     {
         string schema = Description.Describe("line");
 
-        var label = schema.Split(Environment.NewLine).Single(line => line.TrimStart().StartsWith("label:", StringComparison.Ordinal));
+        var label = schema.FieldLine("label:");
         Assert.Contains("legend", label, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("labelPlacement", label);
         Assert.Contains("lineEnd", label, StringComparison.OrdinalIgnoreCase);
@@ -76,7 +94,7 @@ public class ChartSchemaDescriptionTests
     {
         string schema = Description.Describe("line");
 
-        var placement = schema.Split(Environment.NewLine).Single(line => line.TrimStart().StartsWith("labelPlacement:", StringComparison.Ordinal));
+        var placement = schema.FieldLine("labelPlacement:");
         Assert.Contains("Legend", placement);
         Assert.Contains("LineEnd", placement);
         Assert.Contains("line", placement, StringComparison.OrdinalIgnoreCase);
@@ -84,7 +102,8 @@ public class ChartSchemaDescriptionTests
 
     /// <summary>A field whose wire name says little is explained where it is listed: <c>c</c> is matplotlib's name for
     /// the values a colour map colours, an area's step mode travels in <c>drawStyle</c>, and <c>fill</c> is a switch,
-    /// not a colour.</summary>
+    /// not a colour. The lists of Y axes and the gap between their titles (no chart type: the overview) carry little in their names too:
+    /// the schema says what an entry is, which end of the plot it stands at, and which list continues which.</summary>
     [Theory]
     [InlineData("scatter", "c:", "colour map")]
     [InlineData("area", "drawStyle:", "area")]
@@ -103,22 +122,14 @@ public class ChartSchemaDescriptionTests
     [InlineData("heatmap", "colorMap:", "built in code")]
     [InlineData("heatmap", "colorMapName:", "ships")]
     [InlineData("pairgrid", "pairGridOffDiagonalColorMapDescription:", "built in code")]
-    public void AFieldWhoseNameSaysLittle_IsExplainedWhereItIsListed(string type, string field, string explanation)
-    {
-        string schema = Description.Describe(type);
-
-        var line = schema.Split(Environment.NewLine).Single(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
-        Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void TheFieldNames_AreTheWireNames_NotTheClrNames()
-    {
-        string schema = Description.Describe(null);
-
-        Assert.Contains("altText", schema);
-        Assert.DoesNotContain("AltText", schema);
-    }
+    [InlineData(null, "extraRightYAxes:", "secondaryYAxis")]
+    [InlineData(null, "rightYAxesOverflow:", "extraRightYAxes")]
+    [InlineData(null, "leftYAxes:", "yAxis")]
+    [InlineData(null, "leftYAxesOverflow:", "continues")]
+    [InlineData(null, "yAxisTitleGap:", "pixels")]
+    [InlineData(null, "bottomXAxes:", "below the plot")]
+    public void AFieldWhoseNameSaysLittle_IsExplainedWhereItIsListed(string? type, string field, string explanation) =>
+        Assert.Contains(explanation, Description.Describe(type).FieldLine(field), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>A tick locator, a tick formatter and a normaliser are written by kind: the schema names every kind the
     /// reader accepts, with the fields that kind takes, read off the same records the serializer reads.</summary>
@@ -138,7 +149,7 @@ public class ChartSchemaDescriptionTests
     {
         string schema = Description.Describe(null);
 
-        Assert.Contains(schema.Split(Environment.NewLine), line => line.Trim() == kind);
+        Assert.Contains(SourceFile.LinesOf(schema), line => line.Trim() == kind);
     }
 
     /// <summary>The parts an axes draws besides its series are listed with their fields, wire names and all.</summary>
@@ -166,7 +177,7 @@ public class ChartSchemaDescriptionTests
     {
         string schema = Description.Describe(null);
 
-        var line = schema.Split(Environment.NewLine).First(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
+        var line = SourceFile.LinesOf(schema).First(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
         Assert.Contains(explanation, line);
     }
 
@@ -187,42 +198,40 @@ public class ChartSchemaDescriptionTests
 
         int at = schema.IndexOf("Y axis slot fields", StringComparison.Ordinal);
         Assert.True(at >= 0, "'Y axis slot fields' is not in the schema.");
-        string[] section = schema[at..].Split(Environment.NewLine);
-        Assert.All(AxesSeatShape.OfSubplot.SlotLists, list => Assert.Contains($".{list}", section[0]));
+        string[] section = SourceFile.LinesOf(schema[at..]);
+        var slotRecord = typeof(SeriesDto).Assembly.GetType("MatPlotLibNet.Serialization.SecondaryAxisSlotDto", throwOnError: true)!;
+        Assert.All(AxesSeatShape.OfSubplot.SlotListsOf(slotRecord), list => Assert.Contains($".{list}", section[0]));
+        Assert.DoesNotContain(".bottomXAxes", section[0]);
         Assert.Contains(section.Skip(1).Take(2), line => line.Trim() == "axis: object");
         Assert.Contains(section.Skip(1).Take(2), line => line.Trim().StartsWith("series: object[]", StringComparison.Ordinal));
+        Assert.True(section[3].Trim().Length == 0, $"a Y axis slot holds an axis and its series only, not '{section[3]}'.");
     }
 
-    /// <summary>The lists of Y axes and the gap between their titles carry little in their names: the schema says what an
-    /// entry is, which end of the plot it stands at, and which list continues which.</summary>
-    [Theory]
-    [InlineData("extraRightYAxes:", "secondaryYAxis")]
-    [InlineData("rightYAxesOverflow:", "extraRightYAxes")]
-    [InlineData("leftYAxes:", "yAxis")]
-    [InlineData("leftYAxesOverflow:", "continues")]
-    [InlineData("yAxisTitleGap:", "pixels")]
-    public void AFieldOfTheYAxisLists_IsExplainedWhereItIsListed(string field, string explanation)
+    /// <summary>An X axis below the plot is its own record: the axis, linked to the primary X axis, and where it stands. It holds
+    /// no series, so the schema neither lists a series field for it nor names its list among the Y axis slots.</summary>
+    [Fact]
+    public void TheSchema_ListsTheFieldsOfAnXAxisBelowThePlot_UnderItsList()
     {
         string schema = Description.Describe(null);
 
-        var line = schema.Split(Environment.NewLine).Single(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
-        Assert.Contains(explanation, line);
+        int at = schema.IndexOf("X axis below the plot fields", StringComparison.Ordinal);
+        Assert.True(at >= 0, "'X axis below the plot fields' is not in the schema.");
+        string[] section = SourceFile.LinesOf(schema[at..]);
+        Assert.Contains("subPlots[].bottomXAxes", section[0]);
+        Assert.Contains(section.Skip(1).Take(2), line => line.Trim() == "axis: object");
+        Assert.Contains(section.Skip(1).Take(2), line => line.Trim().StartsWith("location: number  — ", StringComparison.Ordinal)
+            && line.Contains("bottom spine", StringComparison.Ordinal));
+        Assert.True(section[3].Trim().Length == 0, $"an X axis below the plot holds an axis and a location only, not '{section[3]}'.");
     }
 
+    /// <summary>A link is drawn on every linked axis the wire carries, the axes below the plot among them.</summary>
     [Fact]
-    public void TheDescriptionOfOneChartType_NamesEverySeatASeriesMayStandAt()
+    public void TheLinkNoteAndTheLinkKinds_NameTheXAxesBelowThePlot()
     {
-        string schema = Description.Describe("line");
+        string schema = Description.Describe(null);
 
-        Assert.Contains("leftYAxes[].series[]", schema);
-    }
-
-    /// <summary>The fields of a section of the overview, up to the blank line that ends it.</summary>
-    private static string[] SectionOf(string schema, string heading)
-    {
-        int at = schema.IndexOf(heading, StringComparison.Ordinal);
-        Assert.True(at >= 0, $"'{heading}' is not in the schema.");
-        return schema[at..].Split(Environment.NewLine).Skip(1).TakeWhile(line => line.Trim().Length > 0).Select(line => line.Trim()).ToArray();
+        Assert.Contains("bottomXAxes", SourceFile.LinesOf(schema).First(l => l.TrimStart().StartsWith("link:", StringComparison.Ordinal)));
+        Assert.Contains("bottomXAxes", schema.HeadingLine("Axis link kinds"));
     }
 
     /// <summary>What the figure draws on itself — its texts, its legend, its images — is listed with the figure's own fields,
@@ -233,7 +242,7 @@ public class ChartSchemaDescriptionTests
     [InlineData("legend: object")]
     public void TheFigureFields_ListTheTextsTheLegendAndTheImages(string field)
     {
-        var figureFields = SectionOf(Description.Describe(null), "Figure fields:");
+        var figureFields = Description.SectionFields("Figure fields:");
 
         Assert.Contains(figureFields, line => line.StartsWith(field, StringComparison.Ordinal));
     }
@@ -258,20 +267,9 @@ public class ChartSchemaDescriptionTests
     [InlineData("Figure image fields", "alpha: number")]
     public void TheSchema_ListsTheFieldsOfAFigureTextAndOfAFigureImage(string section, string field)
     {
-        var fields = SectionOf(Description.Describe(null), section);
+        var fields = Description.SectionFields(section);
 
         Assert.Contains(fields, line => line.StartsWith(field, StringComparison.Ordinal));
-    }
-
-    /// <summary>The legend section says it serves the figure's legend as well as the subplots'.</summary>
-    [Fact]
-    public void TheLegendSection_NamesTheFiguresLegendToo()
-    {
-        string schema = Description.Describe(null);
-
-        string heading = schema.Split(Environment.NewLine).Single(line => line.StartsWith("Legend fields", StringComparison.Ordinal));
-        Assert.Contains("subPlots[].legend", heading);
-        Assert.Contains("figure", heading, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>The fields whose names say little are explained where they are listed, with the enum names the reader accepts:
@@ -289,7 +287,7 @@ public class ChartSchemaDescriptionTests
     [InlineData("Figure image fields", "yOffset:", "bottom")]
     public void AFieldOfAFigureTextOrImage_IsExplainedWhereItIsListed(string section, string field, string explanation)
     {
-        var fields = SectionOf(Description.Describe(null), section);
+        var fields = Description.SectionFields(section);
 
         var line = fields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
         Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
@@ -298,10 +296,12 @@ public class ChartSchemaDescriptionTests
     [Theory]
     [InlineData("texts:", "figtext")]
     [InlineData("images:", "figimage")]
-    [InlineData("legend:", "every subplot")]
-    public void TheFiguresTextsImagesAndLegend_AreExplainedWhereTheyAreListed(string field, string explanation)
+    [InlineData("legends:", "every subplot")]
+    [InlineData("legends:", "fig.legend()")]
+    [InlineData("legend:", "write legends instead")]
+    public void TheFiguresTextsImagesAndLegends_AreExplainedWhereTheyAreListed(string field, string explanation)
     {
-        var figureFields = SectionOf(Description.Describe(null), "Figure fields:");
+        var figureFields = Description.SectionFields("Figure fields:");
 
         var line = figureFields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
         Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
@@ -316,7 +316,7 @@ public class ChartSchemaDescriptionTests
     [InlineData("signals: object[]", "Sell")]
     public void TheSubplotFields_ListTheCellOfAGridAndTheSignals_AndSayWhatTheyHold(string field, string explanation)
     {
-        var subplotFields = SectionOf(Description.Describe(null), "Subplot fields");
+        var subplotFields = Description.SectionFields("Subplot fields");
 
         var line = subplotFields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
         Assert.Contains(explanation, line, StringComparison.Ordinal);
@@ -327,7 +327,7 @@ public class ChartSchemaDescriptionTests
     [Fact]
     public void TheSubplotFields_ListTheZoomIndicator_AsAnInsetsSetting()
     {
-        var subplotFields = SectionOf(Description.Describe(null), "Subplot fields");
+        var subplotFields = Description.SectionFields("Subplot fields");
 
         var line = subplotFields.Single(l => l.StartsWith("zoomIndicator: object", StringComparison.Ordinal));
         Assert.Contains("inset", line, StringComparison.OrdinalIgnoreCase);
@@ -342,7 +342,7 @@ public class ChartSchemaDescriptionTests
     [InlineData("connectors: boolean", "two")]
     public void TheZoomIndicatorFields_AreListedAndExplained(string field, string explanation)
     {
-        var fields = SectionOf(Description.Describe(null), "Zoom indicator fields");
+        var fields = Description.SectionFields("Zoom indicator fields");
 
         var line = fields.Single(l => l.StartsWith(field, StringComparison.Ordinal));
         Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
@@ -355,6 +355,6 @@ public class ChartSchemaDescriptionTests
     {
         string schema = Description.Describe("heatmap");
 
-        Assert.Contains(schema.Split(Environment.NewLine), line => line.TrimStart().StartsWith("normalizer:", StringComparison.Ordinal));
+        Assert.Contains(SourceFile.LinesOf(schema), line => line.TrimStart().StartsWith("normalizer:", StringComparison.Ordinal));
     }
 }

@@ -4,6 +4,8 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.Packaging;
+using MatPlotLibNet.Tests.Rendering;
 using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Tests;
@@ -37,9 +39,6 @@ public class SaveOptionsExportTests
             if (File.Exists(path)) File.Delete(path);
         }
     }
-
-    /// <summary>Parsed with the library's own whitespace rule: the whitespace between elements is not content.</summary>
-    private static XDocument Parse(string svg) => XDocument.Parse(svg);
 
     // ── nothing asked, nothing changed ───────────────────────────────────────────────────────────────
 
@@ -76,7 +75,7 @@ public class SaveOptionsExportTests
     {
         string svg = SavedText(Chart(), "a.svg", new SaveOptions { PrettifySvg = true });
 
-        string[] lines = svg.Split('\n');
+        string[] lines = SourceFile.LinesOf(svg);
         Assert.True(lines.Length > 10, "an indented document has a line per element");
         Assert.StartsWith("<svg", lines[0]);
         Assert.Contains(lines, l => l.StartsWith("  <") && !l.StartsWith("   "));
@@ -88,25 +87,27 @@ public class SaveOptionsExportTests
     {
         var figure = Chart(interactive: true);
 
-        XDocument plain = Parse(SavedText(figure, "a.svg", null));
-        XDocument pretty = Parse(SavedText(figure, "a.svg", new SaveOptions { PrettifySvg = true }));
+        XDocument plain = SavedText(figure, "a.svg", null).Xml();
+        XDocument pretty = SavedText(figure, "a.svg", new SaveOptions { PrettifySvg = true }).Xml();
 
         Assert.True(XNode.DeepEquals(plain.Root, pretty.Root), "indenting changed the document, not only its layout");
     }
 
-    [Fact]
-    public void PrettifySvg_AddsNoSpaceInsideText()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = SavedText(Chart(), "a.svg", new SaveOptions { PrettifySvg = true });
+        new DrawnToken("PrettifySvg_AddsNoSpaceInsideText", () => SavedText(Chart(), "a.svg", new SaveOptions { PrettifySvg = true }), ">Revenue<"),
+    };
 
-        Assert.Contains(">Revenue<", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void PrettifySvg_LeavesAnInlineScriptWhole()
     {
         var figure = Chart(interactive: true);
-        string Script(string svg) => Parse(svg).Descendants().First(e => e.Name.LocalName == "script").Value;
+        string Script(string svg) => svg.Xml().Each("script").First().Value;
 
         string plain = Script(SavedText(figure, "a.svg", null));
         string pretty = Script(SavedText(figure, "a.svg", new SaveOptions { PrettifySvg = true }));
@@ -131,16 +132,31 @@ public class SaveOptionsExportTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(2)]
     public void SvgDecimalPrecision_LimitsTheDecimalsOfEveryCoordinate(int decimals)
     {
         var figure = Chart();
 
-        XDocument plain = Parse(SavedText(figure, "a.svg", null));
-        XDocument rounded = Parse(SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = decimals }));
+        XDocument plain = SavedText(figure, "a.svg", null).Xml();
+        XDocument rounded = SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = decimals }).Xml();
 
-        Assert.True(MostDecimals(ValuesOf(plain, Coordinates)) > 2, "the fixture has no coordinate worth rounding");
+        Assert.True(MostDecimals(ValuesOf(plain, Coordinates)) > decimals, "the fixture has no coordinate worth rounding");
         Assert.True(MostDecimals(ValuesOf(rounded, Coordinates)) <= decimals);
+    }
+
+    /// <summary>The drawing is written to two decimals of a pixel, so a precision of two or more has nothing left to round:
+    /// every coordinate is the one written without it.</summary>
+    [Theory]
+    [InlineData(2)]
+    [InlineData(15)]
+    public void SvgDecimalPrecision_OfTwoOrMore_LeavesTheDrawingAsWritten(int decimals)
+    {
+        var figure = Chart();
+
+        XDocument plain = SavedText(figure, "a.svg", null).Xml();
+        XDocument rounded = SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = decimals }).Xml();
+
+        Assert.Equal(2, MostDecimals(ValuesOf(plain, Coordinates)));
+        Assert.Equal(ValuesOf(plain, Coordinates), ValuesOf(rounded, Coordinates));
     }
 
     [Fact]
@@ -149,8 +165,8 @@ public class SaveOptionsExportTests
         // A stroke of 1.5 rounded to a whole number would be 2 (or, for 0.4, 0): a look, not a position.
         var figure = Chart();
 
-        XDocument plain = Parse(SavedText(figure, "a.svg", null));
-        XDocument rounded = Parse(SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 0 }));
+        XDocument plain = SavedText(figure, "a.svg", null).Xml();
+        XDocument rounded = SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 0 }).Xml();
 
         Assert.NotEmpty(ValuesOf(plain, Styling));
         Assert.Equal(ValuesOf(plain, Styling), ValuesOf(rounded, Styling));
@@ -161,20 +177,20 @@ public class SaveOptionsExportTests
     {
         var figure = Chart(interactive: true);
 
-        XDocument plain = Parse(SavedText(figure, "a.svg", null));
-        XDocument rounded = Parse(SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 0 }));
+        XDocument plain = SavedText(figure, "a.svg", null).Xml();
+        XDocument rounded = SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 0 }).Xml();
 
         static IEnumerable<string> Data(XDocument svg) => svg.Descendants().SelectMany(e => e.Attributes())
             .Where(a => a.Name.LocalName.StartsWith("data-", StringComparison.Ordinal)).Select(a => $"{a.Name.LocalName}={a.Value}");
-        static IEnumerable<string> Texts(XDocument svg) => svg.Descendants().Where(e => e.Name.LocalName == "text").Select(e => e.Value);
+        static IEnumerable<string> Texts(XDocument svg) => svg.Each("text").Select(e => e.Value);
 
         Assert.NotEmpty(Data(plain));
         Assert.Equal(Data(plain), Data(rounded));
         Assert.NotEmpty(Texts(plain));
         Assert.Equal(Texts(plain), Texts(rounded));
         Assert.Equal(
-            plain.Descendants().First(e => e.Name.LocalName == "script").Value,
-            rounded.Descendants().First(e => e.Name.LocalName == "script").Value);
+            plain.Each("script").First().Value,
+            rounded.Each("script").First().Value);
     }
 
     [Fact]
@@ -182,8 +198,8 @@ public class SaveOptionsExportTests
     {
         var figure = Chart();
 
-        XDocument plain = Parse(SavedText(figure, "a.svg", null));
-        XDocument rounded = Parse(SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 1 }));
+        XDocument plain = SavedText(figure, "a.svg", null).Xml();
+        XDocument rounded = SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 1 }).Xml();
 
         Assert.Equal(
             plain.Descendants().Select(e => e.Name.LocalName),
@@ -207,18 +223,18 @@ public class SaveOptionsExportTests
         var figure = Chart();
 
         Assert.Equal(
-            Parse(SavedText(figure, "a.svg", null)).Root!.Descendants().Count(),
-            Parse(SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 15 })).Root!.Descendants().Count());
+            SavedText(figure, "a.svg", null).Xml().Root!.Descendants().Count(),
+            SavedText(figure, "a.svg", new SaveOptions { SvgDecimalPrecision = 15 }).Xml().Root!.Descendants().Count());
     }
 
     // ── Title and Author ─────────────────────────────────────────────────────────────────────────────
 
-    private static XElement? Metadata(XDocument svg) => svg.Root!.Elements().FirstOrDefault(e => e.Name.LocalName == "metadata");
+    private static XElement? Metadata(XDocument svg) => svg.Root!.Children("metadata").FirstOrDefault();
 
     [Fact]
     public void TitleAndAuthor_AreWrittenAsDublinCoreMetadata()
     {
-        XDocument svg = Parse(SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }));
+        XDocument svg = SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }).Xml();
 
         var description = Metadata(svg)!.Element(Rdf + "RDF")!.Element(Rdf + "Description")!;
         Assert.Equal("Annual Revenue", description.Element(Dc + "title")!.Value);
@@ -228,7 +244,7 @@ public class SaveOptionsExportTests
     [Fact]
     public void ATitleAlone_WritesNoCreator()
     {
-        XDocument svg = Parse(SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue" }));
+        XDocument svg = SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue" }).Xml();
 
         var description = Metadata(svg)!.Element(Rdf + "RDF")!.Element(Rdf + "Description")!;
         Assert.NotNull(description.Element(Dc + "title"));
@@ -238,7 +254,7 @@ public class SaveOptionsExportTests
     [Fact]
     public void AnAuthorAlone_WritesNoTitle()
     {
-        XDocument svg = Parse(SavedText(Chart(), "a.svg", new SaveOptions { Author = "Finance Team" }));
+        XDocument svg = SavedText(Chart(), "a.svg", new SaveOptions { Author = "Finance Team" }).Xml();
 
         var description = Metadata(svg)!.Element(Rdf + "RDF")!.Element(Rdf + "Description")!;
         Assert.Null(description.Element(Dc + "title"));
@@ -250,7 +266,7 @@ public class SaveOptionsExportTests
     {
         const string title = "R&D <2026> \"plan\" — 東京";
 
-        XDocument svg = Parse(SavedText(Chart(), "a.svg", new SaveOptions { Title = title }));
+        XDocument svg = SavedText(Chart(), "a.svg", new SaveOptions { Title = title }).Xml();
 
         Assert.Equal(title, Metadata(svg)!.Descendants(Dc + "title").Single().Value);
     }
@@ -259,15 +275,15 @@ public class SaveOptionsExportTests
     public void TheAccessibleName_IsNotReplacedByTheDocumentTitle()
     {
         // <title> is what a screen reader announces for the picture; the document title is metadata about the file.
-        XDocument svg = Parse(SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue" }));
+        XDocument svg = SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue" }).Xml();
 
-        Assert.Equal("Revenue", svg.Root!.Elements().First(e => e.Name.LocalName == "title").Value);
+        Assert.Equal("Revenue", svg.Root!.Children("title").First().Value);
     }
 
     [Fact]
     public void Metadata_StandsBetweenTheTitleAndTheDrawing()
     {
-        XDocument svg = Parse(SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue" }));
+        XDocument svg = SavedText(Chart(), "a.svg", new SaveOptions { Title = "Annual Revenue" }).Xml();
 
         var names = svg.Root!.Elements().Select(e => e.Name.LocalName).ToList();
         Assert.Equal("title", names[0]);
@@ -279,7 +295,7 @@ public class SaveOptionsExportTests
     {
         var figure = Plt.Create().WithSize(200, 100).WithDescription("A line").Plot([0.0, 1.0], [0.0, 1.0]).Build();
 
-        XDocument svg = Parse(SavedText(figure, "a.svg", new SaveOptions { Author = "A" }));
+        XDocument svg = SavedText(figure, "a.svg", new SaveOptions { Author = "A" }).Xml();
 
         var names = svg.Root!.Elements().Select(e => e.Name.LocalName).ToList();
         Assert.Equal(new[] { "title", "desc", "metadata" }, names.Take(3));
@@ -359,26 +375,12 @@ public class SaveOptionsExportTests
 
     // ── a transform written by someone else ──────────────────────────────────────────────────────────
 
-    /// <summary>A transform that only knows the two-argument contract the interface always had.</summary>
-    private sealed class PlainTransform : IFigureTransform
-    {
-        public int Calls { get; private set; }
-
-        public void Transform(Figure figure, Stream output)
-        {
-            Calls++;
-            output.Write("plain"u8);
-        }
-    }
-
     /// <summary>A transform that reads the options.</summary>
-    private sealed class OptionsTransform : IFigureTransform
+    private sealed class OptionsTransform() : RecordingFigureTransform("no-options"), IFigureTransform
     {
         public SaveOptions? Seen { get; private set; }
 
-        public void Transform(Figure figure, Stream output) => output.Write("no-options"u8);
-
-        public void Transform(Figure figure, Stream output, SaveOptions options)
+        void IFigureTransform.Transform(Figure figure, Stream output, SaveOptions options)
         {
             Seen = options;
             output.Write("with-options"u8);
@@ -388,7 +390,7 @@ public class SaveOptionsExportTests
     [Fact]
     public void ATransformThatKnowsNoOptions_StillWritesItsFile_WhenOptionsAreGiven()
     {
-        var transform = new PlainTransform();
+        var transform = new RecordingFigureTransform("plain");
         FigureExtensions.RegisterTransform(".s9plain", transform);
 
         string text = SavedText(Chart(), "a.s9plain", new SaveOptions { Dpi = 300, Title = "T" });
@@ -422,19 +424,10 @@ public class SaveOptionsExportTests
         Assert.Null(transform.Seen);
     }
 
-    private sealed class FailingTransform : IFigureTransform
-    {
-        public void Transform(Figure figure, Stream output)
-        {
-            output.Write("half a file"u8);
-            throw new InvalidOperationException("the export failed half way");
-        }
-    }
-
     [Fact]
     public void AnExportThatFails_LeavesTheFileThatWasThere()
     {
-        FigureExtensions.RegisterTransform(".s9failing", new FailingTransform());
+        FigureExtensions.RegisterTransform(".s9failing", new RecordingFigureTransform("half a file", new InvalidOperationException("the export failed half way")));
         string path = Path.Combine(Path.GetTempPath(), $"s9_{Guid.NewGuid():N}.s9failing");
         try
         {

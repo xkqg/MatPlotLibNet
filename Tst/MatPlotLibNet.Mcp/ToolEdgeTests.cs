@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 using ModelContextProtocol;
@@ -42,19 +41,11 @@ public class ToolEdgeTests : IDisposable
         // drawn. This net catches what no input check can foresee; here the text measurement itself fails.
         var spec = new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"line","xData":[1,2,3],"yData":[1,2,3]}]}]}""");
         Rendering.Render(spec, ChartFormat.Png);   // loads the PNG backend first: its module initializer installs its own text measurement
-        var before = FontMetricsDefault.Current;
-        FontMetricsDefault.Current = new FailingFontMetrics();
-        try
-        {
-            var refusal = Assert.Throws<ToolRefusalException>(() => Rendering.Render(spec, ChartFormat.Png));
+        using var heldMetrics = FontMetricsDefault.Holding(new TestFontMetrics((_, _) => throw new InvalidOperationException("no font here")));
+        var refusal = Assert.Throws<ToolRefusalException>(() => Rendering.Render(spec, ChartFormat.Png));
 
-            Assert.Contains("could not be rendered", refusal.Message);
-            Assert.Contains("no font here", refusal.Message);
-        }
-        finally
-        {
-            FontMetricsDefault.Current = before;
-        }
+        Assert.Contains("could not be rendered", refusal.Message);
+        Assert.Contains("no font here", refusal.Message);
     }
 
     /// <summary>A 3-D line with one z value for three points used to pass the reader and fail while it was drawn; the library
@@ -67,14 +58,8 @@ public class ToolEdgeTests : IDisposable
             ChartFormat.Png));
 
         Assert.Contains("$.subPlots[0].series[0]", refusal.Message);
-        Assert.Contains("Array lengths must match. Got 3 and 1.", refusal.Message);
+        Assert.Contains(3.RefusalAgainst(1), refusal.Message);
         Assert.DoesNotContain("could not be rendered", refusal.Message);
-    }
-
-    /// <summary>A text measurement that fails whatever it is asked to measure.</summary>
-    private sealed class FailingFontMetrics : IFontMetrics
-    {
-        public Size Measure(string text, Font font) => throw new InvalidOperationException("no font here");
     }
 
     /// <summary>An empty funnel has nothing to draw: it renders an empty plot, as every other type does with no data (it
@@ -264,12 +249,14 @@ public class ToolEdgeTests : IDisposable
         Assert.Single(figure.SubPlots[0].Series);
     }
 
-    [Fact]
-    public void TheSchemaOfAFieldWithoutANote_IsStillListed()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string schema = new ChartSchemaDescription(Catalog).Describe("line");
+        //  a field with a note
+        new DrawnToken("TheSchemaOfAFieldWithoutANote_IsStillListed", () => new ChartSchemaDescription(Catalog).Describe("line"), "xData: number[]  — x values", "markerSize: number"),
+    };
 
-        Assert.Contains("xData: number[]  — x values", schema);   // a field with a note
-        Assert.Contains("markerSize: number", schema);           // and one without
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

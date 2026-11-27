@@ -14,7 +14,7 @@ children, which is how SciPy's `scipy.cluster.hierarchy.dendrogram` renders them
 
 `DendrogramSeries` accepts any `TreeNode` tree in which the `Value` of an internal node
 carries the merge distance. You supply the clustering yourself: use
-`HierarchicalClustering.Cluster()` from the `MatPlotLibNet.Numerics` namespace, or any
+`HierarchicalClustering.Cluster(distanceMatrix)` from the `MatPlotLibNet.Numerics` namespace, or any
 external algorithm.
 
 ## Basic dendrogram
@@ -106,7 +106,7 @@ For `Left` and `Right`, leaf labels are rotated 90° so they read along the leaf
 ## Notes
 
 - **Binary-tree assumption.** The leaf coordinate of an internal node is the mean of its
-  immediate children. For binary trees, which is what `scipy.linkage` produces, this
+  immediate children. For binary trees, which is what `scipy.cluster.hierarchy.linkage` produces, this
   matches SciPy's `(left + right) / 2` placement exactly. N-ary trees are accepted, but
   they may render off-centre compared with the midpoint of the leftmost and rightmost
   descendant.

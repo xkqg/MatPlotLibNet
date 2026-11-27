@@ -184,7 +184,7 @@ public class DirectLabelMetricsTests
         var plain = new DirectLabelMetrics(figure.SubPlots[0], figure.Theme, new RecordingRenderContext());
         var sized = Metrics(ax => ax.Plot(X, [1.0, 2.0, 3.0]).WithLegend(l => l with { FontSize = 17 }));
 
-        Assert.Equal(ThemedFontProvider.TickFont(figure.Theme), plain.Font);
+        Assert.Equal(figure.Theme.TickFont(), plain.Font);
         Assert.Equal(17, sized.Font.Size);
     }
 
@@ -207,7 +207,7 @@ public class DirectLabelMetricsTests
         const string label = @"$\alpha_{max}$";
         var m = Metrics(ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = label).WithDirectLabel(), ctx);
 
-        Assert.Equal(((IRenderContext)ctx).MeasureRichText(MathTextParser.Parse(label), m.Font).Width, m.Measure(label).Width, 9);
-        Assert.NotEqual(ctx.MeasureText(label, m.Font).Width, m.Measure(label).Width);
+        Assert.Equal(((IRenderContext)ctx).MeasureRichText(MathTextParser.Parse(label), m.Font).Width, m.ExtentOf(label).Width, 9);
+        Assert.NotEqual(ctx.MeasureText(label, m.Font).Width, m.ExtentOf(label).Width);
     }
 }

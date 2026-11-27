@@ -11,8 +11,8 @@ namespace MatPlotLibNet.Skia.Tests;
 
 /// <summary>A line drawn in a translucent colour is as translucent in the SVG as in the PNG of the same figure. Skia paints a
 /// stroke in its colour's alpha; the SVG's hex colour carries none, so the SVG writes it beside the colour as
-/// <c>stroke-opacity</c>. Before, a grid line in a translucent colour, the minor grid (drawn at half the grid's alpha) and a
-/// translucent line series were opaque in the SVG and translucent in the PNG. Each probe reads the colour the SVG gives a line,
+/// <c>stroke-opacity</c>. Before, a grid line in a translucent colour, the minor grid (drawn at half the grid's alpha under the
+/// library's own themes) and a translucent line series were opaque in the SVG and translucent in the PNG. Each probe reads the colour the SVG gives a line,
 /// at the opacity the SVG gives it, over the white plot, and the pixel of the PNG at the middle of that line.</summary>
 public class LineStrokeRasterParityTests
 {
@@ -36,7 +36,8 @@ public class LineStrokeRasterParityTests
 
     /// <summary>An axes from 0 to 10 on both axes whose grid lines stand on the X ticks only, as vertical lines, so the middle
     /// of a grid line crosses nothing; its one series runs along the bottom edge.</summary>
-    private static Figure GridOnly(Func<GridStyle, GridStyle> grid) => Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax => ax
+    private static Figure GridOnly(Func<GridStyle, GridStyle> grid, Theme? theme = null) => Plt.Create().WithSize(800, 400)
+        .WithTheme(theme ?? Theme.MatplotlibV2).AddSubPlot(1, 1, 1, ax => ax
         .Plot([0.0, 10.0], [0.0, 0.0], s => s.Color = Colors.Black)
         .SetXLim(0, 10).SetYLim(0, 10)
         .WithGrid(g => grid(g) with { Visible = true, Axis = GridAxis.X }))
@@ -68,18 +69,18 @@ public class LineStrokeRasterParityTests
         AssertPixel(picture, figure, line.Number("x1"), (line.Number("y1") + line.Number("y2")) / 2, stroked.OnWhite(), "the grid line");
     }
 
-    /// <summary>The minor grid is drawn at half the alpha of the grid's colour, so an opaque grid has a translucent minor grid,
-    /// as matplotlib draws it.</summary>
+    /// <summary>Under the library's own themes the minor grid is drawn at half the alpha of the grid's colour, so an opaque grid
+    /// has a translucent minor grid (the matplotlib themes draw it in the grid's own colour, as matplotlib does).</summary>
     [Fact]
     public void AMinorGridLine_IsTheSameInThePngAsInTheSvg()
     {
-        var figure = GridOnly(g => g with { Color = Colors.Blue, LineWidth = 12, Which = GridWhich.Minor });
+        var figure = GridOnly(g => g with { Color = Colors.Blue, LineWidth = 12, Which = GridWhich.Minor }, Theme.Default);
         var line = MiddleLine(figure.ToSvg(), "#0000FF", figure);
         using var picture = SKBitmap.Decode(figure.ToPng());
 
         var stroked = Stroked.Of(line);
 
-        Assert.Equal(127 / 255.0, stroked.Opacity, 6);
+        Assert.Equal(128 / 255.0, stroked.Opacity, 6);
         AssertPixel(picture, figure, line.Number("x1"), (line.Number("y1") + line.Number("y2")) / 2, stroked.OnWhite(), "the minor grid line");
     }
 

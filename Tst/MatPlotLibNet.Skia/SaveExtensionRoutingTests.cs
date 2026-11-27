@@ -11,11 +11,6 @@ namespace MatPlotLibNet.Skia.Tests;
 /// Skia registers no figure transform for it.</summary>
 public class SaveExtensionRoutingTests
 {
-    /// <summary>The module initializer runs when something of the assembly is first used; saving before that would hit the
-    /// refusals core seeds, so the test forces it the way <c>ChartRendering</c> does.</summary>
-    static SaveExtensionRoutingTests() =>
-        System.Runtime.CompilerServices.RuntimeHelpers.RunModuleConstructor(typeof(FigureSkiaExtensions).Module.ModuleHandle);
-
     private static Figure Chart() =>
         Plt.Create().WithSize(400, 300).Plot([0.0, 1.0, 2.0], [1.0, 3.0, 2.0]).Build();
 

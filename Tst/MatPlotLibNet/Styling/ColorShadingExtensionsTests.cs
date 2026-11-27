@@ -65,4 +65,28 @@ public class ColorShadingExtensionsTests
         var color = new Color(100, 100, 100, 200);
         Assert.Equal(200, color.Modulate(0.5).A);
     }
+
+    /// <summary>A shade is each channel times the intensity at the nearest step, as matplotlib's <c>_shade_colors</c> multiplies the
+    /// channels and its writers round them (<c>to_hex</c>, Agg): 255 at 0.67 is 170.85, drawn 171.</summary>
+    [Theory]
+    [InlineData(255, 0.67, 171)]
+    [InlineData(255, 0.5, 128)]
+    [InlineData(101, 0.5, 50)]
+    public void Modulate_RoundsEachChannelToTheNearestStep(int channel, double intensity, int expected)
+    {
+        var shaded = new Color((byte)channel, (byte)channel, (byte)channel, 77).Modulate(intensity);
+
+        Assert.Equal(new Color((byte)expected, (byte)expected, (byte)expected, 77), shaded);
+    }
+
+    /// <summary>The directional light shades by the one rule: the colour modulated at the light's intensity for the face.</summary>
+    [Fact]
+    public void ADirectionalLight_ShadesAsModulateAtItsIntensity()
+    {
+        var light = new MatPlotLibNet.Rendering.Lighting.DirectionalLight(0.3, -0.5, 0.8);
+        var colour = new Color(201, 97, 33, 140);
+
+        foreach (var (nx, ny, nz) in new[] { (0.0, 0.0, 1.0), (1.0, 0.2, 0.1), (-0.4, 0.7, -0.6) })
+            Assert.Equal(colour.Modulate(light.ComputeIntensity(nx, ny, nz)), light.Shade(colour, nx, ny, nz));
+    }
 }

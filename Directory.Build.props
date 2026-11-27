@@ -45,7 +45,7 @@
        is a pack and a break is caught by the build that makes it.
 
        The baseline is named HERE and nowhere else. The release moves it together with the version: it is the
-       release just before the one being made, and ReleaseContractTests fails when it is not. The packages that
+       release just before the one being made, and ReleaseVersionContractTests fails when it is not. The packages that
        opt out: the frozen Notebooks package (it never had that release) and the .NET tool package, which the SDK
        switches off by itself because a command line has no API to compare.
 
@@ -54,7 +54,10 @@
        project's own `IsPackable` is not yet known in this file. -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'Src'))))">
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.28.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.29.0</PackageValidationBaselineVersion>
+    <!-- The code-style rules Src/.editorconfig sets to warning (IDE0052: a private member written and never read) run in the
+         build, so dead state fails it as any other warning does. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -62,7 +65,7 @@
   </ItemGroup>
 
   <!-- The one place the SourceLink version is written. Every project inherits the reference below, so none of them
-       restates it (ReleaseContractTests.TheSourceLinkVersion_LivesInOnePlace holds that), and a bump is one edit.
+       restates it (ReleaseVersionContractTests.APackageVersion_LivesInOnePlace holds that), and a bump is one edit.
 
        Pinned, not floating: CVE-2026-62900 names four bands of Microsoft.Build.Tasks.Git, the package SourceLink
        pulls: 8.0.0, 10.0.102-10.0.110, 10.0.200-10.0.204 and 10.0.300-10.0.301. The 8.0.0 and 10.0.200-10.0.204
@@ -71,6 +74,15 @@
        could drift back into one of them on its own. -->
   <PropertyGroup>
     <SourceLinkVersion>10.0.403</SourceLinkVersion>
+  </PropertyGroup>
+
+  <!-- The one place the System.Numerics.Tensors version is written (ReleaseVersionContractTests.APackageVersion_LivesInOnePlace holds
+       that). It was a floating "10.*" in the core, which only the core's own restore resolves to the newest: the package a
+       consumer gets then says "10.0.0 or later", a project that referenced the core resolved that to whatever 10.0.x its machine
+       had cached, and the Wpf and Uno suites failed with MSB3277 (10.0.14 against the 10.0.15 the core was built on). An exact
+       version is also the floor the published package asks for. A bump is this one edit. -->
+  <PropertyGroup>
+    <SystemNumericsTensorsVersion>10.0.15</SystemNumericsTensorsVersion>
   </PropertyGroup>
 
   <ItemGroup>

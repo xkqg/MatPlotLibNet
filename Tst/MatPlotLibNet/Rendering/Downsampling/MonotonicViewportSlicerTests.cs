@@ -47,24 +47,16 @@ public class MonotonicViewportSlicerTests
             Assert.Equal(result.X[i] * 2.0, result.Y[i], 10);
     }
 
-    // ── viewport entirely outside (left) ─────────────────────────────────────
+    // ── nothing in the viewport ───────────────────────────────────────────────
 
-    [Fact]
-    public void Slice_OutsideLeft_ReturnsEmpty()
+    /// <summary>A viewport wholly left or right of the data, or a source with no points, slices nothing.</summary>
+    [Theory]
+    [InlineData(100, -50, -10)] // left of x = 0..99
+    [InlineData(100, 200, 300)] // right of x = 0..99
+    [InlineData(0, 0, 100)] // no points
+    public void Slice_WithNothingInTheViewport_ReturnsEmpty(int length, double xMin, double xMax)
     {
-        var stub = new UniformStub(100); // x = 0..99
-        var result = MonotonicViewportSlicer.Slice(stub, -50, -10, null);
-        Assert.Empty(result.X);
-        Assert.Empty(result.Y);
-    }
-
-    // ── viewport entirely outside (right) ────────────────────────────────────
-
-    [Fact]
-    public void Slice_OutsideRight_ReturnsEmpty()
-    {
-        var stub = new UniformStub(100); // x = 0..99
-        var result = MonotonicViewportSlicer.Slice(stub, 200, 300, null);
+        var result = MonotonicViewportSlicer.Slice(new UniformStub(length), xMin, xMax, null);
         Assert.Empty(result.X);
         Assert.Empty(result.Y);
     }
@@ -77,17 +69,6 @@ public class MonotonicViewportSlicerTests
         var stub = new UniformStub(10);
         var result = MonotonicViewportSlicer.Slice(stub, -100, 100, null);
         Assert.Equal(10, result.X.Length);
-    }
-
-    // ── empty source ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Slice_EmptySource_ReturnsEmpty()
-    {
-        var stub = new UniformStub(0);
-        var result = MonotonicViewportSlicer.Slice(stub, 0, 100, null);
-        Assert.Empty(result.X);
-        Assert.Empty(result.Y);
     }
 
     // ── single point inside viewport ─────────────────────────────────────────

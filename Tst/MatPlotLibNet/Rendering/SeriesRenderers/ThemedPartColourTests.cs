@@ -37,27 +37,26 @@ public class ThemedPartColourTests
             case "stackedarea":
                 new StackedAreaSeriesRenderer(context).Render(new StackedAreaSeries([0.0, 1, 2],
                     Enumerable.Range(0, parts).Select(_ => new[] { 1.0, 1, 1 }).ToArray()) { Alpha = 1 });
-                return Fills(ctx, "DrawPolygon");
+                return Fills<DrawPolygonCall>(ctx);
             case "donut":
                 new DonutSeriesRenderer(context).Render(new DonutSeries(Enumerable.Repeat(1.0, parts).ToArray())
                     { Colors = explicitColors });
-                return Fills(ctx, "DrawPath");
+                return Fills<DrawPathCall>(ctx);
             case "pie":
                 new PieSeriesRenderer(context).Render(new PieSeries(Enumerable.Repeat(1.0, parts).ToArray())
                     { Colors = explicitColors });
-                return Fills(ctx, "DrawPath");
+                return Fills<DrawPathCall>(ctx);
             case "funnel":
                 new FunnelSeriesRenderer(context).Render(new FunnelSeries(
                     Enumerable.Range(0, parts).Select(i => $"stage {i}").ToArray(),
                     Enumerable.Range(0, parts).Select(i => 10.0 - i * 0.1).ToArray()) { Colors = explicitColors });
-                return Fills(ctx, "DrawRectangle");
+                return Fills<DrawRectangleCall>(ctx);
             default:
                 throw new ArgumentOutOfRangeException(nameof(chart), chart, "Not one of the four.");
         }
     }
 
-    private static Color[] Fills(RecordingRenderContext ctx, string kind) =>
-        ctx.OfKind(kind).Select(c => (Color)c.Args!.GetType().GetProperty("fill")!.GetValue(c.Args)!).ToArray();
+    private static Color[] Fills<TCall>(RecordingRenderContext ctx) where TCall : ShapeCall => [.. ctx.Of<TCall>().Select(c => c.Fill!.Value)];
 
     // ── the premise: the figure's theme and the default theme hand out different colours ───────────────────
 
@@ -152,9 +151,9 @@ public class ThemedPartColourTests
     [InlineData("donut")]
     [InlineData("pie")]
     [InlineData("funnel")]
-    public void AChartDrawnAfterALine_WearsTheColoursPastTheLines(string chart)
+    public void AChartDrawnAfterALine_WearsTheColoursPastTheLines_UnderTheLibrarysTheme(string chart)
     {
-        string svg = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax =>
+        string svg = Plt.Create().WithSize(400, 300).WithTheme(Theme.Default).AddSubPlot(1, 1, 1, ax =>
         {
             ax.Plot([0.0, 1, 2], [1.0, 2, 1]);
             switch (chart)
@@ -170,6 +169,26 @@ public class ThemedPartColourTests
             Assert.Contains(Theme.Default.CycleColors[slot].ToHex(), svg, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("stackedarea", 1)]
+    [InlineData("donut", 0)]
+    [InlineData("pie", 0)]
+    public void UnderTheMatplotlibTheme_AChartAfterALine_WearsTheColoursOfTheCycleItsCallAsks(string chart, int first)
+    {
+        // matplotlib 3.11.2: stackplot asks the lines cycle for each layer (after a plot: C1, C2, C3), pie the patch cycle for each
+        // wedge (after a plot: C0, C1, C2).
+        var axes = new MatPlotLibNet.Models.Axes();
+        axes.Plot([0.0, 1, 2], [1.0, 2, 1]);
+        switch (chart)
+        {
+            case "stackedarea": axes.StackPlot([0.0, 1, 2], [[1.0, 2, 1], [1.0, 1, 1], [2.0, 1, 2]]); break;
+            case "donut": axes.Donut([3.0, 2, 1]); break;
+            default: axes.Pie([3.0, 2, 1]); break;
+        }
+
+        Assert.Equal([0, first], axes.ColorSlots(Theme.MatplotlibV2));
+    }
+
     [Fact]
     public void ALineDrawnAfterAStackOfThreeLayers_WearsTheFourthColour_NotOneALayerWears()
     {
@@ -177,9 +196,9 @@ public class ThemedPartColourTests
             .StackPlot([0.0, 1, 2], [[1.0, 2, 1], [1.0, 1, 1], [2.0, 1, 2]])
             .Plot([0.0, 1, 2], [1.0, 2, 1])).ToSvg();
 
-        var line = System.Text.RegularExpressions.Regex.Match(svg, "<polyline[^>]*stroke=\"(?<c>#[0-9A-Fa-f]{6})\"");
-        Assert.True(line.Success, "no polyline found");
-        Assert.Equal(Theme.Default.CycleColors[3].ToHex(), line.Groups["c"].Value, ignoreCase: true);
+        var stroke = svg.Elements("polyline").Select(polyline => polyline["stroke"]).OfType<string>().FirstOrDefault(colour => colour.StartsWith('#'));
+        Assert.True(stroke is not null, "no polyline found");
+        Assert.Equal(Theme.Default.CycleColors[3].ToHex(), stroke, ignoreCase: true);
     }
 
     // ── a colour the series names itself still wins ──────────────────────────────────────────────────────────

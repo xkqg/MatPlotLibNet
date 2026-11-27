@@ -36,8 +36,10 @@ internal sealed class BrokenBarSeriesRenderer : SeriesRenderer<BrokenBarSeries>
     /// <inheritdoc />
     public override void Render(BrokenBarSeries series)
     {
-        var color = ResolveColor(series.Color);
+        // No edge of its own: the theme's (matplotlib's forced black edge under classic), else none.
+        var fill = ColorOf(series);
+        var style = Context.Theme.PatchEdgesOf(series).StyleOf(fill, fill);
         foreach (var segment in Segments(series))
-            Ctx.DrawRectangle(segment, new ShapeStyle(color, null, 0));
+            Ctx.DrawSnappedRectangle(segment, style);
     }
 }

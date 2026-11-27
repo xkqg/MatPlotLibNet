@@ -4,4 +4,9 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
+  <!-- Every suite holds its own theories to one row budget: the core suite compiles the guard, every other suite links it. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'MatPlotLibNet.Tests'">
+    <Compile Include="$(MSBuildThisFileDirectory)MatPlotLibNet\Packaging\TheoryRowBudgetContractTests.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

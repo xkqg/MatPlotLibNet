@@ -11,36 +11,6 @@ public class GridSpecTests
     // --- GridSpec ---
 
     [Fact]
-    public void GridSpec_StoresRowsAndCols()
-    {
-        var gs = new GridSpec { Rows = 3, Cols = 4 };
-        Assert.Equal(3, gs.Rows);
-        Assert.Equal(4, gs.Cols);
-    }
-
-    [Fact]
-    public void GridSpec_DefaultRatios_AreNull()
-    {
-        var gs = new GridSpec { Rows = 2, Cols = 2 };
-        Assert.Null(gs.HeightRatios);
-        Assert.Null(gs.WidthRatios);
-    }
-
-    [Fact]
-    public void GridSpec_WithWidthRatios_StoresRatios()
-    {
-        var gs = new GridSpec { Rows = 1, Cols = 3, WidthRatios = [1, 2, 1] };
-        Assert.Equal([1.0, 2.0, 1.0], gs.WidthRatios);
-    }
-
-    [Fact]
-    public void GridSpec_WithHeightRatios_StoresRatios()
-    {
-        var gs = new GridSpec { Rows = 2, Cols = 1, HeightRatios = [1, 3] };
-        Assert.Equal([1.0, 3.0], gs.HeightRatios);
-    }
-
-    [Fact]
     public void GridSpec_RecordEquality_Works()
     {
         var a = new GridSpec { Rows = 2, Cols = 3 };

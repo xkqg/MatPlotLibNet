@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// <see cref="Streaming.StreamingForceIndex"/> takes one bar at a time. The raw force of a bar is its volume times the change of the
 /// close from the bar before; with a period above 1 it is smoothed by an exponential average seeded with the first raw force.
 /// The first bar has no bar before it, so the step says NaN for it.</summary>
-internal struct ForceIndexStep
+internal struct ForceIndexStep : ICloseVolumeStep<double>
 {
     private readonly int _period;
     private SeededEmaStep _average;
@@ -25,7 +25,7 @@ internal struct ForceIndexStep
     /// <summary>Takes one bar and returns the force index, or NaN for the first bar.</summary>
     /// <param name="close">The close of the bar.</param>
     /// <param name="volume">The volume of the bar.</param>
-    internal double Next(double close, double volume)
+    public double Next(double close, double volume)
     {
         _count++;
         if (_count == 1)

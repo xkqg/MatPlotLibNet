@@ -8,60 +8,66 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a strip plot series that draws randomly jittered dots per category to show individual data points.</summary>
-public sealed class StripplotSeries : DatasetSeries, IHasColor, IHasAlpha
+public sealed class StripplotSeries : DatasetSeries, IHasColor, IHasAlpha, IDotSeries, ISeriesKind<StripplotSeries>
 {
     /// <summary>How far a dot may stray sideways from its category, in category units: each dot moves by a random
-    /// amount between minus and plus this value, seeded per category so the picture is reproducible. Default
-    /// 0.2.</summary>
-    public double Jitter { get; set; } = 0.2;
+    /// amount between minus and plus this value, seeded per category so the picture is reproducible. Given none, the dots stray
+    /// by up to 0.1 under the matplotlib themes, as seaborn's (<c>stripplot(jitter=True)</c>), and as far as <see cref="Rests"/> says
+    /// under every other theme; a jitter that is given is drawn as given.</summary>
+    public double Jitter { get => Dot.Jitter ?? Rests.Jitter; set => Dot = Dot with { Jitter = value }; }
 
-    /// <summary>Diameter of each dot, in pixels. Default 5.</summary>
-    public double MarkerSize { get; set; } = 5;
+    /// <summary>Diameter of each dot, in pixels. Given none, the dots are 5 points across under the matplotlib themes, as seaborn's
+    /// (<c>stripplot(size=5)</c>), and as <see cref="Rests"/> says under every other theme; a size that is given is drawn as pixels.</summary>
+    public double MarkerSize { get => Dot.Diameter ?? Rests.Diameter; set => Dot = Dot with { Diameter = value }; }
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
-    /// <inheritdoc />
-    public double Alpha { get; set; } = 0.8;
+    /// <summary>The opacity of the dots, 0 to 1. Given none, the dots are opaque under the matplotlib themes, as seaborn's (its
+    /// <c>ax.scatter</c> is given no alpha), and as <see cref="Rests"/> says under every other theme; an opacity that is given is drawn as
+    /// given.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double Alpha { get => Dot.Alpha ?? Rests.Alpha; set => Dot = Dot with { Alpha = value.ThrowIfNotOpacity(nameof(Alpha)) }; }
+
+    /// <summary>What was named of the dots (the diameter, the opacity, the jitter); each part <see langword="null"/> while none was.</summary>
+    internal GivenDot Dot { get; set => Change(ref field, value); }
+
+    /// <summary>What a strip plot's dots rest at under the library's own themes: their diameter, opacity and stray.</summary>
+    private static readonly RestingDot Rests = new(5, 0.8, 0.2);
+
+    GivenDot IDotSeries.Given => Dot;
+
+    RestingDot IDotSeries.Resting => Rests;
 
     /// <summary>Initializes a new instance of <see cref="StripplotSeries"/> with the specified datasets.</summary>
     /// <param name="datasets">An array of datasets, each containing values for one category.</param>
     public StripplotSeries(double[][] datasets) : base(datasets) { }
 
     /// <inheritdoc />
+    /// <remarks>seaborn's <c>stripplot</c> asks the axes once, through a scout <c>scatter</c>, and colours its groups from its palette's first colour on (<c>SeriesRenderer.GroupColor</c>).</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Dots;
+
+    static string ISeriesKind<StripplotSeries>.Kind => "stripplot";
+
+    /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "stripplot",
+        Type = this.WireKind(),
         Datasets = Datasets,
-        Jitter = Jitter,
-        MarkerSize = MarkerSize,
+        Jitter = Dot.Jitter,
+        MarkerSize = Dot.Diameter,
         Color = Color,
-        Alpha = Alpha
+        Alpha = Dot.Alpha
     };
 
-    /// <summary>Reconstructs a <see cref="StripplotSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="StripplotSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static StripplotSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Stripplot(dto.Datasets ?? []);
-        if (dto.Jitter.HasValue)
-        {
-            s.Jitter = dto.Jitter.Value;
-        }
-        if (dto.MarkerSize.HasValue)
-        {
-            s.MarkerSize = dto.MarkerSize.Value;
-        }
-        if (dto.Alpha.HasValue)
-        {
-            s.Alpha = dto.Alpha.Value;
-        }
-        if (dto.Color.HasValue)
-        {
-            s.Color = dto.Color.Value;
-        }
+        if (dto.Jitter is { } jitter) s.Jitter = jitter;
+        if (dto.MarkerSize is { } markerSize) s.MarkerSize = markerSize;
+        if (dto.Alpha is { } alpha) s.Alpha = alpha;
+        if (dto.Color is { } color) s.Color = color;
         return s;
     }
 

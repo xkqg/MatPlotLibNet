@@ -18,7 +18,7 @@ internal static class StudentT
     /// <returns>P(T &lt;= t); NaN for a missing number or ν at or below 0.</returns>
     internal static double Cdf(double t, double degreesOfFreedom)
     {
-        if (double.IsNaN(t) || double.IsNaN(degreesOfFreedom) || degreesOfFreedom <= 0) return double.NaN;
+        if (double.IsNaN(t) || degreesOfFreedom.IsUndefinedShape()) return double.NaN;
         if (double.IsNegativeInfinity(t)) return 0;
         if (double.IsPositiveInfinity(t)) return 1;
 
@@ -36,9 +36,8 @@ internal static class StudentT
     /// <returns>The quantile; NaN for a missing number or ν at or below 0. It is odd around the median.</returns>
     internal static double Quantile(double p, double degreesOfFreedom)
     {
-        if (double.IsNaN(p) || double.IsNaN(degreesOfFreedom) || degreesOfFreedom <= 0) return double.NaN;
-        if (p <= 0) return double.NegativeInfinity;
-        if (p >= 1) return double.PositiveInfinity;
+        if (degreesOfFreedom.IsUndefinedShape()) return double.NaN;
+        if (p.Saturated(atZero: double.NegativeInfinity, atOne: double.PositiveInfinity) is { } edge) return edge;
         if (p == 0.5) return 0;
         if (p > 0.5) return -Quantile(1 - p, degreesOfFreedom);
 

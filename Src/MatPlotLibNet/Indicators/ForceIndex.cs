@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -11,35 +12,25 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Trading for a Living</i>, §7.</summary>
 public sealed class ForceIndex : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 13;
+
     private readonly int _period;
 
     /// <summary>Creates a new Force Index indicator.</summary>
     /// <param name="bars">Close and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
-    /// <param name="period">EMA smoothing period (default 13). Must be ≥ 1. Period 1 = no smoothing.</param>
-    public ForceIndex(OhlcvBars bars, int period = 13)
-        : base(bars)
+    /// <param name="period">EMA smoothing period (default <see cref="DefaultPeriod"/>). Must be ≥ 1. Period 1 = no smoothing.</param>
+    public ForceIndex(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period < 1)
-            throw new ArgumentException($"period must be >= 1 (got {period}).", nameof(period));
         _period = period;
-        Label = $"Force({period})";
     }
 
-    /// <inheritdoc />
-    public override SignalResult Compute()
-    {
-        int n = BarCount;
-        if (n < 2) return Array.Empty<double>();
-        var result = new double[n - 1];
-        var step = new ForceIndexStep(_period);
-        for (int i = 0; i < n; i++)
-        {
-            double value = step.Next(Close[i], Volume[i]);
-            if (i >= 1) result[i - 1] = value;
-        }
-        return result;
-    }
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("Force", period, 1, 1);
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: 1);
+    public override SignalResult Compute() => FoldCloseVolume(new ForceIndexStep(_period));
+
+    /// <inheritdoc />
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

@@ -3,7 +3,6 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
-using MatPlotLibNet.Rendering.Algorithms;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Styling;
 
@@ -28,12 +27,19 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
         if (series.Z.Data.DrawableRange() is not { } z || z.Lo == z.Hi) return;
         double zMin = z.Lo, zMax = z.Hi;
 
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.NormalizerOrLinear();
+        var mapping = series.ColorMappingUnder(Context.Theme);
 
-        foreach (double levelValue in ContourLevels.Spanning(zMin, zMax, Math.Max(2, series.Levels)))
+        // matplotlib's round levels for the count, the ones a contour of a grid takes; a level outside the range of the values
+        // crosses no triangle, so it is not traced.
+        if (series.LevelsUnder(Context.Theme) is not { } levels) return;
+
+        double lineWidth = series.LineWidthUnder(Context.Theme);
+
+        foreach (double levelValue in levels)
         {
-            var color = cmap.ColorOf(levelValue, norm, zMin, zMax);
+            if (levelValue < zMin || levelValue > zMax) continue;
+
+            var color = TricontourSeries.LineColorOf(levelValue, mapping, levels);
 
             // March through triangles finding crossing segments at this level
             int nTriangles = mesh.Triangles.Length / 3;
@@ -41,6 +47,10 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
             {
                 int ia = mesh.Triangles[t * 3], ib = mesh.Triangles[t * 3 + 1], ic = mesh.Triangles[t * 3 + 2];
                 if (!(series.Z[ia].IsDrawable() && series.Z[ib].IsDrawable() && series.Z[ic].IsDrawable())) continue;
+
+                // A vertex matplotlib's log norm masks (0 and below) masks the triangle it is a corner of, as a missing one does.
+                if (mapping.Normalizer.Masks(series.Z[ia], levels[0]) || mapping.Normalizer.Masks(series.Z[ib], levels[0])
+                    || mapping.Normalizer.Masks(series.Z[ic], levels[0])) continue;
                 var segments = ContourSegments(
                     mesh.X[ia], mesh.Y[ia], series.Z[ia],
                     mesh.X[ib], mesh.Y[ib], series.Z[ib],
@@ -50,7 +60,7 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
                 {
                     var px1 = Transform.DataToPixel(seg.From.X, seg.From.Y);
                     var px2 = Transform.DataToPixel(seg.To.X, seg.To.Y);
-                    Ctx.DrawLine(px1, px2, new StrokeStyle(color, 1.0, Styling.LineStyle.Solid));
+                    Ctx.DrawLine(px1, px2, StrokeStyle.Solid(color, lineWidth));
                 }
             }
         }
@@ -80,7 +90,7 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
         double ax, double ay, double az, double bx, double by, double bz, double level)
     {
         if ((az < level) == (bz < level)) return;
-        double t = (level - az) / (bz - az);
+        double t = MarchingSquares.CrossingAt(az, bz, level);
         list.Add(new Point(ax + t * (bx - ax), ay + t * (by - ay)));
     }
 }

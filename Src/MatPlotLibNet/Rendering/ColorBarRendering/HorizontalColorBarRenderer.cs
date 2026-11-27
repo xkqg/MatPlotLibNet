@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -16,57 +17,29 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
 {
     /// <inheritdoc />
     public HorizontalColorBarRenderer(ColorBar cb, IColorMap colorMap, double min, double max,
-                                       Rect plotArea, IRenderContext ctx, Theme theme, int steps = 50)
+                                       Rect plotArea, IRenderContext ctx, Theme theme, int steps = ColorBarStrip.RestingSteps)
         : base(cb, colorMap, min, max, plotArea, ctx, theme, steps) { }
 
     /// <inheritdoc />
     public override void Render()
     {
-        // Horizontal: bar below the plot area, length = plot width * Shrink, centered
-        double fullW = PlotArea.Width * Cb.Shrink;
-        double barW  = Cb.Aspect > 0 ? fullW : Cb.Width * Cb.Shrink;
-        double barH  = Cb.Aspect > 0 ? fullW / Cb.Aspect : Cb.Width;
-        double barX  = PlotArea.X + (PlotArea.Width - fullW) / 2;
-        double barY  = PlotArea.Y + PlotArea.Height + Cb.Padding;
+        // Horizontal: the bar below the plot area, where the one rule for it puts it
+        var (body, scale, gradient, _) = DrawBody(vertical: false);
+        double fullW = body.Width;
+        double barH  = body.Height;
+        double barX  = body.X;
+        double barY  = body.Y;
 
-        double extW  = fullW * ExtendFrac;
-        bool drawXMin = ExtendMin;
-        bool drawXMax = ExtendMax;
-        double gradX = barX + (drawXMin ? extW : 0);
-        double gradW = fullW - (drawXMin ? extW : 0) - (drawXMax ? extW : 0);
-        var scale = ScaleAlong(fullW, vertical: false);
-
-        if (drawXMin)
-        {
-            var underColor = ColorMap.GetUnderColor() ?? ColorMap.GetColor(0.0);
-            Ctx.DrawRectangle(new Rect(barX, barY, extW, barH), new ShapeStyle(underColor, null, 0));
-        }
-
-        for (int i = 0; i < Steps; i++)
-        {
-            double frac = (double)i / Steps;
-            var color = ColorMap.GetColor(scale.GradientFraction(frac, (i + 0.5) / Steps));
-            double stepX = gradX + gradW * i / Steps;
-            double stepW = gradW / Steps + 1;
-            Ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), new ShapeStyle(color, null, 0));
-            if (Cb.DrawEdges)
-                Ctx.DrawLine(new Point(stepX, barY), new Point(stepX, barY + barH), new StrokeStyle(Theme.ForegroundText, 0.3, LineStyle.Solid));
-        }
-
-        if (drawXMax)
-        {
-            var overColor = ColorMap.GetOverColor() ?? ColorMap.GetColor(1.0);
-            Ctx.DrawRectangle(new Rect(gradX + gradW, barY, extW, barH), new ShapeStyle(overColor, null, 0));
-        }
-
-        Ctx.DrawRectangle(new Rect(barX, barY, fullW, barH), new ShapeStyle(null, Theme.ForegroundText, 0.5));
-
-        var tickFont = ThemedFontProvider.TickFont(Theme);
-        double labelY = barY + barH + 4 + tickFont.Size;
+        // Where the text stands below the body is one rule with the room the layout keeps for it (ColorBarRoomExtensions).
+        var tickFont = Theme.TickFont();
+        double labelY = barY + barH + Cb.TickTopBelow(Theme);
+        double minorLabelY = scale.LogMarks is null ? labelY : barY + barH + Cb.TickTopBelow(Theme, minor: true);
         for (int i = 0; i < scale.Ticks.Length; i++)
-            Ctx.DrawText(scale.Labels[i], new Point(gradX + gradW * scale.Fractions[i], labelY), tickFont, TextAlignment.Center);
+            Ctx.Draw(TextLabel.Of(scale.Labels[i]), tickFont, new TextPlacement(new Point(gradient.X + gradient.Width * scale.Fractions[i], scale.IsMinorLabel(i) ? minorLabelY : labelY), TextAlignment.Center)
+                { Vertical = TextVerticalAlignment.Top });
 
         if (Cb.Label is not null)
-            Ctx.DrawText(Cb.Label, new Point(barX + fullW / 2, labelY + tickFont.Size + 4), ThemedFontProvider.LabelFont(Theme), TextAlignment.Center);
+            Ctx.Draw(TextLabel.Of(Cb.Label), Theme.LabelFont(), new TextPlacement(new Point(barX + fullW / 2, barY + barH + Cb.LabelTopBelow(Theme)), TextAlignment.Center)
+                { Vertical = TextVerticalAlignment.Top });
     }
 }

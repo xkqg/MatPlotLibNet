@@ -12,7 +12,7 @@ internal readonly record struct MamaFamaPoint(double Mama, double Fama);
 /// and <see cref="Streaming.StreamingMamaFama"/> takes one price at a time. The first six bars (which the <see cref="HilbertStep"/>
 /// only feeds) carry the price; from the seventh each average moves toward the price by a rate that falls with the change of phase
 /// between the last two bars, between the slow and the fast limit. Before the seventh bar the step says NaN.</summary>
-internal struct MamaFamaStep
+internal struct MamaFamaStep : IPriceStep<MamaFamaPoint>
 {
     private readonly double _fastLimit;
     private readonly double _slowLimit;
@@ -33,7 +33,7 @@ internal struct MamaFamaStep
 
     /// <summary>Takes one price and returns both lines, or NaN before the seventh price.</summary>
     /// <param name="price">The price.</param>
-    internal MamaFamaPoint Next(double price)
+    public MamaFamaPoint Next(double price)
     {
         int i = _count++;
         var row = _hilbert.Next(price);

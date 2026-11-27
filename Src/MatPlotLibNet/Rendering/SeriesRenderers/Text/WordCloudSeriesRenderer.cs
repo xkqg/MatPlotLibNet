@@ -4,7 +4,8 @@
 using System.Globalization;
 using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -32,9 +33,9 @@ internal sealed class WordCloudSeriesRenderer : SeriesRenderer<WordCloudSeries>
     {
         if (series.Words.Length == 0) return;
 
-        var baseFont = ThemedFontProvider.LabelFont(Context.Theme);
+        var baseFont = Context.Theme.LabelFont();
         var result = WordCloudLayout.Compute(
-            new WordCloudSpec(series.Words, series.Weights, series.Sizes, baseFont), Area.PlotBounds, FontMetricsDefault.Current);
+            new WordCloudSpec(series.Words, series.Weights, series.Sizes, baseFont), Area.PlotBounds, new SurfaceFontMetrics(Ctx));
         Announce(result);
 
         var background = Context.Theme.AxesBackground;
@@ -47,11 +48,10 @@ internal sealed class WordCloudSeriesRenderer : SeriesRenderer<WordCloudSeries>
             var at = new Point(placement.Box.X, placement.Box.Y + placement.Box.Height * Baseline);
 
             // The weight is the title of the word, whether or not tooltips are on: size alone would be the only way to read it.
-            var svg = Ctx as SvgRenderContext;
-            svg?.BeginTooltipGroup($"{placement.Word}: {placement.Weight.ToString("G", CultureInfo.InvariantCulture)}");
-            Ctx.SetNextTextLength(placement.Box.Width);
-            Ctx.DrawText(placement.Word, at, baseFont with { Size = placement.Size, Color = colour }, TextAlignment.Left);
-            svg?.EndTooltipGroup();
+            Ctx.BeginTooltipGroup($"{placement.Word}: {placement.Weight.InvariantText()}");
+            Ctx.Draw(TextLabel.Of(placement.Word), baseFont with { Size = placement.Size, Color = colour },
+                new TextPlacement(at, TextAlignment.Left) { FitWidth = placement.Box.Width });
+            Ctx.EndTooltipGroup();
         }
     }
 
@@ -62,26 +62,23 @@ internal sealed class WordCloudSeriesRenderer : SeriesRenderer<WordCloudSeries>
 
         var left = result.Words.Where(word => !word.Placed).OrderBy(word => word.Weight).ThenBy(word => word.Word, StringComparer.Ordinal).ToArray();
         string named = string.Join(", ", left.Take(NamedInAnnouncement).Select(word => word.Word));
-        string more = left.Length > NamedInAnnouncement ? $" and {left.Length - NamedInAnnouncement} more" : "";
+        string more = left.Length > NamedInAnnouncement ? string.Invariant($" and {left.Length - NamedInAnnouncement} more") : "";
         ChartDiagnostics.Emit(new ChartDiagnostic(
             nameof(WordCloudSeries),
-            $"{result.Unplaced} of {result.Words.Count} words did not fit in the plot and were not drawn, even at the smallest size: {named}{more}.",
+            string.Invariant($"{result.Unplaced} of {result.Words.Count} words did not fit in the plot and were not drawn, even at the smallest size: {named}{more}."),
             null));
     }
 
     /// <summary>The colour, moved toward the text colour until it can be read against the background: 4.5 to 1 for text under 24
     /// points, 3 to 1 for larger text (WCAG 1.4.3). The colours of a theme's cycle are chosen to tell series apart, and some of them
-    /// are too pale to read as small text.</summary>
+    /// are too pale to read as small text. A colour that had to move is opaque: a word is not read through its own translucency.</summary>
     private Color Readable(Color colour, Color background, double size)
     {
         double needed = size < 24 ? 4.5 : 3.0;
         var ink = Context.Theme.ForegroundText;
         for (int step = 0; step < 10 && colour.ContrastRatioWith(background) < needed; step++)
         {
-            colour = new Color(
-                (byte)Math.Round(colour.R + (ink.R - colour.R) * 0.2),
-                (byte)Math.Round(colour.G + (ink.G - colour.G) * 0.2),
-                (byte)Math.Round(colour.B + (ink.B - colour.B) * 0.2));
+            colour = Color.Lerp(colour, ink, 0.2).WithAlpha(byte.MaxValue);
         }
 
         return colour;

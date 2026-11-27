@@ -7,76 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="YangZhangVolRatio"/>. Covers all 9 branches in
-/// docs/contrib/indicator-tier-3b.md §4.</summary>
+/// <summary>Verifies <see cref="YangZhangVolRatio"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class YangZhangVolRatioTests
 {
-    private static double[] Flat(double v, int n) => Enumerable.Repeat(v, n).ToArray();
-
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var r = new YangZhangVolRatio(OhlcvBars.Ohlc([], [], [], []));
-        Assert.Empty(r.Compute().Values);
-    }
-
-    // ── Branch 2 — OHLC length mismatch → throw ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2, 3], [1.0, 2], [1.0, 2, 3], [1.0, 2, 3])));
-        Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2, 3], [1.0, 2, 3], [1.0, 2], [1.0, 2, 3])));
-        Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2, 3], [1.0, 2, 3], [1.0, 2, 3], [1.0, 2])));
-    }
-
-    // ── Branch 3 — BarCount <= longWindow → empty ──
-    [Fact]
-    public void Compute_BarCountBelowLongWindow_ReturnsEmpty()
-    {
-        var flat = Flat(100, 30);
-        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: 10, longWindow: 40)
-            .Compute().Values;
-        Assert.Empty(r);
-    }
-
-    // ── Branch 4 — shortWindow < 2 → throw ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    public void Constructor_ShortWindowBelowTwo_Throws(int shortW)
-    {
-        var flat = Flat(100, 100);
-        Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: shortW, longWindow: 20));
-    }
-
-    // ── Branch 5 — longWindow <= shortWindow → throw ──
-    [Theory]
-    [InlineData(20, 20)]
-    [InlineData(20, 10)]
-    public void Constructor_LongNotGreaterThanShort_Throws(int shortW, int longW)
-    {
-        var flat = Flat(100, 100);
-        Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: shortW, longWindow: longW));
-    }
-
-    // ── Branch 6 — Constant prices → both YZ vols = 0 → ratio = 1 (guard) ──
-    [Fact]
-    public void Compute_ConstantPrices_RatioEqualsOne()
-    {
-        int n = 100;
-        var flat = Flat(100, n);
-        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: 20, longWindow: 60)
-            .Compute().Values;
-        Assert.NotEmpty(r);
-        Assert.All(r, v => Assert.Equal(1.0, v, precision: 9));
-    }
-
     // ── Branch 7 — Vol expansion → tail ratio > 1 ──
     // Transition at bar 110 so the 60-bar long window (ending at 149, covering bars 90..149)
     // straddles the regime shift (20 flat + 40 noisy), while the 20-bar short window is
@@ -141,38 +75,7 @@ public class YangZhangVolRatioTests
         }
         var r = new YangZhangVolRatio(OhlcvBars.Ohlc(o, h, l, c), shortWindow: 20, longWindow: 60).Compute().Values;
         Assert.NotEmpty(r);
-        Assert.All(r, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.False(double.IsInfinity(v));
-            Assert.True(v > 0);
-        });
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        int n = 100;
-        var flat = Flat(100.0, n);
-        var axes = new Axes();
-        new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: 10, longWindow: 30).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void DefaultLabel_HasWindows()
-    {
-        var r = new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
-        Assert.Equal("YZRatio(20/60)", r.Label);
-    }
-
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        var r = new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(r);
-        Assert.IsAssignableFrom<IIndicator>(r);
+        r.AssertAllFinite();
+        Assert.All(r, v => Assert.True(v > 0));
     }
 }

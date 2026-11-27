@@ -18,14 +18,13 @@ internal sealed class PolarLineSeriesRenderer : SeriesRenderer<PolarLineSeries>
     /// <inheritdoc />
     public override void Render(PolarLineSeries series)
     {
-        var color = ResolveColor(series.Color);
-        var transform = Context.PolarTransformFor(series);
+        var transform = PolarTransform.For(Context, series);
 
         var points = new List<Point>(series.R.Length);
         for (int i = 0; i < series.R.Length; i++)
             points.Add(transform.PolarToPixel(series.R[i], series.Theta[i]));
 
         // Broken at a point that cannot be placed, as a cartesian line is.
-        DrawPolyline(points, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
+        DrawSeriesLine(points, series);
     }
 }

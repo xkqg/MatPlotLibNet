@@ -1,10 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Reflection;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using MatPlotLibNet.Geo.Series;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Mcp;
@@ -14,6 +14,11 @@ namespace MatPlotLibNet.Mcp;
 /// and it appears here on the next build. The worked example is a real spec — a test renders it.</summary>
 internal sealed class ChartSchemaDescription
 {
+    /// <summary>What a series' <c>packageData</c> holds: the schema's note on the field, and what a refusal of package data that
+    /// describes nothing quotes. The shape of a map is the Geo package's own description, made from the keys its reader reads.</summary>
+    internal static string PackageDataNote { get; } =
+        $"data another package keeps for its own series type: a map (geo_polygon, from MatPlotLibNet.Geo) holds {GeoMapData.Described}; no other type carries any";
+
     /// <summary>Series fields whose meaning is not obvious from the name alone.</summary>
     private static readonly IReadOnlyDictionary<string, string> Notes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -32,6 +37,7 @@ internal sealed class ChartSchemaDescription
         ["fill"] = "true or false: false draws a density curve (kde) as its line alone, without the area under it; a colour goes in color",
         ["hatches"] = "the hatch of each band of a filled contour, lowest band first, one hatch name per band",
         ["rMax"] = "the outer radius of a polar heatmap, in data units",
+        ["rOrigin"] = "the radius a polar axes draws at its centre (matplotlib's set_rorigin); absent for the low end of its radial axis, and one below the low end leaves a hole at the centre",
         ["totalIndices"] = "the steps of a waterfall that are totals, by position from 0: a total bar stands on zero, reaches the value it holds (a level, not a change) and wears totalColor, and the steps after it start from that level",
         ["colors"] = "one colour per part, in order: each point of a scatter, each slice of a pie or a donut, each stage of a funnel, each row of an event plot, each group of a pair grid's hue",
         ["density"] = "true scales a histogram so that its bars cover an area of 1; false (the default) counts",
@@ -39,14 +45,14 @@ internal sealed class ChartSchemaDescription
         ["rWidth"] = "the width of a histogram bar as a fraction of its bin; 1 fills the bin",
         ["autoPct"] = "the format of the percentage written on each slice of a pie, such as \"%1.1f%%\"",
         ["explode"] = "how far each slice of a pie is pulled out of the circle, one value per slice",
-        ["fontSize"] = "the point size of the text a table, a tree grid or a line contour's labels write",
+        ["fontSize"] = "the size in pixels of the text a table, a tree grid or a line contour's labels write",
         ["zOrder"] = "the drawing order: a higher one is drawn on top; a filled area defaults to -1, everything else to 0",
-        ["packageData"] = "data another package writes for its own series type (a map from MatPlotLibNet.Geo); this server reads none, so a spec leaves it out",
+        ["packageData"] = PackageDataNote,
         ["tickLocator"] = "where the ticks go, written by kind: {\"type\": a tick locator named below, then that kind's fields}",
         ["tickFormatter"] = "how the tick labels read, written by kind: {\"type\": a tick formatter named below, then that kind's fields}",
-        ["link"] = "makes the axis show the primary axis' range in another unit (matplotlib's secondary_xaxis / secondary_yaxis), written by kind: {\"type\": an axis link kind named below, then that kind's fields}; drawn on the top X axis (secondaryXAxis) and on a Y axis past the primary, which then holds no series and has no range of its own; absent for an axis with a range of its own",
+        ["link"] = "makes the axis show the primary axis' range in another unit (matplotlib's secondary_xaxis / secondary_yaxis), written by kind: {\"type\": an axis link kind named below, then that kind's fields}; drawn on the top X axis (secondaryXAxis), on an X axis below the plot (bottomXAxes) and on a Y axis past the primary, which then holds no series and has no range of its own; absent for an axis with a range of its own",
         ["normalizer"] = "how the values of a series drawn through a colour map (scatter, heatmap, contour, image, 3-D surface and the like) map onto it, written by kind: {\"type\": a normaliser named in the overview, then that kind's fields}",
-        ["dpi"] = "the resolution, 96 by default: a PNG is drawn with dpi / 96 pixels for each unit of width and height, so 192 doubles its size in pixels with the same layout; the picture may not exceed the canvas ceiling in pixels. SVG and PDF are vector and ignore it",
+        ["dpi"] = string.Invariant($"the resolution, {Figure.ReferenceDpi} by default: a PNG is drawn with dpi / {Figure.ReferenceDpi} pixels for each unit of width and height, so {2 * Figure.ReferenceDpi} doubles its size in pixels with the same layout; the picture may not exceed the canvas ceiling in pixels. SVG and PDF are vector and ignore it"),
         ["theme"] = "the figure's look; absent for the matplotlib-v2 default. Written field by field over the plain 'default' theme: a field left out is that theme's. Its name is a label, not a preset to load",
         ["gridOverridesTheme"] = "true when grid is the axes' own choice, drawn whatever the theme's grid is (a grid switched off included); a reader that knows gridChange reads that instead, so leave this out when you write gridChange",
         ["firstCellDate"] = "the date of the cell in row 0, column 0 of a heatmap that is a calendar (a week to a column, the seven days of it down the column): the table of the chart then gives every cell its date, the first cell's plus 7 days for each column and one for each row; absent for a heatmap that is no calendar",
@@ -57,8 +63,10 @@ internal sealed class ChartSchemaDescription
         ["rightYAxesOverflow"] = "more right Y axes, in the same outward order: it continues where extraRightYAxes stops, and the reader takes both lists in that order; each entry is a Y axis slot",
         ["leftYAxes"] = "the left Y axes past the primary yAxis, outward from the plot: entry i is the left axis i + 1; each entry is a Y axis slot, below",
         ["leftYAxesOverflow"] = "more left Y axes, in the same outward order: it continues where leftYAxes stops, and the reader takes both lists in that order; each entry is a Y axis slot",
-        ["yAxisTitleGap"] = "the blank gap in pixels between each Y axis title and its tick labels, and between two stacked Y axes; 4 when absent, never negative",
-        ["legend"] = "the legend box: its place (position), columns, frame and title. A subplot draws its own legend whether or not this is written. On the figure it is the legend of the whole figure (matplotlib's figlegend): it lists the labelled series of every subplot, each entry that looks the same once, and is static; absent draws none, and {} is a legend at its defaults",
+        ["bottomXAxes"] = "the linked X axes below the plot (matplotlib's secondary_xaxis('bottom') or secondary_xaxis with a number): each shows the primary X axis' range in the unit its axis' link names, and they stack one below the other under the primary's tick labels and title unless an entry gives a location; each entry is an X axis below the plot, below",
+        ["yAxisTitleGap"] ="the blank gap in pixels between each Y axis title and its tick labels, and between two stacked Y axes; 4 when absent, never negative",
+        ["legend"] = "the legend box: its place (position), columns, frame and title. A subplot draws its own legend whether or not this is written. On the figure it is the one figure legend an older document carries, read as the first of legends; write legends instead",
+        ["legends"] = "the legends of the whole figure (matplotlib's fig.legend()), in the order written, each a legend box as above: each lists the labelled series of every subplot and is static; an outside position stands it at the middle of that edge of the figure, where a constrained layout keeps room for it; absent draws none, and {} is a legend at its defaults",
         ["texts"] = "the texts placed on the figure itself, outside every subplot (matplotlib's figtext): a note, a source line, a panel letter; drawn above the subplots in the order written, each entry a figure text, below",
         ["images"] = "the images placed on the figure itself, under every subplot (matplotlib's figimage): a logo, a watermark, a texture; drawn in the order written, each entry a figure image, below",
         ["alignment"] = "how the text stands against its point horizontally: Left (the default; the text starts at the point), Center or Right (the text ends at the point)",
@@ -66,73 +74,86 @@ internal sealed class ChartSchemaDescription
         ["rotation"] = "the angle the text is turned through about its point, in degrees, counter-clockwise when positive; absent for 0",
         ["subplot"] = "the cell of a rows-by-columns grid the subplot stands in, as matplotlib's add_subplot(rows, cols, index) names it: {\"rows\": 2, \"cols\": 2, \"index\": 3}, the index counted from 1 along the rows from the top left; absent, a subplot stands where gridPosition puts it, or else fills the figure when it is the only one, and the subplots that name no cell stand side by side in one row",
         ["signals"] = "buy and sell markers, each {\"x\", \"y\", \"direction\": Buy (an upward triangle below the point) or Sell (a downward one above it), and optionally \"color\", \"size\" in pixels (12 by default) and \"label\"}",
-        ["patches"] = "shapes drawn in data coordinates, matplotlib's patches (rectangle, polygon, arrow, circle, ellipse, wedge, arc), in the order written, each entry a patch told apart by its type, below; a subplot that holds patches and no series is drawn, framed around its patches",
-        ["zoomIndicator"] = "on an inset (an entry of insets[]) only: the zoom the inset indicates on its parent (matplotlib's indicate_inset_zoom), a rectangle over the region the inset shows, spanning the limits the inset draws, and the lines from it to the inset's frame; drawn on a Cartesian parent only; absent draws none, {} is an indicator at its defaults; its fields are below",
+        ["patches"] = "shapes drawn in data coordinates, matplotlib's patches (rectangle, polygon, arrow, circle, ellipse, wedge, arc), in the order written, each entry a patch told apart by its type, below; a subplot that holds patches and no series is drawn, framed around its patches under the library's own themes and left at 0 to 1 under the matplotlib themes, as matplotlib's add_patch leaves it (set the limits to frame them there)",
+        ["zoomIndicator"] = "on an inset (an entry of insets[]) only: the zoom the inset indicates on its parent (matplotlib's indicate_inset_zoom), a rectangle over the region the inset shows, spanning the limits the inset draws, and the lines from it to the inset's frame; drawn on a Cartesian, polar or ternary parent (not on a 3-D one); absent draws none, {} is an indicator at its defaults; its fields are below",
     };
+
+    /// <summary>A field of one record, the key of <see cref="RecordNotes"/>.</summary>
+    private readonly record struct RecordField(string Record, string Field);
 
     /// <summary>Notes that hold for the field of one record only, where the same wire name means something else in another:
     /// <c>x</c> is a data coordinate on an annotation and a fraction of the figure on a figure text. Read before <see cref="Notes"/>.</summary>
-    private static readonly IReadOnlyDictionary<(string Record, string Field), string> RecordNotes = new Dictionary<(string, string), string>
+    private static readonly IReadOnlyDictionary<RecordField, string> RecordNotes = new Dictionary<RecordField, string>
     {
-        [("FigureTextDto", "text")] = "the words to draw",
-        [("FigureTextDto", "x")] = "the place of the text's point as a fraction of the figure's width from the left: 0 is the left edge, 1 the right; a place outside 0 to 1 is kept and not drawn",
-        [("FigureTextDto", "y")] = "the place of the text's point as a fraction of the figure's height counted up from the bottom, as in matplotlib: 0 is the bottom edge, 1 the top, so 0.97 is just under the top",
-        [("FigureImageDto", "data")] = "the pixel values as a list of rows of equal length, the first row being the top row of the image; each value is one pixel of the figure, drawn at its native size through the colour map; a missing cell is the string \"NaN\"",
-        [("FigureImageDto", "xOffset")] = "pixels from the left edge of the figure to the left edge of the image",
-        [("FigureImageDto", "yOffset")] = "pixels from the bottom edge of the figure to the bottom edge of the image, counted up as in matplotlib's figimage",
-        [("FigureImageDto", "vMin")] = "the value at the low end of the colour range; absent for the smallest value that can be drawn (a missing cell and an infinity are left out)",
-        [("FigureImageDto", "vMax")] = "the value at the high end of the colour range; absent for the largest value that can be drawn",
-        [("FigureImageDto", "alpha")] = "the opacity of the whole image, 0 (clear) to 1 (opaque); absent for 1",
-        [("ZoomIndicatorDto", "color")] = "the colour of the rectangle and the connectors, a CSS4 colour name or #RRGGBB; absent for the theme's neutral grey (matplotlib's 0.5 grey)",
-        [("ZoomIndicatorDto", "alpha")] = "the opacity of the rectangle and the connectors, 0 (clear) to 1 (opaque); absent for 0.5, matplotlib's",
-        [("ZoomIndicatorDto", "lineWidth")] = "the width of their lines in pixels, 0 or more; absent for 1",
-        [("ZoomIndicatorDto", "lineStyle")] = "the dash pattern of their lines: Solid (the default), Dashed, Dotted, DashDot or None (draws nothing)",
-        [("PatchDto", "edgeColor")] = "the colour of the outline, a CSS4 colour name or #RRGGBB; absent for no outline (an arrow and an arc: black)",
-        [("PatchDto", "edgeWidth")] = "the width of the outline in pixels; absent for 1",
-        [("PatchDto", "edgeLineStyle")] = "the dash pattern of the outline: Solid (the default), Dashed, Dotted, DashDot or None (draws no outline)",
-        [("PatchDto", "alpha")] = "the opacity of the whole patch, face and outline, 0 (clear) to 1 (opaque); absent for 1",
-        [("PatchDto", "label")] = "the name the legend lists the patch under, beside a rectangle swatch; absent for no entry; a label that starts with _ is left out",
-        [("PatchDto", "hatch")] = "the pattern over the face: None (the default), ForwardDiagonal, BackDiagonal, Horizontal, Vertical, Cross, DiagonalCross, Dots or Stars",
-        [("PatchDto", "hatchColor")] = "the colour of the hatch strokes; absent for the colour of the edge",
-        [("FilledPatchDto", "faceColor")] = "the colour of the face, a CSS4 colour name or #RRGGBB; absent for matplotlib's first colour; an arc has no face and takes none",
-        [("RectangleDto", "anchor")] = "the corner the rectangle is measured from, a point",
-        [("RectangleDto", "width")] = "along X, in data units; a negative width extends the rectangle to the left",
-        [("RectangleDto", "height")] = "along Y, in data units; a negative height extends the rectangle downward",
-        [("RectangleDto", "angle")] = "the angle the rectangle is turned through about its anchor, in degrees, counter-clockwise; absent for 0",
-        [("PolygonDto", "vertices")] = "the corners in order, each a point",
-        [("PolygonDto", "closed")] = "true (the default) joins the last vertex back to the first; false leaves the outline open",
-        [("ArrowDto", "start")] = "where the shaft starts, a point",
-        [("ArrowDto", "dx")] = "how far the shaft runs along X, in data units",
-        [("ArrowDto", "dy")] = "how far the shaft runs along Y, in data units",
-        [("ArrowDto", "width")] = "the width of the shaft, in data units; absent for 0.001",
-        [("ArrowDto", "headWidth")] = "the width of the head across the shaft, in data units; absent for three times the width of the shaft",
-        [("ArrowDto", "headLength")] = "the length of the head along the shaft, in data units; absent for one and a half times the width of the head",
-        [("ArrowDto", "lengthIncludesHead")] = "true puts the tip on the end point (start plus dx, dy); false (the default) puts it beyond the end point, as matplotlib's FancyArrow does",
-        [("ArrowDto", "shape")] = "which part of the arrow is drawn: Full (the default), or Left or Right for one half of it",
-        [("ArrowDto", "overhang")] = "how far the back of the head is swept towards the tip, as a fraction of its length; absent for 0",
-        [("CircleDto", "center")] = "the centre of the circle, a point",
-        [("CircleDto", "radius")] = "in data units: the circle is round in data units, so it looks like an ellipse when the two axes have unequal scales",
-        [("EllipseDto", "center")] = "the centre of the ellipse, a point",
-        [("EllipseDto", "width")] = "the full width before the ellipse is turned, in data units (a diameter, not a radius)",
-        [("EllipseDto", "height")] = "the full height before the ellipse is turned, in data units (a diameter, not a radius)",
-        [("EllipseDto", "angle")] = "the angle the ellipse is turned through about its centre, in degrees, counter-clockwise; absent for 0",
-        [("WedgeDto", "center")] = "the centre of the disc the wedge is cut from, a point",
-        [("WedgeDto", "radius")] = "the radius of that disc, in data units",
-        [("WedgeDto", "theta1")] = "the angle the wedge starts at, in degrees counter-clockwise from the positive X direction",
-        [("WedgeDto", "theta2")] = "the angle the wedge ends at; it runs counter-clockwise from theta1 to theta2",
-        [("WedgeDto", "width")] = "absent: the wedge reaches the centre; set: a ring segment this thick, measured in from the radius, in data units",
-        [("ArcDto", "center")] = "the centre of the ellipse the arc lies on, a point",
-        [("ArcDto", "width")] = "the full width of that ellipse before it is turned, in data units",
-        [("ArcDto", "height")] = "the full height of that ellipse before it is turned, in data units",
-        [("ArcDto", "angle")] = "the angle the ellipse is turned through about its centre, in degrees, counter-clockwise; absent for 0",
-        [("ArcDto", "theta1")] = "the angle the arc starts at, in degrees counter-clockwise from the positive X direction; absent for 0",
-        [("ArcDto", "theta2")] = "the angle the arc ends at; it runs counter-clockwise from theta1; absent for 360, the whole ellipse",
-        [("LinearAxisTransformDto", "scale")] = "what the primary value is multiplied by: a number other than 0; below 0 the linked axis runs the other way",
-        [("LinearAxisTransformDto", "offset")] = "what is added after the scale; absent for 0",
-        [("ReciprocalAxisTransformDto", "numerator")] = "what is divided by the primary value: a number other than 0; absent for 1",
-        [("LogarithmAxisTransformDto", "base")] = "the base of the logarithm: a number above 0 other than 1; absent for 10; below 1 the linked axis runs the other way",
-        [("PowerAxisTransformDto", "exponent")] = "the power the primary value is raised to: a number other than 0; a negative one runs the linked axis the other way",
-        [("ZoomIndicatorDto", "connectors")] = "true (the default) draws the two of the four corner lines matplotlib's rule keeps for where the inset stands against the region (none when one holds the other); false draws the rectangle alone",
+        [new("FigureDto", "width")] = $"the width of the figure in pixels; absent for {Figure.RestingWidth.InvariantText()}",
+        [new("FigureDto", "height")] = $"the height of the figure in pixels; absent for {Figure.RestingHeight.InvariantText()}",
+        [new("FigureTextDto", "text")] = "the words to draw",
+        [new("FigureTextDto", "x")] = "the place of the text's point as a fraction of the figure's width from the left: 0 is the left edge, 1 the right; a place outside 0 to 1 is kept and not drawn",
+        [new("FigureTextDto", "y")] = "the place of the text's point as a fraction of the figure's height counted up from the bottom, as in matplotlib: 0 is the bottom edge, 1 the top, so 0.97 is just under the top",
+        [new("FigureImageDto", "data")] = "the pixel values as a list of rows of equal length, the first row being the top row of the image; each value is one pixel of the figure, drawn at its native size through the colour map; a missing cell is the string \"NaN\"",
+        [new("FigureImageDto", "xOffset")] = "pixels from the left edge of the figure to the left edge of the image",
+        [new("FigureImageDto", "yOffset")] = "pixels from the bottom edge of the figure to the bottom edge of the image, counted up as in matplotlib's figimage",
+        [new("FigureImageDto", "vMin")] = "the value at the low end of the colour range; absent for the smallest value that can be drawn (a missing cell and an infinity are left out)",
+        [new("FigureImageDto", "vMax")] = "the value at the high end of the colour range; absent for the largest value that can be drawn",
+        [new("FigureImageDto", "alpha")] = "the opacity of the whole image, 0 (clear) to 1 (opaque); absent for 1",
+        [new("XAxisSlotDto", "location")] = "where the axis stands, as a fraction of the plot's height measured up from its bottom spine, as matplotlib's secondary_xaxis takes a number: 0 is on the bottom spine, -0.2 a fifth of the plot's height below it; absent, the axis stacks below what stands above it",
+        [new("ColorBarDto", "locator")] ="where the bar's ticks go, written by kind as an axis's tickLocator: every tick it places inside the bar's range is named; absent, the bar names as many as fit along its length",
+        [new("ZoomIndicatorDto", "color")] = "the colour of the rectangle and the connectors, a CSS4 colour name or #RRGGBB; absent for the theme's neutral grey (matplotlib's 0.5 grey)",
+        [new("ZoomIndicatorDto", "alpha")] = "the opacity of the rectangle and the connectors, 0 (clear) to 1 (opaque); absent for 0.5, matplotlib's",
+        [new("ZoomIndicatorDto", "lineWidth")] = "the width of their lines in pixels, 0 or more; absent for 1",
+        [new("ZoomIndicatorDto", "lineStyle")] = "the dash pattern of their lines: Solid (the default), Dashed, Dotted, DashDot or None (draws nothing)",
+        [new("PatchDto", "edgeColor")] = "the colour of the outline, a CSS4 colour name or #RRGGBB; absent for no outline (an arrow and an arc: black)",
+        [new("PatchDto", "edgeWidth")] = "the width of the outline in pixels; absent for 1",
+        [new("PatchDto", "edgeLineStyle")] = "the dash pattern of the outline: Solid (the default), Dashed, Dotted, DashDot or None (draws no outline)",
+        [new("PatchDto", "alpha")] = "the opacity of the whole patch, face, outline and hatch, 0 (clear) to 1 (opaque), in place of the opacity of their colours; absent leaves each colour its own",
+        [new("PatchDto", "label")] = "the name the legend lists the patch under, beside a rectangle swatch; absent for no entry; a label that starts with _ is left out",
+        [new("PatchDto", "hatch")] = "the pattern over the face: None (the default), ForwardDiagonal, BackDiagonal, Horizontal, Vertical, Cross, DiagonalCross, Dots or Stars",
+        [new("PatchDto", "hatchColor")] = "the colour of the hatch strokes; absent for the colour of the edge",
+        [new("PatchDto", "z")] = "on a 3-D subplot, how far along zDir the plane of the patch stands, in data units (matplotlib's pathpatch_2d_to_3d z); absent for 0",
+        [new("PatchDto", "zDir")] = "on a 3-D subplot, the axis the plane of the patch stands across: z (the default, the X-Y plane), x (its x and y become y and z) or y (its x and y become x and z)",
+        [new("PatchDto", "visible")] = "false hides the patch, which keeps its legend entry; absent for a patch that is drawn",
+        [new("PatchDto", "seriesBefore")] = "how many series of the subplot come before the patch in the legend, the order they were added in; absent puts it after every series of the subplot",
+        [new("FilledPatchDto", "faceColor")] = "the colour of the face, a CSS4 colour name or #RRGGBB; absent for matplotlib's first colour; an arc has no face and takes none",
+        [new("RectangleDto", "anchor")] = "the corner the rectangle is measured from, a point",
+        [new("RectangleDto", "width")] = "along X, in data units; a negative width extends the rectangle to the left",
+        [new("RectangleDto", "height")] = "along Y, in data units; a negative height extends the rectangle downward",
+        [new("RectangleDto", "angle")] = "the angle the rectangle is turned through about its rotation point, in degrees, counter-clockwise; absent for 0",
+        [new("RectangleDto", "rotationCenter")] = "true turns the rectangle about its centre (matplotlib's rotation_point 'center'); absent for its anchor",
+        [new("RectangleDto", "rotationPoint")] = "the point the rectangle is turned about, in data units, a point (matplotlib's rotation_point as an (x, y) pair); absent for its anchor; wins over rotationCenter when both are given",
+        [new("PolygonDto", "vertices")] = "the corners in order, each a point",
+        [new("PolygonDto", "closed")] = "true (the default) joins the last vertex back to the first; false leaves the outline open",
+        [new("ArrowDto", "start")] = "where the shaft starts, a point",
+        [new("ArrowDto", "dx")] = "how far the shaft runs along X, in data units",
+        [new("ArrowDto", "dy")] = "how far the shaft runs along Y, in data units",
+        [new("ArrowDto", "width")] = "the width of the shaft, in data units; absent for 0.001",
+        [new("ArrowDto", "headWidth")] = "the width of the head across the shaft, in data units; absent for three times the width of the shaft",
+        [new("ArrowDto", "headLength")] = "the length of the head along the shaft, in data units; absent for one and a half times the width of the head",
+        [new("ArrowDto", "lengthIncludesHead")] = "true puts the tip on the end point (start plus dx, dy); false (the default) puts it beyond the end point, as matplotlib's FancyArrow does",
+        [new("ArrowDto", "shape")] = "which part of the arrow is drawn: Full (the default), or Left or Right for one half of it",
+        [new("ArrowDto", "overhang")] = "how far the back of the head is swept towards the tip, as a fraction of its length; absent for 0",
+        [new("CircleDto", "center")] = "the centre of the circle, a point",
+        [new("CircleDto", "radius")] = "in data units: the circle is round in data units, so it looks like an ellipse when the two axes have unequal scales",
+        [new("EllipseDto", "center")] = "the centre of the ellipse, a point",
+        [new("EllipseDto", "width")] = "the full width before the ellipse is turned, in data units (a diameter, not a radius)",
+        [new("EllipseDto", "height")] = "the full height before the ellipse is turned, in data units (a diameter, not a radius)",
+        [new("EllipseDto", "angle")] = "the angle the ellipse is turned through about its centre, in degrees, counter-clockwise; absent for 0",
+        [new("WedgeDto", "center")] = "the centre of the disc the wedge is cut from, a point",
+        [new("WedgeDto", "radius")] = "the radius of that disc, in data units",
+        [new("WedgeDto", "theta1")] = "the angle the wedge starts at, in degrees counter-clockwise from the positive X direction",
+        [new("WedgeDto", "theta2")] = "the angle the wedge ends at; it runs counter-clockwise from theta1 to theta2",
+        [new("WedgeDto", "width")] = "absent: the wedge reaches the centre; set: a ring segment this thick, measured in from the radius, in data units",
+        [new("ArcDto", "center")] = "the centre of the ellipse the arc lies on, a point",
+        [new("ArcDto", "width")] = "the full width of that ellipse before it is turned, in data units",
+        [new("ArcDto", "height")] = "the full height of that ellipse before it is turned, in data units",
+        [new("ArcDto", "angle")] = "the angle the ellipse is turned through about its centre, in degrees, counter-clockwise; absent for 0",
+        [new("ArcDto", "theta1")] = "the angle the arc starts at, in degrees counter-clockwise from the positive X direction; absent for 0",
+        [new("ArcDto", "theta2")] = "the angle the arc ends at; it runs counter-clockwise from theta1; absent for 360, the whole ellipse",
+        [new("LinearAxisTransformDto", "scale")] = "what the primary value is multiplied by: a number other than 0; below 0 the linked axis runs the other way",
+        [new("LinearAxisTransformDto", "offset")] = "what is added after the scale; absent for 0",
+        [new("ReciprocalAxisTransformDto", "numerator")] = "what is divided by the primary value: a number other than 0; absent for 1",
+        [new("LogarithmAxisTransformDto", "base")] = "the base of the logarithm: a number above 0 other than 1; absent for 10; below 1 the linked axis runs the other way",
+        [new("PowerAxisTransformDto", "exponent")] = "the power the primary value is raised to: a number other than 0; a negative one runs the linked axis the other way",
+        [new("ZoomIndicatorDto", "connectors")] = "true (the default) draws the two of the four corner lines matplotlib's rule keeps for where the inset stands against the region (none when one holds the other); false draws the rectangle alone",
     };
 
     /// <summary>What each kind of patch is, by the kind a spec writes.</summary>
@@ -157,7 +178,11 @@ internal sealed class ChartSchemaDescription
     };
 
     /// <summary>One field as the spec writes it: its wire name, what kind of value it takes and the record it is a field of.</summary>
-    private readonly record struct WireField(string Name, string Type, string Record);
+    private readonly record struct WireField(string Name, string Type, string Record)
+    {
+        /// <summary>The field <paramref name="field"/> of <paramref name="record"/>, as the schema writes it.</summary>
+        internal static WireField Of(JsonPropertyInfo field, Type record) => new(field.Name, WireTypeOf(field.PropertyType), record.Name);
+    }
 
     private readonly ChartTypeCatalog _catalog;
 
@@ -167,8 +192,6 @@ internal sealed class ChartSchemaDescription
     /// <summary>A renderable spec that shows the shape — the smallest document that draws something.</summary>
     public const string Example = """
         {
-          "width": 800,
-          "height": 600,
           "title": "Revenue",
           "subPlots": [
             {
@@ -182,12 +205,15 @@ internal sealed class ChartSchemaDescription
         }
         """;
 
+    /// <summary>The whole spec shape: the same text for every request, so it is written once.</summary>
+    private static readonly Lazy<string> TheOverview = new(Overview);
+
     /// <summary>The whole spec shape, or the fields of one chart type when <paramref name="seriesType"/> names one.</summary>
     public string Describe(string? seriesType)
     {
         if (string.IsNullOrWhiteSpace(seriesType))
         {
-            return Overview();
+            return TheOverview.Value;
         }
 
         if (!_catalog.IsListed(seriesType))
@@ -197,72 +223,74 @@ internal sealed class ChartSchemaDescription
         }
 
         var text = new StringBuilder();
-        text.AppendLine($"Chart type '{seriesType}' — a series object at any series seat of a subplot ({SeatPaths(SeatKind.Series)}).")
-            .AppendLine()
-            .AppendLine("Every field a series may carry (the same set the renderer reads; a type uses the subset that applies to it):");
+        text.AppendLineLf($"Chart type '{seriesType}' — a series object at any series seat of a subplot ({SeatPaths(SeatKind.Series)}).")
+            .AppendLineLf()
+            .AppendLineLf("Every field a series may carry (the same set the renderer reads; a type uses the subset that applies to it):");
         AppendFields(text, FieldsOf(typeof(SeriesDto)));
         return text.ToString().TrimEnd();
     }
 
-    private string Overview()
+    private static string Overview()
     {
         var text = new StringBuilder();
-        text.AppendLine("A chart spec is the MatPlotLibNet figure JSON: a figure, its subplots, and the series on them.")
-            .AppendLine()
-            .AppendLine("Figure fields:");
+        text.AppendLineLf("A chart spec is the MatPlotLibNet figure JSON: a figure, its subplots, and the series on them.")
+            .AppendLineLf()
+            .AppendLineLf("Figure fields:");
         AppendFields(text, FieldsOf(TypeNamed("FigureDto")));
-        text.AppendLine().AppendLine("Subplot fields (subPlots[]):");
+        text.AppendLineLf().AppendLineLf("Subplot fields (subPlots[]):");
         AppendFields(text, FieldsOf(TypeNamed("AxesDto")));
-        text.AppendLine().AppendLine($"Axis fields ({SeatPaths(SeatKind.Axis)}):");
+        text.AppendLineLf().AppendLineLf($"Axis fields ({SeatPaths(SeatKind.Axis)}):");
         AppendFields(text, FieldsOf(TypeNamed("AxisDto")));
-        text.AppendLine().AppendLine($"Y axis slot fields (an entry of {SlotListPaths()}: one more Y axis of its side, and the series drawn against it):");
+        text.AppendLineLf().AppendLineLf($"Y axis slot fields (an entry of {SlotListPaths()}: one more Y axis of its side, and the series drawn against it):");
         AppendFields(text, FieldsOf(TypeNamed("SecondaryAxisSlotDto")));
-        text.AppendLine().AppendLine("Tick fields (an axis's majorTicks / minorTicks):");
+        text.AppendLineLf().AppendLineLf($"X axis below the plot fields (an entry of {PathsOf(AxesSeatShape.OfSubplot.SlotListsOf(typeof(XAxisSlotDto)))}: a linked X axis that shows the primary X axis' range in another unit; it holds no series):");
+        AppendFields(text, FieldsOf(TypeNamed("XAxisSlotDto")));
+        text.AppendLineLf().AppendLineLf("Tick fields (an axis's majorTicks / minorTicks):");
         AppendFields(text, FieldsOf(TypeNamed("TickConfigDto")));
-        text.AppendLine().AppendLine("Text style fields (subPlots[].titleStyle, an axis's labelStyle):");
+        text.AppendLineLf().AppendLineLf("Text style fields (the figure's titleStyle, subPlots[].titleStyle, an axis's labelStyle):");
         AppendFields(text, FieldsOf(TypeNamed("TextStyleDto")));
-        text.AppendLine().AppendLine("Legend fields (subPlots[].legend, and the legend of the figure as a whole):");
+        text.AppendLineLf().AppendLineLf("Legend fields (subPlots[].legend, and each of the figure's legends):");
         AppendFields(text, FieldsOf(TypeNamed("LegendDto")));
-        text.AppendLine().AppendLine("Colour bar fields (subPlots[].colorBar, and the figure's figureColorBar):");
+        text.AppendLineLf().AppendLineLf("Colour bar fields (subPlots[].colorBar, and the figure's figureColorBar):");
         AppendFields(text, FieldsOf(TypeNamed("ColorBarDto")));
-        text.AppendLine().AppendLine("Zoom indicator fields (subPlots[].insets[].zoomIndicator: the zoom an inset indicates on its parent):");
+        text.AppendLineLf().AppendLineLf("Zoom indicator fields (subPlots[].insets[].zoomIndicator: the zoom an inset indicates on its parent):");
         AppendFields(text, FieldsOf(TypeNamed("ZoomIndicatorDto")));
-        text.AppendLine().AppendLine("Patch kinds (an entry of subPlots[].patches[], and of an inset's: a shape in data coordinates, drawn with the spans, under the reference lines and the series; \"type\" names the kind and the fields of that kind follow it. A point is {\"dataX\": x, \"dataY\": y}; sizes and radii are in data units; angles are in degrees, counter-clockwise as in matplotlib):");
+        text.AppendLineLf().AppendLineLf("Patch kinds (an entry of subPlots[].patches[], and of an inset's: a shape in data coordinates, drawn with the spans, under the reference lines and the series; \"type\" names the kind and the fields of that kind follow it. A point is {\"dataX\": x, \"dataY\": y}; sizes and radii are in data units; angles are in degrees, counter-clockwise as in matplotlib):");
         AppendNotedKinds(text, "PatchDto", PatchKindNotes);
-        text.AppendLine().AppendLine("Patch style fields (every kind of patch takes these; faceColor every kind but arc):");
+        text.AppendLineLf().AppendLineLf("Patch style fields (every kind of patch takes these; faceColor every kind but arc):");
         AppendFields(text, [.. FieldsDeclaredBy(TypeNamed("PatchDto")), .. FieldsDeclaredBy(TypeNamed("FilledPatchDto"))]);
-        text.AppendLine().AppendLine("Figure text fields (an entry of the figure's texts[]: a text placed on the figure itself, in fractions of it):");
+        text.AppendLineLf().AppendLineLf("Figure text fields (an entry of the figure's texts[]: a text placed on the figure itself, in fractions of it):");
         AppendFields(text, FieldsOf(TypeNamed("FigureTextDto")));
-        text.AppendLine().AppendLine("Figure image fields (an entry of the figure's images[]: an image placed on the figure itself, in pixels of it):");
+        text.AppendLineLf().AppendLineLf("Figure image fields (an entry of the figure's images[]: an image placed on the figure itself, in pixels of it):");
         AppendFields(text, FieldsOf(TypeNamed("FigureImageDto")));
-        text.AppendLine().AppendLine("Grid fields (subPlots[].grid, and a theme's defaultGrid):");
+        text.AppendLineLf().AppendLineLf("Grid fields (subPlots[].grid, and a theme's defaultGrid):");
         AppendFields(text, FieldsOf(TypeNamed("GridDto")));
-        text.AppendLine().AppendLine("Grid change fields (subPlots[].gridChange: only the fields named change the theme's grid, the rest stay the theme's):");
+        text.AppendLineLf().AppendLineLf("Grid change fields (subPlots[].gridChange: only the fields named change the theme's grid, the rest stay the theme's):");
         AppendFields(text, FieldsOf(TypeNamed("GridChangeDto")));
-        text.AppendLine().AppendLine("Theme fields (the figure's theme):");
+        text.AppendLineLf().AppendLineLf("Theme fields (the figure's theme):");
         AppendFields(text, FieldsOf(TypeNamed("ThemeDto")));
-        text.AppendLine().AppendLine("Cycler fields (a theme's propCycler: the lists each next series steps through):");
+        text.AppendLineLf().AppendLineLf("Cycler fields (a theme's propCycler: the lists each next series steps through):");
         AppendFields(text, FieldsOf(TypeNamed("PropCyclerDto")));
-        text.AppendLine().AppendLine("Alarm palette fields (a theme's alarm):");
+        text.AppendLineLf().AppendLineLf("Alarm palette fields (a theme's alarm):");
         AppendFields(text, FieldsOf(TypeNamed("AlarmPaletteDto")));
-        text.AppendLine().AppendLine("Spacing fields (the figure's spacing, and a theme's defaultSpacing):");
+        text.AppendLineLf().AppendLineLf("Spacing fields (the figure's spacing, and a theme's defaultSpacing):");
         AppendFields(text, FieldsOf(TypeNamed("SubPlotSpacingDto")));
-        text.AppendLine().AppendLine("Interaction theme fields (the figure's interactionTheme):");
+        text.AppendLineLf().AppendLineLf("Interaction theme fields (the figure's interactionTheme):");
         AppendFields(text, FieldsOf(TypeNamed("InteractionThemeDto")));
-        text.AppendLine().AppendLine("Tick locators (an axis's tickLocator: \"type\" names the kind, the other fields are that kind's):");
+        text.AppendLineLf().AppendLineLf("Tick locators (an axis's tickLocator: \"type\" names the kind, the other fields are that kind's):");
         AppendKinds(text, typeof(TickLocatorDto));
-        text.AppendLine().AppendLine("Tick formatters (an axis's tickFormatter):");
+        text.AppendLineLf().AppendLineLf("Tick formatters (an axis's tickFormatter):");
         AppendKinds(text, typeof(TickFormatterDto));
-        text.AppendLine().AppendLine("Axis link kinds (an axis's link, written by kind: on the top X axis (subPlots[].secondaryXAxis) or on a Y axis past the primary (subPlots[].secondaryYAxis, and the axis of an entry of the Y axis slot lists) it makes that axis show the primary axis' range in another unit, as matplotlib's secondary_xaxis and secondary_yaxis do; a linked axis has no range of its own and holds no series. \"type\" names the kind and the fields of that kind follow it; the ticks are laid out in the linked unit, each where the primary axis shows its value):");
+        text.AppendLineLf().AppendLineLf("Axis link kinds (an axis's link, written by kind: on the top X axis (subPlots[].secondaryXAxis), on an X axis below the plot (the axis of an entry of subPlots[].bottomXAxes) or on a Y axis past the primary (subPlots[].secondaryYAxis, and the axis of an entry of the Y axis slot lists) it makes that axis show the primary axis' range in another unit, as matplotlib's secondary_xaxis and secondary_yaxis do; a linked axis has no range of its own and holds no series. \"type\" names the kind and the fields of that kind follow it; the ticks are laid out in the linked unit, each where the primary axis shows its value):");
         AppendNotedKinds(text, "AxisTransformDto", AxisLinkKindNotes);
-        text.AppendLine().AppendLine("Normalisers (the normalizer of a series, or of a figure image, drawn through a colour map):");
+        text.AppendLineLf().AppendLineLf("Normalisers (the normalizer of a series, or of a figure image, drawn through a colour map):");
         AppendKinds(text, typeof(NormalizerDto));
-        text.AppendLine().AppendLine("Colour maps built in code (a series', a colour bar's or a figure image's colorMap; colours as names or #RRGGBB; positions rise from 0 to 1, one per colour; a reversed map holds the map it reverses, a named one the name a map is registered under):");
+        text.AppendLineLf().AppendLineLf("Colour maps built in code (a series', a colour bar's or a figure image's colorMap; colours as names or #RRGGBB; positions rise from 0 to 1, one per colour; a reversed map holds the map it reverses, a named one the name a map is registered under):");
         AppendKinds(text, typeof(ColorMapDto));
-        text.AppendLine().AppendLine($"Series fields (a series stands at {SeatPaths(SeatKind.Series)}) — {FieldsOf(typeof(SeriesDto)).Count} in total, each type uses the ones that apply:");
+        text.AppendLineLf().AppendLineLf(string.Invariant($"Series fields (a series stands at {SeatPaths(SeatKind.Series)}) — {FieldsOf(typeof(SeriesDto)).Count} in total, each type uses the ones that apply:"));
         AppendFields(text, FieldsOf(typeof(SeriesDto)).Take(24).ToArray());
-        text.AppendLine("  … ask describe_chart_schema for one chart type to see the whole list.")
-            .AppendLine().AppendLine("Example:").AppendLine(Example);
+        text.AppendLineLf("  … ask describe_chart_schema for one chart type to see the whole list.")
+            .AppendLineLf().AppendLineLf("Example:").AppendLineLf(Example);
         return text.ToString().TrimEnd();
     }
 
@@ -273,7 +301,7 @@ internal sealed class ChartSchemaDescription
         PathsOf(AxesSeatShape.OfSubplot.Names.Where(seat => seat.Kind == kind).Select(seat => seat.Path));
 
     /// <summary>The lists of Y axis slots a subplot keeps, in the same notation as <see cref="SeatPaths"/>.</summary>
-    private static string SlotListPaths() => PathsOf(AxesSeatShape.OfSubplot.SlotLists);
+    private static string SlotListPaths() => PathsOf(AxesSeatShape.OfSubplot.SlotListsOf(typeof(SecondaryAxisSlotDto)));
 
     private static string PathsOf(IEnumerable<string> paths) => $"subPlots[].{string.Join(" / .", paths)}";
 
@@ -282,11 +310,11 @@ internal sealed class ChartSchemaDescription
         foreach (var (name, type, record) in fields)
         {
             text.Append(indent).Append(name).Append(": ").Append(type);
-            if (RecordNotes.TryGetValue((record, name), out var note) || Notes.TryGetValue(name, out note))
+            if (RecordNotes.TryGetValue(new RecordField(record, name), out var note) || Notes.TryGetValue(name, out note))
             {
                 text.Append("  — ").Append(note);
             }
-            text.AppendLine();
+            text.AppendLineLf();
         }
     }
 
@@ -294,7 +322,7 @@ internal sealed class ChartSchemaDescription
     /// Read off the <c>JsonDerivedType</c> attributes of the family's base record, the list the serializer reads by.</summary>
     private static void AppendKinds(StringBuilder text, Type family)
     {
-        foreach (var kind in family.GetCustomAttributes<JsonDerivedTypeAttribute>())
+        foreach (var kind in family.WireKinds)
         {
             var fields = FieldsOf(kind.DerivedType);
             text.Append("  ").Append((string)kind.TypeDiscriminator!);
@@ -302,7 +330,7 @@ internal sealed class ChartSchemaDescription
             {
                 text.Append(": ").Append(string.Join(", ", fields.Select(field => $"{field.Name}: {field.Type}")));
             }
-            text.AppendLine();
+            text.AppendLineLf();
         }
     }
 
@@ -317,27 +345,21 @@ internal sealed class ChartSchemaDescription
     /// listed without saying what it is, and the schema tests run this.</exception>
     private static void AppendNotedKinds(StringBuilder text, string family, IReadOnlyDictionary<string, string> kindNotes)
     {
-        foreach (var kind in TypeNamed(family).GetCustomAttributes<JsonDerivedTypeAttribute>())
+        foreach (var kind in TypeNamed(family).WireKinds)
         {
             string name = (string)kind.TypeDiscriminator!;
-            text.Append("  ").Append(name).Append("  — ").AppendLine(kindNotes[name]);
+            text.Append("  ").Append(name).Append("  — ").AppendLineLf(kindNotes[name]);
             AppendFields(text, FieldsDeclaredBy(kind.DerivedType), indent: "    ");
         }
     }
 
-    /// <summary>The wire fields of a DTO record, in the camelCase the serializer writes and reads: its public properties
-    /// and the internal ones it carries on the wire (<c>JsonInclude</c>).</summary>
-    private static IReadOnlyList<WireField> FieldsOf(Type dto) => WireFieldsOf(dto, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+    /// <summary>The wire fields of a DTO record as the serializer reads them (<see cref="WireContractExtensions"/>): its public
+    /// properties and the internal ones it carries on the wire, under their wire names.</summary>
+    private static IReadOnlyList<WireField> FieldsOf(Type dto) => [.. dto.WireFields.Select(field => WireField.Of(field, dto))];
 
     /// <summary>The wire fields <paramref name="dto"/> declares itself, without those it inherits: a layer of a stacked record
     /// family, whose base layers are listed once rather than under every kind.</summary>
-    private static IReadOnlyList<WireField> FieldsDeclaredBy(Type dto) =>
-        WireFieldsOf(dto, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-
-    private static IReadOnlyList<WireField> WireFieldsOf(Type dto, BindingFlags which) =>
-        [.. dto.GetProperties(which)
-            .Where(p => p.GetMethod is { IsPublic: true } || p.IsDefined(typeof(JsonIncludeAttribute)))
-            .Select(p => new WireField(JsonNamingPolicy.CamelCase.ConvertName(p.Name), WireTypeOf(p.PropertyType), dto.Name))];
+    private static IReadOnlyList<WireField> FieldsDeclaredBy(Type dto) => [.. dto.DeclaredWireFields().Select(field => WireField.Of(field, dto))];
 
     private static Type TypeNamed(string name) =>
         typeof(SeriesDto).Assembly.GetType($"MatPlotLibNet.Serialization.{name}")

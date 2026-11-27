@@ -11,51 +11,16 @@ public class TableSeriesRenderTests
 {
     private static readonly string[][] Data = [["Alice", "90"], ["Bob", "85"], ["Carol", "92"]];
 
-    [Fact]
-    public void Table_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("Table_SvgContainsRectangles", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Table(Data))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<rect"),
+    };
 
-    [Fact]
-    public void Table_SvgContainsRectangles()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Table(Data))
-            .ToSvg();
-        Assert.Contains("<rect", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void Table_WithColumnHeaders_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Table(Data, s =>
-            {
-                s.ColumnHeaders = ["Name", "Score"];
-            }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Table_EmptyCellData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Table([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Table_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Table(Data)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

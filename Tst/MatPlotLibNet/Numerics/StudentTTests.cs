@@ -11,12 +11,6 @@ namespace MatPlotLibNet.Tests.Numerics;
 /// five values for ten degrees of freedom that drew a 90 % regression band at the 95 % quantile's width.</summary>
 public class StudentTTests
 {
-    private static void Close(double expected, double actual, double relative)
-    {
-        double scale = Math.Max(1e-300, Math.Abs(expected));
-        Assert.True(Math.Abs(actual - expected) <= relative * scale + 1e-300, $"expected {expected:R}, got {actual:R}");
-    }
-
     [Theory]
     [InlineData(0.6, 1, 0.32491969623290634)]
     [InlineData(0.9, 1, 3.0776835371752544)]
@@ -62,7 +56,7 @@ public class StudentTTests
     {
         double tolerance = p is < 1e-6 or > 1 - 1e-6 ? 1e-9 : 1e-12;
         if (expected == 0) Assert.Equal(0, StudentT.Quantile(p, degreesOfFreedom), 15);
-        else Close(expected, StudentT.Quantile(p, degreesOfFreedom), tolerance);
+        else expected.AssertCloseTo(StudentT.Quantile(p, degreesOfFreedom), relative: tolerance, floor: 1e-300);
     }
 
     [Theory]
@@ -97,26 +91,26 @@ public class StudentTTests
     [InlineData(2.5, 30, 0.9909421754659666)]
     [InlineData(12.0, 30, 0.999999999999721)]
     public void TheCdf_MatchesScipy(double t, int degreesOfFreedom, double expected) =>
-        Close(expected, StudentT.Cdf(t, degreesOfFreedom), 1e-12);
+        expected.AssertCloseTo(StudentT.Cdf(t, degreesOfFreedom), relative: 1e-12, floor: 1e-300);
 
     [Theory]
     [InlineData(0.9, 7)]
     [InlineData(0.55, 3)]
     [InlineData(1e-6, 12)]
     public void TheQuantile_IsTheInverseOfTheCdf(double p, int degreesOfFreedom) =>
-        Close(p, StudentT.Cdf(StudentT.Quantile(p, degreesOfFreedom), degreesOfFreedom), 1e-11);
+        p.AssertCloseTo(StudentT.Cdf(StudentT.Quantile(p, degreesOfFreedom), degreesOfFreedom), relative: 1e-11, floor: 1e-300);
 
     [Theory]
     [InlineData(0.8, 5)]
     [InlineData(0.99, 2)]
     public void TheQuantile_IsOddAroundTheMedian(double p, int degreesOfFreedom) =>
-        Close(StudentT.Quantile(p, degreesOfFreedom), -StudentT.Quantile(1 - p, degreesOfFreedom), 1e-12);
+        StudentT.Quantile(p, degreesOfFreedom).AssertCloseTo(-StudentT.Quantile(1 - p, degreesOfFreedom), relative: 1e-12, floor: 1e-300);
 
     /// <summary>The nine degrees of freedom the old table had no entry for: exact at 10 (a 95 % band is 2.228, not the 2.262 of 9).</summary>
     [Fact]
     public void ANinetyPercentBand_IsNotTheNinetyFivePercentOnes()
     {
-        Close(1.8124611228116756, StudentT.Quantile(0.95, 10), 1e-12);
+        1.8124611228116756.AssertCloseTo(StudentT.Quantile(0.95, 10), relative: 1e-12, floor: 1e-300);
         Assert.NotEqual(StudentT.Quantile(0.975, 10), StudentT.Quantile(0.95, 10), 3);
     }
 
@@ -126,7 +120,7 @@ public class StudentTTests
     {
         double t = StudentT.Quantile(0.975, 1_000_000);
 
-        Close(1.9599663568141068, t, 1e-8);
+        1.9599663568141068.AssertCloseTo(t, relative: 1e-8, floor: 1e-300);
         Assert.Equal(StandardNormal.Quantile(0.975), t, 4);
     }
 

@@ -12,66 +12,45 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 public class PolarChartFidelityTests : FidelityTest
 {
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 155)]   // polar grid labels + different RNG; ΔE: classic's dotted black grid now antialiases to greys that outrank the blue markers in the top-5 palette (1 -> 137) while RMS and SSIM stay where they were
+    [FidelityRows]
+    [FidelityTolerance(Rms = 15, Ssim = 0.97, DeltaE = 3, V2Rms = 12, V2Ssim = 0.98)]   // polar grid labels
     public void PolarScatter_RandomPoints_MatchesMatplotlib(string themeId)
     {
-        var rng = new Random(42);
-        int n = 60;
-        var theta = Enumerable.Range(0, n).Select(_ => rng.NextDouble() * 2 * Math.PI).ToArray();
-        var r     = Enumerable.Range(0, n).Select(_ => rng.NextDouble()).ToArray();
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("Polar scatter")
-                .PolarScatter(r, theta))
-            .Build();
-        AssertFidelity(figure, "polar_scatter");
+        var points = ReferenceData.Load("polar_scatter");
+        var theta = points.Vector("theta");
+        var r     = points.Vector("r");
+        AssertFidelity(themeId, "polar_scatter", "Polar scatter", ax => ax
+            .PolarScatter(r, theta));
     }
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 85, Ssim = 0.55, DeltaE = 85)]   // our blue wedge fill is ~25% lighter; no dark saturated blue in our top-5
+    [FidelityRows]
+    [FidelityTolerance(Rms = 10, Ssim = 0.98, DeltaE = 5, V2Rms = 8, V2Ssim = 0.98, V2DeltaE = 3)]
     public void PolarBar_Wedges_MatchesMatplotlib(string themeId)
     {
         int n = 12;
         var theta = Enumerable.Range(0, n).Select(i => i * 2 * Math.PI / n).ToArray();
         double[] r = [3, 5, 2, 6, 4, 7, 3, 5, 4, 6, 3, 5];
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("Polar bar")
-                .PolarBar(r, theta))
-            .Build();
-        AssertFidelity(figure, "polar_bar");
+        AssertFidelity(themeId, "polar_bar", "Polar bar", ax => ax
+            // The reference's bars are 2 pi / 12 wide: ax.bar(theta, r, width=width).
+            .PolarBar(r, theta, b => b.BarWidth = 2 * Math.PI / n));
     }
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 100)]   // different RNG → different cell colors; viridis extremes drift
+    [FidelityRows]
+    [FidelityTolerance(Rms = 16, Ssim = 0.96, DeltaE = 3, V2Rms = 15, V2Ssim = 0.97)]   // the cells, the spoke labels and the title are the reference's (classic RMS 15.73, v2 16.23); what remains is the antialiased text and the outline
     public void PolarHeatmap_Random_MatchesMatplotlib(string themeId)
     {
-        var rng = new Random(42);
-        int nr = 10, ntheta = 24;
-        var data = new double[nr, ntheta];
-        for (int ir = 0; ir < nr; ir++)
-            for (int it = 0; it < ntheta; it++)
-                data[ir, it] = rng.NextDouble();
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("Polar heatmap")
-                .PolarHeatmap(data, ntheta, nr, s => s.ColorMap = ColorMaps.Viridis))
-            .Build();
-        AssertFidelity(figure, "polar_heatmap");
+        // The reference's Z is indexed [radial bin, angular bin] (pcolormesh(T, R, Z) over a meshgrid of 24 angles and 10 radii); the series
+        // reads [angular bin, radial bin], so the matrix is turned: with it as it stood, the cells of the first ten angles held the data
+        // and the other fourteen angles of the disc stayed empty.
+        double[,] z = ReferenceData.Load("polar_heatmap").Matrix("data");
+        int nr = z.GetLength(0), ntheta = z.GetLength(1);
+        var data = new double[ntheta, nr];
+        for (int t = 0; t < ntheta; t++)
+        for (int r = 0; r < nr; r++)
+            data[t, r] = z[r, t];
+        AssertFidelity(themeId, "polar_heatmap", "Polar heatmap", ax => ax
+            .PolarHeatmap(data, ntheta, nr, s => s.ColorMap = ColorMaps.Viridis));
     }
 }

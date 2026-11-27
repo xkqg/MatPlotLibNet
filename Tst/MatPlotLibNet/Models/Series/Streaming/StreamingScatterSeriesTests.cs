@@ -39,15 +39,6 @@ public sealed class StreamingScatterSeriesTests
     }
 
     [Fact]
-    public void DefaultVisualProperties()
-    {
-        var s = new StreamingScatterSeries();
-        Assert.Null(s.Color);
-        Assert.Equal(1.0, s.Alpha);
-        Assert.Equal(6.0, s.MarkerSize);
-    }
-
-    [Fact]
     public void ComputeDataRange_WithData_ReturnsCorrectBounds()
     {
         var s = new StreamingScatterSeries();
@@ -57,24 +48,5 @@ public sealed class StreamingScatterSeriesTests
         Assert.Equal(5.0, range.XMax);
         Assert.Equal(3.0, range.YMin);
         Assert.Equal(7.0, range.YMax);
-    }
-
-    /// <summary>A DTO with no Color/Alpha/MarkerSize (a figure's own prop-cycler never ran — the figure-pipeline
-    /// round-trip tests always carry a cycled colour by the time ToSeriesDto sees the series, so this is the one
-    /// place the "absent" branch of each gets exercised directly) leaves the restored series at its own defaults.</summary>
-    [Fact]
-    public void FromSeriesDto_WithNoColorAlphaOrMarkerSize_KeepsDefaults()
-    {
-        var axes = new Axes();
-        var dto = new SeriesDto { Type = "streaming_scatter", XData = [1.0], YData = [2.0] };
-
-        var s = StreamingScatterSeries.FromSeriesDto(axes, dto);
-
-        Assert.Null(s.Color);
-        Assert.Equal(1.0, s.Alpha);
-        Assert.Equal(6.0, s.MarkerSize);
-        var snap = s.CreateSnapshot();
-        Assert.Equal([1.0], snap.XData);
-        Assert.Equal([2.0], snap.YData);
     }
 }

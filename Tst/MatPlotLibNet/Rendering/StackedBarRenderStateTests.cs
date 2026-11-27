@@ -104,7 +104,7 @@ public class StackedBarRenderStateTests
     {
         var figure = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax.SetBarMode(BarMode.Stacked)).Build();
         var axes = figure.SubPlots[0];
-        axes.AddSeries(new ForeignStackable([5.0, 7.0]));
+        axes.AddSeries(new TestStackable([5.0, 7.0]));
         var bar = axes.Bar(["A", "B"], [1.0, 2.0]);
 
         figure.ToSvg();
@@ -135,19 +135,5 @@ public class StackedBarRenderStateTests
     }
 
     private static string[] Rects(string svg) =>
-        [.. System.Text.RegularExpressions.Regex.Matches(svg, "<rect[^>]*>").Select(m => m.Value).Where(r => !r.Contains("width=\"400\"", StringComparison.Ordinal))];
-
-    /// <summary>A stackable series that draws nothing and is not a bar.</summary>
-    private sealed class ForeignStackable(double[] values) : ChartSeries, IStackable
-    {
-        public double[] Values { get; } = values;
-
-        public double[]? StackBaseline { get; set; }
-
-        public override void Accept(MatPlotLibNet.Rendering.ISeriesVisitor visitor, MatPlotLibNet.Rendering.RenderArea area) { }
-
-        public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(0, 2, 0, 12);
-
-        public override MatPlotLibNet.Serialization.SeriesDto ToSeriesDto() => new() { Type = "foreign" };
-    }
+        [.. svg.Elements("rect").Where(rect => rect["width"] != "400").Select(rect => string.Join(' ', rect.Attributes.Select(attribute => $"{attribute.Key}={attribute.Value}")))];
 }

@@ -41,55 +41,36 @@ df.Hist("returns", bins: 40, hue: "sector")
 
 ### Charting — `DataFrameFigureExtensions`
 
-```csharp
-// All three methods return FigureBuilder — chainable before .Build() / .ToSvg() / .Save()
+All three return a `FigureBuilder`, so the chain goes on to `.Build()`, `.ToSvg()` or `.Save(path)`:
 
-FigureBuilder df.Line(string x, string y, string? hue = null, Color[]? palette = null)
-FigureBuilder df.Scatter(string x, string y, string? hue = null, Color[]? palette = null)
-FigureBuilder df.Hist(string column, int bins = 30, string? hue = null, Color[]? palette = null)
-```
+| Call | Returns |
+|---|---|
+| `df.Line(x, y, hue?, palette?)` | `FigureBuilder` |
+| `df.Scatter(x, y, hue?, palette?)` | `FigureBuilder` |
+| `df.Hist(column, bins?, hue?, palette?)` | `FigureBuilder` |
 
-### Financial Indicators — `DataFrameIndicatorExtensions`
+### Financial Indicators — `DataFrameIndicatorExtensions` and `Values`
 
-Every indicator method reads the named column or columns into `double[]` and calls the core indicator types.
-Output arrays are **trimmed**, not NaN-padded. Their length is `n - warmUp`, where warmUp depends on the indicator period.
+An indicator is made from its own class in `MatPlotLibNet.Indicators`, which says its parameters and their defaults; the
+package reads its input from named columns, with one call for each shape of bars an indicator takes and one for a single
+column. Output arrays are **trimmed**, not NaN-padded: their length is `n - warmUp`, where warmUp depends on the period.
 
-```csharp
-// Price indicators (single close/price column)
-double[]      df.Sma(string priceCol, int period)
-double[]      df.Ema(string priceCol, int period)
-double[]      df.Rsi(string priceCol, int period = 14)
-BandsResult   df.BollingerBands(string priceCol, int period = 20, double stdDev = 2.0)
-double[]      df.Obv(string closeCol, string volumeCol)
-MacdResult    df.Macd(string priceCol, int fast = 12, int slow = 26, int signal = 9)
-double[]      df.DrawDown(string priceCol)
-
-// Candle indicators (high / low / close columns)
-double[]      df.Adx(string highCol, string lowCol, string closeCol, int period = 14)
-AdxResult     df.AdxFull(string highCol, string lowCol, string closeCol, int period = 14)
-double[]      df.Atr(string highCol, string lowCol, string closeCol, int period = 14)
-double[]      df.Cci(string highCol, string lowCol, string closeCol, int period = 20)
-double[]      df.WilliamsR(string highCol, string lowCol, string closeCol, int period = 14)
-StochasticResult df.Stochastic(string highCol, string lowCol, string closeCol, int period = 14)
-double[]      df.ParabolicSar(string highCol, string lowCol, double step = 0.02, double max = 0.2)
-BandsResult   df.KeltnerChannels(string highCol, string lowCol, string closeCol, int period = 20, double atrMultiplier = 1.5)
-double[]      df.Vwap(string highCol, string lowCol, string closeCol, string volumeCol)
-double[]      df.Vwap(string highCol, string lowCol, string closeCol, string volumeCol, int anchor)  // NaN before the anchor row
-```
-
-Result types:
-
-| Type | Properties |
-|------|-----------|
-| `BandsResult` | `Middle[]`, `Upper[]`, `Lower[]` |
-| `MacdResult` | `MacdLine[]`, `SignalLine[]`, `Histogram[]` |
-| `AdxResult` | `Adx[]`, `PlusDi[]`, `MinusDi[]` |
-| `StochasticResult` | `K[]`, `D[]` |
+| Call | Returns | For |
+|---|---|---|
+| `df.Values(column)` | `double[]` | one column: SMA, EMA, RSI, MACD, Bollinger, ... |
+| `df.Hlc(highCol, lowCol, closeCol)` | `OhlcvBars` | ADX, ATR, CCI, Williams %R, stochastic, Keltner, ... |
+| `df.Hlcv(highCol, lowCol, closeCol, volumeCol)` | `OhlcvBars` | VWAP, Klinger, Twiggs money flow |
+| `df.Ohlc(openCol, highCol, lowCol, closeCol)` | `OhlcvBars` | Garman-Klass, Yang-Zhang, RVI |
+| `df.Cv(closeCol, volumeCol)` | `OhlcvBars` | force index, Amihud, VPIN, VWAP z-score |
+| `df.Hl(highCol, lowCol)` | `OhlcvBars` | Aroon oscillator, Corwin-Schultz |
+| `df.Hlv(highCol, lowCol, volumeCol)` | `OhlcvBars` | ease of movement |
 
 ```csharp
 // Example: candlestick + SMA + Bollinger Bands overlay
-double[]    sma20 = df.Sma("close", 20);
-BandsResult bb    = df.BollingerBands("close", period: 20, stdDev: 2.0);
+double[]    close = df.Values("close");
+double[]    sma20 = new Sma(close, 20).Compute();
+BandsResult bb    = new BollingerBands(close, period: 20).Compute();
+double[]    atr   = new Atr(df.Hlc("high", "low", "close")).Compute();
 
 string svg = Plt.Create()
     .AddSubPlot(1, 1, 1, ax =>
@@ -105,18 +86,11 @@ string svg = Plt.Create()
 
 ### Polynomial Regression — `DataFrameNumericsExtensions`
 
-```csharp
-// Fit a polynomial of the given degree to two numeric columns
-double[] coeffs = df.PolyFit(string xCol, string yCol, int degree)
-
-// Evaluate the fitted polynomial at every value in the X column
-double[] fitY   = df.PolyEval(string xCol, double[] coefficients)
-
-// Compute a confidence band for the fitted polynomial
-ConfidenceBand band = df.ConfidenceBand(string xCol, string yCol,
-                          double[] coefficients, double[] evalX, double level = 0.95)
-// ConfidenceBand has Upper[] and Lower[]
-```
+| Call | Returns | Does |
+|---|---|---|
+| `df.PolyFit(xCol, yCol, degree)` | `double[]` | fits a polynomial of the given degree to two numeric columns |
+| `df.PolyEval(xCol, coefficients)` | `double[]` | evaluates the fitted polynomial at every value of the X column |
+| `df.ConfidenceBand(xCol, yCol, coefficients, evalX, level?)` | `ConfidenceBand` | the confidence band of the fit, `level` 0.95 by default; a `ConfidenceBand` has `Upper` and `Lower` |
 
 ```csharp
 // Example: scatter + linear fit + 95 % confidence band

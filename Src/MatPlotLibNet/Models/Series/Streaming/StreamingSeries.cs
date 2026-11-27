@@ -3,10 +3,12 @@
 
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series.Streaming;
 
-/// <summary>Abstract base for XY streaming series: ONE <see cref="RingBuffer{T}"/> of
+/// <summary>Abstract base for XY streaming series: ONE ring of
 /// <see cref="StreamingPoint"/>, because a point is what this series is a sequence of.
 ///
 /// <para>It used to be two buffers, one for x and one for y. Each was thread-safe and the only thing that
@@ -17,40 +19,36 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 /// storing the value that must stay whole AS one value can.</para>
 ///
 /// <para>Subclasses provide visual properties and visitor dispatch.</para></summary>
-public abstract class StreamingSeries : ChartSeries, IStreamingSeries
+public abstract class StreamingSeries : ChartSeries, IStreamingSeries, IVersionedSeries
 {
-    private readonly RingBuffer<StreamingPoint> _points;
-    private long _version;
+    private readonly StreamRing<StreamingPoint> _points;
 
-    /// <inheritdoc />
-    public long Version => Interlocked.Read(ref _version);
+    /// <inheritdoc cref="IStreamingSeries.Version" />
+    public long Version => _points.Version;
 
     /// <inheritdoc />
     public int Count => _points.Count;
 
     /// <inheritdoc />
-    public int Capacity { get; }
+    public int Capacity => _points.Capacity;
+
+    /// <summary>How many points a streaming line or scatter keeps when it is told no capacity.</summary>
+    internal const int RestingCapacity = 10_000;
+
+    /// <inheritdoc />
+    internal override long LatestChange => ChangeClock.Latest(base.LatestChange, _points.LatestChange);
 
     /// <summary>Initializes a new streaming series with the specified buffer capacity.</summary>
     /// <param name="capacity">Maximum number of data points retained. Oldest are evicted when exceeded.</param>
-    protected StreamingSeries(int capacity)
-    {
-        Capacity = capacity;
-        _points = new RingBuffer<StreamingPoint>(capacity);
-    }
+    protected StreamingSeries(int capacity) => _points = new StreamRing<StreamingPoint>(capacity);
 
     /// <inheritdoc />
-    public void AppendPoint(double x, double y)
-    {
-        _points.Append(new StreamingPoint(x, y));
-        Interlocked.Increment(ref _version);
-    }
+    public void AppendPoint(double x, double y) => _points.Append(new StreamingPoint(x, y));
 
     /// <inheritdoc />
     public void AppendPoints(ReadOnlySpan<double> x, ReadOnlySpan<double> y)
     {
-        if (x.Length != y.Length)
-            throw new ArgumentException("X and Y spans must have equal length.");
+        x.Length.ThrowIfMisaligned(y.Length);
 
         // Paired up here, once, so the buffer never holds half a batch.
         var points = new StreamingPoint[x.Length];
@@ -60,23 +58,17 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
         }
 
         _points.AppendRange(points);
-        Interlocked.Increment(ref _version);
     }
 
     /// <inheritdoc />
-    public void Clear()
-    {
-        _points.Clear();
-        Interlocked.Increment(ref _version);
-    }
+    public void Clear() => _points.Clear();
 
     /// <inheritdoc />
     public StreamingSnapshot CreateSnapshot()
     {
         // ONE read of ONE buffer. The split into two arrays happens afterwards, on a value nothing can change
         // any more, so the shape consumers expect costs nothing in consistency.
-        long version = Version;
-        var points = _points.ToArray();
+        var (points, version) = _points.Read();
         var x = new double[points.Length];
         var y = new double[points.Length];
         for (int i = 0; i < points.Length; i++)
@@ -94,21 +86,48 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
         // One WALK, one state: the four corners come from the same moment or from none — and a render that
         // asks for the range no longer copies the whole window to find out.
         var box = _points.Aggregate(Box.Empty, static (box, point) => box.Extend(point.X, point.Y));
-        var x = box.X.OrNone();
-        var y = box.Y.OrNone();
-        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
+        return DataRangeContribution.Spanning(box.X.OrNone(), box.Y.OrNone());
     }
 
-    /// <summary>The bounding box of what has been walked so far — the accumulator a range is folded into, so
-    /// the four corners are one value and cannot come from four different moments. Each side takes in only the values
-    /// an axis can place (a missing value, NaN, and an infinity are left out), the rule every series ranges by.</summary>
+    /// <summary>The bounding box of what has been walked so far, and how many items were walked — the accumulator a range is folded
+    /// into, so the four corners and the count are one value and cannot come from different moments. Each side takes in only the values
+    /// an axis can place (a missing value, NaN, and an infinity are left out), the rule every series ranges by; the count takes in every
+    /// item. A stream of points folds its X and Y, a stream of bars its lows and highs, a stream of samples the ordinals and the values.</summary>
     /// <param name="X">The extent folded along the first coordinate; <see cref="Range1D.Empty"/> until a value is taken in.</param>
     /// <param name="Y">The extent folded along the second coordinate.</param>
-    internal readonly record struct Box(Range1D X, Range1D Y)
+    /// <param name="Count">How many items were walked.</param>
+    internal readonly record struct Box(Range1D X, Range1D Y, int Count)
     {
-        public static Box Empty { get; } = new(Range1D.Empty, Range1D.Empty);
+        public static Box Empty { get; } = new(Range1D.Empty, Range1D.Empty, 0);
 
-        public Box Extend(double x, double y) => new(X.Including(x), Y.Including(y));
+        public Box Extend(double x, double y) => new(X.Including(x), Y.Including(y), Count + 1);
+    }
+
+    /// <summary>The record of the stream every streaming line and scatter writes: its kind, the x and y of one snapshot (never x
+    /// and y from two moments), its capacity and its colour. A kind adds the fields of its own look with <c>with</c>.</summary>
+    /// <param name="kind">The name the kind is written under.</param>
+    /// <param name="color">The colour the series was given.</param>
+    /// <returns>The record.</returns>
+    private protected SeriesDto StreamDto(string kind, Color? color)
+    {
+        var snapshot = CreateSnapshot();
+        return new() { Type = kind, XData = snapshot.XData, YData = snapshot.YData, Capacity = Capacity, Color = color };
+    }
+
+    /// <summary>A stream read back from its record: made at the capacity it was written with (the resting one when it names none),
+    /// added to the axes, filled with the points of its snapshot and given its colour. A kind then reads the fields of its own look.</summary>
+    /// <typeparam name="TSeries">The kind of stream.</typeparam>
+    /// <param name="axes">The axes the stream is added to.</param>
+    /// <param name="dto">The record.</param>
+    /// <param name="make">Makes an empty stream of the kind at a capacity.</param>
+    /// <returns>The stream.</returns>
+    private protected static TSeries FromStreamDto<TSeries>(Axes axes, SeriesDto dto, Func<int, TSeries> make)
+        where TSeries : StreamingSeries, IHasColor
+    {
+        var series = axes.AddSeries(make(dto.Capacity ?? RestingCapacity));
+        series.AppendPoints(dto.XData ?? [], dto.YData ?? []);
+        if (dto.Color is { } color) series.Color = color;
+        return series;
     }
 
     // ToSeriesDto is left ABSTRACT here on purpose (inherited from ChartSeries, not overridden): a single shared
@@ -123,7 +142,6 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
     public override Models.ChartDataTable? ToDataTable()
     {
         var snapshot = CreateSnapshot();
-        return Models.ChartDataTable.FromNumberColumns(
-            [new("x"), new(Label ?? "y")], [snapshot.XData, snapshot.YData]);
+        return Models.ChartDataTable.XY(Label, snapshot.XData, snapshot.YData);
     }
 }

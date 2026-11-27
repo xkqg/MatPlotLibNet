@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -50,14 +48,12 @@ public class SymlogTickTests
         // Pattern: <line x1="..." y1="<Y>" x2="..." y2="<Y>" ...>
         // Filter to those with x1 < 110 and x1 == x1 (horizontal short marks).
         var positions = new List<double>();
-        var matches = Regex.Matches(svg,
-            @"<line\s+x1=""(?<x1>[\d\.\-]+)""\s+y1=""(?<y1>[\d\.\-]+)""\s+x2=""(?<x2>[\d\.\-]+)""\s+y2=""(?<y2>[\d\.\-]+)""");
-        foreach (Match m in matches)
+        foreach (var line in svg.Elements("line").Where(line => line["x1"] is not null && line["y1"] is not null && line["x2"] is not null && line["y2"] is not null))
         {
-            double x1 = double.Parse(m.Groups["x1"].Value, CultureInfo.InvariantCulture);
-            double x2 = double.Parse(m.Groups["x2"].Value, CultureInfo.InvariantCulture);
-            double y1 = double.Parse(m.Groups["y1"].Value, CultureInfo.InvariantCulture);
-            double y2 = double.Parse(m.Groups["y2"].Value, CultureInfo.InvariantCulture);
+            double x1 = line.Number("x1");
+            double x2 = line.Number("x2");
+            double y1 = line.Number("y1");
+            double y2 = line.Number("y2");
             // Y-axis tick: short horizontal line near the left edge
             if (x1 < 110 && Math.Abs(y1 - y2) < 0.5 && Math.Abs(x2 - x1) < 10)
                 positions.Add(y1);

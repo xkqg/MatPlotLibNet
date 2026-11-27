@@ -14,64 +14,46 @@ public class BarbsSeriesRenderTests
     private static readonly double[] Speed = [5.0, 15.0, 25.0, 55.0];
     private static readonly double[] Dir = [0.0, 45.0, 90.0, 270.0];
 
-    [Fact]
-    public void Barbs_SvgContainsLines()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("Barbs_SvgContainsLines", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Barbs(X, Y, Speed, Dir))
-            .ToSvg();
-        Assert.Contains("<line", svg);
-    }
+            .ToSvg(), "<line"),
+        // BarbsSeriesRenderer: i >= series.Speed.Length ternary false-branch. The verb refuses arrays that do not pair, so the
+        // series is built directly: the renderer's own guard is what is characterised.
+        new DrawnToken("Barbs_SpeedArrayShorterThanPositions_FallsBackToZero", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarbsSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 0.0 }, new double[] { 20.0 }, new double[] { 45.0, 90.0 })))
+            .ToSvg(), "<line"),
+        // BarbsSeriesRenderer: i >= series.Direction.Length ternary false-branch (built directly, as above).
+        new DrawnToken("Barbs_DirectionArrayShorterThanPositions_FallsBackToZero", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarbsSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 0.0 }, new double[] { 20.0, 30.0 }, new double[] { 45.0 })))
+            .ToSvg(), "<line"),
+    };
 
-    [Fact]
-    public void Barbs_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Barbs(X, Y, Speed, Dir)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Barbs_SinglePoint_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0], [0.0], [10.0], [45.0]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── Branch coverage ──────────────────────────────────────────────────────
 
-    [Fact]
-    public void Barbs_EmptySeries_ReturnsDefaultDataRange()
+    /// <summary>A barb whose speed or direction is missing (NaN) or infinite is left out with its staff, as matplotlib's <c>Barbs</c>
+    /// deletes a masked point (<c>cbook.delete_masked_points</c>). An infinite speed used to hang the draw: the renderer drew a flag
+    /// for every 50 knots of it, forever.</summary>
+    [Theory]
+    [InlineData(double.NaN, 45)]
+    [InlineData(double.PositiveInfinity, 45)]
+    [InlineData(20, double.NaN)]
+    [InlineData(20, double.NegativeInfinity)]
+    public void ABarbWithAMissingOrInfiniteSpeedOrDirection_IsLeftOut(double speed, double direction)
     {
-        // BarbsSeries.ComputeDataRange: X.Length == 0 branch
-        // BarbsSeriesRenderer.Render: X.Length == 0 early-return branch
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Barbs([], [], [], []))
+        var withGap = Plt.Create().WithTheme(MatPlotLibNet.Styling.Theme.Default)
+            .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0, 1.0], [0.0, 0.0], [speed, 20.0], [direction, 90.0]).SetXLim(-1, 2).SetYLim(-1, 1))
             .ToSvg();
-        Assert.StartsWith("<svg", svg);
-    }
+        var without = Plt.Create().WithTheme(MatPlotLibNet.Styling.Theme.Default)
+            .AddSubPlot(1, 1, 1, ax => ax.Barbs([1.0], [0.0], [20.0], [90.0]).SetXLim(-1, 2).SetYLim(-1, 1))
+            .ToSvg();
 
-    [Fact]
-    public void Barbs_SpeedArrayShorterThanPositions_FallsBackToZero()
-    {
-        // BarbsSeriesRenderer: i >= series.Speed.Length ternary false-branch. The verb refuses arrays that do not pair, so the
-        // series is built directly: the renderer's own guard is what is characterised.
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarbsSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 0.0 }, new double[] { 20.0 }, new double[] { 45.0, 90.0 })))
-            .ToSvg();
-        Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void Barbs_DirectionArrayShorterThanPositions_FallsBackToZero()
-    {
-        // BarbsSeriesRenderer: i >= series.Direction.Length ternary false-branch (built directly, as above).
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarbsSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 0.0 }, new double[] { 20.0, 30.0 }, new double[] { 45.0 })))
-            .ToSvg();
-        Assert.Contains("<line", svg);
+        Assert.Equal(without, withGap);
     }
 }

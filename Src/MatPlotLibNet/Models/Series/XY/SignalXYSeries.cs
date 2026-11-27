@@ -12,19 +12,27 @@ namespace MatPlotLibNet.Models.Series;
 /// Uses two <c>Array.BinarySearch</c> calls to find the visible index range in O(log n),
 /// avoiding the O(n) scan of <see cref="T:MatPlotLibNet.Rendering.Downsampling.ViewportCuller"/>.
 /// </summary>
-public sealed class SignalXYSeries : XYSeries, XY.IMonotonicXY, IHasColor
+public sealed class SignalXYSeries : XYSeries, XY.IMonotonicXY, IHasColor, ISeriesKind<SignalXYSeries>, IGivenStroked
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Line(this);
+
+    /// <inheritdoc />
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The dash pattern of the line. Default solid.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
-    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <summary>Initializes a new instance with ascending X values and corresponding Y values.</summary>
     /// <param name="xData">Monotonically ascending X values. Must match the length of <paramref name="yData"/>.</param>
@@ -67,33 +75,24 @@ public sealed class SignalXYSeries : XYSeries, XY.IMonotonicXY, IHasColor
         return new(lo, hi + 1);
     }
 
+    static string ISeriesKind<SignalXYSeries>.Kind => "signal-xy";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "signal-xy",
+        Type = this.WireKind(),
         XData = XData, YData = YData,
         Label = Label,
-        LineStyle = LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth,
+        Stroking = Stroke,
         Color = Color
     };
 
-    /// <summary>Reconstructs a <see cref="SignalXYSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="SignalXYSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static SignalXYSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.SignalXY(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
-        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls))
-        {
-            s.LineStyle = ls;
-        }
+        s.Stroke = dto.StrokeOver(s.Stroke);
         return s;
     }
 

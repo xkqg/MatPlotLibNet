@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Geo.Projections;
 public sealed class TransverseMercator : IGeoProjection, IProjectionParameters
 {
     private readonly double _lam0;
-    private readonly Dictionary<string, double> _parameters;
+    private readonly ProjectionParameterSet _parameters;
 
     /// <inheritdoc />
     public string Name => "TransverseMercator";
@@ -16,30 +16,37 @@ public sealed class TransverseMercator : IGeoProjection, IProjectionParameters
     /// <summary>Creates a Transverse Mercator projection around the given central meridian.</summary>
     /// <param name="centerLon">Central meridian in degrees, the line along which scale is true. Default 0.</param>
     public TransverseMercator(double centerLon = 0)
+        : this(ProjectionParameterSet.Meridian(centerLon))
     {
-        _parameters = new() { ["lon_0"] = centerLon };
-        _lam0 = centerLon.ToRadians();
     }
 
-    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+    private TransverseMercator(ProjectionParameterSet parameters)
+    {
+        _parameters = parameters;
+        _lam0 = parameters.Lon0.ToRadians();
+    }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters.Numbers;
 
     /// <inheritdoc />
-    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
-        new TransverseMercator(parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]));
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) => new TransverseMercator(_parameters.With(parameters));
 
     /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
         double phi = latitude.ToRadians(), lam = longitude.ToRadians();
         double b = Math.Cos(phi) * Math.Sin(lam - _lam0);
-        if (Math.Abs(b) >= 1) return new(double.NaN, double.NaN);
+        if (Math.Abs(b) >= 1) return ProjectedPoint.OffDomain;
         double x = 0.5 * Math.Log((1 + b) / (1 - b));
-        double y = Math.Atan2(Math.Tan(phi), Math.Cos(lam - _lam0)) - _lam0;
+        // The latitude of origin is the equator: Y is the arc from it, the central meridian only turns the sphere.
+        double y = Math.Atan2(Math.Tan(phi), Math.Cos(lam - _lam0));
         return new(x.ToDegrees(), y.ToDegrees());
     }
 
     /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
     /// <inheritdoc />
-    public GeoBounds Bounds => new(-180, 180, -90, 90);
+    /// <remarks>Half a turn of arc to each side and a quarter turn up and down, as cartopy's limits of a transverse Mercator map are
+    /// (<c>x_limits = (-pi a, pi a)</c>, <c>y_limits = (-pi / 2 b, pi / 2 b)</c>).</remarks>
+    public GeoBounds Bounds => GeoBounds.Symmetric(Math.PI.ToDegrees(), (Math.PI / 2).ToDegrees());
 }

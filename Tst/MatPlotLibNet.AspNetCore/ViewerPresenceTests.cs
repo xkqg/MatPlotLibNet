@@ -22,22 +22,7 @@ public class ViewerPresenceTests : IAsyncDisposable
 
     public ViewerPresenceTests()
     {
-        _host = new HostBuilder()
-            .ConfigureWebHost(web =>
-            {
-                web.UseTestServer();
-                web.ConfigureServices(services =>
-                {
-                    services.AddMatPlotLibNetSignalR();
-                    services.AddRouting();
-                });
-                web.Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints => endpoints.MapChartHub());
-                });
-            })
-            .Start();
+        _host = SignalRTestHost.Start();
     }
 
     private sealed class Client
@@ -46,19 +31,11 @@ public class ViewerPresenceTests : IAsyncDisposable
         public ConcurrentQueue<(string ViewerId, string ViewerName, int Axes, double X, double Y)> Cursors { get; } = new();
         public ConcurrentQueue<(string ViewerId, string ViewerName)> Changes { get; } = new();
         public ConcurrentQueue<string> Left { get; } = new();
-
-        public async Task WaitAsync(Func<bool> condition)
-        {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-            while (!condition() && DateTime.UtcNow < deadline) await Task.Delay(10);
-        }
     }
 
     private async Task<Client> JoinAsync(string chartId, CancellationToken ct)
     {
-        var conn = new HubConnectionBuilder()
-            .WithUrl("http://localhost/charts-hub", o => o.HttpMessageHandlerFactory = _ => _host.GetTestServer().CreateHandler())
-            .Build();
+        var conn = _host.ConnectToTheHub();
         var client = new Client { Connection = conn };
         conn.On<string, string, string, int, double, double>("ReceiveCursor",
             (_, id, name, axes, x, y) => client.Cursors.Enqueue((id, name, axes, x, y)));
@@ -79,8 +56,8 @@ public class ViewerPresenceTests : IAsyncDisposable
         var third = await JoinAsync("p-1", ct);
 
         await first.Connection.InvokeAsync(nameof(ChartHub.OnCursor), new CursorEventPayload("p-1", 0, 1.5, 2.5), ct);
-        await second.WaitAsync(() => !second.Cursors.IsEmpty);
-        await third.WaitAsync(() => !third.Cursors.IsEmpty);
+        await Eventually.HoldsAsync(() => !second.Cursors.IsEmpty);
+        await Eventually.HoldsAsync(() => !third.Cursors.IsEmpty);
         await Task.Delay(150, ct);
 
         var seen = Assert.Single(second.Cursors);
@@ -115,7 +92,7 @@ public class ViewerPresenceTests : IAsyncDisposable
         string leavingId = leaving.Connection.ConnectionId!;
 
         await leaving.Connection.DisposeAsync();
-        await staying.WaitAsync(() => !staying.Left.IsEmpty);
+        await Eventually.HoldsAsync(() => !staying.Left.IsEmpty);
 
         Assert.Equal(leavingId, Assert.Single(staying.Left));
         await staying.Connection.DisposeAsync();
@@ -131,7 +108,7 @@ public class ViewerPresenceTests : IAsyncDisposable
         var watcher = await JoinAsync("p-4", ct);
 
         await author.Connection.InvokeAsync(nameof(ChartHub.OnZoom), new ZoomEvent("p-4", 0, 1, 2, 3, 4), ct);
-        await watcher.WaitAsync(() => !watcher.Changes.IsEmpty);
+        await Eventually.HoldsAsync(() => !watcher.Changes.IsEmpty);
 
         Assert.Equal((author.Connection.ConnectionId!, "Viewer 1"), Assert.Single(watcher.Changes));
         await author.Connection.DisposeAsync();

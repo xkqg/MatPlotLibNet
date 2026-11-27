@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Reflection;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
@@ -108,19 +107,4 @@ public class SeriesRegistryTests
     }
 
     private static Axes FreshAxes() => new Axes();
-
-    /// <summary>Council fix F3: <c>ResetForTests</c> is a test-infrastructure escape hatch that
-    /// should never have been on the production public API. It becomes an <c>[Obsolete]</c> public
-    /// shim (kept for one release so external consumers' test suites keep compiling) delegating to
-    /// the real, <c>internal</c> reset entry point that in-repo tests reach via
-    /// <c>InternalsVisibleTo</c>.</summary>
-    [Fact]
-    public void SeriesRegistry_ResetForTests_PublicShim_IsObsolete()
-    {
-        var method = typeof(SeriesRegistry).GetMethod(nameof(SeriesRegistry.ResetForTests), BindingFlags.Public | BindingFlags.Static);
-
-        Assert.NotNull(method);
-        var obsolete = method!.GetCustomAttribute<ObsoleteAttribute>();
-        Assert.NotNull(obsolete);
-    }
 }

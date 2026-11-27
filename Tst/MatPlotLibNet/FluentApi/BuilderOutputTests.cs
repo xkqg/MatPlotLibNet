@@ -19,17 +19,19 @@ public class BuilderOutputTests
         Assert.Contains("No Build", svg);
     }
 
-    /// <summary>Verifies that ToJson produces valid JSON without calling Build().</summary>
-    [Fact]
-    public void ToJson_WithoutBuild_ProducesValidJson()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Plt.Create()
+        //  Verifies that ToJson produces valid JSON without calling Build().
+        new DrawnToken("ToJson_WithoutBuild_ProducesValidJson", () => Plt.Create()
             .WithTitle("JSON Test")
             .Plot([1.0], [2.0])
-            .ToJson();
+            .ToJson(), "JSON Test"),
+    };
 
-        Assert.Contains("JSON Test", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that Save creates an SVG file without calling Build().</summary>
     [Fact]
@@ -64,18 +66,6 @@ public class BuilderOutputTests
         Assert.NotNull(result);
         byte[] bytes = result.ToBytes();
         Assert.True(bytes.Length > 0);
-    }
-
-    /// <summary>Verifies that subplots work with direct ToSvg without Build().</summary>
-    [Fact]
-    public void ToSvg_WithSubPlots_WithoutBuild()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 2, 1, ax => ax.Plot([1.0], [2.0]))
-            .AddSubPlot(1, 2, 2, ax => ax.Scatter([1.0], [2.0]))
-            .ToSvg();
-
-        Assert.Contains("<svg", svg);
     }
 
     /// <summary>Verifies that Save auto-detects SVG from .svg extension.</summary>

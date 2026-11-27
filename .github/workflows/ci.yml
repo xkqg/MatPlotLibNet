@@ -74,6 +74,9 @@ jobs:
           # The charts against matplotlib's own pictures (the references in Tst/MatPlotLibNet.Fidelity/Fixtures), scored by a
           # perceptual diff on this runner's own rasterizer. Not in the coverage job: it holds no product code to measure.
           dotnet run --project Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj --no-build --configuration Release
+          # How the benchmark program reads its drag mode from the command line. Not in the coverage job: the benchmark
+          # program is a measurement harness, and the suite compiles in the one file that holds a decision.
+          dotnet run --project Tst/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.Tests.csproj --no-build --configuration Release
 
   # The packages that need a workload or a Windows SDK (MAUI, WPF, Uno) cannot be built on the Linux runner, so the
   # publish workflow was the first thing to build them -- after the tag, where a break (or an API change the pack's

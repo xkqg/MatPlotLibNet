@@ -41,42 +41,42 @@ public sealed class Arrow : FilledPatch
     }
 
     /// <summary>Where the shaft starts, in data units (matplotlib's <c>x</c>, <c>y</c>).</summary>
-    public DataPoint Start { get; set; }
+    public DataPoint Start { get; set => Change(ref field, value); }
 
     /// <summary>How far the shaft runs along X from <see cref="Start"/>, in data units.</summary>
-    public double Dx { get; set; }
+    public double Dx { get; set => Change(ref field, value); }
 
     /// <summary>How far the shaft runs along Y from <see cref="Start"/>, in data units.</summary>
-    public double Dy { get; set; }
+    public double Dy { get; set => Change(ref field, value); }
 
     /// <summary>The width of the shaft, in data units. 0.001 by default, as in matplotlib.</summary>
-    public double Width { get; set; } = 0.001;
+    public double Width { get; set => Change(ref field, value); } = 0.001;
 
     /// <summary>The width of the head, in data units. <see langword="null"/> (the default) makes it three times the
     /// <see cref="Width"/> of the shaft, as matplotlib does.</summary>
-    public double? HeadWidth { get; set; }
+    public double? HeadWidth { get; set => Change(ref field, value); }
 
     /// <summary>The length of the head, in data units. <see langword="null"/> (the default) makes it one and a half times the
     /// width of the head, as matplotlib does.</summary>
-    public double? HeadLength { get; set; }
+    public double? HeadLength { get; set => Change(ref field, value); }
 
     /// <summary>Whether the tip stands on the end point, the head taken out of the length. <see langword="false"/> by default,
     /// as in matplotlib: the shaft spans the whole delta and the tip stands a head length past its end.</summary>
-    public bool LengthIncludesHead { get; set; }
+    public bool LengthIncludesHead { get; set => Change(ref field, value); }
 
     /// <summary>Which part of the arrow is drawn: <see cref="ArrowHeadShape.Full"/> (the default) or one half of it.</summary>
-    public ArrowHeadShape Shape { get; set; } = ArrowHeadShape.Full;
+    public ArrowHeadShape Shape { get; set => Change(ref field, value); } = ArrowHeadShape.Full;
 
     /// <summary>How far the back of the head is swept towards the tip, as a fraction of the head length: 0 (the default) is a
     /// triangle, 0.5 sweeps the back halfway to the tip, a negative value pushes it back along the shaft.</summary>
-    public double Overhang { get; set; }
+    public double Overhang { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
     internal override IReadOnlyList<PathSegment> Outline()
     {
         double headWidth = HeadWidth ?? 3 * Width;
         double headLength = HeadLength ?? 1.5 * headWidth;
-        double distance = double.Hypot(Dx, Dy);
+        double distance = new Point(Dx, Dy).Length;
         double length = LengthIncludesHead ? distance : distance + headLength;
         double shift = LengthIncludesHead ? 0 : headLength;
 

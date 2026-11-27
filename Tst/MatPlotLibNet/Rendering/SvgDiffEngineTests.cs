@@ -99,6 +99,57 @@ public sealed class SvgDiffEngineTests
         Assert.False(patch.IsFullReplace);
     }
 
+    /// <summary>A series group holds groups of its own (an alpha group, a 3-D run): its content runs to the <c>&lt;/g&gt;</c> that
+    /// closes it, not to the first inner one, so a change after an inner group is a patch carrying the whole group.</summary>
+    [Fact]
+    public void AChange_AfterAnInnerGroup_IsAPatchOfTheWholeSeriesGroup()
+    {
+        const string Group = """<svg><g data-series-index="0"><g opacity="0.5"><path d="A"/></g><path d="{0}"/></g></svg>""";
+
+        var patch = SvgDiffEngine.Compute(string.Format(Group, "B"), string.Format(Group, "C"));
+
+        var only = Assert.Single(patch.Patches);
+        Assert.Equal("""<g opacity="0.5"><path d="A"/></g><path d="C"/>""", only.NewContent);
+        Assert.False(patch.IsFullReplace);
+    }
+
+    [Fact]
+    public void ASeriesGroup_WrittenSelfClosed_HasNoContent()
+    {
+        var patch = SvgDiffEngine.Compute(
+            """<svg><g data-series-index="0"/><g data-series-index="1">A</g></svg>""",
+            """<svg><g data-series-index="0"/><g data-series-index="1">B</g></svg>""");
+
+        var only = Assert.Single(patch.Patches);
+        Assert.Equal(1, only.SeriesIndex);
+        Assert.Equal("B", only.NewContent);
+    }
+
+    /// <summary>Only a <c>g</c> element opens a group (an element whose name merely starts with g does not), a group written
+    /// self-closed inside opens none, and the depth decides which <c>&lt;/g&gt;</c> ends the series group.</summary>
+    [Fact]
+    public void OnlyAGroupThatIsNotSelfClosed_DeepensTheSeriesGroup()
+    {
+        const string Group = """<g data-series-index="0"><glyph/><g/><g>A</g>{0}</g><g data-series-index="1">tail</g>""";
+
+        var patch = SvgDiffEngine.Compute(string.Format(Group, "B"), string.Format(Group, "C"));
+
+        var only = Assert.Single(patch.Patches);
+        Assert.Equal(0, only.SeriesIndex);
+        Assert.Equal("<glyph/><g/><g>A</g>C", only.NewContent);
+    }
+
+    [Theory]
+    [InlineData("""<g data-series-index="0"><g>A""", """<g data-series-index="0"><g>B""", "<g>B")]
+    [InlineData("""<g data-series-index="0">A<g""", """<g data-series-index="0">B<g""", "B<g")]
+    [InlineData("""<g data-series-index="0">A<g class="x" """, """<g data-series-index="0">B<g class="x" """, """B<g class="x" """)]
+    public void AnUnclosedSeriesGroup_RunsToTheEndOfTheDocument(string previous, string current, string content)
+    {
+        var patch = SvgDiffEngine.Compute(previous, current);
+
+        Assert.Equal(content, Assert.Single(patch.Patches).NewContent);
+    }
+
     [Fact]
     public void NewSeriesAdded_FullReplace()
     {

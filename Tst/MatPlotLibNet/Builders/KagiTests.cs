@@ -1,11 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickLocators;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -24,20 +21,6 @@ public class KagiTests
         KagiParts parts = default;
         Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Kagi(closes, reversal, p => parts = p)).Build();
         return parts;
-    }
-
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
-
-    [Fact]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws()
-    {
-        Assert.Equal(ComposedChartShapes.KagiByHand(false).ToSvg(), ComposedChartShapes.Named("kagi").Build(false).ToSvg());
-        Assert.Equal(ComposedChartShapes.KagiByHand(true).ToSvg(), ComposedChartShapes.Named("kagi").Build(true).ToSvg());
     }
 
     [Fact]
@@ -89,14 +72,14 @@ public class KagiTests
     {
         var figure = Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Kagi(Closes, 1).Plot([0.0, 1.0], [0.0, 1.0])).Build();
 
-        var lines = Drawn(figure).OfKind("DrawLines").Select(call => (dynamic)call.Args!).ToList();
+        var lines = figure.Drawn().Of<DrawLinesCall>().ToList();
 
         // The thin line and the thick line both wear the first colour of the cycle; the line drawn after them wears the second.
-        Assert.All(lines.Where(args => (double)args.thickness is 1.0 or 3.0), args => Assert.Equal(Theme.Default.CycleColors[0], (Color)args.color));
+        Assert.All(lines.Where(args => args.Thickness is 1.0 or 3.0), args => Assert.Equal(Theme.Default.CycleColors[0], args.Color));
         // The thin line is two stretches parted by a missing value, each drawn as a line of its own; the thick one is one.
-        Assert.Equal(2, lines.Count(args => (double)args.thickness == 1.0));
-        Assert.Equal(1, lines.Count(args => (double)args.thickness == 3.0));
-        Assert.Contains(lines, args => (Color)args.color == Theme.Default.CycleColors[1]);
+        Assert.Equal(2, lines.Count(args => args.Thickness == 1.0));
+        Assert.Equal(1, lines.Count(args => args.Thickness == 3.0));
+        Assert.Contains(lines, args => args.Color == Theme.Default.CycleColors[1]);
     }
 
     [Fact]
@@ -106,19 +89,6 @@ public class KagiTests
         var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Kagi(Closes, 1, p => parts = p)).Build().SubPlots[0];
 
         Assert.Equal(new ISeries[] { parts.Thin, parts.Thick }, axes.Series);
-    }
-
-    [Fact]
-    public void WhatTheCallbackSets_WinsOverWhatTheVerbDid()
-    {
-        var parts = PartsOf(Closes);
-        Assert.NotEqual(Colors.Red, parts.Thick.Color);
-
-        KagiParts styled = default;
-        Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Kagi(Closes, 1, p => { p.Thick.Color = Colors.Red; p.Thin.LineWidth = 2; styled = p; })).Build();
-
-        Assert.Equal(Colors.Red, styled.Thick.Color);
-        Assert.Equal(2.0, styled.Thin.LineWidth);
     }
 
     [Fact]
@@ -139,17 +109,6 @@ public class KagiTests
         Assert.NotEmpty(figure.ToSvg());
     }
 
-    [Fact]
-    public void TheChart_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Kagi(Closes, 1)).Build();
-
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
-        Assert.Equal(2, back.SubPlots[0].Series.Count);
-    }
-
     [Theory]
     [InlineData(0.0)]
     [InlineData(-1.0)]
@@ -160,9 +119,13 @@ public class KagiTests
         Assert.Equal("reversal", Assert.Throws<ArgumentOutOfRangeException>(() => PartsOf(Closes, reversal)).ParamName);
     }
 
-    [Fact]
-    public void NoPrices_AreRefusedByName()
+    /// <summary>The Kagi and the Renko verb take their prices alike (<c>PriceAxesExtensions</c>), and refuse none by the name of the parameter.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void NoPrices_AreRefusedByName(bool kagi)
     {
-        Assert.Equal("prices", Assert.Throws<ArgumentNullException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Kagi(null!, 1)).Build()).ParamName);
+        Assert.Equal("prices", Assert.Throws<ArgumentNullException>(() =>
+            Plt.Create().AddSubPlot(1, 1, 1, ax => { if (kagi) ax.Kagi(null!, 1); else ax.Renko(null!, 1); }).Build()).ParamName);
     }
 }

@@ -4,8 +4,12 @@
 using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Rendering.TickLocators;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -23,36 +27,6 @@ public class BulletGraphSeriesTests
         new(2800, Color.FromHex("#999999"))
     ];
 
-    // ── Model ────────────────────────────────────────────────────────────────
-
-    /// <summary>The value is the series' identity: it goes in the constructor, everything else is optional.</summary>
-    [Fact]
-    public void Value_IsSetByTheConstructor()
-    {
-        Assert.Equal(2412, new BulletGraphSeries(2412).Value);
-    }
-
-    /// <summary>Without a target there is no comparative tick — the bar alone is a legitimate, if weaker, form.</summary>
-    [Fact]
-    public void Target_DefaultsToNull()
-    {
-        Assert.Null(new BulletGraphSeries(2412).Target);
-    }
-
-    /// <summary>Bands default to none: a bullet graph with no qualitative ranges is still a bullet graph.</summary>
-    [Fact]
-    public void Bands_DefaultToNull()
-    {
-        Assert.Null(new BulletGraphSeries(2412).Bands);
-    }
-
-    /// <summary>Horizontal by default — the reading direction of the strip an operator scans down a column of.</summary>
-    [Fact]
-    public void Orientation_DefaultsToHorizontal()
-    {
-        Assert.Equal(Orientation.Horizontal, new BulletGraphSeries(2412).Orientation);
-    }
-
     // ── Data range ───────────────────────────────────────────────────────────
 
     /// <summary>The data range spans zero to the largest of value, target and the outermost band, so the whole
@@ -62,7 +36,7 @@ public class BulletGraphSeriesTests
     {
         var s = new BulletGraphSeries(2412) { Target = 2500, Bands = Bands };
 
-        var range = s.ComputeDataRange(new NullContext());
+        var range = s.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(0, range.XMin);
         Assert.Equal(2800, range.XMax);   // the outermost band, beyond both value and target
@@ -74,7 +48,7 @@ public class BulletGraphSeriesTests
     {
         var s = new BulletGraphSeries(3500) { Bands = Bands };
 
-        Assert.Equal(3500, s.ComputeDataRange(new NullContext()).XMax);
+        Assert.Equal(3500, s.ComputeDataRange(new TestAxesContext()).XMax);
     }
 
     /// <summary>Vertical orientation puts the same range on Y instead of X.</summary>
@@ -83,7 +57,7 @@ public class BulletGraphSeriesTests
     {
         var s = new BulletGraphSeries(2412) { Orientation = Orientation.Vertical };
 
-        var range = s.ComputeDataRange(new NullContext());
+        var range = s.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(0, range.YMin);
         Assert.Equal(2412, range.YMax);
@@ -98,47 +72,67 @@ public class BulletGraphSeriesTests
     [Fact]
     public void BandsOutOfOrder_RaiseADiagnostic()
     {
-        ChartDiagnostic? seen = null;
-        void Capture(ChartDiagnostic d) => seen = d;
-        ChartDiagnostics.Emitted += Capture;
-        try
-        {
-            Plt.Create()
-                .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b => b.Bands =
-                [
-                    new(80, Colors.Gray),
-                    new(20, Colors.Gray)      // lower than its predecessor
-                ]))
-                .ToSvg();
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Capture;
-        }
+        using var capture = new DiagnosticsCapture();
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b => b.Bands =
+            [
+                new(80, Colors.Gray),
+                new(20, Colors.Gray)      // lower than its predecessor
+            ]))
+            .ToSvg();
 
-        Assert.NotNull(seen);
-        Assert.Contains("ascending", seen!.Value.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(capture.Last);
+        Assert.Contains("ascending", capture.Last!.Value.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Rendering ────────────────────────────────────────────────────────────
 
-    /// <summary>The three layered parts reach the canvas: the qualitative bands behind, the feature bar over
-    /// them, and the target as a perpendicular tick.</summary>
-    [Fact]
-    public void Rendering_DrawsBandsBarAndTargetTick()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        //  The three layered parts reach the canvas: the qualitative bands behind, the feature bar over them, and the target as a
+        // perpendicular tick.
+        //  bands + bar
+        //  the target tick
+        new DrawnToken("Rendering_DrawsBandsBarAndTargetTick", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Bullet(2412, b =>
             {
                 b.Target = 2500;
                 b.Bands = Bands;
             }))
-            .ToSvg();
+            .ToSvg(), "<rect", "<line", Bands[0].Color.ToHex()),
+        //  A vertical bullet renders too — same three parts, rotated.
+        new DrawnToken("VerticalOrientation_Renders", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b =>
+            {
+                b.Orientation = Orientation.Vertical;
+                b.Target = 80;
+                b.Bands = [new(100, Colors.Gray)];
+            }))
+            .ToSvg(), "<rect", "<line"),
+        // A vertical bullet with neither bands nor a target still renders — the bar alone.
+        new DrawnToken("VerticalBullet_WithoutBandsOrTarget_RendersJustTheBar", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b => b.Orientation = Orientation.Vertical))
+            .ToSvg(), "<rect"),
+        // A horizontal bullet without bands renders the bar over the plain background.
+        new DrawnToken("HorizontalBullet_WithoutBands_Renders", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50))
+            .ToSvg(), "<rect"),
+        // A single band cannot be out of order, so no diagnostic is raised — the ascending check needs at least two thresholds to have an
+        // opinion.
+        new DrawnToken("ASingleBand_RaisesNoDiagnostic", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b => b.Bands = [new(100, Colors.Gray)]))
+            .ToSvg(), "<rect"),
+        // Bands in ascending order raise nothing — the happy path of the ascending check.
+        new DrawnToken("AscendingBands_RaiseNoDiagnostic", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b => b.Bands =
+                [new(30, Colors.Gray), new(70, Colors.Gray), new(100, Colors.Gray)]))
+            .ToSvg(), "<rect"),
+    };
 
-        Assert.Contains("<rect", svg);                      // bands + bar
-        Assert.Contains("<line", svg);                      // the target tick
-        Assert.Contains(Bands[0].Color.ToHex(), svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Without a target no tick is drawn — the library does not invent a comparative the caller never
     /// supplied. Both figures are given the SAME upper bound (target == value), so the axis geometry is
@@ -151,76 +145,43 @@ public class BulletGraphSeriesTests
         string without = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Bullet(50)).ToSvg();
 
-        Assert.Equal(CountOf(without, "<line") + 1, CountOf(withTarget, "<line"));
+        Assert.Equal(without.CountOf("<line") + 1, withTarget.CountOf("<line"));
     }
 
-    /// <summary>A vertical bullet renders too — same three parts, rotated.</summary>
-    [Fact]
-    public void VerticalOrientation_Renders()
+    // ── a last band at +Infinity: "and everything above" ─────────────────────────────────────────────────────
+
+    /// <summary>A band whose threshold is +Infinity is kept, and it runs to the end of the strip: the way to say that the last band
+    /// covers everything above the one before it. The infinite threshold sizes nothing, so the strip is as long as the value and the
+    /// target ask (the Bands documentation says so).</summary>
+    [Theory]
+    [InlineData(Orientation.Horizontal)]
+    [InlineData(Orientation.Vertical)]
+    public void ALastBandAtPositiveInfinity_RunsToTheEndOfTheStrip_WhichTheValueSizes(Orientation orientation)
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Bullet(50, b =>
-            {
-                b.Orientation = Orientation.Vertical;
-                b.Target = 80;
-                b.Bands = [new(100, Colors.Gray)];
-            }))
-            .ToSvg();
-
-        Assert.Contains("<rect", svg);
-        Assert.Contains("<line", svg);
-    }
-
-    // ── Serialization ────────────────────────────────────────────────────────
-
-    /// <summary>Every property survives the round-trip — including the bands, which the gauge used to lose.</summary>
-    [Fact]
-    public void EveryProperty_SurvivesRoundTrip()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Bullet(2412, b =>
-            {
-                b.Label = "Messages/s";
-                b.Target = 2500;
-                b.Bands = Bands;
-                b.BarColor = Colors.Black;
-                b.Orientation = Orientation.Vertical;
-            }))
-            .Build();
-
-        var serializer = new ChartSerializer();
-        var s = serializer.FromJson(serializer.ToJson(figure))
-            .SubPlots[0].Series.OfType<BulletGraphSeries>().Single();
-
-        Assert.Equal(2412, s.Value);
-        Assert.Equal("Messages/s", s.Label);
-        Assert.Equal(2500, s.Target);
-        Assert.Equal(Bands, s.Bands);
-        Assert.Equal(Colors.Black, s.BarColor);
-        Assert.Equal(Orientation.Vertical, s.Orientation);
-    }
-
-    /// <summary>Minimal axes context: the bullet graph's range depends only on its own value, target and
-    /// bands — it never consults the axes.</summary>
-    private sealed class NullContext : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
-    private static int CountOf(string haystack, string needle)
-    {
-        int count = 0, i = 0;
-        while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0)
+        var series = new BulletGraphSeries(60)
         {
-            count++;
-            i += needle.Length;
-        }
+            Bands = [new GaugeBand(50, Colors.LightGray), new GaugeBand(double.PositiveInfinity, Colors.Gray)],
+            Orientation = orientation,
+        };
+        var bounds = new Rect(0, 0, 400, 300);
+        var ctx = new RecordingRenderContext();
 
-        return count;
+        new BulletGraphSeriesRenderer(
+            new SeriesRenderContext(new DataTransform(0, 100, 0, 100, bounds), ctx, Colors.Tab10Blue,
+                new RenderArea(bounds, ctx))).Render(series);
+
+        var range = series.ComputeDataRange(new TestAxesContext());
+        Assert.Equal((double?)60, orientation == Orientation.Horizontal ? range.XMax : range.YMax);
+        var bands = ctx.Rects().Take(2).ToList();
+        if (orientation == Orientation.Horizontal)
+        {
+            Assert.Equal(50.0 / 60 * 400, bands[0].Width, 1e-9);                  // the finite band ends at its threshold, 50 of the 60 the strip spans
+            Assert.Equal(400, bands[1].X + bands[1].Width, 1e-9);                 // the infinite one reaches the strip's end
+        }
+        else
+        {
+            Assert.Equal(50.0 / 60 * 300, bands[0].Height, 1e-9);
+            Assert.Equal(0, bands[1].Y, 1e-9);                                    // ... the strip's top, bottom up
+        }
     }
 }

@@ -3,8 +3,8 @@
 
 namespace MatPlotLibNet.Indicators.Steps;
 
-/// <summary>One step of the Ehlers two-pole high-pass filter: the recursion that <c>HighPass</c> folds over a series and the streaming
-/// forms of the decycler and the roofing filter take one value at a time. The first two outputs are 0, so a constant input settles to
+/// <summary>One step of the Ehlers two-pole high-pass filter: the recursion that the decycler and the roofing filter fold over a series and their streaming
+/// forms take one value at a time. The first two outputs are 0, so a constant input settles to
 /// 0; after that each output is <c>coefX</c> times the second difference of the input plus the two outputs before it, weighted.</summary>
 internal struct HighPassStep
 {
@@ -21,7 +21,7 @@ internal struct HighPassStep
     /// <param name="period">The cut-off period in bars; at least 2.</param>
     internal HighPassStep(int period)
     {
-        double theta = 0.707 * 360.0 / period * Math.PI / 180.0;
+        double theta = (0.707 * 360.0 / period).ToRadians();
         double cosT = Math.Cos(theta);
         double sinT = Math.Sin(theta);
         double alpha = (cosT + sinT - 1) / cosT;

@@ -17,7 +17,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one place that finds the repository's root: every suite reads the folder from this file. -->
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryRoot.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests.Packaging" />
   </ItemGroup>
 
 </Project>

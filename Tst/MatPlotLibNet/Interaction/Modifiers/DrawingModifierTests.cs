@@ -9,11 +9,17 @@ using static MatPlotLibNet.Interaction.InteractionToolbar;
 
 namespace MatPlotLibNet.Tests.Interaction.Modifiers;
 
+/// <summary>The figure, layout and toolbar a drawing modifier is held to.</summary>
+/// <param name="Figure">The figure.</param>
+/// <param name="Layout">Its layout.</param>
+/// <param name="Toolbar">The toolbar that holds the tool mode.</param>
+public readonly record struct DrawingRig(Figure Figure, IChartLayout Layout, InteractionToolbar Toolbar);
+
 /// <summary>Verifies <see cref="TrendlineDrawingModifier"/>, <see cref="LevelDrawingModifier"/>,
 /// <see cref="FibonacciDrawingModifier"/>, and <see cref="DrawingToolSelectionModifier"/>.</summary>
 public class DrawingModifierTests
 {
-    private static (Figure fig, IChartLayout layout, InteractionToolbar toolbar) BuildHarness()
+    private static DrawingRig BuildHarness()
     {
         var fig = new Figure();
         var axes = fig.AddSubPlot();
@@ -21,45 +27,58 @@ public class DrawingModifierTests
         axes.YAxis.Min = 0; axes.YAxis.Max = 5;
         var layout = ChartLayout.Create(fig, [new Rect(10, 10, 100, 50)]);
         var toolbar = new InteractionToolbar();
-        return (fig, layout, toolbar);
+        return new DrawingRig(fig, layout, toolbar);
     }
 
-    // ── TrendlineDrawingModifier ──────────────────────────────────────────────
+    /// <summary>A modifier with the events it sent.</summary>
+    /// <param name="Modifier">The modifier.</param>
+    /// <param name="Events">What it sent, in order.</param>
+    private readonly record struct Armed<T>(T Modifier, List<FigureInteractionEvent> Events) where T : InteractionModifier;
 
-    [Fact]
-    public void TrendlineModifier_NotActive_WhenToolModeIsNotTrendline()
+    private static InteractionModifier DrawingModifierOf(string tool, IChartLayout layout, Action<FigureInteractionEvent> sink, InteractionToolbar toolbar) => tool switch
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new TrendlineDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        // Default ToolMode is Pan
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
+        ToolIds.Trendline => new TrendlineDrawingModifier("c1", layout, sink, toolbar),
+        ToolIds.Level => new LevelDrawingModifier("c1", layout, sink, toolbar),
+        _ => new FibonacciDrawingModifier("c1", layout, sink, toolbar),
+    };
+
+    /// <summary>A modifier of the tool <paramref name="tool"/> over a fresh figure, its toolbar switched to that tool or left on Pan.</summary>
+    private static Armed<InteractionModifier> Arm(string tool, bool active = true)
+    {
+        var (_, layout, toolbar) = BuildHarness();
+        if (active) toolbar.Activate(tool);
+        var events = new List<FigureInteractionEvent>();
+        return new(DrawingModifierOf(tool, layout, events.Add, toolbar), events);
     }
 
-    [Fact]
-    public void TrendlineModifier_Active_WhenToolModeIsTrendline()
+    private static void Click(InteractionModifier modifier, double x, double y)
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Trendline);
-        var m = new TrendlineDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.True(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
+        modifier.OnPointerPressed(new PointerInputArgs(x, y, PointerButton.Left, ModifierKeys.None));
+        modifier.OnPointerReleased(new PointerInputArgs(x, y, PointerButton.Left, ModifierKeys.None));
+    }
+
+    /// <summary>A drawing modifier handles a press only while its own tool is the active one.</summary>
+    [Theory]
+    [InlineData(ToolIds.Trendline)]
+    [InlineData(ToolIds.Level)]
+    [InlineData(ToolIds.Fibonacci)]
+    public void ADrawingModifier_HandlesAPress_OnlyWhileItsToolIsActive(string tool)
+    {
+        bool Presses(InteractionModifier m) => m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
+
+        Assert.True(Presses(Arm(tool).Modifier));
+        Assert.False(Presses(Arm(tool, active: false).Modifier));
     }
 
     [Fact]
     public void TrendlineModifier_TwoClicks_EmitsAddTrendlineEvent()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Trendline);
-        var events = new List<FigureInteractionEvent>();
-        var m = new TrendlineDrawingModifier("c1", layout, fig, events.Add, toolbar);
+        var (m, events) = Arm(ToolIds.Trendline);
 
-        // First click — stores p1, no event yet
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
+        Click(m, 10, 10);
         Assert.Empty(events);
 
-        // Second click — emits event
-        m.OnPointerPressed(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.None));
+        Click(m, 110, 60);
         Assert.Single(events);
         Assert.IsType<AddTrendlineEvent>(events[0]);
     }
@@ -67,74 +86,35 @@ public class DrawingModifierTests
     [Fact]
     public void TrendlineModifier_ResetAfterSecondClick()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Trendline);
-        var events = new List<FigureInteractionEvent>();
-        var m = new TrendlineDrawingModifier("c1", layout, fig, events.Add, toolbar);
+        var (m, events) = Arm(ToolIds.Trendline);
 
-        // Two clicks → one event
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerPressed(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.None));
+        Click(m, 10, 10);
+        Click(m, 110, 60);
+        Click(m, 10, 10);
 
-        // Third click starts next trendline — no second event yet
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
         Assert.Single(events);
-    }
-
-    // ── LevelDrawingModifier ──────────────────────────────────────────────────
-
-    [Fact]
-    public void LevelModifier_NotActive_WhenToolModeIsNotLevel()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new LevelDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
     }
 
     [Fact]
     public void LevelModifier_SingleClick_EmitsAddHorizontalLevelEvent()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Level);
-        var events = new List<FigureInteractionEvent>();
-        var m = new LevelDrawingModifier("c1", layout, fig, events.Add, toolbar);
+        var (m, events) = Arm(ToolIds.Level);
 
-        m.OnPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
+        Click(m, 60, 35);
 
         Assert.Single(events);
         Assert.IsType<AddHorizontalLevelEvent>(events[0]);
     }
 
-    // ── FibonacciDrawingModifier ──────────────────────────────────────────────
-
-    [Fact]
-    public void FibonacciModifier_NotActive_WhenToolModeIsNotFibonacci()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
-    }
-
     [Fact]
     public void FibonacciModifier_TwoClicks_EmitsAddFibonacciRetracementEvent()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Fibonacci);
-        var events = new List<FigureInteractionEvent>();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, events.Add, toolbar);
+        var (m, events) = Arm(ToolIds.Fibonacci);
 
-        // First click (high)
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
+        Click(m, 10, 10);
         Assert.Empty(events);
 
-        // Second click (low)
-        m.OnPointerPressed(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.None));
+        Click(m, 110, 60);
         Assert.Single(events);
         Assert.IsType<AddFibonacciRetracementEvent>(events[0]);
     }
@@ -142,42 +122,36 @@ public class DrawingModifierTests
     [Fact]
     public void FibonacciModifier_EventContainsPriceHighAndLow()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Fibonacci);
-        var events = new List<FigureInteractionEvent>();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, events.Add, toolbar);
+        var (m, events) = Arm(ToolIds.Fibonacci);
 
-        // Top-left of plot area → highest Y (axes max), bottom-right → lowest Y
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerPressed(new PointerInputArgs(10, 60, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(10, 60, PointerButton.Left, ModifierKeys.None));
+        // Top-left of plot area → highest Y (axes max), bottom-left → lowest Y
+        Click(m, 10, 10);
+        Click(m, 10, 60);
 
         var evt = Assert.IsType<AddFibonacciRetracementEvent>(events[0]);
-        // First click Y should be > second click Y (in data space, top pixel = high price)
         Assert.True(evt.Tool.PriceHigh >= evt.Tool.PriceLow);
     }
 
-    // ── DrawingToolSelectionModifier ──────────────────────────────────────────
+    /// <summary>A selection modifier over a figure with one trendline, which it has selected unless <paramref name="selected"/> says not.</summary>
+    private static Armed<DrawingToolSelectionModifier> Select(out Trendline trendline, bool selected = true)
+    {
+        var (fig, layout, _) = BuildHarness();
+        trendline = fig.SubPlots[0].AddTrendline(0, 0, 5, 5);
+        var events = new List<FigureInteractionEvent>();
+        var m = new DrawingToolSelectionModifier("c1", layout, events.Add);
+        if (selected) m.SelectTool(trendline, axesIndex: 0);
+        return new(m, events);
+    }
+
+    private static bool HandlesKey(InteractionModifier modifier, string key = "Delete") => modifier.HandlesKeyDown(new KeyInputArgs(key, ModifierKeys.None));
 
     [Fact]
-    public void SelectionModifier_DeleteKey_HandlesWhenTrendlineSelected()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var tl = fig.SubPlots[0].AddTrendline(0, 0, 5, 5);
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, _ => { }, toolbar);
-        m.SelectTool(tl, axesIndex: 0);
-        Assert.True(m.HandlesKeyDown(new KeyInputArgs("Delete", ModifierKeys.None)));
-    }
+    public void SelectionModifier_DeleteKey_HandlesWhenTrendlineSelected() => Assert.True(HandlesKey(Select(out _).Modifier));
 
     [Fact]
     public void SelectionModifier_DeleteKey_EmitsRemoveEvent()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        var tl = fig.SubPlots[0].AddTrendline(0, 0, 5, 5);
-        var events = new List<FigureInteractionEvent>();
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, events.Add, toolbar);
-        m.SelectTool(tl, axesIndex: 0);
+        var (m, events) = Select(out var tl);
 
         m.OnKeyDown(new KeyInputArgs("Delete", ModifierKeys.None));
 
@@ -187,78 +161,42 @@ public class DrawingModifierTests
     }
 
     [Fact]
-    public void SelectionModifier_NoSelection_DeleteKey_DoesNotHandle()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesKeyDown(new KeyInputArgs("Delete", ModifierKeys.None)));
-    }
+    public void SelectionModifier_NoSelection_DeleteKey_DoesNotHandle() => Assert.False(HandlesKey(Select(out _, selected: false).Modifier));
 
     [Fact]
     public void SelectionModifier_OnKeyDown_WithNoSelection_DoesNotEmit()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        var events = new List<FigureInteractionEvent>();
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, events.Add, toolbar);
+        var (m, events) = Select(out _, selected: false);
+
         m.OnKeyDown(new KeyInputArgs("Delete", ModifierKeys.None));
+
         Assert.Empty(events);
     }
 
     [Fact]
-    public void SelectionModifier_HandlesKeyDown_NonDeleteKey_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var tl = fig.SubPlots[0].AddTrendline(0, 0, 5, 5);
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, _ => { }, toolbar);
-        m.SelectTool(tl, axesIndex: 0);
-        Assert.False(m.HandlesKeyDown(new KeyInputArgs("Escape", ModifierKeys.None)));
-    }
+    public void SelectionModifier_HandlesKeyDown_NonDeleteKey_ReturnsFalse() => Assert.False(HandlesKey(Select(out _).Modifier, "Escape"));
 
     [Fact]
     public void SelectionModifier_ClearSelection_ThenDeleteKey_DoesNotHandle()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        var tl = fig.SubPlots[0].AddTrendline(0, 0, 5, 5);
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, _ => { }, toolbar);
-        m.SelectTool(tl, axesIndex: 0);
+        var (m, _) = Select(out _);
+
         m.ClearSelection();
-        Assert.False(m.HandlesKeyDown(new KeyInputArgs("Delete", ModifierKeys.None)));
+
+        Assert.False(HandlesKey(m));
     }
 
-    [Fact]
-    public void TrendlineModifier_OutsidePlotArea_DoesNotEmit()
+    /// <summary>A click far outside the plot area draws nothing, whichever tool is active.</summary>
+    [Theory]
+    [InlineData(ToolIds.Trendline)]
+    [InlineData(ToolIds.Level)]
+    [InlineData(ToolIds.Fibonacci)]
+    public void ADrawingModifier_ClickedOutsideThePlotArea_DoesNotEmit(string tool)
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Trendline);
-        var events = new List<FigureInteractionEvent>();
-        var m = new TrendlineDrawingModifier("c1", layout, fig, events.Add, toolbar);
-        // Click far outside the plot area
-        m.OnPointerPressed(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None));
-        Assert.Empty(events);
-    }
+        var (m, events) = Arm(tool);
 
-    [Fact]
-    public void LevelModifier_OutsidePlotArea_DoesNotEmit()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Level);
-        var events = new List<FigureInteractionEvent>();
-        var m = new LevelDrawingModifier("c1", layout, fig, events.Add, toolbar);
-        m.OnPointerPressed(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None));
-        Assert.Empty(events);
-    }
+        Click(m, 999, 999);
 
-    [Fact]
-    public void FibonacciModifier_OutsidePlotArea_DoesNotEmit()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Fibonacci);
-        var events = new List<FigureInteractionEvent>();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, events.Add, toolbar);
-        m.OnPointerPressed(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None));
         Assert.Empty(events);
     }
 
@@ -267,28 +205,16 @@ public class DrawingModifierTests
     // These methods exist to satisfy IInteractionModifier and do nothing; the tests drive
     // them so coverage reflects that they're invocable and side-effect-free.
 
-    [Fact]
-    public void LevelModifier_HandlesScroll_ReturnsFalse()
+    /// <summary>A level or a Fibonacci modifier takes neither a scroll nor a key, and its other pointer and key members send nothing.</summary>
+    [Theory]
+    [InlineData(ToolIds.Level)]
+    [InlineData(ToolIds.Fibonacci)]
+    public void ALevelOrFibonacciModifier_TakesNeitherAScrollNorAKey_AndItsPassThroughMethodsSendNothing(string tool)
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new LevelDrawingModifier("c1", layout, fig, _ => { }, toolbar);
+        var (m, events) = Arm(tool, active: false);
+
         Assert.False(m.HandlesScroll(new ScrollInputArgs(60, 35, 0, 1, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void LevelModifier_HandlesKeyDown_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new LevelDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesKeyDown(new KeyInputArgs("Delete", ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void LevelModifier_PassThroughMethods_AreNoOp()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var events = new List<FigureInteractionEvent>();
-        var m = new LevelDrawingModifier("c1", layout, fig, events.Add, toolbar);
+        Assert.False(HandlesKey(m));
         m.OnPointerMoved(new PointerInputArgs(1, 1, PointerButton.Left, ModifierKeys.None));
         m.OnScroll(new ScrollInputArgs(1, 1, 0, 1, ModifierKeys.None));
         m.OnKeyDown(new KeyInputArgs("Escape", ModifierKeys.None));
@@ -296,74 +222,12 @@ public class DrawingModifierTests
     }
 
     [Fact]
-    public void LevelModifier_HandlesPointerPressed_WrongButton_ReturnsFalse()
+    public void SelectionModifier_TakesNeitherAPressNorAScroll_AndItsPassThroughPointerMethodsSendNothing()
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Level);
-        var m = new LevelDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        // Right-click should not trigger level drawing (left-click only)
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Right, ModifierKeys.None)));
-    }
+        var (m, events) = Select(out _, selected: false);
 
-    [Fact]
-    public void FibonacciModifier_HandlesScroll_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesScroll(new ScrollInputArgs(60, 35, 0, 1, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void FibonacciModifier_HandlesKeyDown_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesKeyDown(new KeyInputArgs("Delete", ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void FibonacciModifier_PassThroughMethods_AreNoOp()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var events = new List<FigureInteractionEvent>();
-        var m = new FibonacciDrawingModifier("c1", layout, fig, events.Add, toolbar);
-        m.OnPointerMoved(new PointerInputArgs(1, 1, PointerButton.Left, ModifierKeys.None));
-        m.OnScroll(new ScrollInputArgs(1, 1, 0, 1, ModifierKeys.None));
-        m.OnKeyDown(new KeyInputArgs("Escape", ModifierKeys.None));
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public void FibonacciModifier_HandlesPointerPressed_WrongButton_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Fibonacci);
-        var m = new FibonacciDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Right, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void SelectionModifier_HandlesPointerPressed_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, _ => { }, toolbar);
         Assert.False(m.HandlesPointerPressed(new PointerInputArgs(1, 1, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void SelectionModifier_HandlesScroll_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, _ => { }, toolbar);
         Assert.False(m.HandlesScroll(new ScrollInputArgs(1, 1, 0, 1, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void SelectionModifier_PassThroughPointerMethods_AreNoOp()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        var events = new List<FigureInteractionEvent>();
-        var m = new DrawingToolSelectionModifier("c1", layout, fig, events.Add, toolbar);
         m.OnPointerPressed(new PointerInputArgs(1, 1, PointerButton.Left, ModifierKeys.None));
         m.OnPointerMoved(new PointerInputArgs(2, 2, PointerButton.Left, ModifierKeys.None));
         m.OnPointerReleased(new PointerInputArgs(3, 3, PointerButton.Left, ModifierKeys.None));
@@ -371,44 +235,24 @@ public class DrawingModifierTests
         Assert.Empty(events);
     }
 
-    // ── LevelModifier + FibonacciModifier wrong-mode branches (HandlesPointerPressed ToolMode check) ──
-
-    [Fact]
-    public void LevelModifier_WrongMode_ReturnsFalse()
+    /// <summary>A level or a Fibonacci modifier handles a press only in its own tool mode (each of the other tools is a wrong mode), with the
+    /// left button (a right click does not draw), and inside the plot area, which is configured at (10, 10, 100, 50): a click at (999, 999) is
+    /// outside, where the hit test finds no axes.</summary>
+    [Theory]
+    [InlineData(false, ToolIds.Level, 60, 35, PointerButton.Right)]
+    [InlineData(true, ToolIds.Fibonacci, 60, 35, PointerButton.Right)]
+    [InlineData(false, ToolIds.Trendline, 60, 35, PointerButton.Left)]
+    [InlineData(true, ToolIds.Level, 60, 35, PointerButton.Left)]
+    [InlineData(false, ToolIds.Level, 999, 999, PointerButton.Left)]
+    [InlineData(true, ToolIds.Fibonacci, 999, 999, PointerButton.Left)]
+    public void ALevelOrFibonacciModifier_DoesNotHandleAPress_OutOfItsModeButtonOrPlotArea(bool fibonacci, string activeTool, double x, double y, PointerButton button)
     {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Trendline); // Different tool active
-        var m = new LevelDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
-    }
+        var (_, layout, toolbar) = BuildHarness();
+        toolbar.Activate(activeTool);
+        InteractionModifier modifier = fibonacci
+            ? new FibonacciDrawingModifier("c1", layout, _ => { }, toolbar)
+            : new LevelDrawingModifier("c1", layout, _ => { }, toolbar);
 
-    [Fact]
-    public void FibonacciModifier_WrongMode_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Level); // Different tool active
-        var m = new FibonacciDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    // ── Third AND branch: valid mode + valid button but click outside plot area ──
-
-    [Fact]
-    public void LevelModifier_ValidModeValidButton_OutsidePlotArea_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Level);
-        var m = new LevelDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        // Click outside the configured plot area (10,10,100,50) — HitTestAxes returns null.
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void FibonacciModifier_ValidModeValidButton_OutsidePlotArea_ReturnsFalse()
-    {
-        var (fig, layout, toolbar) = BuildHarness();
-        toolbar.Activate(ToolIds.Fibonacci);
-        var m = new FibonacciDrawingModifier("c1", layout, fig, _ => { }, toolbar);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(999, 999, PointerButton.Left, ModifierKeys.None)));
+        Assert.False(modifier.HandlesPointerPressed(new PointerInputArgs(x, y, button, ModifierKeys.None)));
     }
 }

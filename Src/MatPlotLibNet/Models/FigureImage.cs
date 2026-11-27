@@ -1,8 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models;
 
@@ -11,8 +13,15 @@ namespace MatPlotLibNet.Models;
 /// resampling, coloured through a colour map as an image series is, and the image stands under every subplot. Its place is a
 /// pair of offsets in pixels from the bottom-left corner of the figure; the first row of the data is the top row of the
 /// image.</summary>
-public sealed class FigureImage
+public sealed class FigureImage : IChangeTracked, IColorScaled
 {
+    private long _stamp;
+
+    /// <summary>Stores <paramref name="value"/> and marks this image changed, unless it already holds an equal value.</summary>
+    private void Change<T>(ref T slot, T value) => ChangeClock.Change(ref slot, value, ref _stamp);
+
+    long IChangeTracked.LatestChange => _stamp;
+
     /// <summary>The pixel values, indexed [row, column]; each becomes one pixel of the figure. The first row is the top row of
     /// the image.</summary>
     public double[,] Data { get; }
@@ -27,22 +36,23 @@ public sealed class FigureImage
 
     /// <summary>The colour map the values are drawn through; <see langword="null"/> (the default) takes viridis, as an image
     /// series does.</summary>
-    public IColorMap? ColorMap { get; set; }
+    public IColorMap? ColorMap { get; set => Change(ref field, value); }
 
     /// <summary>How a value is mapped onto the colour map's 0 to 1 range before the colour lookup (linear, log, and so on);
     /// <see langword="null"/> (the default) maps linearly.</summary>
-    public INormalizer? Normalizer { get; set; }
+    public INormalizer? Normalizer { get; set => Change(ref field, value); }
 
     /// <summary>The value at the low end of the colour range; <see langword="null"/> (the default) uses the smallest value of
     /// <see cref="Data"/> that can be drawn (a missing value, NaN, and an infinity are left out).</summary>
-    public double? VMin { get; set; }
+    public double? VMin { get; set => Change(ref field, value); }
 
     /// <summary>The value at the high end of the colour range; <see langword="null"/> (the default) uses the largest value of
     /// <see cref="Data"/> that can be drawn.</summary>
-    public double? VMax { get; set; }
+    public double? VMax { get; set => Change(ref field, value); }
 
     /// <summary>The opacity of the whole image, from 0 (clear) to 1 (opaque, the default).</summary>
-    public double Alpha { get; set; } = 1.0;
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double Alpha { get; set => Change(ref field, value.ThrowIfNotOpacity(nameof(Alpha))); } = 1.0;
 
     /// <summary>Creates an image at a place on the figure. A value that is NaN is a gap: the pixel is left unpainted, or painted
     /// in the colour map's bad colour when it names one. An offset that is not a finite number gives the image no place, and it
@@ -78,8 +88,15 @@ public sealed class FigureImage
     internal bool IsShownOn(double figureHeight) =>
         BoundsOn(figureHeight) is not null && Data.GetLength(0) > 0 && Data.GetLength(1) > 0;
 
-    /// <summary>The coloured cells of the image: its colour map (viridis when it names none), its normalizer (linear when it
-    /// names none), the colour range of its values and its opacity.</summary>
-    internal ImageCells Cells() =>
-        ImageCells.Of(Data, ColorMap ?? ColorMaps.Viridis, Normalizer ?? LinearNormalizer.Instance, VMin, VMax, Alpha);
+    /// <summary>The coloured cells of the image under <paramref name="theme"/>: its colour map (the theme's when it names none,
+    /// <see cref="Styling.ColorMapLook.Of"/>), its normalizer as the theme reads it (linear when it names none; a log normalizer is
+    /// matplotlib's <c>LogNorm</c> under the matplotlib themes, as for an image series), the colour range of its values and its
+    /// opacity.</summary>
+    /// <param name="theme">The theme of the figure it is placed on.</param>
+    /// <returns>The cells of the image with their colours.</returns>
+    internal ImageCells Cells(Styling.Theme theme) => new(this.ColorScaleUnder(theme), Alpha);
+
+    /// <inheritdoc />
+    /// <remarks>Its values between the ends given (<see cref="VMin"/>, <see cref="VMax"/>).</remarks>
+    Numerics.MinMaxRange IColorScaled.ColourRangeOver(ColorMapping mapping) => mapping.RangeOf(Data, VMin, VMax);
 }

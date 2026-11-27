@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
@@ -39,13 +38,8 @@ public class YAxisTitleGapTests
     }
 
     private static List<Drawn> Texts(string svg) =>
-        [.. Regex.Matches(svg, @"<text x=""(?<x>-?[0-9.]+)"" y=""-?[0-9.]+"" font-family=""[^""]*"" font-size=""(?<fs>[0-9.]+)"" text-anchor=""(?<a>[a-z]+)""(?<rest>[^>]*)>(?<t>[^<]*)</text>")
-            .Select(m => new Drawn(
-                double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture),
-                double.Parse(m.Groups["fs"].Value, CultureInfo.InvariantCulture),
-                m.Groups["a"].Value,
-                m.Groups["rest"].Value.Contains("rotate(-90", StringComparison.Ordinal),
-                m.Groups["t"].Value))];
+        [.. svg.Elements("text").Where(text => text["font-size"] is not null && text["text-anchor"] is not null)
+            .Select(text => new Drawn(text.Number("x"), text.Number("font-size"), text["text-anchor"]!, text.Rotation() == -90, text.Text))];
 
     /// <summary>One Y axis slot as drawn: its edge (where its tick marks hang from), the far side of its widest tick
     /// label's ink, its title (when it has one) and which side it stands on.</summary>
@@ -100,7 +94,7 @@ public class YAxisTitleGapTests
     /// <summary>Four Y axes, two to a side, each titled and each with tick labels of its own width.</summary>
     private static Figure FourAxes(double? titleSize = null, bool tight = false, Action<AxesBuilder>? more = null)
     {
-        var builder = Plt.Create().WithSize(Width, Height);
+        var builder = Plt.Create().WithSize(Width, Height).WithTheme(Theme.Default);   // the container's own 4 px gap; the matplotlib themes read axes.labelpad
         if (tight) builder = builder.TightLayout();
         var figure = builder.AddSubPlot(1, 1, 1, ax =>
         {
@@ -198,7 +192,7 @@ public class YAxisTitleGapTests
         Assert.Equal(4, left[0].TickLabelsFar - left[0].Title!.Value.X, 1);
     }
 
-    /// <summary>The container's gap (<see cref="AxesBuilder.WithYAxisTitleGap"/>) replaces the 4 px on every slot of both
+    /// <summary>The container's gap (<see cref="AxesBuilderLinkedAxesVerbs.WithYAxisTitleGap"/>) replaces the 4 px on every slot of both
     /// sides, the primary included, and between stacked slots.</summary>
     [Theory]
     [InlineData(0.0)]
@@ -289,8 +283,8 @@ public class YAxisTitleGapTests
         var (left, right) = Drawn4(figure);
         var ctx = new SvgRenderContext();
 
-        var rightReserve = ConstrainedLayoutEngine.SecondaryAxisBands(axes, ctx, figure.Theme);
-        var leftReserve = ConstrainedLayoutEngine.LeftAxisBands(axes, ctx, figure.Theme);
+        var rightReserve = new AxesEdgeNeeds().SecondaryAxisBands(axes, ctx, figure.Theme);
+        var leftReserve = new AxesEdgeNeeds().LeftAxisBands(axes, ctx, figure.Theme);
 
         Assert.Equal(right.Count, rightReserve.Length);
         for (int k = 0; k < right.Count; k++)
@@ -342,8 +336,8 @@ public class YAxisTitleGapTests
         Assert.Contains("0.125", right[1].Labels);
         Assert.Contains("0.375", right[1].Labels);
         Assert.Equal(["10", "45", "80"], left[1].Labels.Order());
-        double rightReserve = ConstrainedLayoutEngine.SecondaryAxisBands(axes, ctx, figure.Theme)[1];
-        double leftReserve = ConstrainedLayoutEngine.LeftAxisBands(axes, ctx, figure.Theme)[0];
+        double rightReserve = new AxesEdgeNeeds().SecondaryAxisBands(axes, ctx, figure.Theme)[1];
+        double leftReserve = new AxesEdgeNeeds().LeftAxisBands(axes, ctx, figure.Theme)[0];
         Assert.True(Math.Abs(rightReserve - right[1].Band) <= Tolerance, $"right slot 1: reserved {rightReserve:F2}, drawn {right[1].Band:F2}");
         Assert.True(Math.Abs(leftReserve - left[1].Band) <= Tolerance, $"left slot 1: reserved {leftReserve:F2}, drawn {left[1].Band:F2}");
     }
@@ -363,8 +357,8 @@ public class YAxisTitleGapTests
         var (left, right) = Drawn4(figure);
         var ctx = new SvgRenderContext();
 
-        double rightReserve = ConstrainedLayoutEngine.SecondaryAxisBands(axes, ctx, figure.Theme)[1];
-        double leftReserve = ConstrainedLayoutEngine.LeftAxisBands(axes, ctx, figure.Theme)[0];
+        double rightReserve = new AxesEdgeNeeds().SecondaryAxisBands(axes, ctx, figure.Theme)[1];
+        double leftReserve = new AxesEdgeNeeds().LeftAxisBands(axes, ctx, figure.Theme)[0];
         Assert.True(Math.Abs(rightReserve - right[1].Band) <= Tolerance, $"right slot 1: reserved {rightReserve:F2}, drawn {right[1].Band:F2}");
         Assert.True(Math.Abs(leftReserve - left[1].Band) <= Tolerance, $"left slot 1: reserved {leftReserve:F2}, drawn {left[1].Band:F2}");
     }

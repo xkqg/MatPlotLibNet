@@ -9,14 +9,6 @@ namespace MatPlotLibNet.Tests.Models.Series.Streaming;
 
 public sealed class StreamingLineSeriesTests
 {
-    [Fact]
-    public void Construction_DefaultCapacity_Is10000()
-    {
-        var s = new StreamingLineSeries();
-        Assert.Equal(10_000, s.Capacity);
-        Assert.Equal(0, s.Count);
-        Assert.Equal(0, s.Version);
-    }
 
     [Fact]
     public void Construction_CustomCapacity()
@@ -111,38 +103,13 @@ public sealed class StreamingLineSeriesTests
     }
 
     [Fact]
-    public void DefaultVisualProperties()
+    public void ToSeriesDto_CarriesItsCapacityAndSnapshot()
     {
-        var s = new StreamingLineSeries();
-        Assert.Null(s.Color);
-        Assert.Equal(LineStyle.Solid, s.LineStyle);
-        Assert.Equal(1.5, s.LineWidth);
-    }
-
-    [Fact]
-    public void Label_Settable()
-    {
-        var s = new StreamingLineSeries { Label = "Test" };
-        Assert.Equal("Test", s.Label);
-    }
-
-    [Fact]
-    public void Visible_DefaultTrue()
-    {
-        var s = new StreamingLineSeries();
-        Assert.True(s.Visible);
-    }
-
-    [Fact]
-    public void ToSeriesDto_CarriesItsOwnDiscriminatorCapacityAndSnapshot()
-    {
-        // Its own discriminator, not the base class' shared "streaming" (JSON-roundtrip plan, cluster B): that
-        // name once covered both this and StreamingScatterSeries and collided on read. Label is never set here —
-        // same as every other series' ToSeriesDto — ChartSerializer.SeriesToDto injects it centrally.
+        // Label is never set here — same as every other series' ToSeriesDto — SeriesSharedFieldsExtensions.ToDtoWithSharedFields
+        // writes it for every series. Its own discriminator is the golden corpus' (streaming_line.json).
         var s = new StreamingLineSeries(capacity: 25);
         s.AppendPoint(1, 2);
         var dto = s.ToSeriesDto();
-        Assert.Equal("streaming_line", dto.Type);
         Assert.Null(dto.Label);
         Assert.Equal(25, dto.Capacity);
         Assert.Equal([1.0], dto.XData ?? []);

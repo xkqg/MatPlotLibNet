@@ -55,7 +55,7 @@ internal static class StackedBaselineExtensions
         }
     }
 
-    // ── Zero is StackOn(zeros) above; Symmetric: shift so midpoint of total stack is at y = 0 ────────────
+    // ── Zero is StackOn(zeros) above; Symmetric: the stack, total high, centred on y = 0 (matplotlib's 'sym') ──
 
     private static double[][] ComputeSymmetric(double[][] ySets, int n)
     {
@@ -64,7 +64,7 @@ internal static class StackedBaselineExtensions
         var baselines = StackOn(new double[n], ySets);
         for (int layer = 0; layer < ySets.Length; layer++)
             for (int j = 0; j < n; j++)
-                baselines[layer][j] -= total[j] / 2.0;
+                baselines[layer][j] += Rendering.Range1D.Around(0, total[j]).Lo;
 
         return baselines;
     }
@@ -124,7 +124,8 @@ internal static class StackedBaselineExtensions
                 if (double.IsFinite(centre)) slopeTerm += centre;
             }
 
-            firstLine[j] = slopeTerm - 0.5 * total[j];
+            // matplotlib's first_line: the stack, total high, centred on the centre worked out above.
+            firstLine[j] = Rendering.Range1D.Around(slopeTerm, total[j]).Lo;
         }
 
         return firstLine;

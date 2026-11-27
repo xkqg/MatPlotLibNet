@@ -1,11 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Text;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Mcp;
 
@@ -32,35 +32,33 @@ internal readonly record struct FigureSummary(
     {
         var text = new StringBuilder();
         text.Append(Title is { Length: > 0 } title ? $"\"{title}\"" : "Untitled chart")
-            .Append(Invariant($" — {Width:0.#}×{Height:0.#}, "))
-            .Append(SubPlotCount == 1 ? "1 subplot" : $"{SubPlotCount} subplots")
-            .Append(Series.Count == 1 ? ", 1 series" : $", {Series.Count} series");
+            .Append(string.Invariant($" — {Width:0.#}×{Height:0.#}, "))
+            .Append(SubPlotCount == 1 ? "1 subplot" : string.Invariant($"{SubPlotCount} subplots"))
+            .Append(Series.Count == 1 ? ", 1 series" : string.Invariant($", {Series.Count} series"));
 
         foreach (var series in Series)
         {
-            text.AppendLine().Append("  · ").Append(series.Discriminator);
+            text.AppendLineLf().Append("  · ").Append(series.Discriminator);
             if (series.Label is { Length: > 0 } label)
             {
                 text.Append(" \"").Append(label).Append('"');
             }
             if (series.PointCount is { } count)
             {
-                text.Append(Invariant($", {count} points"));
+                text.Append(string.Invariant($", {count} points"));
             }
             if (series.XRange is { } x)
             {
-                text.Append(Invariant($", x {x.Min:0.###}…{x.Max:0.###}"));
+                text.Append(string.Invariant($", x {x.Min:0.###}…{x.Max:0.###}"));
             }
             if (series.YRange is { } y)
             {
-                text.Append(Invariant($", y {y.Min:0.###}…{y.Max:0.###}"));
+                text.Append(string.Invariant($", y {y.Min:0.###}…{y.Max:0.###}"));
             }
         }
 
         return text.ToString();
     }
-
-    private static string Invariant(FormattableString text) => text.ToString(CultureInfo.InvariantCulture);
 }
 
 /// <summary>Describes a rendered figure in words. The ranges come from <see cref="ISeries.ComputeDataRange"/> —
@@ -75,7 +73,7 @@ internal sealed class ChartSummarizer
         var series = new List<SeriesSummary>();
         foreach (var axes in figure.SubPlots)
         {
-            var context = new AxesSnapshot(axes);
+            var context = new AxesContextAdapter(axes);
             foreach (var item in axes.AllSeries)
             {
                 series.Add(Describe(item, context));
@@ -119,26 +117,4 @@ internal sealed class ChartSummarizer
         DatasetSeries datasets => datasets.Datasets.Sum(set => set.Length),
         _ => null,
     };
-
-    /// <summary>The read-only view of a subplot that <see cref="ISeries.ComputeDataRange"/> asks for. The renderer's
-    /// own adapter is internal to the core package, and the interface it implements is public precisely so a
-    /// consumer can present the same view rather than a second interpretation of it.</summary>
-    private sealed class AxesSnapshot(Axes axes) : IAxesContext
-    {
-        public double? XAxisMin => axes.XAxis.Min;
-
-        public double? XAxisMax => axes.XAxis.Max;
-
-        public double? YAxisMin => axes.YAxis.Min;
-
-        public double? YAxisMax => axes.YAxis.Max;
-
-        public BarMode BarMode => axes.BarMode;
-
-        public IReadOnlyList<ISeries> AllSeries => axes.Series;
-
-        public AxisScale XScale => axes.XAxis.Scale;
-
-        public AxisScale YScale => axes.YAxis.Scale;
-    }
 }

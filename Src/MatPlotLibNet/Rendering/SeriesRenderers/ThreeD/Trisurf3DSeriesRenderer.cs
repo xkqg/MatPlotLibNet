@@ -7,8 +7,8 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>Renders a <see cref="Trisurf3DSeries"/> as depth-sorted filled triangles projected from 3D to 2D.</summary>
-internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
+/// <summary>Renders a <see cref="Trisurf3DSeries"/> as filled triangles projected from 3D to 2D, drawn back to front with the scene.</summary>
+internal sealed class Trisurf3DSeriesRenderer : SceneSeriesRenderer<Trisurf3DSeries>
 {
     /// <inheritdoc />
     public Trisurf3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -18,21 +18,19 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
     {
         if (series.X.Length < 3) return;
 
-        var baseColor = ResolveColor(series.Color);
+        var baseColor = ColorOf(series);
 
         // The extent and the colours span the values that are there: a missing value (NaN) and an infinity are left out.
         var z = series.Z.Data.DrawableRange();
         var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(), z);
-        double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
 
-        var cmap = series.ColorMap;
-        var normalizer = series.NormalizerOrLinear();
-        bool useColorMap = cmap is not null;
+        // A series that names a colour map colours each triangle by its mean Z through its colour scale; one that names none is one colour.
+        ColormapContext? scale = series.ColorMap is null ? null : series.ColorScaleUnder(Context.Theme);
 
         // Generate triangles using simple sequential triplets. A full Delaunay triangulation
         // would be more general but this approach produces valid geometry for regularly spaced
         // data and keeps the renderer simple.
-        var triangles = new List<DepthTriangle>();
+        var triangles = new List<Triangle>();
 
         // If the point count is divisible by 3, use sequential triplets;
         // otherwise, use a fan triangulation from point 0.
@@ -48,30 +46,18 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
                 AddTriangle(triangles, proj, series, 0, i, i + 1);
         }
 
-        // Sort back-to-front (painter's algorithm)
-        triangles.Sort((a, b) => a.Depth.CompareTo(b.Depth));
-
-        Ctx.SetOpacity(series.Alpha);
-
-        foreach (var tri in triangles)
-        {
-            var fill = useColorMap
-                ? cmap!.ColorOf(tri.AvgZ, normalizer, zMin, zMax)
-                : baseColor;
-
-            Color? stroke = series.ShowWireframe
-                ? (series.EdgeColor ?? Colors.Black.WithAlpha(80))
-                : null;
-            double strokeWidth = series.ShowWireframe ? 0.5 : 0;
-
-            Ctx.DrawPolygon(tri.Vertices, new ShapeStyle(fill, stroke, strokeWidth));
-        }
-
-        Ctx.SetOpacity(1.0);
+        var edge = Context.Theme.Looks.Patch.SurfaceEdgeOver(series.GivenWireframe, series.EdgeColor);
+        Color? stroke = edge?.Color;
+        double strokeWidth = edge?.Thickness ?? 0;
+        var theme = Context.Theme;
+        var join = theme.ShapeJoinOf(series.Artist);
+        DrawBackToFront(triangles, triangle =>
+            Ctx.DrawPolygon(triangle.Vertices, ShapeStyle.Edged(scale?.ColorOf(triangle.AvgZ) ?? baseColor, stroke, strokeWidth, join)),
+            series.OpacityUnder(theme));
     }
 
     private static void AddTriangle(
-        List<DepthTriangle> sink,
+        List<Triangle> sink,
         Projection3D proj, Trisurf3DSeries series,
         int i0, int i1, int i2)
     {
@@ -97,5 +83,6 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
         sink.Add(new(proj.Depth(cx, cy, cz), vertices, avgZ));
     }
 
-    private readonly record struct DepthTriangle(double Depth, Point[] Vertices, double AvgZ);
+    /// <summary>A triangle: its corners on the canvas and the mean of its heights, at the depth of its centre.</summary>
+    private readonly record struct Triangle(double Depth, Point[] Vertices, double AvgZ) : IDepthMark;
 }

@@ -14,60 +14,49 @@ public class DataTransformClipTests
 {
     private static readonly Rect Bounds = new(0, 0, 400, 300);
 
-    /// <summary>A log Y axis from 1 (the bottom edge, 300 px) to 100 (the top edge, 0 px).</summary>
-    private static DataTransform LogY() =>
-        new(0, 10, 0, 2, Bounds, null, null, 0, 10, 1, 100, AxisScale.Linear, AxisScale.Log, 1, 1);
-
-    /// <summary>The same log Y axis set high to low: it begins (at 1) on the top edge.</summary>
-    private static DataTransform LogYReversed() =>
-        new(0, 10, 2, 0, Bounds, null, null, 0, 10, 100, 1, AxisScale.Linear, AxisScale.Log, 1, 1);
-
-    /// <summary>A log X axis from 1 (the left edge, 0 px) to 100 (the right edge, 400 px).</summary>
-    private static DataTransform LogX() =>
-        new(0, 2, 0, 10, Bounds, null, null, 1, 100, 0, 10, AxisScale.Log, AxisScale.Linear, 1, 1);
-
-    /// <summary>The same log X axis set high to low: it begins (at 1) on the right edge.</summary>
-    private static DataTransform LogXReversed() =>
-        new(2, 0, 0, 10, Bounds, null, null, 100, 1, 0, 10, AxisScale.Log, AxisScale.Linear, 1, 1);
-
     [Theory]
     [InlineData(0.0)]
     [InlineData(-5.0)]
     [InlineData(double.MinValue)]
     public void ABaseTheLogYScaleCannotPlace_IsClippedToTheBottomEdge(double y)
     {
-        var transform = LogY();
+        var transform = Bounds.LogY();
 
-        var clipped = transform.DataToPixelClippedY(3, y);
+        var clipped = transform.DataToPixelClippedAlong(false, 3, y);
 
         Assert.Equal(new Point(transform.DataToPixel(3, 10).X, 300), clipped);
     }
 
     [Fact]
-    public void ANegativeZeroBase_IsClippedAsZeroIs() => Assert.Equal(300, LogY().DataToPixelClippedY(3, -0.0).Y);
+    public void ANegativeZeroBase_IsClippedAsZeroIs() => Assert.Equal(300, Bounds.LogY().DataToPixelClippedAlong(false, 3, -0.0).Y);
 
-    [Fact]
-    public void OnAReversedLogYAxis_ABaseItCannotPlace_IsClippedToTheTopEdge_WhereTheAxisBegins() =>
-        Assert.Equal(0, LogYReversed().DataToPixelClippedY(3, 0).Y);
+    /// <summary>A reversed log axis begins at the other edge: a base it cannot place is clipped to the top edge of a reversed Y axis and to the
+    /// right edge of a reversed X axis, where the axis begins.</summary>
+    public static TheoryData<Func<double>, double> ClippedToWhereAReversedAxisBegins => new()
+    {
+        { () => Bounds.LogYReversed().DataToPixelClippedAlong(false, 3, 0).Y, 0 },
+        { () => Bounds.LogXReversed().DataToPixelClippedAlong(true, -1, 4).X, 400 },
+    };
+
+    [Theory]
+    [MemberData(nameof(ClippedToWhereAReversedAxisBegins))]
+    public void OnAReversedLogAxis_ABaseItCannotPlace_IsClippedToTheEdge_WhereTheAxisBegins(Func<double> clipped, double edge) =>
+        Assert.Equal(edge, clipped());
 
     [Fact]
     public void ABaseTheLogXScaleCannotPlace_IsClippedToTheLeftEdge()
     {
-        var transform = LogX();
+        var transform = Bounds.LogX();
 
-        Assert.Equal(new Point(0, transform.DataToPixel(10, 4).Y), transform.DataToPixelClippedX(0, 4));
+        Assert.Equal(new Point(0, transform.DataToPixel(10, 4).Y), transform.DataToPixelClippedAlong(true, 0, 4));
     }
-
-    [Fact]
-    public void OnAReversedLogXAxis_ABaseItCannotPlace_IsClippedToTheRightEdge_WhereTheAxisBegins() =>
-        Assert.Equal(400, LogXReversed().DataToPixelClippedX(-1, 4).X);
 
     /// <summary>Only the base is clipped: the other coordinate is mapped as ever, so an X the axis cannot place stays NaN.</summary>
     [Fact]
     public void OnlyTheBaseCoordinateIsClipped()
     {
-        Assert.True(double.IsNaN(LogX().DataToPixelClippedY(0, 4).X));
-        Assert.True(double.IsNaN(LogY().DataToPixelClippedX(3, 0).Y));
+        Assert.True(double.IsNaN(Bounds.LogX().DataToPixelClippedAlong(false, 0, 4).X));
+        Assert.True(double.IsNaN(Bounds.LogY().DataToPixelClippedAlong(true, 3, 0).Y));
     }
 
     [Theory]
@@ -77,8 +66,8 @@ public class DataTransformClipTests
     [InlineData(1000.0)]
     public void ABaseTheScaleCanPlace_IsWhereDataToPixelPutsIt(double value)
     {
-        Assert.Equal(LogY().DataToPixel(3, value), LogY().DataToPixelClippedY(3, value));
-        Assert.Equal(LogX().DataToPixel(value, 4), LogX().DataToPixelClippedX(value, 4));
+        Assert.Equal(Bounds.LogY().DataToPixel(3, value), Bounds.LogY().DataToPixelClippedAlong(false, 3, value));
+        Assert.Equal(Bounds.LogX().DataToPixel(value, 4), Bounds.LogX().DataToPixelClippedAlong(true, value, 4));
     }
 
     [Theory]
@@ -87,8 +76,8 @@ public class DataTransformClipTests
     [InlineData(double.NegativeInfinity)]
     public void AMissingOrInfiniteBase_IsNotClipped_ItCannotBeDrawn(double value)
     {
-        Assert.False(double.IsFinite(LogY().DataToPixelClippedY(3, value).Y));
-        Assert.False(double.IsFinite(LogX().DataToPixelClippedX(value, 4).X));
+        Assert.False(double.IsFinite(Bounds.LogY().DataToPixelClippedAlong(false, 3, value).Y));
+        Assert.False(double.IsFinite(Bounds.LogX().DataToPixelClippedAlong(true, value, 4).X));
     }
 
     /// <summary>A linear axis places every finite value: a negative base is drawn where it lies.</summary>
@@ -97,54 +86,36 @@ public class DataTransformClipTests
     {
         var linear = new DataTransform(0, 10, -10, 10, Bounds);
 
-        Assert.Equal(linear.DataToPixel(3, -5), linear.DataToPixelClippedY(3, -5));
-        Assert.Equal(linear.DataToPixel(-5, 3), linear.DataToPixelClippedX(-5, 3));
+        Assert.Equal(linear.DataToPixel(3, -5), linear.DataToPixelClippedAlong(false, 3, -5));
+        Assert.Equal(linear.DataToPixel(-5, 3), linear.DataToPixelClippedAlong(true, -5, 3));
+    }
+
+    /// <summary>A batch of values placed along a direction is each value placed alone: the clipped batch as the clipped point, the
+    /// unclipped batch as the unclipped point, the X axis' along X, the Y axis' along Y.</summary>
+    [Fact]
+    public void ABatchPlacedAlongADirection_PlacesEachValueAsTheSingleValueIsPlaced()
+    {
+        double[] values = [0, 1, 10, 100];
+
+        Assert.Equal([.. values.Select(v => Bounds.LogX().DataToPixelClippedAlong(true, v, 4).X)], Bounds.LogX().TransformClippedAlong(true, values));
+        Assert.Equal([.. values.Select(v => Bounds.LogY().DataToPixelClippedAlong(false, 3, v).Y)], Bounds.LogY().TransformClippedAlong(false, values));
+        Assert.Equal([.. values.Select(v => Bounds.LogX().DataToPixelUnclipped(v, 4).X)], Bounds.LogX().TransformUnclippedAlong(true, values));
+        Assert.Equal([.. values.Select(v => Bounds.LogY().DataToPixelUnclipped(3, v).Y)], Bounds.LogY().TransformUnclippedAlong(false, values));
     }
 
     [Fact]
     public void TheBatchTransform_ClipsEachBaseTheScaleCannotPlace_AndLeavesTheRest()
     {
-        var transform = LogY();
+        var transform = Bounds.LogY();
         double[] bases = [10, 0, -1, double.NaN, 100];
 
-        double[] pixels = transform.TransformYClipped(bases);
+        double[] pixels = transform.TransformClippedAlong(false, bases);
 
         Assert.Equal(transform.TransformY(bases)[0], pixels[0]);
         Assert.Equal(300, pixels[1]);
         Assert.Equal(300, pixels[2]);
         Assert.True(double.IsNaN(pixels[3]));
         Assert.Equal(transform.TransformY(bases)[4], pixels[4]);
-    }
-
-    /// <summary>A log X and a log Y axis, both from 1 to 100: X from the left edge, Y from the bottom edge.</summary>
-    private static DataTransform LogLog() =>
-        new(0, 2, 0, 2, Bounds, null, null, 1, 100, 1, 100, AxisScale.Log, AxisScale.Log, 1, 1);
-
-    /// <summary>A vertex of an outline (a patch's corner or control point) is clipped on each axis where that axis cannot place
-    /// it, both at once: matplotlib maps every vertex of a patch through the log scale's <c>nonpositive='clip'</c>.</summary>
-    [Theory]
-    [InlineData(0.0, 0.0, 0.0, 300.0)]
-    [InlineData(-3.0, 10.0, 0.0, 150.0)]
-    [InlineData(10.0, -0.5, 200.0, 300.0)]
-    [InlineData(10.0, 10.0, 200.0, 150.0)]
-    public void AnOutlineVertex_IsClippedOnEachAxisThatCannotPlaceIt(double x, double y, double px, double py)
-    {
-        Assert.Equal(new Point(px, py), LogLog().DataToPixelClipped(x, y));
-    }
-
-    [Fact]
-    public void AnOutlineVertex_ThatIsMissingOrInfinite_IsNotClipped()
-    {
-        Assert.True(double.IsNaN(LogLog().DataToPixelClipped(double.NaN, 10).X));
-        Assert.False(double.IsFinite(LogLog().DataToPixelClipped(10, double.PositiveInfinity).Y));
-    }
-
-    [Fact]
-    public void OnReversedLogAxes_AnOutlineVertex_IsClippedWhereEachAxisBegins()
-    {
-        var reversed = new DataTransform(2, 0, 2, 0, Bounds, null, null, 100, 1, 100, 1, AxisScale.Log, AxisScale.Log, 1, 1);
-
-        Assert.Equal(new Point(400, 0), reversed.DataToPixelClipped(0, -1));
     }
 
     /// <summary>On a linear axis the batch is the plain batch, bit for bit (the SIMD path): no figure on a linear axis
@@ -155,6 +126,6 @@ public class DataTransformClipTests
         var linear = new DataTransform(0, 10, -10, 10, Bounds);
         double[] bases = [-7.3, 0, 0.1, 9.99, double.NaN];
 
-        Assert.Equal(linear.TransformY(bases), linear.TransformYClipped(bases));
+        Assert.Equal(linear.TransformY(bases), linear.TransformClippedAlong(false, bases));
     }
 }

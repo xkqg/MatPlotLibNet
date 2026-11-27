@@ -7,7 +7,7 @@ description: "Draw 3D charts in C#: surfaces, wireframes, scatter and bars, with
 
 > **Install:** `dotnet add package MatPlotLibNet`
 
-MatPlotLibNet includes a full 3D projection pipeline. `Projection3D` takes coordinates from World to View to NDC to Pixel. `DepthQueue3D` applies the painter's algorithm. `Vec3.FaceNormal` provides face-normal shading through the `Color.Shade` and `Color.Modulate` extensions. `Svg3DRotationScript` adds client-side rotation to an SVG.
+MatPlotLibNet includes a full 3D projection pipeline. `Projection3D` takes coordinates from World to View to NDC to Pixel. `DepthQueue3D` applies the painter's algorithm. `Vec3.FaceNormal` provides face-normal shading through the `Color.Shade` and `Color.Modulate` extensions. `With3DRotation()` adds client-side rotation to an SVG.
 
 ## Surface plot
 
@@ -41,6 +41,27 @@ Plt.Create()
 ```
 
 ![3D Scatter](../images/threed_scatter3d_paraboloid.png)
+
+`MarkerStyle` names the shape of each point (a circle by default; a square, triangle, diamond, pentagon, hexagon, star, cross or
+plus, or none), in the plot and in the legend entry:
+
+```csharp
+double[] x = [1, 2, 3, 4, 5, 6];
+double[] y = [2, 5, 3, 6, 4, 7];
+double[] z = [1, 3, 2, 5, 4, 6];
+
+Plt.Create()
+    .WithTitle("Two groups of points, two markers")
+    .WithSize(640, 480)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithCamera(elevation: 25, azimuth: -60)
+        .Scatter3D(x[..3], y[..3], z[..3], s => { s.Label = "round"; s.MarkerStyle = MarkerStyle.Circle; })
+        .Scatter3D(x[3..], y[3..], z[3..], s => { s.Label = "square"; s.MarkerStyle = MarkerStyle.Square; })
+        .WithLegend())
+    .Save("scatter3d_markers.svg");
+```
+
+![Six points in 3-D space, the first three round and the last three square, with a legend naming both kinds](../images/scatter3d_markers.png)
 
 ## 3D Bar chart with interactive rotation
 
@@ -126,7 +147,7 @@ Plt.Create()
 
 ## Grouped 3D bars
 
-Multiple Bar3D series share depth sorting automatically:
+Every 3-D series on one axes shares one depth sort, so several Bar3D series composite correctly whatever order they were added in:
 
 ![Grouped 3D bars](../images/threed_bar3d_grouped.png)
 

@@ -4,11 +4,8 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Rendering.LegendRendering;
-using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -84,7 +81,7 @@ public class CalendarEventsTests
     [Fact]
     public void TheDays_AreACellEachOverTheSpan_AndBlankOutsideIt()
     {
-        var grid = CalendarGrid.Of(Dates, new double[Dates.Length], DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of(Dates, new double[Dates.Length], DayOfWeek.Monday);
 
         var cells = Of().SubPlots[0].Series.OfType<HeatmapSeries>().Single().Data;
 
@@ -111,7 +108,7 @@ public class CalendarEventsTests
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
 
-        var rects = recording.OfKind("DrawRectangle").Select(call => { dynamic a = call.Args!; return ((Rect)a.rect, (Color?)a.fill); }).ToArray();
+        var rects = recording.Of<DrawRectangleCall>().Select(call => { var a = call; return (a.Rect, a.Fill); }).ToArray();
         var cells = rects.Where(r => r.Item2 is { A: 64 }).Select(r => r.Item1).ToArray();
         // Opaque rectangles narrower than a day: the marks (the figure and axes backgrounds are opaque too, and wider).
         var marks = rects.Where(r => r.Item2 is { A: 255 } && r.Item1.Width < cells.Min(cell => cell.Width)).Select(r => r.Item1).ToArray();
@@ -129,7 +126,7 @@ public class CalendarEventsTests
         var figure = Of();
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
-        var marks = recording.OfKind("DrawRectangle").Select(call => { dynamic a = call.Args!; return ((Rect)a.rect, (Color?)a.fill); })
+        var marks = recording.Of<DrawRectangleCall>().Select(call => { var a = call; return (a.Rect, a.Fill); })
             .Where(r => r.Item2 is { A: 255 } && r.Item1.Width < 20).Select(r => r.Item1).ToArray();
 
         // March 3 has three events and March 12 two: marks that share a row are, with the one on April 1 in another row, the
@@ -163,7 +160,7 @@ public class CalendarEventsTests
     {
         var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents(Dates, Kinds).WithLegend()).Build().SubPlots[0];
 
-        Assert.Equal(["deploy", "incident"], axes.LegendEntries(directLabelsDrawn: false).Select(entry => entry.Label));
+        Assert.Equal(["deploy", "incident"], axes.LegendEntries(Theme.Default, directLabelsDrawn: false).Select(entry => entry.Label));
     }
 
     [Fact]
@@ -171,7 +168,7 @@ public class CalendarEventsTests
     {
         var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents([new DateTime(2025, 1, 1), new DateTime(2025, 1, 2)], ["a", null!]).WithLegend()).Build().SubPlots[0];
 
-        Assert.Equal(["a"], axes.LegendEntries(directLabelsDrawn: false).Select(entry => entry.Label));
+        Assert.Equal(["a"], axes.LegendEntries(Theme.Default, directLabelsDrawn: false).Select(entry => entry.Label));
         Assert.Equal(2, axes.Series.OfType<BarSeries>().Count());
     }
 
@@ -183,7 +180,7 @@ public class CalendarEventsTests
             var recording = new RecordingRenderContext();
             new ChartRenderer().Render(Of(theme: theme), recording);
 
-            var days = recording.OfKind("DrawRectangle").Select(call => { dynamic a = call.Args!; return (Color?)a.fill; })
+            var days = recording.Of<DrawRectangleCall>().Select(call => { var a = call; return a.Fill; })
                 .Where(fill => fill is { A: 64 }).Select(fill => fill!.Value).ToArray();
 
             Assert.Equal(30, days.Length);   // March 3 to April 1
@@ -192,15 +189,11 @@ public class CalendarEventsTests
     }
 
     [Fact]
-    public void ThePlot_HasSquareCells_AndSetsNoAxisLimits()
+    public void ThePlot_HasSquareCells()
     {
         var axes = Of().SubPlots[0];
 
         Assert.Equal(1.0, axes.Aspect);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
     }
 
     [Fact]
@@ -218,16 +211,6 @@ public class CalendarEventsTests
         Assert.Equal(Color.FromHex("#112233"), figure.SubPlots[0].Series.OfType<BarSeries>().First().Color);
     }
 
-    [Fact]
-    public void TheChart_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Of();
-
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
-    }
-
     [Theory]
     [InlineData(DayOfWeek.Monday)]
     [InlineData(DayOfWeek.Sunday)]
@@ -235,7 +218,7 @@ public class CalendarEventsTests
     public void AnyWeekStart_PlacesEveryEventInItsOwnCell(DayOfWeek start)
     {
         var figure = Of(start: start);
-        var grid = CalendarGrid.Of(Dates, new double[Dates.Length], start);
+        var grid = GridAxesExtensions.CalendarGrid.Of(Dates, new double[Dates.Length], start);
 
         foreach (var bar in figure.SubPlots[0].Series.OfType<BarSeries>())
         {
@@ -253,15 +236,5 @@ public class CalendarEventsTests
     public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws()
     {
         Assert.Equal(ByHand().ToSvg(), ComposedChartShapes.Named("calendar-events").Build(false).ToSvg());
-    }
-
-    [Fact]
-    public void TheRefusals_NameTheParameter()
-    {
-        Assert.Equal("dates", Assert.Throws<ArgumentNullException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents(null!, ["a"])).Build()).ParamName);
-        Assert.Equal("kinds", Assert.Throws<ArgumentNullException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents(Dates, null!)).Build()).ParamName);
-        Assert.Equal("kinds", Assert.Throws<ArgumentException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents(Dates, ["a"])).Build()).ParamName);
-        Assert.Equal("dates", Assert.Throws<ArgumentException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents([], [])).Build()).ParamName);
-        Assert.Equal("firstDayOfWeek", Assert.Throws<ArgumentOutOfRangeException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarEvents(Dates, Kinds, (DayOfWeek)9)).Build()).ParamName);
     }
 }

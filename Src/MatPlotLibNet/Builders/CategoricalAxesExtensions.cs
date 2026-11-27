@@ -53,10 +53,11 @@ public static class CategoricalAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(categories);
-            values.ThrowIfMisaligned(categories.Length, nameof(values));
+            ArgumentNullException.ThrowIfNull(values);
+            values.Length.ThrowIfMisaligned(categories.Length, nameof(values));
 
             return axes
-                .Stem(SlotCentres(categories.Length), values, configure)
+                .Stem(CategorySlot.Centres(categories.Length), values, configure)
                 .SetXCategoryTicks(categories);
         }
 
@@ -104,7 +105,7 @@ public static class CategoricalAxesExtensions
             from.ThrowIfMisaligned(categories.Length, nameof(from));
             to.ThrowIfMisaligned(categories.Length, nameof(to));
 
-            double[] x = SlotCentres(categories.Length);
+            double[] x = CategorySlot.Centres(categories.Length);
 
             // The connector spans [min, max] of the two values of a category: its foot is the lower value and it runs up by the
             // distance between them, so it is right whichever group is higher. A missing value makes both NaN, and the error bar
@@ -158,9 +159,10 @@ public static class CategoricalAxesExtensions
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="categories"/> or
         /// <paramref name="counts"/> is <see langword="null"/>.</exception>
-        /// <exception cref="ArgumentException"><paramref name="counts"/> does not carry one count per category, a count is
-        /// negative or infinite, or the counts do not add up to a finite number above 0 (no counts, only zeros, only missing
-        /// counts, or a sum too large for a <see cref="double"/>).</exception>
+        /// <exception cref="ArgumentException"><paramref name="counts"/> does not carry one count per category.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A count is negative or infinite (the message names its category), or the
+        /// counts do not add up to a finite number above 0 (no counts, only zeros, only missing counts, or a sum too large for a
+        /// <see cref="double"/>).</exception>
         /// <example>
         /// <code>
         /// string[] defects = ["Dents", "Scratches", "Stains", "Cracks", "Warp"];
@@ -179,27 +181,22 @@ public static class CategoricalAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(categories);
-            counts.ThrowIfMisaligned(categories.Length, nameof(counts));
-            ThrowIfNotCounts(categories, counts);
+            ArgumentNullException.ThrowIfNull(counts);
+            counts.Length.ThrowIfMisaligned(categories.Length, nameof(counts));
+            counts.ThrowIfAnyNotAmount(nameof(counts), categories, static (category, i) => $"The count of '{category[i]}'");
 
+            // The categories from the largest count to the smallest (ties in the order given, a missing count last) and the running
+            // sum of their counts: a missing count adds nothing and keeps NaN as its own entry, so it is a missing point and not a step.
             int[] order = counts.DescendingOrder();
-            double[] sorted = [.. order.Select(i => counts[i])];
-            double[] running = RunningSums(sorted);
-            // The missing counts come last and add nothing, so the total is the last running sum that is not NaN (0 when there
-            // is none); a sum too large for a double is infinite and refused with it.
-            double total = running.LastOrDefault(r => !double.IsNaN(r), 0);
-            if (!(total > 0) || double.IsInfinity(total))
-            {
-                throw new ArgumentException(
-                    $"The counts add up to {total.ToString(CultureInfo.InvariantCulture)}; a Pareto chart draws each count as a share of the total, which must be a finite number above 0.",
-                    nameof(counts));
-            }
-
-            // The total IS the last running sum, so the last point is that sum over itself: exactly 100. A missing count keeps
-            // NaN, and a NaN point is not drawn.
+            double[] sorted = order.Pick(counts);
+            double[] running = new double[sorted.Length];
+            double sum = 0;
+            for (int k = 0; k < sorted.Length; k++) running[k] = double.IsNaN(sorted[k]) ? double.NaN : sum += sorted[k];
+            double total = running.LastOrDefault(r => !double.IsNaN(r), 0)
+                .ThrowIfNotFinite(nameof(counts), "The total of the counts").ThrowIfNotAbove(0, nameof(counts), "The total of the counts");
             double[] cumulative = [.. running.Select(r => r / total * 100)];
 
-            var bars = new BarSeries([.. order.Select(i => categories[i])], sorted)
+            var bars = new BarSeries(order.Pick(categories), sorted)
             {
                 Color = ParetoBarColor, Label = ParetoBarLabel,
             };
@@ -210,7 +207,7 @@ public static class CategoricalAxesExtensions
                 .SetYLim(0, total * ParetoHeadroom)
                 .WithAddRightYAxis(y2 =>
                 {
-                    y2.Plot(SlotCentres(categories.Length), cumulative, s =>
+                    y2.Plot(CategorySlot.Centres(categories.Length), cumulative, s =>
                         {
                             line = s;
                             s.Color = ParetoLineColor; s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.MarkerSize = 7;
@@ -281,7 +278,7 @@ public static class CategoricalAxesExtensions
             to.ThrowIfMisaligned(categories.Length, nameof(to));
 
             // The two moments are two categories: each stands on the centre of its slot, where the tick that names it stands.
-            double[] columns = SlotCentres(2);
+            double[] columns = CategorySlot.Centres(2);
             for (int k = 0; k < categories.Length; k++)
             {
                 double start = from.Values[k], end = to.Values[k];
@@ -365,25 +362,19 @@ public static class CategoricalAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(categories);
             ArgumentNullException.ThrowIfNull(groups);
-            if (groups.Count == 0)
-            {
-                throw new ArgumentException("No groups were given; a dot plot draws one set of dots for each group.", nameof(groups));
-            }
+            groups.ThrowIfEmpty("No groups were given; a dot plot draws one set of dots for each group.");
 
             // Everything is checked before the first series is added, so a refused call leaves the axes as it was.
-            foreach (var group in groups)
-            {
-                group.ThrowIfMisaligned(categories.Length, nameof(groups));
-            }
+            groups.ThrowIfNotOneEach(categories.Length, nameof(groups));
 
             // The rows, largest first by the first group (a stable order, a missing value last). Row d stands in the slot
             // counted from the top, so the largest is on top of an axis that counts upward.
             int[] order = groups[0].Values.DescendingOrder();
-            double[] rows = [.. Enumerable.Range(0, order.Length).Select(d => CategorySlot.Of(order.Length - 1 - d).Centre)];
+            double[] rows = CategorySlot.CentresFromTop(order.Length, order.Length);
 
             foreach (var group in groups)
             {
-                var dots = new ScatterSeries([.. order.Select(i => group.Values[i])], [.. rows])
+                var dots = new ScatterSeries(order.Pick(group.Values), [.. rows])
                 {
                     Marker = MarkerStyle.Circle, MarkerSize = DotPlotDotSize, Label = group.Label,
                 };
@@ -393,7 +384,7 @@ public static class CategoricalAxesExtensions
             // The guide lines are the theme's grid along the Y axis: one line through each category, drawn behind the dots. The
             // legend stands where the order leaves the plot empty, the lower right: the upper right is where the largest dots are.
             return axes
-                .SetYCategoryTicks([.. order.Select(i => categories[i])], topDown: true)
+                .SetYCategoryTicks(order.Pick(categories), topDown: true)
                 .WithGrid(g => g with { Visible = true, Axis = GridAxis.Y })
                 .WithLegend(LegendPosition.LowerRight);
         }
@@ -410,8 +401,8 @@ public static class CategoricalAxesExtensions
         /// infinity leaves a gap in its row's line, never a bridge, and is no part of its column's range. The Y axis carries no
         /// ticks, because each column is scaled to 0..1 on its own and a number on it would read none of them; each dimension's
         /// own axis is the vertical line at its name, a solid line in the reference line's default grey, and it carries its own
-        /// ticks: the numbers the tick locator picks over the column's own range, each a short mark on the line with the number
-        /// to its left (an annotation), at the height that value is drawn at. A column whose values are all the same has the one
+        /// ticks: the numbers the tick locator picks over the column's own range, written in one number format as an axis writes its
+        /// ticks, each a short mark on the line with the number to its left (an annotation), at the height that value is drawn at. A column whose values are all the same has the one
         /// tick, at the middle, and a column with nothing to draw has none.</para>
         /// <para>The dimension names are the X ticks, on the centres of the slots, as every verb that names categories puts them.
         /// The legend stands where the theme puts it unless told otherwise, <see cref="LegendPosition.Best"/> (the place that
@@ -457,53 +448,58 @@ public static class CategoricalAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(dimensions);
             ArgumentNullException.ThrowIfNull(rows);
-            if (dimensions.Length == 0)
-            {
-                throw new ArgumentException(
-                    "No dimensions were given; parallel coordinates draw one axis for each dimension.", nameof(dimensions));
-            }
+            dimensions.ThrowIfEmpty("No dimensions were given; parallel coordinates draw one axis for each dimension.");
 
-            if (rows.Count == 0)
-            {
-                throw new ArgumentException("No rows were given; parallel coordinates draw one line for each row.", nameof(rows));
-            }
+            rows.ThrowIfEmpty("No rows were given; parallel coordinates draw one line for each row.");
 
             // Everything is checked before the first series is added, so a refused call leaves the axes as it was.
-            foreach (var row in rows)
+            rows.ThrowIfNotOneEach(dimensions.Length, nameof(rows), "dimensions");
+
+            // Every column is scaled to 0..1 by its smallest and largest drawable value over ALL the rows. A value that cannot be
+            // drawn (NaN, an infinity) stays missing and is no part of the range; a column whose drawable values are all the same has
+            // no range and sits at the middle; a column with nothing to draw has no range, and every value of it is then missing.
+            double[][] scaled = [.. rows.Select(_ => new double[dimensions.Length])];
+            var ranges = new Range1D?[dimensions.Length];
+            for (int d = 0; d < dimensions.Length; d++)
             {
-                row.ThrowIfMisaligned(dimensions.Length, nameof(rows), "dimensions");
+                double[] column = [.. rows.Select(row => row.Values[d])];
+                ranges[d] = column.DrawableRange();
+                var range = ranges[d] ?? new Range1D(0, 0);
+                double span = range.Width.ThrowIfBeyondADouble(nameof(rows), (dimensions, d), static at => $"The span of '{at.dimensions[at.d]}'");
+
+                for (int i = 0; i < column.Length; i++)
+                {
+                    scaled[i][d] = !column[i].IsDrawable() ? double.NaN
+                        : span > 0 ? (column[i] - range.Lo) / span
+                        : MiddleOfAColumn;
+                }
             }
 
-            var scaling = ScaleColumns(dimensions, rows);
-            double[][] scaled = scaling.Scaled;
-            double[] columns = SlotCentres(dimensions.Length);
+            double[] columns = CategorySlot.Centres(dimensions.Length);
 
             // The solid axis lines take no colour of their own: the reference line's default grey is a fixed mid grey that stands
-            // at 3 : 1 or more on a light and on a dark theme, which a grey fixed here would not do on both.
+            // at 3 : 1 or more on a light and on a dark theme, which a grey fixed here would not do on both. They are given their width,
+            // as pandas' parallel_coordinates gives its axvline one (axvlines_kwds {"linewidth": 1}): the 1 px they have always drawn,
+            // under every theme, not the theme's lines.linewidth a reference line given none takes.
             foreach (double column in columns)
             {
-                axes.AxVLine(column, line => line.LineStyle = LineStyle.Solid);
+                axes.AxVLine(column, line => { line.LineStyle = LineStyle.Solid; line.LineWidth = 1; });
             }
 
             // One series per class, in the order the names first appear: every row of a class is a stretch of the one series, and
             // a missing point between two stretches breaks the line there, so one series draws all its polylines in one colour.
             foreach (var classRows in Enumerable.Range(0, rows.Count).GroupBy(i => rows[i].Label ?? string.Empty))
             {
-                var x = new List<double>();
-                var y = new List<double>();
+                // Each row's scaled values at the column centres, parted from the next row's by a missing point.
+                var path = new GappedLine();
                 foreach (int row in classRows)
                 {
-                    if (x.Count > 0)
-                    {
-                        x.Add(double.NaN);
-                        y.Add(double.NaN);
-                    }
-
-                    x.AddRange(columns);
-                    y.AddRange(scaled[row]);
+                    path.Gap();
+                    path.AddRange(columns, scaled[row]);
                 }
 
-                var line = new LineSeries([.. x], [.. y])
+                var data = path.ToData();
+                var line = new LineSeries(data.X, data.Y)
                 {
                     LineWidth = ParallelLineWidth,
                     Label = classRows.Key.Length > 0 ? classRows.Key : null,
@@ -515,7 +511,7 @@ public static class CategoricalAxesExtensions
             // own range, a short mark on the line and the number to its left, at the height that value is drawn at.
             for (int d = 0; d < columns.Length; d++)
             {
-                foreach (var tick in scaling.Ticks(d))
+                foreach (var tick in ColumnTicks(ranges[d]))
                 {
                     axes.Annotate(tick.Text, columns[d], tick.Height, columns[d], tick.Height, mark =>
                     {
@@ -565,9 +561,10 @@ public static class CategoricalAxesExtensions
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="columns"/> or
         /// <paramref name="segments"/> is <see langword="null"/>.</exception>
-        /// <exception cref="ArgumentException">No columns or no segments are given; a segment does not carry one size per column
-        /// (the message names the segment); a size is negative or infinite (the message names the segment and the column); or the
-        /// sizes do not add up to a finite number above 0 (only zeros, only missing sizes, or a sum too large for a
+        /// <exception cref="ArgumentException">No columns or no segments are given, or a segment does not carry one size per column
+        /// (the message names the segment).</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A size is negative or infinite (the message names the segment and the
+        /// column), or the sizes do not add up to a finite number above 0 (only zeros, only missing sizes, or a sum too large for a
         /// <see cref="double"/>).</exception>
         /// <example>
         /// <code>
@@ -594,30 +591,20 @@ public static class CategoricalAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(columns);
             ArgumentNullException.ThrowIfNull(segments);
-            if (columns.Length == 0)
-            {
-                throw new ArgumentException("No columns were given; a Marimekko chart divides its width among its columns.", nameof(columns));
-            }
+            columns.ThrowIfEmpty("No columns were given; a Marimekko chart divides its width among its columns.");
 
-            if (segments.Count == 0)
-            {
-                throw new ArgumentException("No segments were given; a Marimekko chart draws one area for each segment.", nameof(segments));
-            }
+            segments.ThrowIfEmpty("No segments were given; a Marimekko chart draws one area for each segment.");
 
             // Everything is checked before the first series is added, so a refused call leaves the axes as it was.
-            foreach (var segment in segments)
-            {
-                segment.ThrowIfMisaligned(columns.Length, nameof(segments), "columns");
-            }
+            segments.ThrowIfNotOneEach(columns.Length, nameof(segments), "columns");
+            segments.ThrowIfAnyNotAmount(nameof(segments), columns, static (of, c) => $"The size of '{of.Label}' in '{of.Places[c]}'");
 
-            ThrowIfNotSizes(columns, segments);
-
-            // A column's total is the running sum of its sizes in the order of the segments (a missing size adds nothing), so the
-            // top of its last cell is that sum over itself: exactly 100. The edges are the running sums of the column totals over
-            // the grand total, which is the last of them, so the last edge is exactly 100 too.
-            int n = columns.Length;
-            double[] totals = new double[n];
-            for (int c = 0; c < n; c++)
+            // A column is as wide as its share of the grand total: the edges are the running sums of the column totals over the
+            // grand total, the last of them exactly 100. A size that is missing or 0 has no cell and adds nothing to its column, and a
+            // column whose sizes are all 0 or missing has no share: it is 0 wide and has no name.
+            int count = columns.Length;
+            double[] totals = new double[count];
+            for (int c = 0; c < count; c++)
             {
                 foreach (var segment in segments)
                 {
@@ -625,175 +612,39 @@ public static class CategoricalAxesExtensions
                 }
             }
 
-            double[] edges = new double[n + 1];
-            for (int c = 0; c < n; c++) edges[c + 1] = edges[c] + totals[c];
-            double grand = edges[n];
-            if (!(grand > 0) || double.IsInfinity(grand))
-            {
-                throw new ArgumentException(
-                    $"The sizes add up to {grand.ToString(CultureInfo.InvariantCulture)}; a Marimekko chart draws each column as its share of the total, which must be a finite number above 0.",
-                    nameof(segments));
-            }
+            double[] edges = new double[count + 1];
+            for (int c = 0; c < count; c++) edges[c + 1] = edges[c] + totals[c];
+            double grand = edges[count].ThrowIfNotFinite(nameof(segments), "The total of the sizes").ThrowIfNotAbove(0, nameof(segments), "The total of the sizes");
+            for (int c = 0; c <= count; c++) edges[c] = edges[c] / grand * WholeInPercent;
 
-            for (int c = 0; c <= n; c++) edges[c] = edges[c] / grand * WholeInPercent;
-
-            // One area per segment: two points per column with a missing point between two columns, so each cell is one
-            // rectangle and no column is joined to the next. A cell with no height (a size of 0 or a missing one) is missing too:
-            // no fill, and no outline across its column.
-            double[] floors = new double[n];
+            // One area per segment, in the order of the segments, each standing on the ones before it in its column.
+            double[] floors = new double[count];
             foreach (var segment in segments)
             {
-                double[] x = new double[3 * n - 1], top = new double[3 * n - 1], bottom = new double[3 * n - 1];
-                for (int c = 0; c < n; c++)
-                {
-                    int at = 3 * c;
-                    if (c > 0)
-                    {
-                        x[at - 1] = top[at - 1] = bottom[at - 1] = double.NaN;
-                    }
-
-                    double size = segment.Values[c];
-                    bool drawn = size > 0;
-                    double low = drawn ? floors[c] / totals[c] * WholeInPercent : double.NaN;
-                    if (drawn) floors[c] += size;
-                    double high = drawn ? floors[c] / totals[c] * WholeInPercent : double.NaN;
-                    x[at] = edges[c];
-                    x[at + 1] = edges[c + 1];
-                    top[at] = top[at + 1] = high;
-                    bottom[at] = bottom[at + 1] = low;
-                }
-
-                var cells = new AreaSeries(x, top)
-                {
-                    YData2 = bottom, Alpha = MarimekkoAlpha, Label = string.IsNullOrEmpty(segment.Label) ? null : segment.Label,
-                };
+                var cells = MarimekkoCells(segment.Values, totals, edges, floors);
+                cells.Label = string.IsNullOrEmpty(segment.Label) ? null : segment.Label;
                 axes.AddSeries(cells, configure);
             }
 
             // A column with no share has no width to stand under, so it carries no name; the others are named under their
             // centres. The cells fill 0..100 % on both axes: the area's X edges are sticky, and no Y margin keeps the Y axis on
             // the cells too.
-            int[] named = [.. Enumerable.Range(0, n).Where(c => totals[c] > 0)];
+            var names = new List<string>(count);
+            var centres = new List<double>(count);
+            for (int c = 0; c < count; c++)
+            {
+                if (totals[c] > 0)
+                {
+                    names.Add(columns[c] ?? string.Empty);
+                    centres.Add((edges[c] + edges[c + 1]) / 2);
+                }
+            }
+
             return axes
-                .SetXCategoryTicks([.. named.Select(c => columns[c] ?? string.Empty)], [.. named.Select(c => (edges[c] + edges[c + 1]) / 2)])
+                .SetXCategoryTicks([.. names], [.. centres])
                 .SetYTickFormatter(new PercentFormatter(WholeInPercent))
                 .SetYMargin(0);
         }
-    }
-
-    /// <summary>The columns of a parallel-coordinates chart after scaling: every value on a scale of 0..1, and the range each
-    /// column was scaled over, so the numbers on a column's own line read in its own units.</summary>
-    /// <param name="Scaled">The scaled values, one array per row with one entry for each dimension.</param>
-    /// <param name="Ranges">The range of each column over ALL the rows; <see langword="null"/> for a column with nothing to draw.</param>
-    private readonly record struct ScaledColumns(double[][] Scaled, Range1D?[] Ranges)
-    {
-        /// <summary>One tick on a column's own line: the number it reads and the height on the scale of 0..1 it stands at.</summary>
-        internal readonly record struct ColumnTick(string Text, double Height);
-
-        /// <summary>The ticks of column <paramref name="column"/>: the values the locator picks over the column's own range that
-        /// lie inside it, each at the height it is drawn at; a column whose values are all the same has the one tick, at the
-        /// middle, and a column with nothing to draw has none.</summary>
-        internal IEnumerable<ColumnTick> Ticks(int column)
-        {
-            if (Ranges[column] is not { } range) yield break;
-
-            if (range.Width > 0)
-            {
-                double slack = range.Width * 1e-9;
-                foreach (double value in new AutoLocator().Locate(range.Lo, range.Hi))
-                {
-                    if (value >= range.Lo - slack && value <= range.Hi + slack)
-                    {
-                        yield return new ColumnTick(value.ToString("G6", CultureInfo.InvariantCulture), (value - range.Lo) / range.Width);
-                    }
-                }
-            }
-            else
-            {
-                yield return new ColumnTick(range.Lo.ToString("G6", CultureInfo.InvariantCulture), MiddleOfAColumn);
-            }
-        }
-    }
-
-    /// <summary>Scales every column of <paramref name="rows"/> to 0..1 by its smallest and largest drawable value over ALL the
-    /// rows. A value that cannot be drawn (NaN, an infinity) stays missing and is no part of the range; a column whose drawable
-    /// values are all the same has no range and sits at the middle.</summary>
-    /// <returns>The scaled values, one array per row with one entry for each dimension, and the range of each column.</returns>
-    /// <exception cref="ArgumentException">The values of a column span more than a <see cref="double"/> can hold.</exception>
-    private static ScaledColumns ScaleColumns(string[] dimensions, IReadOnlyList<BarGroup> rows)
-    {
-        double[][] scaled = [.. rows.Select(_ => new double[dimensions.Length])];
-        var ranges = new Range1D?[dimensions.Length];
-        for (int d = 0; d < dimensions.Length; d++)
-        {
-            double[] column = [.. rows.Select(row => row.Values[d])];
-            // A column with nothing to draw has no range; every value of it is then missing and the span is never read.
-            ranges[d] = column.DrawableRange();
-            var range = ranges[d] ?? new Range1D(0, 0);
-            double span = range.Width;
-            if (double.IsInfinity(span))
-            {
-                throw new ArgumentException(
-                    $"The values of '{dimensions[d]}' span more than a double can hold; a column is scaled to 0..1 by its range.",
-                    nameof(rows));
-            }
-
-            for (int i = 0; i < column.Length; i++)
-            {
-                scaled[i][d] = !column[i].IsDrawable() ? double.NaN
-                    : span > 0 ? (column[i] - range.Lo) / span
-                    : MiddleOfAColumn;
-            }
-        }
-
-        return new ScaledColumns(scaled, ranges);
-    }
-
-    /// <summary>Refuses a count that is negative or infinite: a Pareto chart counts occurrences, and a negative count has no
-    /// share of a total while an infinite one leaves every other count a share of 0. NaN is a missing count, not a bad one.</summary>
-    /// <exception cref="ArgumentException">A count is negative or infinite; the message names its category.</exception>
-    private static void ThrowIfNotCounts(string[] categories, double[] counts)
-    {
-        for (int i = 0; i < counts.Length; i++)
-        {
-            double count = counts[i];
-            if (count < 0 || double.IsPositiveInfinity(count))
-            {
-                throw new ArgumentException(
-                    $"The count of '{categories[i]}' is {count.ToString(CultureInfo.InvariantCulture)}; a count is a finite number of occurrences, 0 or more (NaN marks a missing count).",
-                    nameof(counts));
-            }
-        }
-    }
-
-    /// <summary>Refuses a size that is negative or infinite: a Marimekko chart draws every size as a share of its column and
-    /// of the whole, and a negative size has no share while an infinite one leaves every other size a share of 0. NaN is a
-    /// missing size, not a bad one.</summary>
-    /// <exception cref="ArgumentException">A size is negative or infinite; the message names its segment and its
-    /// column.</exception>
-    private static void ThrowIfNotSizes(string[] columns, IReadOnlyList<BarGroup> segments)
-    {
-        foreach (var segment in segments)
-        {
-            for (int c = 0; c < columns.Length; c++)
-            {
-                double size = segment.Values[c];
-                if (size < 0 || double.IsPositiveInfinity(size))
-                {
-                    throw new ArgumentException(
-                        $"The size of '{segment.Label}' in '{columns[c]}' is {size.ToString(CultureInfo.InvariantCulture)}; a size is finite and 0 or more (NaN marks a missing size).",
-                        nameof(segments));
-                }
-            }
-        }
-    }
-
-    /// <summary>The running sum of <paramref name="counts"/>: entry <c>k</c> is the sum of the counts up to and including
-    /// <c>k</c>. A missing count (NaN) adds nothing and keeps NaN as its own entry.</summary>
-    private static double[] RunningSums(double[] counts)
-    {
-        double sum = 0;
-        return [.. counts.Select(c => double.IsNaN(c) ? double.NaN : sum += c)];
     }
 
     /// <summary>How far past the total the left axis of a Pareto chart reaches, and past 100 % the right one: 5 %, so the two
@@ -807,16 +658,16 @@ public static class CategoricalAxesExtensions
     private const string ParetoLineLabel = "Cumulative %";
 
     /// <summary>The bars' colour, and the left axis': the default theme's first colour.</summary>
-    private static readonly Color ParetoBarColor = Colors.Tab10Blue;
+    private static readonly Color ParetoBarColor = CyclePair.Standard.First;
 
     /// <summary>The line's colour, and the right-hand axis': the default theme's second colour.</summary>
-    private static readonly Color ParetoLineColor = Colors.Tab10Orange;
+    private static readonly Color ParetoLineColor = CyclePair.Standard.Second;
 
-    /// <summary>The size of the dots of a dot plot, in points squared (a scatter's marker area): about 11 pixels across, big
+    /// <summary>The size of the dots of a dot plot, in points squared (a scatter's marker area): about 10 pixels across, big
     /// enough to compare by position and small enough that the two dots of a close pair stay apart.</summary>
     private const double DotPlotDotSize = 50;
 
-    /// <summary>The width of a slope graph's lines, in points.</summary>
+    /// <summary>The width of a slope graph's lines, in pixels.</summary>
     private const double SlopeLineWidth = 2;
 
     /// <summary>The size of the markers a slope graph puts at both ends of its lines, in points.</summary>
@@ -834,12 +685,9 @@ public static class CategoricalAxesExtensions
     /// <summary>The size of the dots of a dumbbell chart, in points squared (a scatter's marker area).</summary>
     private const double DumbbellDotSize = 14;
 
-    /// <summary>The width of a parallel-coordinates line, in points: thin, so that many rows stay readable where they run
+    /// <summary>The width of a parallel-coordinates line, in pixels: thin, so that many rows stay readable where they run
     /// together.</summary>
     private const double ParallelLineWidth = 1.2;
-
-    /// <summary>Where a column without a range is drawn, on the scale of 0..1: the middle.</summary>
-    private const double MiddleOfAColumn = 0.5;
 
     /// <summary>How far, in pixels, a tick mark on a parallel-coordinates column reaches left of the column line; the number
     /// stands at its end.</summary>
@@ -850,10 +698,73 @@ public static class CategoricalAxesExtensions
     private const double WholeInPercent = 100;
 
     /// <summary>The transparency of a Marimekko chart's cells: opaque, as bars are, so a cell wears exactly the colour of its
-    /// legend entry (an area is faint, 0.3, by default).</summary>
+    /// legend entry (an area is faint, <see cref="AreaSeries.RestingAlpha"/>, by default).</summary>
     private const double MarimekkoAlpha = 1;
 
-    /// <summary>The centre of each category's slot along the axis: where the marks of a category stand.</summary>
-    private static double[] SlotCentres(int categoryCount) =>
-        [.. Enumerable.Range(0, categoryCount).Select(k => CategorySlot.Of(k).Centre)];
+    /// <summary>Where a column of a parallel-coordinates chart without a range is drawn, on the scale of 0..1: the middle.</summary>
+    private const double MiddleOfAColumn = 0.5;
+
+    /// <summary>The ticks of a column of a parallel-coordinates chart: the values the locator picks over the column's own range that
+    /// lie inside it, each at the height it is drawn at and all written in one number format, as an axis writes its ticks; a column
+    /// whose values are all the same has the one tick, at the middle, and a column with nothing to draw has none.</summary>
+    /// <param name="column">The range of the column's drawable values over all the rows; <see langword="null"/> when it has none.</param>
+    /// <returns>The ticks, from the smallest value up.</returns>
+    private static IEnumerable<ColumnTick> ColumnTicks(Range1D? column)
+    {
+        if (column is not { } range) yield break;
+
+        if (range.Width > 0)
+        {
+            double slack = range.Width * 1e-9;
+            double[] values = [.. new AutoLocator().Locate(range.Lo, range.Hi).Where(value => value >= range.Lo - slack && value <= range.Hi + slack)];
+            string[] texts = TickLabelLook.Library.Labelled(values);
+            for (int i = 0; i < values.Length; i++)
+            {
+                yield return new ColumnTick(texts[i], (values[i] - range.Lo) / range.Width);
+            }
+        }
+        else
+        {
+            yield return new ColumnTick(TickLabelLook.Library.Labelled([range.Lo])[0], MiddleOfAColumn);
+        }
+    }
+
+    /// <summary>One tick on a column's own line: the number it reads and the height on the scale of 0..1 it stands at.</summary>
+    /// <param name="Text">The number as written.</param>
+    /// <param name="Height">Where the tick stands, from 0 at the column's smallest value to 1 at its largest.</param>
+    internal readonly record struct ColumnTick(string Text, double Height);
+
+    /// <summary>The cells of one Marimekko segment in every column, as an area: two points per column (the column's left and right
+    /// edge) with a missing point between two columns, so each cell is one rectangle and no column is joined to the next. A cell
+    /// stands on the cells of the segments before it in its column and is as tall as its share of the column's total; a size that is
+    /// missing or 0 has no cell.</summary>
+    /// <param name="sizes">The segment's size in each column.</param>
+    /// <param name="totals">The sum of the sizes in each column.</param>
+    /// <param name="edges">The columns' edges, in percent of the grand total.</param>
+    /// <param name="floors">Where the segment's cells begin in each column, in the units of the sizes; moved up past its cells.</param>
+    private static AreaSeries MarimekkoCells(double[] sizes, double[] totals, double[] edges, double[] floors)
+    {
+        int columns = totals.Length;
+        double[] x = new double[3 * columns - 1], top = new double[3 * columns - 1], bottom = new double[3 * columns - 1];
+        for (int c = 0; c < columns; c++)
+        {
+            int at = 3 * c;
+            if (c > 0)
+            {
+                x[at - 1] = top[at - 1] = bottom[at - 1] = double.NaN;
+            }
+
+            double size = sizes[c];
+            bool drawn = size > 0;
+            double low = drawn ? floors[c] / totals[c] * WholeInPercent : double.NaN;
+            if (drawn) floors[c] += size;
+            double high = drawn ? floors[c] / totals[c] * WholeInPercent : double.NaN;
+            x[at] = edges[c];
+            x[at + 1] = edges[c + 1];
+            top[at] = top[at + 1] = high;
+            bottom[at] = bottom[at + 1] = low;
+        }
+
+        return AreaSeries.Band(x, top, bottom, MarimekkoAlpha);
+    }
 }

@@ -11,39 +11,16 @@ public class RugplotSeriesRenderTests
 {
     private static readonly double[] Data = [1.0, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0];
 
-    [Fact]
-    public void Rugplot_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("Rugplot_SvgContainsLines", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Rugplot(Data))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<line"),
+    };
 
-    [Fact]
-    public void Rugplot_SvgContainsLines()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Rugplot(Data))
-            .ToSvg();
-        Assert.Contains("<line", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void Rugplot_EmptyData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Rugplot([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Rugplot_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Rugplot(Data)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

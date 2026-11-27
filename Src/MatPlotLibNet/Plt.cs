@@ -34,7 +34,7 @@ public static class Plt
     /// <param name="width">The figure width in pixels.</param>
     /// <param name="height">The figure height in pixels.</param>
     /// <returns>A new figure instance.</returns>
-    public static Figure Figure(double width = 800, double height = 600) =>
+    public static Figure Figure(double width = Models.Figure.RestingWidth, double height = Models.Figure.RestingHeight) =>
         new() { Width = width, Height = height };
 
     /// <summary>Creates a new <see cref="FigureBuilder"/> for fluent figure construction (e.g., <c>Plt.Create().WithTitle("My Chart").Plot(x, y).Build()</c>).</summary>
@@ -71,12 +71,15 @@ public static class Plt
 
     /// <summary>
     /// Entry point for global style configuration, modeled after <c>matplotlib.pyplot.style</c>.
+    /// A style reaches a picture through the figure's theme: a figure built with <see cref="FigureBuilder.Build"/> and no
+    /// <see cref="FigureBuilder.WithTheme"/> of its own wears the builder's default theme with every parameter of the style
+    /// laid over it that differs from the library's defaults (<see cref="RcParams"/>). A theme given to the builder wins.
     /// </summary>
     public static class Style
     {
         /// <summary>
         /// Applies <paramref name="sheet"/> globally by mutating <see cref="RcParams.Default"/>.
-        /// Affects all subsequent figure renders in the process.
+        /// Every figure built afterwards in the process without a theme of its own wears the look the sheet describes.
         /// For scoped changes prefer <see cref="Context(StyleSheet)"/>.
         /// </summary>
         public static void Use(StyleSheet sheet)

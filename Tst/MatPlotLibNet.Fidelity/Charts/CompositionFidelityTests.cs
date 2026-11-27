@@ -4,6 +4,7 @@
 using MatPlotLibNet.Fidelity;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Tests.Fidelity.Charts;
 
@@ -17,10 +18,8 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 public class CompositionFidelityTests : FidelityTest
 {
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 75, Ssim = 0.30, DeltaE = 85)]   // mathtext legend + thin lines + 2-axis layout; matplotlib's tight_layout(rect=[..,0.93]) reserves more for suptitle than ours, dropping SSIM (0.35 after y-tick fix made our render closer to matplotlib but shifted SSIM scoring)
+    [FidelityRows]
+    [FidelityTolerance(Rms = 48, Ssim = 0.64, DeltaE = 3, V2Rms = 56, V2Ssim = 0.53, V2DeltaE = 4)]   // mathtext legend + thin lines + 2-axis layout
     public void MathText_TwoSubplots_WithSupTitle_Legend_MatchesMatplotlib(string themeId)
     {
         var t = new double[500];
@@ -33,10 +32,10 @@ public class CompositionFidelityTests : FidelityTest
             noise[i] = Math.Sin(t[i] * 1.3) * 0.3;
         }
 
-        var figure = Plt.Create()
-            .WithTitle("$\\alpha$ decay and $\\beta$ noise — $\\omega = 0.4$ rad/ms")
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
+        var figure = FidelityFigure(themeId)
+            // As the reference composes it: fig.suptitle(..., fontsize=14, fontweight="bold") and fig.tight_layout(rect=[0, 0, 1, 0.93]).
+            .WithTitle("$\\alpha$ decay and $\\beta$ noise — $\\omega = 0.4$ rad/ms",
+                style => style with { FontSize = 14 * 100.0 / 72, FontWeight = FontWeight.Bold })
             .AddSubPlot(1, 2, 1, ax => ax
                 .WithTitle("R$^{2}$ = 0.97")
                 .SetXLabel("$\\Delta t$ (ms)")
@@ -47,9 +46,9 @@ public class CompositionFidelityTests : FidelityTest
                 .WithTitle("Noise — $\\mu \\pm 2\\sigma$")
                 .SetXLabel("$\\Delta t$ (ms)")
                 .SetYLabel("Amplitude")
-                .Plot(t, noise, line => { line.Color = Colors.Orange; line.Label = "$\\beta$ noise"; })
+                .Plot(t, noise, line => { line.Color = Colors.Tab10Orange; line.Label = "$\\beta$ noise"; })
                 .WithLegend(LegendPosition.UpperRight))
-            .TightLayout()
+            .TightLayout(new LayoutRect(0, 0, 1, 0.93))
             .Build();
 
         AssertFidelity(figure, "comp_mathtext_two_subplots");

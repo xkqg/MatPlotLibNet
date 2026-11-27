@@ -7,12 +7,13 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// Scripts read/write a #mpl-{id}=... segment so refresh restores zoom/pan state.</summary>
 public class StatePersistenceTests
 {
-    [Fact]
-    public void ZoomPanScript_ContainsPersistOptInBranch()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("data-mpl-persist", svg);
-        Assert.Contains("persistVB", svg);
-        Assert.Contains("restoreVB", svg);
-    }
+        new DrawnToken("ZoomPanScript_ContainsPersistOptInBranch", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "data-mpl-persist", "persistVB", "restoreVB"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

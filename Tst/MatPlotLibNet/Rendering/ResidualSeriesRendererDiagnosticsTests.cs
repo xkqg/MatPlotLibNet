@@ -26,22 +26,13 @@ public class ResidualSeriesRendererDiagnosticsTests
     [Fact]
     public void ResidualSeriesRenderer_MismatchedData_EmitsDiagnosticAndSkips()
     {
-        var received = new List<ChartDiagnostic>();
-        void Handler(ChartDiagnostic d) => received.Add(d);
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            string svg = Plt.Create()
-                .AddSubPlot(1, 1, 1, ax => ax.Residplot([1.0, 2.0], [1.0]))
-                .ToSvg();
+        using var capture = new DiagnosticsCapture();
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Residplot([1.0, 2.0], [1.0]))
+            .ToSvg();
 
-            Assert.Contains(received, d => d.Source == "ResidualSeriesRenderer" && d.Exception is not null);
-            Assert.Contains("<svg", svg);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Contains(capture.Seen, d => d.Source == "ResidualSeriesRenderer" && d.Exception is not null);
+        Assert.Contains("<svg", svg);
     }
 
     /// <summary>The other way round: more y values than x. The fit runs over the x values and gives a prediction per x, so the
@@ -50,48 +41,30 @@ public class ResidualSeriesRendererDiagnosticsTests
     [Fact]
     public void ResidualSeriesRenderer_MoreYThanX_EmitsDiagnosticAndSkips()
     {
-        var received = new List<ChartDiagnostic>();
-        void Handler(ChartDiagnostic d) => received.Add(d);
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            string svg = Plt.Create()
-                .AddSubPlot(1, 1, 1, ax => ax.Residplot([1.0, 2.0], [1.0, 2.0, 3.0]))
-                .ToSvg();
+        using var capture = new DiagnosticsCapture();
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Residplot([1.0, 2.0], [1.0, 2.0, 3.0]))
+            .ToSvg();
 
-            Assert.Contains(received, d => d.Source == "ResidualSeriesRenderer" && d.Exception is not null);
-            Assert.Contains("<svg", svg);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Contains(capture.Seen, d => d.Source == "ResidualSeriesRenderer" && d.Exception is not null);
+        Assert.Contains("<svg", svg);
     }
 
     /// <summary>Direct unit test of the model-level guard: <c>ResidualSeries.ComputeDataRange</c> must
     /// not crash on mismatched data — it contributes nothing to the axes range, mirroring the
-    /// empty-series default (<c>new(0, 1, -1, 1)</c>, see <c>ResidualSeries.cs:38</c>), and reports why
+    /// empty-series default (<c>new(0, 1, -1, 1)</c>), and reports why
     /// via <see cref="ChartDiagnostics"/>.</summary>
     [Fact]
     public void ResidualSeries_MismatchedData_RangeContributesNothing()
     {
-        ChartDiagnostic? received = null;
-        void Handler(ChartDiagnostic d) => received = d;
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            var series = new ResidualSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0 });
+        using var capture = new DiagnosticsCapture();
+        var series = new ResidualSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0 });
 
-            var range = series.ComputeDataRange(null!);
+        var range = series.ComputeDataRange(null!);
 
-            Assert.Equal(new DataRangeContribution(0, 1, -1, 1), range);
-            Assert.NotNull(received);
-            Assert.Equal("ResidualSeries", received!.Value.Source);
-            Assert.NotNull(received.Value.Exception);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Equal(new DataRangeContribution(0, 1, -1, 1), range);
+        Assert.NotNull(capture.Last);
+        Assert.Equal("ResidualSeries", capture.Last!.Value.Source);
+        Assert.NotNull(capture.Last.Value.Exception);
     }
 }

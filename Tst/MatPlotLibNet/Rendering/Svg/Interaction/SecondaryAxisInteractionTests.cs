@@ -7,6 +7,7 @@ using MatPlotLibNet.Builders;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
@@ -23,34 +24,6 @@ public class SecondaryAxisInteractionTests
         .AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2.0, 3.0], [10.0, 40.0, 20.0], s => s.Label = "load")
             .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0, 3.0], [100.0, 400.0, 200.0])));
-
-    private static Figure Build(Action<FigureBuilder> configure)
-    {
-        var fb = Plt.Create();
-        configure(fb);
-        return fb.Build();
-    }
-
-    private static Point[] DrawnPoints(string svg, string label)
-    {
-        var doc = XDocument.Parse(svg);
-        var group = doc.Descendants().Single(e => e.Name.LocalName == "g"
-            && (string?)e.Attribute("aria-label") == label && e.Attribute("data-series-index") is not null);
-        var polyline = group.Descendants().Single(e => e.Name.LocalName == "polyline");
-        return polyline.Attribute("points")!.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(pair => pair.Split(','))
-            .Select(p => new Point(double.Parse(p[0], CultureInfo.InvariantCulture), double.Parse(p[1], CultureInfo.InvariantCulture)))
-            .ToArray();
-    }
-
-    private static DomElement Svg(InteractionScriptHarness h) => h.Document.QuerySelectorAllRaw("svg").Single();
-
-    private static IDictionary<string, object?> Payload(SignalRInvokeMock mock, string method) =>
-        Assert.IsAssignableFrom<IDictionary<string, object?>>(Assert.Single(mock.Calls, c => c.Method == method).Payload);
-
-    private static double Num(IDictionary<string, object?> payload, string key) =>
-        Convert.ToDouble(payload[key], CultureInfo.InvariantCulture);
-
     private static IReadOnlyList<SecondaryAxisRange> SecondaryRanges(IDictionary<string, object?> payload)
     {
         var raw = Assert.IsAssignableFrom<System.Collections.IEnumerable>(payload["secondaryRanges"]);
@@ -63,7 +36,7 @@ public class SecondaryAxisInteractionTests
             result.Add(new SecondaryAxisRange(
                 side == 1 ? AxisSide.Right : AxisSide.Left,
                 Convert.ToInt32(d["slotIndex"], CultureInfo.InvariantCulture),
-                new DataRange(Num(range, "xMin"), Num(range, "xMax"), Num(range, "yMin"), Num(range, "yMax"))));
+                new DataRange(range.Num("xMin"), range.Num("xMax"), range.Num("yMin"), range.Num("yMax"))));
         }
 
         return result;
@@ -74,20 +47,17 @@ public class SecondaryAxisInteractionTests
     {
         using var h = InteractionScriptHarness.FromBuilder(WithSecondary);
         var mock = h.WireSignalRMock();
-        var p = DrawnPoints(h.Svg, "load")[1];
+        var p = h.Svg.PointsOf("load")[1];
 
-        Svg(h).Fire(new DomEvent("wheel") { target = Svg(h), clientX = p.X, clientY = p.Y, deltaY = -100 });
+        h.Wheel(p);
 
-        var zoom = Payload(mock, "OnZoom");
+        var zoom = mock.Payload("OnZoom");
         var secondary = Assert.Single(SecondaryRanges(zoom));
         Assert.Equal(AxisSide.Right, secondary.Side);
         Assert.Equal(0, secondary.SlotIndex);
 
-        var figure = Build(WithSecondary);
-        new ZoomEvent("c", Convert.ToInt32(zoom["axesIndex"]), Num(zoom, "xMin"), Num(zoom, "xMax"), Num(zoom, "yMin"), Num(zoom, "yMax"))
-        {
-            SecondaryRanges = [secondary],
-        }.ApplyTo(figure);
+        var figure = WithSecondary.Build();
+        (zoom.ToZoomEvent() with { SecondaryRanges = [secondary] }).ApplyTo(figure);
 
         var secondaryAxis = figure.SubPlots[0].YAxes.Right[0].Axis;
         double narrowedSpan = secondaryAxis.Max!.Value - secondaryAxis.Min!.Value;
@@ -100,15 +70,12 @@ public class SecondaryAxisInteractionTests
     {
         using var h = InteractionScriptHarness.FromBuilder(WithSecondary);
         var mock = h.WireSignalRMock();
-        var points = DrawnPoints(h.Svg, "load");
+        var points = h.Svg.PointsOf("load");
         var p = points[1];
-        var svg = Svg(h);
 
-        svg.Fire(new DomEvent("pointerdown") { target = svg, clientX = p.X, clientY = p.Y });
-        svg.Fire(new DomEvent("pointermove") { target = svg, clientX = p.X, clientY = p.Y + 30 });
-        svg.Fire(new DomEvent("pointerup") { target = svg, clientX = p.X, clientY = p.Y + 30 });
+        h.Drag(p, new Point(p.X, p.Y + 30));
 
-        var pan = Payload(mock, "OnPan");
+        var pan = mock.Payload("OnPan");
         var secondary = Assert.Single(SecondaryRanges(pan));
         double secondarySpan = secondary.Range.YMax - secondary.Range.YMin;
         // The secondary axis' span is 500 (ten times the primary's 50-wide [10,40]-ish autoscaled range), so the
@@ -116,13 +83,8 @@ public class SecondaryAxisInteractionTests
         Assert.Equal(500.0, secondarySpan, precision: 3);
         Assert.NotEqual(0.0, secondary.Range.YMin - 0.0); // moved at all (sanity: not a no-op)
 
-        var figure = Build(WithSecondary);
-        var inView = Assert.IsAssignableFrom<IDictionary<string, object?>>(pan["inView"]);
-        new PanEvent("c", Convert.ToInt32(pan["axesIndex"]), Num(pan, "dxData"), Num(pan, "dyData"))
-        {
-            InView = new DataRange(Num(inView, "xMin"), Num(inView, "xMax"), Num(inView, "yMin"), Num(inView, "yMax")),
-            SecondaryRanges = [secondary],
-        }.ApplyTo(figure);
+        var figure = WithSecondary.Build();
+        (pan.ToPanEvent() with { SecondaryRanges = [secondary] }).ApplyTo(figure);
 
         var secondaryAxis = figure.SubPlots[0].YAxes.Right[0].Axis;
         Assert.Equal(secondary.Range.YMin, secondaryAxis.Min);
@@ -133,25 +95,22 @@ public class SecondaryAxisInteractionTests
     public void Home_AfterAZoom_AlsoRestoresTheSecondaryAxisToItsOriginalRange()
     {
         using var h = InteractionScriptHarness.FromBuilder(WithSecondary);
-        var before = DrawnPoints(h.Svg, "load");
+        var before = h.Svg.PointsOf("load");
         var p = before[1];
-        Svg(h).Fire(new DomEvent("wheel") { target = Svg(h), clientX = p.X, clientY = p.Y, deltaY = -100 });
+        h.Wheel(p);
         var mock = h.WireSignalRMock();
 
-        Svg(h).Fire(new DomEvent("keydown") { target = Svg(h), key = "Home" });
+        h.PressHome();
 
-        var reset = Payload(mock, "OnReset");
+        var reset = mock.Payload("OnReset");
         var secondary = Assert.Single(SecondaryRanges(reset));
         Assert.Equal(0.0, secondary.Range.YMin, precision: 6);
         Assert.Equal(500.0, secondary.Range.YMax, precision: 6);
 
-        var figure = Build(WithSecondary);
+        var figure = WithSecondary.Build();
         figure.SubPlots[0].YAxes.Right[0].Axis.Min = 123;
         figure.SubPlots[0].YAxes.Right[0].Axis.Max = 456;
-        new ResetEvent("c", Convert.ToInt32(reset["axesIndex"]), Num(reset, "xMin"), Num(reset, "xMax"), Num(reset, "yMin"), Num(reset, "yMax"))
-        {
-            SecondaryRanges = [secondary],
-        }.ApplyTo(figure);
+        (reset.ToResetEvent() with { SecondaryRanges = [secondary] }).ApplyTo(figure);
 
         Assert.Equal(0.0, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
         Assert.Equal(500.0, figure.SubPlots[0].YAxes.Right[0].Axis.Max);

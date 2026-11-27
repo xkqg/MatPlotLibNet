@@ -7,20 +7,17 @@ namespace MatPlotLibNet.Tests.Models.Series;
 
 public class TricontourSeriesTests
 {
-    private static readonly double[] X = [0.0, 1.0, 0.5, 1.0, 0.0];
-    private static readonly double[] Y = [0.0, 0.0, 0.5, 1.0, 1.0];
-    private static readonly double[] Z = [1.0, 2.0, 3.0, 2.0, 1.0];
-
-    [Fact] public void Constructor_StoresXYZ()
-    {
-        var s = new TricontourSeries(X, Y, Z);
-        Assert.Equal(X, (double[])s.X); Assert.Equal(Y, (double[])s.Y); Assert.Equal(Z, (double[])s.Z);
-    }
-
+    /// <summary>A triangle contour ranges its axes as a grid contour does: tight to the points, with no margin past them (matplotlib
+    /// 3.11.2, <c>TriContourSet._process_args</c> takes <c>_mins</c> and <c>_maxs</c> from the triangulation's points, and
+    /// <c>ContourSet.__init__</c> makes them the sticky edges and calls <c>autoscale_view(tight=True)</c>). Without them the 5 % margin
+    /// stands between the lines and the spines, and the lines sit where a smaller picture of the surface would put them.</summary>
     [Fact]
-    public void ToSeriesDto_IncludesLevels()
+    public void ComputeDataRange_ReturnsThePointsExtent_WithStickyEdgesOnAllFourSides()
     {
-        var s = new TricontourSeries(X, Y, Z) { Levels = 5 };
-        Assert.Equal(5, s.ToSeriesDto().Levels);
+        double[] x = [2.0, 5.0, 3.5, -1.0], y = [1.0, 1.0, 4.0, 2.0], z = [1.0, 2.0, 3.0, 4.0];
+        var range = new TricontourSeries(x, y, z).ComputeDataRange(null!);
+
+        Assert.Equal((-1.0, 5.0, 1.0, 4.0), (range.XMin, range.XMax, range.YMin, range.YMax));
+        Assert.Equal((-1.0, 5.0, 1.0, 4.0), (range.StickyXMin, range.StickyXMax, range.StickyYMin, range.StickyYMax));
     }
 }

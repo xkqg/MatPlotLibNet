@@ -1,11 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Geo;
 using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -14,17 +13,11 @@ namespace MatPlotLibNet.Geo.Tests;
 /// a mark placed in projected coordinates lands on the pixel the polygon of the same coordinates is drawn at.</summary>
 public class GeoLayerTests
 {
-    private static readonly Regex PathData = new("<path d=\"(?<d>[^\"]+)\"", RegexOptions.Compiled);
-    private static readonly Regex PathPoint = new(@"[ML] (?<x>[-0-9.eE]+) (?<y>[-0-9.eE]+)", RegexOptions.Compiled);
-    private static readonly Regex CircleCentres = new("<circle cx=\"(?<x>[-0-9.eE]+)\" cy=\"(?<y>[-0-9.eE]+)\"", RegexOptions.Compiled);
-
     private static (double X, double Y)[] FirstPolygon(string svg) =>
-        [.. PathPoint.Matches(PathData.Match(svg).Groups["d"].Value)
-            .Select(m => (double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture)))];
+        [.. svg.Elements("path").First(path => path["d"] is not null).PathPoints().Select(point => (point.X, point.Y))];
 
     private static (double X, double Y)[] Circles(string svg) =>
-        [.. CircleCentres.Matches(svg).Select(m => (double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture),
-            double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture)))];
+        [.. svg.Elements("circle").Where(circle => circle["cx"] is not null && circle["cy"] is not null).Select(circle => (circle.Number("cx"), circle.Number("cy")))];
 
     // ---- the frame is the axes' frame -------------------------------------------------------------------------------------
 
@@ -42,10 +35,10 @@ public class GeoLayerTests
         Assert.Equal(2, marks.Length);
         (double X, double Y) bottomLeft = (corners.Min(p => p.X), corners.Max(p => p.Y));
         (double X, double Y) topRight = (corners.Max(p => p.X), corners.Min(p => p.Y));
-        Assert.Equal(bottomLeft.X, marks[0].X, 2);
-        Assert.Equal(bottomLeft.Y, marks[0].Y, 2);
-        Assert.Equal(topRight.X, marks[1].X, 2);
-        Assert.Equal(topRight.Y, marks[1].Y, 2);
+        Assert.Equal(bottomLeft.X, marks[0].X, MapSvg.WrittenPrecision);
+        Assert.Equal(bottomLeft.Y, marks[0].Y, MapSvg.WrittenPrecision);
+        Assert.Equal(topRight.X, marks[1].X, MapSvg.WrittenPrecision);
+        Assert.Equal(topRight.Y, marks[1].Y, MapSvg.WrittenPrecision);
     }
 
     [Fact]

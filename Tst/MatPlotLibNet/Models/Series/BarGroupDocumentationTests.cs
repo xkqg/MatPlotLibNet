@@ -57,28 +57,26 @@ public class BarGroupDocumentationTests
     {
         var verbs = VerbsThatTakeAGroup();
 
-        Assert.Contains(new Verb("MatPlotLibNet.AxesBuilder", "GroupedBar"), verbs);
+        Assert.Contains(new Verb("MatPlotLibNet.AxesBuilderCategoricalVerbs", "GroupedBar"), verbs);
         Assert.Contains(new Verb("MatPlotLibNet.CategoricalAxesExtensions", "Dumbbell"), verbs);
         Assert.Contains(new Verb("MatPlotLibNet.XYAxesExtensions", "StreamGraph"), verbs);
         Assert.True(verbs.Count >= 8, $"expected the grouped bar chart and the seven composed verbs, found {verbs.Count}: {string.Join(", ", verbs)}");
     }
 
-    /// <summary>The summary names every verb that takes a group, so none is left for a reader to find by luck.</summary>
-    [Fact]
-    public void Summary_NamesEveryVerbThatTakesAGroup()
+    /// <summary>The summary and the verbs agree both ways: the summary names every verb that takes a group, so none is left for a reader to
+    /// find by luck, and it names nothing that does not take a group any more, so a verb that changes its input does not leave a stale
+    /// name behind.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Summary_AndTheVerbsThatTakeAGroup_NameEachOther(bool everyVerbIsNamed)
     {
-        var missing = VerbsThatTakeAGroup().Except(VerbsTheSummaryNames()).OrderBy(v => v.DeclaringType).ThenBy(v => v.Name).ToArray();
+        var verbs = VerbsThatTakeAGroup();
+        var named = VerbsTheSummaryNames();
+        var off = (everyVerbIsNamed ? verbs.Except(named) : named.Except(verbs)).OrderBy(v => v.DeclaringType).ThenBy(v => v.Name).ToArray();
 
-        Assert.True(missing.Length == 0, "BarGroup's summary does not name: " + string.Join(", ", missing.Select(v => $"{v.DeclaringType}.{v.Name}")));
+        Assert.True(off.Length == 0, (everyVerbIsNamed ? "BarGroup's summary does not name: " : "BarGroup's summary names verbs that take no group: ")
+            + string.Join(", ", off.Select(v => $"{v.DeclaringType}.{v.Name}")));
     }
 
-    /// <summary>The summary names nothing that does not take a group any more, so a verb that changes its input does not leave
-    /// a stale name behind.</summary>
-    [Fact]
-    public void Summary_NamesNothingThatTakesNoGroup()
-    {
-        var stale = VerbsTheSummaryNames().Except(VerbsThatTakeAGroup()).OrderBy(v => v.DeclaringType).ThenBy(v => v.Name).ToArray();
-
-        Assert.True(stale.Length == 0, "BarGroup's summary names verbs that take no group: " + string.Join(", ", stale.Select(v => $"{v.DeclaringType}.{v.Name}")));
-    }
 }

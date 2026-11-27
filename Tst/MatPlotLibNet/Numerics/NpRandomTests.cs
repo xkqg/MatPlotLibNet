@@ -8,21 +8,21 @@ namespace MatPlotLibNet.Tests.Numerics;
 /// <summary>Verifies <see cref="NpRandom"/> distribution samplers.</summary>
 public class NpRandomTests
 {
-    [Fact]
-    public void Normal_LengthIsN()
-        => Assert.Equal(100, new NpRandom(1).Normal(0, 1, 100).Length);
+    public static TheoryData<string, Func<NpRandom, int, Array>> Samplers => new()
+    {
+        { "normal", (random, n) => random.Normal(0, 1, n) },
+        { "uniform", (random, n) => random.Uniform(0, 1, n) },
+        { "integers", (random, n) => random.Integers(0, 10, n) },
+        { "lognormal", (random, n) => random.Lognormal(0, 1, n) },
+    };
 
-    [Fact]
-    public void Uniform_LengthIsN()
-        => Assert.Equal(50, new NpRandom(1).Uniform(0, 1, 50).Length);
-
-    [Fact]
-    public void Integers_LengthIsN()
-        => Assert.Equal(30, new NpRandom(1).Integers(0, 10, 30).Length);
-
-    [Fact]
-    public void Lognormal_LengthIsN()
-        => Assert.Equal(40, new NpRandom(1).Lognormal(0, 1, 40).Length);
+    /// <summary>A sampler draws as many values as it is asked for.</summary>
+    [Theory]
+    [MemberData(nameof(Samplers))]
+    public void ASampler_DrawsNValues(string sampler, Func<NpRandom, int, Array> draw)
+    {
+        Assert.True(draw(new NpRandom(1), 40).Length == 40, $"the {sampler} sampler drew another number of values");
+    }
 
     [Fact]
     public void Uniform_ValuesInRange()

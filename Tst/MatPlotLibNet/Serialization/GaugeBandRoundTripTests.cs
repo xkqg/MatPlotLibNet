@@ -14,49 +14,6 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// the hollow hatch — model state that reached no sink.</para></summary>
 public class GaugeBandRoundTripTests
 {
-    private static readonly GaugeBand[] Bands =
-    [
-        new(30, Colors.Tab10Green),
-        new(70, Colors.Orange),
-        new(100, Colors.Red)
-    ];
-
-    private static Figure RoundTrip(Figure figure)
-    {
-        var serializer = new ChartSerializer();
-        return serializer.FromJson(serializer.ToJson(figure));
-    }
-
-    /// <summary>Custom bands survive the round-trip: same count, same thresholds, same colours, same order.</summary>
-    [Fact]
-    public void CustomBands_SurviveRoundTrip()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Gauge(42, g => g.Ranges = Bands))
-            .Build();
-
-        var gauge = RoundTrip(figure).SubPlots[0].Series.OfType<GaugeSeries>().Single();
-
-        Assert.NotNull(gauge.Ranges);
-        Assert.Equal(Bands, gauge.Ranges);
-    }
-
-    /// <summary>A gauge WITHOUT custom bands adds no band bytes — it keeps falling back to the built-in
-    /// defaults, and its golden stays byte-identical.</summary>
-    [Fact]
-    public void DefaultBands_AddNoBytesAndStayNull()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Gauge(42))
-            .Build();
-
-        string json = new ChartSerializer().ToJson(figure);
-        var gauge = RoundTrip(figure).SubPlots[0].Series.OfType<GaugeSeries>().Single();
-
-        Assert.DoesNotContain("gaugeBand", json, StringComparison.OrdinalIgnoreCase);
-        Assert.Null(gauge.Ranges);
-    }
-
     /// <summary>An empty band array is preserved as empty — an explicit "no bands" is a different intent from
     /// "use the defaults", and the round-trip must not collapse the two.</summary>
     [Fact]
@@ -66,7 +23,7 @@ public class GaugeBandRoundTripTests
             .AddSubPlot(1, 1, 1, ax => ax.Gauge(42, g => g.Ranges = []))
             .Build();
 
-        var gauge = RoundTrip(figure).SubPlots[0].Series.OfType<GaugeSeries>().Single();
+        var gauge = figure.RoundTripped().SubPlots[0].Series.OfType<GaugeSeries>().Single();
 
         Assert.NotNull(gauge.Ranges);
         Assert.Empty(gauge.Ranges);

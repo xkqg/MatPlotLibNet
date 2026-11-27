@@ -13,7 +13,8 @@ public static class ArcSegmentExtensions
         /// <see cref="ArcSegment"/> (0° is +X, positive angles sweep clockwise on a screen whose Y points down): at most a
         /// quarter turn to a curve, each with control points on the tangents at its ends, 4/3·tan(¼ of its sweep) of the
         /// way along them. The arc's start point is the current point of the path it belongs to, as it is for the SVG
-        /// <c>A</c> command, so the first curve is not given it.</summary>
+        /// <c>A</c> command, so the first curve is not given it. The last curve ends on <c>ArcSegment.EndPoint</c> exactly, the point the SVG
+        /// command is written with.</summary>
         /// <returns>The curves in drawing order; none for an arc with no sweep or with an angle that is not a number.</returns>
         public IReadOnlyList<BezierSegment> ToBeziers()
         {
@@ -24,16 +25,18 @@ public static class ArcSegmentExtensions
             }
 
             int pieces = (int)Math.Ceiling(Math.Abs(sweep) / 90.0 - 1e-9);
-            double step = sweep / pieces * Math.PI / 180.0;
+            double step = (sweep / pieces).ToRadians();
             double k = 4.0 / 3.0 * Math.Tan(step / 4.0);
-            double angle = arc.StartAngle * Math.PI / 180.0;
+            double angle = arc.StartRadians;
 
             var curves = new List<BezierSegment>(pieces);
             for (int i = 0; i < pieces; i++)
             {
-                double next = angle + step;
-                var from = RimPoint(arc, angle);
-                var to = RimPoint(arc, next);
+                // The last piece ends on the arc's own end angle, not on the sum of the steps, so its end point is the one
+                // the SVG A command is written with (ArcSegment.EndPoint), to the last bit.
+                double next = i == pieces - 1 ? arc.EndRadians : angle + step;
+                var from = arc.PointAt(angle);
+                var to = arc.PointAt(next);
                 var leaving = Tangent(arc, angle);
                 var arriving = Tangent(arc, next);
                 curves.Add(new BezierSegment(
@@ -46,9 +49,6 @@ public static class ArcSegmentExtensions
             return curves;
         }
     }
-
-    private static Point RimPoint(ArcSegment arc, double radians) =>
-        new(arc.Center.X + arc.RadiusX * Math.Cos(radians), arc.Center.Y + arc.RadiusY * Math.Sin(radians));
 
     private static Point Tangent(ArcSegment arc, double radians) =>
         new(-arc.RadiusX * Math.Sin(radians), arc.RadiusY * Math.Cos(radians));

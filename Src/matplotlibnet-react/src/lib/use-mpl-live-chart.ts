@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import { useState, useEffect } from 'react';
-import { ChartSubscriptionClient } from './chart-subscription.client';
-import type { MplHub } from './mount-svg';
+import { ChartSubscriptionClient, type MplHub } from '@matplotlibnet/client';
 
 /** Return type for the useMplLiveChart hook. */
 export interface UseMplLiveChartResult {

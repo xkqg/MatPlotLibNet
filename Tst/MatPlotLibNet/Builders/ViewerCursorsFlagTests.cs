@@ -13,22 +13,19 @@ public class ViewerCursorsFlagTests
     private static Figure Build(Action<ServerInteractionBuilder> configure) =>
         Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).WithServerInteraction("c", configure).Build();
 
-    [Fact]
-    public void ItIsOffUnlessAskedFor()
+    public static TheoryData<string, Action<ServerInteractionBuilder>, bool> Asks => new()
     {
-        Assert.False(Build(s => s.EnableZoom()).EnableViewerCursors);
-    }
+        { "a zoom only", s => s.EnableZoom(), false },
+        { "the pointers", s => s.EnableViewerCursors(), true },
+        { "every event, which the pointers are not", s => s.All(), false },
+    };
 
-    [Fact]
-    public void EnablingIt_SetsTheFiguresFlag()
+    /// <summary>The pointers are on only when they are asked for.</summary>
+    [Theory]
+    [MemberData(nameof(Asks))]
+    public void ThePointers_AreOnOnlyWhenAskedFor(string asked, Action<ServerInteractionBuilder> configure, bool on)
     {
-        Assert.True(Build(s => s.EnableViewerCursors()).EnableViewerCursors);
-    }
-
-    [Fact]
-    public void EveryEvent_DoesNotIncludeIt_BecauseItIsNotAnEvent()
-    {
-        Assert.False(Build(s => s.All()).EnableViewerCursors);
+        Assert.True(on == Build(configure).EnableViewerCursors, $"asked for {asked}");
     }
 
     [Fact]
@@ -37,7 +34,7 @@ public class ViewerCursorsFlagTests
         var on = Build(s => s.EnableViewerCursors());
         var off = Build(s => s.EnableZoom());
 
-        Assert.True(ChartSerializerDefault.Current.FromJson(on.ToJson()).EnableViewerCursors);
+        Assert.True(on.RoundTripped().EnableViewerCursors);
         Assert.DoesNotContain("enableViewerCursors", off.ToJson(), StringComparison.OrdinalIgnoreCase);
     }
 

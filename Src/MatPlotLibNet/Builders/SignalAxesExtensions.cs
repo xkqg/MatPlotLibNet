@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Numerics;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -45,13 +44,6 @@ public static class SignalAxesExtensions
     /// <summary>The title of the Y axis of the angle spectrum.</summary>
     private const string AngleTitle = "Angle (radians)";
 
-    /// <summary>The decibels a power is drawn in: ten times the logarithm to base ten of it.</summary>
-    private const double DecibelsPerDecadeOfPower = 10;
-
-    /// <summary>The decibels a magnitude (an amplitude, the square root of a power) is drawn in: twenty times the logarithm to
-    /// base ten of it.</summary>
-    private const double DecibelsPerDecadeOfMagnitude = 20;
-
     extension(AxesBuilder axes)
     {
         /// <summary>Draws the power spectral density of a signal (matplotlib's <c>psd</c>): how the power of the signal is spread
@@ -71,12 +63,19 @@ public static class SignalAxesExtensions
         /// the call replaces either. The verb sets no axis limits.</para>
         /// <para>A sample that is missing (NaN) or infinite makes every segment that holds it missing, and a missing segment is
         /// left out of the average. When every segment is missing there is nothing to estimate and nothing is drawn.</para>
+        /// <para>On one side every frequency but 0 counts twice, for its mirror image on the other side, and so does the last one
+        /// unless it is exactly half the sample rate, which has no mirror image: that is so when the length the segments are
+        /// transformed at is even. With <see cref="SpectralOptions.PadTo"/> set that is the padded length. matplotlib takes the
+        /// segment length for it, so when the padding turns an even length odd or an odd one even, matplotlib's last value is half
+        /// or twice what it should be (its line ends 3 dB low or high there) and its spectrum no longer adds up to the power of the
+        /// signal. This one does, padded or not; without padding the two are the same.</para>
         /// <para>The chart is its one line: written to JSON it is a line series whose missing points are the string "NaN", and
         /// read back it draws the same picture. It is not estimated again; change the signal or the options and call the verb
         /// again.</para></summary>
         /// <param name="signal">The samples, in the order they were taken, at least as many as one segment.</param>
         /// <param name="options">How the spectrum is estimated: the sample rate, the segment length and its overlap, the window,
-        /// the detrend, the padding and the scaling. The default value holds matplotlib's defaults.</param>
+        /// the detrend, the padding, the scaling and the sides (from 0 up to half the sample rate, or <see cref="SpectralSides.TwoSided"/>
+        /// from minus half the sample rate, each bin at half the power). The default value holds matplotlib's defaults.</param>
         /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
         /// colour, the width, the dash pattern, a label for the legend.</param>
         /// <returns>The same builder, for chaining.</returns>
@@ -103,15 +102,12 @@ public static class SignalAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(signal);
-            if (signal.Length == 0)
-            {
-                throw new ArgumentException("The signal holds no samples; a spectrum is estimated from at least one segment of them.", nameof(signal));
-            }
+            signal.ThrowIfEmpty("The signal holds no samples; a spectrum is estimated from at least one segment of them.");
 
             // Estimated (and the options refused, by their own name) before the line is added, so a refused call leaves the axes as it was.
             SpectralDensity density = Welch.Psd(signal, options);
             string unit = options.Scaling == SpectralScaling.Spectrum ? "dB" : "dB/Hz";
-            return axes.DrawSpectrum(density.Frequencies, density.Power.ToDecibels(DecibelsPerDecadeOfPower), $"Power Spectral Density ({unit})", configure);
+            return axes.DrawSpectrum(density.Frequencies, density.Power.PowerInDecibels(), $"Power Spectral Density ({unit})", configure);
         }
 
         /// <summary>Draws the cross spectral density of two signals (matplotlib's <c>csd</c>): how much power the two signals
@@ -122,7 +118,8 @@ public static class SignalAxesExtensions
         /// segments of the two signals taken together: the product conj(X)·Y of the two transforms of a segment is averaged over
         /// the segments, and the line is ten times the logarithm to base ten of its MAGNITUDE (matplotlib's choice: the size, not
         /// the square of it). The cross density of a signal with itself is its power density. With the options left out the
-        /// defaults are matplotlib's, as for <see cref="Psd"/>.</para>
+        /// defaults are matplotlib's, as for <see cref="Psd"/>. On one side the frequencies count twice as they do there, the last
+        /// one by the padded length, where matplotlib takes the segment length (see <see cref="Psd"/>).</para>
         /// <para>The line is ONE <see cref="LineSeries"/> of the frequencies and the decibels, wearing one colour of the theme's
         /// cycle. A frequency with no cross power at all is a gap in the line, never minus infinity. The X axis is titled
         /// "Frequency" and the Y axis "Cross Spectrum Magnitude (dB)"; a title of your own set after the call replaces either.
@@ -135,7 +132,8 @@ public static class SignalAxesExtensions
         /// <param name="x">The samples of the first signal, in the order they were taken.</param>
         /// <param name="y">The samples of the second signal, one for each sample of <paramref name="x"/>.</param>
         /// <param name="options">How the spectrum is estimated: the sample rate, the segment length and its overlap, the window,
-        /// the detrend, the padding and the scaling. The default value holds matplotlib's defaults.</param>
+        /// the detrend, the padding, the scaling and the sides (from 0 up to half the sample rate, or <see cref="SpectralSides.TwoSided"/>
+        /// from minus half the sample rate, each bin at half the power). The default value holds matplotlib's defaults.</param>
         /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
         /// colour, the width, the dash pattern, a label for the legend.</param>
         /// <returns>The same builder, for chaining.</returns>
@@ -164,7 +162,7 @@ public static class SignalAxesExtensions
 
             CrossSpectralDensity cross = Welch.Csd(x, y, options);
             double[] magnitude = [.. cross.Power.Select(Complex.Abs)];
-            return axes.DrawSpectrum(cross.Frequencies, magnitude.ToDecibels(DecibelsPerDecadeOfPower), CrossSpectrumTitle, configure);
+            return axes.DrawSpectrum(cross.Frequencies, magnitude.PowerInDecibels(), CrossSpectrumTitle, configure);
         }
 
         /// <summary>Draws the coherence of two signals (matplotlib's <c>cohere</c>): at each frequency, how much of one signal
@@ -188,7 +186,8 @@ public static class SignalAxesExtensions
         /// <param name="x">The samples of the first signal, in the order they were taken.</param>
         /// <param name="y">The samples of the second signal, one for each sample of <paramref name="x"/>.</param>
         /// <param name="options">How the spectra are estimated: the sample rate, the segment length and its overlap, the window,
-        /// the detrend and the padding. The default value holds matplotlib's defaults.</param>
+        /// the detrend, the padding and the sides (the coherence is the same on both halves). The default value holds matplotlib's
+        /// defaults.</param>
         /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
         /// colour, the width, the dash pattern, a label for the legend.</param>
         /// <returns>The same builder, for chaining.</returns>
@@ -219,12 +218,8 @@ public static class SignalAxesExtensions
             // Estimated first, so that a missing or empty signal, signals of other lengths and options that do not fit are refused by
             // the estimator, each by its own name; what is left to refuse is a signal that holds fewer than two segments.
             SpectralDensity coherence = Welch.Coherence(x, y, options);
-            if (x.Length < 2 * options.SegmentLength)
-            {
-                throw new ArgumentException(
-                    $"A coherence is averaged over at least two segments, and a signal of {Shown(x.Length)} samples does not hold two of {Shown(options.SegmentLength)}; set a shorter SegmentLength or give longer signals.",
-                    nameof(options));
-            }
+            x.Length.ThrowIfFewerThan(2L * options.SegmentLength, nameof(options),
+                new("The signal", "sample", "a coherence, averaged over two segments of SegmentLength,", "set a shorter SegmentLength or give longer signals"));
 
             return axes.DrawSpectrum(coherence.Frequencies, coherence.Power, CoherenceTitle, configure);
         }
@@ -249,8 +244,9 @@ public static class SignalAxesExtensions
         /// read back it draws the same picture. It is not transformed again; change the signal or the options and call the verb
         /// again.</para></summary>
         /// <param name="signal">The samples, in the order they were taken, at least one.</param>
-        /// <param name="options">How the spectrum is taken: the sample rate, the window, the padding and the frequency offset.
-        /// The default value holds matplotlib's defaults.</param>
+        /// <param name="options">How the spectrum is taken: the sample rate, the window, the padding, the frequency offset and the
+        /// sides (from 0 up to half the sample rate, or <see cref="SpectralSides.TwoSided"/> from minus half the sample rate). The
+        /// default value holds matplotlib's defaults.</param>
         /// <param name="scale">The scale of the magnitudes: <see cref="MagnitudeScale.Linear"/> (the default) or
         /// <see cref="MagnitudeScale.Decibel"/>.</param>
         /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
@@ -278,16 +274,13 @@ public static class SignalAxesExtensions
         public AxesBuilder MagnitudeSpectrum(double[] signal, SpectrumOptions options = default, MagnitudeScale scale = MagnitudeScale.Linear, Action<LineSeries>? configure = null)
         {
             ArgumentNullException.ThrowIfNull(axes);
-            if (!Enum.IsDefined(scale))
-            {
-                throw new ArgumentOutOfRangeException(nameof(scale), scale, "The scale is Linear or Decibel.");
-            }
+            scale.ThrowIfNotDefined(nameof(scale), "The scale is Linear or Decibel.");
 
             // Transformed (and the signal and the options refused, by their own names) before the line is added.
-            OneSidedSpectrum spectrum = Spectrum.Of(signal, options);
+            SignalSpectrum spectrum = Spectrum.Of(signal, options);
             double[] magnitudes = spectrum.Magnitudes();
             return scale == MagnitudeScale.Decibel
-                ? axes.DrawSpectrum(spectrum.Frequencies, magnitudes.ToDecibels(DecibelsPerDecadeOfMagnitude), DecibelMagnitudeTitle, configure)
+                ? axes.DrawSpectrum(spectrum.Frequencies, magnitudes.MagnitudeInDecibels(), DecibelMagnitudeTitle, configure)
                 : axes.DrawSpectrum(spectrum.Frequencies, magnitudes, LinearMagnitudeTitle, configure);
         }
 
@@ -307,8 +300,9 @@ public static class SignalAxesExtensions
         /// <para>The chart is its one line: written to JSON it is a line series whose missing points are the string "NaN", and
         /// read back it draws the same picture.</para></summary>
         /// <param name="signal">The samples, in the order they were taken, at least one.</param>
-        /// <param name="options">How the spectrum is taken: the sample rate, the window, the padding and the frequency offset.
-        /// The default value holds matplotlib's defaults.</param>
+        /// <param name="options">How the spectrum is taken: the sample rate, the window, the padding, the frequency offset and the
+        /// sides (from 0 up to half the sample rate, or <see cref="SpectralSides.TwoSided"/> from minus half the sample rate). The
+        /// default value holds matplotlib's defaults.</param>
         /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
         /// colour, the width, the dash pattern, a label for the legend.</param>
         /// <returns>The same builder, for chaining.</returns>
@@ -331,7 +325,7 @@ public static class SignalAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
 
-            OneSidedSpectrum spectrum = Spectrum.Of(signal, options);
+            SignalSpectrum spectrum = Spectrum.Of(signal, options);
             return axes.DrawSpectrum(spectrum.Frequencies, spectrum.Phases(), PhaseTitle, configure);
         }
 
@@ -351,8 +345,9 @@ public static class SignalAxesExtensions
         /// <para>The chart is its one line: written to JSON it is a line series whose missing points are the string "NaN", and
         /// read back it draws the same picture.</para></summary>
         /// <param name="signal">The samples, in the order they were taken, at least one.</param>
-        /// <param name="options">How the spectrum is taken: the sample rate, the window, the padding and the frequency offset.
-        /// The default value holds matplotlib's defaults.</param>
+        /// <param name="options">How the spectrum is taken: the sample rate, the window, the padding, the frequency offset and the
+        /// sides (from 0 up to half the sample rate, or <see cref="SpectralSides.TwoSided"/> from minus half the sample rate). The
+        /// default value holds matplotlib's defaults.</param>
         /// <param name="configure">Optional styling of the line, run once after the verb has built it, so what it sets wins: the
         /// colour, the width, the dash pattern, a label for the legend.</param>
         /// <returns>The same builder, for chaining.</returns>
@@ -374,7 +369,7 @@ public static class SignalAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
 
-            OneSidedSpectrum spectrum = Spectrum.Of(signal, options);
+            SignalSpectrum spectrum = Spectrum.Of(signal, options);
             return axes.DrawSpectrum(spectrum.Frequencies, spectrum.Angles(), AngleTitle, configure);
         }
 
@@ -515,17 +510,4 @@ public static class SignalAxesExtensions
             return axes;
         }
     }
-
-    extension(double[] values)
-    {
-        /// <summary>The decibels of each value: <paramref name="decibelsPerDecade"/> times its logarithm to base ten (10 for a
-        /// power, 20 for a magnitude). A value that is not above zero has no logarithm: it is NaN, a gap in the line, and not
-        /// minus infinity (zero) or an error (a missing value is NaN already).</summary>
-        /// <param name="decibelsPerDecade">The decibels a factor of ten in the value adds.</param>
-        /// <returns>The decibels, one for each value.</returns>
-        private double[] ToDecibels(double decibelsPerDecade) =>
-            [.. values.Select(value => value > 0 ? decibelsPerDecade * Math.Log10(value) : double.NaN)];
-    }
-
-    private static string Shown(int count) => count.ToString(CultureInfo.InvariantCulture);
 }

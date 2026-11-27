@@ -17,7 +17,6 @@ public static class AxesPolarVerbs
         public PolarLineSeries PolarPlot(double[] r, double[] theta)
         {
             r.Length.ThrowIfMisaligned(theta.Length);
-            axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarLineSeries(r, theta));
         }
 
@@ -25,7 +24,6 @@ public static class AxesPolarVerbs
         public PolarScatterSeries PolarScatter(double[] r, double[] theta)
         {
             r.Length.ThrowIfMisaligned(theta.Length);
-            axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarScatterSeries(r, theta));
         }
 
@@ -33,7 +31,6 @@ public static class AxesPolarVerbs
         public PolarBarSeries PolarBar(double[] r, double[] theta)
         {
             r.Length.ThrowIfMisaligned(theta.Length);
-            axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarBarSeries(r, theta));
         }
 
@@ -44,7 +41,6 @@ public static class AxesPolarVerbs
         /// <param name="rBins">Number of radial divisions.</param>
         public PolarHeatmapSeries PolarHeatmap(double[,] data, int thetaBins, int rBins)
         {
-            axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarHeatmapSeries(data, thetaBins, rBins));
         }
     }

@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming EhlersSuperSmoother: the Ehlers two-pole super smoother. It is the <see cref="SuperSmootherStep"/> the batch <see cref="EhlersSuperSmoother"/> folds over its input, taken
+/// <summary>Streaming EhlersSuperSmoother: the Ehlers two-pole super smoother. It is the step the batch <see cref="EhlersSuperSmoother"/> folds over its input, taken
 /// one price (the close of a bar, when it is attached to a candle series) at a time, so after each one it says what the batch says over everything so far; a value the batch does not have yet
 /// is NaN. O(1) per input.</summary>
 public sealed class StreamingEhlersSuperSmoother : StreamingIndicator<double>
@@ -13,18 +14,15 @@ public sealed class StreamingEhlersSuperSmoother : StreamingIndicator<double>
     private SuperSmootherStep _step;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => 1;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming EhlersSuperSmoother.</summary>
     /// <param name="period">The cut-off period in bars; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingEhlersSuperSmoother(int period = 10, int capacity = 10_000)
-        : base(capacity)
+    public StreamingEhlersSuperSmoother(int period = EhlersSuperSmoother.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(EhlersSuperSmoother.Spec(period), capacity)
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _step = new SuperSmootherStep(period);
-        Label = $"SS({period})";
     }
 
     /// <inheritdoc />

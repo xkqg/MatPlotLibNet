@@ -10,8 +10,8 @@ public enum DrawStyle
 {
     /// <summary>Straight segments joining consecutive points, with no stepping.</summary>
     Default  = 0,
-    /// <summary>Step line that runs flat from each point to the next point's x and jumps there, as <see cref="StepsPost"/> does: the
-    /// two styles draw the same path today, and this one is not matplotlib's <c>steps-pre</c> (which jumps at the earlier point).</summary>
+    /// <summary>Step line whose vertical jump falls at the earlier point: it rises to the next point's value first and then runs flat
+    /// to that point's x (matplotlib's <c>steps-pre</c>).</summary>
     StepsPre = 1,
     /// <summary>Step line whose vertical jump falls halfway between two consecutive points (matplotlib's <c>steps-mid</c>).</summary>
     StepsMid = 2,

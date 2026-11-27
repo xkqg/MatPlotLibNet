@@ -21,19 +21,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
 
     public MatPlotLibNetEndpointsTests()
     {
-        _host = new HostBuilder()
-            .ConfigureWebHost(webBuilder =>
-            {
-                webBuilder.UseTestServer();
-                webBuilder.ConfigureServices(services =>
-                {
-                    services.AddRouting();
-                    services.AddMatPlotLibNetSignalR();
-                });
-                webBuilder.Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
+        _host = SignalRTestHost.Start(endpoints =>
                     {
                         endpoints.MapChartEndpoint("/api/chart/test", _ =>
                             Plt.Create()
@@ -56,27 +44,20 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
                                     .Plot([1.0, 2.0], [12.0, 18.0], s => s.Label = "€M"))
                                 .Build());
                     });
-                });
-            })
-            .Start();
 
         _client = _host.GetTestClient();
     }
 
-    /// <summary>Verifies that the chart JSON endpoint returns HTTP 200 OK.</summary>
-    [Fact]
-    public async Task MapChartEndpoint_ReturnsOk()
+    /// <summary>Verifies that the chart endpoints (JSON and SVG) answer 200 OK with their own content type.</summary>
+    [Theory]
+    [InlineData("/api/chart/test", "application/json")]
+    [InlineData("/api/chart/test.svg", "image/svg+xml")]
+    public async Task AChartEndpoint_ReturnsOk_WithItsContentType(string route, string mediaType)
     {
-        var response = await _client.GetAsync("/api/chart/test", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
+        var response = await _client.GetAsync(route, TestContext.Current.CancellationToken);
 
-    /// <summary>Verifies that the chart JSON endpoint returns application/json content type.</summary>
-    [Fact]
-    public async Task MapChartEndpoint_ReturnsJsonContentType()
-    {
-        var response = await _client.GetAsync("/api/chart/test", TestContext.Current.CancellationToken);
-        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(mediaType, response.Content.Headers.ContentType?.MediaType);
     }
 
     /// <summary>Verifies that the chart JSON endpoint returns valid JSON with the expected title and width.</summary>
@@ -107,22 +88,6 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         var series = subPlots[0].GetProperty("series");
         Assert.True(series.GetArrayLength() > 0);
         Assert.Equal("line", series[0].GetProperty("type").GetString());
-    }
-
-    /// <summary>Verifies that the chart SVG endpoint returns HTTP 200 OK.</summary>
-    [Fact]
-    public async Task MapChartSvgEndpoint_ReturnsOk()
-    {
-        var response = await _client.GetAsync("/api/chart/test.svg", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    /// <summary>Verifies that the chart SVG endpoint returns image/svg+xml content type.</summary>
-    [Fact]
-    public async Task MapChartSvgEndpoint_ReturnsSvgContentType()
-    {
-        var response = await _client.GetAsync("/api/chart/test.svg", TestContext.Current.CancellationToken);
-        Assert.Equal("image/svg+xml", response.Content.Headers.ContentType?.MediaType);
     }
 
     /// <summary>Verifies that the chart SVG endpoint returns valid SVG containing the chart title.</summary>

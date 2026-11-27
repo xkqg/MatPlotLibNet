@@ -9,14 +9,16 @@ namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Fluent extension methods for attaching streaming indicators to a
 /// <see cref="StreamingCandlestickSeries"/>. <see cref="WithStreaming{TIndicator}"/> is the one attach: the indicator is fed every
-/// bar the series receives, with the volume the bar came with, and its output lines are added to the axes. The named verbs
+/// bar the series receives, with the volume the bar came with, its output lines are added to the axes, and the axes is pinned to the
+/// range the indicator's values live in where its batch indicator pins its own pane (0 to 100 for an RSI). The named verbs
 /// (<c>WithStreamingSma</c>, …) are that call with the indicator made for the reader.</summary>
 public static class StreamingIndicatorExtensions
 {
     extension(StreamingCandlestickSeries candles)
     {
         /// <summary>Attaches a streaming indicator: feeds it every bar the series receives (the prices of the bar, and its
-        /// volume, or NaN when the bar came without one) and adds its output lines to <paramref name="axes"/>.</summary>
+        /// volume, or NaN when the bar came without one), adds its output lines to <paramref name="axes"/> and pins its Y axis to the
+        /// range the indicator's values live in, as the batch indicator pins its pane.</summary>
         /// <typeparam name="TIndicator">The indicator; it keeps its own type, so a caller can read its warm-up and latest value.</typeparam>
         /// <param name="axes">The axes the output lines are added to.</param>
         /// <param name="indicator">The indicator, made by the caller.</param>
@@ -26,6 +28,7 @@ public static class StreamingIndicatorExtensions
         {
             candles.OhlcvBarAppended += indicator.AppendBar;
             foreach (var s in indicator.OutputSeries) axes.AddSeries(s);
+            indicator.PinPane(axes);
             return indicator;
         }
 
@@ -38,34 +41,34 @@ public static class StreamingIndicatorExtensions
             => candles.WithStreaming(axes, new StreamingEma(period, candles.Capacity));
 
         /// <summary>Attaches a streaming RSI that auto-computes on each appended bar.</summary>
-        public StreamingRsi WithStreamingRsi(Axes axes, int period = 14)
+        public StreamingRsi WithStreamingRsi(Axes axes, int period = Rsi.DefaultPeriod)
             => candles.WithStreaming(axes, new StreamingRsi(period, candles.Capacity));
 
         /// <summary>Attaches streaming Bollinger Bands that auto-compute on each appended bar.</summary>
         public StreamingBollinger WithStreamingBollinger(Axes axes,
-            int period = 20, double numStdDev = 2.0)
+            int period = BollingerBands.DefaultPeriod, double numStdDev = BollingerBands.DefaultStdDevMultiplier)
             => candles.WithStreaming(axes, new StreamingBollinger(period, numStdDev, candles.Capacity));
 
         /// <summary>Attaches a streaming MACD that auto-computes on each appended bar.</summary>
         public StreamingMacd WithStreamingMacd(Axes axes,
-            int fast = 12, int slow = 26, int signal = 9)
+            int fast = Macd.DefaultFastPeriod, int slow = Macd.DefaultSlowPeriod, int signal = Macd.DefaultSignalPeriod)
             => candles.WithStreaming(axes, new StreamingMacd(fast, slow, signal, candles.Capacity));
 
         /// <summary>Attaches a streaming ATR that auto-computes on each appended candle.</summary>
-        public StreamingAtr WithStreamingAtr(Axes axes, int period = 14)
+        public StreamingAtr WithStreamingAtr(Axes axes, int period = Atr.DefaultPeriod)
             => candles.WithStreaming(axes, new StreamingAtr(period, candles.Capacity));
 
         /// <summary>Attaches a streaming Stochastic Oscillator that auto-computes on each appended candle.</summary>
         public StreamingStochastic WithStreamingStochastic(Axes axes,
-            int kPeriod = 14, int dPeriod = 3)
+            int kPeriod = Stochastic.DefaultKPeriod, int dPeriod = Stochastic.DefaultDPeriod)
             => candles.WithStreaming(axes, new StreamingStochastic(kPeriod, dPeriod, candles.Capacity));
 
         /// <summary>Attaches a streaming Williams %R that auto-computes on each appended candle.</summary>
-        public StreamingWilliamsR WithStreamingWilliamsR(Axes axes, int period = 14)
+        public StreamingWilliamsR WithStreamingWilliamsR(Axes axes, int period = WilliamsR.DefaultPeriod)
             => candles.WithStreaming(axes, new StreamingWilliamsR(period, candles.Capacity));
 
         /// <summary>Attaches a streaming CCI that auto-computes on each appended candle.</summary>
-        public StreamingCci WithStreamingCci(Axes axes, int period = 20)
+        public StreamingCci WithStreamingCci(Axes axes, int period = Cci.DefaultPeriod)
             => candles.WithStreaming(axes, new StreamingCci(period, candles.Capacity));
 
         /// <summary>Attaches a streaming on-balance volume that adds or subtracts the volume of each appended bar. A bar that

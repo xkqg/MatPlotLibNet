@@ -8,39 +8,46 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter plot in polar coordinates (r, theta).</summary>
-public sealed class PolarScatterSeries : PolarSeries, IHasColor
+public sealed class PolarScatterSeries : PolarSeries, IHasColor, ISeriesKind<PolarScatterSeries>
 {
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    /// <remarks>matplotlib's <c>scatter</c> on a polar axes.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Scatter;
 
-    /// <summary>The size of each point marker, in points. Default 6.</summary>
-    public double MarkerSize { get; set; } = 6;
+    /// <inheritdoc />
+    public Color? Color { get; set => Change(ref field, value); }
+
+    /// <summary>The size of each point marker, in points. Default <see cref="MarkerLook.RestingSize"/>. Given no size, the marker is the size its theme says (20 points
+    /// squared under the classic theme); a size that is given, the default included, is drawn as given.</summary>
+    public double MarkerSize { get => GivenMarkerSize ?? MarkerLook.RestingSize; set => GivenMarkerSize = value; }
+
+    /// <summary>The marker size that was given, <see langword="null"/> when none was and the marker is the size its theme says.</summary>
+    internal double? GivenMarkerSize { get; private set => Change(ref field, value); }
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Scatter, MarkerSize: GivenMarkerSize);
 
     /// <summary>Initializes a new polar scatter series.</summary>
     public PolarScatterSeries(double[] r, double[] theta) : base(r, theta) { }
 
+    static string ISeriesKind<PolarScatterSeries>.Kind => "polarscatter";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "polarscatter",
+        Type = this.WireKind(),
         RData = R,
         ThetaData = Theta,
         Color = Color,
-        MarkerSize = MarkerSize.OrNullAtRest(6.0),
+        MarkerSize = GivenMarkerSize,
     };
 
-    /// <summary>Reconstructs a <see cref="PolarScatterSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="PolarScatterSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static PolarScatterSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.PolarScatter(dto.RData ?? [], dto.ThetaData ?? []);
         s.Color = dto.Color;
-        if (dto.MarkerSize.HasValue)
-        {
-            s.MarkerSize = dto.MarkerSize.Value;
-        }
+        if (dto.MarkerSize is { } markerSize) s.MarkerSize = markerSize;
         return s;
     }
 

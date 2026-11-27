@@ -69,16 +69,24 @@ internal sealed class ResidualSeriesRenderer : SeriesRenderer<ResidualSeries>
     {
         if (Residuals(series, reportFailure: true) is not { } points) return;
 
-        var color = ResolveColor(series.Color);
-        double r = series.MarkerSize / 2.0;
+        var theme = Context.Theme;
+        var color = ColorOf(series);
+        double r = series.DiameterUnder(theme, Slot) / 2.0;
+        // seaborn's regression scatter: its colour at its opacity on the face and, where the dot look outlines it, on an edge as wide as
+        // the theme's marker edge (lines.markeredgewidth).
+        var face = color.WithOpacityGiven(series.OpacityUnder(theme));
+        var dot = theme.Looks.Dots.RegressionEdged && theme.Looks.Markers.LineEdge is { } edge
+            ? ShapeStyle.Edged(face, face, edge.EdgeWidth)
+            : ShapeStyle.Filled(face);
         foreach (var point in points)
-            Ctx.DrawCircle(point, r, new ShapeStyle(color, null, 0));
+            Ctx.DrawCircle(point, r, dot);
 
-        if (series.ShowZeroLine)
-        {
-            var left = Transform.DataToPixel(Transform.DataXMin, 0);
-            var right = Transform.DataToPixel(Transform.DataXMax, 0);
-            Ctx.DrawLine(left, right, new StrokeStyle(color.WithAlpha(128), 1, Styling.LineStyle.Dashed));
-        }
+        // The zero line is seaborn's ax.axhline(0): across the plot from the left edge to the right whatever the X axis' scale,
+        // at the height of 0, placed as a horizontal reference line is (the height of its value at the low end of the X range), in the
+        // theme's guide line (SeabornVerbLook.ResidualZeroLine). A log Y axis puts 0 a thousand decades below the plot and a limit the
+        // caller set can leave it above or below: then it is not drawn.
+        if (series.ShowZeroLine && Transform.DataToPixel(Transform.UnscaledXMin, 0).Y is var zeroY && zeroY.IsDrawable()
+            && Transform.PlotBounds.HorizontalAcross(zeroY) is { } zero)
+            Ctx.DrawLine(zero.From, zero.To, theme.Looks.Verbs.ResidualZeroLine.StrokeIn(Slot, color));
     }
 }

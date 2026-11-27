@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Rendering.Svg;
 
@@ -45,12 +46,7 @@ internal static class SvgDocumentExtensions
         public string WithSaveOptions(SaveOptions options)
         {
             ArgumentNullException.ThrowIfNull(options);
-            if (options.SvgDecimalPrecision is < 0 or > MostDecimals)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(SaveOptions.SvgDecimalPrecision), options.SvgDecimalPrecision,
-                    $"The number of decimals of an SVG must be between 0 and {MostDecimals}.");
-            }
+            options.SvgDecimalPrecision?.ThrowIfNotIn(0, MostDecimals, nameof(SaveOptions.SvgDecimalPrecision), "The number of decimals of an SVG");
 
             string? title = options.TitleOrNull();
             string? author = options.AuthorOrNull();
@@ -86,7 +82,7 @@ internal static class SvgDocumentExtensions
                 PrefixIds(root, idPrefix);
             }
 
-            return Write(document, options.PrettifySvg);
+            return document.ToSvgText(options.PrettifySvg);
         }
     }
 
@@ -196,40 +192,50 @@ internal static class SvgDocumentExtensions
         // binary fraction, which is a hair under. Only an exponent form, a number that is tiny or huge, takes a double.
         if (!exponent)
         {
-            if (!decimal.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal exact))
+            if (!token.TryReadInvariant(NumberStyles.Float, out decimal exact))
             {
                 return token;
             }
 
             decimal rounded = Math.Round(exact, decimals, MidpointRounding.AwayFromZero);
-            return rounded == 0 ? "0" : rounded.ToString("0." + new string('#', MostDecimals), CultureInfo.InvariantCulture);
+            return rounded == 0 ? "0" : rounded.InvariantText("0." + new string('#', MostDecimals));
         }
 
         // Every match of Number is a valid float, so this parse cannot fail; one past the range of a double is infinite.
-        double value = double.Parse(token, NumberStyles.Float, CultureInfo.InvariantCulture);
+        double value = token.ReadInvariant<double>(NumberStyles.Float);
         if (!double.IsFinite(value))
         {
             return token;
         }
 
         double roundedValue = Math.Round(value, decimals, MidpointRounding.AwayFromZero);
-        return roundedValue == 0 ? "0" : roundedValue.ToString("G", CultureInfo.InvariantCulture);
+        return roundedValue == 0 ? "0" : roundedValue.InvariantText();
     }
 
-    private static string Write(XDocument document, bool indent)
+    extension(XNode node)
     {
-        var text = new StringBuilder();
-        var settings = new XmlWriterSettings
+        /// <summary>The node as SVG text: no XML declaration, indented by two spaces when <paramref name="indent"/> is set,
+        /// and every line, the ones inside a script included, ended with <see cref="LineEndExtensions.LineEnd"/> rather than
+        /// the operating system's line end, which an XML writer otherwise writes. The one way the library writes an XML tree:
+        /// the save options' document and the SVG that steps through an animation's frames.</summary>
+        /// <param name="indent">Whether to indent the elements.</param>
+        /// <returns>The text.</returns>
+        internal string ToSvgText(bool indent)
         {
-            OmitXmlDeclaration = true,
-            Indent = indent,
-            IndentChars = "  ",
-        };
-        using (var writer = XmlWriter.Create(text, settings))
-        {
-            document.Save(writer);
-        }
+            var text = new StringBuilder();
+            var settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                Indent = indent,
+                IndentChars = "  ",
+                NewLineChars = LineEndExtensions.LineEnd,
+            };
+            using (var writer = XmlWriter.Create(text, settings))
+            {
+                node.WriteTo(writer);
+            }
 
-        return text.ToString();
+            return text.ToString();
+        }
     }
 }

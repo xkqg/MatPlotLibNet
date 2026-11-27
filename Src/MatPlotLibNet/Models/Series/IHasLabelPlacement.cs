@@ -10,10 +10,6 @@ namespace MatPlotLibNet.Models.Series;
 /// builder of any Y axis (<see cref="YAxisSlotBuilder"/>), which marks the series added last.</remarks>
 public interface IHasLabelPlacement
 {
-    /// <summary>Where the series shows its name. Default <see cref="SeriesLabelPlacement.Legend"/>.</summary>
+    /// <summary>Where the series shows its name. Default <see cref="ChartSeries.RestingLabelPlacement"/>.</summary>
     SeriesLabelPlacement LabelPlacement { get; set; }
-
-    /// <summary>The points of the line as the end label reads them: one consistent snapshot of the x and y values,
-    /// so the label is placed at the end of the line that is drawn.</summary>
-    internal LinePoints LinePoints();
 }

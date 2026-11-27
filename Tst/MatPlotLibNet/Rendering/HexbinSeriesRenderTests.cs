@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -12,45 +13,40 @@ public class HexbinSeriesRenderTests
     private static readonly double[] X = Enumerable.Range(0, 30).Select(i => (double)(i % 6)).ToArray();
     private static readonly double[] Y = Enumerable.Range(0, 30).Select(i => (double)(i / 6)).ToArray();
 
-    /// <summary>Hexbin renders to SVG without throwing.</summary>
-    [Fact]
-    public void Hexbin_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // SVG contains polygon elements for hex cells.
+        new DrawnToken("Hexbin_SvgContainsPolygons", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<polygon"),
+        // MinCount set higher than any single-bin count — all bins are filtered at the count < minCount check, but the normMin >= normMax
+        // guard fires first to clamp the normalisation range. No polygons should be drawn.
+        new DrawnToken("Hexbin_HighMinCount_NormalisationClampFires_NoPolygonsDrawn", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(
+                [0.0, 1.0, 2.0, 3.0, 4.0],
+                [0.0, 1.0, 2.0, 3.0, 4.0],
+                s => s.MinCount = 100))
+            .ToSvg()) { Absent = ["<polygon"] },
+        new DrawnToken("Hexbin_MinCountZero_WithNoObservations_DrawsNothing", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Hexbin([], [], s => s.MinCount = 0)).ToSvg()) { Absent = ["<polygon"] },
+        // ColorMap explicitly set — uses the provided colormap instead of falling back to Viridis. SVG must still
+        // contain polygons.
+        new DrawnToken("Hexbin_ExplicitColorMap_RendersPolygons", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y,
+                s => s.ColorMap = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Plasma))
+            .ToSvg(), "<polygon"),
+        // Normalizer explicitly set — uses the provided normalizer instead of LinearNormalizer. SVG must still contain
+        // polygons.
+        new DrawnToken("Hexbin_ExplicitNormalizer_RendersPolygons", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y,
+                s => s.Normalizer = MatPlotLibNet.Styling.ColorMaps.LinearNormalizer.Instance))
+            .ToSvg(), "<polygon"),
+        new DrawnToken("Hexbin_MinCountZero_DrawsTheFullestHexagonInTheHighestColour", () => Svg(0), $"fill=\"{MatPlotLibNet.Styling.ColorMaps.ColorMaps.Viridis.GetColor(1).ToHex()}\""),
+    };
 
-    /// <summary>SVG contains polygon elements for hex cells.</summary>
-    [Fact]
-    public void Hexbin_SvgContainsPolygons()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y))
-            .ToSvg();
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Empty data renders without throwing.</summary>
-    [Fact]
-    public void Hexbin_EmptyData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Hexbin([], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>Custom GridSize renders without error.</summary>
-    [Fact]
-    public void Hexbin_CustomGridSize_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y, s => s.GridSize = 5))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>JSON round-trip preserves type tag "hexbin".</summary>
     [Fact]
@@ -67,47 +63,70 @@ public class HexbinSeriesRenderTests
         Assert.NotNull(series);
     }
 
-    // ── Wave J.1 — branch close-out ──────────────────────────────────────
+    // ── matplotlib's hexagons ───────────────────────────────────────────────────────────────────────────────────
 
-/// <summary>MinCount set higher than any single-bin count — all bins are filtered
-    /// at the count &lt; minCount check, but the <c>normMin &gt;= normMax</c> guard fires
-    /// first to clamp the normalisation range. No polygons should be drawn.</summary>
-    [Fact]
-    public void Hexbin_HighMinCount_NormalisationClampFires_NoPolygonsDrawn()
+    /// <summary>The first hexagon of the picture: a polygon that has a fill and a stroke.</summary>
+    private static SvgElement Hexagon(string svg)
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(
-                [0.0, 1.0, 2.0, 3.0, 4.0],
-                [0.0, 1.0, 2.0, 3.0, 4.0],
-                s => s.MinCount = 100))
-            .ToSvg();
-        Assert.DoesNotContain("<polygon", svg);
+        var hexagon = svg.Elements("polygon").FirstOrDefault(polygon => polygon["points"] is not null && polygon["fill"]?.StartsWith('#') == true && polygon["stroke"]?.StartsWith('#') == true);
+        Assert.True(hexagon.Attributes is not null, "a polygon with a fill and a stroke");
+        return hexagon;
     }
 
-    // ── J.1 — L35/L36 non-null arms: explicit ColorMap and Normalizer ─────────
-
-    /// <summary>L35 non-null arm: ColorMap explicitly set — uses the provided colormap
-    /// instead of falling back to Viridis. SVG must still contain polygons.</summary>
+    /// <summary>matplotlib 3.11.2, <c>Axes.hexbin</c>: the polygon is <c>[sx, sy / 3] * [[.5, -.5], [.5, .5], [0, 1], [-.5, .5], [-.5, -.5],
+    /// [0, -1]]</c>, a hexagon with a vertex up and down and a vertical edge on each side; the hexagons of a row touch.</summary>
     [Fact]
-    public void Hexbin_ExplicitColorMap_RendersPolygons()
+    public void Hexbin_DrawsHexagonsWithAVertexUpAndDown_AndAVerticalEdgeEachSide()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y,
-                s => s.ColorMap = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Plasma))
-            .ToSvg();
-        Assert.Contains("<polygon", svg);
+        var p = Hexagon(Svg(1)).Points();
+
+        Assert.Equal(6, p.Length);
+        Assert.Equal(p[0].X, p[1].X, 2);   // the right edge is vertical
+        Assert.Equal(p[3].X, p[4].X, 2);   // the left edge is vertical
+        Assert.Equal(p[2].X, p[5].X, 2);   // the top and bottom vertices stand over one another
+        Assert.True(p[2].Y < p[1].Y && p[5].Y > p[0].Y, "a vertex up (smaller Y in the picture) and one down");
     }
 
-    /// <summary>L36 non-null arm: Normalizer explicitly set — uses the provided normalizer
-    /// instead of LinearNormalizer. SVG must still contain polygons.</summary>
+    /// <summary>matplotlib draws a hexagon with <c>edgecolors='face'</c>: its outline in its own colour, so neighbours leave no seam.</summary>
     [Fact]
-    public void Hexbin_ExplicitNormalizer_RendersPolygons()
+    public void Hexbin_StrokesEachHexagonInItsOwnColour()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y,
-                s => s.Normalizer = MatPlotLibNet.Styling.ColorMaps.LinearNormalizer.Instance))
-            .ToSvg();
-        Assert.Contains("<polygon", svg);
+        var hexagon = Hexagon(Svg(1));
+
+        Assert.Equal(hexagon["fill"], hexagon["stroke"], ignoreCase: true);
     }
 
+    // ── MinCount 0: the grid is drawn whole, the empty hexagons too ─────────────────────────────────────────────
+
+    /// <summary>Three observations at one corner of the data and one at the opposite corner: two hexagons hold something and the
+    /// rest of the grid is empty.</summary>
+    private static readonly double[] CornerX = [0.0, 0.1, 0.2, 10.0];
+    private static readonly double[] CornerY = [0.0, 0.1, 0.2, 10.0];
+
+    private static int Polygons(string svg) => svg.Elements("polygon").Count;
+
+    private static string Svg(int minCount) => Plt.Create()
+        .AddSubPlot(1, 1, 1, ax => ax.Hexbin(CornerX, CornerY, s => { s.GridSize = 5; s.MinCount = minCount; }))
+        .ToSvg();
+
+    /// <summary>matplotlib's <c>hexbin</c> draws every hexagon of its grid when no <c>mincnt</c> is given, the empty ones in the
+    /// colour of a count of 0; a <see cref="HexbinSeries.MinCount"/> of 0 says the same: a hexagon holding fewer than 0
+    /// observations is none, so none is left blank. matplotlib 3.11.2, <c>Axes.hexbin</c>: with <c>mincnt=None</c> no
+    /// accumulated count is set to NaN, so every hexagon of the grid is drawn.</summary>
+    [Fact]
+    public void Hexbin_MinCountZero_DrawsEveryHexagonOfTheGrid()
+    {
+        Assert.Equal(2, Polygons(Svg(1)));
+        Assert.True(Polygons(Svg(0)) > 20, "the whole grid is drawn, " + Polygons(Svg(0)) + " hexagons");
+    }
+
+    [Fact]
+    public void Hexbin_MinCountZero_DrawsAnEmptyHexagonInTheLowestColour()
+    {
+        string lowest = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Viridis.GetColor(0).ToHex();
+        string svg = Svg(0);
+
+        Assert.True(svg.Elements("polygon").Count(polygon => polygon["fill"] == lowest) > 20,
+            "the empty hexagons wear the colour of a count of 0, " + lowest);
+    }
 }

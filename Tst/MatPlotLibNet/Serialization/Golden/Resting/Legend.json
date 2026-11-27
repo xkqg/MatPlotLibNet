@@ -1,0 +1,20 @@
+{
+  "ColumnSpacing": "2",
+  "EdgeColor": "null",
+  "FaceColor": "null",
+  "FancyBox": "false",
+  "FontSize": "null",
+  "FrameAlpha": "0.8",
+  "FrameOn": "true",
+  "LabelSpacing": "0.5",
+  "LegendValues": "false",
+  "MarkerScale": "1",
+  "NCols": "1",
+  "NumPoints": "null",
+  "Position": "Best",
+  "ScatterPoints": "null",
+  "Shadow": "false",
+  "Title": "null",
+  "TitleFontSize": "null",
+  "Visible": "true"
+}

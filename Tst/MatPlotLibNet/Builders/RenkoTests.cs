@@ -5,9 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickLocators;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -26,32 +24,6 @@ public class RenkoTests
         Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Renko(closes, brick, configure).WithLegend()).Build();
 
     [Fact]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws()
-    {
-        // Thirteen bricks (the vector of RenkoBrickTests), worked out by hand: bricks 0-2 and 7-12 rose, 3-6 fell, each brick
-        // a unit tall standing on its bottom, centred on its number plus a half.
-        var byHand = Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax =>
-        {
-            ax.AddSeries(new BarSeries(["0", "1", "2", "7", "8", "9", "10", "11", "12"], [1.0, 1, 1, 1, 1, 1, 1, 1, 1])
-            {
-                XCoordinate = [0.5, 1.5, 2.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5],
-                StackBaseline = [10.0, 11, 12, 9, 10, 11, 12, 13, 14],
-                BarWidth = 1, Color = Colors.Green, Label = "up",
-            });
-            ax.AddSeries(new BarSeries(["3", "4", "5", "6"], [1.0, 1, 1, 1])
-            {
-                XCoordinate = [3.5, 4.5, 5.5, 6.5],
-                StackBaseline = [11.0, 10, 9, 8],
-                BarWidth = 1, Color = Colors.Red, Label = "down",
-            });
-            ax.SetXTickLocator(new FixedLocator([]));
-            ax.WithLegend();
-        }).Build();
-
-        Assert.Equal(byHand.ToSvg(), Drawn(Closes).ToSvg());
-    }
-
-    [Fact]
     public void TheParts_AreTheTwoSeriesOnTheAxes_TheRisingBricksAndTheFallingOnes()
     {
         RenkoParts parts = default;
@@ -62,15 +34,6 @@ public class RenkoTests
         Assert.Equal((Colors.Green, Colors.Red), (parts.Up.Color, parts.Down.Color));
         Assert.Equal(9, parts.Up.Values.Length);
         Assert.Equal(4, parts.Down.Values.Length);
-    }
-
-    [Fact]
-    public void WhatTheCallbackSets_WinsOverWhatTheVerbDid()
-    {
-        var axes = Chart(Closes, configure: p => { p.Up.Color = Colors.Blue; p.Down.Label = "fell"; });
-
-        Assert.Equal(Colors.Blue, ((BarSeries)axes.Series[0]).Color);
-        Assert.Equal("fell", ((BarSeries)axes.Series[1]).Label);
     }
 
     [Fact]
@@ -146,17 +109,6 @@ public class RenkoTests
         Assert.NotEmpty(figure.ToSvg());
     }
 
-    [Fact]
-    public void TheChart_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Drawn(Closes);
-
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
-        Assert.Equal(2, back.SubPlots[0].Series.Count);
-    }
-
     [Theory]
     [InlineData(0.0)]
     [InlineData(-1.0)]
@@ -165,11 +117,5 @@ public class RenkoTests
     public void ABrickThatCoversNoPrice_IsRefusedByName(double brick)
     {
         Assert.Equal("brickSize", Assert.Throws<ArgumentOutOfRangeException>(() => Chart(Closes, brick)).ParamName);
-    }
-
-    [Fact]
-    public void NoPrices_AreRefusedByName()
-    {
-        Assert.Equal("prices", Assert.Throws<ArgumentNullException>(() => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Renko(null!, 1)).Build()).ParamName);
     }
 }

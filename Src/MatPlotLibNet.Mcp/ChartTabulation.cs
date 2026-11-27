@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Text;
 using MatPlotLibNet.Models;
 
@@ -44,7 +43,7 @@ internal sealed class ChartTabulation
         if (rows > _limits.MaxTableRows)
         {
             throw new ToolRefusalException(
-                Invariant($"This chart has {rows} rows and the limit is {_limits.MaxTableRows}: a table that long ")
+                string.Invariant($"This chart has {rows} rows and the limit is {_limits.MaxTableRows}: a table that long ")
                 + "costs more context than the chart is worth. Plot fewer points, or use save_chart and read the file.");
         }
 
@@ -53,7 +52,7 @@ internal sealed class ChartTabulation
         {
             if (text.Length > 0)
             {
-                text.AppendLine().AppendLine();
+                text.AppendLineLf().AppendLineLf();
             }
 
             text.Append(table.ToMarkdown(_limits.MaxTableRows));
@@ -61,15 +60,9 @@ internal sealed class ChartTabulation
 
         return new ChartTabulationResult(text.ToString(), ChartTables.From(tables));
     }
-
-    private static string Invariant(FormattableString text) => text.ToString(CultureInfo.InvariantCulture);
 }
 
 /// <summary>A chart's data in both forms: the markdown a model reads, and the same values it can compute with.</summary>
 /// <param name="Markdown">The tables as markdown — what the tool has always returned, unchanged.</param>
 /// <param name="Values">The same tables as values; empty when the chart has no tabular form.</param>
-internal readonly record struct ChartTabulationResult(string Markdown, ChartTables Values)
-{
-    /// <summary>The tables, in order.</summary>
-    public IReadOnlyList<ChartTableData> Tables => Values.Tables;
-}
+internal readonly record struct ChartTabulationResult(string Markdown, ChartTables Values);

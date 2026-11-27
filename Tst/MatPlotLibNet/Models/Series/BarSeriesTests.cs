@@ -4,90 +4,20 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Interaction;
+using MatPlotLibNet.Models.Streaming;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="BarSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="BarSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class BarSeriesTests
 {
-    /// <summary>Verifies that the constructor stores categories and values.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        string[] cats = ["A", "B"];
-        double[] vals = [1, 2];
-        var series = new BarSeries(cats, vals);
-        Assert.Equal(cats, series.Categories);
-        Assert.Equal(vals, series.Values);
-    }
-
-    /// <summary>Verifies that Orientation defaults to Vertical.</summary>
-    [Fact]
-    public void DefaultOrientation_IsVertical()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        Assert.Equal(BarOrientation.Vertical, series.Orientation);
-    }
-
-    /// <summary>Verifies that BarWidth defaults to 0.8.</summary>
-    [Fact]
-    public void DefaultBarWidth_Is0Point8()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        Assert.Equal(0.8, series.BarWidth);
-    }
-
-    /// <summary>Verifies that Alpha defaults to 1.0.</summary>
-    [Fact]
-    public void DefaultAlpha_Is1()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        Assert.Equal(1.0, series.Alpha);
-    }
-
-    /// <summary>Verifies that LineWidth defaults to 0.0.</summary>
-    [Fact]
-    public void DefaultLineWidth_Is0()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        Assert.Equal(0.0, series.LineWidth);
-    }
-
-    /// <summary>Verifies that Align defaults to Center.</summary>
-    [Fact]
-    public void DefaultAlign_IsCenter()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        Assert.Equal(BarAlignment.Center, series.Align);
-    }
-
-    /// <summary>Verifies that Alpha can be set.</summary>
-    [Fact]
-    public void Alpha_CanBeSet()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        series.Alpha = 0.5;
-        Assert.Equal(0.5, series.Alpha);
-    }
-
-    /// <summary>Verifies that Align can be set.</summary>
-    [Fact]
-    public void Align_CanBeSet()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        series.Align = BarAlignment.Edge;
-        Assert.Equal(BarAlignment.Edge, series.Align);
-    }
-
-    /// <summary>Verifies that LineWidth can be set.</summary>
-    [Fact]
-    public void LineWidth_CanBeSet()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        series.LineWidth = 1.5;
-        Assert.Equal(1.5, series.LineWidth);
-    }
-
     /// <summary>Verifies that multiple BarSeries can share the same categories (prerequisite for grouped layout).</summary>
     [Fact]
     public void MultipleSeries_ShareCategories()
@@ -108,7 +38,7 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A", "B"], [1.0, 2.0]) { StackBaseline = [10.0, 20.0] };
 
-        var range = series.ComputeDataRange(new GroupedContext());
+        var range = series.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(10, range.YMin);
         Assert.Equal(22, range.YMax);
@@ -121,7 +51,7 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A", "B"], [2.0, -3.0]) { StackBaseline = [5.0, 5.0] };
 
-        var range = series.ComputeDataRange(new GroupedContext());
+        var range = series.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(2, range.YMin);
         Assert.Equal(7, range.YMax);
@@ -149,7 +79,7 @@ public class BarSeriesTests
     }
 
     /// <summary>A bar series makes room for the bars it draws, read from the same rule the renderer draws by: from the first
-    /// bar's left edge to the last bar's right edge, both sticky (no margin pads past them). Centred, that is 0.5 - 0.4 to
+    /// bar's left edge to the last bar's right edge, neither sticky (the margin pads them, as matplotlib's does). Centred, that is 0.5 - 0.4 to
     /// n - 0.5 + 0.4; edge-aligned it is 0 to n - 1 + 0.8, where the range used to assume centred bars and cut the first
     /// one.</summary>
     [Theory]
@@ -159,14 +89,14 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]) { Align = align };
 
-        var range = series.ComputeDataRange(new GroupedContext());
+        var range = series.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(series.SlotOf(0).Left, range.XMin);
         Assert.Equal(series.SlotOf(2).Right, range.XMax);
         Assert.Equal(left, range.XMin!.Value, 12);
         Assert.Equal(right, range.XMax!.Value, 12);
-        Assert.Equal(range.XMin, range.StickyXMin);
-        Assert.Equal(range.XMax, range.StickyXMax);
+        Assert.Null(range.StickyXMin);
+        Assert.Null(range.StickyXMax);
     }
 
     /// <summary>A bar on numeric x positions stands around its x, whatever its alignment, as wide as the series says.</summary>
@@ -211,8 +141,8 @@ public class BarSeriesTests
         var vertical = new BarSeries(["A", "B", "C"], [10.0, -20.0, 30.0]) { Align = align };
         var horizontal = new BarSeries(["A", "B", "C"], [10.0, -20.0, 30.0]) { Align = align, Orientation = BarOrientation.Horizontal };
 
-        var v = vertical.ComputeDataRange(new GroupedContext());
-        var h = horizontal.ComputeDataRange(new GroupedContext());
+        var v = vertical.ComputeDataRange(new TestAxesContext());
+        var h = horizontal.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(-20, h.XMin);
         Assert.Equal(30, h.XMax);
@@ -220,8 +150,8 @@ public class BarSeriesTests
         Assert.Equal(0, h.StickyXMax);
         Assert.Equal(horizontal.SlotOf(0).Left, h.YMin);
         Assert.Equal(horizontal.SlotOf(2).Right, h.YMax);
-        Assert.Equal(h.YMin, h.StickyYMin);
-        Assert.Equal(h.YMax, h.StickyYMax);
+        Assert.Null(h.StickyYMin);
+        Assert.Null(h.StickyYMax);
         Assert.Equal(v with { XMin = v.YMin, XMax = v.YMax, YMin = v.XMin, YMax = v.XMax,
                               StickyXMin = v.StickyYMin, StickyXMax = v.StickyYMax, StickyYMin = v.StickyXMin, StickyYMax = v.StickyXMax }, h);
     }
@@ -233,7 +163,7 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A", "B"], [1.0, 2.0]) { StackBaseline = [10.0, 20.0], Orientation = BarOrientation.Horizontal };
 
-        var range = series.ComputeDataRange(new GroupedContext());
+        var range = series.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(10, range.XMin);
         Assert.Equal(22, range.XMax);
@@ -249,7 +179,7 @@ public class BarSeriesTests
         var lower = new BarSeries(["A", "B"], [1.0, 2.0]) { Orientation = BarOrientation.Horizontal };
         var upper = new BarSeries(["A", "B"], [3.0, 5.0]) { Orientation = BarOrientation.Horizontal };
 
-        var range = lower.ComputeDataRange(new StackedContext([lower, upper]));
+        var range = lower.ComputeDataRange(new TestAxesContext(BarMode: BarMode.Stacked, Series: [lower, upper]));
 
         Assert.Equal(0, range.XMin);
         Assert.Equal(7, range.XMax);
@@ -263,7 +193,7 @@ public class BarSeriesTests
     {
         var series = new BarSeries([10.0, 20.0], [1.0, 2.0]) { BarWidth = 4, Orientation = BarOrientation.Horizontal };
 
-        var range = series.ComputeDataRange(new GroupedContext());
+        var range = series.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(8, range.YMin);
         Assert.Equal(22, range.YMax);
@@ -280,7 +210,7 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]) { Orientation = orientation };
         bool vertical = orientation == BarOrientation.Vertical;
-        var limits = new LimitedContext(xMin: vertical ? -1 : -100, xMax: vertical ? 5 : 100, yMin: vertical ? -100 : -1, yMax: vertical ? 100 : 5);
+        var limits = new TestAxesContext(XAxisMin: vertical ? -1 : -100, XAxisMax: vertical ? 5 : 100, YAxisMin: vertical ? -100 : -1, YAxisMax: vertical ? 100 : 5);
 
         var range = series.ComputeDataRange(limits);
 
@@ -297,7 +227,7 @@ public class BarSeriesTests
         var below = new BarSeries(["A"], [1.0]);
         var floating = new BarSeries(["A"], [2.0]) { StackBaseline = [10.0] };
         var above = new BarSeries(["A"], [3.0]);
-        var context = new StackedContext([below, floating, above]);
+        var context = new TestAxesContext(BarMode: BarMode.Stacked, Series: [below, floating, above]);
 
         var own = floating.ComputeDataRange(context);
         var stack = below.ComputeDataRange(context);
@@ -308,33 +238,11 @@ public class BarSeriesTests
         Assert.Equal(4, stack.YMax);
     }
 
-    private sealed class GroupedContext : IAxesContext
+    /// <summary>BarSeries(double[] x, double[] values) constructor: `x.Length != values.Length`
+    /// throw arm. Pre-X only the length-match path was tested.</summary>
+    [Fact]
+    public void BarSeries_DoubleCtor_LengthMismatch_Throws()
     {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
-    private sealed class StackedContext(IReadOnlyList<ISeries> series) : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Stacked;
-        public IReadOnlyList<ISeries> AllSeries => series;
-    }
-
-    private sealed class LimitedContext(double xMin, double xMax, double yMin, double yMax) : IAxesContext
-    {
-        public double? XAxisMin => xMin;
-        public double? XAxisMax => xMax;
-        public double? YAxisMin => yMin;
-        public double? YAxisMax => yMax;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
+        Assert.Throws<ArgumentException>(() => new BarSeries(new[] { 1.0, 2.0 }, new[] { 1.0, 2.0, 3.0 }));
     }
 }

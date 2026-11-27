@@ -1,6 +1,16 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 namespace MatPlotLibNet.Tests.FluentApi;
 
 /// <summary>Verifies <see cref="FacetGridFigure"/> — faceted one-panel-per-category preset.</summary>
@@ -56,15 +66,16 @@ public class FacetGridFigureTests
         Assert.Equal(2, capturedX!.Length);
     }
 
-    [Fact]
-    public void Build_PanelTitleIsCategoryLabel()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = new FacetGridFigure(X, Y, Cat, (ax, x, y) => ax.Scatter(x, y))
-            .Build().ToSvg();
-        Assert.Contains("A", svg);
-        Assert.Contains("B", svg);
-        Assert.Contains("C", svg);
-    }
+        new DrawnToken("Build_PanelTitleIsCategoryLabel", () => new FacetGridFigure(X, Y, Cat, (ax, x, y) => ax.Scatter(x, y))
+            .Build().ToSvg(), "A", "B", "C"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void Build_WithHue_DoesNotAffectCategoryCount()
@@ -73,5 +84,24 @@ public class FacetGridFigureTests
         var fig = new FacetGridFigure(X, Y, Cat, (ax, x, y) => ax.Scatter(x, y)) { Hue = hue }
             .Build().Build();
         Assert.Equal(3, fig.SubPlots.Count);
+    }
+
+    /// <summary>Build with Title + explicit size — both true arms (BuildCore may
+    /// resize, but the title is preserved).</summary>
+    [Fact]
+    public void FacetedFigure_BuildWithTitleAndSize_AppliesBoth()
+    {
+        var fb = new FacetGridFigure(
+            x: [1.0, 2, 3, 4],
+            y: [10.0, 20, 30, 40],
+            category: ["A", "B", "A", "B"],
+            plotFunc: (ax, fx, fy) => ax.Scatter(fx, fy))
+        {
+            Title = "facets",
+            Width = 800,
+            Height = 600
+        }.Build();
+        var fig = fb.Build();
+        Assert.Equal("facets", fig.Title);
     }
 }

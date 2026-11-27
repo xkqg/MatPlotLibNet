@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Indicators.Steps;
 
 /// <summary>The three lines of the average directional index at one bar.</summary>
-/// <param name="Adx">The average directional index: the mean of the last <c>period</c> directional indices.</param>
+/// <param name="Adx">The average directional index: Wilder's smoothing of the directional index.</param>
 /// <param name="PlusDi">The positive directional indicator, in percent.</param>
 /// <param name="MinusDi">The negative directional indicator, in percent.</param>
 internal readonly record struct AdxPoint(double Adx, double PlusDi, double MinusDi);
@@ -12,18 +12,22 @@ internal readonly record struct AdxPoint(double Adx, double PlusDi, double Minus
 /// <summary>One step of the average directional index: the recursion that the batch <see cref="Adx"/> folds over its bars and
 /// <see cref="Streaming.StreamingAdx"/> takes one bar at a time. The true range and the two directional movements of a bar are
 /// summed over the first <c>period</c> bars; from the next bar Wilder's smoothing carries them, and the directional indicators and
-/// the directional index follow. The ADX is the simple mean of the last <c>period</c> directional indices
-/// (a <see cref="RollingMeanStep"/>), so the first value comes with the bar <c>2 × period</c> and the step says NaN before.</summary>
-internal struct AdxStep
+/// the directional index follow. The ADX is Wilder's smoothing of the directional index too, as TA-Lib's <c>ADX</c> and pandas-ta's
+/// <c>adx</c> have it: the mean of the first <c>period</c> directional indices, then each value is the one before times
+/// <c>period - 1</c> plus the new directional index, over <c>period</c>. The first value comes with the bar <c>2 × period</c> and the
+/// step says NaN before.</summary>
+internal struct AdxStep : IHlcStep<AdxPoint>
 {
     private readonly int _period;
-    private RollingMeanStep _mean;
     private double _previousHigh;
     private double _previousLow;
     private double _previousClose;
     private double _smoothTr;
     private double _smoothPlusDm;
     private double _smoothMinusDm;
+    private double _dxSum;
+    private double _adx;
+    private int _dxCount;
     private int _count;
 
     /// <summary>A step over the given period.</summary>
@@ -31,14 +35,14 @@ internal struct AdxStep
     internal AdxStep(int period)
     {
         _period = period;
-        _mean = new RollingMeanStep(period);
     }
 
     /// <summary>Takes one bar and returns the three lines, NaN before the bar <c>2 × period</c>.</summary>
     /// <param name="high">The high of the bar.</param>
     /// <param name="low">The low of the bar.</param>
     /// <param name="close">The close of the bar.</param>
-    internal AdxPoint Next(double high, double low, double close)
+    /// <returns>The three lines of the bar.</returns>
+    public AdxPoint Next(double high, double low, double close)
     {
         int bar = _count++;
         double previousHigh = _previousHigh, previousLow = _previousLow, previousClose = _previousClose;
@@ -70,9 +74,17 @@ internal struct AdxStep
         double diSum = pdi + mdi;
         double dx = diSum > 0 ? Math.Abs(pdi - mdi) / diSum * 100 : 0;
 
-        double adx = _mean.Next(dx);
-        return double.IsNaN(adx)
-            ? new AdxPoint(double.NaN, double.NaN, double.NaN)
-            : new AdxPoint(adx, pdi, mdi);
+        if (_dxCount < _period)
+        {
+            _dxSum += dx;
+            if (++_dxCount < _period) return new AdxPoint(double.NaN, double.NaN, double.NaN);
+            _adx = _dxSum / _period;
+        }
+        else
+        {
+            _adx = (_adx * (_period - 1) + dx) / _period;
+        }
+
+        return new AdxPoint(_adx, pdi, mdi);
     }
 }

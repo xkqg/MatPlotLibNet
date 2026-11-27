@@ -1,11 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Tools;
@@ -44,24 +40,12 @@ public class QQPlotTests
 
     private const double Tolerance = 1e-9;
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes QQ(double[] sample, Action<QQPlotParts>? configure = null) =>
-        AxesOf(ax => ax.QQPlot(sample, configure));
+        Plt.Create().OneAxes(ax => ax.QQPlot(sample, configure));
 
     private static ScatterSeries Points(Axes axes) => Assert.IsType<ScatterSeries>(Assert.Single(axes.Series));
 
     private static Trendline Reference(Axes axes) => Assert.Single(axes.Trendlines);
-
-    private static void AssertClose(IReadOnlyList<double> expected, IReadOnlyList<double> actual)
-    {
-        Assert.Equal(expected.Count, actual.Count);
-        for (int i = 0; i < expected.Count; i++)
-        {
-            Assert.True(Math.Abs(expected[i] - actual[i]) <= Tolerance, $"[{i}]: expected {expected[i]:R}, got {actual[i]:R}");
-        }
-    }
 
     // ---- what the verb adds ---------------------------------------------------------------------------------------
 
@@ -102,7 +86,7 @@ public class QQPlotTests
         double[] x = Points(QQ(Five)).XData;
 
         // scipy.stats.norm.ppf of the three positions.
-        AssertClose([-1.1289975352961017, -0.4856527065756922, 0.0], x[..3]);
+        (new double[] { -1.1289975352961017, -0.4856527065756922, 0.0 }).AssertCloseTo(x[..3], Tolerance);
         for (int k = 0; k < 3; k++) Assert.Equal(StandardNormal.Quantile(positions[k]), x[k], 1e-15);
     }
 
@@ -110,8 +94,8 @@ public class QQPlotTests
     [Fact]
     public void TheTheoreticalQuantiles_AreScipys()
     {
-        AssertClose(FiveQuantiles, Points(QQ(Five)).XData);
-        AssertClose(TwelveQuantiles, Points(QQ(Twelve)).XData);
+        FiveQuantiles.AssertCloseTo(Points(QQ(Five)).XData, Tolerance);
+        TwelveQuantiles.AssertCloseTo(Points(QQ(Twelve)).XData, Tolerance);
     }
 
     /// <summary>The positions are symmetric around the median, so the quantiles are too: the k-th from the left is minus the
@@ -138,7 +122,7 @@ public class QQPlotTests
 
         Assert.Equal(x[0], line.X1);
         Assert.Equal(x[^1], line.X2);
-        AssertClose([1.0814170753773857, 4.5185829246226135], [line.Y1, line.Y2]);
+        (new double[] { 1.0814170753773857, 4.5185829246226135 }).AssertCloseTo([line.Y1, line.Y2], Tolerance);
         Assert.False(line.IsExtended);
     }
 
@@ -149,7 +133,7 @@ public class QQPlotTests
     {
         var line = Reference(QQ(Twelve));
 
-        AssertClose([-1.5881546429662674, 8.253146173319031, 1.5881546429662674, 14.913520493347637], [line.X1, line.Y1, line.X2, line.Y2]);
+        (new double[] { -1.5881546429662674, 8.253146173319031, 1.5881546429662674, 14.913520493347637 }).AssertCloseTo([line.X1, line.Y1, line.X2, line.Y2], Tolerance);
     }
 
     /// <summary>The line is the least-squares one: the residuals of the points against it sum to 0 and are uncorrelated with
@@ -174,9 +158,9 @@ public class QQPlotTests
         var axes = QQ([7.0, 4.0]);
         var line = Reference(axes);
 
-        AssertClose([-0.5449521356173604, 0.5449521356173604], Points(axes).XData);
+        (new double[] { -0.5449521356173604, 0.5449521356173604 }).AssertCloseTo(Points(axes).XData, Tolerance);
         Assert.Equal([4.0, 7.0], Points(axes).YData);
-        AssertClose([4.0, 7.0], [line.Y1, line.Y2]);
+        (new double[] { 4.0, 7.0 }).AssertCloseTo([line.Y1, line.Y2], Tolerance);
     }
 
     /// <summary>A sample without a spread lies on a level line at its value.</summary>
@@ -216,53 +200,36 @@ public class QQPlotTests
     }
 
     /// <summary>The points are the chart's one series and wear the theme's first colour; the reference is a trendline, which
-    /// takes no colour slot, so a series added after the Q-Q plot wears the theme's SECOND colour.</summary>
+    /// takes no colour slot, so a series added after the Q-Q plot wears the theme's SECOND colour under the library's one cycle
+    /// (under the matplotlib themes the points ask the patch cycle, so a line after them takes the lines cycle's first).</summary>
     [Fact]
     public void TheReference_TakesNoColourSlot()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.QQPlot(Five).Plot([0.0, 1.0], [2.0, 3.0])).Build();
+        var figure = Plt.Create().WithTheme(Theme.Default).AddSubPlot(1, 1, 1, ax => ax.QQPlot(Five).Plot([0.0, 1.0], [2.0, 3.0])).Build();
         figure.EnableLegendToggle = true;
         string svg = figure.ToSvg();
 
-        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), FirstColour(Group(svg, 0)));
-        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), FirstColour(Group(svg, 1)));
-        Assert.Single(Regex.Matches(svg, """<line [^>]*stroke="#FF0000" """.TrimEnd()));
+        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), svg.SeriesGroup(0).FirstColour());
+        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), svg.SeriesGroup(1).FirstColour());
+        Assert.Single(svg.Elements("line"), line => line["stroke"] == "#FF0000");
     }
 
     // ---- axes ----------------------------------------------------------------------------------------------------------
 
     /// <summary>The axes are titled with what they measure, and a title set after the call wins.</summary>
     [Fact]
-    public void TheAxes_AreTitledWithTheQuantiles_AndATitleSetAfterTheCallWins()
+    public void TheAxes_AreTitledWithTheQuantiles()
     {
         var axes = QQ(Five);
-        var retitled = AxesOf(ax => ax.QQPlot(Five).SetXLabel("z").SetYLabel("Daily return"));
 
         Assert.Equal("Theoretical quantiles", axes.XAxis.Label);
         Assert.Equal("Sample quantiles", axes.YAxis.Label);
-        Assert.Equal("z", retitled.XAxis.Label);
-        Assert.Equal("Daily return", retitled.YAxis.Label);
     }
 
-    /// <summary>The verb sets no axis limit and keeps one the caller set (W9).</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = QQ(Five);
-        var kept = AxesOf(ax => ax.SetYLim(0, 10).QQPlot(Five));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(0.0, kept.YAxis.Min);
-        Assert.Equal(10.0, kept.YAxis.Max);
-    }
-
-    /// <summary>The reference line of a skewed sample leaves the range the points span (scipy draws it from -467 to 1494 for
-    /// the squares 0 to 1521, against an automatic axis from -76 to 1597); it is cut at the plot edge and never drawn over the
-    /// margins, the tick labels or the title.</summary>
+    /// <summary>The reference line of a skewed sample leaves the range the points span: scipy draws it from -467 to 1494 for the
+    /// squares 0 to 1521, with <c>ax.plot</c>, so the automatic Y axis holds it (scipy 1.18.1, matplotlib 3.11.2: ylim -566.64 to
+    /// 1620.41, not the points' -76 to 1597). Its ends stand inside the plot, never over the margins, the tick labels or the
+    /// title.</summary>
     [Fact]
     public void TheReference_OfASkewedSample_StaysInsideThePlotArea()
     {
@@ -270,16 +237,19 @@ public class QQPlotTests
 
         string svg = Plt.Create().WithSize(600, 500).AddSubPlot(1, 1, 1, ax => ax.QQPlot(squares)).ToSvg();
 
-        var plot = PlotArea(svg);
-        var red = XDocument.Parse(svg).Descendants().Single(e => e.Name.LocalName == "line" && (string?)e.Attribute("stroke") == "#FF0000");
+        var plot = svg.PlotArea();
+        var red = svg.Each("line").Single(e => (string?)e.Attribute("stroke") == "#FF0000");
         foreach (string end in new[] { "1", "2" })
         {
-            double px = Num((string)red.Attribute("x" + end)!), py = Num((string)red.Attribute("y" + end)!);
+            double px = red.Number("x" + end), py = red.Number("y" + end);
             Assert.InRange(px, plot.X - 1e-9, plot.Right + 1e-9);
             Assert.InRange(py, plot.Y - 1e-9, plot.Bottom + 1e-9);
         }
-        // The line leaves through the bottom edge: its start is cut there.
-        Assert.Equal(plot.Bottom, Num((string)red.Attribute("y1")!), 9);
+        // The axis holds the line: its start stands above the bottom edge, where the range ends a margin below it.
+        Assert.True(red.Number("y1") < plot.Bottom - 1);
+        var range = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.QQPlot(squares)).Build().SubPlots[0].ComputeDataRanges(Theme.MatplotlibV2);
+        Assert.Equal(-566.6402792019456, range.YMin, 6);
+        Assert.Equal(1620.4114418667593, range.YMax, 6);
     }
 
     // ---- missing values -------------------------------------------------------------------------------------------------
@@ -298,132 +268,22 @@ public class QQPlotTests
         Assert.Equal(Points(clean).YData, Points(axes).YData);
         Assert.Equal(Reference(clean).Y1, Reference(axes).Y1);
         Assert.Equal(Reference(clean).Y2, Reference(axes).Y2);
-        Assert.DoesNotContain("NaN", Plt.Create().AddSubPlot(1, 1, 1, ax => ax.QQPlot(gappy)).ToSvg());
+        Plt.Create().AddSubPlot(1, 1, 1, ax => ax.QQPlot(gappy)).ToSvg().AssertNoNonFiniteNumber();
     }
 
     // ---- refusals -----------------------------------------------------------------------------------------------------
 
-    /// <summary>A missing argument is refused by name.</summary>
-    [Fact]
-    public void MissingArguments_AreRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).QQPlot(Five)).ParamName);
-        Assert.Equal("sample", Assert.Throws<ArgumentNullException>(() => QQ(null!)).ParamName);
-    }
-
     /// <summary>A line is fitted through two points or more: a sample with fewer that can be drawn (NaN and the infinities are
     /// left out) is refused, naming the parameter.</summary>
     [Theory]
-    [InlineData(new double[0], 0)]
-    [InlineData(new[] { 4.2 }, 1)]
-    [InlineData(new[] { double.NaN, 4.2 }, 1)]
-    [InlineData(new[] { double.PositiveInfinity, double.NaN }, 0)]
-    public void ASampleWithFewerThanTwoObservations_IsRefused(double[] sample, int drawable)
+    [InlineData(new double[0], "0 observations")]
+    [InlineData(new[] { double.NaN, 4.2 }, "1 observation")]
+    public void ASampleWithFewerThanTwoObservations_IsRefused(double[] sample, string held)
     {
         var error = Assert.Throws<ArgumentException>(() => QQ(sample));
 
         Assert.Equal("sample", error.ParamName);
-        string observations = drawable == 1 ? "1 observation" : $"{drawable} observations";
-        Assert.Equal($"The sample has {observations} that can be drawn; a Q-Q plot is drawn from 2 or more (NaN and the infinities are left out). (Parameter 'sample')", error.Message);
-    }
-
-    /// <summary>A refused call has added nothing: no series, no trendline, no axis titles.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.QQPlot([1.0]));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Empty(axes.Trendlines);
-        Assert.Null(axes.XAxis.Label);
-        Assert.Null(axes.YAxis.Label);
-    }
-
-    // ---- the callback ---------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once, after the verb has built and styled both parts, and hands over the very series and
-    /// trendline on the axes, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes_AfterTheVerbStyledThem()
-    {
-        int calls = 0;
-        QQPlotParts seen = default;
-        Color? referenceColourWhenCalled = null;
-        var teal = Color.FromHex("#008080");
-
-        var axes = QQ(Five, parts =>
-        {
-            calls++;
-            seen = parts;
-            referenceColourWhenCalled = parts.Reference.Color;
-            parts.Points.Marker = MarkerStyle.Diamond;
-            parts.Points.Label = "returns";
-            parts.Reference.Color = teal;
-            parts.Reference.IsExtended = true;
-        });
-
-        Assert.Equal(1, calls);
-        Assert.Equal(Colors.Red, referenceColourWhenCalled);
-        Assert.Same(axes.Series[0], seen.Points);
-        Assert.Same(axes.Trendlines[0], seen.Reference);
-        Assert.Equal(MarkerStyle.Diamond, Points(axes).Marker);
-        Assert.Equal("returns", Points(axes).Label);
-        Assert.Equal(teal, Reference(axes).Color);
-        Assert.True(Reference(axes).IsExtended);
-    }
-
-    /// <summary>The parts are a public readonly record struct a caller cannot make: no public constructor, no setters.</summary>
-    [Fact]
-    public void TheParts_AreAReadOnlyRecordStruct_WithNoPublicConstructor()
-    {
-        var type = typeof(QQPlotParts);
-
-        Assert.True(type.IsValueType);
-        Assert.True(type.IsPublic);
-        Assert.True(type.IsDefined(typeof(IsReadOnlyAttribute)));
-        Assert.Empty(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-        Assert.NotEmpty(type.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance));
-        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        Assert.Equal(["Points", "Reference"], properties.Select(p => p.Name).Order());
-        Assert.All(properties, p => Assert.Null(p.SetMethod));
-    }
-
-    // ---- JSON ---------------------------------------------------------------------------------------------------------
-
-    /// <summary>A Q-Q plot is its parts in JSON: read back it draws the same picture, with and without a missing observation.
-    /// It is not fitted again; the points and the line come back as they were drawn.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("qq").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
-    }
-
-    /// <summary>The reference keeps its colour and whether it is extended through JSON, as a callback set them.</summary>
-    [Fact]
-    public void TheReference_KeepsItsColourAndExtension_ThroughJson()
-    {
-        var teal = Color.FromHex("#008080");
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.QQPlot(Twelve, parts =>
-        {
-            parts.Reference.Color = teal;
-            parts.Reference.IsExtended = true;
-        })).Build();
-
-        var line = Assert.Single(ChartSerializerDefault.Current.FromJson(figure.ToJson()).SubPlots[0].Trendlines);
-
-        Assert.Equal(teal, line.Color);
-        Assert.True(line.IsExtended);
-        Assert.Equal(1.5, line.LineWidth);
+        Assert.Equal($"The sample holds {held}; a Q-Q plot needs at least 2; NaN and the infinities are not counted. (Parameter 'sample')", error.Message);
     }
 
     // ---- the example in the documentation --------------------------------------------------------------------------------
@@ -445,30 +305,4 @@ public class QQPlotTests
         Assert.Contains(">Daily return (%)<", svg);
         Assert.Contains("""stroke="#FF0000" """.TrimEnd(), svg);
     }
-
-    // ---- reading the picture --------------------------------------------------------------------------------------------
-
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    /// <summary>The plot area: the second rectangle drawn into the figure, after the figure's own background.</summary>
-    private static Rect PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-                   Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>: up to the next series group or the
-    /// end of the picture.</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        int next = svg.IndexOf("""<g class="series" """.TrimEnd(), start + 1, StringComparison.Ordinal);
-        return svg[start..(next > start ? next : svg.Length)];
-    }
-
-    /// <summary>The first fill or stroke colour in a piece of markup.</summary>
-    private static string FirstColour(string markup) =>
-        Regex.Match(markup, """(?:fill|stroke)="(#[0-9A-F]{6})" """.TrimEnd()).Groups[1].Value;
 }

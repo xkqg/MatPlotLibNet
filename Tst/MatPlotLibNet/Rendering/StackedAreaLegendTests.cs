@@ -19,12 +19,12 @@ public class StackedAreaLegendTests
         [.. Enumerable.Range(0, count).Select(i => new[] { 1.0 + i, 2.0, 1.0 })];
 
     private static XDocument Legend(Action<AxesBuilder> axes) =>
-        XDocument.Parse(Plt.Create().WithLegendToggle().WithSize(500, 400).AddSubPlot(1, 1, 1, axes).ToSvg());
+        Plt.Create().WithLegendToggle().WithSize(500, 400).AddSubPlot(1, 1, 1, axes).ToSvg().Xml();
 
     /// <summary>The legend entries of the picture: the label of each and the colour of its swatch (the fill of a rectangle, the
     /// stroke of a line).</summary>
     private static List<(string Label, string Fill)> Entries(XDocument doc) =>
-        [.. doc.Descendants().Where(e => e.Name.LocalName == "g" && e.Attribute("data-legend-index") is not null)
+        [.. doc.Each("g").Where(e => e.Attribute("data-legend-index") is not null)
             .Select(g =>
             {
                 var swatch = g.Descendants().First(e => e.Name.LocalName is "rect" or "line");
@@ -105,12 +105,12 @@ public class StackedAreaLegendTests
 
     [Fact]
     public void ASeriesWithNoName_SaysNoParts() =>
-        Assert.Empty(new LineSeries([1.0], [2.0]).LegendParts);
+        Assert.Empty(new LineSeries([1.0], [2.0]).LegendPartsUnder(Theme.Default));
 
     [Fact]
     public void ASeriesWithAName_SaysOnePart_ItsSwatchAndItsOwnColour()
     {
-        var part = Assert.Single(new LineSeries([1.0], [2.0]) { Label = "L" }.LegendParts);
+        var part = Assert.Single(new LineSeries([1.0], [2.0]) { Label = "L" }.LegendPartsUnder(Theme.Default));
 
         Assert.Equal(new LegendPart("L", new LineSeries([1.0], [2.0]).LegendSwatch), part);
         Assert.Equal(0, part.ColorSlotOffset);
@@ -121,10 +121,10 @@ public class StackedAreaLegendTests
     {
         var stack = new StackedAreaSeries(X, Layers(3)) { Labels = ["a", "", "c"] };
 
-        var parts = stack.LegendParts;
+        var parts = stack.LegendPartsUnder(Theme.Default);
 
         Assert.Equal(["a", "c"], parts.Select(p => p.Label));
         Assert.Equal([0, 2], parts.Select(p => p.ColorSlotOffset));
-        Assert.All(parts, p => Assert.Equal(LegendSwatchKind.Patch, p.Swatch.Kind));
+        Assert.All(parts, p => Assert.Equal(LegendSwatchKind.EdgedPatch, p.Swatch.Kind));
     }
 }

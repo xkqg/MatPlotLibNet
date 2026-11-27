@@ -1,9 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.TestFixtures;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -31,17 +32,8 @@ public class GroupedBarTests
     /// further down the document, so only the part before it is read.</summary>
     private static (double X, double Y, double W, double H, string Fill)[] Bars(string svg)
     {
-        int legend = svg.IndexOf("class=\"legend\"", StringComparison.Ordinal);
-        string plot = legend < 0 ? svg : svg[..legend];
-
-        return [.. Regex.Matches(plot,
-                @"<rect x=""([0-9.eE+-]+)"" y=""([0-9.eE+-]+)"" width=""([0-9.eE+-]+)"" height=""([0-9.eE+-]+)"" fill=""(#[0-9A-Fa-f]{6})""")
-            .Select(m => (
-                X: double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-                Y: double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
-                W: double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture),
-                H: double.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture),
-                Fill: m.Groups[5].Value))
+        return [.. svg.Each("rect").Where(rect => !rect.Ancestors().Any(group => (string?)group.Attribute("class") == "legend") && rect.Attribute("fill")?.Value.StartsWith('#') == true)
+            .Select(rect => (X: rect.Number("x"), Y: rect.Number("y"), W: rect.Number("width"), H: rect.Number("height"), Fill: (string)rect.Attribute("fill")!))
             .Where(r => !string.Equals(r.Fill, "#FFFFFF", StringComparison.OrdinalIgnoreCase))];
     }
 
@@ -118,7 +110,7 @@ public class GroupedBarTests
             Plt.Create().AddSubPlot(1, 1, 1, ax => ax.GroupedBar(Quarters, wrong)).Build());
 
         Assert.Equal("groups", error.ParamName);
-        Assert.Equal("Group 'south' carries 2 values; there are 3 categories. (Parameter 'groups')", error.Message);
+        Assert.Equal(2.RefusalAgainst(3, "groups", "group 'south'"), error.Message);
     }
 
     [Fact]
@@ -157,18 +149,18 @@ public class GroupedBarTests
             .ToSvg();
 
         var bars = Bars(svg);   // north Q1..Q3, south Q1..Q3, east Q1..Q3
-        var plot = Rendering.SeriesRenderers.BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.Equal(9, bars.Length);
         Assert.Single(bars.Select(b => Math.Round(b.X, 6)).Distinct());
-        Assert.Equal(3 * bars[6].W, bars[0].W, 6);               // north Q1 (3) against east Q1 (1)
-        Assert.Equal(5.0 / 3 * bars[8].W, bars[2].W, 6);         // north Q3 (5) against east Q3 (3)
-        Assert.All(bars, b => Assert.InRange(b.X + b.W, plot.X, plot.X + plot.W + 1e-6));
+        Assert.Equal(3 * bars[6].W, bars[0].W, SvgMarkupExtensions.WrittenPrecision);               // north Q1 (3) against east Q1 (1)
+        Assert.Equal(5.0 / 3 * bars[8].W, bars[2].W, SvgMarkupExtensions.WrittenPrecision);         // north Q3 (5) against east Q3 (3)
+        Assert.All(bars, b => Assert.InRange(b.X + b.W, plot.X, plot.X + plot.Width + 1e-6));
         for (int q = 0; q < 3; q++)
         {
             var middle = bars[3 + q];                              // south: the middle group, centred on the slot
             var name = Assert.Single(Rendering.SeriesRenderers.BarSeriesRendererTests.Texts(svg, Quarters[q]));
-            Assert.Equal(middle.Y + middle.H / 2 + 4, name.Y, 6);
+            Assert.Equal(middle.Y + middle.H / 2 + 0.35 * MatPlotLibNet.Styling.Theme.MatplotlibV2.TickFont().Size, name.Y, SvgMarkupExtensions.WrittenPrecision);   // centred on the slot
             Assert.True(name.X < plot.X, $"{Quarters[q]} stands left of the Y spine");
         }
     }

@@ -12,42 +12,25 @@ namespace MatPlotLibNet.Tests.Packaging;
 /// <c>mplMountSvg</c>, which re-creates the script elements, and assigns <c>innerHTML</c> nowhere else.</summary>
 public class SvgMountRecipeContractTests
 {
-    private static readonly string Root = RepoRoot();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static readonly string Root = RepositoryRoot.Folder;
 
     private static readonly string[] Extensions = [".html", ".razor", ".cshtml", ".js", ".md"];
 
     /// <summary>Every sample page and every document the repository ships a reader: the samples, the root README, the
     /// package READMEs, the cookbook and articles. Build output and the generated API pages are not authored text.</summary>
-    private static IEnumerable<string> AuthoredFiles()
-    {
-        IEnumerable<string> Under(string relative) => Directory.Exists(Path.Combine(Root, relative))
-            ? Directory.EnumerateFiles(Path.Combine(Root, relative), "*", SearchOption.AllDirectories)
-            : [];
-        return Under("Samples").Concat(Under("docs")).Concat(Under("articles"))
-            .Concat(Directory.EnumerateFiles(Path.Combine(Root, "Src"), "README.md", SearchOption.AllDirectories))
-            .Append(Path.Combine(Root, "README.md"))
-            .Where(f => Extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-            .Where(f => !Regex.IsMatch(f, @"[\\/](bin|obj|node_modules|_site|api)[\\/]"));
-    }
+    private static IEnumerable<SourceFile> AuthoredFiles() =>
+        new[] { "Samples", "docs", "articles" }
+            .SelectMany(folder => Extensions.SelectMany(extension => RepositoryTree.Files(folder, "*" + extension)))
+            .Concat(RepositoryTree.Files("Src", "README.md"))
+            .Concat(RepositoryTree.Documents().Where(file => file.Path == "README.md"))
+            .Where(file => !file.Path.Split('/').Contains("api"));
 
     /// <summary>A page that receives a pushed SVG registers a JavaScript handler for it: <c>.on('UpdateChartSvg', ...)</c>.</summary>
     private static readonly Regex HandlerOfAPushedSvg = new(@"\.on\(\s*['""]UpdateChartSvg['""]");
 
     private static string[] PageFiles() => AuthoredFiles()
-        .Where(f => HandlerOfAPushedSvg.IsMatch(File.ReadAllText(f)))
-        .Select(f => Path.GetRelativePath(Root, f).Replace('\\', '/'))
+        .Where(f => HandlerOfAPushedSvg.IsMatch(f.Text))
+        .Select(f => f.Path)
         .Order(StringComparer.Ordinal)
         .ToArray();
 

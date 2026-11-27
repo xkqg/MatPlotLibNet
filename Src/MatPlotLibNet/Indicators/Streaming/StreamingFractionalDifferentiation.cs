@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming FractionalDifferentiation: the fixed-width fractional differentiation of the price over as many prices as the weights reach back. It keeps the inputs the value depends on (<see cref="WindowedStreamingIndicator{TInput}.Width"/>)
@@ -15,12 +17,11 @@ public sealed class StreamingFractionalDifferentiation : WindowedStreamingIndica
     /// <param name="d">The order of differentiation, in (0, 1).</param>
     /// <param name="tolerance">The weight below which the series of weights is cut.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingFractionalDifferentiation(double d = 0.4, double tolerance = 1e-3, int capacity = 10_000)
-        : base(FractionalDifferentiation.ComputeWeights(d, tolerance).Length, capacity)
+    public StreamingFractionalDifferentiation(double d = FractionalDifferentiation.DefaultD, double tolerance = FractionalDifferentiation.DefaultTolerance, int capacity = StreamingSeries.RestingCapacity)
+        : base(FractionalDifferentiation.Spec(d, tolerance), capacity)
     {
         _d = d;
         _tolerance = tolerance;
-        Label = $"FFD(d={d.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

@@ -33,41 +33,25 @@ public class SeriesRendererTests
         Assert.NotEqual(default, ctx.Area);
     }
 
-    /// <summary>Verifies that rendering a figure with multiple series types still produces valid SVG after refactoring.</summary>
-    [Fact]
-    public void ExistingTests_StillPass_AfterRefactor()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
+        // Verifies that rendering a figure with multiple series types still produces valid SVG after refactoring.
         // Integration: render a figure with multiple series types, verify SVG output
-        string svg = Plt.Create()
+        // line
+        // scatter
+        // bar
+        new DrawnToken("ExistingTests_StillPass_AfterRefactor", () => Plt.Create()
             .WithTitle("Refactor Test")
             .Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
             .Scatter([1.0, 2.0], [12.0, 18.0])
             .Bar(["A", "B"], [5.0, 10.0])
-            .ToSvg();
+            .ToSvg(), "<svg", "<polyline", "<circle", "<rect"),
+    };
 
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<polyline", svg);   // line
-        Assert.Contains("<circle", svg);     // scatter
-        Assert.Contains("<rect", svg);       // bar
-    }
-
-    /// <summary>Verifies that all series types render without error through the visitor dispatch.</summary>
-    [Fact]
-    public void AllSeriesTypes_RenderWithoutError()
-    {
-        // Exercises all 25 typed renderers through the visitor dispatch
-        string svg = Plt.Create()
-            .AddSubPlot(2, 3, 1, ax => ax.Plot([1.0, 2.0], [3.0, 4.0]))
-            .AddSubPlot(2, 3, 2, ax => ax.Bar(["A", "B"], [10.0, 20.0]))
-            .AddSubPlot(2, 3, 3, ax => ax.Pie([30.0, 70.0]))
-            .AddSubPlot(2, 3, 4, ax => ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } }))
-            .AddSubPlot(2, 3, 5, ax => ax.BoxPlot([[1.0, 2.0, 3.0]]))
-            .AddSubPlot(2, 3, 6, ax => ax.Stem([1.0, 2.0], [3.0, 4.0]))
-            .ToSvg();
-
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     private static SeriesRenderContext CreateContext()
     {

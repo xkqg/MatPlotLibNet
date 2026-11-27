@@ -61,11 +61,11 @@ public sealed class ChartLayout : IChartLayout
 
     /// <inheritdoc />
     /// <remarks>The range the renderer draws: after autoscale, margins and limits, in data units on every scale, in drawn
-    /// orientation (a reversed limit stays reversed). See <see cref="View"/>.</remarks>
+    /// orientation (a reversed limit stays reversed).</remarks>
     public DataRange GetDataRange(int axesIndex) => View(axesIndex).DrawnRange;
 
     /// <inheritdoc />
-    /// <remarks>Not cached like <see cref="View"/> — a figure with secondary axes being actively dragged recomputes
+    /// <remarks>Not cached like the primary view — a figure with secondary axes being actively dragged recomputes
     /// every move. Scoped deliberately: the primary cache exists because a line of a million points is 8ms to
     /// autoscale and a drag converts several times a frame; a secondary axis pays that cost again per move until
     /// profiling shows it matters in practice.</remarks>

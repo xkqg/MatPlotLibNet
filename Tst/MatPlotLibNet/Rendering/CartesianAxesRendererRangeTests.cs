@@ -10,7 +10,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>
-/// Integration guards for <see cref="CartesianAxesRenderer.ComputeDataRanges"/> — proves
+/// Integration guards for <see cref="CartesianAxisPlacement.ComputeDataRanges"/> — proves
 /// the renderer correctly wires the <see cref="Range1D"/> pipeline (aggregate → normalize →
 /// pad → clamp sticky → nice-bound). Per-step semantics are unit-tested in
 /// <see cref="Range1DTests"/>; this file only asserts the end-to-end integration that a
@@ -23,12 +23,12 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// </summary>
 public class CartesianAxesRendererRangeTests
 {
-    private static CartesianAxesRenderer BuildRenderer(Axes axes)
+    private static CartesianAxisPlacement BuildPlacement(Axes axes)
     {
         var plotArea = new Rect(80, 60, 700, 400);
         var ctx = new SvgRenderContext();
         var theme = Theme.MatplotlibV2;
-        return new CartesianAxesRenderer(axes, plotArea, ctx, theme);
+        return new CartesianAxisPlacement(axes, plotArea, ctx, theme);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ public class CartesianAxesRendererRangeTests
     {
         var axes = new Axes();
         axes.Plot([0.0, 2.5, 5.0, 7.5, 10.0], [0.0, 0.25, 0.5, 0.75, 1.0]);
-        var range = BuildRenderer(axes).ComputeDataRanges();
+        var range = BuildPlacement(axes).ComputeDataRanges();
 
         Assert.InRange(range.XMin, -0.6, 0.0);
         Assert.InRange(range.XMax, 10.0, 10.6);
@@ -69,7 +69,7 @@ public class CartesianAxesRendererRangeTests
     {
         var axes = new Axes();
         axes.Bar(["A", "B", "C"], [3.0, 7.0, 5.0]);
-        var range = BuildRenderer(axes).ComputeDataRanges();
+        var range = BuildPlacement(axes).ComputeDataRanges();
 
         Assert.Equal(0.0, range.YMin);
     }
@@ -88,7 +88,7 @@ public class CartesianAxesRendererRangeTests
         axes.Plot([3.0, 7.0], [3.0, 7.0]);
         axes.XAxis.Min = 1.0;
         axes.XAxis.Max = 9.0;
-        var range = BuildRenderer(axes).ComputeDataRanges();
+        var range = BuildPlacement(axes).ComputeDataRanges();
 
         Assert.Equal(1.0, range.XMin);
         Assert.Equal(9.0, range.XMax);
@@ -98,6 +98,16 @@ public class CartesianAxesRendererRangeTests
     // Shared-axis aggregation (sharex= / sharey= chain walk)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /// <summary>Two axes of one line each; the second is returned, the first comes out.</summary>
+    private static Axes PlotTwo(double[] x1, double[] y1, double[] x2, double[] y2, out Axes first)
+    {
+        first = new Axes();
+        first.Plot(x1, y1);
+        var second = new Axes();
+        second.Plot(x2, y2);
+        return second;
+    }
+
     /// <summary>
     /// When <c>axes.ShareXWith</c> is set, the computed X range must be the <em>union</em>
     /// of this axes' data AND every linked axes' data. Previously only verified by a
@@ -106,13 +116,10 @@ public class CartesianAxesRendererRangeTests
     [Fact]
     public void ShareXWith_AggregatesXRangeFromLinkedAxes()
     {
-        var ax1 = new Axes();
-        ax1.Plot([0.0, 10.0], [1.0, 2.0]);
-        var ax2 = new Axes();
-        ax2.Plot([5.0, 15.0], [3.0, 4.0]);
+        var ax2 = PlotTwo([0.0, 10.0], [1.0, 2.0], [5.0, 15.0], [3.0, 4.0], out var ax1);
         ax2.ShareXWith = ax1;
 
-        var range = BuildRenderer(ax2).ComputeDataRanges();
+        var range = BuildPlacement(ax2).ComputeDataRanges();
 
         Assert.True(range.XMin <= 0.0, $"XMin should be <= 0 (from ax1), got {range.XMin}");
         Assert.True(range.XMax >= 15.0, $"XMax should be >= 15 (from ax2), got {range.XMax}");
@@ -125,13 +132,10 @@ public class CartesianAxesRendererRangeTests
     [Fact]
     public void ShareYWith_AggregatesYRangeFromLinkedAxes()
     {
-        var ax1 = new Axes();
-        ax1.Plot([1.0, 2.0], [0.0, 100.0]);
-        var ax2 = new Axes();
-        ax2.Plot([1.0, 2.0], [50.0, 200.0]);
+        var ax2 = PlotTwo([1.0, 2.0], [0.0, 100.0], [1.0, 2.0], [50.0, 200.0], out var ax1);
         ax2.ShareYWith = ax1;
 
-        var range = BuildRenderer(ax2).ComputeDataRanges();
+        var range = BuildPlacement(ax2).ComputeDataRanges();
 
         Assert.True(range.YMin <= 0.0, $"YMin should be <= 0 (from ax1), got {range.YMin}");
         Assert.True(range.YMax >= 200.0, $"YMax should be >= 200 (from ax2), got {range.YMax}");
@@ -147,15 +151,15 @@ public class CartesianAxesRendererRangeTests
     public void ShareXWith_TakesTheStickyEdgesOfTheLinkedAxes_SoTheTwoScalesAreOne()
     {
         var target = new Axes();
-        target.Bar(["A", "B", "C"], [3.0, 7.0, 5.0]);
+        target.Heatmap(new double[,] { { 3, 7, 5 }, { 2, 4, 6 } });   // a heatmap's cells are sticky at its ends
         var sharing = new Axes();
-        sharing.Plot([0.5, 2.5], [1.0, 2.0]);   // inside the bars' extent (0.1 to 2.9), so their edges still decide
+        sharing.Plot([0.5, 2.5], [1.0, 2.0]);   // inside the cells' extent (0 to 3), so their edges still decide
         sharing.ShareXWith = target;
 
-        var own = BuildRenderer(target).ComputeDataRanges();
-        var shared = BuildRenderer(sharing).ComputeDataRanges();
+        var own = BuildPlacement(target).ComputeDataRanges();
+        var shared = BuildPlacement(sharing).ComputeDataRanges();
 
-        Assert.Equal(0.1, own.XMin, 12);
+        Assert.Equal(0, own.XMin, 12);
         Assert.Equal(own.XMin, shared.XMin);
         Assert.Equal(own.XMax, shared.XMax);
     }
@@ -170,8 +174,8 @@ public class CartesianAxesRendererRangeTests
         sharing.Plot([0.0, 3.0], [0.0, 7.0]);
         sharing.ShareYWith = target;
 
-        var own = BuildRenderer(target).ComputeDataRanges();
-        var shared = BuildRenderer(sharing).ComputeDataRanges();
+        var own = BuildPlacement(target).ComputeDataRanges();
+        var shared = BuildPlacement(sharing).ComputeDataRanges();
 
         Assert.Equal(0.0, own.YMin);
         Assert.Equal(own.YMin, shared.YMin);
@@ -184,18 +188,18 @@ public class CartesianAxesRendererRangeTests
     {
         var target = new Axes();
         target.Plot([0.0, 3.0], [1.0, 2.0]);
-        var alone = BuildRenderer(target).ComputeDataRanges();
+        var alone = BuildPlacement(target).ComputeDataRanges();
         var sharing = new Axes();
         sharing.Bar(["A", "B", "C"], [3.0, 7.0, 5.0]);
         sharing.ShareXWith = target;
 
-        var after = BuildRenderer(target).ComputeDataRanges();
+        var after = BuildPlacement(target).ComputeDataRanges();
 
         Assert.Equal(alone, after);
     }
 
     /// <summary>
-    /// A cyclic share chain (A → B → A) must not send <see cref="CartesianAxesRenderer.ComputeDataRanges"/>
+    /// A cyclic share chain (A → B → A) must not send <see cref="CartesianAxisPlacement.ComputeDataRanges"/>
     /// into an infinite loop. The engine uses a <c>HashSet&lt;Axes&gt;</c> visited guard;
     /// this test exercises it.
     /// </summary>
@@ -211,7 +215,7 @@ public class CartesianAxesRendererRangeTests
 
         // Race ComputeDataRanges against a 2-second timeout — a regression would hang the
         // method and the delay task would win, failing the assertion.
-        var work = Task.Run(() => BuildRenderer(ax2).ComputeDataRanges());
+        var work = Task.Run(() => BuildPlacement(ax2).ComputeDataRanges());
         var timeout = Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
         var finished = await Task.WhenAny(work, timeout);
         Assert.Same(work, finished);
@@ -236,10 +240,10 @@ public class CartesianAxesRendererRangeTests
         axes.Plot([0.0, 10.0], [0.0, 1.0]);          // primary series, Y in [0, 1]
         axes.YAxes.Right.FirstOrAdd().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10.0], [100.0, 500.0]));  // right-axis series, Y in [100, 500]
 
-        var renderer = BuildRenderer(axes);
-        var primaryRange = renderer.ComputeDataRanges();
+        var placement = BuildPlacement(axes);
+        var primaryRange = placement.ComputeDataRanges();
         var right        = axes.YAxes.Right[0];
-        var secRange     = renderer.ComputeSecondaryDataRanges(primaryRange.XMin, primaryRange.XMax, right.Axis, right.Series);
+        var secRange     = placement.ComputeSecondaryDataRanges(primaryRange.XMin, primaryRange.XMax, right.Axis, right.Series);
 
         // Primary Y is in the [0, 1] band — should be nowhere near 100+
         Assert.True(primaryRange.YMax <= 10.0);
@@ -262,10 +266,10 @@ public class CartesianAxesRendererRangeTests
         var slot1 = axes.YAxes.Right.Add();
         slot1.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10.0], [-5.0, -1.0])); // slot 1: Y in [-5, -1]
 
-        var renderer = BuildRenderer(axes);
-        var primary = renderer.ComputeDataRanges();
-        var slot0Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.YAxes.Right[0].Axis, axes.YAxes.Right[0].Series);
-        var slot1Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.YAxes.Right[1].Axis, axes.YAxes.Right[1].Series);
+        var placement = BuildPlacement(axes);
+        var primary = placement.ComputeDataRanges();
+        var slot0Range = placement.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.YAxes.Right[0].Axis, axes.YAxes.Right[0].Series);
+        var slot1Range = placement.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.YAxes.Right[1].Axis, axes.YAxes.Right[1].Series);
 
         Assert.True(slot0Range.YMin <= 100.0 && slot0Range.YMax >= 500.0);
         Assert.True(slot1Range.YMin <= -5.0 && slot1Range.YMax >= -1.0);

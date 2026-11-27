@@ -23,54 +23,69 @@ public enum StepPosition
 }
 
 /// <summary>Represents a step-function line series.</summary>
-public sealed class StepSeries : XYSeries, IHasColor
+public sealed class StepSeries : XYSeries, IHasColor, ISeriesKind<StepSeries>, IGivenStroked
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, LineWidth, LineStyle, Marker: Marker, MarkerSize: LineSeries.RestingMarkerSize);
+    /// <remarks>2: <c>step</c> draws a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, Stroke, Marker: Marker, MarkerSize: LineSeries.RestingMarkerSize);
 
     /// <summary>Where each step happens between two neighbouring points: after the earlier point (the default), before the
     /// later point, or halfway between them.</summary>
-    public StepPosition StepPosition { get; set; } = StepPosition.Post;
+    public StepPosition StepPosition { get; set => Change(ref field, value); } = StepPosition.Post;
+
+    /// <summary>The draw style the step's position names, as matplotlib's <c>step(where=...)</c> draws its line with
+    /// <c>drawstyle="steps-" + where</c>: the corners are the ones a stepped line has.</summary>
+    internal DrawStyle DrawStyle => StepPosition switch
+    {
+        StepPosition.Pre => DrawStyle.StepsPre,
+        StepPosition.Mid => DrawStyle.StepsMid,
+        _ => DrawStyle.StepsPost,
+    };
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The dash pattern of the step line. Default solid.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
-    /// <summary>The thickness of the step line, in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <summary>The shape drawn at each data point, not at the corners of the steps. Null (the default) leaves the choice
     /// to the chart's property cycle, which normally draws no markers; <see cref="MarkerStyle.None"/> draws none whatever
     /// the cycle says.</summary>
-    public MarkerStyle? Marker { get; set; }
+    public MarkerStyle? Marker { get; set => Change(ref field, value); }
 
     /// <summary>Creates a new step series from the given X and Y data.</summary>
     public StepSeries(double[] xData, double[] yData) : base(xData, yData) { }
 
+    static string ISeriesKind<StepSeries>.Kind => "step";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "step",
+        Type = this.WireKind(),
         XData = XData, YData = YData, Color = Color,
-        LineStyle = LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth,
-        StepPosition = StepPosition.ToString().ToLowerInvariant(),
+        Stroking = Stroke,
+        StepPosition = StepPosition.ToWireName(),
         Marker = Marker,
     };
 
-    /// <summary>Reconstructs a <see cref="StepSeries"/> from its serialization DTO, including step position, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="StepSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries step position.</summary>
     internal static StepSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Step(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
-        dto.LineStyle.ApplyEnum<LineStyle>(v => s.LineStyle = v);
-        dto.StepPosition.ApplyEnum<StepPosition>(v => s.StepPosition = v);
+        s.Stroke = dto.StrokeOver(s.Stroke);
+        if (dto.StepPosition.WireEnum<StepPosition>() is { } stepPosition) s.StepPosition = stepPosition;
         s.Marker = dto.Marker;
         return s;
     }

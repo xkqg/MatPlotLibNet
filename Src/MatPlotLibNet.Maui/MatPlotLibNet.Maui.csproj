@@ -11,12 +11,15 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Maui</PackageId>
-    <Version>1.29.0</Version>
+    <Version>1.30.0</Version>
     <Description>MAUI controls for MatPlotLibNet charting library. Renders charts via Microsoft.Maui.Graphics.</Description>
     <PackageTags>matplotlib;charting;plotting;visualization;maui;mobile;cross-platform</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Reads internals of the packages it references (InternalsVisibleTo), so it depends on each at exactly this
+         version (Directory.Build.targets). -->
+    <DependsOnInternals>true</DependsOnInternals>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>

@@ -5,6 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -22,38 +23,23 @@ public class SeriesGroupExtensionsTests
         return new OneLine(axes, line);
     }
 
-    [Fact]
-    public void WithInteractiveAttributes_OpensADataGroupWithTheSlotAndTheLabel()
+    public static TheoryData<string?, bool, int, string> TheGroupOfASeries => new()
     {
-        var (axes, line) = Line("Revenue & cost", interactive: true);
+        { "Revenue & cost", true, 7, "<g class=\"series\" data-series-index=\"7\" aria-label=\"Revenue &amp; cost\">" }, // the slot and the label
+        { null, true, 3, "<g class=\"series\" data-series-index=\"3\">" },                                                  // an unlabelled series still gets its data group
+        { "Revenue", false, 2, "<g class=\"series\" aria-label=\"Revenue\">" },                                            // without interactive attributes a labelled series gets an accessible group
+    };
+
+    [Theory]
+    [MemberData(nameof(TheGroupOfASeries))]
+    public void BeginSeriesGroup_OpensTheGroupOfASeries(string? label, bool interactive, int slot, string expected)
+    {
+        var (axes, line) = Line(label, interactive);
         var ctx = new SvgRenderContext();
 
-        Assert.True(ctx.BeginSeriesGroup(axes, line, 7));
+        Assert.True(ctx.BeginSeriesGroup(axes, line, slot));
 
-        Assert.Equal("<g class=\"series\" data-series-index=\"7\" aria-label=\"Revenue &amp; cost\">",
-                     ctx.GetOutput().Trim());
-    }
-
-    [Fact]
-    public void WithInteractiveAttributes_AnUnlabelledSeries_StillGetsItsDataGroup()
-    {
-        var (axes, line) = Line(null, interactive: true);
-        var ctx = new SvgRenderContext();
-
-        Assert.True(ctx.BeginSeriesGroup(axes, line, 3));
-
-        Assert.Equal("<g class=\"series\" data-series-index=\"3\">", ctx.GetOutput().Trim());
-    }
-
-    [Fact]
-    public void WithoutInteractiveAttributes_ALabelledSeries_GetsAnAccessibleGroup()
-    {
-        var (axes, line) = Line("Revenue", interactive: false);
-        var ctx = new SvgRenderContext();
-
-        Assert.True(ctx.BeginSeriesGroup(axes, line, 2));
-
-        Assert.Equal("<g class=\"series\" aria-label=\"Revenue\">", ctx.GetOutput().Trim());
+        Assert.Equal(expected, ctx.GetOutput().Trim());
     }
 
     [Theory]
@@ -78,5 +64,19 @@ public class SeriesGroupExtensionsTests
         Assert.False(ctx.BeginSeriesGroup(axes, line, 0));
 
         Assert.Empty(ctx.Calls);
+    }
+
+    /// <summary>A series of your own, which is no <see cref="ChartSeries"/>, is cut off by the rule for an artist of its own: the clip opens
+    /// exactly when the axes cuts off such an artist's marks under the theme.</summary>
+    [Fact]
+    public void ASeriesOfYourOwn_IsCutOffAsAnArtistOfItsOwn()
+    {
+        var axes = new Axes();
+
+        Assert.All(new[] { Theme.MatplotlibV2, Theme.Default }, theme =>
+        {
+            using var clip = new SvgRenderContext().ClippedForSeries(axes, new ForeignSeries(), new ClipRegion(new Rect(0, 0, 10, 10)), theme);
+            Assert.Equal(axes.ClipsItsMarksUnder(theme, MatplotlibArtist.Own), clip.Context is not null);
+        });
     }
 }

@@ -15,7 +15,7 @@ public readonly record struct StreamingClass(string Name, StreamingKind? Kind, s
 
 /// <summary>The classification map: every indicator the package calculates, and for each how it is streamed or why it is not.
 /// It is the one place that states the kind of a streaming form; a calculator added without a line here turns
-/// <see cref="StreamingMapTests"/> red, and the line is where the choice between keeping a window and carrying a state is
+/// the guard of <see cref="IndicatorContractTests"/> red, and the line is where the choice between keeping a window and carrying a state is
 /// written down.</summary>
 public static class StreamingMap
 {

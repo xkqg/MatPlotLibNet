@@ -30,11 +30,26 @@ Plt.Create()
     {
         s.Explode = [0.05, 0.1, 0, 0, 0]; // pull out C#
         s.Shadow = true;
-        s.AutoPct = "%.1f%%";              // "35.0%" format
+        s.AutoPct = "{0:F1}%";             // "35.0%" format
         s.StartAngle = 140;
         s.CounterClockwise = true;
     })
     .Save("pie_exploded.svg");
+```
+
+## A legend of the slices
+
+A pie, a donut and a funnel list a row in the legend for each slice or stage that has a name, in the colour of its wedge or bar
+(`Colors`, or the theme's colour at its position); a slice with no name has no row. A pie whose slices carry no names is listed
+once, under the series' own `Label`. The legend is drawn whenever a part has a name, as it is for a labelled line; switch it off
+with `.WithLegend(l => l with { Visible = false })` where the names written beside the wedges are enough.
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Pie(sizes, labels)
+        .WithLegend(LegendPosition.OutsideRight))
+    .Save("pie_legend.svg");
 ```
 
 ## Custom slice colors and hatches
@@ -104,13 +119,14 @@ Plt.Create()
 | `Labels` | `string[]` | none | Slice labels |
 | `Colors` | `Color[]` | none | Per-slice colors; a wedge you do not name (no array, or one shorter than the slices) wears the theme's colour at its position, as a donut's and a funnel's do |
 | `Explode` | `double[]` | none | Per-slice offset from center (0–1) |
-| `StartAngle` | `double` | `90` | Rotation in degrees |
-| `CounterClockwise` | `bool` | `false` | Reverse slice order |
-| `AutoPct` | `string` | none | Percentage label format (e.g., `"%.1f%%"`) |
+| `StartAngle` | `double` | the theme's | The angle the first slice starts at, in degrees counter-clockwise from three o'clock: given none, 0 under the matplotlib themes (matplotlib's `startangle`) and 90 (the top) under the library's own |
+| `CounterClockwise` | `bool` | the theme's | Lay the slices counter-clockwise from the start angle; given none, counter-clockwise under the matplotlib themes (matplotlib's `counterclock`) and clockwise under the library's own; a donut follows the same rule as the pie |
+| `AutoPct` | `string` | none | Percentage label format (e.g., `"{0:F1}%"`) |
 | `Shadow` | `bool` | `false` | Drop shadow |
 | `Radius` | `double` | `1.0` | Pie radius |
 | `Hatches` | `HatchPattern[]` | none | Per-slice hatch patterns |
-| `InnerRadius` | `double` | `0` | Donut hole (0 = pie, 0.4 = donut) |
+
+A donut is a `DonutSeries`: its `InnerRadius`, the hole as a share of the radius, is 0.4 unless you set it.
 
 ## Gauge chart
 

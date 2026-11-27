@@ -276,12 +276,12 @@ Plt.Create()
 
 | Method | Parameters | Description |
 |---|---|---|
-| `.Annotate(text, x, y, cfg?)` | text, position | Text annotation at (x, y) |
-| `.Annotate(text, x, y, arrowX, arrowY, cfg?)` | text, position, arrow target | Text with an arrow pointing to the target |
-| `.AxHLine(y, cfg?)` | y position | Horizontal reference line |
-| `.AxVLine(x, cfg?)` | x position | Vertical reference line |
-| `.AxHSpan(yMin, yMax, cfg?)` | y range | Horizontal shaded band |
-| `.AxVSpan(xMin, xMax, cfg?)` | x range | Vertical shaded band |
+| `.Annotate(text, x, y, configure?)` | text, position | Text annotation at (x, y) |
+| `.Annotate(text, x, y, arrowX, arrowY, configure?)` | text, position, arrow target | Text with an arrow pointing to the target |
+| `.AxHLine(y, configure?)` | y position | Horizontal reference line |
+| `.AxVLine(x, configure?)` | x position | Vertical reference line |
+| `.AxHSpan(yMin, yMax, configure?)` | y range | Horizontal shaded band |
+| `.AxVSpan(xMin, xMax, configure?)` | x range | Vertical shaded band |
 | `.Threshold(value, orientation, breach, color?, label?)` | value, orientation, breach | Dashed reference line and shaded breach span |
 
 ### Annotation properties

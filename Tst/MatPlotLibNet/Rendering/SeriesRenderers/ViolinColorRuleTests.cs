@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -31,18 +30,24 @@ public class ViolinColorRuleTests
     private static string Hex(Color color) => color.ToHex().ToUpperInvariant()[..7];
 
     private static string BodyFill(string svg) =>
-        Regex.Match(svg, @"<polygon points=""[^""]+"" fill=""(#[0-9A-F]{6})""").Groups[1].Value;
+        svg.Elements("polygon").Select(polygon => polygon["fill"]).FirstOrDefault(fill => fill?.StartsWith('#') == true) ?? string.Empty;
 
     private static string BodyEdge(string svg) =>
-        Regex.Match(svg, @"<polygon points=""[^""]+"" fill=""#[0-9A-F]{6}"" fill-opacity=""[0-9.eE+-]+"" stroke=""(#[0-9A-F]{6})""").Groups[1].Value;
+        svg.Elements("polygon").Where(polygon => polygon["fill-opacity"] is not null).Select(polygon => polygon["stroke"]).FirstOrDefault(stroke => stroke?.StartsWith('#') == true) ?? string.Empty;
 
-    /// <summary>The bar from the lowest to the highest observation: the first line 1.5 points wide, which no tick or spine is.</summary>
+    /// <summary>The bar from the lowest to the highest observation: the first line as wide as the theme's lines (1.5 pixels under the
+    /// library's own themes, <c>lines.linewidth</c> 1 pt = 1.39 pixels under classic), which no tick or spine is.</summary>
     private static string StatsLine(string svg) =>
-        Regex.Match(svg, @"<line [^>]*stroke=""(#[0-9A-F]{6})"" stroke-width=""1\.5"" />").Groups[1].Value;
+        svg.Elements("line").Where(line => line["stroke-width"] is "1.5" or "1.39").Select(line => line["stroke"]).FirstOrDefault(stroke => stroke?.StartsWith('#') == true) ?? string.Empty;
 
     /// <summary>The legend's swatch for the violin: the last plain filled rectangle (the legend frame carries an opacity).</summary>
     private static string Swatch(string svg) =>
-        Regex.Matches(svg, @"<rect [^>]*fill=""(#[0-9A-F]{6})"" />").Last().Groups[1].Value;
+        svg.Elements("rect").Where(rect => rect["fill"]?.StartsWith('#') == true && rect["fill-opacity"] is null).Last()["fill"]!;
+
+    /// <summary>The legend's swatch for the violin under the matplotlib themes: the body as it is drawn, at its opacity (matplotlib's
+    /// <c>HandlerPolyCollection</c>), so the last rectangle filled at an opacity below 1.</summary>
+    private static string TranslucentSwatch(string svg) =>
+        svg.Elements("rect").Where(rect => rect["fill"]?.StartsWith('#') == true && rect["fill-opacity"]?.StartsWith("0.", StringComparison.Ordinal) == true).Last()["fill"]!;
 
     [Theory]
     [InlineData(true, true)]
@@ -72,10 +77,10 @@ public class ViolinColorRuleTests
         string named = Render(Theme.MatplotlibClassic, Named);
 
         Assert.Equal("#BFBF00", BodyFill(plain));
-        Assert.Equal("#BFBF00", Swatch(plain));
+        Assert.Equal("#BFBF00", TranslucentSwatch(plain));
         Assert.Equal("#FF0000", StatsLine(plain));
         Assert.Equal("#4C78A8", BodyFill(named));
-        Assert.Equal("#4C78A8", Swatch(named));
+        Assert.Equal("#4C78A8", TranslucentSwatch(named));
         Assert.Equal("#4C78A8", StatsLine(named));
     }
 }

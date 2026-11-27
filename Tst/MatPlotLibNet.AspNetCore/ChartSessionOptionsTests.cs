@@ -5,61 +5,27 @@ using MatPlotLibNet.Interaction;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
-/// <summary>Phase X.4 follow-up (v1.7.2, 2026-04-19) — drives both null-handler arms
-/// of <see cref="ChartSessionOptions"/>'s argument-null guards (lines 34, 45). Pre-X
-/// the class was at 100%L / 50%B because only the happy-path register-handler arms
-/// were exercised; the `?? throw new ArgumentNullException(nameof(handler))` true
-/// branches were unhit.</summary>
+/// <summary>A handler of <see cref="ChartSessionOptions"/> (a brush selection, a hover, a data cursor, the one for every event) is registered fluently, and a null
+/// one is refused rather than stored, so the failure names the argument instead of arriving later as a gesture that does nothing.</summary>
 public class ChartSessionOptionsTests
 {
-    [Fact]
-    public void OnBrushSelect_ValidHandler_RegistersAndReturnsThis()
+    public static TheoryData<string, Func<ChartSessionOptions, ChartSessionOptions>, Func<ChartSessionOptions, ChartSessionOptions>> Handlers => new()
     {
-        var opts = new ChartSessionOptions();
-        var result = opts.OnBrushSelect(_ => default);
-        Assert.Same(opts, result);   // fluent chain returns self
-    }
+        { "brush select", opts => opts.OnBrushSelect(_ => default), opts => opts.OnBrushSelect(null!) },
+        { "hover", opts => opts.OnHover(_ => new ValueTask<string?>("tooltip")), opts => opts.OnHover(null!) },
+        { "data cursor", opts => opts.OnDataCursor(_ => default), opts => opts.OnDataCursor(null!) },
+        { "every event", opts => opts.Handle(new RecordingChartEventHandler()), opts => opts.Handle(null!) },
+    };
 
-    [Fact]
-    public void OnHover_ValidHandler_RegistersAndReturnsThis()
-    {
-        var opts = new ChartSessionOptions();
-        var result = opts.OnHover(_ => new ValueTask<string?>("tooltip"));
-        Assert.Same(opts, result);
-    }
-
-    /// <summary>Null brush-select handler triggers the `?? throw` arm at line 34.</summary>
-    [Fact]
-    public void OnBrushSelect_NullHandler_ThrowsArgumentNullException()
-    {
-        var opts = new ChartSessionOptions();
-        Assert.Throws<ArgumentNullException>(() => opts.OnBrushSelect(null!));
-    }
-
-    /// <summary>Null hover handler triggers the `?? throw` arm at line 45.</summary>
-    [Fact]
-    public void OnHover_NullHandler_ThrowsArgumentNullException()
-    {
-        var opts = new ChartSessionOptions();
-        Assert.Throws<ArgumentNullException>(() => opts.OnHover(null!));
-    }
-
-    /// <summary>A data-cursor handler is registered fluently, like the other two.</summary>
-    [Fact]
-    public void OnDataCursor_ReturnsTheSameOptions_ForChaining()
+    [Theory]
+    [MemberData(nameof(Handlers))]
+    public void AHandler_ReturnsTheSameOptions_AndANullOneIsRefused(string handler,
+        Func<ChartSessionOptions, ChartSessionOptions> register, Func<ChartSessionOptions, ChartSessionOptions> registerNull)
     {
         var opts = new ChartSessionOptions();
 
-        Assert.Same(opts, opts.OnDataCursor(_ => default));
-    }
-
-    /// <summary>And a null one is refused rather than stored, so the failure names the argument instead of
-    /// arriving later as a click that does nothing.</summary>
-    [Fact]
-    public void OnDataCursor_NullHandler_ThrowsArgumentNullException()
-    {
-        var opts = new ChartSessionOptions();
-
-        Assert.Throws<ArgumentNullException>(() => opts.OnDataCursor(null!));
+        Assert.Same(opts, register(opts));
+        Assert.Equal("handler", Assert.Throws<ArgumentNullException>(() => registerNull(opts)).ParamName);
+        _ = handler;
     }
 }

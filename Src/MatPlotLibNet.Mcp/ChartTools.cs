@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Text.Json;
+using MatPlotLibNet.Serialization;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -45,7 +46,7 @@ internal sealed class ChartTools
         + "text summary of what was drawn. Call describe_chart_schema for the shape of the spec and list_chart_types "
         + "for the chart types. For SVG or PDF, use save_chart — they are too large to return inline.")]
     public IEnumerable<ContentBlock> RenderChart(
-        [Description("The chart spec: MatPlotLibNet figure JSON, e.g. {\"width\":800,\"height\":600,\"subPlots\":[{\"series\":[{\"type\":\"line\",\"xData\":[1,2],\"yData\":[3,4]}]}]}")]
+        [Description("The chart spec: MatPlotLibNet figure JSON, e.g. {\"title\":\"Revenue\",\"subPlots\":[{\"series\":[{\"type\":\"line\",\"xData\":[1,2],\"yData\":[3,4]}]}]}")]
         JsonElement spec,
         [Description("The image format. Only png can be returned inline.")]
         ChartFormat format = ChartFormat.Png) =>
@@ -80,7 +81,7 @@ internal sealed class ChartTools
         Guarded(() =>
         {
             var result = _rendering.Save(ChartSpec.From(spec), format, path, overwrite, _output);
-            return $"Wrote {result.Path} ({result.ByteCount:N0} bytes, {result.FormatWritten.ToString().ToLowerInvariant()}).\n{result.Summary.ToText()}";
+            return string.Invariant($"Wrote {result.Path} ({result.ByteCount:N0} bytes, {result.FormatWritten.ToWireName()}).\n{result.Summary.ToText()}");
         });
 
     // Both forms, in the two channels the protocol has for them: the markdown in the text a model reads, and the
@@ -111,7 +112,7 @@ internal sealed class ChartTools
     [Description("Lists the chart types a spec may name in a series' \"type\" field.")]
     public string ListChartTypes() => Guarded(() =>
     {
-        string listed = $"{_catalog.Listed.Count} chart types:\n  {string.Join("\n  ", _catalog.Listed)}";
+        string listed = string.Invariant($"{_catalog.Listed.Count} chart types:\n  {string.Join("\n  ", _catalog.Listed)}");
         return _catalog.Excluded.Count == 0
             ? listed
             : listed + "\n\nNot available in this version:\n  "

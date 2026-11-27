@@ -30,8 +30,8 @@ public static class CompositeOperation
     /// </summary>
     public static Color Blend(Color src, Color dst, BlendMode mode, double alpha)
     {
-        double sr = src.R / 255.0, sg = src.G / 255.0, sb = src.B / 255.0;
-        double dr = dst.R / 255.0, dg = dst.G / 255.0, db = dst.B / 255.0;
+        double sr = src.R.Share, sg = src.G.Share, sb = src.B.Share;
+        double dr = dst.R.Share, dg = dst.G.Share, db = dst.B.Share;
 
         double br, bg, bb;
         switch (mode)
@@ -57,15 +57,14 @@ public static class CompositeOperation
         }
 
         // Alpha composite blended result over dst
-        double r = Saturate(br * alpha + dr * (1 - alpha));
-        double g = Saturate(bg * alpha + dg * (1 - alpha));
-        double b = Saturate(bb * alpha + db * (1 - alpha));
+        double r = br * alpha + dr * (1 - alpha);
+        double g = bg * alpha + dg * (1 - alpha);
+        double b = bb * alpha + db * (1 - alpha);
 
-        return new Color((byte)(r * 255), (byte)(g * 255), (byte)(b * 255));
+        return new Color(byte.MaxValue.ScaledTruncating(r), byte.MaxValue.ScaledTruncating(g), byte.MaxValue.ScaledTruncating(b));
     }
 
     private static double OverlayChannel(double s, double d)
         => d < 0.5 ? 2 * s * d : 1 - 2 * (1 - s) * (1 - d);
 
-    private static double Saturate(double v) => Math.Clamp(v, 0.0, 1.0);
 }

@@ -9,7 +9,9 @@
     "jsx": "react-jsx",
     "outDir": "./dist",
     "rootDir": "./src",
-    "lib": ["ES2022", "DOM"]
+    "lib": ["ES2022", "DOM"],
+    "baseUrl": ".",
+    "paths": { "@matplotlibnet/client": ["../matplotlibnet-client/dist/index.d.ts"] }
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.test.*"]

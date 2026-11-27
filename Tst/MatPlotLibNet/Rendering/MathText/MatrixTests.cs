@@ -42,26 +42,23 @@ public sealed class MatrixTests
         Assert.True(rowSeps >= 2); // one per row
     }
 
-    [Fact]
-    public void Bmatrix_ParsesCorrectly()
+    [Theory]
+    [InlineData("bmatrix", @"$\begin{bmatrix} a & b \end{bmatrix}$")]
+    [InlineData("vmatrix", @"$\begin{vmatrix} a & b \\ c & d \end{vmatrix}$")]
+    public void AMatrixEnvironment_ParsesCorrectly(string environment, string markup)
     {
-        var rt = MathTextParser.Parse(@"$\begin{bmatrix} a & b \end{bmatrix}$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.MatrixStart && s.Text == "bmatrix");
+        var rt = MathTextParser.Parse(markup);
+        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.MatrixStart && s.Text == environment);
     }
 
+    /// <summary>A matrix's cells are set at the text's size, as LaTeX's matrix environments set them (the cells stand in rows now, so
+    /// they no longer shrink to fit beside the text).</summary>
     [Fact]
-    public void Vmatrix_ParsesCorrectly()
-    {
-        var rt = MathTextParser.Parse(@"$\begin{vmatrix} a & b \\ c & d \end{vmatrix}$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.MatrixStart && s.Text == "vmatrix");
-    }
-
-    [Fact]
-    public void Matrix_CellsHaveReducedScale()
+    public void Matrix_CellsAreSetAtTheTextsSize()
     {
         var rt = MathTextParser.Parse(@"$\begin{matrix} x \end{matrix}$");
         var cell = rt.Spans.First(s => s.Kind == TextSpanKind.MatrixCell);
-        Assert.True(cell.FontSizeScale < 1.0);
+        Assert.Equal(1.0, cell.FontSizeScale);
     }
 
     [Fact]

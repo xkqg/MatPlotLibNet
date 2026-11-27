@@ -9,73 +9,56 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies that <see cref="SpanRegion"/> border lines and labels are rendered into SVG.</summary>
 public class SpanRegionRenderTests
 {
-    /// <summary>Verifies that a horizontal span with a border renders additional line elements.</summary>
-    [Fact]
-    public void HorizontalSpan_WithBorder_RendersBorderLines()
+    /// <summary>Verifies that a horizontal span with a solid border, and a vertical one with a dashed border, render additional line elements.</summary>
+    [Theory]
+    [InlineData(true, LineStyle.Solid)]
+    [InlineData(false, LineStyle.Dashed)]
+    public void ASpan_WithBorder_RendersBorderLines(bool horizontal, LineStyle style)
     {
         var figure = new Figure();
         var ax = figure.AddSubPlot();
         ax.Plot([0.0, 3.0], [0.0, 3.0]);
         string svgWithout = figure.ToSvg(); // baseline
 
-        var span = ax.AxHSpan(1.0, 2.0);
-        span.LineStyle = LineStyle.Solid;
+        var span = horizontal ? ax.AxHSpan(1.0, 2.0) : ax.AxVSpan(1.0, 2.0);
+        span.LineStyle = style;
         span.EdgeColor = Colors.Black;
         string svgWith = figure.ToSvg();
 
         // Border adds line elements
-        int linesBefore = CountOccurrences(svgWithout, "<line");
-        int linesAfter  = CountOccurrences(svgWith, "<line");
+        int linesBefore = svgWithout.CountOf("<line");
+        int linesAfter  = svgWith.CountOf("<line");
         Assert.True(linesAfter > linesBefore, "Expected more line elements with border");
     }
 
-    /// <summary>Verifies that a vertical span with a border renders additional line elements.</summary>
-    [Fact]
-    public void VerticalSpan_WithBorder_RendersBorderLines()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        string svgWithout = figure.ToSvg();
+        // Verifies that a span with a label renders the label text in SVG.
+        new DrawnToken("Span_WithLabel_RendersLabelText", () =>
+        {
+            var figure = new Figure();
+            var ax = figure.AddSubPlot();
+            ax.Plot([0.0, 3.0], [0.0, 3.0]);
+            var span = ax.AxHSpan(1.0, 2.0);
+            span.Label = "support zone";
+            return figure.ToSvg();
+        }, "support zone"),
+        // Verifies that a span without a label does not render spurious label text.
+        // no label
+        new DrawnToken("Span_WithoutLabel_NoLabelText", () =>
+        {
+            var figure = new Figure();
+            var ax = figure.AddSubPlot();
+            ax.Plot([0.0, 3.0], [0.0, 3.0]);
+            ax.AxHSpan(1.0, 2.0);
+            return figure.ToSvg();
+        }) { Absent = ["nolabel_sentinel"] },
+    };
 
-        var span = ax.AxVSpan(1.0, 2.0);
-        span.LineStyle = LineStyle.Dashed;
-        span.EdgeColor = Colors.Red;
-        string svgWith = figure.ToSvg();
-
-        int linesBefore = CountOccurrences(svgWithout, "<line");
-        int linesAfter  = CountOccurrences(svgWith, "<line");
-        Assert.True(linesAfter > linesBefore, "Expected more line elements with border");
-    }
-
-    /// <summary>Verifies that a span with a label renders the label text in SVG.</summary>
-    [Fact]
-    public void Span_WithLabel_RendersLabelText()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var span = ax.AxHSpan(1.0, 2.0);
-        span.Label = "support zone";
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("support zone", svg);
-    }
-
-    /// <summary>Verifies that a span without a label does not render spurious label text.</summary>
-    [Fact]
-    public void Span_WithoutLabel_NoLabelText()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        ax.AxHSpan(1.0, 2.0); // no label
-
-        string svg = figure.ToSvg();
-
-        Assert.DoesNotContain("nolabel_sentinel", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that a span without border enabled does not add extra line elements.</summary>
     [Fact]
@@ -89,19 +72,8 @@ public class SpanRegionRenderTests
         ax.AxHSpan(1.0, 2.0); // LineStyle defaults to None
         string svgWith = figure.ToSvg();
 
-        int linesBefore = CountOccurrences(svgWithout, "<line");
-        int linesAfter  = CountOccurrences(svgWith, "<line");
+        int linesBefore = svgWithout.CountOf("<line");
+        int linesAfter  = svgWith.CountOf("<line");
         Assert.Equal(linesBefore, linesAfter);
-    }
-
-    private static int CountOccurrences(string text, string pattern)
-    {
-        int count = 0, index = 0;
-        while ((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += pattern.Length;
-        }
-        return count;
     }
 }

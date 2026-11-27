@@ -15,6 +15,12 @@ namespace MatPlotLibNet.Indicators;
 /// shrinkage estimators (Ledoit-Wolf, OAS) rather than pure LU inversion.</remarks>
 public sealed class TurbulenceIndex : MultivariateIndicator<SignalResult>
 {
+    /// <summary>The <c>window</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultWindow = 252;
+
+    /// <summary>The <c>regularization</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultRegularization = 1e-6;
+
     private const int MaxFeatures = 10;
 
     private readonly int _window;
@@ -22,32 +28,30 @@ public sealed class TurbulenceIndex : MultivariateIndicator<SignalResult>
 
     /// <summary>Creates a new Turbulence Index.</summary>
     /// <param name="features">Feature matrix — rows are time points, columns are features.</param>
-    /// <param name="window">Rolling history window (default 252 trading days). Must be ≥ 2.</param>
+    /// <param name="window">Rolling history window (default <see cref="DefaultWindow"/> trading days). Must be ≥ 2.</param>
     /// <param name="regularization">Ridge parameter <c>λ</c> added to the covariance diagonal. Default 1e-6.</param>
-    public TurbulenceIndex(double[][] features, int window = 252, double regularization = 1e-6)
-        : base(features)
+    public TurbulenceIndex(double[][] features, int window = DefaultWindow, double regularization = DefaultRegularization)
+        : base(features, Spec(window, regularization))
     {
-        if (window < 2)
-            throw new ArgumentException($"window must be >= 2 (got {window}).", nameof(window));
-        if (regularization < 0)
-            throw new ArgumentException(
-                $"regularization must be >= 0 (got {regularization}).", nameof(regularization));
-        if (FeatureCount > MaxFeatures)
-            throw new ArgumentException(
-                $"TurbulenceIndex supports at most {MaxFeatures} features (got {FeatureCount}); " +
-                "use a shrinkage estimator for wider feature sets.", nameof(features));
+        ThrowIfTooManyFeatures(FeatureCount, nameof(features));
         _window = window;
         _regularization = regularization;
-        Label = $"Turb({window})";
+    }
+
+    /// <summary>The features of a row, refused past <see cref="MaxFeatures"/>: the one check of the batch and the streaming form.</summary>
+    internal static void ThrowIfTooManyFeatures(int features, string name) => features.ThrowIfMoreThan(MaxFeatures, name, new("A row", "feature", "a turbulence index", "use a shrinkage estimator for wider feature sets"));
+
+    internal static IndicatorSpec Spec(int window, double regularization)
+    {
+        window.ThrowIfBelow(2, nameof(window));
+        regularization.ThrowIfBelow(0.0, nameof(regularization));
+        return IndicatorSpec.OfWindow("Turb", window, window);
     }
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        if (BarCount == 0 || BarCount <= _window)
-            return Array.Empty<double>();
-
-        int outLen = BarCount - _window;
+        int outLen = ValueCount;
         var result = new double[outLen];
         for (int w = 0; w < outLen; w++)
             result[w] = Score(Features, w, _window, _regularization);
@@ -110,7 +114,7 @@ public sealed class TurbulenceIndex : MultivariateIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: _window);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 
     /// <summary>Inverts <paramref name="m"/> + <paramref name="regularization"/>·I via
     /// LU with partial pivoting (delegated to <see cref="Linalg.Inv"/>).</summary>

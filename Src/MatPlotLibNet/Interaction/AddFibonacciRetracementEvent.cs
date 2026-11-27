@@ -16,10 +16,5 @@ public sealed record AddFibonacciRetracementEvent(
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
-    internal override bool TryApplyTo(Figure figure)
-    {
-        if (!TryTargetAxes(figure, out var axes)) return false;
-        axes.AddFibonacci(Tool);
-        return true;
-    }
+    internal override bool TryApplyTo(Figure figure) => OnTargetAxes(figure, axes => axes.Overlays.Add(Tool));
 }

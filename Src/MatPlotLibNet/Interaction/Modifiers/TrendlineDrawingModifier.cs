@@ -10,13 +10,9 @@ namespace MatPlotLibNet.Interaction;
 /// <summary>Two-click trendline drawing: first click anchors p1, second click completes
 /// the trendline and emits an <see cref="AddTrendlineEvent"/>. Active only when the
 /// toolbar is set to <see cref="ToolMode.Trendline"/>.</summary>
-public sealed class TrendlineDrawingModifier : IInteractionModifier
+public sealed class TrendlineDrawingModifier : InteractionModifier
 {
-    private readonly string _chartId;
-    private readonly IChartLayout _layout;
-    private readonly Figure _figure;
-    private readonly Action<FigureInteractionEvent> _sink;
-    private readonly InteractionToolbar _toolbar;
+    private readonly ToolGate _gate;
 
     private bool _waitingForSecondClick;
     private int _axesIndex;
@@ -25,61 +21,38 @@ public sealed class TrendlineDrawingModifier : IInteractionModifier
     /// <summary>Creates a modifier that draws a trendline from two clicks while the trendline tool is active.</summary>
     /// <param name="chartId">The identifier of the chart that the emitted <see cref="AddTrendlineEvent"/> is addressed to.</param>
     /// <param name="layout">The chart layout used to find the axes under a click and to turn the click into data coordinates.</param>
-    /// <param name="figure">The figure being interacted with.</param>
     /// <param name="sink">Receives the event this modifier emits when the second click completes the trendline.</param>
     /// <param name="toolbar">The toolbar that says which tool is active; this modifier acts only while it is <see cref="ToolMode.Trendline"/>.</param>
     public TrendlineDrawingModifier(
         string chartId,
         IChartLayout layout,
-        Figure figure,
         Action<FigureInteractionEvent> sink,
         InteractionToolbar toolbar)
+        : base(chartId, layout, sink)
     {
-        _chartId = chartId;
-        _layout  = layout;
-        _figure  = figure;
-        _sink    = sink;
-        _toolbar = toolbar;
+        _gate = new ToolGate(toolbar, ToolMode.Trendline);
     }
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args) =>
-        _toolbar.ActiveTool == ToolMode.Trendline &&
-        args.Button == PointerButton.Left &&
-        _layout.HitTestAxes(args.X, args.Y) is not null;
+    public override bool HandlesPointerPressed(PointerInputArgs args) => _gate.Opens(args, Layout);
 
     /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args)
+    public override void OnPointerPressed(PointerInputArgs args)
     {
-        int axesIndex = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = _layout.PixelToData(args.X, args.Y, axesIndex);
-        if (coords is null) return;
+        if (Layout.PressAt(args.X, args.Y) is not { } press) return;
 
         if (!_waitingForSecondClick)
         {
-            _axesIndex = axesIndex;
-            _x1 = coords.Value.DataX;
-            _y1 = coords.Value.DataY;
+            _axesIndex = press.AxesIndex;
+            _x1 = press.Data.DataX;
+            _y1 = press.Data.DataY;
             _waitingForSecondClick = true;
         }
         else
         {
             _waitingForSecondClick = false;
-            var tool = new Trendline(_x1, _y1, coords.Value.DataX, coords.Value.DataY);
-            _sink(new AddTrendlineEvent(_chartId, _axesIndex, tool));
+            var tool = new Trendline(_x1, _y1, press.Data.DataX, press.Data.DataY);
+            Emit(new AddTrendlineEvent(ChartId, _axesIndex, tool));
         }
     }
-
-    /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args) { }
 }

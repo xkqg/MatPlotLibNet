@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet;
 
@@ -15,7 +16,7 @@ public static class AxesFlowVerbs
         /// <summary>Adds a Sankey diagram series to the axes.</summary>
         public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
         {
-            links.ThrowIfPointingOutside(nodes.Length);
+            links.ThrowIfPointingOutside(nodes.Length, nameof(links));
             return axes.AddSeries(new SankeySeries(nodes, links));
         }
 
@@ -28,9 +29,26 @@ public static class AxesFlowVerbs
         public ChordSeries Chord(string[] names, double[,] flows)
         {
             ChordLayout.Compute(flows);
-            if (names.Length != flows.GetLength(0))
-                throw new ArgumentException($"names must name each of the {flows.GetLength(0)} groups of flows; it has {names.Length} names.", nameof(names));
+            names.Length.ThrowIfMisaligned(flows.GetLength(0), nameof(names));
             return axes.AddSeries(new ChordSeries(names, flows));
+        }
+    }
+
+    extension(IReadOnlyList<SankeyLink> links)
+    {
+        /// <summary>Throws when a link starts or ends at a node the diagram does not have (a node is named by its place in the
+        /// list of nodes).</summary>
+        /// <param name="nodeCount">How many nodes the diagram has.</param>
+        /// <param name="name">The name of the parameter the links came in, for the error.</param>
+        /// <exception cref="ArgumentOutOfRangeException">A link points at a node before the first or past the last; the message
+        /// names the link, whether it is the source or the target, and the node.</exception>
+        private void ThrowIfPointingOutside(int nodeCount, string name)
+        {
+            for (int i = 0; i < links.Count; i++)
+            {
+                links[i].SourceIndex.ThrowIfNotIndexOf(nodeCount, name, i, static place => string.Invariant($"The source of link {place}"));
+                links[i].TargetIndex.ThrowIfNotIndexOf(nodeCount, name, i, static place => string.Invariant($"The target of link {place}"));
+            }
         }
     }
 }

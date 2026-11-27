@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Tests.Rendering.TickLocators;
 
@@ -14,24 +15,6 @@ public class AutoLocatorTests
     {
         ITickLocator locator = new AutoLocator();
         Assert.NotNull(locator);
-    }
-
-    /// <summary>Verifies that ticks are within [min, max].</summary>
-    [Fact]
-    public void Locate_AllTicksWithinRange()
-    {
-        var locator = new AutoLocator();
-        double[] ticks = locator.Locate(0, 10);
-        Assert.All(ticks, t => Assert.InRange(t, 0, 10));
-    }
-
-    /// <summary>Verifies that at least one tick is returned for a normal range.</summary>
-    [Fact]
-    public void Locate_NormalRange_ReturnsAtLeastOneTick()
-    {
-        var locator = new AutoLocator();
-        double[] ticks = locator.Locate(0, 10);
-        Assert.NotEmpty(ticks);
     }
 
     /// <summary>Verifies that the default target count of 5 produces approximately 5 ticks.</summary>
@@ -60,16 +43,6 @@ public class AutoLocatorTests
         double[] ticks = locator.Locate(5, 5);
         Assert.Single(ticks);
         Assert.Equal(5, ticks[0]);
-    }
-
-    /// <summary>Verifies that ticks are in ascending order.</summary>
-    [Fact]
-    public void Locate_ReturnsAscendingOrder()
-    {
-        var locator = new AutoLocator();
-        double[] ticks = locator.Locate(-3.7, 8.4);
-        for (int i = 1; i < ticks.Length; i++)
-            Assert.True(ticks[i] > ticks[i - 1]);
     }
 
     /// <summary>Verifies that a custom target count influences output count.</summary>
@@ -160,10 +133,36 @@ public class AutoLocatorTests
         var ticks = await Task.Run(() => new AutoLocator(8).Locate(1e16, 1e16 + 2), TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.NotEmpty(ticks);
-        Assert.All(ticks, tick => Assert.True(double.IsFinite(tick)));
+        ticks.AssertAllFinite();
         Assert.Equal(ticks.Length, ticks.Distinct().Count());
         Assert.Equal(1e16, ticks[0]);
         Assert.Equal(1e16 + 2, ticks[^1]);
+    }
+
+    /// <summary>The default placement of an axis' ticks for a plot of a given length: the 8 intervals of a plot of
+    /// <see cref="AutoLocator.FullDensityLength"/> px or more, fewer for a shorter one, a tick per 30 px held between 2 and 6.</summary>
+    [Theory]
+    [InlineData(240.0, 8)]
+    [InlineData(1000.0, 8)]
+    [InlineData(239.0, 6)]
+    [InlineData(150.0, 5)]
+    [InlineData(100.0, 3)]
+    [InlineData(44.0, 2)]
+    [InlineData(30.0, 2)]
+    [InlineData(0.0, 2)]
+    public void ForLength_AsksForTheIntervalsAPlotOfThatLengthHolds(double plotPixels, int intervals)
+    {
+        var located = AutoLocator.ForLength(plotPixels);
+
+        Assert.Equal(new AutoTickLocatorDto(intervals), ((IJsonDescribed<TickLocatorDto>)located).Describe());
+        Assert.Equal(new AutoLocator(intervals).Locate(-0.05, 1.05), located.Locate(-0.05, 1.05));
+    }
+
+    /// <summary>The length from which a plot gets the full 8 intervals.</summary>
+    [Fact]
+    public void FullDensityLength_Is240()
+    {
+        Assert.Equal(240.0, AutoLocator.FullDensityLength);
     }
 
     [Theory]
@@ -175,5 +174,66 @@ public class AutoLocatorTests
         var ticks = await Task.Run(() => new AutoLocator(8).Locate(min, max), TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.Empty(ticks);
+    }
+
+    /// <summary>The locator's ladder written as a loop that grows a list: from the multiple of the step at or above the low end (matplotlib's
+    /// edge, <see cref="TickEdge.AtOrAbove"/>, widened by the offset <see cref="SteppedTicks.ScaleOffset"/> names), each tick from
+    /// its index. It is the oracle the ticks of <see cref="AutoLocator.Locate"/> are held to, bit for bit.</summary>
+    private static double[] Walked(double min, double max, int targetCount)
+    {
+        double range = max - min;
+        if (range <= 0) return [min];
+        double rawStep = range / targetCount;
+        double magnitude = Math.Pow(10, Math.Floor(Math.Log10(rawStep)));
+        double normalized = rawStep / magnitude;
+        double step = normalized switch { < 1.5 => magnitude, < 2.25 => 2 * magnitude, < 3.75 => 2.5 * magnitude, < 7.5 => 5 * magnitude, _ => 10 * magnitude };
+        double first = TickEdge.Of(step, SteppedTicks.ScaleOffset(min, max)).AtOrAbove(min) * step;
+        double limit = max + step * 0.01;
+        var ticks = new List<double>();
+        for (long i = 0; ; i++)
+        {
+            double t = first + i * step;
+            if (!(t <= limit)) break;
+            double rounded = Math.Round(t, 10);
+            if (ticks.Count == 0 || rounded > ticks[^1]) ticks.Add(rounded);
+        }
+        return ticks.ToArray();
+    }
+
+    /// <summary>The ticks are the ones the list-growing loop gives: over ranges that start below, on and above zero, that span a
+    /// few units or a few billions, whose step is smaller than the spacing of doubles at their start, and for every target count a
+    /// plot length asks for.</summary>
+    [Fact]
+    public void Locate_GivesTheTicksOfTheListGrowingLoop()
+    {
+        var random = new Random(20241114);
+        var ranges = new List<(double Min, double Max)> { (0, 1), (0, 10), (-5, 5), (-0.05, 1.05), (0.3, 0.31), (1e9, 1e9 + 40), (1e15, 1e15 + 8), (-1e-9, 3e-9), (123456.789, 123499.1), (7, 7.0000001) };
+        for (int i = 0; i < 400; i++)
+        {
+            double start = (random.NextDouble() - 0.5) * Math.Pow(10, random.Next(-6, 9));
+            ranges.Add((start, start + random.NextDouble() * Math.Pow(10, random.Next(-6, 9))));
+        }
+
+        foreach (int target in new[] { 2, 3, 5, 6, 8 })
+            foreach (var (min, max) in ranges)
+                Assert.Equal(Walked(min, max, target), new AutoLocator(target).Locate(min, max));
+    }
+
+    /// <summary>A draw asks for the ticks of every axis, so a call allocates the array it returns and nothing else: no list that
+    /// grows, no copy of it.</summary>
+    [Theory]
+    [InlineData(0.0, 100.0)]
+    [InlineData(-0.05, 1.05)]
+    [InlineData(1e9, 1e9 + 40)]
+    public void Locate_AllocatesTheArrayItReturnsAndNothingElse(double min, double max)
+    {
+        var locator = new AutoLocator(8);
+        locator.Locate(min, max);   // the first call pays the compiler's tiering
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        double[] ticks = locator.Locate(min, max);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated <= 24 + 8L * ticks.Length, $"{allocated} bytes for {ticks.Length} ticks (an array of them is {24 + 8L * ticks.Length})");
     }
 }

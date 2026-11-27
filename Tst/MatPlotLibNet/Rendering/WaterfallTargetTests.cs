@@ -25,26 +25,18 @@ public class WaterfallTargetTests
     private static Figure Of(Action<WaterfallSeries>? configure = null) => Plt.Create().WithSize(700, 400)
         .AddSubPlot(1, 1, 1, ax => ax.Waterfall(Steps, Values, configure)).Build();
 
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
-
     /// <summary>The bars as drawn, in order: the rectangles filled with one of the waterfall's own colours.</summary>
-    private static List<Rect> Bars(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawRectangle").Select(call => (dynamic)call.Args!)
-        .Where(args => (Color?)args.fill == Colors.Green || (Color?)args.fill == Colors.Red)
-        .Select(args => (Rect)args.rect)];
+    private static List<Rect> Bars(RecordingRenderContext drawn) => [.. drawn.Of<DrawRectangleCall>()
+        .Where(args => args.Fill == Colors.Green || args.Fill == Colors.Red)
+        .Select(args => args.Rect)];
 
     /// <summary>The target marks of a figure as drawn, in order: the horizontal lines 2.5 pixels wide in the colour its own theme gives
     /// text, or in <paramref name="colour"/> when the marks were given one.</summary>
-    private static List<(Point From, Point To)> Marks(Figure figure, Color? colour = null) => MarksIn(Drawn(figure), colour ?? figure.Theme.ForegroundText);
+    private static List<(Point From, Point To)> Marks(Figure figure, Color? colour = null) => MarksIn(figure.Drawn(), colour ?? figure.Theme.ForegroundText);
 
-    private static List<(Point From, Point To)> MarksIn(RecordingRenderContext drawn, Color colour) => [.. drawn.OfKind("DrawLine")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => (Color)args.color == colour && (double)args.thickness == 2.5)
-        .Select(args => ((Point)args.p1, (Point)args.p2))];
+    private static List<(Point From, Point To)> MarksIn(RecordingRenderContext drawn, Color colour) => [.. drawn.Of<DrawLineCall>()
+        .Where(args => args.Color == colour && args.Thickness == 2.5)
+        .Select(args => (args.P1, args.P2))];
 
     /// <summary>The pixel row of a level, worked out from the first bar: it stands on zero and reaches 100, a rising bar whose
     /// top is at <c>rect.Y</c> and whose foot is at <c>rect.Y + rect.Height</c>.</summary>
@@ -58,7 +50,7 @@ public class WaterfallTargetTests
     public void TheMarkOfAStep_StandsAtItsAbsoluteLevel_NotAtAChangeFromTheRunningTotal()
     {
         var figure = Of(s => s.Targets = Levels);
-        var row = RowOf(Bars(Drawn(figure)));
+        var row = RowOf(Bars(figure.Drawn()));
 
         var marks = Marks(figure);
 
@@ -77,7 +69,7 @@ public class WaterfallTargetTests
     public void TheMark_SpansTheBarAndALittlePastItOnBothSides_DrawnOverTheBar()
     {
         var figure = Of(s => s.Targets = Levels);
-        var drawn = Drawn(figure);
+        var drawn = figure.Drawn();
         var bars = Bars(drawn);
         var marks = Marks(figure);
 
@@ -91,8 +83,8 @@ public class WaterfallTargetTests
 
         // Over the bar: the mark of a step is drawn after the bar of that step and before the bar of the next.
         var order = drawn.Calls.Select((call, index) => (call, index)).ToList();
-        var barAt = order.Where(o => o.call.Kind == "DrawRectangle" && ((Color?)((dynamic)o.call.Args!).fill == Colors.Green || (Color?)((dynamic)o.call.Args!).fill == Colors.Red)).Select(o => o.index).ToList();
-        var markAt = order.Where(o => o.call.Kind == "DrawLine" && (Color)((dynamic)o.call.Args!).color == figure.Theme.ForegroundText && (double)((dynamic)o.call.Args!).thickness == 2.5).Select(o => o.index).ToList();
+        var barAt = order.Where(o => o.call is DrawRectangleCall { Fill: var fill } && (fill == Colors.Green || fill == Colors.Red)).Select(o => o.index).ToList();
+        var markAt = order.Where(o => o.call is DrawLineCall line && line.Color == figure.Theme.ForegroundText && line.Thickness == 2.5).Select(o => o.index).ToList();
         for (int i = 0; i < 5; i++)
         {
             Assert.True(markAt[i] > barAt[i], $"step {i}: the mark is drawn over its bar");
@@ -114,7 +106,7 @@ public class WaterfallTargetTests
     public void TheValueAxis_MakesRoomForTheTargets()
     {
         var figure = Of(s => s.Targets = [100, 125, 110, 150, 400]);
-        var plot = new ChartRenderer().ComputeLayout(figure, new MatPlotLibNet.Rendering.Svg.SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
 
         var marks = Marks(figure);
 
@@ -171,7 +163,7 @@ public class WaterfallTargetTests
         var figure = Plt.Create().WithSize(700, 400)
             .AddSubPlot(1, 1, 1, ax => ax.Waterfall(Steps, Values, s => { s.Label = "Bridge"; s.Targets = Levels; }).WithLegend()).Build();
 
-        var entries = figure.SubPlots[0].LegendEntries(directLabelsDrawn: false);
+        var entries = figure.SubPlots[0].LegendEntries(Theme.Default, directLabelsDrawn: false);
 
         Assert.Equal(["Bridge"], entries.Select(entry => entry.Label));
     }
@@ -181,7 +173,7 @@ public class WaterfallTargetTests
     {
         var figure = Of(s => { s.Targets = [100, 125, double.NaN, 150, 145]; s.TargetColor = Colors.Blue; });
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         var waterfall = Assert.IsType<WaterfallSeries>(Assert.Single(back.SubPlots[0].Series));
         Assert.Equal(Colors.Blue, waterfall.TargetColor);

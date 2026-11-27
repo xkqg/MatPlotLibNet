@@ -156,53 +156,14 @@ public class YAxisSlotBuilderTests
         Assert.Single(axes.AllSeries);
     }
 
-    [Fact]
-    public void Plot_WithoutACallback_StillAddsTheLine()
+    [Theory]
+    [InlineData(true, "Left", 1)]
+    [InlineData(false, "Right", 0)]
+    public void PlotAndScatter_WithMisalignedArrays_Throw_AndAddNothing(bool plot, string side, int index)
     {
-        var (_, builder, slot) = SlotOf("Right", 1);
+        var (_, builder, slot) = SlotOf(side, index);
 
-        builder.Plot(X, Y);
-
-        Assert.IsType<LineSeries>(Assert.Single(slot.Series));
-    }
-
-    [Fact]
-    public void Plot_WithMisalignedArrays_Throws_AndAddsNothing()
-    {
-        var (_, builder, slot) = SlotOf("Left", 1);
-
-        Assert.Throws<ArgumentException>(() => builder.Plot(X, [1.0]));
-
-        Assert.Empty(slot.Series);
-    }
-
-    [Fact]
-    public void Scatter_AddsAScatterToTheSlotsOwnSeries_AndRunsTheCallback()
-    {
-        var (_, builder, slot) = SlotOf("Left", 1);
-        ScatterSeries? configured = null;
-
-        builder.Scatter(X, Y, points => configured = points);
-
-        Assert.Same(configured, Assert.IsType<ScatterSeries>(Assert.Single(slot.Series)));
-    }
-
-    [Fact]
-    public void Scatter_WithoutACallback_StillAddsTheScatter()
-    {
-        var (_, builder, slot) = SlotOf("Right", 0);
-
-        builder.Scatter(X, Y);
-
-        Assert.IsType<ScatterSeries>(Assert.Single(slot.Series));
-    }
-
-    [Fact]
-    public void Scatter_WithMisalignedArrays_Throws_AndAddsNothing()
-    {
-        var (_, builder, slot) = SlotOf("Right", 0);
-
-        Assert.Throws<ArgumentException>(() => builder.Scatter(X, [1.0]));
+        Assert.Throws<ArgumentException>(() => { if (plot) builder.Plot(X, [1.0]); else builder.Scatter(X, [1.0]); });
 
         Assert.Empty(slot.Series);
     }
@@ -215,17 +176,6 @@ public class YAxisSlotBuilderTests
         var series = builder.StreamingPlot(capacity: 50);
 
         Assert.Same(series, Assert.IsType<StreamingLineSeries>(Assert.Single(slot.Series)));
-    }
-
-    [Fact]
-    public void StreamingPlot_RunsTheCallbackOnTheNewSeries()
-    {
-        var (_, builder, _) = SlotOf("Left", 1);
-        StreamingLineSeries? configured = null;
-
-        var series = builder.StreamingPlot(configure: s => configured = s);
-
-        Assert.Same(series, configured);
     }
 
     [Fact]

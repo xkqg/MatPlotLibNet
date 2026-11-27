@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -18,23 +17,29 @@ public class BrokenAxisVisualTests
     private const double PlotTopMin = 50;
     private const double PlotBottomMax = 600;
 
+    /// <summary>The figure the two facts below read: two runs of data a break of 25 to 85 cuts apart.</summary>
+    private static string BrokenFigureSvg()
+    {
+        double[] x = Enumerable.Range(0, 20).Select(i => (double)i).ToArray();
+        double[] y = x.Select(v => v < 10 ? v * 2 : v * 2 + 80).ToArray();
+
+        return Plt.Create()
+            .WithSize(800, 600)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, y)
+                .WithYBreak(25, 85))
+            .ToSvg();
+    }
+
     [Fact]
     public void YBreak_DataPointsRenderInsidePlotArea()
     {
         // Data with values 0..18 (low) and 100..118 (high), break removes 25..85.
         // After break: high values should render in the upper portion of the plot,
         // not at negative pixel coordinates outside the canvas.
-        double[] x = Enumerable.Range(0, 20).Select(i => (double)i).ToArray();
-        double[] y = x.Select(v => v < 10 ? v * 2 : v * 2 + 80).ToArray();
+        string svg = BrokenFigureSvg();
 
-        string svg = Plt.Create()
-            .WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(x, y)
-                .WithYBreak(25, 85))
-            .ToSvg();
-
-        var polylineY = ExtractPolylineYCoords(svg);
+        var polylineY = svg.PolylinePoints().Select(p => p.Y).ToList();
         Assert.NotEmpty(polylineY);
 
         // All data Y coordinates must either fall within the canvas OR be NaN (gap for hidden region).
@@ -47,15 +52,7 @@ public class BrokenAxisVisualTests
     public void YBreak_TicksInsideBreakRegionAreNotRendered()
     {
         // Tick at y=50 should be hidden when break covers 25..85.
-        double[] x = Enumerable.Range(0, 20).Select(i => (double)i).ToArray();
-        double[] y = x.Select(v => v < 10 ? v * 2 : v * 2 + 80).ToArray();
-
-        string svg = Plt.Create()
-            .WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(x, y)
-                .WithYBreak(25, 85))
-            .ToSvg();
+        string svg = BrokenFigureSvg();
 
         // Look for the y-tick label "50" which falls strictly inside [25, 85] — must not appear
         // as a tick label. We check by absence of standalone "50" near the Y-axis x position (~100).
@@ -83,7 +80,7 @@ public class BrokenAxisVisualTests
                 .WithXBreak(5, 15))
             .ToSvg();
 
-        var polylineX = ExtractPolylineXCoords(svg);
+        var polylineX = svg.PolylinePoints().Select(p => p.X).ToList();
         Assert.NotEmpty(polylineX);
 
         // X coords must fall within canvas (0..800) OR be NaN (gap for hidden region).
@@ -92,50 +89,12 @@ public class BrokenAxisVisualTests
                 $"Data point X={px} is outside canvas [0, 800] — X break compression broken");
     }
 
-    private static List<double> ExtractPolylineYCoords(string svg)
-    {
-        var coords = new List<double>();
-        var matches = Regex.Matches(svg, @"<polyline\s+points=""([^""]+)""");
-        foreach (Match m in matches)
-        {
-            var pairs = m.Groups[1].Value.Split(' ');
-            foreach (var pair in pairs)
-            {
-                var parts = pair.Split(',');
-                if (parts.Length == 2 && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y))
-                    coords.Add(y);
-            }
-        }
-        return coords;
-    }
-
-    private static List<double> ExtractPolylineXCoords(string svg)
-    {
-        var coords = new List<double>();
-        var matches = Regex.Matches(svg, @"<polyline\s+points=""([^""]+)""");
-        foreach (Match m in matches)
-        {
-            var pairs = m.Groups[1].Value.Split(' ');
-            foreach (var pair in pairs)
-            {
-                var parts = pair.Split(',');
-                if (parts.Length == 2 && double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x))
-                    coords.Add(x);
-            }
-        }
-        return coords;
-    }
-
     private static List<string> ExtractYTickLabels(string svg)
     {
         // Y tick labels appear as <path .. transform="translate(<small-x>, ..)"> with text nodes,
         // but in this rendering they're rendered as path glyphs (no readable text).
         // Use the simpler approach: extract all numeric content from <text> elements if any,
         // and rely on the assertion in the data-points test as the primary catcher.
-        var labels = new List<string>();
-        var matches = Regex.Matches(svg, @"<text[^>]*>([^<]+)</text>");
-        foreach (Match m in matches)
-            labels.Add(m.Groups[1].Value.Trim());
-        return labels;
+        return [.. svg.Elements("text").Where(text => text.Text.Length > 0).Select(text => text.Text.Trim())];
     }
 }

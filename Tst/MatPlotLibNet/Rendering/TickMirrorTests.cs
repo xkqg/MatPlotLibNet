@@ -10,51 +10,20 @@ namespace MatPlotLibNet.Tests.Rendering;
 
 public sealed class TickMirrorTests
 {
-    [Fact]
-    public void MirrorProperty_DefaultFalse()
-    {
-        var config = new TickConfig();
-        Assert.False(config.Mirror);
-    }
-
-    [Fact]
-    public void MirrorProperty_CanBeSetTrue()
-    {
-        var config = new TickConfig { Mirror = true };
-        Assert.True(config.Mirror);
-    }
-
-    [Fact]
-    public void WithRecord_PreservesOtherProperties()
-    {
-        var config = new TickConfig { Visible = true, Mirror = false };
-        var mirrored = config with { Mirror = true };
-        Assert.True(mirrored.Mirror);
-        Assert.True(mirrored.Visible);
-    }
-
-    [Fact]
-    public void WithYTicksMirrored_SetsMirrorOnMajorTicks()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void WithTicksMirrored_SetsMirrorOnMajorTicks(bool onY)
     {
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithYTicksMirrored())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                var line = ax.Plot([1.0, 2.0], [3.0, 4.0]);
+                if (onY) line.WithYTicksMirrored(); else line.WithXTicksMirrored();
+            })
             .Build();
 
-        Assert.True(fig.SubPlots[0].YAxis.MajorTicks.Mirror);
-    }
-
-    [Fact]
-    public void WithXTicksMirrored_SetsMirrorOnMajorTicks()
-    {
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithXTicksMirrored())
-            .Build();
-
-        Assert.True(fig.SubPlots[0].XAxis.MajorTicks.Mirror);
+        Assert.True((onY ? fig.SubPlots[0].YAxis : fig.SubPlots[0].XAxis).MajorTicks.Mirror);
     }
 
     [Fact]
@@ -70,7 +39,7 @@ public sealed class TickMirrorTests
         // SVG should contain text elements for both left and right side tick labels.
         // The mirrored labels use TextAlignment.Left (right side) vs TextAlignment.Right (left side).
         // Count how many Y tick label texts appear — should be double the normal amount.
-        int tickLabelCount = System.Text.RegularExpressions.Regex.Matches(svg, @"text-anchor=""start""").Count;
+        int tickLabelCount = svg.CountOf("text-anchor=\"start\"");
         Assert.True(tickLabelCount > 0, "Mirrored Y ticks should produce right-aligned labels (text-anchor=start)");
     }
 
@@ -83,25 +52,21 @@ public sealed class TickMirrorTests
         var axes = new Axes();
         axes.Plot([1.0, 2.0, 3.0], [10.0, 20.0, 30.0]);
         configure(axes);
-        var ctx = new RecordingRenderContext();
-        new CartesianAxesRenderer(axes, Area, ctx, Theme.Default).Render();
+        var ctx = axes.Drawn(Area);
         return ctx;
     }
 
-    private static Point P1(CallRecord c) => (Point)((dynamic)c.Args!).p1;
-    private static Point P2(CallRecord c) => (Point)((dynamic)c.Args!).p2;
-
     /// <summary>Short horizontal marks that touch the right edge: the mirrored Y ticks (grid lines span the plot).</summary>
-    private static List<CallRecord> RightMarks(RecordingRenderContext ctx, double right) =>
-        ctx.OfKind("DrawLine").Where(c => P1(c).Y == P2(c).Y
-            && Math.Abs(P2(c).X - P1(c).X) < 20
-            && Math.Max(P1(c).X, P2(c).X) >= right - 1).ToList();
+    private static List<DrawLineCall> RightMarks(RecordingRenderContext ctx, double right) =>
+        ctx.Of<DrawLineCall>().Where(c => c.P1.Y == c.P2.Y
+            && Math.Abs(c.P2.X - c.P1.X) < 20
+            && Math.Max(c.P1.X, c.P2.X) >= right - 1).ToList();
 
     /// <summary>Short vertical marks that touch the top edge: the mirrored X ticks.</summary>
-    private static List<CallRecord> TopMarks(RecordingRenderContext ctx, double top) =>
-        ctx.OfKind("DrawLine").Where(c => P1(c).X == P2(c).X
-            && Math.Abs(P2(c).Y - P1(c).Y) < 20
-            && Math.Min(P1(c).Y, P2(c).Y) <= top + 1).ToList();
+    private static List<DrawLineCall> TopMarks(RecordingRenderContext ctx, double top) =>
+        ctx.Of<DrawLineCall>().Where(c => c.P1.X == c.P2.X
+            && Math.Abs(c.P2.Y - c.P1.Y) < 20
+            && Math.Min(c.P1.Y, c.P2.Y) <= top + 1).ToList();
 
     [Fact]
     public void MirroredYTick_Out_PointsAwayFromPlot()
@@ -115,8 +80,8 @@ public sealed class TickMirrorTests
         Assert.NotEmpty(marks);
         Assert.All(marks, c =>
         {
-            Assert.Equal(right - half, P1(c).X, 6);
-            Assert.Equal(right + ticks.Length, P2(c).X, 6);
+            Assert.Equal(right - half, c.P1.X, 6);
+            Assert.Equal(right + ticks.Length, c.P2.X, 6);
         });
     }
 
@@ -132,8 +97,8 @@ public sealed class TickMirrorTests
         Assert.NotEmpty(marks);
         Assert.All(marks, c =>
         {
-            Assert.Equal(right - ticks.Length, P1(c).X, 6);
-            Assert.Equal(right + half, P2(c).X, 6);
+            Assert.Equal(right - ticks.Length, c.P1.X, 6);
+            Assert.Equal(right + half, c.P2.X, 6);
         });
     }
 
@@ -151,15 +116,15 @@ public sealed class TickMirrorTests
         Assert.NotEmpty(marks);
         Assert.All(marks, c =>
         {
-            Assert.Equal(top - ticks.Length, P1(c).Y, 6);
-            Assert.Equal(top + half, P2(c).Y, 6);
+            Assert.Equal(top - ticks.Length, c.P1.Y, 6);
+            Assert.Equal(top + half, c.P2.Y, 6);
         });
 
-        var topLabels = ctx.OfKind("DrawText").Where(c => ((Point)((dynamic)c.Args!).position).Y < top).ToList();
+        var topLabels = ctx.Of<DrawTextCall>().Where(c => c.Position.Y < top).ToList();
         Assert.Equal(marks.Count, topLabels.Count);
-        Assert.All(topLabels, c => Assert.Equal(top - ticks.Length - ticks.Pad, ((Point)((dynamic)c.Args!).position).Y, 6));
-        Assert.Equal(marks.Select(P1).Select(p => p.X), topLabels.Select(c => ((Point)((dynamic)c.Args!).position).X));
-        Assert.All(topLabels, c => Assert.Equal(TextAlignment.Center, (TextAlignment)((dynamic)c.Args!).alignment));
+        Assert.All(topLabels, c => Assert.Equal(top - ticks.Length - ticks.Pad, c.Position.Y, 6));
+        Assert.Equal(marks.Select(c => c.P1).Select(p => p.X), topLabels.Select(c => c.Position.X));
+        Assert.All(topLabels, c => Assert.Equal(TextAlignment.Center, c.Alignment));
     }
 
     [Fact]
@@ -169,13 +134,12 @@ public sealed class TickMirrorTests
         var ctx = RenderAxes(ax => ax.XAxis.MajorTicks = ax.XAxis.MajorTicks with { Mirror = true, LabelRotation = 30 });
         double top = Area.Y;
 
-        var topLabels = ctx.OfKind("DrawText").Where(c => ((Point)((dynamic)c.Args!).position).Y < top).ToList();
+        var topLabels = ctx.Of<DrawTextCall>().Where(c => c.Position.Y < top).ToList();
         Assert.NotEmpty(topLabels);
         Assert.All(topLabels, c =>
         {
-            dynamic a = c.Args!;
-            Assert.Equal(TextAlignment.Left, (TextAlignment)a.alignment);
-            Assert.Equal(30.0, (double)a.rotation);
+            Assert.Equal(TextAlignment.Left, c.Alignment);
+            Assert.Equal(30.0, c.Rotation);
         });
     }
 }

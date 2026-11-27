@@ -9,41 +9,14 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class CyclicColorMaps
 {
-    /// <summary>Pale lavender through blue-purple to a near-black purple, then brown and tan back to the pale start colour (after matplotlib's <c>twilight</c>).</summary>
-    public static IColorMap Twilight { get; } = new LinearColorMap("twilight",
-    [
-        Color.FromHex("#E2D9E2"),
-        Color.FromHex("#9E9CC2"),
-        Color.FromHex("#5C5698"),
-        Color.FromHex("#2D1E3E"),
-        Color.FromHex("#6C3624"),
-        Color.FromHex("#BA7B54"),
-        Color.FromHex("#E2C8A4"),
-        Color.FromHex("#E2D9E2"),
-    ]);
+    internal static ColorMapShelf Shelf { get; } = new();
 
-    /// <summary>The <see cref="Twilight"/> cycle rotated by half a turn: it starts and ends at the dark purple and is palest in the middle (after matplotlib's <c>twilight_shifted</c>).</summary>
-    public static IColorMap TwilightShifted { get; } = new LinearColorMap("twilight_shifted",
-    [
-        Color.FromHex("#2D1E3E"),
-        Color.FromHex("#6C3624"),
-        Color.FromHex("#BA7B54"),
-        Color.FromHex("#E2C8A4"),
-        Color.FromHex("#E2D9E2"),
-        Color.FromHex("#9E9CC2"),
-        Color.FromHex("#5C5698"),
-        Color.FromHex("#2D1E3E"),
-    ]);
+    /// <summary>Pale lavender through blue-purple to a near-black purple, then brown and tan back to the pale start colour (matplotlib's own table for <c>twilight</c>).</summary>
+    public static IColorMap Twilight { get; } = Shelf.Add(MatplotlibColorTables.Of("twilight"));
 
-    /// <summary>The hue wheel at full saturation: red, yellow, green, cyan, blue and magenta, then back to red (after matplotlib's <c>hsv</c>).</summary>
-    public static IColorMap Hsv { get; } = new LinearColorMap("hsv",
-    [
-        Color.FromHex("#FF0000"),
-        Color.FromHex("#FFFF00"),
-        Color.FromHex("#00FF00"),
-        Color.FromHex("#00FFFF"),
-        Color.FromHex("#0000FF"),
-        Color.FromHex("#FF00FF"),
-        Color.FromHex("#FF0000"),
-    ]);
+    /// <summary>The <see cref="Twilight"/> cycle rotated by half a turn: it starts and ends at the dark purple and is palest in the middle (matplotlib's own table for <c>twilight_shifted</c>).</summary>
+    public static IColorMap TwilightShifted { get; } = Shelf.Add(MatplotlibColorTables.Of("twilight_shifted"));
+
+    /// <summary>The hue wheel at full saturation: red, yellow, green, cyan, blue and magenta, then back to red (matplotlib's own table for <c>hsv</c>).</summary>
+    public static IColorMap Hsv { get; } = Shelf.Add(MatplotlibColorTables.Of("hsv"));
 }

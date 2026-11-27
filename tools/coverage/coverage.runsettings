@@ -38,6 +38,9 @@
         <Functions>
             <Exclude>
                 <Function>^MatPlotLibNet\.Maui\.Tests\..*</Function>
+                <!-- The test fixtures the core suite shares with the other suites (linked into them as Shared) are compiled into the
+                     Maui suite's assembly too, which is measured for the package's sources above: they are tests, not the library. -->
+                <Function>^MatPlotLibNet\.Tests\..*</Function>
             </Exclude>
         </Functions>
 

@@ -26,9 +26,9 @@ public static class AxesFinancialVerbs
         /// <param name="prices">The closing prices, oldest first.</param>
         /// <param name="boxSize">The price one box covers; a finite number above zero.</param>
         /// <param name="reversal">How many boxes back from the last box drawn the price has to come to start a column the other
-        /// way; 1 or more, and 3 (the classic) unless said otherwise.</param>
+        /// way; 1 or more, and <see cref="PointAndFigureSeries.RestingReversal"/> (the classic) unless said otherwise.</param>
         /// <returns>The newly created <see cref="PointAndFigureSeries"/> for further configuration.</returns>
-        public PointAndFigureSeries PointAndFigure(double[] prices, double boxSize, int reversal = 3) =>
+        public PointAndFigureSeries PointAndFigure(double[] prices, double boxSize, int reversal = PointAndFigureSeries.RestingReversal) =>
             axes.AddSeries(new PointAndFigureSeries(prices, boxSize, reversal));
 
         /// <summary>Adds a traditional OHLC bar chart series from price data.</summary>

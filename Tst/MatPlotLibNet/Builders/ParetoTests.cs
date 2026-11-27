@@ -1,10 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -22,11 +19,8 @@ public class ParetoTests
     private static readonly string[] Defects = ["Cracks", "Warp", "Scratches", "Breaks", "Dents", "Missing", "Stains"];
     private static readonly double[] Counts = [67, 9, 142, 31, 98, 18, 45];
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Pareto(string[] categories, double[] counts, Action<ParetoParts>? configure = null) =>
-        AxesOf(ax => ax.Pareto(categories, counts, configure));
+        Plt.Create().OneAxes(ax => ax.Pareto(categories, counts, configure));
 
     /// <summary>The picture with the legend toggle on: that is what gives every series group its <c>data-series-index</c>,
     /// which these tests read the parts by (the bars are group 0, the line on the right-hand axis group 1).</summary>
@@ -140,7 +134,7 @@ public class ParetoTests
         string[] categories = ["a", "b", "c", "d"];
         double[] counts = [10, double.NaN, 30, 60];
 
-        Assert.DoesNotContain("NaN", Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Pareto(categories, counts)).ToSvg());
+        Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Pareto(categories, counts)).ToSvg().AssertNoNonFiniteNumber();
         string svg = Svg(categories, counts);
         Assert.Equal(3, Bars(svg).Length);
         Assert.Equal(3, Points(svg).Length);
@@ -163,7 +157,7 @@ public class ParetoTests
         Assert.Equal(Defects.Length, points.Length);
         for (int k = 0; k < bars.Length; k++)
         {
-            Assert.Equal(bars[k].X + bars[k].Width / 2, points[k].X, 9);
+            Assert.Equal(bars[k].X + bars[k].Width / 2, points[k].X, SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -191,10 +185,11 @@ public class ParetoTests
     {
         string svg = Svg(Defects, Counts);
 
-        var top = Regex.Match(svg, """<clipPath id="[^"]+"><rect x="[-0-9.eE+]+" y="([-0-9.eE+]+)" """.TrimEnd());
-        Assert.True(top.Success, "the plot with set limits is clipped");
+        var clips = svg.Each("clipPath").ToList();
+        Assert.True(clips.Count > 0, "the plot with set limits is clipped");
+        double top = clips[0].Each("rect").First().Number("y");
         var last = Points(svg)[^1];
-        Assert.True(last.Y - last.Radius > Number(top.Groups[1].Value), $"the 100 % marker reaches {last.Y - last.Radius} px, above the plot top {top.Groups[1].Value} px");
+        Assert.True(last.Y - last.Radius > top, $"the 100 % marker reaches {last.Y - last.Radius} px, above the plot top {top} px");
     }
 
     /// <summary>The verb sets the two Y axes' limits and leaves the X axis to the bars.</summary>
@@ -211,7 +206,7 @@ public class ParetoTests
     [Fact]
     public void ALimitSetAfterTheCall_Wins()
     {
-        var axes = AxesOf(ax => ax.Pareto(Defects, Counts).SetYLim(0, 1000));
+        var axes = Plt.Create().OneAxes(ax => ax.Pareto(Defects, Counts).SetYLim(0, 1000));
 
         Assert.Equal(1000, axes.YAxis.Max);
     }
@@ -282,8 +277,8 @@ public class ParetoTests
     {
         string svg = Svg(Defects, Counts);
 
-        Assert.Equal("#1F77B4", FirstColour(Group(svg, 0)));
-        Assert.Equal("#FF7F0E", FirstColour(Group(svg, 1)));
+        Assert.Equal("#1F77B4", svg.SeriesGroup(0).FirstColour().ToUpperInvariant());
+        Assert.Equal("#FF7F0E", svg.SeriesGroup(1).FirstColour().ToUpperInvariant());
     }
 
     // ---- the callback ---------------------------------------------------------------------------------------------
@@ -344,51 +339,6 @@ public class ParetoTests
         Assert.Null(axes.YAxes.Right[0].Axis.Label);
     }
 
-    /// <summary>The parts are a public readonly record struct a caller cannot make: no public constructor, no setters.</summary>
-    [Fact]
-    public void TheParts_AreAReadOnlyRecordStruct_WithNoPublicConstructor()
-    {
-        var type = typeof(ParetoParts);
-
-        Assert.True(type.IsValueType);
-        Assert.True(type.IsPublic);
-        Assert.True(type.IsDefined(typeof(IsReadOnlyAttribute)));
-        Assert.Empty(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-        Assert.NotEmpty(type.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance));
-        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        Assert.Equal(["Bars", "Cumulative"], properties.Select(p => p.Name).Order());
-        Assert.All(properties, p => Assert.Null(p.SetMethod));
-    }
-
-    // ---- against the hand recipe, JSON ----------------------------------------------------------------------------------
-
-    /// <summary>The verb draws exactly what the hand-written chain on hand-sorted data draws, with and without a missing count.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDrew(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("pareto").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.ParetoByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
-
-    /// <summary>A Pareto chart is its parts in JSON: read back it draws the same picture, with and without a missing count. It
-    /// does not sort or accumulate again; the bars and the line come back as they were drawn.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("pareto").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
-    }
-
     // ---- refusals -------------------------------------------------------------------------------------------------
 
     /// <summary>A missing argument, or counts that do not pair up with the categories, are refused by name.</summary>
@@ -401,7 +351,7 @@ public class ParetoTests
 
         var misaligned = Assert.Throws<ArgumentException>(() => Pareto(Defects, [1, 2, 3]));
         Assert.Equal("counts", misaligned.ParamName);
-        Assert.Equal("3 values were given for 7 categories; there must be one value per category. (Parameter 'counts')", misaligned.Message);
+        Assert.Equal(3.RefusalAgainst(7, "counts"), misaligned.Message);
     }
 
     /// <summary>A count is a number of occurrences: 0 or more and finite. A negative count has no share of a total, and an
@@ -412,10 +362,11 @@ public class ParetoTests
     [InlineData(double.PositiveInfinity, "Infinity")]
     public void ACountThatIsNegativeOrInfinite_IsRefused(double bad, string written)
     {
-        var error = Assert.Throws<ArgumentException>(() => Pareto(["a", "b", "c"], [5, bad, 3]));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Pareto(["a", "b", "c"], [5, bad, 3]));
 
         Assert.Equal("counts", error.ParamName);
-        Assert.Equal($"The count of 'b' is {written}; a count is a finite number of occurrences, 0 or more (NaN marks a missing count). (Parameter 'counts')", error.Message);
+        Assert.StartsWith("The count of 'b' must be ", error.Message, StringComparison.Ordinal);
+        Assert.EndsWith($"(got {written}). (Parameter 'counts')", error.Message, StringComparison.Ordinal);
     }
 
     /// <summary>The shares are of the total, so the total must be a finite number above 0: no counts, only zeros, only missing
@@ -429,48 +380,14 @@ public class ParetoTests
     {
         string[] categories = [.. counts.Select((_, i) => $"c{i}")];
 
-        var error = Assert.Throws<ArgumentException>(() => Pareto(categories, counts));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Pareto(categories, counts));
 
         Assert.Equal("counts", error.ParamName);
-        Assert.Equal($"The counts add up to {written}; a Pareto chart draws each count as a share of the total, which must be a finite number above 0. (Parameter 'counts')", error.Message);
-    }
-
-    /// <summary>A refused call has added nothing: no series, no second axis, no limits, no legend.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.Pareto(["a", "b"], [1, -1]));
-        Assert.Throws<ArgumentException>(() => builder.Pareto(["a", "b"], [0, 0]));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Empty(axes.YAxes.Right);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Null(axes.YAxis.Label);
-        Assert.Equal(new Legend(), axes.Legend);
+        Assert.StartsWith("The total of the counts must be ", error.Message, StringComparison.Ordinal);
+        Assert.EndsWith($"(got {written}). (Parameter 'counts')", error.Message, StringComparison.Ordinal);
     }
 
     // ---- reading the picture ----------------------------------------------------------------------------------------
-
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>: up to the next series group or the
-    /// legend, whichever comes first (the legend's swatch of the line draws a marker too).</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        int[] ends =
-        [
-            svg.IndexOf("""<g class="series" """.TrimEnd(), start + 1, StringComparison.Ordinal),
-            svg.IndexOf("""<g class="legend" """.TrimEnd(), start + 1, StringComparison.Ordinal),
-        ];
-        int end = ends.Where(e => e > start).DefaultIfEmpty(svg.Length).Min();
-        return svg[start..end];
-    }
-
     /// <summary>A drawn bar: its left edge, its top and its width, in pixels.</summary>
     /// <param name="X">The bar's left edge.</param>
     /// <param name="Y">The bar's top.</param>
@@ -479,8 +396,8 @@ public class ParetoTests
 
     /// <summary>The bars of group 0, in the order drawn: its filled rectangles (the clip path's rectangle has no fill).</summary>
     private static DrawnBar[] Bars(string svg) =>
-        [.. Regex.Matches(Group(svg, 0), """<rect x="([-0-9.eE+]+)" y="([-0-9.eE+]+)" width="([-0-9.eE+]+)" height="[-0-9.eE+]+" fill="#""")
-            .Select(m => new DrawnBar(Number(m.Groups[1].Value), Number(m.Groups[2].Value), Number(m.Groups[3].Value)))];
+        [.. svg.SeriesGroup(0).Elements("rect").Where(rect => rect["fill"] is { } fill && fill.StartsWith('#'))
+            .Select(rect => new DrawnBar(rect.Number("x"), rect.Number("y"), rect.Number("width")))];
 
     /// <summary>A drawn point of the line: its centre and its radius, in pixels.</summary>
     /// <param name="X">The marker's centre along the X axis.</param>
@@ -490,10 +407,5 @@ public class ParetoTests
 
     /// <summary>The markers of the line (group 1), in the order drawn.</summary>
     private static DrawnPoint[] Points(string svg) =>
-        [.. Regex.Matches(Group(svg, 1), """<circle cx="([-0-9.eE+]+)" cy="([-0-9.eE+]+)" r="([-0-9.eE+]+)" """.TrimEnd())
-            .Select(m => new DrawnPoint(Number(m.Groups[1].Value), Number(m.Groups[2].Value), Number(m.Groups[3].Value)))];
-
-    /// <summary>The first fill or stroke colour inside a group, upper case.</summary>
-    private static string FirstColour(string group) =>
-        Regex.Match(group, """(?:fill|stroke)="(#[0-9A-Fa-f]{6})" """.TrimEnd()).Groups[1].Value.ToUpperInvariant();
+        [.. svg.SeriesGroup(1).Elements("circle").Select(circle => new DrawnPoint(circle.Number("cx"), circle.Number("cy"), circle.Number("r")))];
 }

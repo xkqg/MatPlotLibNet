@@ -7,6 +7,23 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Interaction.Modifiers;
 
+/// <summary>A modifier under test, the events it has sent and the figure it works on.</summary>
+/// <typeparam name="TModifier">The modifier.</typeparam>
+/// <param name="Modifier">The modifier.</param>
+/// <param name="Events">Every event the modifier has sent, in order.</param>
+/// <param name="Figure">The figure the modifier works on.</param>
+public readonly record struct ModifierRig<TModifier>(TModifier Modifier, List<FigureInteractionEvent> Events, Figure Figure)
+{
+    /// <summary>The modifier and its events, for a test that does not read the figure.</summary>
+    /// <param name="modifier">The modifier.</param>
+    /// <param name="events">Every event the modifier has sent, in order.</param>
+    public void Deconstruct(out TModifier modifier, out List<FigureInteractionEvent> events)
+    {
+        modifier = Modifier;
+        events = Events;
+    }
+}
+
 /// <summary>Phase X.8 (v1.7.2, 2026-04-19) — stacked-OO contract tests for the
 /// 7 <see cref="IInteractionModifier"/> implementations that share the
 /// <c>(string chartId, IChartLayout layout, Action&lt;FigureInteractionEvent&gt; sink)</c>
@@ -30,7 +47,7 @@ public abstract class InteractionModifierTests<TModifier> where TModifier : IInt
     /// <summary>Builds a single-subplot figure with axes [0,10]×[0,5] mapped to
     /// pixel rect (10,10)–(110,60). Shared by all derived tests so each modifier
     /// runs against the same well-known layout.</summary>
-    protected static (Figure fig, IChartLayout layout) BuildHarness()
+    protected static FigureLayout BuildHarness()
     {
         var fig = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "S").Build();
         fig.SubPlots[0].XAxis.Min = 0;
@@ -43,7 +60,43 @@ public abstract class InteractionModifierTests<TModifier> where TModifier : IInt
             new[] { new LegendItemBounds(0, new Rect(80, 12, 25, 12)) }
         };
         var layoutResult = new LayoutResult(plotAreas, legendItems);
-        return (fig, ChartLayout.Create(fig, layoutResult));
+        return new FigureLayout(fig, ChartLayout.Create(fig, layoutResult));
+    }
+
+    /// <summary>The modifier of the class under test over the layout of <see cref="BuildHarness"/> without a legend (axes 0 to 10 by 0
+    /// to 5 in the pixel rectangle 10, 10, 100 by 50), and the list every event it sends is added to.</summary>
+    protected ModifierRig<TModifier> Make() => Make(FigureLayout.Plain());
+
+    /// <summary>The modifier of the class under test over <paramref name="over"/>, and the list every event it sends is added to.</summary>
+    /// <param name="over">The figure and its layout.</param>
+    protected ModifierRig<TModifier> Make(FigureLayout over)
+    {
+        var events = new List<FigureInteractionEvent>();
+        return new ModifierRig<TModifier>(CreateModifier(over.Layout, over.Figure, events.Add), events, over.Figure);
+    }
+
+    /// <summary>Presses <paramref name="m"/> at one pixel, moves it to another and releases it there, the key held all the way: the drag
+    /// every rubber-band and pan test makes.</summary>
+    /// <param name="m">The modifier.</param>
+    /// <param name="keys">The keys held.</param>
+    /// <param name="fromX">The X of the pixel the drag starts at.</param>
+    /// <param name="fromY">The Y of the pixel the drag starts at.</param>
+    /// <param name="toX">The X of the pixel it ends at.</param>
+    /// <param name="toY">The Y of the pixel it ends at.</param>
+    protected static void Drag(TModifier m, ModifierKeys keys, double fromX, double fromY, double toX, double toY)
+    {
+        m.OnPointerPressed(new PointerInputArgs(fromX, fromY, PointerButton.Left, keys));
+        m.OnPointerMoved(new PointerInputArgs(toX, toY, PointerButton.Left, keys));
+        m.OnPointerReleased(new PointerInputArgs(toX, toY, PointerButton.Left, keys));
+    }
+
+    /// <summary>Makes the modifier over the plain layout, lets <paramref name="gesture"/> work it, and checks it sent nothing.</summary>
+    /// <param name="gesture">The gestures to make.</param>
+    protected void AssertNothingIsSent(Action<TModifier> gesture)
+    {
+        var (m, events) = Make();
+        gesture(m);
+        Assert.Empty(events);
     }
 
     /// <summary>Per-derived-class factory — wires the concrete modifier ctor.
@@ -55,6 +108,9 @@ public abstract class InteractionModifierTests<TModifier> where TModifier : IInt
     /// (e.g. ZoomModifier DOES handle scroll). Default: all four shared facts run.</summary>
     protected virtual bool ShouldHandleScroll => false;
     protected virtual bool ShouldHandleKeyDown => false;
+
+    /// <summary>Whether the modifier claims a plain left press inside the plot (no key held). Default: it does not.</summary>
+    protected virtual bool ShouldHandleAPlainLeftPress => false;
 
     [Fact]
     public void OnPointerReleased_WithoutPriorPress_DoesNotEmit()
@@ -84,6 +140,13 @@ public abstract class InteractionModifierTests<TModifier> where TModifier : IInt
     }
 
     [Fact]
+    public void HandlesPointerPressed_APlainLeftPressInThePlot_IsConfigured()
+    {
+        var (m, _) = Make();
+        Assert.Equal(ShouldHandleAPlainLeftPress, m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
+    }
+
+    [Fact]
     public virtual void OnPointerPressed_OutsidePlotArea_DoesNotEmit()
     {
         var (fig, layout) = BuildHarness();
@@ -110,664 +173,4 @@ public abstract class InteractionModifierTests<TModifier> where TModifier : IInt
     }
 }
 
-// ── Derived test classes (one per modifier) ────────────────────────────────────
 
-public sealed class PanModifierGenericTests : InteractionModifierTests<PanModifier>
-{
-    protected override PanModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-
-    private static (PanModifier m, List<FigureInteractionEvent> events) Make()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        return (new PanModifier("chart-1", layout, events.Add), events);
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_LeftButton_NoShift_InsidePlot_ReturnsTrue()
-    {
-        var (m, _) = Make();
-        Assert.True(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_LeftButton_WithShift_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.Shift)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_RightButton_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Right, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_OutsidePlot_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(5, 5, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void OnPointerMoved_WhileCaptured_ProducesPanEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerMoved(new PointerInputArgs(50, 35, PointerButton.Left, ModifierKeys.None));
-        Assert.Single(events);
-        Assert.IsType<PanEvent>(events[0]);
-    }
-
-    [Fact]
-    public void OnPointerMoved_WhileCaptured_DeltaConvertedToDataSpace()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerMoved(new PointerInputArgs(70, 35, PointerButton.Left, ModifierKeys.None));
-        var pan = Assert.IsType<PanEvent>(events[0]);
-        Assert.Equal(-1.0, pan.DxData, precision: 3);
-        Assert.Equal(0.0, pan.DyData, precision: 3);
-    }
-
-    [Fact]
-    public void OnPointerMoved_WhileNotCaptured_ProducesNoEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None));
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public void OnPointerReleased_ReleasesCapture()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerMoved(new PointerInputArgs(50, 35, PointerButton.Left, ModifierKeys.None));
-        Assert.Empty(events);
-    }
-
-    /// <summary>ROADMAP.md row 100: a drag must move a secondary axis' own range too, scaled to ITS OWN span —
-    /// right slot 0 here is [0,500], ten times the primary's [0,5], so the same pixel move must shift it by ten
-    /// times as much in data units, not by the primary's own delta.</summary>
-    [Fact]
-    public void OnPointerMoved_WhileCaptured_AlsoMovesASecondaryAxisByItsOwnProportionalDelta()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
-            .Build();
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        var m = new PanModifier("chart-1", layout, events.Add);
-
-        m.OnPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerMoved(new PointerInputArgs(60, 25, PointerButton.Left, ModifierKeys.None));
-
-        var pan = Assert.IsType<PanEvent>(events[0]);
-        var secondary = Assert.Single(pan.SecondaryRanges!);
-        Assert.Equal(AxisSide.Right, secondary.Side);
-        Assert.Equal(0, secondary.SlotIndex);
-        double secondarySpan = secondary.Range.YMax - secondary.Range.YMin;
-        Assert.Equal(500.0, secondarySpan, precision: 6);
-        Assert.NotEqual(0.0, secondary.Range.YMin);
-
-        pan.ApplyTo(figure);
-        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
-        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
-    }
-}
-
-public sealed class Rotate3DModifierGenericTests : InteractionModifierTests<Rotate3DModifier>
-{
-    // Rotate3DModifier handles arrow keys for ±5° rotation, BUT only when a 3D series
-    // is present (HasAnyThreeD guard). The shared harness uses a 2D Plot, so for the
-    // generic-base "Escape" key probe, HandlesKeyDown returns false.
-    protected override bool ShouldHandleKeyDown => false;
-
-    protected override Rotate3DModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink, fig);
-}
-
-public sealed class SpanSelectModifierGenericTests : InteractionModifierTests<SpanSelectModifier>
-{
-    protected override SpanSelectModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-}
-
-public sealed class BrushSelectModifierGenericTests : InteractionModifierTests<BrushSelectModifier>
-{
-    protected override BrushSelectModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-
-    private static (BrushSelectModifier m, List<FigureInteractionEvent> events) Make()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        return (new BrushSelectModifier("chart-1", layout, events.Add), events);
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_LeftShift_InsidePlot_ReturnsTrue()
-    {
-        var (m, _) = Make();
-        Assert.True(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.Shift)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_LeftNoShift_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_RightShift_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Right, ModifierKeys.Shift)));
-    }
-
-    [Fact]
-    public void OnPointerReleased_AfterDrag_ProducesBrushSelectEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerReleased(new PointerInputArgs(110, 60, PointerButton.Left, ModifierKeys.Shift));
-        Assert.Single(events);
-        Assert.IsType<BrushSelectEvent>(events[0]);
-    }
-
-    [Fact]
-    public void OnPointerReleased_RectNormalized_X1LessThanX2()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(110, 10, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerReleased(new PointerInputArgs(10,  60, PointerButton.Left, ModifierKeys.Shift));
-        var evt = Assert.IsType<BrushSelectEvent>(events[0]);
-        Assert.True(evt.X1 <= evt.X2, $"Expected X1 <= X2 but got X1={evt.X1}, X2={evt.X2}");
-        Assert.True(evt.Y1 <= evt.Y2, $"Expected Y1 <= Y2 but got Y1={evt.Y1}, Y2={evt.Y2}");
-    }
-
-    [Fact]
-    public void DuringDrag_ActiveBrush_IsNonNull()
-    {
-        var (m, _) = Make();
-        m.OnPointerPressed(new PointerInputArgs(20, 20, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerMoved(new PointerInputArgs(80, 50, PointerButton.Left, ModifierKeys.Shift));
-        Assert.NotNull(m.ActiveBrush);
-    }
-
-    [Fact]
-    public void AfterRelease_ActiveBrush_IsNull()
-    {
-        var (m, _) = Make();
-        m.OnPointerPressed(new PointerInputArgs(20, 20, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerMoved(new PointerInputArgs(80, 50, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerReleased(new PointerInputArgs(80, 50, PointerButton.Left, ModifierKeys.Shift));
-        Assert.Null(m.ActiveBrush);
-    }
-
-    [Fact]
-    public void OnPointerMoved_UpdatesCurrentPixelCoords()
-    {
-        var (m, _) = Make();
-        m.OnPointerPressed(new PointerInputArgs(20, 20, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerMoved(new PointerInputArgs(90, 55, PointerButton.Left, ModifierKeys.Shift));
-        var state = m.ActiveBrush;
-        Assert.NotNull(state);
-        Assert.Equal(20.0, state.Value.StartPixelX, precision: 3);
-        Assert.Equal(20.0, state.Value.StartPixelY, precision: 3);
-        Assert.Equal(90.0, state.Value.CurrentPixelX, precision: 3);
-        Assert.Equal(55.0, state.Value.CurrentPixelY, precision: 3);
-    }
-
-    [Fact]
-    public void BrushSelectEvent_DataCoordinatesCorrect()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(10, 10, PointerButton.Left, ModifierKeys.Shift));
-        m.OnPointerReleased(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.Shift));
-        var evt = Assert.IsType<BrushSelectEvent>(events[0]);
-        Assert.Equal(0.0, evt.X1, precision: 3);
-        Assert.Equal(5.0, evt.X2, precision: 3);
-        Assert.Equal(2.5, evt.Y1, precision: 3);
-        Assert.Equal(5.0, evt.Y2, precision: 3);
-    }
-}
-
-public sealed class ZoomModifierGenericTests : InteractionModifierTests<ZoomModifier>
-{
-    protected override bool ShouldHandleScroll => true;
-
-    protected override ZoomModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-
-    private static (ZoomModifier m, List<FigureInteractionEvent> events) Make()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        return (new ZoomModifier("chart-1", layout, events.Add), events);
-    }
-
-    [Fact]
-    public void HandlesScroll_InsidePlotArea_ReturnsTrue()
-    {
-        var (m, _) = Make();
-        Assert.True(m.HandlesScroll(new ScrollInputArgs(60, 35, 0, -1)));
-    }
-
-    [Fact]
-    public void HandlesScroll_OutsidePlotArea_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesScroll(new ScrollInputArgs(5, 5, 0, -1)));
-    }
-
-    [Fact]
-    public void OnScroll_NegativeDeltaY_ZoomsIn_RangeDecreases()
-    {
-        var (m, events) = Make();
-        m.OnScroll(new ScrollInputArgs(60, 35, 0, -1));
-        var zoom = Assert.IsType<ZoomEvent>(events[0]);
-        Assert.True(zoom.XMax - zoom.XMin < 10.0, "Zoom in should reduce X range");
-        Assert.True(zoom.YMax - zoom.YMin < 5.0,  "Zoom in should reduce Y range");
-    }
-
-    [Fact]
-    public void OnScroll_PositiveDeltaY_ZoomsOut_RangeIncreases()
-    {
-        var (m, events) = Make();
-        m.OnScroll(new ScrollInputArgs(60, 35, 0, +1));
-        var zoom = Assert.IsType<ZoomEvent>(events[0]);
-        Assert.True(zoom.XMax - zoom.XMin > 10.0, "Zoom out should increase X range");
-        Assert.True(zoom.YMax - zoom.YMin > 5.0,  "Zoom out should increase Y range");
-    }
-
-    [Fact]
-    public void OnScroll_ZoomCenteredOnCursorPosition()
-    {
-        var (m, events) = Make();
-        m.OnScroll(new ScrollInputArgs(60, 35, 0, -1));
-        var zoom = Assert.IsType<ZoomEvent>(events[0]);
-        double midX = (zoom.XMin + zoom.XMax) / 2;
-        double midY = (zoom.YMin + zoom.YMax) / 2;
-        Assert.Equal(5.0, midX, precision: 3);
-        Assert.Equal(2.5, midY, precision: 3);
-    }
-
-    [Fact]
-    public void OnScroll_ProducesZoomEventWithCorrectChartId()
-    {
-        var (m, events) = Make();
-        m.OnScroll(new ScrollInputArgs(60, 35, 0, -1));
-        Assert.Equal("chart-1", events[0].ChartId);
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void NoOpMethods_DoNotThrow()
-    {
-        var (m, _) = Make();
-        m.OnPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None));
-        m.OnPointerMoved(new PointerInputArgs(50, 30, PointerButton.None, ModifierKeys.None));
-        m.OnPointerReleased(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None));
-        m.OnKeyDown(new KeyInputArgs("Home"));
-    }
-
-    /// <summary>ROADMAP.md row 100: a scroll-zoom must narrow a secondary axis' own range too — right slot 0
-    /// here is [0,500], and zooming in must shrink IT proportionally, not leave it at its full span.</summary>
-    [Fact]
-    public void OnScroll_ZoomIn_AlsoNarrowsASecondaryAxissOwnRange()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
-            .Build();
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        var m = new ZoomModifier("chart-1", layout, events.Add);
-
-        m.OnScroll(new ScrollInputArgs(60, 35, 0, -1));
-
-        var zoom = Assert.IsType<ZoomEvent>(events[0]);
-        var secondary = Assert.Single(zoom.SecondaryRanges!);
-        Assert.Equal(AxisSide.Right, secondary.Side);
-        double secondarySpan = secondary.Range.YMax - secondary.Range.YMin;
-        Assert.True(secondarySpan < 500.0, "Zoom in should narrow the secondary axis' own range too.");
-
-        zoom.ApplyTo(figure);
-        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
-        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
-    }
-}
-
-public sealed class HoverModifierGenericTests : InteractionModifierTests<HoverModifier>
-{
-    protected override HoverModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-
-    private static (HoverModifier m, List<FigureInteractionEvent> events) Make()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        return (new HoverModifier("chart-1", layout, events.Add), events);
-    }
-
-    [Fact]
-    public void OnPointerMoved_NoButton_InsidePlot_ProducesHoverEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
-        Assert.Single(events);
-        Assert.IsType<HoverEvent>(events[0]);
-    }
-
-    [Fact]
-    public void OnPointerMoved_NoButton_OutsidePlot_ProducesNoEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(5, 5, PointerButton.None, ModifierKeys.None));
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public void OnPointerMoved_LeftButton_ProducesNoEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public void HoverEvent_DataCoordinatesCorrect()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
-        var evt = Assert.IsType<HoverEvent>(events[0]);
-        Assert.Equal(5.0, evt.X, precision: 3);
-        Assert.Equal(2.5, evt.Y, precision: 3);
-    }
-
-    [Fact]
-    public void HoverEvent_HasCorrectChartId()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
-        Assert.Equal("chart-1", events[0].ChartId);
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
-    }
-}
-
-public sealed class LegendToggleModifierGenericTests : InteractionModifierTests<LegendToggleModifier>
-{
-    protected override LegendToggleModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-
-    private static (LegendToggleModifier m, List<FigureInteractionEvent> events) Make(Rect legendItemBounds)
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Series A").Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var plotAreas = new[] { new Rect(10, 10, 200, 100) };
-        var legendItems = new IReadOnlyList<LegendItemBounds>[]
-        {
-            new[] { new LegendItemBounds(0, legendItemBounds) }
-        };
-        var layoutResult = new LayoutResult(plotAreas, legendItems);
-        var layout = ChartLayout.Create(figure, layoutResult);
-        var events = new List<FigureInteractionEvent>();
-        return (new LegendToggleModifier("chart-1", layout, events.Add), events);
-    }
-
-    [Fact]
-    public void ClickInsideLegendItem_ProducesLegendToggleEvent()
-    {
-        var legendRect = new Rect(150, 15, 50, 14);
-        var (m, events) = Make(legendRect);
-        var args = new PointerInputArgs(160, 20, PointerButton.Left, ModifierKeys.None);
-        Assert.True(m.HandlesPointerPressed(args));
-        m.OnPointerPressed(args);
-        Assert.Single(events);
-        var toggle = Assert.IsType<LegendToggleEvent>(events[0]);
-        Assert.Equal(0, toggle.AxesIndex);
-        Assert.Equal(0, toggle.SeriesIndex);
-    }
-
-    [Fact]
-    public void ClickOutsideLegend_DoesNotHandle()
-    {
-        var (m, _) = Make(new Rect(150, 15, 50, 14));
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 50, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void RightClick_DoesNotHandle()
-    {
-        var (m, _) = Make(new Rect(150, 15, 50, 14));
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(160, 20, PointerButton.Right, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void ClickOutsideAllAxes_DoesNotHandle()
-    {
-        var (m, _) = Make(new Rect(150, 15, 50, 14));
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(500, 500, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void NoLegendBounds_DoesNotHandle()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A").Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 200, 100)]);
-        var events = new List<FigureInteractionEvent>();
-        var m = new LegendToggleModifier("chart-1", layout, events.Add);
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None)));
-    }
-
-    [Fact]
-    public void OnPointerPressed_InAxesButOutsideLegend_NoEvent()
-    {
-        var (m, events) = Make(new Rect(150, 15, 50, 14));
-        m.OnPointerPressed(new PointerInputArgs(50, 50, PointerButton.Left, ModifierKeys.None));
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public void NoOpMethods_DoNotThrow()
-    {
-        const string EscapeKey = "Escape";
-        var (m, events) = Make(new Rect(150, 15, 50, 14));
-        var pArgs = new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None);
-        var sArgs = new ScrollInputArgs(60, 35, 0, -1);
-        var kArgs = new KeyInputArgs(EscapeKey, ModifierKeys.None);
-        m.OnPointerMoved(pArgs);
-        m.OnPointerReleased(pArgs);
-        Assert.False(m.HandlesScroll(sArgs));
-        m.OnScroll(sArgs);
-        Assert.False(m.HandlesKeyDown(kArgs));
-        m.OnKeyDown(kArgs);
-        Assert.Empty(events);
-    }
-}
-
-public sealed class ResetModifierGenericTests : InteractionModifierTests<ResetModifier>
-{
-    protected override bool ShouldHandleKeyDown => true;
-
-    protected override ResetModifier CreateModifier(IChartLayout layout, Figure fig, Action<FigureInteractionEvent> sink) =>
-        new("c1", layout, sink);
-
-    private static (ResetModifier m, List<FigureInteractionEvent> events) Make()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
-        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 5;
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        return (new ResetModifier("chart-1", layout, events.Add), events);
-    }
-
-    public override void OnPointerPressed_OutsidePlotArea_DoesNotEmit()
-    {
-        var (fig, layout) = BuildHarness();
-        var events = new List<FigureInteractionEvent>();
-        var m = CreateModifier(layout, fig, events.Add);
-        m.OnPointerPressed(new PointerInputArgs(500, 500, PointerButton.Left, ModifierKeys.None));
-        Assert.True(events.Count <= 1);
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_DoubleClick_InsidePlot_ReturnsTrue()
-    {
-        var (m, _) = Make();
-        Assert.True(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 2)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_SingleClick_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 1)));
-    }
-
-    [Fact]
-    public void HandlesPointerPressed_DoubleClick_OutsidePlot_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(5, 5, PointerButton.Left, ModifierKeys.None, ClickCount: 2)));
-    }
-
-    [Fact]
-    public void OnPointerPressed_DoubleClick_ProducesResetEvent()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 2));
-        Assert.Single(events);
-        Assert.IsType<ResetEvent>(events[0]);
-    }
-
-    [Fact]
-    public void OnPointerPressed_ResetEvent_RestoresOriginalLimits()
-    {
-        var (m, events) = Make();
-        m.OnPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 2));
-        var reset = Assert.IsType<ResetEvent>(events[0]);
-        Assert.Equal(0,  reset.XMin);
-        Assert.Equal(10, reset.XMax);
-        Assert.Equal(0,  reset.YMin);
-        Assert.Equal(5,  reset.YMax);
-    }
-
-    /// <summary>ROADMAP.md row 100: resetting must restore a secondary axis to the range it had when the modifier
-    /// was created, not leave it at whatever a zoom/pan moved it to.</summary>
-    [Fact]
-    public void OnPointerPressed_ResetEvent_RestoresASecondaryAxisToItsOriginalRangeToo()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
-            .Build();
-        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
-        var events = new List<FigureInteractionEvent>();
-        var m = new ResetModifier("chart-1", layout, events.Add);
-
-        // Move the secondary axis away from its original range before resetting.
-        figure.SubPlots[0].YAxes.Right[0].Axis.Min = 123;
-        figure.SubPlots[0].YAxes.Right[0].Axis.Max = 456;
-
-        m.OnPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 2));
-
-        var reset = Assert.IsType<ResetEvent>(events[0]);
-        var secondary = Assert.Single(reset.SecondaryRanges!);
-        Assert.Equal(AxisSide.Right, secondary.Side);
-        Assert.Equal(0.0, secondary.Range.YMin);
-        Assert.Equal(500.0, secondary.Range.YMax);
-
-        reset.ApplyTo(figure);
-        Assert.Equal(0.0, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
-        Assert.Equal(500.0, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
-    }
-
-    [Fact]
-    public void HandlesKeyDown_HomeKey_ReturnsTrue()
-    {
-        var (m, _) = Make();
-        Assert.True(m.HandlesKeyDown(new KeyInputArgs("Home")));
-    }
-
-    [Fact]
-    public void HandlesKeyDown_EscapeKey_ReturnsTrue()
-    {
-        var (m, _) = Make();
-        Assert.True(m.HandlesKeyDown(new KeyInputArgs("Escape")));
-    }
-
-    [Fact]
-    public void HandlesKeyDown_OtherKey_ReturnsFalse()
-    {
-        var (m, _) = Make();
-        Assert.False(m.HandlesKeyDown(new KeyInputArgs("a")));
-    }
-
-    [Fact]
-    public void OnKeyDown_HomeKey_ProducesResetEvent()
-    {
-        var (m, events) = Make();
-        m.OnKeyDown(new KeyInputArgs("Home"));
-        Assert.Single(events);
-        Assert.IsType<ResetEvent>(events[0]);
-    }
-
-    [Fact]
-    public void OnPointerMoved_AndReleased_AreNoOps()
-    {
-        var (m, events) = Make();
-        m.OnPointerMoved(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 1));
-        m.OnPointerReleased(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 1));
-        Assert.Empty(events);
-    }
-
-    [Fact]
-    public void Scroll_NotHandled_AndOnScrollIsNoOp()
-    {
-        var (m, events) = Make();
-        var args = new ScrollInputArgs(50, 30, 0, 1, ModifierKeys.None);
-        Assert.False(m.HandlesScroll(args));
-        m.OnScroll(args);
-        Assert.Empty(events);
-    }
-}

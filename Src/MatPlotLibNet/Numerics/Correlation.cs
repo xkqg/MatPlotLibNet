@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>A correlation at each lag.</summary>
@@ -38,23 +36,12 @@ internal static class Correlation
     {
         ArgumentNullException.ThrowIfNull(x, xName);
         ArgumentNullException.ThrowIfNull(y, yName);
-        if (x.Length == 0)
-        {
-            throw new ArgumentException("The signal holds no samples; a correlation is worked out from at least two.", xName);
-        }
+        x.ThrowIfEmpty("The signal holds no samples; a correlation is worked out from at least two.", xName);
 
-        if (y.Length != x.Length)
-        {
-            throw new ArgumentException($"The two signals differ in length: {Shown(x.Length)} and {Shown(y.Length)} samples.", yName);
-        }
+        y.Length.ThrowIfMisaligned(x.Length, yName);
 
         int maxLags = options.MaxLags;
-        if (maxLags >= x.Length)
-        {
-            throw new ArgumentException(
-                $"{Shown(maxLags)} lags either side need more than {Shown(maxLags)} samples, and the signal holds {Shown(x.Length)}; set MaxLags to at most {Shown(x.Length - 1)}.",
-                nameof(options));
-        }
+        x.Length.ThrowIfFewerThan(maxLags + 1L, nameof(options), new("The signal", "sample", "a correlation of MaxLags lags either side", "set a smaller MaxLags"));
 
         double[] lags = new double[2 * maxLags + 1];
         for (int i = 0; i < lags.Length; i++) lags[i] = i - maxLags;
@@ -99,6 +86,4 @@ internal static class Correlation
         foreach (double sample in signal) energy += sample * sample;
         return energy;
     }
-
-    private static string Shown(int count) => count.ToString(CultureInfo.InvariantCulture);
 }

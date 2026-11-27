@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Linq.Expressions;
 using System.Numerics;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -23,7 +24,32 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// end of the line instead.</param>
 /// <param name="Verb">The verb this shape draws, when it is the shape that stands for that verb; <see langword="null"/> for a
 /// variant of a verb that another shape stands for. Every verb has one shape that names it.</param>
-public readonly record struct ComposedShape(string Name, Func<bool, FigureBuilder> Build, int? Colours, int LegendEntries, string? Verb = null);
+public readonly record struct ComposedShape(string Name, Func<bool, FigureBuilder> Build, int? Colours, int LegendEntries, string? Verb = null)
+{
+    /// <summary>The call chain the verb replaces, written by hand with the public building blocks; the verb must draw exactly
+    /// this picture, with and without the missing value. <see langword="null"/> where the verb has no hand recipe.</summary>
+    public Func<bool, FigureBuilder>? ByHand { get; init; }
+
+    /// <summary>Calls of the verb that it refuses, each by the name of the argument it cannot take; a refused call leaves the axes
+    /// as it was.</summary>
+    public IReadOnlyList<Refusal> RefusedCalls { get; init; } = [];
+
+    /// <summary>The verb's call with the caller's callback, as the compiler binds it (a lambda of the builder and the callback);
+    /// <see langword="null"/> for a variant of a verb that another shape stands for.</summary>
+    public LambdaExpression? WithCallback { get; init; }
+
+    /// <summary>How many times the callback of <see cref="WithCallback"/> runs: once, or once for each unit the chart draws.</summary>
+    public int CallbackRuns { get; init; } = 1;
+
+    /// <summary>Whether the verb sets an axis limit of its own; every other verb leaves the limits to the data and the caller.</summary>
+    public bool SetsLimits { get; init; }
+}
+
+/// <summary>A call of a verb that the verb refuses.</summary>
+/// <param name="Call">The call.</param>
+/// <param name="Parameter">The parameter the refusal names, when the refusal is of one argument.</param>
+/// <param name="Says">What the message of the refusal says, in parts.</param>
+public readonly record struct Refusal(Action<AxesBuilder> Call, string? Parameter, IReadOnlyList<string> Says);
 
 /// <summary>The composed charts of the recipes-to-verbs increment, built from the public verbs only: the call chains the
 /// cookbook recipes make today and the one-call verbs will make tomorrow. Every shape is a figure with a known
@@ -34,58 +60,409 @@ public readonly record struct ComposedShape(string Name, Func<bool, FigureBuilde
 /// <para>Public API only, so the Mcp test project links this very file and runs the same shapes through its reader.</para></summary>
 public static class ComposedChartShapes
 {
-    private static readonly Color Neutral = Color.FromHex("#444444");
+    /// <summary>The shapes, built when first asked for: the data they read is declared further down, and a field of its own (not
+    /// the <c>field</c> keyword) is what lets the compiler of the 10.0 SDK, which CI installs, read <see cref="All"/> in the
+    /// initializers below without a nullable warning.</summary>
+    private static IReadOnlyList<ComposedShape>? _all;
 
     /// <summary>Every shape, tranche A first.</summary>
-    public static IReadOnlyList<ComposedShape> All { get; } =
+    public static IReadOnlyList<ComposedShape> All => _all ??=
     [
-        new("lollipop", Lollipop, 1, 1, "Lollipop"),
-        new("dumbbell", Dumbbell, 3, 2, "Dumbbell"),
-        new("pareto", Pareto, 2, 2, "Pareto"),
-        new("ridgeline", Ridgeline, 3, 0, "Ridgeline"),
-        new("bump", Bump, 3, 0, "BumpChart"),
-        new("calendar", Calendar, null, 0, "CalendarHeatmap"),
-        new("spy", Spy, 1, 0, "Spy"),
-        new("matshow", MatShow, null, 0, "MatShow"),
-        new("calendar-events", CalendarEvents, null, 2, "CalendarEvents"),
-        new("slope", Slope, 5, 0, "SlopeGraph"),
-        new("dot-plot", DotPlot, 2, 2, "DotPlot"),
-        new("qq", QQ, 1, 1, "QQPlot"),
-        new("probability-plot", ProbabilityPlot, 1, 1, "ProbabilityPlot"),
-        new("control-chart", ControlChart, 2, 2, "ControlChart"),
-        new("shewhart-chart", ShewhartChart, 2, 2, "ShewhartChart"),
+        new("lollipop", Lollipop, 1, 1, "Lollipop")
+        {
+            ByHand = LollipopByHand,
+            WithCallback = Call<StemSeries>((ax, c) => ax.Lollipop(Products, Scores(false), c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Lollipop(Products, [1.0, 2.0])),
+            ],
+        },
+        new("dumbbell", Dumbbell, 3, 2, "Dumbbell")
+        {
+            ByHand = DumbbellByHand,
+            WithCallback = Call<DumbbellParts>((ax, c) => ax.Dumbbell(DumbbellProducts, new BarGroup("Before", Before), new BarGroup("After", After(false)), c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Dumbbell(DumbbellProducts, new BarGroup("Before", Before), new BarGroup("After", [1.0]))),
+            ],
+        },
+        new("pareto", Pareto, 2, 2, "Pareto")
+        {
+            ByHand = ParetoByHand,
+            WithCallback = Call<ParetoParts>((ax, c) => ax.Pareto(Defects, DefectCounts(false), c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Pareto(["a", "b"], [1, -1])),
+                Refused(ax => ax.Pareto(["a", "b"], [0, 0])),
+            ],
+            SetsLimits = true,
+        },
+        new("ridgeline", Ridgeline, 3, 0, "Ridgeline")
+        {
+            ByHand = RidgelineByHand,
+            WithCallback = Call<AreaSeries>((ax, c) => ax.Ridgeline(RidgeGroups(false), null, c)),
+            CallbackRuns = 3,
+            RefusedCalls =
+            [
+                Refused(ax => ax.Ridgeline([RidgeGroups(false)[0], new NamedSample("South", [1.0])])),
+                Refused(ax => ax.Ridgeline(RidgeGroups(false), 0)),
+            ],
+        },
+        new("bump", Bump, 3, 0, "BumpChart")
+        {
+            ByHand = BumpByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.BumpChart(BumpPeriods, BumpGroups(false), c)),
+            CallbackRuns = 3,
+            RefusedCalls =
+            [
+                Refused(ax => ax.BumpChart(BumpPeriods, [BumpGroups(false)[0], new("Owls", [2, 0, 1, 2])])),
+                Refused(ax => ax.BumpChart(BumpPeriods, [BumpGroups(false)[0], new("Owls", [2, 1])])),
+            ],
+            SetsLimits = true,
+        },
+        new("calendar", Calendar, null, 0, "CalendarHeatmap")
+        {
+            ByHand = CalendarByHand,
+            WithCallback = Call<HeatmapSeries>((ax, c) => ax.CalendarHeatmap(CalendarDates(), CalendarValues(false), DayOfWeek.Monday, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.CalendarHeatmap([new DateTime(2025, 1, 1)], [1, 2])),
+            ],
+        },
+        new("spy", Spy, 1, 0, "Spy")
+        {
+            ByHand = SpyByHand,
+            WithCallback = Call<ScatterSeries>((ax, c) => ax.Spy(SpyMatrix(false), 0, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Spy(new double[0, 3])),
+                Refused(ax => ax.Spy(SpyMatrix(false), -1)),
+            ],
+            SetsLimits = true,
+        },
+        new("matshow", MatShow, null, 0, "MatShow")
+        {
+            ByHand = MatShowByHand,
+            WithCallback = Call<HeatmapSeries>((ax, c) => ax.MatShow(MatShowMatrix(false), c)),
+        },
+        new("calendar-events", CalendarEvents, null, 2, "CalendarEvents")
+        {
+            WithCallback = Call<CalendarEventsParts>((ax, c) => ax.CalendarEvents(EventDays, EventKinds, DayOfWeek.Monday, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.CalendarEvents(null!, ["a"]), "dates"),
+                Refused(ax => ax.CalendarEvents(EventDays, null!), "kinds"),
+                Refused(ax => ax.CalendarEvents(EventDays, ["a"]), "kinds"),
+                Refused(ax => ax.CalendarEvents([], []), "dates"),
+                Refused(ax => ax.CalendarEvents(EventDays, EventKinds, (DayOfWeek)9), "firstDayOfWeek"),
+            ],
+        },
+        new("slope", Slope, 5, 0, "SlopeGraph")
+        {
+            ByHand = SlopeByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.SlopeGraph(SlopeCategories, new BarGroup("2015", SlopeBefore(false)), new BarGroup("2025", SlopeAfter(false)), c)),
+            CallbackRuns = 5,
+            RefusedCalls =
+            [
+                Refused(ax => ax.SlopeGraph(SlopeCategories, new BarGroup("2015", SlopeBefore(false)), new BarGroup("2025", [1.0]))),
+            ],
+        },
+        new("dot-plot", DotPlot, 2, 2, "DotPlot")
+        {
+            ByHand = DotPlotByHand,
+            WithCallback = Call<ScatterSeries>((ax, c) => ax.DotPlot(DotPlotCategories, DotPlotGroups(false), c)),
+            CallbackRuns = 2,
+            RefusedCalls =
+            [
+                Refused(ax => ax.DotPlot(DotPlotCategories, [new("2015", DotPlotOlder), new("2025", [1.0])])),
+            ],
+        },
+        new("qq", QQ, 1, 1, "QQPlot")
+        {
+            WithCallback = Call<QQPlotParts>((ax, c) => ax.QQPlot(QQSample(false), c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.QQPlot([1.0])),
+            ],
+        },
+        new("probability-plot", ProbabilityPlot, 1, 1, "ProbabilityPlot")
+        {
+            WithCallback = Call<QQPlotParts>((ax, c) => ax.ProbabilityPlot(QQSample(false), QQReference.StudentT(3), c)),
+        },
+        new("control-chart", ControlChart, 2, 2, "ControlChart")
+        {
+            ByHand = ControlChartByHand,
+            WithCallback = Call<ControlChartParts>((ax, c) => ax.ControlChart(ControlDays, ControlValues(false), null, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.ControlChart([1], [1.0])),
+                Refused(ax => ax.ControlChart(ControlDays, ControlValues(false), new ControlLimits(10, 15, 5))),
+            ],
+        },
+        new("shewhart-chart", ShewhartChart, 2, 2, "ShewhartChart")
+        {
+            WithCallback = Call<ControlChartParts>((ax, c) => ax.ShewhartChart(ControlChartData.Individuals(ControlDays, ControlValues(false)), ControlRules.All, null, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.ShewhartChart(ControlChartData.Individuals(ControlDays, ControlValues(false)), (ControlRules)256)),
+                Refused(ax => ax.ShewhartChart(default)),
+            ],
+        },
         new("moving-range-chart", MovingRangeChart, 2, 2),
         new("xbar-chart", XBarChart, 2, 2),
         new("range-chart", RangeChart, 2, 2),
         new("p-chart", PChart, 2, 2),
         new("c-chart", CChart, 2, 2),
-        new("kaplan-meier", KaplanMeier, 2, 2, "KaplanMeier"),
-        new("risk-table", RiskTable, 2, 2, "RiskTable"),
-        new("parallel-coordinates", ParallelCoordinates, 3, 3, "ParallelCoordinates"),
-        new("stream-graph", StreamGraph, 4, 4, "StreamGraph"),
-        new("marimekko", Marimekko, 3, 3, "Marimekko"),
-        new("raincloud", Raincloud, 1, 1, "Raincloud"),
+        new("kaplan-meier", KaplanMeier, 2, 2, "KaplanMeier")
+        {
+            ByHand = KaplanMeierByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.KaplanMeier(SurvivalArms(false), c)),
+            CallbackRuns = 2,
+            RefusedCalls =
+            [
+                Refused(ax => ax.KaplanMeier([SurvivalArms(false)[0], new SurvivalGroup("South", [double.NaN], [true])])),
+            ],
+        },
+        new("risk-table", RiskTable, 2, 2, "RiskTable")
+        {
+            WithCallback = Call<RiskTableParts>((ax, c) => ax.RiskTable(SurvivalArms(false), null, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.RiskTable(SurvivalArms(false), [double.NaN])),
+            ],
+            SetsLimits = true,
+        },
+        new("parallel-coordinates", ParallelCoordinates, 3, 3, "ParallelCoordinates")
+        {
+            ByHand = ParallelCoordinatesByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.ParallelCoordinates(IrisDimensions, IrisGroups(false), c)),
+            CallbackRuns = 3,
+            RefusedCalls =
+            [
+                Refused(ax => ax.ParallelCoordinates(IrisDimensions, [new("dog", [1, 2, 3]), new("cat", [1])])),
+            ],
+        },
+        new("stream-graph", StreamGraph, 4, 4, "StreamGraph")
+        {
+            WithCallback = Call<AreaSeries>((ax, c) => ax.StreamGraph(Ramp(30), StreamGroups(false), StackedBaseline.Wiggle, c)),
+            CallbackRuns = 4,
+            RefusedCalls =
+            [
+                Refused(ax => ax.StreamGraph(Ramp(4), [new("a", [1, 2, 3, 4]), new("b", [1, -2, 3, 4])])),
+            ],
+        },
+        new("stream-graph-symmetric", missing => StreamGraphWith(StackedBaseline.Symmetric, missing), 4, 4)
+        {
+            ByHand = StreamGraphByHand,
+        },
+        new("marimekko", Marimekko, 3, 3, "Marimekko")
+        {
+            ByHand = MarimekkoByHand,
+            WithCallback = Call<AreaSeries>((ax, c) => ax.Marimekko(MarimekkoColumns, MarimekkoSegments(false), c)),
+            CallbackRuns = 3,
+            RefusedCalls =
+            [
+                Refused(ax => ax.Marimekko(MarimekkoColumns, [new("A", [1, 2, 3]), new("B", [1, -2, 3])])),
+                Refused(ax => ax.Marimekko(MarimekkoColumns, [new("A", [0, 0, 0])])),
+            ],
+        },
+        new("raincloud", Raincloud, 1, 1, "Raincloud")
+        {
+            ByHand = RaincloudByHand,
+            WithCallback = Call<RaincloudParts>((ax, c) => ax.Raincloud(RaincloudGroups(false), c)),
+        },
         new("waterfall-total", WaterfallTotal, null, 0),
-        new("horizon", Horizon, 2, 0, "Horizon"),
-        new("renko", Renko, 2, 2, "Renko"),
-        new("connected-scatter", ConnectedScatter, 1, 0, "ConnectedScatter"),
-        new("kagi", Kagi, 1, 0, "Kagi"),
-        new("stem-and-leaf", StemAndLeaf, null, 0, "StemAndLeaf"),
-        new("vlines", VLines, 1, 1, "VLines"),
-        new("hlines", HLines, 1, 1, "HLines"),
-        new("stairs", Stairs, 1, 1, "Stairs"),
-        new("stairs-filled", StairsFilled, 1, 1),
-        new("triplot", Triplot, 1, 1, "Triplot"),
-        new("psd", Psd, 1, 1, "Psd"),
-        new("csd", Csd, 1, 1, "Csd"),
-        new("cohere", Cohere, 1, 1, "Cohere"),
-        new("magnitude-spectrum", MagnitudeSpectrum, 1, 1, "MagnitudeSpectrum"),
-        new("phase-spectrum", PhaseSpectrum, 1, 1, "PhaseSpectrum"),
-        new("angle-spectrum", AngleSpectrum, 1, 1, "AngleSpectrum"),
-        new("acorr", Acorr, 1, 1, "Acorr"),
-        new("acorr-markers", AcorrMarkers, 1, 1),
-        new("xcorr", Xcorr, 1, 1, "Xcorr"),
-        new("xcorr-markers", XcorrMarkers, 1, 1),
+        new("horizon", Horizon, 2, 0, "Horizon")
+        {
+            ByHand = HorizonByHand,
+            WithCallback = Call<HorizonParts>((ax, c) => ax.Horizon(HorizonX, HorizonValues(false), 2, c)),
+        },
+        new("renko", Renko, 2, 2, "Renko")
+        {
+            ByHand = RenkoByHand,
+            WithCallback = Call<RenkoParts>((ax, c) => ax.Renko(RenkoCloses(false), 1, c)),
+        },
+        new("connected-scatter", ConnectedScatter, 1, 0, "ConnectedScatter")
+        {
+            ByHand = ConnectedScatterByHand,
+            WithCallback = Call<ConnectedScatterParts>((ax, c) => ax.ConnectedScatter(PathX, PathY(false), c)),
+        },
+        new("kagi", Kagi, 1, 0, "Kagi")
+        {
+            ByHand = KagiByHand,
+            WithCallback = Call<KagiParts>((ax, c) => ax.Kagi(KagiCloses(false), 1, c)),
+        },
+        new("stem-and-leaf", StemAndLeaf, null, 0, "StemAndLeaf")
+        {
+            ByHand = StemAndLeafByHand,
+            WithCallback = Call<StemAndLeafParts>((ax, c) => ax.StemAndLeaf(StemSample(false), null, c)),
+        },
+        new("vlines", VLines, 1, 1, "VLines")
+        {
+            ByHand = VLinesByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.VLines(SegmentPositions, SegmentLows, SegmentHighs(false), c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.VLines([1, 2, 3], [0, 0, 0], [3, 4]), "yMax"),
+                Refused(ax => ax.VLines([1, 2, 3], [0, 0], [3, 4, 5]), "yMin"),
+                Refused(ax => ax.VLines(null!, [0.0], [1.0]), "x"),
+                Refused(ax => ax.VLines([1.0], null!, [1.0]), "yMin"),
+                Refused(ax => ax.VLines([1.0], [0.0], null!), "yMax"),
+            ],
+        },
+        new("hlines", HLines, 1, 1, "HLines")
+        {
+            ByHand = HLinesByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.HLines(SegmentPositions, SegmentLows, SegmentHighs(false), c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.HLines([1, 2, 3], [0, 0, 0], [3, 4]), "xMax"),
+                Refused(ax => ax.HLines([1, 2, 3], [0, 0], [3, 4, 5]), "y", "xMin"),
+                Refused(ax => ax.HLines(null!, [0.0], [1.0]), "y"),
+                Refused(ax => ax.HLines([1.0], null!, [1.0]), "xMin"),
+                Refused(ax => ax.HLines([1.0], [0.0], null!), "xMax"),
+            ],
+        },
+        new("stairs", Stairs, 1, 1, "Stairs")
+        {
+            ByHand = StairsByHand,
+            WithCallback = Call<StairsParts>((ax, c) => ax.Stairs(StairValues(false), StairEdges(false), null, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Stairs([1, 2, 3], [0, 1, 2])),
+                Refused(ax => ax.Stairs([1, 2], [0, 1, 2], double.NaN)),
+            ],
+        },
+        new("stairs-filled", StairsFilled, 1, 1)
+        {
+            ByHand = StairsFilledByHand,
+        },
+        new("triplot", Triplot, 1, 1, "Triplot")
+        {
+            ByHand = TriplotByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.Triplot(MeshX(false), MeshY, MeshTriangles, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Triplot(MeshX(false), MeshY, [0, 1, 99])),
+                Refused(ax => ax.Triplot(MeshX(false), [0.0, 1.0])),
+            ],
+        },
+        new("psd", Psd, 1, 1, "Psd")
+        {
+            ByHand = PsdByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.Psd(SpectralX(false), SpectralShapeOptions, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Psd(null!, SpectralShapeOptions), "signal"),
+                Refused(ax => ax.Psd([], SpectralShapeOptions), "signal", "no samples"),
+                Refused(ax => ax.Psd(SpectralX(false)), "options", "256", "32"),
+                Refused(ax => ax.Psd(SpectralX(false), new SpectralOptions { SegmentLength = 16, Overlap = 16 }), "options"),
+                Refused(ax => ax.Psd(SpectralX(false), new SpectralOptions { SegmentLength = 16, Overlap = 20 }), "options"),
+                Refused(ax => ax.Psd(SpectralX(false), new SpectralOptions { SegmentLength = 16, PadTo = 12 }), "options"),
+            ],
+        },
+        new("csd", Csd, 1, 1, "Csd")
+        {
+            ByHand = CsdByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.Csd(SpectralX(false), SpectralY, SpectralShapeOptions, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Csd(null!, SpectralY, SpectralShapeOptions), "x"),
+                Refused(ax => ax.Csd(SpectralX(false), null!, SpectralShapeOptions), "y"),
+                Refused(ax => ax.Csd([], [], SpectralShapeOptions), "x"),
+                Refused(ax => ax.Csd(SpectralX(false), SpectralY[..20], SpectralShapeOptions), "y", "32", "20"),
+                Refused(ax => ax.Csd(SpectralX(false), SpectralY), "options", "256"),
+                Refused(ax => ax.Csd(SpectralX(false), SpectralY, new SpectralOptions { SegmentLength = 16, Overlap = 16 }), "options"),
+                Refused(ax => ax.Csd(SpectralX(false), SpectralY, new SpectralOptions { SegmentLength = 16, Overlap = 20 }), "options"),
+                Refused(ax => ax.Csd(SpectralX(false), SpectralY, new SpectralOptions { SegmentLength = 16, PadTo = 12 }), "options"),
+            ],
+        },
+        new("cohere", Cohere, 1, 1, "Cohere")
+        {
+            ByHand = CohereByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.Cohere(SpectralX(false), SpectralY, SpectralShapeOptions, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Cohere(null!, SpectralY, SpectralShapeOptions), "x"),
+                Refused(ax => ax.Cohere(SpectralX(false), null!, SpectralShapeOptions), "y"),
+                Refused(ax => ax.Cohere([], [], SpectralShapeOptions), "x"),
+                Refused(ax => ax.Cohere(SpectralX(false), SpectralY[..20], SpectralShapeOptions), "y"),
+                Refused(ax => ax.Cohere(SpectralX(false), SpectralY), "options", "256"),
+                Refused(ax => ax.Cohere(SpectralX(false)[..31], SpectralY[..31], SpectralShapeOptions), "options", "31", "32"),
+                Refused(ax => ax.Cohere(SpectralX(false), SpectralY, new SpectralOptions { SegmentLength = 16, Overlap = 16 }), "options"),
+                Refused(ax => ax.Cohere(SpectralX(false), SpectralY, new SpectralOptions { SegmentLength = 16, Overlap = 20 }), "options"),
+                Refused(ax => ax.Cohere(SpectralX(false), SpectralY, new SpectralOptions { SegmentLength = 16, PadTo = 12 }), "options"),
+            ],
+        },
+        new("magnitude-spectrum", MagnitudeSpectrum, 1, 1, "MagnitudeSpectrum")
+        {
+            ByHand = MagnitudeSpectrumByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.MagnitudeSpectrum(SpectrumSignal(false), SpectrumShapeOptions, MagnitudeScale.Linear, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.MagnitudeSpectrum(null!), "signal"),
+                Refused(ax => ax.MagnitudeSpectrum([]), "signal", "no samples"),
+                Refused(ax => ax.MagnitudeSpectrum(SpectrumSignal(false), new SpectrumOptions { PadTo = 8 }), "options"),
+                Refused(ax => ax.MagnitudeSpectrum(SpectrumSignal(false), default, (MagnitudeScale)(-1)), "scale"),
+                Refused(ax => ax.MagnitudeSpectrum(SpectrumSignal(false), default, (MagnitudeScale)2), "scale"),
+            ],
+        },
+        new("phase-spectrum", PhaseSpectrum, 1, 1, "PhaseSpectrum")
+        {
+            ByHand = PhaseSpectrumByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.PhaseSpectrum(SpectrumSignal(false), SpectrumShapeOptions, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.PhaseSpectrum(null!), "signal"),
+                Refused(ax => ax.PhaseSpectrum([]), "signal"),
+                Refused(ax => ax.PhaseSpectrum(SpectrumSignal(false), new SpectrumOptions { PadTo = 4 }), "options"),
+            ],
+        },
+        new("angle-spectrum", AngleSpectrum, 1, 1, "AngleSpectrum")
+        {
+            ByHand = AngleSpectrumByHand,
+            WithCallback = Call<LineSeries>((ax, c) => ax.AngleSpectrum(SpectrumSignal(false), SpectrumShapeOptions, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.AngleSpectrum(null!), "signal"),
+                Refused(ax => ax.AngleSpectrum([]), "signal"),
+                Refused(ax => ax.AngleSpectrum(SpectrumSignal(false), new SpectrumOptions { PadTo = 4 }), "options"),
+            ],
+        },
+        new("acorr", Acorr, 1, 1, "Acorr")
+        {
+            ByHand = AcorrByHand,
+            WithCallback = Call<CorrelationParts>((ax, c) => ax.Acorr(CorrelationX(false), CorrelationStems, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Acorr(null!), "signal"),
+                Refused(ax => ax.Acorr([]), "signal"),
+                Refused(ax => ax.Acorr(CorrelationY[..3]), "options"),
+                Refused(ax => ax.Acorr(CorrelationY[..3], new CorrelationOptions { MaxLags = 3 }), "options"),
+            ],
+        },
+        new("acorr-markers", AcorrMarkers, 1, 1)
+        {
+            ByHand = AcorrMarkersByHand,
+        },
+        new("xcorr", Xcorr, 1, 1, "Xcorr")
+        {
+            ByHand = XcorrByHand,
+            WithCallback = Call<CorrelationParts>((ax, c) => ax.Xcorr(CorrelationX(false), CorrelationY, CorrelationStems, c)),
+            RefusedCalls =
+            [
+                Refused(ax => ax.Xcorr(null!, CorrelationY), "x"),
+                Refused(ax => ax.Xcorr(CorrelationY, null!), "y"),
+                Refused(ax => ax.Xcorr([], []), "x"),
+                Refused(ax => ax.Xcorr(CorrelationY, [1, 2, 3]), "y"),
+                Refused(ax => ax.Xcorr(CorrelationY[..8], CorrelationY[..8]), "options"),
+                Refused(ax => ax.Xcorr(CorrelationY[..8], CorrelationY[..8], new CorrelationOptions { MaxLags = 8 }), "options"),
+            ],
+        },
+        new("xcorr-markers", XcorrMarkers, 1, 1)
+        {
+            ByHand = XcorrMarkersByHand,
+        },
     ];
 
     /// <summary>The names of <see cref="All"/>, as a Theory carries them.</summary>
@@ -117,6 +494,12 @@ public static class ComposedChartShapes
             : throw new ArgumentException($"No composed shape is called '{name}'.", nameof(name));
 
     private static double[] Ramp(int count) => Enumerable.Range(0, count).Select(i => (double)i).ToArray();
+
+    /// <summary>A call the verb refuses, by the parameter it names and the words its message holds.</summary>
+    private static Refusal Refused(Action<AxesBuilder> call, string? parameter = null, params string[] says) => new(call, parameter, says);
+
+    /// <summary>A verb's call with the caller's callback, kept as the compiler bound it.</summary>
+    private static LambdaExpression Call<T>(Expression<Func<AxesBuilder, Action<T>?, AxesBuilder>> call) => call;
 
     // ---- tranche A ----------------------------------------------------------------------------------------------
 
@@ -315,7 +698,8 @@ public static class ComposedChartShapes
             for (int g = 0; g < samples.Length; g++)
             {
                 double baseline = samples.Length - 1 - g + 0.5;
-                ax.FillBetween(grid, [.. density[g].Select(d => baseline + d / tallest)], [.. grid.Select(_ => baseline)]);
+                ax.FillBetween(grid, [.. density[g].Select(d => baseline + d / tallest)], [.. grid.Select(_ => baseline)],
+                    s => { s.Alpha = 0.3; s.LineWidth = 1.5; });
             }
             ax.SetYTickLocator(new FixedLocator([.. Enumerable.Range(0, samples.Length).Select(k => k + 0.5)]))
               .SetYTickFormatter(new CategoryFormatter(RidgeNames, reversed: true));
@@ -336,11 +720,14 @@ public static class ComposedChartShapes
     /// <summary>A line per brand, a marker at each rank, the name at the end of the line, the best rank on top and
     /// integer ticks, built by <c>BumpChart</c>: one line series for each brand, the Y limits from the lowest rank plus half
     /// to one half and a tick for every whole rank.</summary>
-    private static FigureBuilder Bump(bool missing)
+    private static FigureBuilder Bump(bool missing) =>
+        Plt.Create().WithSize(900, 450).AddSubPlot(1, 1, 1, ax => ax.BumpChart(BumpPeriods, BumpGroups(missing)));
+
+    /// <summary>The ranks of each brand as the groups the verb takes.</summary>
+    private static BarGroup[] BumpGroups(bool missing)
     {
         double[][] ranks = BumpRanks(missing);
-        return Plt.Create().WithSize(900, 450).AddSubPlot(1, 1, 1, ax => ax
-            .BumpChart(BumpPeriods, [.. BumpBrands.Select((brand, b) => new BarGroup(brand, ranks[b]))]));
+        return [.. BumpBrands.Select((brand, b) => new BarGroup(brand, ranks[b]))];
     }
 
     /// <summary>The call chain the <c>BumpChart</c> verb replaces, written by hand with the public building blocks: a thick
@@ -391,8 +778,10 @@ public static class ComposedChartShapes
     /// not there is not a zero.</summary>
     private static FigureBuilder Calendar(bool missing) =>
         Plt.Create().WithSize(1100, 300).AddSubPlot(1, 1, 1, ax => ax
-            .CalendarHeatmap([.. Enumerable.Range(0, CalendarDays).Select(d => CalendarStart.AddDays(d))], CalendarValues(missing),
-                configure: s => s.ColorMap = CalendarMap));
+            .CalendarHeatmap(CalendarDates(), CalendarValues(missing), configure: s => s.ColorMap = CalendarMap));
+
+    /// <summary>Every day of 2025.</summary>
+    private static DateTime[] CalendarDates() => [.. Enumerable.Range(0, CalendarDays).Select(d => CalendarStart.AddDays(d))];
 
     /// <summary>The call chain the <c>CalendarHeatmap</c> verb replaces, written by hand with the public building blocks and
     /// corrected where the old recipe was wrong (it named the weekdays from the bottom up on the row edges, so "Mon" stood
@@ -512,6 +901,7 @@ public static class ComposedChartShapes
         return Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
             .Table(cells, t =>
             {
+                t.Location = TableLocation.InPlot;
                 t.ColumnAlignments = [TextAlignment.Right, TextAlignment.Center, TextAlignment.Center, TextAlignment.Center, TextAlignment.Center];
                 t.ColumnWidths = [2, 0.5, 1, 1, 1];
                 t.CellHeight = 20;
@@ -572,8 +962,8 @@ public static class ComposedChartShapes
         Plt.Create().WithSize(700, 450).AddSubPlot(1, 1, 1, ax => ax.ConnectedScatter(PathX, PathY(missing)));
 
     /// <summary>The call chain the <c>ConnectedScatter</c> verb replaces, written by hand with the public building blocks: one
-    /// quiver whose arrow <c>i</c> starts on point <c>i</c> and takes the step to point <c>i + 1</c> at a scale of one, with a
-    /// head a tenth of its arrow long, then one scatter of the points over it, both in one explicit colour (the test side has no
+    /// quiver whose arrow <c>i</c> starts on point <c>i</c> and takes the step to point <c>i + 1</c> at a scale of one in data
+    /// units (<c>AutoScale</c> off, as the matplotlib themes would autoscale it), with a head a tenth of its arrow long, then one scatter of the points over it, both in one explicit colour (the test side has no
     /// access to the internal colour group, so the same literal colour on each is the public-API equivalent). The verb must draw
     /// exactly this picture.</summary>
     /// <param name="missing">Whether the fourth point's Y is missing (NaN).</param>
@@ -584,7 +974,7 @@ public static class ComposedChartShapes
         double[] u = [.. Enumerable.Range(0, PathX.Length - 1).Select(i => PathX[i + 1] - PathX[i])];
         double[] v = [.. Enumerable.Range(0, PathX.Length - 1).Select(i => y[i + 1] - y[i])];
         return Plt.Create().WithSize(700, 450).AddSubPlot(1, 1, 1, ax => ax
-            .Quiver(PathX[..6], y[..6], u, v, s => { s.Color = colour; s.Scale = 1; s.ArrowHeadSize = 0.1; })
+            .Quiver(PathX[..6], y[..6], u, v, s => { s.Color = colour; s.Scale = 1; s.AutoScale = false; s.ArrowHeadSize = 0.1; })
             .Scatter(PathX, y, s => s.Color = colour));
     }
 
@@ -600,6 +990,28 @@ public static class ComposedChartShapes
     /// rose wear one colour and those that fell another, and the legend names the two kinds.</summary>
     private static FigureBuilder Renko(bool missing) =>
         Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Renko(RenkoCloses(missing), 1).WithLegend());
+
+    /// <summary>The call chain the <c>Renko</c> verb replaces, written by hand with the public building blocks: the thirteen bricks
+    /// worked out by hand (0-2 and 7-12 rose, 3-6 fell), each a unit tall standing on its bottom and a slot wide on its number
+    /// plus a half, the risen and the fallen as two floating bar series, and no ticks on the X axis. The missing close lies
+    /// inside the first brick, so it changes no brick. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether the second close is missing (NaN).</param>
+    public static FigureBuilder RenkoByHand(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
+            .AddSeries(new BarSeries(["0", "1", "2", "7", "8", "9", "10", "11", "12"], [1.0, 1, 1, 1, 1, 1, 1, 1, 1])
+            {
+                XCoordinate = [0.5, 1.5, 2.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5],
+                StackBaseline = [10.0, 11, 12, 9, 10, 11, 12, 13, 14],
+                BarWidth = 1, Color = Colors.Green, Label = "up",
+            })
+            .AddSeries(new BarSeries(["3", "4", "5", "6"], [1.0, 1, 1, 1])
+            {
+                XCoordinate = [3.5, 4.5, 5.5, 6.5],
+                StackBaseline = [11.0, 10, 9, 8],
+                BarWidth = 1, Color = Colors.Red, Label = "down",
+            })
+            .SetXTickLocator(new FixedLocator([]))
+            .WithLegend());
 
     private const int MatShowRows = 6, MatShowColumns = 9;
 
@@ -617,14 +1029,14 @@ public static class ComposedChartShapes
     }
 
     /// <summary>A matrix shown as a grid of square cells, built by <c>MatShow</c>: one heatmap with an aspect of one, the
-    /// rows and the columns numbered from 0 (the first row on top, the columns along the top as well as the bottom) and a
+    /// rows and the columns numbered from 0 (the first row on top, the columns along the top, the bottom keeping its marks) and a
     /// colour bar.</summary>
     private static FigureBuilder MatShow(bool missing) =>
         Plt.Create().WithSize(700, 500).AddSubPlot(1, 1, 1, ax => ax.MatShow(MatShowMatrix(missing)));
 
     /// <summary>The call chain the <c>MatShow</c> verb replaces, written by hand with the public building blocks: the heatmap,
     /// an aspect of one, a tick on the centre of every column and row (9 columns and 6 rows are few enough to number each)
-    /// reading its own index, the rows read from the top down, the X ticks mirrored on the top edge, and a colour bar. The
+    /// reading its own index, the rows read from the top down, the X tick labels on the top edge only, and a colour bar. The
     /// verb must draw exactly this picture.</summary>
     /// <param name="missing">Whether one cell (row 2, column 3) is missing (NaN).</param>
     public static FigureBuilder MatShowByHand(bool missing)
@@ -638,7 +1050,7 @@ public static class ComposedChartShapes
             .SetXTickFormatter(new CategoryFormatter(columnNames))
             .SetYTickLocator(new FixedLocator([.. Enumerable.Range(0, MatShowRows).Select(r => r + 0.5)]))
             .SetYTickFormatter(new CategoryFormatter(rowNames, reversed: true))
-            .WithXTicksMirrored()
+            .WithXTickLabelsOnTop()
             .WithColorBar());
     }
 
@@ -709,7 +1121,10 @@ public static class ComposedChartShapes
     /// the first group on top, the guide lines being the grid.</summary>
     private static FigureBuilder DotPlot(bool missing) =>
         Plt.Create().WithSize(700, 450).AddSubPlot(1, 1, 1, ax => ax
-            .DotPlot(DotPlotCategories, [new BarGroup("2015", DotPlotOlder), new BarGroup("2025", DotPlotNewer(missing))]));
+            .DotPlot(DotPlotCategories, DotPlotGroups(missing)));
+
+    /// <summary>The two years as the groups the verb takes.</summary>
+    private static BarGroup[] DotPlotGroups(bool missing) => [new("2015", DotPlotOlder), new("2025", DotPlotNewer(missing))];
 
     /// <summary>The call chain the <c>DotPlot</c> verb replaces, written by hand with the public building blocks: the categories
     /// ordered by the first group, largest first (a stable order), the largest in the top row, one scatter series of circles
@@ -740,13 +1155,18 @@ public static class ComposedChartShapes
     /// sample is made by integer arithmetic and comes unsorted (the verb sorts); the missing observation is left out.
     /// <para>The quantiles come from a logarithm, so this shape is compared in-process only, never against stored
     /// bytes.</para></summary>
-    private static FigureBuilder QQ(bool missing)
+    private static FigureBuilder QQ(bool missing) =>
+        Plt.Create().WithSize(600, 600).AddSubPlot(1, 1, 1, ax => ax
+            .QQPlot(QQSample(missing), parts => parts.Points.Label = "sample")
+            .WithLegend());
+
+    /// <summary>The sample of the Q-Q and probability plots: 40 values by integer arithmetic, unsorted; the variant leaves the
+    /// eighth out (NaN).</summary>
+    private static double[] QQSample(bool missing)
     {
         double[] sample = [.. Enumerable.Range(0, 40).Select(i => 10 + (i * 7919 % 40 - 19.5) / 9.0 + i % 5 * 0.15)];
         if (missing) sample[7] = double.NaN;
-        return Plt.Create().WithSize(600, 600).AddSubPlot(1, 1, 1, ax => ax
-            .QQPlot(sample, parts => parts.Points.Label = "sample")
-            .WithLegend());
+        return sample;
     }
 
     /// <summary>A sample sorted up the Y axis against the quantiles of Student's t distribution with 3 degrees of freedom at
@@ -755,14 +1175,10 @@ public static class ComposedChartShapes
     /// arithmetic and comes unsorted; the missing observation is left out.
     /// <para>The quantiles come from a root and an incomplete beta function, so this shape is compared in-process only, never
     /// against stored bytes.</para></summary>
-    private static FigureBuilder ProbabilityPlot(bool missing)
-    {
-        double[] sample = [.. Enumerable.Range(0, 40).Select(i => 10 + (i * 7919 % 40 - 19.5) / 9.0 + i % 5 * 0.15)];
-        if (missing) sample[7] = double.NaN;
-        return Plt.Create().WithSize(600, 600).AddSubPlot(1, 1, 1, ax => ax
-            .ProbabilityPlot(sample, QQReference.StudentT(3), parts => parts.Points.Label = "sample")
+    private static FigureBuilder ProbabilityPlot(bool missing) =>
+        Plt.Create().WithSize(600, 600).AddSubPlot(1, 1, 1, ax => ax
+            .ProbabilityPlot(QQSample(missing), QQReference.StudentT(3), parts => parts.Points.Label = "sample")
             .WithLegend());
-    }
 
     private static readonly double[] ControlDays = [.. Enumerable.Range(1, 25).Select(i => (double)i)];
 
@@ -904,7 +1320,9 @@ public static class ComposedChartShapes
         int[] beyond = Enumerable.Range(0, values.Length).Where(i => values[i] > upper || values[i] < lower).ToArray();
         return Plt.Create().WithSize(800, 420).AddSubPlot(1, 1, 1, ax => ax
             .Plot(ControlDays, values, s => { s.Marker = MarkerStyle.Circle; s.Label = "measurement"; })
-            .Scatter(beyond.Select(i => ControlDays[i]).ToArray(), beyond.Select(i => values[i]).ToArray(), s => s.Label = "beyond a limit")
+            // The verb draws its violations as matplotlib's plot(x, y, 'o'), the lines cycle's colour after its line; a scatter by
+            // hand takes the patch cycle's first, as ax.scatter after ax.plot does, so the hand names the verb's colour.
+            .Scatter(beyond.Select(i => ControlDays[i]).ToArray(), beyond.Select(i => values[i]).ToArray(), s => { s.Label = "beyond a limit"; s.Color = Colors.Tab10Orange; })
             .AxHLine(centre, r => { r.LineStyle = LineStyle.Solid; r.Label = "CL"; })
             .AxHLine(lower, r => r.Label = "LCL")
             .AxHLine(upper, r => r.Label = "UCL")
@@ -1025,11 +1443,11 @@ public static class ComposedChartShapes
 
         return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
             .Plot(treatmentTimesHeld, treatmentHeld, s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "Treatment"; s.Color = treatmentColour; })
-            .FillBetween(treatmentTimesHeld, treatmentUpperHeld, treatmentLowerHeld, s => { s.Color = treatmentColour; s.Alpha = 0.2; })
+            .FillBetween(treatmentTimesHeld, treatmentUpperHeld, treatmentLowerHeld, s => { s.Color = treatmentColour; s.Alpha = 0.2; s.LineWidth = 1.5; })
             .Scatter(treatmentCensored, [.. treatmentCensored.Select(t => LevelAt(treatmentTimesHeld, treatmentHeld, t))],
                 s => { s.Marker = MarkerStyle.Plus; s.Color = treatmentColour; })
             .Plot(controlTimes, control, s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "Control"; s.Color = controlColour; })
-            .FillBetween(controlTimes, controlUpper, controlLower, s => { s.Color = controlColour; s.Alpha = 0.2; })
+            .FillBetween(controlTimes, controlUpper, controlLower, s => { s.Color = controlColour; s.Alpha = 0.2; s.LineWidth = 1.5; })
             .Scatter(controlCensored, [.. controlCensored.Select(t => LevelAt(controlTimes, control, t))],
                 s => { s.Marker = MarkerStyle.Plus; s.Color = controlColour; })
             .SetYLabel("Survival probability")
@@ -1057,12 +1475,11 @@ public static class ComposedChartShapes
     /// <summary>One line series per class, built by <c>ParallelCoordinates</c>: every row a stretch of its class's line with a
     /// missing point between rows, each column scaled to 0..1, an axis line per column, the column names on the X axis and
     /// every class named in the legend.</summary>
-    private static FigureBuilder ParallelCoordinates(bool missing)
-    {
-        double[][] rows = IrisRows(missing);
-        BarGroup[] groups = [.. rows.Select((r, i) => new BarGroup(IrisClasses[i / 4], r))];
-        return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.ParallelCoordinates(IrisDimensions, groups));
-    }
+    private static FigureBuilder ParallelCoordinates(bool missing) =>
+        Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.ParallelCoordinates(IrisDimensions, IrisGroups(missing)));
+
+    /// <summary>Every row as the group the verb takes, named by its class.</summary>
+    private static BarGroup[] IrisGroups(bool missing) => [.. IrisRows(missing).Select((r, i) => new BarGroup(IrisClasses[i / 4], r))];
 
     /// <summary>The call chain the <c>ParallelCoordinates</c> verb replaces, written by hand with the public building blocks:
     /// each column scaled min to max over the values that are there (a missing value stays missing), a solid axis line per
@@ -1078,7 +1495,7 @@ public static class ComposedChartShapes
         double[] high = Enumerable.Range(0, 4).Select(d => rows.Select(r => r[d]).Where(double.IsFinite).Max()).ToArray();
         return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax =>
         {
-            foreach (double centre in centres) ax.AxVLine(centre, r => r.LineStyle = LineStyle.Solid);
+            foreach (double centre in centres) ax.AxVLine(centre, r => { r.LineStyle = LineStyle.Solid; r.LineWidth = 1; });
             for (int c = 0; c < IrisClasses.Length; c++)
             {
                 var xs = new List<double>(); var ys = new List<double>();
@@ -1094,14 +1511,16 @@ public static class ComposedChartShapes
                 int cls = c;
                 ax.Plot([.. xs], [.. ys], s => { s.LineWidth = 1.2; s.Label = IrisClasses[cls]; });
             }
-            // Each column reads in its own units: the locator's numbers over the column's own range, a six-pixel mark on the
-            // column line and the number to its left, at the height that value is drawn at.
+            // Each column reads in its own units: the locator's numbers over the column's own range, written in one number format
+            // for the column, a six-pixel mark on the column line and the number to its left, at the height that value is drawn at.
             for (int d = 0; d < 4; d++)
             {
-                foreach (double value in new AutoLocator().Locate(low[d], high[d]).Where(v => v >= low[d] - 1e-9 * (high[d] - low[d]) && v <= high[d] + 1e-9 * (high[d] - low[d])))
+                double[] values = [.. new AutoLocator().Locate(low[d], high[d]).Where(v => v >= low[d] - 1e-9 * (high[d] - low[d]) && v <= high[d] + 1e-9 * (high[d] - low[d]))];
+                string[] texts = WrittenAsAnAxisWritesThem(values);
+                for (int k = 0; k < values.Length; k++)
                 {
-                    double height = (value - low[d]) / (high[d] - low[d]);
-                    ax.Annotate(value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture), centres[d], height, centres[d], height, a =>
+                    double height = (values[k] - low[d]) / (high[d] - low[d]);
+                    ax.Annotate(texts[k], centres[d], height, centres[d], height, a =>
                     {
                         a.Alignment = TextAlignment.Right;
                         a.VerticalAlignment = TextVerticalAlignment.Center;
@@ -1114,6 +1533,28 @@ public static class ComposedChartShapes
             ax.SetXTickLocator(new FixedLocator(centres)).SetXTickFormatter(new CategoryFormatter(IrisDimensions))
               .SetYTickLocator(new FixedLocator([]));
         });
+    }
+
+    /// <summary>The ticks of a column in one number format, as an axis writes its own, worked out here with public parts only:
+    /// the decimals the step between the first two ticks needs (0 to 10), a value a rounding error from 0 written as 0, and a
+    /// lone tick in the plain number format of <see cref="NumericTickFormatter"/>.</summary>
+    private static string[] WrittenAsAnAxisWritesThem(double[] ticks)
+    {
+        if (ticks.Length < 2) return [.. ticks.Select(new NumericTickFormatter().Format)];
+
+        double step = Math.Abs(ticks[1] - ticks[0]);
+        int decimals = 0;
+        for (int d = 0; d <= 10 && step > 0 && double.IsFinite(step); d++)
+        {
+            double scaled = step * Math.Pow(10, d);
+            if (Math.Abs(scaled - Math.Round(scaled)) < 1e-9)
+            {
+                decimals = d;
+                break;
+            }
+        }
+
+        return [.. ticks.Select(v => (Math.Abs(v) < 1e-10 ? 0 : v).ToString("F" + decimals, System.Globalization.CultureInfo.InvariantCulture))];
     }
 
     private static readonly string[] StreamNames = ["Rock", "Pop", "Jazz", "Folk"];
@@ -1133,12 +1574,15 @@ public static class ComposedChartShapes
     /// ticks.</summary>
     private static FigureBuilder StreamGraph(bool missing) => StreamGraphWith(StackedBaseline.Wiggle, missing);
 
+    /// <summary>The streams as the groups the verb takes.</summary>
+    private static BarGroup[] StreamGroups(bool missing) => [.. StreamLayers(missing).Select((values, k) => new BarGroup(StreamNames[k], values))];
+
     /// <summary>The stream graph of <see cref="Named"/>("stream-graph") on <paramref name="baseline"/>, built by the verb.</summary>
     /// <param name="baseline">Where the stack stands.</param>
     /// <param name="missing">Whether one thickness of the second stream is missing (NaN).</param>
     public static FigureBuilder StreamGraphWith(StackedBaseline baseline, bool missing) =>
         Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
-            .StreamGraph(Ramp(30), [.. StreamLayers(missing).Select((values, k) => new BarGroup(StreamNames[k], values))], baseline)
+            .StreamGraph(Ramp(30), StreamGroups(missing), baseline)
             .WithLegend());
 
     /// <summary>The call chain the <c>StreamGraph</c> verb replaces on its <see cref="StackedBaseline.Symmetric"/> baseline,
@@ -1157,7 +1601,7 @@ public static class ComposedChartShapes
             {
                 double[] upper = lower.Select((b, j) => b + layers[k][j]).ToArray();
                 int layer = k;
-                ax.FillBetween(x, upper, lower, s => { s.Alpha = StreamAlpha; s.Label = StreamNames[layer]; });
+                ax.FillBetween(x, upper, lower, s => { s.Alpha = StreamAlpha; s.LineWidth = 1.5; s.Label = StreamNames[layer]; });
                 lower = upper;
             }
             ax.SetYTickLocator(new FixedLocator([])).WithLegend();
@@ -1263,12 +1707,12 @@ public static class ComposedChartShapes
         double[] pointY = samples.SelectMany(s => s).ToArray();
         var colour = Theme.Default.CycleColors[0];
         // One tick per group at its dataset index (0, 1, ...), not the bar-style half-slot a category-name helper
-        // would place it at: the violin and the box already stand at that same index, left without a Positions of
-        // their own.
+        // would place it at: the violin and the box are given those positions, as a violin or a box with none stands at
+        // 1, 2, ... under the matplotlib themes.
         double[] positions = [.. Enumerable.Range(0, groups.Length).Select(k => (double)k)];
         return Plt.Create().WithSize(700, 500).AddSubPlot(1, 1, 1, ax => ax
-            .Violin(samples, s => { s.Side = ViolinSide.High; s.Color = colour; s.Alpha = 0.5; s.Label = "Samples"; })
-            .BoxPlot(samples, s => { s.Widths = 0.1; s.Color = colour; s.ShowOutliers = false; })
+            .Violin(samples, s => { s.Side = ViolinSide.High; s.Color = colour; s.Alpha = 0.5; s.Label = "Samples"; s.Positions = positions; })
+            .BoxPlot(samples, s => { s.Widths = 0.1; s.Positions = positions; s.Color = colour; s.ShowOutliers = false; })
             .Scatter(pointX, pointY, s => { s.Color = colour; s.MarkerSize = 6; s.Alpha = 1; })
             .SetXTickLocator(new FixedLocator(positions))
             .SetXTickFormatter(new CategoryFormatter([.. groups.Select(g => g.Label)], positions)));
@@ -1301,7 +1745,9 @@ public static class ComposedChartShapes
     }
 
     private static FigureBuilder Horizon(bool missing) =>
-        Plt.Create().WithSize(700, 160).AddSubPlot(1, 1, 1, ax => ax.Horizon([0, 1, 2, 3, 4], HorizonValues(missing), bands: 2));
+        Plt.Create().WithSize(700, 160).AddSubPlot(1, 1, 1, ax => ax.Horizon(HorizonX, HorizonValues(missing), bands: 2));
+
+    private static readonly double[] HorizonX = [0, 1, 2, 3, 4];
 
     /// <summary>The call chain the <c>Horizon</c> verb replaces, written by hand with the public building blocks: h = the
     /// largest absolute FINITE value over the band count (8 / 2 = 4 without the missing value, 5 / 2 = 2.5 with it, since
@@ -1311,7 +1757,7 @@ public static class ComposedChartShapes
     /// <param name="missing">Whether the third value (8, the largest) is missing (NaN).</param>
     public static FigureBuilder HorizonByHand(bool missing)
     {
-        double[] x = [0, 1, 2, 3, 4];
+        double[] x = HorizonX;
         double[] y = HorizonValues(missing);
         double h = y.Where(double.IsFinite).Select(Math.Abs).Max() / 2;
         Color positiveColour = Theme.Default.CycleColors[0];
@@ -1323,10 +1769,10 @@ public static class ComposedChartShapes
                 : Math.Clamp(v - k * h, 0, h))];
 
         return Plt.Create().WithSize(700, 160).AddSubPlot(1, 1, 1, ax => ax
-            .FillBetween(x, Fold(0, negative: false), null, s => { s.Color = positiveColour; s.Alpha = 0.5; })
-            .FillBetween(x, Fold(1, negative: false), null, s => { s.Color = positiveColour; s.Alpha = 1.0; })
-            .FillBetween(x, Fold(0, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 0.5; })
-            .FillBetween(x, Fold(1, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 1.0; }));
+            .FillBetween(x, Fold(0, negative: false), null, s => { s.Color = positiveColour; s.Alpha = 0.5; s.LineWidth = 1.5; })
+            .FillBetween(x, Fold(1, negative: false), null, s => { s.Color = positiveColour; s.Alpha = 1.0; s.LineWidth = 1.5; })
+            .FillBetween(x, Fold(0, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 0.5; s.LineWidth = 1.5; })
+            .FillBetween(x, Fold(1, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 1.0; s.LineWidth = 1.5; }));
     }
 
     // ---- segments -----------------------------------------------------------------------------------------------
@@ -1454,7 +1900,7 @@ public static class ComposedChartShapes
         double[] y = missing ? [3, 3, 5, 5, n, n, n, n, 4, 4] : [3, 3, 5, 5, 2, 2, 6, 6, 4, 4];
         double[] floor = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
         return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
-            .FillBetween(x, y, floor, s => s.Label = "counts")
+            .FillBetween(x, y, floor, s => { s.Label = "counts"; s.Alpha = 0.3; s.LineWidth = 1.5; })
             .WithLegend());
     }
 

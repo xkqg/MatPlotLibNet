@@ -27,7 +27,7 @@ public class ConstrainedLayoutTests
 
     private static IRenderContext MakeCtx() => new SvgRenderContext();
 
-    // --- CharacterWidthTable-backed MeasureText improves over uniform 0.6 ---
+    // --- MeasureText backed by the width of each character improves over uniform 0.6 ---
 
     /// <summary>A figure with no labels and no title should still return at least the minimum clamped margins.</summary>
     [Fact]
@@ -130,40 +130,6 @@ public class ConstrainedLayoutTests
         Assert.True(multiSpacing.MarginLeft >= singleLabel.MarginLeft - 1);
     }
 
-    /// <summary>Enabling TightLayout on FigureBuilder causes ChartRenderer to produce SVG without throwing.</summary>
-    [Fact]
-    public void FigureBuilder_TightLayout_ProducesSvgWithoutError()
-    {
-        string svg = new FigureBuilder()
-            .WithTitle("Test")
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.SetXLabel("Time");
-                ax.SetYLabel("Value");
-                ax.Plot([1.0, 2.0, 3.0], [1.0, 4.0, 9.0]);
-            })
-            .TightLayout()
-            .Build()
-            .ToSvg();
-
-        Assert.NotEmpty(svg);
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>ConstrainedLayout() method exists on FigureBuilder and produces valid SVG.</summary>
-    [Fact]
-    public void FigureBuilder_ConstrainedLayout_ProducesSvgWithoutError()
-    {
-        string svg = new FigureBuilder()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ConstrainedLayout()
-            .Build()
-            .ToSvg();
-
-        Assert.NotEmpty(svg);
-        Assert.Contains("<svg", svg);
-    }
-
     /// <summary>Left margin is clamped to [30, 120] regardless of content.</summary>
     [Fact]
     public void Engine_LeftMargin_Clamped_Between30And120()
@@ -178,27 +144,6 @@ public class ConstrainedLayoutTests
     {
         var spacing = new ConstrainedLayoutEngine().Compute(SimpleFigure(), MakeCtx());
         Assert.InRange(spacing.MarginBottom, 30, 100);
-    }
-
-    /// <summary>TightLayout and ConstrainedLayout produce different margin values than the defaults
-    /// when axis labels are present.</summary>
-    [Fact]
-    public void TightLayout_WithAxisLabels_MarginsAdaptToContent()
-    {
-        // Build the same figure with and without TightLayout
-        var withTight = new FigureBuilder()
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.SetXLabel("A long X label text");
-                ax.SetYLabel("A long Y label text");
-                ax.Plot([1.0, 2.0], [1.0, 2.0]);
-            })
-            .TightLayout()
-            .Build();
-
-        // TightLayout must not produce zero-size plot areas (i.e., the engine completed)
-        var svg = withTight.ToSvg();
-        Assert.NotEmpty(svg);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -232,17 +177,21 @@ public class ConstrainedLayoutTests
 
     /// <summary>
     /// A figure with only a suptitle (no subplot title) still reserves top space — the
-    /// <c>if (supReserved > top) top = supReserved</c> floor branch in the engine.
+    /// <c>if (supReserved > top) top = supReserved</c> floor branch in the engine. Drawn under the library's plain theme, whose
+    /// bold figure title four points over the text needs more than the top margin it reserves for nothing; the matplotlib
+    /// themes' figure title (matplotlib's <c>figure.titlesize</c>, normal weight) fits within the v2 theme's fixed top margin.
     /// </summary>
     [Fact]
     public void Engine_Suptitle_Only_SetsTopFloor()
     {
         var ctx = MakeCtx();
         var withSup = new FigureBuilder()
+            .WithTheme(Theme.Default)
             .WithTitle("Figure suptitle with no subplot title")
             .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
             .Build();
         var bare = new FigureBuilder()
+            .WithTheme(Theme.Default)
             .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
             .Build();
 
@@ -261,20 +210,26 @@ public class ConstrainedLayoutTests
     public void Engine_VerticalColorBar_WidensRightMargin()
     {
         var ctx = MakeCtx();
-        var withCb = new FigureBuilder()
+        Figure WithBar(Theme theme) => new FigureBuilder()
+            .WithTheme(theme)
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.Plot([1.0, 2.0], [1.0, 2.0]);
                 ax.WithColorBar(cb => cb with { Visible = true, Orientation = ColorBarOrientation.Vertical, Label = "Intensity" });
             })
             .Build();
-        var withoutCb = SimpleFigure();
+        Figure Bare(Theme theme) => new FigureBuilder().WithTheme(theme).AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0])).Build();
 
-        var cbSpacing   = new ConstrainedLayoutEngine().Compute(withCb, ctx);
-        var bareSpacing = new ConstrainedLayoutEngine().Compute(withoutCb, ctx);
-
+        // The library's own themes draw the bar in the margin, which holds it.
+        var cbSpacing   = new ConstrainedLayoutEngine().Compute(WithBar(Theme.Default), ctx);
+        var bareSpacing = new ConstrainedLayoutEngine().Compute(Bare(Theme.Default), ctx);
         Assert.True(cbSpacing.MarginRight > bareSpacing.MarginRight,
             $"Vertical colorbar must widen right margin; got cb={cbSpacing.MarginRight}, bare={bareSpacing.MarginRight}");
+
+        // Under a matplotlib theme the bar takes its room from the axes' cell, whose slot holds its labels here: the margin
+        // is the one the figure has without it.
+        Assert.Equal(new ConstrainedLayoutEngine().Compute(Bare(Theme.MatplotlibV2), ctx).MarginRight,
+            new ConstrainedLayoutEngine().Compute(WithBar(Theme.MatplotlibV2), ctx).MarginRight, 6);
     }
 
     /// <summary>The right margin holds the widest label the bar can draw. The bar's ticks come from a locator that returns
@@ -296,8 +251,8 @@ public class ConstrainedLayoutTests
 
         var spacing = new ConstrainedLayoutEngine().Compute(figure, ctx);
 
-        var widestText = AxesRenderer.BuildUniformTickFormatter([0.0, 1e8])(1e8);
-        double widest = ctx.MeasureText(widestText, ThemedFontProvider.TickFont(Theme.Default)).Width;
+        var widestText = new[] { 0.0, 1e8 }.UniformFormat()(1e8);
+        double widest = ctx.MeasureText(widestText, Theme.Default.TickFont()).Width;
         var bar = new ColorBar();
         Assert.True(spacing.MarginRight >= bar.Padding + bar.Width + 4 + widest + 8 + ConstrainedLayoutEngine.PadRight,
             $"the right margin {spacing.MarginRight} does not hold a label of {widest} px beside the bar");

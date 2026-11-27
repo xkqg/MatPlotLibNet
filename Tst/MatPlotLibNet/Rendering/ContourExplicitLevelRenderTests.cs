@@ -20,8 +20,6 @@ public class ContourExplicitLevelRenderTests
     private const double NaN = double.NaN;
     private static readonly Rect Bounds = new(0, 0, 400, 300);
 
-    private static DataTransform Linear() => new(0, 10, 0, 10, Bounds);
-
     /// <summary>z = 2x over x = 0..5, four rows: values 0..10, and the iso-line of level L is the line x = L / 2.</summary>
     private static readonly double[] RampX = [0, 1, 2, 3, 4, 5];
     private static readonly double[] RampY = [0, 1, 2, 3];
@@ -52,7 +50,7 @@ public class ContourExplicitLevelRenderTests
     private static RecordingRenderContext Render(Action<SeriesRenderContext> draw)
     {
         var ctx = new RecordingRenderContext();
-        draw(new SeriesRenderContext(Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx)));
+        draw(new SeriesRenderContext(Bounds.Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx)));
         return ctx;
     }
 
@@ -64,14 +62,11 @@ public class ContourExplicitLevelRenderTests
         Render(c => new ContourfSeriesRenderer(c).Render(
             new ContourfSeries(ConeAxis, ConeAxis, Cone()) { Levels = levels, LevelValues = levelValues }));
 
-    private static T Arg<T>(CallRecord call, string name) =>
-        (T)call.Args!.GetType().GetProperty(name)!.GetValue(call.Args)!;
-
     /// <summary>The polylines drawn, each as the data points it runs through.</summary>
-    private static List<Point[]> Lines(RecordingRenderContext ctx)
+    private static List<Point[]> DataLines(RecordingRenderContext ctx)
     {
-        var transform = Linear();
-        return [.. ctx.OfKind("DrawLines").Select(call => Arg<Point[]>(call, "points").Select(transform.PixelToData).ToArray())];
+        var transform = Bounds.Linear();
+        return [.. ctx.Of<DrawLinesCall>().Select(call => call.Points.Select(transform.PixelToData).ToArray())];
     }
 
     /// <summary>The x every point of a ramp line stands at: the iso-line of a ramp is vertical.</summary>
@@ -82,21 +77,12 @@ public class ContourExplicitLevelRenderTests
         return x;
     }
 
-    private static List<string> Signature(RecordingRenderContext ctx) =>
-        [.. ctx.Calls.Select(c => c.Kind + "(" + string.Join("; ", c.Args?.GetType().GetProperties().Select(p => Describe(p.GetValue(c.Args))) ?? []) + ")")];
-
-    private static string Describe(object? value) => value switch
-    {
-        Point[] points => string.Join(" ", points),
-        _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "",
-    };
-
     // ---- ContourSeries: the lines --------------------------------------------------------------------------------------
 
     [Fact]
     public void AContour_WithExplicitLevels_DrawsExactlyThoseLevels()
     {
-        var lines = Lines(RenderContour([1, 5, 9]));
+        var lines = DataLines(RenderContour([1, 5, 9]));
 
         Assert.Equal([0.5, 2.5, 4.5], lines.Select(RampLineX).Select(x => Math.Round(x, 3)));
     }
@@ -104,8 +90,8 @@ public class ContourExplicitLevelRenderTests
     [Fact]
     public void AContour_WithExplicitLevels_IgnoresTheLevelCount()
     {
-        Assert.Equal(Signature(RenderContour([1, 5, 9], levels: 3)), Signature(RenderContour([1, 5, 9], levels: 20)));
-        Assert.Equal(3, Lines(RenderContour([1, 5, 9], levels: 20)).Count);
+        Assert.Equal(RenderContour([1, 5, 9], levels: 3).Signature(), RenderContour([1, 5, 9], levels: 20).Signature());
+        Assert.Equal(3, DataLines(RenderContour([1, 5, 9], levels: 20)).Count);
     }
 
     /// <summary>The levels are the finite values, ascending, each once: a repeated level would stroke the same line
@@ -113,15 +99,38 @@ public class ContourExplicitLevelRenderTests
     [Fact]
     public void AContour_TakesTheExplicitLevelsSortedDistinctAndFinite()
     {
-        var expected = Signature(RenderContour([1, 5, 9]));
+        var expected = RenderContour([1, 5, 9]).Signature();
 
-        Assert.Equal(expected, Signature(RenderContour([9, NaN, 1, 5, 5, double.PositiveInfinity, 1, double.NegativeInfinity])));
+        Assert.Equal(expected, RenderContour([9, NaN, 1, 5, 5, double.PositiveInfinity, 1, double.NegativeInfinity]).Signature());
     }
+
+    // ---- a level that equals a value of the grid ------------------------------------------------------------------------
+    // contourpy 1.4.0, the generator matplotlib 3.11.2 draws contour lines with, over this ramp (z = 2x, x = 0..5, four rows) gives
+    // g.lines(0) = [[[0, 3], [0, 2], [0, 1], [0, 0]]] (the line x = 0, where the value equals the level at the grid's minimum),
+    // g.lines(10) = [] (none at the grid's maximum) and g.lines(4) = the line x = 2. A point is above a level when z > level, not
+    // when z >= level, so a point that equals the level is below it.
+
+    [Fact]
+    public void AContour_AtALevelEqualToTheGridMinimum_DrawsTheLineWhereTheValueEqualsTheLevel()
+    {
+        var line = Assert.Single(DataLines(RenderContour([0])));
+
+        Assert.Equal(0, RampLineX(line), 3);
+        Assert.Equal(RampY.Length, line.Length);
+    }
+
+    [Fact]
+    public void AContour_AtALevelEqualToTheGridMaximum_DrawsNothing() =>
+        Assert.Empty(DataLines(RenderContour([10])));
+
+    [Fact]
+    public void AContour_AtALevelEqualToAnInteriorGridValue_DrawsTheLineThroughThatColumn() =>
+        Assert.Equal(2, RampLineX(Assert.Single(DataLines(RenderContour([4])))), 3);
 
     [Fact]
     public void AContour_WithALevelOutsideTheDataRange_DrawsNothingForIt()
     {
-        var lines = Lines(RenderContour([-3, 1, 12, 1000]));
+        var lines = DataLines(RenderContour([-3, 1, 12, 1000]));
 
         Assert.Equal(0.5, RampLineX(Assert.Single(lines)), 3);
     }
@@ -132,15 +141,17 @@ public class ContourExplicitLevelRenderTests
     public void AContour_WhoseExplicitLevelsCannotBeDrawn_DrawsNothing_ItDoesNotFallBackToTheCount(double[] levels) =>
         Assert.Empty(RenderContour(levels).Calls);
 
-    /// <summary>No explicit level — unset, or an empty list — is the even levels of <c>Levels</c>, as before.</summary>
+    /// <summary>No explicit level, whether unset or an empty list, leaves the levels to the count: matplotlib's round levels
+    /// (<see cref="ContourLineAutoLevelsTests"/>). The ramp of 0 to 10 asked for 4 levels has the levels 0, 2, ..., 10 (ax.contour(X,
+    /// Y, Z, levels=4).levels), of which the lines of 0, 2, 4, 6 and 8 stand at x = 0, 1, 2, 3 and 4: the level at the grid's
+    /// minimum is drawn along the edge where the value equals it, and the level at its maximum is not drawn (contourpy).</summary>
     [Fact]
-    public void AContour_WithoutExplicitLevels_KeepsTheEvenLevelsOfTheCount()
+    public void AContour_WithoutExplicitLevels_LeavesTheLevelsToTheCount()
     {
-        var lines = Lines(RenderContour(null, levels: 4));
+        var lines = DataLines(RenderContour(null, levels: 4));
 
-        Assert.Equal([1.0, 2.0, 3.0, 4.0], lines.Select(RampLineX).Select(x => Math.Round(x, 3)));
-        Assert.Equal(Signature(RenderContour(null, levels: 4)), Signature(RenderContour([], levels: 4)));
-        Assert.Equal(10, Lines(RenderContour(null)).Count);
+        Assert.Equal([0.0, 1.0, 2.0, 3.0, 4.0], lines.Select(RampLineX).Select(x => Math.Round(x, 3)));
+        Assert.Equal(RenderContour(null, levels: 4).Signature(), RenderContour([], levels: 4).Signature());
     }
 
     /// <summary>Each level is labelled on its own line: the ramp's lines are vertical and 90 pixels long, so each label
@@ -150,13 +161,13 @@ public class ContourExplicitLevelRenderTests
     public void AContour_LabelsEachExplicitLevel()
     {
         var ctx = RenderContour([9, 1, 5], labels: true);
-        var labels = ctx.OfKind("DrawText");
+        var labels = ctx.Of<DrawTextCall>();
 
-        Assert.Equal(["1", "5", "9"], labels.Select(c => Arg<string>(c, "text")));
-        Assert.Equal([20 - 3.5, 100 - 3.5, 180 - 3.5], labels.Select(c => Math.Round(Arg<Point>(c, "position").X, 6)));
-        Assert.All(labels, c => Assert.Equal(255, Arg<Point>(c, "position").Y, 6));
-        Assert.All(labels, c => Assert.Equal(-90, Arg<double>(c, "rotation"), 6));
-        Assert.Equal(3, ctx.CountOf("DrawPolygon"));
+        Assert.Equal(["1", "5", "9"], labels.Select(c => c.Text));
+        Assert.Equal([20 - 3.5, 100 - 3.5, 180 - 3.5], labels.Select(c => Math.Round(c.Position.X, 6)));
+        Assert.All(labels, c => Assert.Equal(255, c.Position.Y, 6));
+        Assert.All(labels, c => Assert.Equal(-90, c.Rotation, 6));
+        Assert.Equal(3, ctx.Count<DrawPolygonCall>());
     }
 
     // ---- ContourfSeries: the bands and the lines over them ---------------------------------------------------------------
@@ -166,7 +177,7 @@ public class ContourExplicitLevelRenderTests
     [Fact]
     public void AFilledContour_WithExplicitLevels_DrawsItsLinesAtExactlyThoseLevels()
     {
-        var lines = Lines(RenderContourf([7, 9, 11]));
+        var lines = DataLines(RenderContourf([7, 9, 11]));
 
         Assert.Equal(3, lines.Count);
         double[] radii = [2.5, 1.5, 0.5];
@@ -181,11 +192,11 @@ public class ContourExplicitLevelRenderTests
     {
         var ctx = RenderContourf([-5, 7, 9, 50]);
 
-        var lines = Lines(ctx);
+        var lines = DataLines(ctx);
         Assert.Equal(2, lines.Count);
         Assert.All(lines[0], p => Assert.Equal(2.5, DiamondRadius(p), 3));
         Assert.All(lines[1], p => Assert.Equal(1.5, DiamondRadius(p), 3));
-        Assert.Equal(ColorMaps.Viridis.ColorOf(1.0, LinearNormalizer.Instance, -5, 50), Arg<Color?>(Assert.Single(ctx.OfKind("DrawRectangle")), "fill"));
+        Assert.Equal(ColorMaps.Viridis.ColorOf(1.0, LinearNormalizer.Instance, -5, 50), Assert.Single(ctx.Of<DrawRectangleCall>()).Fill);
     }
 
     /// <summary>Two levels bound one band, three bound two: each band is painted over the one below it, and the colour
@@ -198,19 +209,19 @@ public class ContourExplicitLevelRenderTests
         var low = cmap.ColorOf(8.0, LinearNormalizer.Instance, 7, 11);
         var high = cmap.ColorOf(10.0, LinearNormalizer.Instance, 7, 11);
 
-        // the lowest band under the whole plot, then the rings of each band: [7, 9) holds the rings at 7 and 9, [9, 11) those at 9 and 11
-        Assert.Equal(low, Arg<Color?>(Assert.Single(ctx.OfKind("DrawRectangle")), "fill"));
-        var polygons = ctx.OfKind("DrawPolygon").Select(c => Arg<Color?>(c, "fill")).ToList();
-        Assert.Equal([low, low, high, high], polygons);
+        // the lowest band under the whole plot, then over it the region above 9 in the colour of [9, 11)
+        Assert.Equal(low, Assert.Single(ctx.Of<DrawRectangleCall>()).Fill);
+        var regions = ctx.Of<DrawPathCall>().Select(c => c.Fill).ToList();
+        Assert.Equal([high], regions);
     }
 
     [Fact]
     public void AFilledContour_WithExplicitLevels_IgnoresTheLevelCount() =>
-        Assert.Equal(Signature(RenderContourf([7, 9, 11], levels: 2)), Signature(RenderContourf([7, 9, 11], levels: 40)));
+        Assert.Equal(RenderContourf([7, 9, 11], levels: 2).Signature(), RenderContourf([7, 9, 11], levels: 40).Signature());
 
     [Fact]
     public void AFilledContour_TakesTheExplicitLevelsSortedDistinctAndFinite() =>
-        Assert.Equal(Signature(RenderContourf([7, 9, 11])), Signature(RenderContourf([11, NaN, 7, 9, 9, double.PositiveInfinity])));
+        Assert.Equal(RenderContourf([7, 9, 11]).Signature(), RenderContourf([11, NaN, 7, 9, 9, double.PositiveInfinity]).Signature());
 
     /// <summary>A band needs two levels; fewer than two that can be drawn leave nothing to fill, and the count is not
     /// used in their place.</summary>
@@ -222,16 +233,16 @@ public class ContourExplicitLevelRenderTests
     public void AFilledContour_WithFewerThanTwoDrawableLevels_DrawsNothing(double[] levels) =>
         Assert.Empty(RenderContourf(levels).Calls);
 
+    /// <summary>Without levels of its own a filled contour draws matplotlib's for the count: <c>contourf(a, a, cone, levels=4)</c>
+    /// over the cone's 0 .. 12 takes 0, 2.5, 5, 7.5, 10 and 12.5 (matplotlib 3.11.2 prints <c>cs.levels</c> so), the picture those
+    /// levels named draw; an empty list names none either.</summary>
     [Fact]
-    public void AFilledContour_WithoutExplicitLevels_KeepsTheEvenBandsOfTheCount()
+    public void AFilledContour_WithoutExplicitLevels_DrawsMatplotlibsLevelsForTheCount()
     {
         var ctx = RenderContourf(null, levels: 4);
 
-        // levels 0, 4, 8 and 12 bound three bands
-        Assert.Equal(13, ctx.CountOf("DrawLines"));
-        Assert.Equal(21, ctx.CountOf("DrawPolygon"));
-        Assert.Equal(1, ctx.CountOf("DrawRectangle"));
-        Assert.Equal(Signature(ctx), Signature(RenderContourf([], levels: 4)));
+        Assert.Equal(RenderContourf([0, 2.5, 5, 7.5, 10, 12.5]).Signature(), ctx.Signature());
+        Assert.Equal(ctx.Signature(), RenderContourf([], levels: 4).Signature());
     }
 
     [Fact]
@@ -272,7 +283,7 @@ public class ContourExplicitLevelRenderTests
 
         string drawn = figure.ToSvg();
 
-        Assert.Equal(drawn, ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg());
+        Assert.Equal(drawn, figure.RoundTripped().ToSvg());
     }
 
     [Fact]

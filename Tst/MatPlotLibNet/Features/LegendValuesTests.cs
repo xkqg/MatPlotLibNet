@@ -9,23 +9,7 @@ namespace MatPlotLibNet.Tests.Features;
 /// <summary>TDD tests for the LegendValues feature on <see cref="FigureBuilder"/> and <see cref="AxesBuilder"/>.</summary>
 public class LegendValuesTests
 {
-    // ── Model / flag tests ──────────────────────────────────────────────────
-
-    /// <summary>Legend.LegendValues defaults to false.</summary>
-    [Fact]
-    public void Legend_LegendValues_DefaultsFalse()
-    {
-        var legend = new Legend();
-        Assert.False(legend.LegendValues);
-    }
-
-    /// <summary>Legend.LegendValues can be set to true via with-expression.</summary>
-    [Fact]
-    public void Legend_LegendValues_CanBeSetTrue()
-    {
-        var legend = new Legend { LegendValues = true };
-        Assert.True(legend.LegendValues);
-    }
+    private static Figure FigureOf(Action<AxesBuilder> axes) => Plt.Create().AddSubPlot(1, 1, 1, axes).Build();
 
     // ── AxesBuilder fluent API tests ────────────────────────────────────────
 
@@ -33,11 +17,9 @@ public class LegendValuesTests
     [Fact]
     public void AxesBuilder_WithLegendValues_SetsFlag()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
-                .WithLegendValues())
-            .Build();
+        var figure = FigureOf(ax => ax
+            .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
+            .WithLegendValues());
 
         Assert.True(figure.SubPlots[0].Legend.LegendValues);
     }
@@ -46,11 +28,9 @@ public class LegendValuesTests
     [Fact]
     public void AxesBuilder_WithLegendValues_FalseArg_StaysFalse()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
-                .WithLegendValues(false))
-            .Build();
+        var figure = FigureOf(ax => ax
+            .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
+            .WithLegendValues(false));
 
         Assert.False(figure.SubPlots[0].Legend.LegendValues);
     }
@@ -64,12 +44,10 @@ public class LegendValuesTests
     [Fact]
     public void AxesBuilder_WithLegendValues_ThenWithLegend_PreservesLegendValues()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
-                .WithLegendValues()
-                .WithLegend(LegendPosition.UpperRight))
-            .Build();
+        var figure = FigureOf(ax => ax
+            .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
+            .WithLegendValues()
+            .WithLegend(LegendPosition.UpperRight));
 
         var legend = figure.SubPlots[0].Legend;
         Assert.True(legend.LegendValues);
@@ -83,12 +61,10 @@ public class LegendValuesTests
     [Fact]
     public void AxesBuilder_WithLegend_ThenWithLegendValues_PreservesLegendValues()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
-                .WithLegend(LegendPosition.UpperRight)
-                .WithLegendValues())
-            .Build();
+        var figure = FigureOf(ax => ax
+            .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
+            .WithLegend(LegendPosition.UpperRight)
+            .WithLegendValues());
 
         var legend = figure.SubPlots[0].Legend;
         Assert.True(legend.LegendValues);
@@ -111,103 +87,50 @@ public class LegendValuesTests
 
     // ── SVG rendering tests ─────────────────────────────────────────────────
 
-    /// <summary>Without WithLegendValues the SVG legend shows only the series label (no value suffix).</summary>
-    [Fact]
-    public void LegendValues_Disabled_LegendShowsOnlyLabel()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.7])
-                .Plot([1.0, 2.0], [0.0, 0.0], s => s.Label = "Signal")
-                .WithLegend())
-            .ToSvg();
+        //  Without WithLegendValues the SVG legend shows only the series label (no value suffix).
+        //  The series label should be present
+        //  But it should NOT include " = " appended value
+        //  (We check that "Signal = " does not appear when the flag is off)
+        new DrawnToken("LegendValues_Disabled_LegendShowsOnlyLabel", () => FigureOf(ax => ax
+            .Plot([1.0, 2.0], [3.0, 4.7])
+            .Plot([1.0, 2.0], [0.0, 0.0], s => s.Label = "Signal")
+            .WithLegend()).ToSvg(), "Signal") { Absent = ["Signal = "] },
+        //  With WithLegendValues the SVG legend shows label + " = " + last value (InvariantCulture).
+        //  Must contain the series label AND the appended last-value suffix
+        //  Y data last value = 2.7 → legend should show "Signal = 2.70"
+        new DrawnToken("LegendValues_Enabled_AppendsSuffixToLegendLabel", () => FigureOf(ax => ax
+            .Plot([1.0, 2.0], [1.0, 2.7], s => s.Label = "Signal")
+            .WithLegendValues()).ToSvg(), "Signal = "),
+        //  The appended last value uses InvariantCulture (decimal dot, not comma) regardless of host locale.
+        //  2.7 must render as "2.70" (InvariantCulture two-decimal F2 format), never as "2,70"
+        new DrawnToken("LegendValues_UsesInvariantCulture_DecimalDot", () => FigureOf(ax => ax
+            .Plot([1.0, 2.0], [1.0, 2.7], s => s.Label = "Signal")
+            .WithLegendValues()).ToSvg(), "2.70") { Absent = ["2,70"] },
+        //  Multiple labeled series each show their own last value.
+        new DrawnToken("LegendValues_MultipleLabeled_EachGetsOwnValue", () => FigureOf(ax => ax
+            .Plot([1.0, 2.0], [1.0, 3.5], s => s.Label = "Alpha")
+            .Plot([1.0, 2.0], [1.0, 8.2], s => s.Label = "Beta")
+            .WithLegendValues()).ToSvg(), "Alpha = ", "Beta = ", "3.50", "8.20"),
+        //  Unlabeled series are not affected by WithLegendValues (they never appear in the legend).
+        //  9.9 from the unlabeled series should not appear as a legend value
+        new DrawnToken("LegendValues_UnlabeledSeries_NotInLegend", () => FigureOf(ax => ax
+            .Plot([1.0, 2.0], [1.0, 9.9])
+            .Plot([1.0, 2.0], [1.0, 3.5], s => s.Label = "Visible")
+            .WithLegendValues()).ToSvg(), "Visible = ") { Absent = ["9.90"] },
+        //  A series without YData (empty) shows label without value suffix even when flag is enabled.
+        //  Bar series has no YData in XYSeries sense — should show label without suffix
+        //  We can construct a non-XYSeries to ensure graceful fallback
+        //  For simplicity: use a series whose label IS set but whose last-value resolution gracefully
+        //  returns no suffix. Use a bar series (categorical, no continuous YData in the XY sense).
+        new DrawnToken("LegendValues_EmptyYData_LabelOnlyNoSuffix", () => FigureOf(ax => ax
+            .Bar(["A", "B"], [1.0, 2.0], s => s.Label = "Bars")
+            .WithLegendValues()).ToSvg(), "Bars"),
+    };
 
-        // The series label should be present
-        Assert.Contains("Signal", svg);
-        // But it should NOT include " = " appended value
-        // (We check that "Signal = " does not appear when the flag is off)
-        Assert.DoesNotContain("Signal = ", svg);
-    }
-
-    /// <summary>With WithLegendValues the SVG legend shows label + " = " + last value (InvariantCulture).</summary>
-    [Fact]
-    public void LegendValues_Enabled_AppendsSuffixToLegendLabel()
-    {
-        // Y data last value = 2.7 → legend should show "Signal = 2.70"
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [1.0, 2.7], s => s.Label = "Signal")
-                .WithLegendValues())
-            .ToSvg();
-
-        // Must contain the series label AND the appended last-value suffix
-        Assert.Contains("Signal = ", svg);
-    }
-
-    /// <summary>The appended last value uses InvariantCulture (decimal dot, not comma) regardless of host locale.</summary>
-    [Fact]
-    public void LegendValues_UsesInvariantCulture_DecimalDot()
-    {
-        // 2.7 must render as "2.70" (InvariantCulture two-decimal F2 format), never as "2,70"
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [1.0, 2.7], s => s.Label = "Signal")
-                .WithLegendValues())
-            .ToSvg();
-
-        Assert.Contains("2.70", svg);
-        Assert.DoesNotContain("2,70", svg);
-    }
-
-    /// <summary>Multiple labeled series each show their own last value.</summary>
-    [Fact]
-    public void LegendValues_MultipleLabeled_EachGetsOwnValue()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [1.0, 3.5], s => s.Label = "Alpha")
-                .Plot([1.0, 2.0], [1.0, 8.2], s => s.Label = "Beta")
-                .WithLegendValues())
-            .ToSvg();
-
-        Assert.Contains("Alpha = ", svg);
-        Assert.Contains("Beta = ", svg);
-        Assert.Contains("3.50", svg);
-        Assert.Contains("8.20", svg);
-    }
-
-    /// <summary>Unlabeled series are not affected by WithLegendValues (they never appear in the legend).</summary>
-    [Fact]
-    public void LegendValues_UnlabeledSeries_NotInLegend()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [1.0, 9.9])
-                .Plot([1.0, 2.0], [1.0, 3.5], s => s.Label = "Visible")
-                .WithLegendValues())
-            .ToSvg();
-
-        Assert.Contains("Visible = ", svg);
-        // 9.9 from the unlabeled series should not appear as a legend value
-        Assert.DoesNotContain("9.90", svg);
-    }
-
-    /// <summary>A series without YData (empty) shows label without value suffix even when flag is enabled.</summary>
-    [Fact]
-    public void LegendValues_EmptyYData_LabelOnlyNoSuffix()
-    {
-        // We can construct a non-XYSeries to ensure graceful fallback
-        // For simplicity: use a series whose label IS set but whose last-value resolution gracefully
-        // returns no suffix. Use a bar series (categorical, no continuous YData in the XY sense).
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Bar(["A", "B"], [1.0, 2.0], s => s.Label = "Bars")
-                .WithLegendValues())
-            .ToSvg();
-
-        // Bar series has no YData in XYSeries sense — should show label without suffix
-        Assert.Contains("Bars", svg);
-        // Specifically NOT "Bars = 2.00" unless BarSeries happens to be handled (we spec: only XYSeries)
-        // Check label appears, does not crash
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

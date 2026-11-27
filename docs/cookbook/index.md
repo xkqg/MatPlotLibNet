@@ -39,10 +39,10 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Error Bars](error-bars.md) | Symmetric, asymmetric, cap size, combined scatter+error, confidence bands, A/B test |
 | [Broken Axes](broken-axes.md) | X/Y breaks, zigzag/diagonal/none styles, combined breaks, outlier handling |
 | [Symlog Axis](symlog.md) | Symmetric log Y/X, financial P&L, scale comparison (linear vs log vs symlog) |
-| [Geographic Maps](geographic.md) | 13 projections, globe view, coastlines, borders, land/ocean fill, a map coloured by a value, bubbles, flows, cartograms, custom GeoJSON, a map in JSON, edge handling |
+| [Geographic Maps](geographic.md) | 13 projections, globe view, coastlines, borders, land/ocean fill, a map coloured by a value, bubbles, H3 cells, flows, cartograms, custom GeoJSON, a map in JSON, edge handling |
 | [Themes](themes.md) | 30 built-in themes, custom ThemeBuilder, PropCycler, 3D pane colors |
 | [Interactive SVG](interactive-svg.md) | Browser pan/zoom/tooltips/legend toggle, highlight, selection, 3D rotation, SignalR |
-| [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export, rotating 3D |
+| [Animation](animation.md) | Animated GIF, an SVG that steps through its frames, multi-page PDF, individual frame export, rotating 3D |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling, Rx integration |
 | [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations, text size, pixel offset and vertical alignment, annotations that move out of the way |
 | [Shapes (patches)](patches.md) | A rectangle, a polygon, an arrow, a circle, an ellipse, a wedge and an arc in data coordinates (`AddPatch`), styled, listed in the legend, bent by a log axis and kept in JSON |

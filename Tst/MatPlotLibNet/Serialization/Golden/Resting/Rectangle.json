@@ -1,0 +1,19 @@
+{
+  "Alpha": "1",
+  "Anchor": "{DataX: 1.1, DataY: 2.1}",
+  "Angle": "0",
+  "EdgeColor": "#00000000",
+  "EdgeLineStyle": "Solid",
+  "EdgeWidth": "1",
+  "FaceColor": "#1F77B4FF",
+  "Hatch": "None",
+  "HatchColor": "null",
+  "Height": "0.3",
+  "Label": "null",
+  "RotationPoint": "{}",
+  "Visible": "true",
+  "Width": "0.4",
+  "Z": "0",
+  "ZDir": "Z",
+  "ZOrder": "1"
+}

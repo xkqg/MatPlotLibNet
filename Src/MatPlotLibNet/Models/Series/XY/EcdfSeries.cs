@@ -8,10 +8,14 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an empirical cumulative distribution function (ECDF) step-function series.</summary>
-public sealed class EcdfSeries : ChartSeries, IHasColor
+public sealed class EcdfSeries : ChartSeries, IHasColor, ISeriesKind<EcdfSeries>, IGivenStroked
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+    /// <remarks>2: <c>ecdf</c> draws a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Line(this);
 
     /// <summary>The raw sample the curve is made from, in the order it was given. Missing values (NaN) and infinities
     /// are kept here but are not observations, so they take no part in the curve.</summary>
@@ -25,13 +29,18 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
     public double[] CdfY { get; }
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
-    /// <summary>The thickness of the step line, in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <summary>The dash pattern of the step line. Default solid.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
     /// <summary>Creates a new ECDF series from the given raw data.</summary>
     /// <param name="data">The raw data values to compute the ECDF from. A missing value (NaN) and an infinity are not
@@ -39,7 +48,7 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
     public EcdfSeries(double[] data)
     {
         Data = data;
-        SortedX = [.. data.DrawableValues().OrderBy(v => v)];
+        SortedX = data.SortedDrawableValues();
         int n = SortedX.Length;
         CdfY = new double[n];
         for (int i = 0; i < n; i++)
@@ -47,58 +56,41 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
     }
 
     /// <inheritdoc />
+    /// <remarks>matplotlib's <c>ecdf</c> refuses a sample of no value; under the matplotlib themes an ECDF of none asks for its axes as
+    /// the other matplotlib functions do and adds nothing.</remarks>
+    internal override bool HoldsNoData => Data.Length == 0;
+
+    /// <inheritdoc />
     /// <remarks>Over the drawable values; with none at all (no data) 0..1, and with data none of which can be drawn no X
     /// range.</remarks>
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         SortedX.DrawableRange() is { } x
             ? new(x.Lo, x.Hi, 0, 1)
-            : Data.Length == 0 ? new(0, 1, 0, 1) : new(null, null, 0, 1);
+            : HoldsNoData ? NoDataUnderTheLibrary : new(null, null, 0, 1);
+
+    static string ISeriesKind<EcdfSeries>.Kind => "ecdf";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "ecdf",
+        Type = this.WireKind(),
         Data = Data,
         Color = Color,
-        LineWidth = LineWidth,
-        LineStyle = LineStyle.ToString().ToLowerInvariant()
+        Stroking = Stroke
     };
 
-    /// <summary>Reconstructs an <see cref="EcdfSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="EcdfSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static EcdfSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Ecdf(dto.Data ?? []);
-        if (dto.Color.HasValue)
-        {
-            s.Color = dto.Color.Value;
-        }
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
-        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls))
-        {
-            s.LineStyle = ls;
-        }
+        if (dto.Color is { } color) s.Color = color;
+        s.Stroke = dto.StrokeOver(s.Stroke);
         return s;
     }
 
-
     /// <inheritdoc />
     /// <remarks>The samples the curve is computed from.</remarks>
-    public override ChartDataTable? ToDataTable()
-    {
-        var rows = new IReadOnlyList<DataCell>[Data.Length];
-        for (int i = 0; i < Data.Length; i++)
-        {
-            rows[i] = [DataCell.FromNumber(i), DataCell.FromNumber(Data[i])];
-        }
-
-        return new ChartDataTable(null, [new("index"), new(Label ?? "value", Axis: DataAxis.X)], rows);
-    }
+    public override ChartDataTable? ToDataTable() => ChartDataTable.FromIndexedValues(ChartDataColumn.Position(DataAxis.X, Label ?? "value"), Data);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

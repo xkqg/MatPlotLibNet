@@ -2,52 +2,33 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Williams %R. Rolling min/max over N periods. O(1) amortized.</summary>
-public sealed class StreamingWilliamsR : StreamingIndicator
+/// <summary>Streaming Williams %R. It is the step the batch <see cref="WilliamsR"/> folds over its bars, taken one
+/// candle at a time, so after each candle it says what the batch says over everything so far; the highest high and the lowest low of
+/// the last <c>period</c> candles come at O(1) per candle.</summary>
+public sealed class StreamingWilliamsR : StreamingIndicator<OhlcvBar>
 {
-    private readonly int _period;
-    private readonly double[] _highs;
-    private readonly double[] _lows;
-    private int _ringIndex;
+    private WilliamsRStep _step;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => _period;
+    public override int WarmupPeriod => Spec.Warmup;
+
+    /// <inheritdoc />
+    internal override PaneRange? PinnedRange => WilliamsR.Pane;
 
     /// <summary>Creates a streaming Williams %R indicator.</summary>
-    public StreamingWilliamsR(int period = 14, int capacity = 10_000) : base(capacity)
+    /// <param name="period">The number of bars the lowest low and the highest high are taken over.</param>
+    /// <param name="capacity">The number of points the output series keeps.</param>
+    public StreamingWilliamsR(int period = WilliamsR.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity) : base(WilliamsR.Spec(period), capacity)
     {
-        _period = period;
-        _highs = new double[period];
-        _lows = new double[period];
-        Label = $"W%R({period})";
+        _step = new WilliamsRStep(period);
     }
 
     /// <inheritdoc />
-    public override void AppendCandle(OhlcBar bar)
-    {
-        ProcessedCount++;
-        _highs[_ringIndex] = bar.High;
-        _lows[_ringIndex] = bar.Low;
-        _ringIndex = (_ringIndex + 1) % _period;
-
-        double x = ProcessedCount - 1;
-        if (ProcessedCount < _period) { OutputSeries[0].AppendPoint(x, double.NaN); return; }
-
-        int count = Math.Min(ProcessedCount, _period);
-        double high = double.MinValue, low = double.MaxValue;
-        for (int i = 0; i < count; i++)
-        {
-            high = Math.Max(high, _highs[i]);
-            low = Math.Min(low, _lows[i]);
-        }
-
-        double wr = high == low ? -50 : (high - bar.Close) / (high - low) * -100;
-        OutputSeries[0].AppendPoint(x, wr);
-    }
-
-    /// <inheritdoc />
-    protected override double ComputeNext(double price) => double.NaN; // use AppendCandle
+    protected override void Step(OhlcvBar input, int index, Span<double> outputs) =>
+        outputs[0] = _step.Next(input.High, input.Low, input.Close);
 }

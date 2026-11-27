@@ -31,45 +31,34 @@ public class ShapeGridTests
         return axes;
     }
 
-    private static RecordingRenderContext DrawPolar(Axes axes, Theme theme)
-    {
-        var ctx = new RecordingRenderContext();
-        new PolarAxesRenderer(axes, Plot, ctx, theme).Render();
-        return ctx;
-    }
-
-    private static RecordingRenderContext Draw3D(Axes axes, Theme theme)
-    {
-        var ctx = new RecordingRenderContext();
-        new ThreeDAxesRenderer(axes, Plot, ctx, theme).Render();
-        return ctx;
-    }
-
     private static Axes Changed(Axes axes, Func<GridStyle, GridStyle> change)
     {
         new AxesBuilder(axes).WithGrid(change);
         return axes;
     }
 
-    /// <summary>The ring circles of a polar axes: their stroke colour and thickness.</summary>
+    /// <summary>The ring circles of a polar axes: their stroke colour and thickness. A solid ring is the circle the spine is, so a
+    /// ring is told from the spine by where it stands: an outline circle (a stroke, no fill) inside the edge, 200 px from the centre,
+    /// where only the spine stands (the rings of this chart stand at 2.5, 5.0, 7.5 and 10.0 of an extent of 10.5).</summary>
     private static List<(Color Stroke, double Thickness)> Rings(RecordingRenderContext ctx) =>
-        ctx.OfKind("DrawEllipse")
-            .Select(c => ((Color)((dynamic)c.Args!).stroke, (double)((dynamic)c.Args!).strokeThickness))
+        ctx.Of<DrawCircleCall>()
+            .Where(a => a.Stroke is not null && a.Fill is null && a.Radius < 200 - 1e-9)
+            .Select(a => (a.Stroke!.Value, a.StrokeThickness))
             .ToList();
 
     /// <summary>The rings of a polar axes that are drawn as dashed polylines (a closed ring of 181 points), among the other
     /// polylines of the chart, which are the series'.</summary>
-    private static List<CallRecord> DashedRings(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawLines").Where(c => ((Point[])((dynamic)c.Args!).points).Length == 181)];
+    private static List<DrawLinesCall> DashedRings(RecordingRenderContext ctx) =>
+        [.. ctx.Of<DrawLinesCall>().Where(c => c.Points.Length == 181)];
 
     /// <summary>The spokes of a polar axes: their colour and thickness.</summary>
     private static List<(Color Colour, double Thickness)> Spokes(RecordingRenderContext ctx) =>
-        ctx.OfKind("DrawLine")
-            .Select(c => ((Color)((dynamic)c.Args!).color, (double)((dynamic)c.Args!).thickness))
+        ctx.Of<DrawLineCall>()
+            .Select(c => (c.Color, c.Thickness))
             .ToList();
 
     private static int LinesOfColor(RecordingRenderContext ctx, Color color) =>
-        ctx.OfKind("DrawLine").Concat(ctx.OfKind("DrawLines")).Count(c => (Color)((dynamic)c.Args!).color == color);
+        ctx.Of<StrokeCall>().Count(c => c.Color == color);
 
     // ── polar ────────────────────────────────────────────────────────────────────────────────────────
 
@@ -81,13 +70,13 @@ public class ShapeGridTests
     [InlineData("MatplotlibV2")]
     public void APolarGrid_WithoutAChange_IsTheGridOfTheTheme(string name)
     {
-        var theme = (Theme)typeof(Theme).GetProperty(name)!.GetValue(null)!;
+        var theme = name.AsTheme();
 
-        var ctx = DrawPolar(PolarAxes(), theme);
+        var ctx = PolarAxes().Drawn(Plot, theme);
 
         Assert.NotEmpty(Rings(ctx));
         Assert.All(Rings(ctx), r => Assert.Equal((theme.DefaultGrid.Color, theme.DefaultGrid.LineWidth), r));
-        Assert.Equal(12, Spokes(ctx).Count);
+        Assert.Equal(8, Spokes(ctx).Count);
         Assert.All(Spokes(ctx), s => Assert.Equal((theme.DefaultGrid.Color, theme.DefaultGrid.LineWidth), s));
     }
 
@@ -96,41 +85,43 @@ public class ShapeGridTests
     [Fact]
     public void ThePolarSpokes_DrawInTheLineStyleOfTheGrid()
     {
-        var classic = DrawPolar(PolarAxes(), Theme.MatplotlibClassic);
-        var dashed = DrawPolar(Changed(PolarAxes(), g => g with { LineStyle = LineStyle.Dashed }), Theme.MatplotlibV2);
-        var plain = DrawPolar(PolarAxes(), Theme.MatplotlibV2);
+        var classic = PolarAxes().Drawn(Plot, Theme.MatplotlibClassic);
+        var dashed = Changed(PolarAxes(), g => g with { LineStyle = LineStyle.Dashed }).Drawn(Plot, Theme.MatplotlibV2);
+        var plain = PolarAxes().Drawn(Plot, Theme.MatplotlibV2);
 
-        Assert.Equal(12, classic.OfKind("DrawLine").Count(c => (LineStyle)((dynamic)c.Args!).style == LineStyle.Dotted));
-        Assert.Equal(12, dashed.OfKind("DrawLine").Count(c => (LineStyle)((dynamic)c.Args!).style == LineStyle.Dashed));
-        Assert.All(plain.OfKind("DrawLine"), c => Assert.Equal(LineStyle.Solid, (LineStyle)((dynamic)c.Args!).style));
+        Assert.Equal(8, classic.Of<DrawLineCall>().Count(c => c.Style == LineStyle.Dotted));
+        Assert.Equal(8, dashed.Of<DrawLineCall>().Count(c => c.Style == LineStyle.Dashed));
+        Assert.All(plain.Of<DrawLineCall>(), c => Assert.Equal(LineStyle.Solid, c.Style));
     }
 
     /// <summary>The rings draw in the style of the grid too. A circle has no dash, so a ring that is not solid is a closed
     /// polyline of many short segments in the grid's style, drawn through the one line drawing that dashes; a solid ring stays
-    /// the circle it always was (no picture under a solid grid changes).</summary>
+    /// a circle, drawn as the spine's circle is.</summary>
     [Fact]
     public void ThePolarRings_DrawInTheLineStyleOfTheGrid_ASolidOneStaysACircle()
     {
-        var classic = DrawPolar(PolarAxes(), Theme.MatplotlibClassic);
-        var dashed = DrawPolar(Changed(PolarAxes(), g => g with { LineStyle = LineStyle.Dashed }), Theme.MatplotlibV2);
-        var plain = DrawPolar(PolarAxes(), Theme.MatplotlibV2);
+        var classic = PolarAxes().Drawn(Plot, Theme.MatplotlibClassic);
+        var dashed = Changed(PolarAxes(), g => g with { LineStyle = LineStyle.Dashed }).Drawn(Plot, Theme.MatplotlibV2);
+        var plain = PolarAxes().Drawn(Plot, Theme.MatplotlibV2);
 
-        Assert.Empty(classic.OfKind("DrawEllipse"));
+        Assert.Empty(Rings(classic));
+        Assert.Empty(classic.Of<DrawEllipseCall>());
         var rings = DashedRings(classic);
         Assert.NotEmpty(rings);
         Assert.All(rings, c =>
         {
-            Assert.Equal(LineStyle.Dotted, (LineStyle)((dynamic)c.Args!).style);
-            Assert.Equal(Color.FromHex("#000000"), (Color)((dynamic)c.Args!).color);
-            Assert.Equal(0.5, (double)((dynamic)c.Args!).thickness);
-            var points = (Point[])((dynamic)c.Args!).points;
+            Assert.Equal(LineStyle.Dotted, c.Style);
+            Assert.Equal(Color.FromHex("#000000"), c.Color);
+            Assert.Equal(0.5.PointsInPixels, c.Thickness);
+            var points = c.Points;
             Assert.True(points.Length > 100);
             Assert.Equal(points[0], points[^1]);
         });
-        Assert.All(DashedRings(dashed), c => Assert.Equal(LineStyle.Dashed, (LineStyle)((dynamic)c.Args!).style));
+        Assert.All(DashedRings(dashed), c => Assert.Equal(LineStyle.Dashed, c.Style));
         Assert.NotEmpty(DashedRings(dashed));
         Assert.Empty(DashedRings(plain));
-        Assert.NotEmpty(plain.OfKind("DrawEllipse"));
+        Assert.NotEmpty(Rings(plain));
+        Assert.Empty(plain.Of<DrawEllipseCall>());
     }
 
     /// <summary>A dotted ring stands where the circle of its radius would: every point of the polyline is that far from the
@@ -138,21 +129,56 @@ public class ShapeGridTests
     [Fact]
     public void ADottedRing_StandsOnTheCircleItReplaces()
     {
-        var ctx = DrawPolar(PolarAxes(), Theme.MatplotlibClassic);
+        var ctx = PolarAxes().Drawn(Plot, Theme.MatplotlibClassic);
 
         Assert.NotEmpty(DashedRings(ctx));
         foreach (var call in DashedRings(ctx))
         {
-            var points = (Point[])((dynamic)call.Args!).points;
+            var points = call.Points;
             double radius = Math.Sqrt(Math.Pow(points[0].X - 200, 2) + Math.Pow(points[0].Y - 200, 2));
             Assert.All(points, p => Assert.Equal(radius, Math.Sqrt(Math.Pow(p.X - 200, 2) + Math.Pow(p.Y - 200, 2)), 6));
         }
     }
 
+    /// <summary>A dotted or dashed ring is walked as matplotlib walks it: its path (the gridline over the polar transform, and the arc
+    /// spine, <c>Path.arc(0, 360)</c>) starts at theta 0 and runs with theta, which is counter-clockwise on the screen, so the dots fall at
+    /// the same places. matplotlib 3.11.2 (python, classic style, ring of 80 px, dotted [1, 3] points unscaled, 2 points wide): the dots stand
+    /// 3.98 degrees apart (4 points of arc), counter-clockwise from the east, the first at 1.1 degrees. Walked clockwise the polyline put them
+    /// where the ring of the matplotlib picture has gaps.</summary>
+    [Fact]
+    public void ADottedRing_RunsFromTheEastCounterClockwiseOnTheScreen()
+    {
+        var ctx = PolarAxes().Drawn(Plot, Theme.MatplotlibClassic);
+
+        Assert.NotEmpty(DashedRings(ctx));
+        foreach (var call in DashedRings(ctx))
+        {
+            var points = call.Points;
+            double radius = points[0].X - 200;
+            Assert.Equal(200, points[0].Y, 6);
+            Assert.True(points[1].Y < 200, "the second point of the ring lies above the centre: theta grows upward on the screen");
+            Assert.Equal(200 - radius, points[points.Length / 4].Y, 6);   // a quarter of the way round: north
+            Assert.Equal(200, points[points.Length / 4].X, 6);
+        }
+    }
+
+    [Fact]
+    public void ADashedSpine_RunsFromTheEastCounterClockwiseToo()
+    {
+        var axes = PolarAxes();
+        axes.Spines = axes.Spines with { Top = axes.Spines.Top with { LineStyle = LineStyle.Dashed } };
+
+        var ctx = axes.Drawn(Plot, Theme.MatplotlibV2);
+
+        var spine = ctx.Polylines().Single(p => p.Length == 181);
+        Assert.Equal(200, spine[0].Y, 6);
+        Assert.True(spine[1].Y < 200);
+    }
+
     [Fact]
     public void APolarGrid_FollowsAChangeOverTheThemesGrid()
     {
-        var ctx = DrawPolar(Changed(PolarAxes(), g => g with { Color = Colors.Red, LineWidth = 2 }), Theme.Dark);
+        var ctx = Changed(PolarAxes(), g => g with { Color = Colors.Red, LineWidth = 2 }).Drawn(Plot, Theme.Dark);
 
         Assert.All(Rings(ctx), r => Assert.Equal((Colors.Red, 2.0), r));
         Assert.All(Spokes(ctx), s => Assert.Equal((Colors.Red, 2.0), s));
@@ -166,18 +192,18 @@ public class ShapeGridTests
     {
         Assert.False(Theme.MatplotlibV2.DefaultGrid.Visible);
 
-        Assert.NotEmpty(Rings(DrawPolar(PolarAxes(), Theme.MatplotlibV2)));
+        Assert.NotEmpty(Rings(PolarAxes().Drawn(Plot, Theme.MatplotlibV2)));
     }
 
     [Fact]
     public void APolarGrid_SwitchedOff_DrawsNoRingsAndNoSpokes_ButKeepsItsLabels()
     {
-        var ctx = DrawPolar(Changed(PolarAxes(), g => g with { Visible = false }), Theme.Default);
+        var ctx = Changed(PolarAxes(), g => g with { Visible = false }).Drawn(Plot, Theme.Default);
 
         Assert.Empty(Rings(ctx));
         Assert.Empty(Spokes(ctx));
-        Assert.Contains(ctx.OfKind("DrawText"), c => ((string)((dynamic)c.Args!).text).EndsWith('°'));
-        Assert.Contains(ctx.OfKind("DrawText"), c => (string)((dynamic)c.Args!).text == "10");
+        Assert.Contains(ctx.Of<DrawTextCall>(), c => c.Text.EndsWith('°'));
+        Assert.Contains(ctx.Of<DrawTextCall>(), c => c.Text == "10");
     }
 
     // ── 3-D ──────────────────────────────────────────────────────────────────────────────────────────
@@ -185,7 +211,7 @@ public class ShapeGridTests
     [Fact]
     public void A3DGrid_WithoutAChange_IsTheGridOfTheTheme()
     {
-        var ctx = Draw3D(ThreeDAxes(), Theme.Dark);
+        var ctx = ThreeDAxes().Drawn(Plot, Theme.Dark);
 
         Assert.True(LinesOfColor(ctx, Theme.Dark.DefaultGrid.Color) > 0);
     }
@@ -194,8 +220,8 @@ public class ShapeGridTests
     [Fact]
     public void A3DGrid_FollowsAChangeOverTheThemesGrid()
     {
-        var plain = Draw3D(ThreeDAxes(), Theme.Dark);
-        var changed = Draw3D(Changed(ThreeDAxes(), g => g with { Color = Colors.Red }), Theme.Dark);
+        var plain = ThreeDAxes().Drawn(Plot, Theme.Dark);
+        var changed = Changed(ThreeDAxes(), g => g with { Color = Colors.Red }).Drawn(Plot, Theme.Dark);
 
         Assert.Equal(0, LinesOfColor(plain, Colors.Red));
         Assert.True(LinesOfColor(changed, Colors.Red) > 0);
@@ -206,8 +232,8 @@ public class ShapeGridTests
     public void A3DGrid_SwitchedOff_DrawsNoWallLines()
     {
         var gridColor = Theme.Dark.DefaultGrid.Color;
-        int drawn = LinesOfColor(Draw3D(ThreeDAxes(), Theme.Dark), gridColor);
-        int switchedOff = LinesOfColor(Draw3D(Changed(ThreeDAxes(), g => g with { Visible = false }), Theme.Dark), gridColor);
+        int drawn = LinesOfColor(ThreeDAxes().Drawn(Plot, Theme.Dark), gridColor);
+        int switchedOff = LinesOfColor(Changed(ThreeDAxes(), g => g with { Visible = false }).Drawn(Plot, Theme.Dark), gridColor);
 
         Assert.True(switchedOff < drawn, $"{switchedOff} lines of the grid colour with the grid off, {drawn} with it on");
     }
@@ -218,6 +244,65 @@ public class ShapeGridTests
     {
         var gridColor = Theme.MatplotlibV2.DefaultGrid.Color;
 
-        Assert.True(LinesOfColor(Draw3D(ThreeDAxes(), Theme.MatplotlibV2), gridColor) > 0);
+        Assert.True(LinesOfColor(ThreeDAxes().Drawn(Plot, Theme.MatplotlibV2), gridColor) > 0);
+    }
+
+    /// <summary>matplotlib draws the walls of a 3-D box under its classic style in a grid of their own, not the style's grid
+    /// (black, dotted, half a point). axis3d.py, <c>Axis.__init__</c>:
+    /// <code>
+    /// if mpl.rcParams['_internal.classic_mode']:
+    ///     self._axinfo.update({
+    ///         'axisline': {'linewidth': 0.75, 'color': (0, 0, 0, 1)},
+    ///         'grid': {
+    ///             'color': (0.9, 0.9, 0.9, 1),
+    ///             'linewidth': 1.0,
+    ///             'linestyle': '-',
+    ///         },
+    ///     })
+    /// </code>
+    /// Over the same limits the lines stand where the v2 theme draws its own, one for one (the two themes pad and round an
+    /// unset range differently, so the limits are set).</summary>
+    [Fact]
+    public void A3DGrid_UnderTheClassicTheme_IsMatplotlibsClassicWallGrid()
+    {
+        static Axes Limited()
+        {
+            var axes = ThreeDAxes();
+            foreach (var axis in new[] { axes.XAxis, axes.YAxis, axes.ZAxis }) { axis.Min = 0; axis.Max = 4; }
+            return axes;
+        }
+
+        var lightGrey = Color.FromHex("#E6E6E6");
+        var classic = Limited().Drawn(Plot, Theme.MatplotlibClassic);
+        int v2Lines = LinesOfColor(Limited().Drawn(Plot, Theme.MatplotlibV2), Theme.MatplotlibV2.DefaultGrid.Color);
+
+        var walls = classic.Of<DrawLineCall>().Where(c => c.Color == lightGrey).ToList();
+        Assert.True(v2Lines > 0);
+        Assert.Equal(v2Lines, walls.Count);
+        Assert.All(walls, c => Assert.Equal(1.0.PointsInPixels, c.Thickness));
+        Assert.All(walls, c => Assert.Equal(LineStyle.Solid, c.Style));
+    }
+
+    /// <summary>An author's change applies over the classic wall grid as it does over any theme's.</summary>
+    [Fact]
+    public void A3DGrid_UnderTheClassicTheme_FollowsAChange()
+    {
+        var changed = Changed(ThreeDAxes(), g => g with { Color = Colors.Red }).Drawn(Plot, Theme.MatplotlibClassic);
+
+        Assert.True(LinesOfColor(changed, Colors.Red) > 0);
+        Assert.Equal(0, LinesOfColor(changed, Color.FromHex("#E6E6E6")));
+    }
+
+    /// <summary>The classic wall grid is the theme's, so a figure under it comes back from JSON with it, and a theme derived
+    /// from it keeps it.</summary>
+    [Fact]
+    public void TheClassicWallGrid_SurvivesJsonAndADerivedTheme()
+    {
+        var wall = Theme.MatplotlibClassic.Looks.Cube.WallGrid;
+
+        Assert.NotNull(wall);
+        Assert.Equal(wall, Theme.MatplotlibClassic.ThroughDto().Looks.Cube.WallGrid);
+        Assert.Equal(wall, Theme.MatplotlibClassic.Cloned().Looks.Cube.WallGrid);
+        Assert.Null(MatPlotLibNet.Serialization.ThemeDto.From(Theme.MatplotlibV2).WallGrid);
     }
 }

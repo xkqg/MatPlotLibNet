@@ -13,23 +13,28 @@ public sealed class Ema : PriceIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new EMA indicator from a price array.</summary>
-    public Ema(double[] prices, int period) : base(prices)
+    public Ema(double[] prices, int period) : base(prices, Spec(period))
     {
         _period = period;
-        Label = $"EMA({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfWindow("EMA", period, period - 1);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        if (Prices.Length < _period) return Array.Empty<double>();
-        var result = new double[Prices.Length];
+        var result = new double[ValuedBars];
         var step = new EmaStep(_period);
-        for (int i = 0; i < Prices.Length; i++)
+        for (int i = 0; i < result.Length; i++)
             result[i] = step.Next(Prices[i]);
         return result;
     }
 
+    /// <summary>The values from the first value on, the bars before it left out: what an indicator reads that takes the mean of a
+    /// series of its own (the signal of a MACD, over its line).</summary>
+    /// <returns>One value per bar from the first value on.</returns>
+    internal double[] ComputeFromFirstValue() => FoldPrices(new EmaStep(_period));
+
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), 0);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

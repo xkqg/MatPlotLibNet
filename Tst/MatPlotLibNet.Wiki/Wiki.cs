@@ -7,16 +7,21 @@ namespace MatPlotLibNet.Wiki.Tests;
 
 /// <summary>The wiki: a folder of pages, found beside the repository where GitHub keeps it as a repository of its own.</summary>
 /// <param name="folder">The wiki's folder.</param>
-internal sealed class Wiki(string folder)
+internal sealed partial class Wiki(string folder)
 {
     /// <summary>The command that puts the wiki where this suite looks for it, run from the repository's root.</summary>
     public const string CloneCommand = "git clone https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki";
 
     /// <summary>The wiki beside the repository, where a contributor clones it and the build machine does too.</summary>
-    public static Wiki BesideTheRepository { get; } = new(Path.GetFullPath(Path.Join(Repository.Root, "..", "MatPlotLibNet.wiki")));
+    public static Wiki BesideTheRepository { get; } = new(Path.GetFullPath(Path.Join(RepositoryRoot.Folder, "..", "MatPlotLibNet.wiki")));
 
     /// <summary>The wiki's folder.</summary>
     public string Folder { get; } = folder;
+
+    /// <summary>A picture a line shows, in the wiki's own images folder, written as a markdown link or as the source of an HTML image (an
+    /// animation is an SVG a browser steps through, which markdown cannot show); the picture's file name is the <c>name</c> group.</summary>
+    [GeneratedRegex(@"(?:\(images/|\bsrc=""images/)(?<name>[^)""\s#]+)[)""]")]
+    public static partial Regex PictureLink();
 
     /// <summary>Every page of the wiki, its blocks read into programs, cells and blocks for another head.</summary>
     /// <returns>The pages, by file name.</returns>
@@ -38,7 +43,7 @@ internal sealed class Wiki(string folder)
     /// <summary>The text of one page, a line feed between its lines.</summary>
     /// <param name="name">The page's file name.</param>
     /// <returns>Its text.</returns>
-    public string Text(string name) => File.ReadAllText(Path.Join(Folder, name)).ReplaceLineEndings("\n");
+    public string Text(string name) => SourceFile.ReadFrom(Path.Join(Folder, name)).LineFeedText;
 }
 
 /// <summary>A C# block of a page: the line its code starts on, and the code.</summary>
@@ -57,8 +62,9 @@ internal readonly record struct WikiProgram(int Line, IReadOnlyList<WikiBlock> B
 /// </summary>
 /// <param name="Name">The page's file name.</param>
 /// <param name="Programs">The programs its blocks make, one for each block that is compiled.</param>
-/// <param name="Cells">The notebook cells it holds: not compiled, counted.</param>
-/// <param name="Needing">The blocks that need a Windows or workload head, or the repository's own test project: not compiled, counted.</param>
+/// <param name="Cells">The notebook cells it holds: not compiled as programs, counted; their calls are compiled (<see cref="CallClaim.BlocksOf(WikiPage)"/>).</param>
+/// <param name="Needing">The blocks that need a Windows or workload head, or the repository's own test project: not compiled as programs, counted;
+/// their calls are compiled (<see cref="CallClaim.BlocksOf(WikiPage)"/>).</param>
 /// <param name="Faults">Every fence that is opened and never closed, by page and line.</param>
 internal readonly partial record struct WikiPage(
     string Name,
@@ -92,44 +98,28 @@ internal readonly partial record struct WikiPage(
     /// <exception cref="InvalidOperationException">A comment above a block is none the suite knows, or names an example twice or one nobody named.</exception>
     public static WikiPage Read(string name, string text)
     {
-        var lines = text.Split('\n');
+        var lines = SourceFile.LinesOf(text);
         var examples = new Dictionary<string, List<WikiBlock>>(StringComparer.Ordinal);
         var programs = new List<WikiProgram>();
         var cells = new List<WikiBlock>();
         var needing = new List<WikiBlock>();
         var faults = new List<string>();
 
-        for (var at = 0; at < lines.Length; at++)
+        foreach (var fenced in SourceFile.FenceBlocksOf(text))
         {
-            if (Fence.Of(lines[at]) is not { } open)
+            var at = fenced.OpenAt;
+            var open = fenced.Open;
+
+            if (!fenced.Closed)
             {
-                continue;
-            }
-
-            var end = at + 1;
-            Fence? met = null;
-
-            for (; end < lines.Length; end++)
-            {
-                if (Fence.Of(lines[end]) is { } next && next.Ticks >= open.Ticks)
-                {
-                    met = next;
-                    break;
-                }
-            }
-
-            var closed = met is { Info.Length: 0 };
-
-            if (!closed)
-            {
-                faults.Add(end < lines.Length
-                    ? $"{name}, line {at + 1}: the fence opened here is never closed before the fence at line {end + 1}."
+                faults.Add(fenced.Met is not null
+                    ? $"{name}, line {at + 1}: the fence opened here is never closed before the fence at line {fenced.EndAt + 1}."
                     : $"{name}, line {at + 1}: the fence opened here is never closed before the page ends.");
             }
 
             if (open.Info == "csharp")
             {
-                var block = new WikiBlock(at + 2, string.Concat(lines[(at + 1)..end].Select(line => line + "\n")));
+                var block = new WikiBlock(at + 2, string.Concat(fenced.Body.Select(line => line + "\n")));
                 var marker = at > 0 ? CommentOn(lines[at - 1]) : null;
 
                 if (marker is null)
@@ -153,9 +143,6 @@ internal readonly partial record struct WikiPage(
                     throw new InvalidOperationException($"{name}, line {block.Line}: the comment '{marker}' above the block is one this suite does not know.");
                 }
             }
-
-            // An opening fence that interrupted this one is read again, as the start of its own block.
-            at = closed ? end : end - 1;
         }
 
         return new WikiPage(name, programs, cells, needing, faults);
@@ -191,21 +178,5 @@ internal readonly partial record struct WikiPage(
         return trimmed.StartsWith("<!--", StringComparison.Ordinal) && trimmed.EndsWith("-->", StringComparison.Ordinal)
             ? trimmed[4..^3].Trim()
             : null;
-    }
-
-    /// <summary>A fence line: how many backticks open it, and the words after them.</summary>
-    /// <param name="Ticks">The number of backticks.</param>
-    /// <param name="Info">The words after them, such as csharp; empty for a bare fence.</param>
-    private readonly record struct Fence(int Ticks, string Info)
-    {
-        /// <summary>The fence a line is, or null when it is none.</summary>
-        public static Fence? Of(string line)
-        {
-            var trimmed = line.TrimStart();
-            var ticks = trimmed.Length - trimmed.TrimStart('`').Length;
-            var info = trimmed[ticks..].Trim();
-
-            return ticks >= 3 && !info.Contains('`', StringComparison.Ordinal) ? new Fence(ticks, info) : null;
-        }
     }
 }

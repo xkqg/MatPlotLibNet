@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series;
+
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>One vertical piece of a Kagi chart: the part of a leg that has one width, in the column of the leg. A leg that
@@ -16,6 +18,20 @@ internal readonly record struct KagiSegment(int Column, double From, double To, 
 /// <param name="Price">The price of the turn: the shoulder after an up leg, the waist after a down leg.</param>
 /// <param name="Thick">Whether it is drawn thick: the width the leg it leaves ended in.</param>
 internal readonly record struct KagiConnector(int Column, double Price, bool Thick);
+
+/// <summary>One straight piece of the Kagi path, in the coordinates of the axes: a leg stands on the centre of its column and
+/// a connector runs from the centre of one column to the centre of the next.</summary>
+/// <param name="FromX">Where the piece begins along the axis of the columns.</param>
+/// <param name="FromY">The price it begins at.</param>
+/// <param name="ToX">Where it ends along the axis of the columns.</param>
+/// <param name="ToY">The price it ends at.</param>
+/// <param name="Thick">Whether the piece is drawn thick.</param>
+internal readonly record struct KagiPiece(double FromX, double FromY, double ToX, double ToY, bool Thick);
+
+/// <summary>The points of the Kagi path in one width, as the line that draws them: stretches parted by a missing value.</summary>
+/// <param name="X">The points' places along the axis of the columns.</param>
+/// <param name="Y">The points' prices.</param>
+internal readonly record struct KagiPath(double[] X, double[] Y);
 
 /// <summary>What a series of closing prices draws as a Kagi chart.</summary>
 /// <param name="Segments">The vertical pieces, left to right.</param>
@@ -107,11 +123,73 @@ internal static class KagiExtensions
         }
     }
 
+    extension(KagiLines lines)
+    {
+        /// <summary>Every piece of the path in the order it is walked: the pieces of a leg, then the connector that leaves it. One
+        /// pass over the legs and the connectors, which both stand in the order of their columns.</summary>
+        /// <returns>The pieces, left to right; none when there is no leg.</returns>
+        internal IEnumerable<KagiPiece> Pieces()
+        {
+            var segments = lines.Segments;
+            var connectors = lines.Connectors;
+            int connector = 0;
+            for (int at = 0; at < segments.Count;)
+            {
+                int column = segments[at].Column;
+                double x = CategorySlot.Of(column).Centre;
+                for (; at < segments.Count && segments[at].Column == column; at++)
+                {
+                    yield return new KagiPiece(x, segments[at].From, x, segments[at].To, segments[at].Thick);
+                }
+
+                if (connector < connectors.Count && connectors[connector].Column == column)
+                {
+                    var turn = connectors[connector++];
+                    yield return new KagiPiece(x, turn.Price, CategorySlot.Of(column + 1).Centre, turn.Price, turn.Thick);
+                }
+            }
+        }
+
+        /// <summary>The stretches of the path drawn in one width, as one line: the pieces in the order of the path, a piece that
+        /// carries on from the one before it (the same width, starting where it ended) joining the same polyline so the corner
+        /// between them is a join, and a missing value between polylines.</summary>
+        /// <param name="thick">Whether to take the thick pieces or the thin ones.</param>
+        /// <returns>The points of the line; empty when no piece has that width.</returns>
+        internal KagiPath Path(bool thick)
+        {
+            var line = new GappedLine();
+            bool open = false;
+            double endX = 0, endY = 0;
+            foreach (var piece in lines.Pieces())
+            {
+                if (piece.Thick != thick)
+                {
+                    open = false;
+                    continue;
+                }
+
+                if (!open || piece.FromX != endX || piece.FromY != endY)
+                {
+                    line.Gap();
+                    line.Add(piece.FromX, piece.FromY);
+                }
+
+                line.Add(piece.ToX, piece.ToY);
+                open = true;
+                endX = piece.ToX;
+                endY = piece.ToY;
+            }
+
+            var data = line.ToData();
+            return new KagiPath(data.X, data.Y);
+        }
+    }
+
     extension(List<KagiSegment> segments)
     {
         /// <summary>Adds the pieces of one leg and says which width it ended in. A thin leg that goes strictly above the last
-        /// shoulder is thick from that price on, a thick leg that goes strictly below the last waist is thin from that price on;
-        /// one that starts beyond that price is that width all along. A leg with nothing to break keeps its width.</summary>
+        /// shoulder is thick from that price on, a thick leg that goes strictly below the last waist is thin from that price on.
+        /// A leg with nothing to break keeps its width.</summary>
         /// <param name="column">The leg's column.</param>
         /// <param name="begin">The price the leg starts at.</param>
         /// <param name="extreme">The price the leg reached.</param>
@@ -130,18 +208,11 @@ internal static class KagiExtensions
                 return thick;
             }
 
+            // A leg starts a reversal away from the shoulder or waist it breaks (the one before it turned there), so the break
+            // always lies inside the line and never at its start.
             double at = breakAt!.Value;
-            bool startsBeyond = up ? begin >= at : begin <= at;
-            if (startsBeyond)
-            {
-                segments.Add(new KagiSegment(column, begin, extreme, !thick));
-            }
-            else
-            {
-                segments.Add(new KagiSegment(column, begin, at, thick));
-                segments.Add(new KagiSegment(column, at, extreme, !thick));
-            }
-
+            segments.Add(new KagiSegment(column, begin, at, thick));
+            segments.Add(new KagiSegment(column, at, extreme, !thick));
             return !thick;
         }
     }

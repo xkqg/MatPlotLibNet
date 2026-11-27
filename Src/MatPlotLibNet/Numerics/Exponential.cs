@@ -14,9 +14,7 @@ internal static class Exponential
     /// <returns>The quantile; 0 at or below 0, <see cref="double.PositiveInfinity"/> at or above 1, NaN for a missing number.</returns>
     internal static double Quantile(double p)
     {
-        if (double.IsNaN(p)) return double.NaN;
-        if (p <= 0) return 0;
-        if (p >= 1) return double.PositiveInfinity;
+        if (p.Saturated(atZero: 0, atOne: double.PositiveInfinity) is { } edge) return edge;
         return -LogOnePlus(-p);
     }
 

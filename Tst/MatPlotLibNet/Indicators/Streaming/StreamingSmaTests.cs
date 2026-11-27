@@ -7,28 +7,6 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
 public sealed class StreamingSmaTests
 {
-    [Fact]
-    public void WarmupPeriod_EqualsPeriod() =>
-        Assert.Equal(5, new StreamingSma(5).WarmupPeriod);
-
-    [Fact]
-    public void BeforeWarmup_ReturnsNaN()
-    {
-        var sma = new StreamingSma(3);
-        sma.Append(10);
-        sma.Append(20);
-        Assert.True(double.IsNaN(sma.GetLatest()));
-    }
-
-    [Fact]
-    public void AtWarmup_ReturnsAverage()
-    {
-        var sma = new StreamingSma(3);
-        sma.Append(10);
-        sma.Append(20);
-        sma.Append(30);
-        Assert.Equal(20.0, sma.GetLatest(), 6);
-    }
 
     [Fact]
     public void Rolling_EvictsOldest()
@@ -62,12 +40,4 @@ public sealed class StreamingSmaTests
                 Assert.Equal(staticResult[i], snap.YData[streamIdx], 4);
         }
     }
-
-    [Fact]
-    public void OutputSeries_HasOne() =>
-        Assert.Single(new StreamingSma(5).OutputSeries);
-
-    [Fact]
-    public void Label_DefaultsToSMA() =>
-        Assert.Equal("SMA(10)", new StreamingSma(10).Label);
 }

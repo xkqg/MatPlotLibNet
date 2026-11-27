@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
-using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Styling;
@@ -30,9 +29,9 @@ public class YAxisSlotTickTests
     private static double[] SlotTicks(double plotHeight)
     {
         var axes = AxesWithARightSlot();
-        var renderer = new CartesianAxesRenderer(axes, new Rect(50, 50, 300, plotHeight), new RecordingRenderContext(), Theme.Default);
+        var placement = new CartesianAxisPlacement(axes, new Rect(50, 50, 300, plotHeight), new RecordingRenderContext(), Theme.Default);
 
-        return renderer.PlaceSlot(axes.YAxes.Right[0], new MinMaxRange(0, 2)).Ticks;
+        return placement.PlaceSlot(axes.YAxes.Right[0], new DataRange(0, 2, 0, 1)).Ticks;
     }
 
     [Fact]
@@ -54,9 +53,9 @@ public class YAxisSlotTickTests
         // The layout does not know the plot's height: it measures the slot as for a tall plot, so what it reserves holds
         // the labels of any shorter plot, whose ticks are a coarser set of the same values.
         var axes = AxesWithARightSlot();
-        var bands = ConstrainedLayoutEngine.SecondaryAxisBands(axes, new RecordingRenderContext(), Theme.Default);
-        var renderer = new CartesianAxesRenderer(axes, new Rect(50, 50, 300, 400), new RecordingRenderContext(), Theme.Default);
+        var bands = new AxesEdgeNeeds().SecondaryAxisBands(axes, new RecordingRenderContext(), Theme.Default);
+        var placement = new CartesianAxisPlacement(axes, new Rect(50, 50, 300, 400), new RecordingRenderContext(), Theme.Default);
 
-        Assert.Equal(renderer.SlotBand(renderer.PlaceSlot(axes.YAxes.Right[0], new MinMaxRange(0, 2))), Assert.Single(bands), 9);
+        Assert.Equal(placement.SlotBand(placement.PlaceSlot(axes.YAxes.Right[0], new DataRange(0, 2, 0, 1))), Assert.Single(bands), 9);
     }
 }

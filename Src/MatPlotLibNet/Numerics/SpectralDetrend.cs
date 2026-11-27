@@ -40,7 +40,7 @@ public readonly record struct SpectralDetrend
     public static SpectralDetrend Of(Func<double[], double[]> removed)
     {
         ArgumentNullException.ThrowIfNull(removed);
-        return new(segment => Checked(removed(segment), segment.Length));
+        return new(segment => removed(segment).ThrowIfNotGivenFor(segment.Length, "The detrend function"));
     }
 
     /// <summary>The segment with its trend taken out. <see cref="None"/> gives the segment itself.</summary>
@@ -73,23 +73,4 @@ public readonly record struct SpectralDetrend
         return result;
     }
 
-    private static double[] Checked(double[]? values, int n)
-    {
-        if (values is null || values.Length != n)
-        {
-            throw new InvalidOperationException(
-                $"The detrend function gave {(values is null ? "no" : values.Length.ToString(CultureInfo.InvariantCulture))} values for a segment of {n.ToString(CultureInfo.InvariantCulture)} samples.");
-        }
-
-        foreach (double value in values)
-        {
-            if (!double.IsFinite(value))
-            {
-                throw new InvalidOperationException(
-                    $"The detrend function gave a value of {value.ToString(CultureInfo.InvariantCulture)}; every value is a finite number.");
-            }
-        }
-
-        return values;
-    }
 }

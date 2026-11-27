@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
 /// <summary>The streaming transfer entropy is the rolling transfer entropy taken one sample at a time: after each sample it says what
 /// the batch says over everything so far. The theory holds its default row; these hold the variants (a stride, a condition) and
-/// what the constructor refuses.</summary>
+/// what only the form refuses (no window, a condition in the options).</summary>
 public sealed class StreamingTransferEntropyTests
 {
     /// <summary>The source and the target of a bar: its body and its range, and for the conditioned form its volume in hundreds.</summary>
@@ -77,16 +77,4 @@ public sealed class StreamingTransferEntropyTests
     [Fact]
     public void ACondition_IsGivenInEachSample_NotInTheOptions() =>
         Assert.Equal("Condition", ParamOf(new TransferEntropyOptions(Window: 30, Condition: new double[30])));
-
-    [Fact]
-    public void ABinnedEstimator_IsRefusedByName() =>
-        Assert.Equal("Window", ParamOf(new TransferEntropyOptions(TransferEntropyEstimator.Binned, Window: 30)));
-
-    [Fact]
-    public void AWindowTooShortForTheNeighbours_IsRefusedByName() =>
-        Assert.Equal("Window", ParamOf(new TransferEntropyOptions(Neighbours: 4, Window: 5)));
-
-    [Fact]
-    public void AStrideBelowOne_IsRefusedByName() =>
-        Assert.Equal("Stride", ParamOf(new TransferEntropyOptions(Window: 30, Stride: 0)));
 }

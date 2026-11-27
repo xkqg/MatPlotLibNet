@@ -27,6 +27,8 @@ Each interior node renders as a coloured rectangle with a label header along the
 
 Labels render at a single readable 12 pt size at every depth. Children paint over parents (Shneiderman z-order), so where rectangles overlap you read the deepest visible label, which is the most specific one, and nothing has to move to show it. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder`; it picks a canvas big enough to fit every label cleanly without overflow. In interactive output, the reader pans and zooms to read labels that overflow.
 
+A node is sized by the sum of its children's values. When that sum is not a positive number (every child is worth zero, they add up to less than nothing, or one of them is `double.NaN` or infinite) the node is drawn without its children: there is no area to share among them.
+
 ```csharp
 var catalogue = new TreeNode
 {

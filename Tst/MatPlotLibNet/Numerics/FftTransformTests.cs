@@ -57,7 +57,7 @@ public class FftTransformTests
         Complex[] result = Fft.Transform(x);
 
         Assert.Equal(n, result.Length);
-        Complex[] expected = DirectDft(x);
+        Complex[] expected = x.DirectDft();
         double scale = Math.Max(1.0, x.Sum(v => v.Magnitude));
         for (int k = 0; k < n; k++)
         {
@@ -95,31 +95,35 @@ public class FftTransformTests
         Assert.Equal(before, x);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(64)]
+    public void TransformInPlace_WritesTheTransformOverItsInput(int n)
+    {
+        Complex[] x = Signal(n);
+        Complex[] expected = Fft.Transform(x);
+
+        Fft.TransformInPlace(x);
+
+        Assert.Equal(expected, x);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(6)]
+    public void TransformInPlace_RefusesALengthThatIsNoPowerOfTwo(int n)
+    {
+        var x = new Complex[n];
+
+        Assert.Throws<ArgumentException>(() => Fft.TransformInPlace(x));
+    }
+
     /// <summary>A deterministic complex signal with no symmetry that would hide a wrong bin.</summary>
     private static Complex[] Signal(int n)
     {
         var x = new Complex[n];
         for (int i = 0; i < n; i++) x[i] = new Complex((i % 7) - 3 + 0.25 * i / n, 0.5 * ((i % 5) - 2));
         return x;
-    }
-
-    /// <summary>The definition of the transform, summed directly. The phase index is reduced modulo N so the angle stays small.</summary>
-    private static Complex[] DirectDft(Complex[] x)
-    {
-        int n = x.Length;
-        var result = new Complex[n];
-        for (int k = 0; k < n; k++)
-        {
-            Complex sum = Complex.Zero;
-            for (int j = 0; j < n; j++)
-            {
-                double angle = -2 * Math.PI * ((long)k * j % n) / n;
-                sum += x[j] * new Complex(Math.Cos(angle), Math.Sin(angle));
-            }
-
-            result[k] = sum;
-        }
-
-        return result;
     }
 }

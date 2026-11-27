@@ -12,36 +12,31 @@ namespace MatPlotLibNet.Indicators;
 /// Best placed in a separate subplot with <c>AxHLine(70)</c> and <c>AxHLine(30)</c> reference lines.</remarks>
 public sealed class Rsi : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 14;
+
     private readonly int _period;
 
     /// <summary>Creates a new RSI indicator.</summary>
     /// <param name="prices">The price data (typically close prices).</param>
-    /// <param name="period">The lookback period (default 14).</param>
-    public Rsi(double[] prices, int period = 14) : base(prices)
+    /// <param name="period">The lookback period (default <see cref="DefaultPeriod"/>).</param>
+    public Rsi(double[] prices, int period = DefaultPeriod) : base(prices, Spec(period))
     {
         _period = period;
-        Label = $"RSI({period})";
     }
 
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfWindow("RSI", period, period);
+
     /// <inheritdoc />
-    public override SignalResult Compute()
-    {
-        if (Prices.Length <= _period) return Array.Empty<double>();
-        var result = new double[Prices.Length - _period];
-        var step = new RsiStep(_period);
-        for (int i = 0; i < Prices.Length; i++)
-        {
-            double value = step.Next(Prices[i]);
-            if (i >= _period) result[i - _period] = value;
-        }
-        return result;
-    }
+    public override SignalResult Compute() => FoldPrices(new RsiStep(_period));
+
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingRsi"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Percent;
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), _period);
-        axes.YAxis.Min = 0;
-        axes.YAxis.Max = 100;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

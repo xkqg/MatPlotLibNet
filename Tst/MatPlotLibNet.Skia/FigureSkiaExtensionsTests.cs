@@ -5,58 +5,23 @@ using SkiaSharp;
 
 namespace MatPlotLibNet.Skia.Tests;
 
-/// <summary>Branch coverage for <see cref="FigureSkiaExtensions.BuildKey"/> and
-/// <see cref="SkiaFonts.Resolve"/>.</summary>
+/// <summary>Branch coverage for <see cref="SkiaFonts.Resolve"/>.</summary>
 public class FigureSkiaExtensionsTests
 {
-    // ── BuildKey switch arms ─────────────────────────────────────────────────
-
-    [Fact]
-    public void BuildKey_RegularWeight_ReturnsFamily()
-    {
-        var style = new SKFontStyle(SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
-        Assert.Equal("DejaVu Sans", key);
-    }
-
-    [Fact]
-    public void BuildKey_BoldWeight_ReturnsFamilyBold()
-    {
-        var style = new SKFontStyle(SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-        var key = SkiaFonts.BuildKey("Arial", style);
-        Assert.Equal("Arial|Bold", key);
-    }
-
-    [Fact]
-    public void BuildKey_ItalicSlant_ReturnsFamilyItalic()
-    {
-        var style = new SKFontStyle(SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Italic);
-        var key = SkiaFonts.BuildKey("Arial", style);
-        Assert.Equal("Arial|Italic", key);
-    }
-
-    [Fact]
-    public void BuildKey_BoldItalic_ReturnsFamilyBoldItalic()
-    {
-        var style = new SKFontStyle(SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Italic);
-        var key = SkiaFonts.BuildKey("Arial", style);
-        Assert.Equal("Arial|BoldItalic", key);
-    }
-
     // ── ResolveTypeface ──────────────────────────────────────────────────────
 
-    [Fact]
-    public void ResolveTypeface_NullFamily_FallsBackToSystemFont()
+    /// <summary>A family nobody gave, an empty one, an unknown one, a CSS stack, a bold request and a stack that opens with a blank
+    /// candidate (a leading comma, trimmed away) each resolve to a typeface.</summary>
+    [Theory]
+    [InlineData(null, SKFontStyleWeight.Normal)]
+    [InlineData("", SKFontStyleWeight.Normal)]
+    [InlineData("NoSuchFontXYZ123", SKFontStyleWeight.Normal)]
+    [InlineData("DejaVu Sans, sans-serif", SKFontStyleWeight.Normal)]
+    [InlineData("DejaVu Sans", SKFontStyleWeight.Bold)]
+    [InlineData(", DejaVu Sans", SKFontStyleWeight.Normal)]
+    public void ResolveTypeface_ResolvesATypeface_ForAnyFamilyAndWeight(string? family, SKFontStyleWeight weight)
     {
-        var tf = SkiaFonts.Resolve(null, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
-    }
-
-    [Fact]
-    public void ResolveTypeface_EmptyFamily_FallsBackToSystemFont()
-    {
-        var tf = SkiaFonts.Resolve("", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
+        Assert.NotNull(SkiaFonts.Resolve(family, weight, SKFontStyleSlant.Upright).Typeface);
     }
 
     [Fact]
@@ -67,36 +32,6 @@ public class FigureSkiaExtensionsTests
         Assert.Contains("DejaVu", tf.FamilyName, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void ResolveTypeface_CssFontStack_FindsFirstBundledFamily()
-    {
-        // CSS-style comma-separated stack — first candidate "DejaVu Sans" should match bundled
-        var tf = SkiaFonts.Resolve("DejaVu Sans, sans-serif", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
-    }
-
-    [Fact]
-    public void ResolveTypeface_UnknownFamily_FallsBackToSystemFont()
-    {
-        var tf = SkiaFonts.Resolve("NoSuchFontXYZ123", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
-    }
-
-    [Fact]
-    public void ResolveTypeface_BundledDejaVuSansBold_ReturnsBoldTypeface()
-    {
-        var tf = SkiaFonts.Resolve("DejaVu Sans", SKFontStyleWeight.Bold, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
-    }
-
-    [Fact]
-    public void ResolveTypeface_EmptyCandidateInStack_SkipsBlankEntry()
-    {
-        // Leading comma produces an empty candidate — trimmed.Length == 0 → continue arm
-        var tf = SkiaFonts.Resolve(", DejaVu Sans", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
-    }
-
     // ── ResolveTypeface cache/ownership (council K5/F8) ─────────────────────
     // ResolveTypeface must ALWAYS return a cached, process-lifetime SKTypeface: callers
     // (SkiaRenderContext, SkiaFontMetrics, SkiaGlyphPathProvider) never dispose the result.
@@ -105,23 +40,16 @@ public class FigureSkiaExtensionsTests
     // pins assert same-key calls are reference-identical (cache hit) and that the cache
     // key is not collapsed across weight/slant variations.
 
-    [Fact]
-    public void ResolveTypeface_SameKey_HostFallbackFamily_ReturnsSameInstance()
+    /// <summary>"Arial" is not a bundled font (only DejaVu Sans ships in this assembly), so it exercises the SKTypeface.FromFamilyName fallback
+    /// path, the one that leaked before the fix; a nonsense family also takes the fallback path (it returns the default system typeface). Both
+    /// must be cached and reference-identical across calls.</summary>
+    [Theory]
+    [InlineData("Arial")]
+    [InlineData("NoSuchFontXYZ123")]
+    public void ResolveTypeface_SameKey_FallbackFamily_ReturnsSameInstance(string family)
     {
-        // "Arial" is not a bundled font (only DejaVu Sans ships in this assembly), so this
-        // exercises the SKTypeface.FromFamilyName fallback path — the one that leaked pre-fix.
-        var first = SkiaFonts.Resolve("Arial", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        var second = SkiaFonts.Resolve("Arial", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.Same(first, second);
-    }
-
-    [Fact]
-    public void ResolveTypeface_SameKey_UnresolvableFamily_ReturnsSameInstance()
-    {
-        // Nonsense family also takes the fallback path (SKTypeface.FromFamilyName returns the
-        // default system typeface) — still must be cached and reference-identical across calls.
-        var first = SkiaFonts.Resolve("NoSuchFontXYZ123", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        var second = SkiaFonts.Resolve("NoSuchFontXYZ123", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
+        var first = SkiaFonts.Resolve(family, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
+        var second = SkiaFonts.Resolve(family, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
         Assert.Same(first, second);
     }
 

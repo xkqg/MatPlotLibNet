@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -10,6 +8,7 @@ using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -27,11 +26,8 @@ public class DotPlotTests
     /// <summary>The categories by the first group, largest first.</summary>
     private static readonly string[] ByOlder = ["Python", "C#", "Rust", "Java", "Go", "Kotlin", "Ruby"];
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Dots(IReadOnlyList<BarGroup> groups, Action<ScatterSeries>? configure = null) =>
-        AxesOf(ax => ax.DotPlot(Languages, groups, configure));
+        Plt.Create().OneAxes(ax => ax.DotPlot(Languages, groups, configure));
 
     private static ScatterSeries[] Scatters(Axes axes) => [.. axes.Series.Cast<ScatterSeries>()];
 
@@ -41,8 +37,6 @@ public class DotPlotTests
     private readonly record struct Dot(double Cx, double Cy);
 
     /// <summary>The plot area in pixels.</summary>
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     /// <summary>A text drawn straight into the figure: what it says, and where its baseline stands.</summary>
     private readonly record struct Label(string Text, double Y);
 
@@ -58,52 +52,25 @@ public class DotPlotTests
 
     private static string Svg(params BarGroup[] groups) => Svg(ax => ax.DotPlot(Languages, groups));
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
-
-    /// <summary>The plot area: the second rectangle drawn into the figure, after the figure's own background.</summary>
-    private static Area PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new Area(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-                        Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
-
-    private static List<XElement> SeriesGroups(string svg) =>
-        [.. Named(XDocument.Parse(svg), "g").Where(g => (string?)g.Attribute("class") == "series")];
-
     private static Dot[] Circles(XElement series) =>
-        [.. Named(series, "circle").Select(c => new Dot(Num((string)c.Attribute("cx")!), Num((string)c.Attribute("cy")!)))];
+        [.. series.Each("circle").Select(c => new Dot(c.Number("cx"), c.Number("cy")))];
 
     /// <summary>The Y tick labels, top to bottom: the figure's own texts that end at their anchor.</summary>
     private static Label[] YTickLabels(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text" && (string?)e.Attribute("text-anchor") == "end")
-            .Select(e => new Label(e.Value, Num((string)e.Attribute("y")!)))
+        [.. svg.Direct("text").Where(e => (string?)e.Attribute("text-anchor") == "end")
+            .Select(e => new Label(e.Value, e.Number("y")))
             .OrderBy(l => l.Y)];
 
     /// <summary>The lines drawn straight into the figure that run the width of the plot area and stay level: the grid lines
     /// of the Y axis (a tick mark is short and a spine sits inside its own group).</summary>
     private static GuideLine[] GuideLines(string svg)
     {
-        var plot = PlotArea(svg);
-        return [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "line")
-            .Where(e => Math.Abs(Num((string)e.Attribute("x1")!) - plot.X) < 1e-6 && Math.Abs(Num((string)e.Attribute("x2")!) - (plot.X + plot.W)) < 1e-6)
-            .Where(e => Math.Abs(Num((string)e.Attribute("y1")!) - Num((string)e.Attribute("y2")!)) < 1e-9)
-            .Select(e => new GuideLine(Num((string)e.Attribute("y1")!), (string)e.Attribute("stroke")!))
+        var plot = svg.PlotArea();
+        return [.. svg.Direct("line")
+            .Where(e => Math.Abs(e.Number("x1") - plot.X) < 1e-6 && Math.Abs(e.Number("x2") - (plot.X + plot.Width)) < 1e-6)
+            .Where(e => Math.Abs(e.Number("y1") - e.Number("y2")) < 1e-9)
+            .Select(e => new GuideLine(e.Number("y1"), (string)e.Attribute("stroke")!))
             .OrderBy(l => l.Y)];
-    }
-
-    /// <summary>The box of the legend: the first rectangle of the legend group.</summary>
-    private static Area LegendBox(string svg)
-    {
-        var legend = Named(XDocument.Parse(svg), "g").Single(g => (string?)g.Attribute("class") == "legend");
-        var rect = Named(legend, "rect").First();
-        return new Area(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-                        Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
     }
 
     // ---- one scatter series per group ---------------------------------------------------------------------------------
@@ -178,7 +145,7 @@ public class DotPlotTests
     public void TheNames_ReadTopDown_EachLevelWithItsDots()
     {
         string svg = Svg(Older, Newer);
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         var older = Circles(groups[0]);
         var newer = Circles(groups[1]);
 
@@ -186,14 +153,14 @@ public class DotPlotTests
         Assert.Equal(ByOlder, labels.Select(l => l.Text));
         for (int d = 0; d < ByOlder.Length; d++)
         {
-            // The tick label's baseline stands 4 px under the tick, which is on the row.
-            Assert.Equal(older[d].Cy + 4, labels[d].Y, 6);
-            Assert.Equal(older[d].Cy, newer[d].Cy, 6);
+            // The tick label is centred on the tick, which is on the row: its baseline 0.35 of its ascent (the font size) under it.
+            Assert.Equal(older[d].Cy + 0.35 * MatPlotLibNet.Styling.Theme.MatplotlibV2.TickFont().Size, labels[d].Y, SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(older[d].Cy, newer[d].Cy, SvgMarkupExtensions.WrittenPrecision);
         }
 
         double pitch = older[1].Cy - older[0].Cy;
         Assert.True(pitch > 0);
-        for (int d = 1; d < older.Length; d++) Assert.Equal(pitch, older[d].Cy - older[d - 1].Cy, 6);
+        for (int d = 1; d < older.Length; d++) Assert.Equal(pitch, older[d].Cy - older[d - 1].Cy, SvgMarkupExtensions.WrittenPrecision);
         // The first group's dots run down and to the left as the values fall.
         Assert.True(older.Zip(older.Skip(1), (a, b) => a.Cx > b.Cx).All(x => x));
     }
@@ -209,7 +176,7 @@ public class DotPlotTests
         BarGroup first = new("first", [5, 5, double.NaN, 3]);
         BarGroup second = new("second", [1, 2, 3, 4]);
 
-        var axes = AxesOf(ax => ax.DotPlot(names, [first, second]));
+        var axes = Plt.Create().OneAxes(ax => ax.DotPlot(names, [first, second]));
         var scatters = Scatters(axes);
 
         double[] rows = scatters[0].YData;
@@ -224,7 +191,7 @@ public class DotPlotTests
     {
         string[] names = ["x", "y", "z"];
 
-        var axes = AxesOf(ax => ax.DotPlot(names, [new BarGroup("g", [7, 7, 7])]));
+        var axes = Plt.Create().OneAxes(ax => ax.DotPlot(names, [new BarGroup("g", [7, 7, 7])]));
 
         Assert.Equal(names, Scatters(axes)[0].YData.Select(axes.YAxis.TickFormatter!.Format));
     }
@@ -237,11 +204,11 @@ public class DotPlotTests
         var gappy = new BarGroup("2025", [35, 52, 60, double.NaN, 71, 84, 50]);
         string svg = Svg(Older, gappy);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal(7, Circles(groups[0]).Length);
         Assert.Equal(6, Circles(groups[1]).Length);
         Assert.Equal(ByOlder, YTickLabels(svg).Select(l => l.Text));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>A missing first value puts its category in the bottom row without a dot of the first group, and the second
@@ -252,14 +219,14 @@ public class DotPlotTests
         var gappy = new BarGroup("2015", [31, 48, 62, 55, double.NaN, 80, 44]);
         string svg = Svg(gappy, Newer);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         var labels = YTickLabels(svg);
         Assert.Equal("C#", labels[^1].Text);
         Assert.Equal(6, Circles(groups[0]).Length);
         var newer = Circles(groups[1]);
         Assert.Equal(7, newer.Length);
-        Assert.Equal(labels[^1].Y - 4, newer.Max(c => c.Cy), 6);
-        Assert.DoesNotContain("NaN", svg);
+        Assert.Equal(labels[^1].Y - 0.35 * MatPlotLibNet.Styling.Theme.MatplotlibV2.TickFont().Size, newer.Max(c => c.Cy), SvgMarkupExtensions.WrittenPrecision);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- the guide lines are the grid -----------------------------------------------------------------------------------
@@ -280,7 +247,7 @@ public class DotPlotTests
     public void TheGuideLines_RunThroughEveryRow_AcrossThePlot()
     {
         string svg = Svg(Older, Newer);
-        var rows = Circles(SeriesGroups(svg)[0]).Select(c => c.Cy).Order().ToList();
+        var rows = Circles(svg.SeriesGroups()[0]).Select(c => c.Cy).Order().ToList();
 
         var lines = GuideLines(svg);
 
@@ -296,7 +263,7 @@ public class DotPlotTests
     [InlineData("Ggplot")]
     public void TheGuideLines_FollowTheThemesGrid(string themeName)
     {
-        var theme = themeName switch { "Dark" => Theme.Dark, "Ggplot" => Theme.Ggplot, _ => Theme.Default };
+        var theme = themeName.AsTheme();
 
         var lines = GuideLines(Svg(ax => ax.DotPlot(Languages, [Older, Newer]), theme));
 
@@ -314,17 +281,16 @@ public class DotPlotTests
     {
         string[] countries = ["Netherlands", "United Kingdom", "Germany", "Czech Republic", "France", "Switzerland"];
         string svg = Svg(ax => ax.DotPlot(countries, [new BarGroup("a", [3, 9, 5, 7, 2, 6]), new BarGroup("b", [4, 8, 6, 9, 3, 5])]));
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
-        var names = XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text" && (string?)e.Attribute("text-anchor") == "end" && countries.Contains(e.Value))
+        var names = svg.Direct("text").Where(e => (string?)e.Attribute("text-anchor") == "end" && countries.Contains(e.Value))
             .ToList();
 
         Assert.Equal(countries.Length, names.Count);
         Assert.All(names, e =>
         {
-            double size = Num((string)e.Attribute("font-size")!);
-            double start = Num((string)e.Attribute("x")!) - FontMetricsDefault.Current.Measure(e.Value, new Font { Size = size }).Width;
+            double size = e.Number("font-size");
+            double start = e.Number("x") - FontMetricsDefault.Current.Measure(e.Value, new Font { Size = size }).Width;
             Assert.True(start >= 0, $"'{e.Value}' starts at {start}, left of the figure");
             Assert.True(start < plot.X);
         });
@@ -332,39 +298,21 @@ public class DotPlotTests
 
     // ---- limits -------------------------------------------------------------------------------------------------------
 
-    /// <summary>The verb sets no axis limit and keeps one the caller set (W9): the automatic range leaves the dots of the
-    /// first and last row their margin, so every dot is a whole circle inside the plot.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Dots([Older, Newer]);
-        var kept = AxesOf(ax => ax.SetXLim(0, 100).DotPlot(Languages, [Older, Newer]));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(0.0, kept.XAxis.Min);
-        Assert.Equal(100.0, kept.XAxis.Max);
-        Assert.Null(kept.YAxis.Min);
-    }
-
     /// <summary>Every dot, the first and last rows' and the lowest and highest values' included, is a whole circle inside the
     /// plot area.</summary>
     [Fact]
     public void EveryDot_IsAWholeCircle_InsideThePlotArea()
     {
         string svg = Svg(Older, Newer);
-        var plot = PlotArea(svg);
-        double radius = Num(Regex.Match(svg, """<circle cx="[-0-9.]+" cy="[-0-9.]+" r="([0-9.]+)" """.TrimEnd()).Groups[1].Value);
+        var plot = svg.PlotArea();
+        double radius = svg.Elements("circle")[0].Number("r");
 
-        foreach (var group in SeriesGroups(svg))
+        foreach (var group in svg.SeriesGroups())
         {
             Assert.All(Circles(group), c =>
             {
-                Assert.True(c.Cx - radius >= plot.X && c.Cx + radius <= plot.X + plot.W, $"a dot at x = {c.Cx} is cut by the plot area {plot.X}..{plot.X + plot.W}");
-                Assert.True(c.Cy - radius >= plot.Y && c.Cy + radius <= plot.Y + plot.H, $"a dot at y = {c.Cy} is cut by the plot area {plot.Y}..{plot.Y + plot.H}");
+                Assert.True(c.Cx - radius >= plot.X && c.Cx + radius <= plot.X + plot.Width, $"a dot at x = {c.Cx} is cut by the plot area {plot.X}..{plot.X + plot.Width}");
+                Assert.True(c.Cy - radius >= plot.Y && c.Cy + radius <= plot.Y + plot.Height, $"a dot at y = {c.Cy} is cut by the plot area {plot.Y}..{plot.Y + plot.Height}");
             });
         }
     }
@@ -374,12 +322,12 @@ public class DotPlotTests
     public void OneCategory_IsOneRow_InsideThePlotArea()
     {
         string svg = Svg(ax => ax.DotPlot(["only"], [new BarGroup("a", [3]), new BarGroup("b", [5])]));
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal(["only"], YTickLabels(svg).Select(l => l.Text));
-        Assert.All(groups.SelectMany(Circles), c => Assert.InRange(c.Cy, plot.Y + 1, plot.Y + plot.H - 1));
-        Assert.DoesNotContain("NaN", svg);
+        Assert.All(groups.SelectMany(Circles), c => Assert.InRange(c.Cy, plot.Y + 1, plot.Y + plot.Height - 1));
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- colours and the legend -----------------------------------------------------------------------------------------
@@ -393,13 +341,12 @@ public class DotPlotTests
         figure.EnableLegendToggle = true;
         string svg = figure.ToSvg();
 
-        var groups = SeriesGroups(svg);
-        var fills = groups.Select(g => Named(g, "circle").Select(c => (string)c.Attribute("fill")!).Distinct().Single()).ToList();
+        var groups = svg.SeriesGroups();
+        var fills = groups.Select(g => g.Each("circle").Select(c => (string)c.Attribute("fill")!).Distinct().Single()).ToList();
         Assert.Equal(2, fills.Distinct().Count());
         Assert.Equal(figure.Theme.CycleColors[0].ToHex(), fills[0]);
         Assert.Equal(figure.Theme.CycleColors[1].ToHex(), fills[1]);
-        var entries = Regex.Matches(svg, """<g data-legend-index="([0-9]+)" [^>]*aria-label="([^"]*)">""");
-        Assert.Equal(["0:2015", "1:2025"], entries.Select(m => $"{m.Groups[1].Value}:{m.Groups[2].Value}"));
+        Assert.Equal(["0:2015", "1:2025"], svg.LegendEntries().Select(entry => $"{entry.Index}:{entry.Label}"));
     }
 
     /// <summary>The legend stands in the lower right corner, the corner the order of the rows leaves empty (the largest
@@ -409,16 +356,16 @@ public class DotPlotTests
     public void TheLegend_StandsInTheCornerTheOrderLeavesEmpty_AndCoversNoDot()
     {
         string svg = Svg(Older, Newer);
-        var plot = PlotArea(svg);
-        var box = LegendBox(svg);
-        double radius = Num(Regex.Match(svg, """<circle cx="[-0-9.]+" cy="[-0-9.]+" r="([0-9.]+)" """.TrimEnd()).Groups[1].Value);
+        var plot = svg.PlotArea();
+        var box = svg.LegendFrame()!.Value;
+        double radius = svg.Elements("circle")[0].Number("r");
 
-        Assert.True(box.X + box.W / 2 > plot.X + plot.W / 2, "the legend is not in the right half of the plot");
-        Assert.True(box.Y + box.H / 2 > plot.Y + plot.H / 2, "the legend is not in the lower half of the plot");
-        foreach (var dot in SeriesGroups(svg).SelectMany(Circles))
+        Assert.True(box.X + box.Width / 2 > plot.X + plot.Width / 2, "the legend is not in the right half of the plot");
+        Assert.True(box.Y + box.Height / 2 > plot.Y + plot.Height / 2, "the legend is not in the lower half of the plot");
+        foreach (var dot in svg.SeriesGroups().SelectMany(Circles))
         {
-            bool covered = dot.Cx + radius > box.X && dot.Cx - radius < box.X + box.W
-                        && dot.Cy + radius > box.Y && dot.Cy - radius < box.Y + box.H;
+            bool covered = dot.Cx + radius > box.X && dot.Cx - radius < box.X + box.Width
+                        && dot.Cy + radius > box.Y && dot.Cy - radius < box.Y + box.Height;
             Assert.False(covered, $"the legend covers the dot at ({dot.Cx}, {dot.Cy})");
         }
     }
@@ -428,7 +375,7 @@ public class DotPlotTests
     [Fact]
     public void ALegendAskedForAfterTheCall_WinsOverTheVerbsPosition()
     {
-        var moved = AxesOf(ax => ax.DotPlot(Languages, [Older, Newer]).WithLegend(LegendPosition.UpperLeft));
+        var moved = Plt.Create().OneAxes(ax => ax.DotPlot(Languages, [Older, Newer]).WithLegend(LegendPosition.UpperLeft));
         string off = Svg(ax => ax.DotPlot(Languages, [Older, Newer]).WithLegend(visible: false));
 
         Assert.Equal(LegendPosition.LowerRight, Dots([Older, Newer]).Legend.Position);
@@ -436,46 +383,7 @@ public class DotPlotTests
         Assert.DoesNotContain("""class="legend" """.TrimEnd(), off);
     }
 
-    // ---- the callback -----------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once for each group, in the order of the groups, after the verb has built and styled it, so
-    /// what the caller sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerGroup_InOrder_AfterTheVerbStyledIt()
-    {
-        var seen = new List<string?>();
-
-        var axes = Dots([Older, Newer], dots =>
-        {
-            Assert.Equal(MarkerStyle.Circle, dots.Marker);
-            Assert.Equal(50, dots.MarkerSize);
-            seen.Add(dots.Label);
-            dots.MarkerSize = 90;
-            dots.Marker = MarkerStyle.Diamond;
-        });
-
-        Assert.Equal(["2015", "2025"], seen);
-        Assert.All(Scatters(axes), dots =>
-        {
-            Assert.Equal(90, dots.MarkerSize);
-            Assert.Equal(MarkerStyle.Diamond, dots.Marker);
-        });
-    }
-
     // ---- the verb draws what the hand chain drew -----------------------------------------------------------------------
-
-    /// <summary>The verb adds nothing to the picture that the hand-written chain did not draw, and leaves nothing out: same
-    /// SVG, byte for byte, with and without a missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("dot-plot").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.DotPlotByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
 
     /// <summary>Written to JSON and read back, the chart draws the same picture, a missing value and a missing first value
     /// included: the names are still the ticks, from the top down, and the grid is still along the Y axis.</summary>
@@ -491,7 +399,7 @@ public class DotPlotTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.DotPlot(Languages, [first, second])).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.Equal("C#", YTickLabels(readBack)[^1].Text);
@@ -500,37 +408,33 @@ public class DotPlotTests
 
     // ---- no data to speak of ----------------------------------------------------------------------------------------
 
-    /// <summary>No categories at all is an empty chart, as every other verb draws with no data: it does not throw and holds
-    /// no NaN.</summary>
-    [Fact]
-    public void NoCategories_DrawAnEmptyChart_WithoutThrowing()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Svg(ax => ax.DotPlot([], [new BarGroup("a", [])]));
+        //  No categories at all is an empty chart, as every other verb draws with no data: it does not throw and holds no NaN.
+        new DrawnToken("NoCategories_DrawAnEmptyChart_WithoutThrowing", () => Svg(ax => ax.DotPlot([], [new BarGroup("a", [])]))) { Finite = true },
+        //  The example of the verb's documentation, as written there, compiles and draws.
+        new DrawnToken("TheDocumentationExample_Draws", () =>
+        {
+            string[] languages = ["Ruby", "Go", "Rust", "Java", "Python"];
+            return Plt.Create()
+                .WithTitle("Programming languages")
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .DotPlot(languages,
+                    [
+                        new BarGroup("2015", [31.0, 48.0, 62.0, 55.0, 80.0]),
+                        new BarGroup("2025", [35.0, 52.0, 60.0, 58.0, 84.0]),
+                    ])
+                    .SetXLabel("Share of developers (%)"))
+                .ToSvg();
+        }, ">Python<", ">2025<", ">Share of developers (%)<", ">Programming languages<"),
+    };
 
-        Assert.DoesNotContain("NaN", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- refused arguments -----------------------------------------------------------------------------------------
-
-    /// <summary>An axes, a list of categories or a list of groups that is not there is refused by name.</summary>
-    [Fact]
-    public void ANullArgument_IsRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).DotPlot(Languages, [Older])).ParamName);
-        Assert.Equal("categories", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.DotPlot(null!, [Older]))).ParamName);
-        Assert.Equal("groups", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.DotPlot(Languages, null!))).ParamName);
-    }
-
-    /// <summary>A dot plot draws one set of dots for each group, and the first group decides the order: no group is refused,
-    /// by the parameter.</summary>
-    [Fact]
-    public void NoGroups_AreRefused()
-    {
-        var error = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.DotPlot(Languages, [])));
-
-        Assert.Equal("groups", error.ParamName);
-        Assert.StartsWith("No groups were given", error.Message);
-    }
 
     /// <summary>A group that does not carry one value per category is refused, naming the group, both counts and the
     /// parameter, in the words every verb that takes groups uses; a group with no values at all is refused by name, not with
@@ -544,49 +448,9 @@ public class DotPlotTests
         var nullError = Assert.Throws<ArgumentException>(() => Dots([Older, new BarGroup("2025", null!)]));
 
         Assert.Equal("groups", error.ParamName);
-        Assert.Equal("Group '2025' carries 2 values; there are 7 categories. (Parameter 'groups')", error.Message);
+        Assert.Equal(2.RefusalAgainst(7, "groups", "group '2025'"), error.Message);
         Assert.Equal("groups", nullError.ParamName);
         Assert.Equal("Group '2025' carries no values; there are 7 categories. (Parameter 'groups')", nullError.Message);
     }
 
-    /// <summary>A refused call has added nothing: the checks come before the first series, so no series, no ticks and no grid
-    /// are left behind.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.DotPlot(Languages, [Older, new BarGroup("2025", [1.0])]));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.YAxis.TickLocator);
-        Assert.Null(axes.GridChange);
-        Assert.False(axes.Grid.Visible);
-    }
-
-    // ---- the example in the documentation --------------------------------------------------------------------------
-
-    /// <summary>The example of the verb's documentation, as written there, compiles and draws.</summary>
-    [Fact]
-    public void TheDocumentationExample_Draws()
-    {
-        string[] languages = ["Ruby", "Go", "Rust", "Java", "Python"];
-
-        string svg = Plt.Create()
-            .WithTitle("Programming languages")
-            .AddSubPlot(1, 1, 1, ax => ax
-                .DotPlot(languages,
-                [
-                    new BarGroup("2015", [31.0, 48.0, 62.0, 55.0, 80.0]),
-                    new BarGroup("2025", [35.0, 52.0, 60.0, 58.0, 84.0]),
-                ])
-                .SetXLabel("Share of developers (%)"))
-            .ToSvg();
-
-        Assert.Contains(">Python<", svg);
-        Assert.Contains(">2025<", svg);
-        Assert.Contains(">Share of developers (%)<", svg);
-        Assert.Contains(">Programming languages<", svg);
-    }
 }

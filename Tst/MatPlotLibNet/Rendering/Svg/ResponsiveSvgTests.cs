@@ -21,27 +21,31 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// </summary>
 public class ResponsiveSvgTests
 {
-    [Fact]
-    public void Default_EmitsInlineStyle_ScalesInBothDirections()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
         // Phase P: width:100% (not max-width:100%) so the chart also extends
         // to fill a wider viewport — previously it stayed at intrinsic size
         // with whitespace when the container was wider than the natural width.
-        string svg = Plt.Create().Plot([0.0, 1.0], [0.0, 1.0]).ToSvg();
-        Assert.Contains("style=\"width:100%;height:auto\"", svg);
-        Assert.DoesNotContain("max-width:100%", svg);
-    }
-
-    [Fact]
-    public void Default_StillEmitsPixelWidthAndHeight_ForNaturalWidth()
-    {
+        new DrawnToken("Default_EmitsInlineStyle_ScalesInBothDirections", () => Plt.Create().Plot([0.0, 1.0], [0.0, 1.0]).ToSvg(), "style=\"width:100%;height:auto\"") { Absent = ["max-width:100%"] },
         // Regression guard for the playground's client-side PNG export path
         // (reads img.naturalWidth / naturalHeight). Dropping these attributes
         // would make the canvas rasterisation yield a 0×0 image.
-        string svg = Plt.Create().WithSize(640, 480).Plot([0.0, 1.0], [0.0, 1.0]).ToSvg();
-        Assert.Contains("width=\"640\"", svg);
-        Assert.Contains("height=\"480\"", svg);
-    }
+        new DrawnToken("Default_StillEmitsPixelWidthAndHeight_ForNaturalWidth", () => Plt.Create().WithSize(640, 480).Plot([0.0, 1.0], [0.0, 1.0]).ToSvg(), "width=\"640\"", "height=\"480\""),
+        new DrawnToken("WithResponsiveSvg_False_OmitsInlineStyle", () => Plt.Create()
+            .WithResponsiveSvg(false)
+            .Plot([0.0, 1.0], [0.0, 1.0])
+            .ToSvg()) { Absent = ["style=\"width:100%;height:auto\""] },
+        // Explicit opt-in path (equivalent to the default).
+        new DrawnToken("WithResponsiveSvg_True_AddsInlineStyle", () => Plt.Create()
+            .WithResponsiveSvg(true)
+            .Plot([0.0, 1.0], [0.0, 1.0])
+            .ToSvg(), "style=\"width:100%;height:auto\""),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Theory]
     [InlineData(600, 500)]
@@ -51,26 +55,5 @@ public class ResponsiveSvgTests
     {
         string svg = Plt.Create().WithSize(w, h).Plot([0.0, 1.0], [0.0, 1.0]).ToSvg();
         Assert.Contains($"viewBox=\"0 0 {w} {h}\"", svg);
-    }
-
-    [Fact]
-    public void WithResponsiveSvg_False_OmitsInlineStyle()
-    {
-        string svg = Plt.Create()
-            .WithResponsiveSvg(false)
-            .Plot([0.0, 1.0], [0.0, 1.0])
-            .ToSvg();
-        Assert.DoesNotContain("style=\"width:100%;height:auto\"", svg);
-    }
-
-    [Fact]
-    public void WithResponsiveSvg_True_AddsInlineStyle()
-    {
-        // Explicit opt-in path (equivalent to the default).
-        string svg = Plt.Create()
-            .WithResponsiveSvg(true)
-            .Plot([0.0, 1.0], [0.0, 1.0])
-            .ToSvg();
-        Assert.Contains("style=\"width:100%;height:auto\"", svg);
     }
 }

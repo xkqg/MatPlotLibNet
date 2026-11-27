@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Indicators.Steps;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -13,6 +14,9 @@ namespace MatPlotLibNet.Indicators;
 /// earnings day) it is the average price paid since that bar, and there is no value before it.</remarks>
 public sealed class Vwap : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>anchor</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultAnchor = 0;
+
     private readonly double[] _volumes;
     private readonly int _anchor;
 
@@ -20,11 +24,10 @@ public sealed class Vwap : PriceIndicator<SignalResult>
     /// <param name="prices">The price data (typically the typical price: (H+L+C)/3).</param>
     /// <param name="volumes">The volume data for each period, one per price.</param>
     /// <exception cref="ArgumentException">The prices and the volumes differ in number.</exception>
-    public Vwap(double[] prices, double[] volumes) : base(prices)
+    public Vwap(double[] prices, double[] volumes) : base(prices, Spec())
     {
         prices.ThrowIfMisaligned(volumes);
         _volumes = volumes;
-        Label = "VWAP";
     }
 
     /// <summary>Creates a new VWAP indicator over candles, from the first bar or from an anchor bar: the price of a bar is its
@@ -34,17 +37,13 @@ public sealed class Vwap : PriceIndicator<SignalResult>
     /// <param name="anchor">The index of the bar the average starts at, from 0 (the first bar, the default) to the last bar.</param>
     /// <exception cref="ArgumentException">The arrays of <paramref name="bars"/> differ in number.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="anchor"/> is below 0 or not before the end of the bars.</exception>
-    public Vwap(OhlcvBars bars, int anchor = 0) : base(TypicalPrices(bars))
+    public Vwap(OhlcvBars bars, int anchor = DefaultAnchor) : base(TypicalPrices(bars), Spec())
     {
-        if (anchor < 0 || anchor >= Prices.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(anchor), anchor, $"The anchor is the index of a bar, from 0 to {Prices.Length - 1}.");
-        }
-
         _volumes = bars.Volume;
-        _anchor = anchor;
-        Label = "VWAP";
+        _anchor = anchor.ThrowIfNotIndexOf(Prices.Length, nameof(anchor), "The anchor, the index of a bar,");
     }
+
+    internal static IndicatorSpec Spec() => IndicatorSpec.Of(0, "VWAP");
 
     /// <summary>The typical price of each bar, after checking that the arrays pair up.</summary>
     private static double[] TypicalPrices(OhlcvBars bars)
@@ -73,5 +72,5 @@ public sealed class Vwap : PriceIndicator<SignalResult>
 
     /// <inheritdoc />
     /// <remarks>The line is drawn from the anchor bar on: the bars before it have no value and are not drawn.</remarks>
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute().Values[_anchor..], _anchor);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute().Values[_anchor..]);
 }

@@ -8,29 +8,9 @@ namespace MatPlotLibNet.Tests.Packaging;
 /// Blazor components and the three npm bindings once carried a GPL line, copied from a template.</summary>
 public class LicenseHeaderContractTests
 {
-    private static readonly string Root = RepoRoot();
-
     private static readonly string[] Extensions = [".cs", ".razor", ".ts", ".tsx", ".vue", ".js"];
 
-    private static readonly string[] SkippedFolders = ["node_modules", "bin", "obj", "dist", ".git"];
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
-
-    private static IEnumerable<string> SourceFiles() =>
-        Directory.EnumerateFiles(Path.Combine(Root, "Src"), "*", SearchOption.AllDirectories)
-            .Where(f => Extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-            .Where(f => !f.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                .Any(part => SkippedFolders.Contains(part, StringComparer.Ordinal)));
+    private static IEnumerable<SourceFile> SourceFiles() => Extensions.SelectMany(extension => RepositoryTree.Files("Src", "*" + extension));
 
     [Fact]
     public void EverySourceFileThatNamesALicence_NamesTheMitLicence()
@@ -39,10 +19,10 @@ public class LicenseHeaderContractTests
 
         foreach (var file in SourceFiles())
         {
-            var header = File.ReadLines(file).Take(5).FirstOrDefault(l => l.Contains("Licensed under", StringComparison.Ordinal));
+            var header = file.Lines.Take(5).FirstOrDefault(l => l.Contains("Licensed under", StringComparison.Ordinal));
             if (header is not null && !header.Contains("MIT License", StringComparison.Ordinal))
             {
-                wrong.Add($"{Path.GetRelativePath(Root, file).Replace('\\', '/')}: {header.Trim()}");
+                wrong.Add($"{file.Path}: {header.Trim()}");
             }
         }
 

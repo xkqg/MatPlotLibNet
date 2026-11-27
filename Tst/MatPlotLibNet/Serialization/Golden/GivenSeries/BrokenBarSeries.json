@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"brokenbar","label":"text 2","categories":["layer 3.0","layer 3.1","layer 3.2"],"color":"#1BC33F","barHeight":0.25,"rangeStarts":[[1,4],[2],[0]],"rangeWidths":[[2,1],[1],[3]],"zOrder":7,"visible":false}]}]}

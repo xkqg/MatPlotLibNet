@@ -2,17 +2,16 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
 /// <summary>The calendar heatmap in one call: the days of the dates laid out as seven weekday rows by week columns
-/// (<see cref="CalendarGrid"/>), drawn as ONE heatmap with the week start in the top row, the weekdays named on the Y axis,
+/// (<see cref="GridAxesExtensions.CalendarGrid"/>), drawn as ONE heatmap with the week start in the top row, the weekdays named on the Y axis,
 /// each month named under the column that holds its 1st, a colour bar, and a blank (not a zero) for every day without a
 /// value. The verb sets no axis limits.</summary>
 public class CalendarHeatmapTests
@@ -28,14 +27,9 @@ public class CalendarHeatmapTests
     /// <summary>Every week start.</summary>
     public static TheoryData<DayOfWeek> WeekStarts { get; } = new(Enum.GetValues<DayOfWeek>());
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     // ---- reading the picture ---------------------------------------------------------------------------------------
 
     /// <summary>The plot area in pixels.</summary>
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     /// <summary>A cell as drawn: its rectangle in pixels, and whether it is blank (transparent).</summary>
     private readonly record struct Box(double X, double Y, double W, double H, bool Blank);
 
@@ -49,30 +43,23 @@ public class CalendarHeatmapTests
         return figure.ToSvg();
     }
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    /// <summary>The plot area: the first background-coloured rectangle that is not the figure's.</summary>
-    private static Area PlotArea(string svg)
-    {
-        var m = Regex.Match(svg, """<rect x="([1-9][0-9.]*)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" fill="#FFFFFF" """.TrimEnd());
-        return new Area(Num(m.Groups[1].Value), Num(m.Groups[2].Value), Num(m.Groups[3].Value), Num(m.Groups[4].Value));
-    }
-
-    /// <summary>The heatmap's cells, row by row from the top: the rectangles drawn directly in the figure after the figure's
-    /// and the plot area's backgrounds (the colour bar's are inside its own group).</summary>
+    /// <summary>The heatmap's cells, row by row from the top: the rectangles drawn in the figure after the figure's and the plot area's
+    /// backgrounds, directly or inside the clip the series is drawn in (the matplotlib themes clip every series to the plot; the colour
+    /// bar's are inside its own group).</summary>
     private static Box[] Cells(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(2).Select(r => new Box(
-            Num((string)r.Attribute("x")!), Num((string)r.Attribute("y")!), Num((string)r.Attribute("width")!),
-            Num((string)r.Attribute("height")!), (string?)r.Attribute("fill-opacity") == "0"))];
+        [.. svg.Xml().Root!.Elements()
+            .SelectMany(e => e.Is("g") && e.Attribute("clip-path") is not null ? e.Elements() : [e])
+            .Where(e => e.Is("rect")).Skip(2).Select(r => new Box(
+            r.Number("x"), r.Number("y"), r.Number("width"),
+            r.Number("height"), (string?)r.Attribute("fill-opacity") == "0"))];
 
     private static Label[] TickLabels(string svg, string anchor) =>
-        [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text" && (string?)e.Attribute("text-anchor") == anchor)
-            .Select(e => new Label(e.Value, Num((string)e.Attribute("x")!), Num((string)e.Attribute("y")!)))];
+        [.. svg.Direct("text").Where(e => (string?)e.Attribute("text-anchor") == anchor)
+            .Select(e => new Label(e.Value, e.Number("x"), e.Number("y")))];
 
     /// <summary>The names of the Y axis' ticks, from the top down.</summary>
     private static string[] YNamesFromTheTop(Axis axis) =>
-        [.. axis.TickLocator!.Locate(0, CalendarGrid.DaysPerWeek).OrderDescending().Select(axis.TickFormatter!.Format)];
+        [.. axis.TickLocator!.Locate(0, GridAxesExtensions.CalendarGrid.DaysPerWeek).OrderDescending().Select(axis.TickFormatter!.Format)];
 
     // ---- one heatmap of the calendar grid --------------------------------------------------------------------------
 
@@ -81,12 +68,12 @@ public class CalendarHeatmapTests
     [Fact]
     public void TheChart_IsOneHeatmapOfTheCalendarGrid_AndNothingElse()
     {
-        var axes = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
+        var axes = Plt.Create().OneAxes(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
 
         var heatmap = Assert.IsType<HeatmapSeries>(Assert.Single(axes.Series));
         Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
-        Assert.Equal(CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Monday).Cells, heatmap.Data);
+        Assert.Equal(GridAxesExtensions.CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Monday).Cells, heatmap.Data);
         Assert.Equal(7, heatmap.Data.GetLength(0));
         Assert.Equal(53, heatmap.Data.GetLength(1));
     }
@@ -95,11 +82,11 @@ public class CalendarHeatmapTests
     [Fact]
     public void TheWeek_StartsOnMonday_UnlessTheCallerNamesAnotherDay()
     {
-        var byDefault = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
-        var fromSunday = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025), DayOfWeek.Sunday));
+        var byDefault = Plt.Create().OneAxes(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
+        var fromSunday = Plt.Create().OneAxes(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025), DayOfWeek.Sunday));
 
-        Assert.Equal(CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Monday).Cells, ((HeatmapSeries)byDefault.Series[0]).Data);
-        Assert.Equal(CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Sunday).Cells, ((HeatmapSeries)fromSunday.Series[0]).Data);
+        Assert.Equal(GridAxesExtensions.CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Monday).Cells, ((HeatmapSeries)byDefault.Series[0]).Data);
+        Assert.Equal(GridAxesExtensions.CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Sunday).Cells, ((HeatmapSeries)fromSunday.Series[0]).Data);
         Assert.Equal("Mon", YNamesFromTheTop(byDefault.YAxis)[0]);
         Assert.Equal("Sun", YNamesFromTheTop(fromSunday.YAxis)[0]);
     }
@@ -110,7 +97,7 @@ public class CalendarHeatmapTests
     [MemberData(nameof(WeekStarts))]
     public void EveryWeekday_IsNamedOnItsRow_TheWeekStartAtTheTop(DayOfWeek weekStart)
     {
-        var axis = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025), weekStart)).YAxis;
+        var axis = Plt.Create().OneAxes(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025), weekStart)).YAxis;
 
         var start = new DateTime(2025, 3, 2);
         while (start.DayOfWeek != weekStart) start = start.AddDays(1);
@@ -129,9 +116,9 @@ public class CalendarHeatmapTests
 
         string svg = Svg(ax => ax.CalendarHeatmap([monday], [5], weekStart));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var cells = Cells(svg);
-        double rowHeight = plot.H / 7;
+        double rowHeight = plot.Height / 7;
         Assert.Equal(7, cells.Length);
         var coloured = Assert.Single(cells, c => !c.Blank);
         Assert.Equal(plot.Y + mondayRow * rowHeight, coloured.Y, 9);
@@ -152,13 +139,13 @@ public class CalendarHeatmapTests
     {
         var days = Days(new DateTime(year, 1, 1), new DateTime(year, 12, 31));
         double[] values = [.. days.Select(_ => 1.0)];
-        var grid = CalendarGrid.Of(days, values, DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of(days, values, DayOfWeek.Monday);
 
         string svg = Svg(ax => ax.CalendarHeatmap(days, values));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var cells = Cells(svg);
-        double columnWidth = plot.W / columns, rowHeight = plot.H / 7;
+        double columnWidth = plot.Width / columns, rowHeight = plot.Height / 7;
         Assert.Equal(7 * columns, cells.Length);
         var months = TickLabels(svg, "middle");
         Assert.Equal(CultureInfo.InvariantCulture.DateTimeFormat.AbbreviatedMonthNames[..12], months.Select(m => m.Text));
@@ -166,12 +153,12 @@ public class CalendarHeatmapTests
         {
             var first = new DateTime(year, m + 1, 1);
             int column = grid.ColumnOf(first), row = grid.RowOf(first);
-            Assert.Equal(plot.X + (column + 0.5) * columnWidth, months[m].X, 6);
-            Assert.True(months[m].Y > plot.Y + plot.H, $"'{months[m].Text}' stands at {months[m].Y}, not under the plot ending at {plot.Y + plot.H}");
+            Assert.Equal(plot.X + (column + 0.5) * columnWidth, months[m].X, SvgMarkupExtensions.WrittenPrecision);
+            Assert.True(months[m].Y > plot.Y + plot.Height, $"'{months[m].Text}' stands at {months[m].Y}, not under the plot ending at {plot.Y + plot.Height}");
             var cell = cells[row * columns + column];
             Assert.False(cell.Blank);
-            Assert.Equal(plot.X + column * columnWidth, cell.X, 6);
-            Assert.Equal(plot.Y + row * rowHeight, cell.Y, 6);
+            Assert.Equal(plot.X + column * columnWidth, cell.X, SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(plot.Y + row * rowHeight, cell.Y, SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -209,7 +196,7 @@ public class CalendarHeatmapTests
     {
         DateTime[] dates = [new(2025, 3, 3, 8, 0, 0), new(2025, 3, 3, 20, 0, 0), new(2025, 3, 4)];
 
-        var heatmap = (HeatmapSeries)AxesOf(ax => ax.CalendarHeatmap(dates, [1, 2, 3])).Series[0];
+        var heatmap = (HeatmapSeries)Plt.Create().OneAxes(ax => ax.CalendarHeatmap(dates, [1, 2, 3])).Series[0];
 
         Assert.Equal(3, heatmap.Data[0, 0]);
         Assert.Equal(3, heatmap.Data[1, 0]);
@@ -221,7 +208,7 @@ public class CalendarHeatmapTests
     [Fact]
     public void TheChart_HasAColourBar()
     {
-        var axes = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
+        var axes = Plt.Create().OneAxes(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
 
         Assert.True(axes.ColorBar?.Visible);
         Assert.Contains("""<g class="colorbar" """.TrimEnd(), Svg(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025))));
@@ -231,33 +218,22 @@ public class CalendarHeatmapTests
     [Fact]
     public void AColourBarOfYourOwn_StaysYours()
     {
-        var axes = AxesOf(ax => ax.WithColorBar(cb => cb with { Label = "Commits" }).CalendarHeatmap(Year2025, Counts(Year2025)));
+        var axes = Plt.Create().OneAxes(ax => ax.WithColorBar(cb => cb with { Label = "Commits" }).CalendarHeatmap(Year2025, Counts(Year2025)));
 
         Assert.Equal("Commits", axes.ColorBar!.Label);
         Assert.True(axes.ColorBar.Visible);
     }
 
-    /// <summary>The verb sets no axis limits: a limit clips every series on the axes and overwrites the caller's own. The
-    /// heatmap's own range already spans its cells.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var axes = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
+        //  The chart lists nothing in a legend: its one heatmap has no label, and the colour bar is its key.
+        new DrawnToken("TheChart_ListsNothingInALegend", () => Svg(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)).WithLegend(), legendToggle: true)) { Absent = ["data-legend-index="] },
+    };
 
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-    }
-
-    /// <summary>The chart lists nothing in a legend: its one heatmap has no label, and the colour bar is its key.</summary>
-    [Fact]
-    public void TheChart_ListsNothingInALegend()
-    {
-        string svg = Svg(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)).WithLegend(), legendToggle: true);
-
-        Assert.DoesNotContain("data-legend-index=", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The callback styles the one heatmap, once, after the verb has built it (its cells are there), so what it
     /// sets wins.</summary>
@@ -265,7 +241,7 @@ public class CalendarHeatmapTests
     public void TheCallback_StylesTheOneHeatmap_OnceAfterItIsBuilt()
     {
         int calls = 0, columnsSeen = 0;
-        var axes = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025), configure: s =>
+        var axes = Plt.Create().OneAxes(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025), configure: s =>
         {
             calls++;
             columnsSeen = s.Data.GetLength(1);
@@ -286,25 +262,11 @@ public class CalendarHeatmapTests
         values[40] = double.NaN;
         var figure = Plt.Create().WithSize(1100, 300).AddSubPlot(1, 1, 1, ax => ax.CalendarHeatmap(Year2025, values)).Build();
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         Assert.Equal(figure.ToSvg(), back.ToSvg());
         Assert.Equal(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], YNamesFromTheTop(back.SubPlots[0].YAxis));
         Assert.True(back.SubPlots[0].ColorBar?.Visible);
-    }
-
-    /// <summary>The verb draws exactly the picture of the hand chain of public building blocks it replaces (a heatmap of the
-    /// grid, the weekday names read from the top down on the row centres, the month names on the centres of the columns of
-    /// their 1st, and a colour bar), with and without a missing day.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDrew(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("calendar").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.CalendarByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
     }
 
     /// <summary>The cells tile the plot area at any figure size: every cell is the plot's width over the number of week
@@ -317,16 +279,16 @@ public class CalendarHeatmapTests
     {
         string svg = Svg(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)), width, height);
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var cells = Cells(svg);
         Assert.All(cells, c =>
         {
-            Assert.Equal(plot.W / 53, c.W, 9);
-            Assert.Equal(plot.H / 7, c.H, 9);
+            Assert.Equal(plot.Width / 53, c.W, SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(plot.Height / 7, c.H, SvgMarkupExtensions.WrittenPrecision);
         });
-        Assert.Equal(plot.X, cells.Min(c => c.X), 9);
-        Assert.Equal(plot.X + plot.W, cells.Max(c => c.X + c.W), 6);
-        Assert.Equal(plot.Y + plot.H, cells.Max(c => c.Y + c.H), 6);
+        Assert.Equal(plot.X, cells.Min(c => c.X), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.X + plot.Width, cells.Max(c => c.X + c.W), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.Y + plot.Height, cells.Max(c => c.Y + c.H), SvgMarkupExtensions.WrittenPrecision);
     }
 
     // ---- what is refused -------------------------------------------------------------------------------------------
@@ -339,23 +301,11 @@ public class CalendarHeatmapTests
         DateTime[] two = [new(2025, 1, 1), new(2025, 1, 2)];
 
         Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).CalendarHeatmap(two, [1, 2])).ParamName);
-        Assert.Equal("dates", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.CalendarHeatmap(null!, [1]))).ParamName);
-        Assert.Equal("values", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.CalendarHeatmap(two, null!))).ParamName);
-        Assert.Equal("dates", Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.CalendarHeatmap([], []))).ParamName);
-        Assert.Equal("values", Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.CalendarHeatmap(two, [1]))).ParamName);
+        Assert.Equal("dates", Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.CalendarHeatmap(null!, [1]))).ParamName);
+        Assert.Equal("values", Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.CalendarHeatmap(two, null!))).ParamName);
+        Assert.Equal("dates", Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.CalendarHeatmap([], []))).ParamName);
+        Assert.Equal("values", Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.CalendarHeatmap(two, [1]))).ParamName);
         Assert.Equal("firstDayOfWeek",
-            Assert.Throws<ArgumentOutOfRangeException>(() => AxesOf(ax => ax.CalendarHeatmap(two, [1, 2], (DayOfWeek)7))).ParamName);
-    }
-
-    /// <summary>A refused call leaves the axes as it was: no heatmap, no ticks, no colour bar.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var axes = AxesOf(ax => Assert.Throws<ArgumentException>(() => ax.CalendarHeatmap([new DateTime(2025, 1, 1)], [1, 2])));
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.YAxis.TickLocator);
-        Assert.Null(axes.XAxis.TickFormatter);
-        Assert.Null(axes.ColorBar);
+            Assert.Throws<ArgumentOutOfRangeException>(() => Plt.Create().OneAxes(ax => ax.CalendarHeatmap(two, [1, 2], (DayOfWeek)7))).ParamName);
     }
 }

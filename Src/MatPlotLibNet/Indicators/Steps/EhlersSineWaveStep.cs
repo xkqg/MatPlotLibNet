@@ -13,10 +13,10 @@ internal readonly record struct SineWavePoint(double SineWave, double LeadSine, 
 /// <see cref="Streaming.StreamingEhlersSineWave"/> takes one price at a time. From the seventh bar (the first six only feed the
 /// <see cref="HilbertStep"/>) the sine wave is read off the phase of the dominant cycle, and the bar is in a cycle when the phase moves
 /// within 50 degrees of 360 over the period. Before the seventh bar the step says NaN and not cyclic.</summary>
-internal struct EhlersSineWaveStep
+internal struct EhlersSineWaveStep : IPriceStep<SineWavePoint>
 {
     private const double CyclicToleranceDegrees = 50.0;
-    private const double FortyFiveRad = 45.0 * Math.PI / 180.0;
+    private static readonly double FortyFiveRad = 45.0.ToRadians();
 
     private HilbertStep _hilbert = new();
     private double _previousPhase;
@@ -29,7 +29,7 @@ internal struct EhlersSineWaveStep
 
     /// <summary>Takes one price and returns the sine wave, or NaN before the seventh price.</summary>
     /// <param name="price">The price.</param>
-    internal SineWavePoint Next(double price)
+    public SineWavePoint Next(double price)
     {
         int i = _count++;
         var row = _hilbert.Next(price);
@@ -37,7 +37,7 @@ internal struct EhlersSineWaveStep
         _previousPhase = row.Phase;
         if (i < 6) return new SineWavePoint(double.NaN, double.NaN, false);
 
-        double phaseRad = row.Phase * Math.PI / 180.0;
+        double phaseRad = row.Phase.ToRadians();
         double expectedRate = 360.0 / row.Period;
         double actualRate = Math.Abs(row.Phase - previousPhase);
         return new SineWavePoint(

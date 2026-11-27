@@ -69,18 +69,6 @@ public class AnchoredVwapTests
 
     // ---- the anchor must be a bar ------------------------------------------------------------------------------------------
 
-    /// <summary>An anchor below 0, or at or past the last bar, is no bar: refused, naming the parameter.</summary>
-    [Theory]
-    [InlineData(-1)]
-    [InlineData(4)]
-    [InlineData(9)]
-    public void AnAnchorThatIsNoBar_IsRefused(int anchor)
-    {
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() => new Vwap(Flat(Prices, Volumes), anchor));
-
-        Assert.Equal("anchor", error.ParamName);
-    }
-
     [Fact]
     public void NoBars_HaveNoAnchor()
     {
@@ -100,27 +88,6 @@ public class AnchoredVwapTests
     }
 
     // ---- bars that do not pair up ------------------------------------------------------------------------------------------
-
-    /// <summary>Prices and volumes of different lengths are refused instead of silently cut to the shorter (what the constructor
-    /// that takes the arrays used to do, and what every other indicator in the library has refused since 1.24.0).</summary>
-    [Fact]
-    public void PricesAndVolumesThatDoNotPairUp_AreRefused()
-    {
-        var error = Assert.Throws<ArgumentException>(() => new Vwap([10, 20, 30], [1, 1]));
-
-        Assert.Equal("Array lengths must match. Got 3 and 2.", error.Message);
-    }
-
-    /// <summary>Bars made by hand with a volume of another length are refused too, whichever array is the odd one.</summary>
-    [Fact]
-    public void BarsWhoseArraysDoNotPairUp_AreRefused()
-    {
-        double[] three = [1, 2, 3], two = [1, 2];
-
-        Assert.Throws<ArgumentException>(() => new Vwap(new OhlcvBars(three, three, three, [], two)));
-        Assert.Throws<ArgumentException>(() => new Vwap(new OhlcvBars(three, two, three, [], three)));
-        Assert.Throws<ArgumentException>(() => new Vwap(new OhlcvBars(three, three, two, [], three)));
-    }
 
     // ---- the streaming form ------------------------------------------------------------------------------------------------
 
@@ -183,16 +150,5 @@ public class AnchoredVwapTests
         var indicator = Assert.IsType<LineSeries>(Assert.Single(byIndicator.Series));
         Assert.Equal(indicator.XData, shortcut.XData);
         Assert.Equal(indicator.YData, shortcut.YData);
-    }
-
-    [Fact]
-    public void TheShortcut_RunsItsCallbackOnTheIndicator_Once()
-    {
-        int calls = 0;
-
-        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Vwap(Flat(Prices, Volumes), 2, vwap => { calls++; vwap.Label = "from the gap"; })).Build().SubPlots[0];
-
-        Assert.Equal(1, calls);
-        Assert.Equal("from the gap", Assert.Single(axes.Series).Label);
     }
 }

@@ -47,9 +47,12 @@ Plt.Create()
 
 ![Globe — Orthographic](../images/geo_globe.png)
 
+A country that crosses the horizon of the globe is cut there, as cartopy cuts it: the land runs up to the globe's edge and the
+coastlines end on it.
+
 ## Full-featured world map (Mollweide)
 
-Combine `Land()`, `Ocean()`, `Coastlines()`, and `Borders()` for a complete map:
+Combine `Land(color)`, `Ocean(color)`, `Coastlines()`, and `Borders()` for a complete map:
 
 ```csharp
 var proj = GeoProjection.Mollweide;
@@ -112,7 +115,7 @@ for (int i = 0; i < 4; i++)
     builder.AddSubPlot(2, 2, i + 1, ax => ax
         .WithProjection(proj)
         .Coastlines(proj, Css4Colors.DarkBlue, lineWidth: 0.6)
-        .Land(proj, Colors.Wheat)
+        .Land(proj, Css4Colors.Wheat)
         .WithTitle(name));
 }
 
@@ -138,7 +141,7 @@ Plt.Create()
 
 ## Loading custom GeoJSON
 
-Use `GeoJsonReader.Parse()` to load your own GeoJSON files:
+Use `GeoJsonReader.Parse(json)` to load your own GeoJSON files:
 
 ```csharp
 using MatPlotLibNet.Geo.GeoJson;
@@ -226,7 +229,7 @@ Plt.Create()
 ## Bubbles on a map
 
 `Points` and `Bubbles` mark places by latitude and longitude. The area of a bubble is in proportion to its value, the
-largest 400 square points. A place the projection cannot place, such as the far side of an orthographic globe, is left out;
+largest drawn as a scatter marker of size 400 (20 points across). A place the projection cannot place, such as the far side of an orthographic globe, is left out;
 `HexBins(latitudes, longitudes)` bins places into hexagons in the plane of the map instead.
 
 ```csharp
@@ -253,6 +256,68 @@ Plt.Create()
 ```
 
 ![Fourteen amber bubbles at the largest cities on a dark green world map](../images/bubble_map.png)
+
+## The cells of the H3 index
+
+`H3Bins(latitudes, longitudes, resolution)` counts places into the cells of Uber's H3 index at one resolution, from 0 (122
+cells over the globe, about 1,100 km across) to 15 (under a metre), each step about seven times as many cells, and colours each
+cell that holds a place by how many it holds. `H3Cells(values, colorMap)` colours the cells you name by their index, as H3
+writes one (`8928308280fffff`, in either case), each by its value; an index that is not a cell is refused. Where the hexagons
+of `HexBins` are as wide in the picture everywhere, an H3 cell is about as large on the globe everywhere, so the projection
+stretches the cells near the poles. A cell that crosses the antimeridian is cut there and drawn at both edges of the map, and
+one that goes round a pole is closed along it. Both draw a `GeoPolygonSeries`: each region keeps its index in the property
+`h3`, `WithColorBar()` reads the range of the values, and the JSON carries the cells. The cells come from pocketken.H3, a
+managed port of the H3 library under the Apache licence, which the Geo package brings with it.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Geo;
+using MatPlotLibNet.Geo.Data;
+using MatPlotLibNet.Geo.Projections;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
+
+var coast = NaturalEarth110m.Coastlines().SelectMany(line => line.Geometry.PositionRings).SelectMany(ring => ring).ToArray();
+double[] lat = [.. coast.Select(p => p.Lat)];
+double[] lon = [.. coast.Select(p => p.Lon)];
+
+Plt.Create()
+    .WithTitle("Coastline points in each H3 cell at resolution 1")
+    .WithSize(1000, 560)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithProjection(GeoProjection.Robinson)
+        .Ocean(Color.FromHex("#dfeaf5"))
+        .Land(Color.FromHex("#cfcfcf"))
+        .H3Bins(lat, lon, 1, cells => cells.ColorMap = ColorMaps.Viridis)
+        .WithColorBar()
+        .WithLegend(visible: false))
+    .Save("h3_bins.svg");
+```
+
+![The H3 cells along every coast coloured by how many coastline points each holds, the cells at the antimeridian cut at the edge of the map](../images/h3_bins.png)
+
+Cells you already have, by their index:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Geo;
+using MatPlotLibNet.Geo.Projections;
+using MatPlotLibNet.Styling.ColorMaps;
+
+var tripsOf = new Dictionary<string, double>
+{
+    ["85283083fffffff"] = 120,   // San Francisco, resolution 5
+    ["85196953fffffff"] = 75,    // Amsterdam
+};
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithProjection(GeoProjection.PlateCarree)
+        .Coastlines()
+        .H3Cells(tripsOf, ColorMaps.Plasma)
+        .WithColorBar())
+    .Save("h3_cells.svg");
+```
 
 ## Flows between places
 
@@ -325,12 +390,58 @@ Plt.Create()
 
 ![Above, the countries resized by population; below, a bubble at the centre of each country](../images/cartogram_dorling.png)
 
+## Countries that still meet at their borders
+
+`ContiguousCartogram` resizes the countries by a value as `Cartogram` does, but bends them so that they still meet at their
+borders: a contiguous cartogram, made by the fast flow-based method of Gastner, Seguy and More. A country of many people grows
+and pushes its neighbours aside, a country of few shrinks, and a border two countries share stays one line. A country that
+is not in the dictionary keeps about the area it has, and the countries together keep the area they have on the map.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Geo;
+using MatPlotLibNet.Geo.Data;
+using MatPlotLibNet.Geo.Projections;
+using MatPlotLibNet.Styling;
+
+var populationOf = NaturalEarth110m.Countries()
+    .Where(country => country.NumberOf("POP_EST") > 0)
+    .ToDictionary(country => country.Properties["ADM0_A3"], country => country.NumberOf("POP_EST"));
+
+Plt.Create()
+    .WithTitle("Population — the countries resized, still meeting at their borders")
+    .WithSize(1000, 560)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithProjection(GeoProjection.Robinson)
+        .Ocean(Color.FromHex("#dfeaf5"))
+        .ContiguousCartogram(populationOf, s => { s.Color = Color.FromHex("#d95f02"); s.StrokeColor = Colors.White; })
+        .WithLegend(visible: false))
+    .Save("cartogram_contiguous.svg");
+```
+
+![The countries resized by population and still meeting at their borders: India and China swollen across Asia, Russia, Canada and Australia thinned](../images/cartogram_contiguous.png)
+
+The countries are moved on a lattice 512 cells across the longer side of the map, and the flow is laid again on the moved
+countries until each is within 1 % of its area, at most twenty times. On this map 148 of the 149 countries with a share large enough to
+draw end within 1 %; a country a few cells across, such as Mongolia, cannot be resized to the cell and ends within 10 %. A country whose share is
+too small to draw its outline, such as Antarctica on a map of population, takes the smallest share its outline allows: at
+least 2.5 % of its share of all the borders, and at least 0.025 % of the map. Making this map takes about 0.8 s of
+processor time; the other layers take a few milliseconds.
+
 ## One projection, and a map in JSON
 
 A map axes has one projection: `WithProjection` records it and every layer reads it, so `Land(color)`, `Ocean(color)`,
 `Borders()` and `Coastlines()` need no projection of their own (a layer asked for before the axes has one is refused with
 "call WithProjection first"). A layer that is given a projection has to give the axes' own, the same kind with the same
 numbers, or it is refused with an `ArgumentException` naming both.
+
+A map keeps its projection's shape, as cartopy's maps do: one unit of Y is as long as one unit of X, so the plot is the
+largest rectangle of the projection's proportions in its cell, centred, and its limits are the projection's own under every
+theme. A Robinson world is about half as high as it is wide, an orthographic globe a circle. `SetAspect` gives a map another
+ratio. The limits are the projection's own until you set others: `SetXLim` and `SetYLim`, or a zoom or a pan of an interactive map,
+move the map with the marks placed on it. `Ocean` fills the projection's outline: the oval of a world map, the circle of a globe, the rectangle of a cylindrical or
+a conic map. Under the matplotlib themes the axes' background is the area inside that outline and the outline is drawn round the
+map in the theme's spine, as cartopy frames a map.
 
 A figure that holds a map comes back from JSON whole: the series writes its projection (its kind and the numbers it was made
 with, by their PROJ names `lon_0`, `lat_0`, `lat_1`, `lat_2`), its features (the id of the built-in set, or a GeoJSON
@@ -383,13 +494,15 @@ foreach (var country in countries)
 |---|---|---|
 | `.WithProjection(proj)` | `IGeoProjection` | Set the axes' one projection, hide axes chrome |
 | `.Coastlines(...)` | `color?`, `lineWidth` (0.5) | Natural Earth 110m coastlines; takes the axes' projection, or one equal to it |
-| `.Borders(...)` | `color?`, `lineWidth` (0.3) | Natural Earth 110m country borders; takes the axes' projection, or one equal to it |
+| `.Borders(...)` | `color?`, `lineWidth` (0.3) | Natural Earth 110m boundaries between countries on land (a coast is the coastlines'); takes the axes' projection, or one equal to it |
 | `.Ocean(color)` | `Color` | Fill ocean areas |
 | `.Land(color)` | `Color` | Fill land areas |
 | `.Choropleth(values, colorMap)`, `.Choropleth("POP_EST", colorMap)` | values by `ADM0_A3`, or a numeric property | Colour each country by a value |
 | `.Points(lat, lon)`, `.Bubbles(lat, lon, values)`, `.HexBins(lat, lon)` | arrays of latitudes and longitudes | Places, bubbles and hexagon bins |
+| `.H3Bins(lat, lon, resolution)`, `.H3Cells(values, colorMap)` | places and a resolution (0 to 15), or values by H3 index | The cells of the H3 index, coloured by how many places each holds or by a value |
 | `.Flows(flows, color, maxWidth)` | `GeoFlow[]` | A great-circle line for each flow, as wide as its quantity |
 | `.Cartogram(values)`, `.Dorling(values)` | values by `ADM0_A3` | Countries resized by a value, or a bubble at each |
+| `.ContiguousCartogram(values)` | values by `ADM0_A3` | Countries resized by a value so that they still meet at their borders |
 | `GeoJsonReader.Parse(json)` | `string` | Parse custom GeoJSON FeatureCollection |
 | `NaturalEarth110m.Coastlines()` | — | 134 coastline features |
 | `NaturalEarth110m.Countries()` | — | 177 country polygon features |

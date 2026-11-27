@@ -78,14 +78,17 @@ public class Css4ColorTests
         Assert.Equal(Color.FromName("darkslategray"), Color.FromName("darkslategrey"));
     }
 
+    /// <summary>The table of names is made by the properties: every one is in it under its own name in lower case, with its value, and
+    /// the table holds nothing else (one list of the 148 names, never a second one beside it).</summary>
     [Fact]
-    public void Css4Colors_StaticProperties_MatchFromName()
+    public void Css4Colors_TheTableOfNames_IsTheProperties()
     {
-        Assert.Equal(Css4Colors.AliceBlue,       Color.FromName("aliceblue"));
-        Assert.Equal(Css4Colors.CornflowerBlue,  Color.FromName("cornflowerblue"));
-        Assert.Equal(Css4Colors.RebeccaPurple,   Color.FromName("rebeccapurple"));
-        Assert.Equal(Css4Colors.LawnGreen,       Color.FromName("lawngreen"));
-        Assert.Equal(Css4Colors.MidnightBlue,    Color.FromName("midnightblue"));
+        var properties = typeof(Css4Colors).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(p => p.PropertyType == typeof(Color)).ToDictionary(p => p.Name.ToLowerInvariant(), p => (Color)p.GetValue(null)!);
+
+        Assert.Equal(properties.Count, Css4Colors.All.Count);
+        foreach (var (name, colour) in properties)
+            Assert.Equal(colour, Css4Colors.All[name]);
     }
 
     [Fact]

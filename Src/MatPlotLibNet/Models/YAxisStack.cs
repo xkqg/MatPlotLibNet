@@ -13,15 +13,23 @@ namespace MatPlotLibNet.Models;
 /// <para>The OUTWARD index is the numbering the interaction wire and the 1.23.0 JSON fields use: it counts only the
 /// slots past the primary, so outward index <c>i</c> is stack index <c>i + </c><see cref="OutwardOffset"/>
 /// (left: <c>i + 1</c>; right: <c>i</c>). <see cref="SlotAtOutward"/> is the one place that converts.</para></remarks>
-public sealed class YAxisStack : IReadOnlyList<YAxisSlot>
+public sealed class YAxisStack : IReadOnlyList<YAxisSlot>, IChangeTracked
 {
-    private readonly List<YAxisSlot> _slots = [];
+    private readonly StampedList<YAxisSlot> _slots = new();
+    private readonly Axes _owner;
+
+    /// <summary>The mark of the newest change to this side: a slot added, or a change to any slot.</summary>
+    internal long LatestChange => _slots.LatestChange;
+
+    long IChangeTracked.LatestChange => LatestChange;
 
     /// <param name="side">The side every slot of this stack stands on.</param>
     /// <param name="primarySlots">How many slots the stack holds from birth — the primary Y axis on the left (1), none
     /// on the right (0). They come before every outward slot, so this is also the <see cref="OutwardOffset"/>.</param>
-    internal YAxisStack(AxisSide side, int primarySlots)
+    /// <param name="owner">The axes the stack belongs to, which every slot of it hands the series added there.</param>
+    internal YAxisStack(AxisSide side, int primarySlots, Axes owner)
     {
+        _owner = owner;
         Side = side;
         OutwardOffset = primarySlots;
         for (int i = 0; i < primarySlots; i++) Add();
@@ -43,7 +51,30 @@ public sealed class YAxisStack : IReadOnlyList<YAxisSlot>
     /// <summary>How many series stand on the slots past the primary, summed over those slots: the series that follow the
     /// primary's in the subplot's series numbering (<see cref="Axes.AllSeries"/>). The primary Y axis' own series
     /// (<see cref="Axes.Series"/>) never count, whatever the side.</summary>
-    internal int OutwardSeriesCount => _slots.Skip(OutwardOffset).Sum(slot => slot.Series.Count);
+    internal int OutwardSeriesCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = OutwardOffset; i < _slots.Count; i++) count += _slots[i].Series.Count;
+            return count;
+        }
+    }
+
+    /// <summary>True when an axis of this side has a limit of its own range (<see cref="Axis.LimitsItsOwnRange"/>), asked by
+    /// walking the slots without allocating: the series clip asks it once per series per draw (<c>Axes.HasExplicitLimit</c>).</summary>
+    internal bool AnyLimitsItsOwnRange
+    {
+        get
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].Axis.LimitsItsOwnRange) return true;
+            }
+
+            return false;
+        }
+    }
 
     /// <summary>The slot at stack index <paramref name="index"/>, 0 nearest the plot.</summary>
     /// <param name="index">The stack index.</param>
@@ -58,7 +89,7 @@ public sealed class YAxisStack : IReadOnlyList<YAxisSlot>
     /// rate.AddSeries(new LineSeries(x, y));</code></example>
     public YAxisSlot Add()
     {
-        var slot = new YAxisSlot(Side);
+        var slot = new YAxisSlot(Side, _owner);
         _slots.Add(slot);
         return slot;
     }
@@ -78,7 +109,7 @@ public sealed class YAxisStack : IReadOnlyList<YAxisSlot>
 
     /// <summary>Enumerates the slots nearest the plot first, the primary included on the left.</summary>
     /// <returns>An enumerator over the slots in stack order.</returns>
-    public IEnumerator<YAxisSlot> GetEnumerator() => _slots.GetEnumerator();
+    public IEnumerator<YAxisSlot> GetEnumerator() => ((IEnumerable<YAxisSlot>)_slots).GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

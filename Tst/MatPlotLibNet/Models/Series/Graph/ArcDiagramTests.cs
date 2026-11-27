@@ -28,25 +28,18 @@ public class ArcDiagramTests
             .NetworkGraph(nodes ?? Five, edges, s => { s.Layout = GraphLayout.Arc; s.ShowNodeLabels = false; configure?.Invoke(s); })
             .SetAspect(1)).Build();
 
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
-
     private static List<Point> NodeCentres(RecordingRenderContext drawn) =>
-        [.. drawn.OfKind("DrawCircle").Select(call => (Point)((dynamic)call.Args!).center)];
+        [.. drawn.Of<DrawCircleCall>().Select(call => call.Center)];
 
     private static List<PathSegment[]> Arcs(RecordingRenderContext drawn) =>
-        [.. drawn.OfKind("DrawPath").Select(call => (PathSegment[])((dynamic)call.Args!).segments)];
+        [.. drawn.Of<DrawPathCall>().Select(call => call.Segments)];
 
     [Fact]
     public void TheNodes_StandInARow_InTheOrderTheyAreStored_WhateverTheEdgesAndTheirOwnCoordinates()
     {
         GraphNode[] nodes = [new("a", 9, 9), new("b", -4, 2), new("c", 1, 1)];
 
-        var positioned = NetworkGraphLayouts.Apply(GraphLayout.Arc, nodes, [E("c", "a")]);
+        var positioned = GraphLayoutAlgorithm.Arc.Place(nodes, [E("c", "a")]);
 
         Assert.Equal([0.0, 1.0, 2.0], positioned.Select(node => node.X));
         Assert.All(positioned, node => Assert.Equal(0.0, node.Y));
@@ -56,7 +49,7 @@ public class ArcDiagramTests
     [Fact]
     public void AnArcStartsAndEndsOnTheNodesPixels_ExactlyOnePerEdge()
     {
-        var drawn = Drawn(Of([E("a", "d"), E("b", "c"), E("e", "b")]));
+        var drawn = Of([E("a", "d"), E("b", "c"), E("e", "b")]).Drawn();
         var centres = NodeCentres(drawn);
         var arcs = Arcs(drawn);
 
@@ -76,7 +69,7 @@ public class ArcDiagramTests
     [Fact]
     public void AnArc_IsTwoBezierCurves_MeetingAtAnApexOverTheMiddleOfTheTwoNodes()
     {
-        var drawn = Drawn(Of([E("a", "e")]));
+        var drawn = Of([E("a", "e")]).Drawn();
         var centres = NodeCentres(drawn);
         var arc = Assert.Single(Arcs(drawn));
 
@@ -89,7 +82,7 @@ public class ArcDiagramTests
     [Fact]
     public void UnderAnAspectOfOne_TheArcIsAHalfCircle_TheApexAtHalfTheDistanceOfItsNodes()
     {
-        var drawn = Drawn(Of([E("a", "e"), E("b", "d")]));
+        var drawn = Of([E("a", "e"), E("b", "d")]).Drawn();
         var centres = NodeCentres(drawn);
 
         foreach (var (arc, (from, to)) in Arcs(drawn).Zip(new[] { (0, 4), (1, 3) }))
@@ -103,7 +96,7 @@ public class ArcDiagramTests
     [Fact]
     public void TheCurvesOfAnArc_FollowTheQuarterCircleConstant()
     {
-        var drawn = Drawn(Of([E("a", "c")]));
+        var drawn = Of([E("a", "c")]).Drawn();
         var centres = NodeCentres(drawn);
         var arc = Assert.Single(Arcs(drawn));
         const double k = 0.5522847498307936;
@@ -127,26 +120,28 @@ public class ArcDiagramTests
     {
         GraphEdge[] edges = [new("a", "e", 2.5), new("b", "d", 0.75)];
 
-        var shown = Drawn(Of(edges, s => s.ShowEdgeWeights = true));
-        var hidden = Drawn(Of(edges));
+        var shown = Of(edges, s => s.ShowEdgeWeights = true).Drawn();
+        var hidden = Of(edges).Drawn();
 
         // The axes draw their tick labels either way; the weights are the two texts that only the first figure has.
-        Assert.Equal(hidden.OfKind("DrawText").Count() + 2, shown.OfKind("DrawText").Count());
-        var texts = shown.OfKind("DrawText").Select(call => (dynamic)call.Args!).ToList();
+        Assert.Equal(hidden.Of<DrawTextCall>().Count() + 2, shown.Of<DrawTextCall>().Count());
+        var texts = shown.Of<DrawTextCall>().ToList();
         var apexes = Arcs(shown).Select(arc => ((BezierSegment)arc[1]).End).ToList();
         string[] weights = ["2.5", "0.75"];
         for (int i = 0; i < apexes.Count; i++)
         {
-            var label = Assert.Single(texts, text => Math.Abs(((Point)text.position).X - apexes[i].X) < 1e-9 && Math.Abs(((Point)text.position).Y - apexes[i].Y) < 1e-9);
-            Assert.Equal(weights[i], (string)label.text);
-            Assert.Equal(TextAlignment.Center, (TextAlignment)label.alignment);
+            // Centred on the apex: its baseline 0.35 of its ascent (the font size, by the box's rule) below it.
+            var label = Assert.Single(texts, text => Math.Abs((text.Position).X - apexes[i].X) < 1e-9
+                && Math.Abs((text.Position).Y - 0.35 * ((MatPlotLibNet.Styling.Font)text.Font).Size - apexes[i].Y) < 1e-9);
+            Assert.Equal(weights[i], label.Text);
+            Assert.Equal(TextAlignment.Center, label.Alignment);
         }
     }
 
     [Fact]
     public void AnEdgeBackwards_IsTheSameArcAboveTheRow_ItJustRunsTheOtherWay()
     {
-        var drawn = Drawn(Of([E("d", "a")]));
+        var drawn = Of([E("d", "a")]).Drawn();
         var centres = NodeCentres(drawn);
         var arc = Assert.Single(Arcs(drawn));
 
@@ -159,8 +154,8 @@ public class ArcDiagramTests
     public void TheArcs_AlwaysFitTheRange_ZeroToNMinusOneAlongXAndZeroToHalfOfThatAlongY()
     {
         var figure = Of([E("a", "e"), E("a", "c")]);
-        var plot = new ChartRenderer().ComputeLayout(figure, new MatPlotLibNet.Rendering.Svg.SvgRenderContext()).PlotAreas[0];
-        var arcs = Arcs(Drawn(figure));
+        var plot = figure.FirstPlotArea();
+        var arcs = Arcs(figure.Drawn());
 
         foreach (var arc in arcs)
         {
@@ -178,17 +173,17 @@ public class ArcDiagramTests
         var series = new NetworkGraphSeries(Five, [E("a", "a"), E("a", "b")]) { Layout = GraphLayout.Arc };
         var figure = Plt.Create().WithSize(800, 500).AddSubPlot(1, 1, 1, ax => ax.NetworkGraph(Five, [E("a", "a"), E("a", "b")], s => s.Layout = GraphLayout.Arc)).Build();
 
-        Assert.Single(Arcs(Drawn(figure)));
+        Assert.Single(Arcs(figure.Drawn()));
         Assert.Equal(2, series.ToDataTable()!.Rows.Count);
     }
 
     [Fact]
     public void ADirectedEdge_HasItsHeadOnTheEndNode_PointingAlongTheEndOfTheArc()
     {
-        var drawn = Drawn(Of([E("a", "e", directed: true)]));
+        var drawn = Of([E("a", "e", directed: true)]).Drawn();
         var centres = NodeCentres(drawn);
 
-        var head = Assert.Single(drawn.OfKind("DrawPolygon").Select(call => (Point[])((dynamic)call.Args!).points));
+        var head = Assert.Single(drawn.Polygons());
 
         // The arc comes down straight onto the node: the head's tip is the node's pixel and its base is above it, at its own x.
         Assert.Contains(head, p => Math.Abs(p.X - centres[4].X) < 1e-6 && Math.Abs(p.Y - centres[4].Y) < 1e-6);
@@ -198,7 +193,7 @@ public class ArcDiagramTests
     [Fact]
     public void AnUndirectedEdge_HasNoHead()
     {
-        Assert.Empty(Drawn(Of([E("a", "e")])).OfKind("DrawPolygon"));
+        Assert.Empty(Of([E("a", "e")]).Drawn().Of<DrawPolygonCall>());
     }
 
     [Fact]
@@ -206,7 +201,7 @@ public class ArcDiagramTests
     {
         var figure = Of([E("a", "d"), E("b", "c", directed: true)]);
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         Assert.Equal(GraphLayout.Arc, Assert.IsType<NetworkGraphSeries>(Assert.Single(back.SubPlots[0].Series)).Layout);
         Assert.Equal(figure.ToSvg(), back.ToSvg());
@@ -218,9 +213,9 @@ public class ArcDiagramTests
         var figure = Plt.Create().WithSize(800, 500).AddSubPlot(1, 1, 1, ax => ax
             .NetworkGraph(Five, [E("a", "d")], s => s.Layout = GraphLayout.Circular)).Build();
 
-        var drawn = Drawn(figure);
+        var drawn = figure.Drawn();
 
-        Assert.Empty(drawn.OfKind("DrawPath"));
-        Assert.NotEmpty(drawn.OfKind("DrawLine"));
+        Assert.Empty(drawn.Of<DrawPathCall>());
+        Assert.NotEmpty(drawn.Of<DrawLineCall>());
     }
 }

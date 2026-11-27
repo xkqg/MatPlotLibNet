@@ -14,6 +14,9 @@
          behavioural assertions (Phase 1 of the v1.7.2 interaction-hardening plan).
          MIT-licensed, pure managed code — no native deps. -->
     <PackageReference Include="Jint" Version="4.*" />
+    <!-- The compiler reads the type of every value that becomes text in the packages' sources (NumberTextContractTests): the
+         same version the wiki suite compiles the wiki's samples with. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,6 +39,10 @@
     <!-- Unicode's own conformance corpora for the bidi algorithm (BidiConformanceTests): 594 055 cases,
          checked in gzipped (1.7 MB instead of 14.8 MB) and streamed by the tests. Unicode 17.0.0. -->
     <Content Include="Rendering\Text\Ucd\*.gz" CopyToOutputDirectory="PreserveNewest" />
+    <!-- matplotlib 3.11.2's own lookup of every colour map the library ships under its name (MatplotlibColorTablesTests), written by
+         tools/mpl_reference/generate_colormaps.py. -->
+    <Content Include="Styling\ColorMaps\matplotlib-colormaps.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Rendering\MathText\matplotlib-mathtext.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

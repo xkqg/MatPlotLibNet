@@ -1,7 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using Microsoft.AspNetCore.SignalR;
+using MatPlotLibNet.Models;
 using NSubstitute;
 using MatPlotLibNet.Styling;
 
@@ -10,22 +10,24 @@ namespace MatPlotLibNet.AspNetCore.Tests;
 /// <summary>Verifies <see cref="ChartPublisher"/> behavior.</summary>
 public class ChartPublisherTests
 {
+    private static ChartHubDouble HubOf(string chart, out ChartPublisher publisher)
+    {
+        var hub = new ChartHubDouble(chart);
+        publisher = hub.Publisher();
+        return hub;
+    }
+
+    private static Figure Titled(string title) => Plt.Create().WithTitle(title).Plot([1.0], [2.0]).Build();
+
     /// <summary>Verifies that PublishAsync sends JSON containing the chart title and series type to the specified group.</summary>
     [Fact]
     public async Task PublishAsync_SendsJsonToGroup()
     {
-        var clientProxy = Substitute.For<IChartHubClient>();
-        var clients = Substitute.For<IHubClients<IChartHubClient>>();
-        clients.Group("test-chart").Returns(clientProxy);
-        var hubContext = Substitute.For<IHubContext<ChartHub, IChartHubClient>>();
-        hubContext.Clients.Returns(clients);
+        var hub = HubOf("test-chart", out var publisher);
 
-        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
-        var figure = Plt.Create().WithTitle("Test").Plot([1.0], [2.0]).Build();
+        await publisher.PublishAsync("test-chart", Titled("Test"), TestContext.Current.CancellationToken);
 
-        await publisher.PublishAsync("test-chart", figure, TestContext.Current.CancellationToken);
-
-        await clientProxy.Received(1).UpdateChart("test-chart", Arg.Is<string>(json =>
+        await hub.Group.Received(1).UpdateChart("test-chart", Arg.Is<string>(json =>
             json.Contains("\"title\":\"Test\"") && json.Contains("\"type\":\"line\"")));
     }
 
@@ -33,18 +35,11 @@ public class ChartPublisherTests
     [Fact]
     public async Task PublishSvgAsync_SendsSvgToGroup()
     {
-        var clientProxy = Substitute.For<IChartHubClient>();
-        var clients = Substitute.For<IHubClients<IChartHubClient>>();
-        clients.Group("my-chart").Returns(clientProxy);
-        var hubContext = Substitute.For<IHubContext<ChartHub, IChartHubClient>>();
-        hubContext.Clients.Returns(clients);
+        var hub = HubOf("my-chart", out var publisher);
 
-        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
-        var figure = Plt.Create().WithTitle("SVG Test").Plot([1.0], [2.0]).Build();
+        await publisher.PublishSvgAsync("my-chart", Titled("SVG Test"), TestContext.Current.CancellationToken);
 
-        await publisher.PublishSvgAsync("my-chart", figure, TestContext.Current.CancellationToken);
-
-        await clientProxy.Received(1).UpdateChartSvg("my-chart", Arg.Is<string>(svg =>
+        await hub.Group.Received(1).UpdateChartSvg("my-chart", Arg.Is<string>(svg =>
             svg.Contains("<svg") && svg.Contains("SVG Test")));
     }
 
@@ -52,17 +47,10 @@ public class ChartPublisherTests
     [Fact]
     public async Task PublishAsync_UsesCorrectGroupName()
     {
-        var clientProxy = Substitute.For<IChartHubClient>();
-        var clients = Substitute.For<IHubClients<IChartHubClient>>();
-        clients.Group("sensor-42").Returns(clientProxy);
-        var hubContext = Substitute.For<IHubContext<ChartHub, IChartHubClient>>();
-        hubContext.Clients.Returns(clients);
+        var hub = HubOf("sensor-42", out var publisher);
 
-        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
-        var figure = Plt.Create().Build();
+        await publisher.PublishAsync("sensor-42", Plt.Create().Build(), TestContext.Current.CancellationToken);
 
-        await publisher.PublishAsync("sensor-42", figure, TestContext.Current.CancellationToken);
-
-        clients.Received(1).Group("sensor-42");
+        hub.Clients.Received(1).Group("sensor-42");
     }
 }

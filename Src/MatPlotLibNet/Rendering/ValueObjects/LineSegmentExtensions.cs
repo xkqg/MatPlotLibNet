@@ -3,10 +3,11 @@
 
 namespace MatPlotLibNet.Rendering;
 
-/// <summary>The one place that cuts a straight line to the area it is drawn in. matplotlib clips every line of an axes to
-/// the axes; a line drawn here between two pixels that the range the axes draw does not hold (a trendline beyond the data,
-/// an extended trendline steeper than the range, a reference line or a level beyond a limit the caller set) would otherwise
-/// run on over the margins, the tick labels and the title.</summary>
+/// <summary>The one place that cuts a straight line to the area it is drawn in, a segment or a line through two points run on
+/// both ways (an extended trendline, matplotlib's <c>axline</c>). matplotlib clips every line of an axes to the axes; a line
+/// drawn here between two pixels that the range the axes draw does not hold (a trendline beyond the data or down to a value a
+/// log axis puts a thousand decades below it, an extended trendline steeper than the range, a reference line or a level beyond a
+/// limit the caller set) would otherwise run on over the margins, the tick labels and the title.</summary>
 internal static class LineSegmentExtensions
 {
     extension(LineSegment segment)
@@ -18,13 +19,25 @@ internal static class LineSegmentExtensions
         /// <param name="area">The area it may be drawn in, in pixels.</param>
         /// <returns>The part inside, in the direction of <paramref name="segment"/>; <see langword="null"/> when no part of it is
         /// inside, or it only touches the area in one point (a corner, or an end on an edge as it runs away).</returns>
-        internal LineSegment? ClippedTo(Rect area)
+        internal LineSegment? ClippedTo(Rect area) => segment.From.Cut(segment.To, area, new Stretch(0, 1));
+    }
+
+    extension(Point from)
+    {
+        /// <summary>The part of the line from + t·(to - from), for t over <paramref name="along"/>, that lies inside
+        /// <paramref name="area"/> (the Liang-Barsky cut): <see cref="ClippedTo"/> over t in [0, 1], <see cref="LineThrough"/>
+        /// over every t. An end of <paramref name="along"/> the area does not cut is handed back as that point, bit for bit.</summary>
+        /// <param name="to">The point the line runs to at t = 1.</param>
+        /// <param name="area">The area it may be drawn in, in pixels.</param>
+        /// <param name="along">The stretch of t the line covers before the cut.</param>
+        /// <returns>The part inside, in the direction from <paramref name="from"/> to <paramref name="to"/>; <see langword="null"/>
+        /// when no part of it is inside, or it only touches the area in one point.</returns>
+        private LineSegment? Cut(Point to, Rect area, Stretch along)
         {
-            var (from, to) = segment;
             double dx = to.X - from.X, dy = to.Y - from.Y;
 
-            // The segment is from + t·(dx, dy) for t in [0, 1]; each edge keeps the t for which p·t <= q.
-            var inside = new Stretch(0, 1)
+            // Each edge keeps the t for which p·t <= q.
+            var inside = along
                 .Within(-dx, from.X - area.X)?
                 .Within(dx, area.Right - from.X)?
                 .Within(-dy, from.Y - area.Y)?
@@ -33,28 +46,42 @@ internal static class LineSegmentExtensions
             if (inside is not { } kept || kept.Enter >= kept.Leave) return null;
 
             Point At(double t) => new(from.X + t * dx, from.Y + t * dy);
-            return new LineSegment(kept.Enter > 0 ? At(kept.Enter) : from, kept.Leave < 1 ? At(kept.Leave) : to);
+            return new LineSegment(kept.Enter == along.Enter ? from : At(kept.Enter), kept.Leave == along.Leave ? to : At(kept.Leave));
         }
     }
 
     extension(Rect area)
     {
-        /// <summary>A line across the whole width of <paramref name="area"/> at the height <paramref name="y"/>, as a horizontal
-        /// reference line, a level and a Fibonacci level are drawn, cut to the area: handed back as it is when it lies inside the
-        /// area or on its edge, <see langword="null"/> when it lies above or below it (a value beyond a limit the caller set), so
-        /// it is not drawn over the margins, the tick labels or the title.</summary>
+        /// <summary>A line across the whole of <paramref name="area"/> that runs along X (across its width, at the height
+        /// <paramref name="at"/>: a horizontal reference line, a level, a Fibonacci level) or along Y (across its height, at the place
+        /// <paramref name="at"/>: a vertical reference line), cut to the area: handed back as it is when it lies inside the area or on
+        /// its edge, <see langword="null"/> when it lies past it (a value beyond a limit the caller set), so it is not drawn over the
+        /// margins, the tick labels or the title.</summary>
+        /// <param name="alongX">Whether the line runs along X.</param>
+        /// <param name="at">Where the line stands across the area, in pixels; finite.</param>
+        /// <returns>The line, or <see langword="null"/> when it is outside the area.</returns>
+        internal LineSegment? AcrossAlong(bool alongX, double at) =>
+            new LineSegment(Point.Along(alongX, area.StartAlong(alongX), at), Point.Along(alongX, area.EndAlong(alongX), at)).ClippedTo(area);
+
+        /// <summary><see cref="AcrossAlong"/> along X, for a caller whose direction is fixed.</summary>
         /// <param name="y">The height of the line, in pixels; finite.</param>
         /// <returns>The line, or <see langword="null"/> when it is outside the area.</returns>
-        internal LineSegment? HorizontalAcross(double y) =>
-            new LineSegment(new Point(area.X, y), new Point(area.X + area.Width, y)).ClippedTo(area);
+        internal LineSegment? HorizontalAcross(double y) => area.AcrossAlong(true, y);
 
-        /// <summary>A line across the whole height of <paramref name="area"/> at <paramref name="x"/>, as a vertical reference line
-        /// is drawn, cut to the area: handed back as it is when it lies inside the area or on its edge, <see langword="null"/>
-        /// when it lies left or right of it.</summary>
+        /// <summary><see cref="AcrossAlong"/> along Y, for a caller whose direction is fixed.</summary>
         /// <param name="x">The place of the line, in pixels; finite.</param>
         /// <returns>The line, or <see langword="null"/> when it is outside the area.</returns>
-        internal LineSegment? VerticalAcross(double x) =>
-            new LineSegment(new Point(x, area.Y), new Point(x, area.Y + area.Height)).ClippedTo(area);
+        internal LineSegment? VerticalAcross(double x) => area.AcrossAlong(false, x);
+
+        /// <summary>The straight line through <paramref name="through"/> and <paramref name="toward"/>, run on both ways and cut to
+        /// <paramref name="area"/>: matplotlib's <c>axline</c>, which runs the line through its two points as the axes draw them
+        /// (in the scaled space, so straight on a log axis too) across the view. The ends must be finite.</summary>
+        /// <param name="through">One point of the line, in pixels.</param>
+        /// <param name="toward">Another point of the line, in pixels; the line is handed back in the direction toward it.</param>
+        /// <returns>The line across the area; <see langword="null"/> when it misses the area or the two points are one (no
+        /// direction: <c>axline</c> refuses it).</returns>
+        internal LineSegment? LineThrough(Point through, Point toward) =>
+            through == toward ? null : through.Cut(toward, area, new Stretch(double.NegativeInfinity, double.PositiveInfinity));
     }
 
     /// <summary>The stretch of a segment, as the parameter t runs along it, that is still inside every edge looked at so far:

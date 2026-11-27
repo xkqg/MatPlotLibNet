@@ -20,6 +20,9 @@ namespace MatPlotLibNet.Models.Series;
 /// </remarks>
 public abstract class XYZSeries : ChartSeries, I3DPointSeries
 {
+    /// <inheritdoc />
+    internal override CoordinateSystem? DrawnIn => CoordinateSystem.ThreeD;
+
     /// <summary>X coordinates of each data point.</summary>
     public Vec X { get; }
 
@@ -43,16 +46,13 @@ public abstract class XYZSeries : ChartSeries, I3DPointSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        if (X.Length == 0) return new(null, null, null, null);
+        if (X.Length == 0) return default;
         // Over the drawable coordinates only: a missing one (NaN) and an infinity are left out.
-        var x = X.Data.DrawableRange();
-        var y = Y.Data.DrawableRange();
-        var z = Z.Data.DrawableRange();
-        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi, ZMin: z?.Lo, ZMax: z?.Hi);
+        return DataRangeContribution.Spanning(X.Data.DrawableRange(), Y.Data.DrawableRange(), Z.Data.DrawableRange());
     }
 
     /// <inheritdoc />
     /// <remarks>Three columns, one row per point.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("z")], [X.Data, Y.Data, Z.Data]);
+        ChartDataTable.XYZ(X.Data, Y.Data, Z.Data, "z");
 }

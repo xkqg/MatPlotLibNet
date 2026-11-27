@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="PointAndFigureSeries"/>: every box of every column is a cell of one slot by one box size in
 /// data units, put on the plot by the one rule that places a box standing on a foot
-/// (<see cref="PixelBoxExtensions.BoxOnFoot"/>); a rising column fills its cells with an X (two crossing lines), a falling one
+/// (<see cref="PixelBox.OnFoot"/>); a rising column fills its cells with an X (two crossing lines), a falling one
 /// with an O (an ellipse inscribed in the cell), each inset a fraction of the cell from its edges.</summary>
 internal sealed class PointAndFigureSeriesRenderer : SeriesRenderer<PointAndFigureSeries>
 {
@@ -36,7 +36,7 @@ internal sealed class PointAndFigureSeriesRenderer : SeriesRenderer<PointAndFigu
             {
                 double foot = (box + PointAndFigureSeries.MarkInset) * series.BoxSize;
                 double end = (box + 1 - PointAndFigureSeries.MarkInset) * series.BoxSize;
-                yield return new Cell(Transform.BoxOnFoot(across, foot, end, rising: true, BarOrientation.Vertical).Rect, column.Rising);
+                yield return new Cell(PixelBox.OnFoot(Transform, across, foot, end, rising: true, BarOrientation.Vertical).Rect, column.Rising);
             }
         }
     }
@@ -51,7 +51,7 @@ internal sealed class PointAndFigureSeriesRenderer : SeriesRenderer<PointAndFigu
                 continue;
             }
 
-            var stroke = new StrokeStyle(cell.Rising ? series.UpColor : series.DownColor, series.LineWidth, LineStyle.Solid);
+            var stroke = StrokeStyle.Solid(cell.Rising ? series.UpColor : series.DownColor, series.LineWidth);
             if (cell.Rising)
             {
                 var box = cell.Box;
@@ -60,7 +60,7 @@ internal sealed class PointAndFigureSeriesRenderer : SeriesRenderer<PointAndFigu
             }
             else
             {
-                Ctx.DrawEllipse(cell.Box, new ShapeStyle(null, stroke.Color, stroke.Thickness));
+                Ctx.DrawEllipse(cell.Box, ShapeStyle.Outlined(stroke.Color, stroke.Thickness));
             }
         }
     }

@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet;
 using MatPlotLibNet.Styling;
 
@@ -18,14 +17,12 @@ namespace MatPlotLibNet.Tests.Rendering.ThreeD;
 /// </summary>
 public sealed class AxisTitleClearanceTests
 {
+    /// <summary>A label far wider than the others, written for one value at an end of an edge.</summary>
+    private const string WideLabel = "a label far wider than any label drawn";
+
     private const string XTitle = "x phase (deg)";
     private const string YTitle = "Y period";
     private const string ZTitle = "Z amplitude";
-
-    // <text x=".." y=".." font-family=".." font-size=".." …>content</text>
-    private static readonly Regex TextRe = new(
-        "<text x=\"(?<x>[-\\d.eE]+)\" y=\"(?<y>[-\\d.eE]+)\"[^>]*font-size=\"(?<fs>[-\\d.eE]+)\"[^>]*>(?<t>[^<]*)</text>",
-        RegexOptions.Compiled);
 
     private readonly record struct Label(double X, double Y, double FontSize, string Text)
     {
@@ -40,11 +37,8 @@ public sealed class AxisTitleClearanceTests
     }
 
     private static IReadOnlyList<Label> LabelsOf(string svg) =>
-        TextRe.Matches(svg).Select(m => new Label(
-            double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture),
-            double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture),
-            double.Parse(m.Groups["fs"].Value, CultureInfo.InvariantCulture),
-            m.Groups["t"].Value)).ToList();
+        [.. svg.Elements("text").Where(text => text["x"] is not null && text["y"] is not null && text["font-size"] is not null)
+            .Select(text => new Label(text.Number("x"), text.Number("y"), text.Number("font-size"), text.Text))];
 
     /// <summary>
     /// Verifies the clearance is measured from the labels ACTUALLY drawn: a larger tick font and a
@@ -140,5 +134,59 @@ public sealed class AxisTitleClearanceTests
                 $"azimuth {azimuth}: title '{title.Text}' at ({title.X:F1},{title.Y:F1}) overlaps tick label " +
                 $"'{hit.Text}' at ({hit.X:F1},{hit.Y:F1}) — the title pad must clear the tick-label band.");
         }
+    }
+
+    /// <summary>A tick on the edge below the lowest bar draws its label, as matplotlib draws every tick in view, so the
+    /// title clears that label too.</summary>
+    [Fact]
+    public void AnAxisTitle_ClearsALabelDrawnBelowTheLowestBar()
+    {
+        // Bars from x = 0: the cube's margins run below 0, so -0.1 lies on the edge below the lowest bar, and its wide label
+        // is drawn.
+        static Label TitleWith(double[] ticks)
+        {
+            var figure = Plt.Create()
+                .WithSize(600, 500)
+                .AddSubPlot(1, 1, 1, ax => ax.Bar3D([0.0, 1, 2], [0.0, 1, 2], [1.0, 2, 3]).SetXLabel(XTitle))
+                .Build();
+            var x = figure.SubPlots[0].XAxis;
+            x.TickLocator = new global::MatPlotLibNet.Rendering.TickLocators.FixedLocator(ticks);
+            x.TickFormatter = new TestTickFormatter(value => value < 0 ? WideLabel : value.ToString("0", CultureInfo.InvariantCulture));
+            return LabelsOf(figure.ToSvg()).Single(l => l.Text == XTitle);
+        }
+
+        var withoutTheTick = TitleWith([0.0, 1, 2]);
+        var withTheTick = TitleWith([-0.1, 0.0, 1, 2]);
+
+        Assert.True(Math.Abs(withoutTheTick.X - withTheTick.X) + Math.Abs(withoutTheTick.Y - withTheTick.Y) > 1,
+            $"the title stayed at ({withTheTick.X:F2},{withTheTick.Y:F2}) though the wide label at -0.1 is drawn");
+    }
+
+    /// <summary>A tick past the end of its edge draws no label either, so the title does not clear it.</summary>
+    [Fact]
+    public void AnAxisTitle_ClearsOnlyTheLabelsDrawn_NotOneBeyondTheEdge()
+    {
+        // The X edge runs from 1 to 3 and the data from 0 to 4: a tick at 4 lies past the high end, and only the edge leaves it
+        // out.
+        static Label TitleWith(global::MatPlotLibNet.Rendering.TickLocators.ITickLocator locator)
+        {
+            var figure = Plt.Create()
+                .WithSize(600, 500)
+                .AddSubPlot(1, 1, 1, ax => ax.Scatter3D([0.0, 1, 2, 3, 4], [0.0, 1, 2, 3, 4], [0.0, 1, 2, 3, 4])
+                    .SetXLabel(XTitle))
+                .Build();
+            var x = figure.SubPlots[0].XAxis;
+            x.Min = 1;
+            x.Max = 3;
+            x.TickLocator = locator;
+            x.TickFormatter = new TestTickFormatter(value => value > 3 ? WideLabel : value.ToString("0", CultureInfo.InvariantCulture));
+            return LabelsOf(figure.ToSvg()).Single(l => l.Text == XTitle);
+        }
+
+        var onTheEdge = TitleWith(new global::MatPlotLibNet.Rendering.TickLocators.FixedLocator([1.0, 2, 3]));
+        var withOneBeyond = TitleWith(new TestTickLocator(1.0, 2, 3, 4));
+
+        Assert.Equal(onTheEdge.X, withOneBeyond.X, 6);
+        Assert.Equal(onTheEdge.Y, withOneBeyond.Y, 6);
     }
 }

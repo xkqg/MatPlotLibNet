@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
+
 namespace MatPlotLibNet.Indicators.Steps;
 
 /// <summary>One step of the Ehlers instantaneous trendline: the recursion that the batch <see cref="EhlersITrend"/> folds over its
@@ -8,12 +10,12 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// <see cref="HilbertStep"/> only feeds) carry the price; from the seventh the trend is the mean of the last
 /// <c>period</c> prices (the dominant cycle, rounded) with linearly falling weights, and keeps its last value while the cycle is
 /// still settling (under 2 bars) or longer than the history. Before the seventh bar the step says NaN.</summary>
-internal struct EhlersITrendStep
+internal struct EhlersITrendStep : IPriceStep<double>
 {
     private const int History = 50;
 
     private HilbertStep _hilbert = new();
-    private readonly double[] _prices = new double[History];
+    private InputWindow<double> _prices = new(History);
     private double _trend;
     private int _count;
 
@@ -24,11 +26,11 @@ internal struct EhlersITrendStep
 
     /// <summary>Takes one price and returns the trend, or NaN before the seventh price.</summary>
     /// <param name="price">The price.</param>
-    internal double Next(double price)
+    public double Next(double price)
     {
         int i = _count++;
         var row = _hilbert.Next(price);
-        _prices[i % History] = price;
+        _prices.Push(price);
         if (i < 6)
         {
             _trend = price;
@@ -44,7 +46,7 @@ internal struct EhlersITrendStep
         for (int k = 0; k < windowLen; k++)
         {
             double w = windowLen - k;
-            num += w * _prices[(i - k) % History];
+            num += w * _prices.Back(k);
             den += w;
         }
 

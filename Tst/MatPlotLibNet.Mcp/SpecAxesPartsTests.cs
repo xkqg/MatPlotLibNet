@@ -9,6 +9,7 @@ using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Tests.Serialization;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -18,7 +19,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// chart the agent cannot send back as it was drawn.</summary>
 public class SpecAxesPartsTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     /// <summary>A spec with one subplot: the fields of <paramref name="subPlot"/> (a JSON object) and one line.</summary>
     private static string Spec(string subPlot)
@@ -28,19 +28,16 @@ public class SpecAxesPartsTests
         return new JsonObject { ["width"] = 400, ["height"] = 300, ["subPlots"] = new JsonArray(axes) }.ToJsonString();
     }
 
-    /// <summary>The rows of the core axes contract, read through the reader instead of the serializer alone.</summary>
+    /// <summary>The parts of the core axes contract, read through the reader instead of the serializer alone.</summary>
     [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.Rows), MemberType = typeof(DrawnAxesFixtures))]
-    public void ADrawnAxesProperty_PassesTheSpecReader_WithTheValueItWasGiven(string part, string path)
+    [MemberData(nameof(DrawnAxesFixtures.PartNames), MemberType = typeof(DrawnAxesFixtures))]
+    public void EveryDrawnPropertyOfAPart_PassesTheSpecReader_WithTheValueItWasGiven(string part)
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        object? written = DrawnAxesFixtures.ValueOf(figure, part, path);
 
         var read = Reader.Read(new ChartSpec(figure.ToJson()));
 
-        object? readBack = DrawnAxesFixtures.ValueOf(read, part, path);
-        Assert.True(DrawnSeriesFixtures.SameValue(written, readBack),
-            $"{part}.{path}: set to {DrawnSeriesFixtures.Show(written)}, read back through the spec reader as {DrawnSeriesFixtures.Show(readBack)}.");
+        DrawnSeriesFixtures.AssertKept(part, DrawnAxesFixtures.ValuesOf(figure, part), DrawnAxesFixtures.ValuesOf(read, part), "through the spec reader");
     }
 
     /// <summary>What the call that adds a subplot sets (its cell of a grid, its place in a grid specification, the axes it shares
@@ -56,20 +53,26 @@ public class SpecAxesPartsTests
         Assert.Equal(DrawnAxesFixtures.InternallySetValues(figure, property), DrawnAxesFixtures.InternallySetValues(read, property));
     }
 
+    /// <summary>The lists an axes and a figure carry, each read value by value.</summary>
+    public static TheoryData<string, Func<Figure, IReadOnlyDictionary<string, object?>>> Lists => new()
+    {
+        { "Axes", DrawnAxesFixtures.AxesListValues },
+        { "Figure", DrawnAxesFixtures.FigureListValues },
+    };
+
     /// <summary>Every value of every item of an overlay list, the ones it was made with included (a span's edges, a signal's
-    /// place and direction, a break's ends), passes the reader as written.</summary>
+    /// place and direction, a break's ends), and of every item of the figure's lists, the ones a text and an image are made with
+    /// included (their words, places and pixels), passes the reader as written; one case, every value it drops named. The
+    /// settable properties of the figure's lists are the axes parts'.</summary>
     [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.AxesListValueKeys), MemberType = typeof(DrawnAxesFixtures))]
-    public void AnOverlayListValue_PassesTheSpecReader_AsItWasWritten(string key)
+    [MemberData(nameof(Lists))]
+    public void EveryListValue_PassesTheSpecReader_AsItWasWritten(string subject, Func<Figure, IReadOnlyDictionary<string, object?>> valuesOf)
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        object? written = DrawnAxesFixtures.AxesListValues(figure)[key];
 
-        var read = DrawnAxesFixtures.AxesListValues(Reader.Read(new ChartSpec(figure.ToJson())));
+        var read = Reader.Read(new ChartSpec(figure.ToJson()));
 
-        Assert.True(read.ContainsKey(key), $"Axes.{key}: written as {DrawnSeriesFixtures.Show(written)}, and nothing of it came through the spec reader.");
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read[key]),
-            $"Axes.{key}: written as {DrawnSeriesFixtures.Show(written)}, read back through the spec reader as {DrawnSeriesFixtures.Show(read[key])}.");
+        DrawnSeriesFixtures.AssertKept(subject, valuesOf(figure), valuesOf(read), "through the spec reader");
     }
 
     /// <summary>A figure whose subplots stand in cells of a grid, handed back to the reader, draws the same picture.</summary>
@@ -125,6 +128,7 @@ public class SpecAxesPartsTests
     [InlineData("""{"annotations":[{"text":"a","x":1,"y":1,"arrowStyle":"spear"}]}""", "spear", "Wedge")]
     [InlineData("""{"annotations":[{"text":"a","x":1,"y":1,"font":{"weight":"heavy"}}]}""", "heavy", "Bold")]
     [InlineData("""{"xAxis":{"tickLocator":{"type":"spiral"}}}""", "spiral", "multiple")]
+    [InlineData("""{"colorBar":{"locator":{"type":"spiral"}}}""", "spiral", "multiple")]
     [InlineData("""{"yAxis":{"tickFormatter":{"type":"roman"}}}""", "roman", "category")]
     public void AMisspelledValueOfAnAxesPart_IsRefusedWithTheAcceptedValues(string subPlot, string wrong, string accepted)
     {
@@ -223,13 +227,25 @@ public class SpecAxesPartsTests
         Assert.Contains("twoSlope", refusal.Message);
     }
 
-    [Fact]
-    public void ALocatorWithoutAKind_IsRefusedWithTheAcceptedKinds()
+    /// <summary>A part that is told apart by its kind (a tick locator, a colour map) and has none is refused naming the part and a kind it
+    /// accepts.</summary>
+    public static TheoryData<string, string, string> PartsWithoutAKind => new()
     {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec("""{"xAxis":{"tickLocator":{"base":2}}}"""))));
+        { Spec("""{"xAxis":{"tickLocator":{"base":2}}}"""), "tickLocator", "multiple" },
+        {
+            """{"width":400,"height":300,"subPlots":[{"series":[{"type":"heatmap","heatmapData":[[1,2],[3,4]],"colorMap":{"colors":["red","blue"]}}]}]}""",
+            "colorMap", "reversed"
+        },
+    };
 
-        Assert.Contains("tickLocator", refusal.Message);
-        Assert.Contains("multiple", refusal.Message);
+    [Theory]
+    [MemberData(nameof(PartsWithoutAKind))]
+    public void APartWithoutAKind_IsRefusedWithTheAcceptedKinds(string spec, string part, string accepted)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(spec)));
+
+        Assert.Contains(part, refusal.Message);
+        Assert.Contains(accepted, refusal.Message);
     }
 
     /// <summary>An agent writes the fields of an object in any order; the kind is found wherever it stands, and spelt in
@@ -261,34 +277,12 @@ public class SpecAxesPartsTests
         Assert.Contains("positions", refusal.Message);
     }
 
-    private static readonly double[] Three = [1, 2, 3];
-    private static readonly double[] Two = [1, 2];
-    private static readonly double[] Flat = [0, 0, 1];
-    private static readonly double[,] TwoByTwo = { { 1, 2 }, { 3, 4 } };
-
-    /// <summary>One series of every chart type this server lists that maps its values onto a colour map, by the type name
-    /// a spec writes it with.</summary>
-    private static readonly IReadOnlyDictionary<string, Func<ISeries>> NormalizableSeries = new Dictionary<string, Func<ISeries>>(StringComparer.Ordinal)
-    {
-        ["scatter"] = () => new ScatterSeries(Three, Three),
-        ["heatmap"] = () => new HeatmapSeries(TwoByTwo),
-        ["clustermap"] = () => new ClustermapSeries(TwoByTwo),
-        ["contourf"] = () => new ContourfSeries(Two, Two, TwoByTwo),
-        ["hexbin"] = () => new HexbinSeries(Three, Three),
-        ["histogram2d"] = () => new Histogram2DSeries(Three, Flat),
-        ["image"] = () => new ImageSeries(TwoByTwo),
-        ["pcolormesh"] = () => new PcolormeshSeries(Three, Three, TwoByTwo),
-        ["spectrogram"] = () => new SpectrogramSeries(new double[] { 1.0, 0.5, -0.5, -1.0, 0.0, 0.5, 1.0, 0.5 }),
-        ["tricontour"] = () => new TricontourSeries(Three, Flat, Three),
-        ["tripcolor"] = () => new TripcolorSeries(Three, Flat, Three),
-        ["polarheatmap"] = () => new PolarHeatmapSeries(TwoByTwo, thetaBins: 2, rBins: 2),
-        ["scatter3d"] = () => new Scatter3DSeries(Three, Three, Three),
-        ["surface"] = () => new SurfaceSeries(Two, Two, TwoByTwo),
-        ["trisurf"] = () => new Trisurf3DSeries(Three, Flat, Three),
-    };
-
-    /// <summary>The chart types of <see cref="NormalizableSeries"/>.</summary>
-    public static TheoryData<string> NormalizableTypes { get; } = new(NormalizableSeries.Keys);
+    /// <summary>Every series type of the roster (<see cref="DrawnSeriesFixtures"/>) that maps its values onto a colour map, less the types
+    /// the catalog leaves out because their reader builds a placeholder: by type name.</summary>
+    public static TheoryData<string> NormalizableTypes { get; } = new(DrawnSeriesFixtures.DrawnTypes
+        .Where(type => DrawnSeriesFixtures.Instance(type.Name) is var series && series is INormalizable
+            && !new ChartTypeCatalog().Excluded.ContainsKey(series.ToSeriesDto().Type!))
+        .Select(type => type.Name));
 
     /// <summary>A normaliser on any chart type the server lists is a field the reader lets through and the serializer
     /// reads: an agent that hands back the JSON of a contour, a hexbin or a 3-D scatter gets the same colouring.</summary>
@@ -296,7 +290,7 @@ public class SpecAxesPartsTests
     [MemberData(nameof(NormalizableTypes))]
     public void ANormaliser_OnAListedChartTypeThatTakesOne_PassesTheSpecReader(string type)
     {
-        var series = NormalizableSeries[type]();
+        var series = DrawnSeriesFixtures.Instance(type);
         ((INormalizable)series).Normalizer = new TwoSlopeNormalizer(2.5);
         var figure = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax.AddSeries(series)).Build();
 
@@ -304,7 +298,7 @@ public class SpecAxesPartsTests
 
         var readSeries = read.SubPlots[0].Series.Single();
         Assert.IsType(series.GetType(), readSeries);
-        Assert.True(new ChartTypeCatalog().IsListed(type), $"'{type}' is not a chart type this server lists.");
+        Assert.True(new ChartTypeCatalog().IsListed(series.ToSeriesDto().Type!), $"'{type}' is not a chart type this server lists.");
         Assert.True(DrawnSeriesFixtures.SameValue(new TwoSlopeNormalizer(2.5), ((INormalizable)readSeries).Normalizer),
             $"{type}: the normaliser read back as {DrawnSeriesFixtures.Show(((INormalizable)readSeries).Normalizer)}.");
     }

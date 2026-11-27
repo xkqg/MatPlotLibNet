@@ -9,40 +9,18 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies <see cref="DataTransform"/> behavior.</summary>
 public class DataTransformTests
 {
-    /// <summary>Verifies that the data origin maps to the bottom-left pixel of the plot bounds.</summary>
-    [Fact]
-    public void DataToPixel_MapsOriginCorrectly()
+    [Theory]
+    [InlineData(100, 50, 600, 400, 100, 0, 0, 100, 450)] // DataToPixel_MapsOriginCorrectly
+    [InlineData(100, 50, 600, 400, 100, 10, 100, 700, 50)] // DataToPixel_MapsMaxCorrectly
+    [InlineData(0, 0, 200, 100, 10, 5, 5, 100, 50)] // DataToPixel_MapsMidpointCorrectly
+    public void DataToPixel_MapsADataPointToThePixelItStandsAt(int left, int top, int width, int height, int yMax, int dataX, int dataY, int pixelX, int pixelY)
     {
-        var plotBounds = new Rect(100, 50, 600, 400);
-        var transform = new DataTransform(0, 10, 0, 100, plotBounds);
+        var plotBounds = new Rect(left, top, width, height);
+        var transform = new DataTransform(0, 10, 0, yMax, plotBounds);
 
-        var pixel = transform.DataToPixel(0, 0);
-        Assert.Equal(100, pixel.X);
-        Assert.Equal(450, pixel.Y); // bottom edge (Y inverted)
-    }
-
-    /// <summary>Verifies that the data maximum maps to the top-right pixel of the plot bounds.</summary>
-    [Fact]
-    public void DataToPixel_MapsMaxCorrectly()
-    {
-        var plotBounds = new Rect(100, 50, 600, 400);
-        var transform = new DataTransform(0, 10, 0, 100, plotBounds);
-
-        var pixel = transform.DataToPixel(10, 100);
-        Assert.Equal(700, pixel.X);
-        Assert.Equal(50, pixel.Y);
-    }
-
-    /// <summary>Verifies that the data midpoint maps to the center pixel of the plot bounds.</summary>
-    [Fact]
-    public void DataToPixel_MapsMidpointCorrectly()
-    {
-        var plotBounds = new Rect(0, 0, 200, 100);
-        var transform = new DataTransform(0, 10, 0, 10, plotBounds);
-
-        var pixel = transform.DataToPixel(5, 5);
-        Assert.Equal(100, pixel.X);
-        Assert.Equal(50, pixel.Y);
+        var pixel = transform.DataToPixel(dataX, dataY);
+        Assert.Equal(pixelX, pixel.X);
+        Assert.Equal(pixelY, pixel.Y); // bottom edge (Y inverted)
     }
 
     /// <summary>Verifies that PixelToData is the inverse of DataToPixel for a round-trip conversion.</summary>
@@ -63,8 +41,7 @@ public class DataTransformTests
     [Fact]
     public void PixelToData_OnLogAxes_ReturnsTheDataValue()
     {
-        var transform = new DataTransform(0, 3, 0, 4, new Rect(100, 50, 600, 400), null, null,
-            1, 1000, 1, 10000, AxisScale.Log, AxisScale.Log, 1, 1);
+        var transform = new Rect(100, 50, 600, 400).LogLog(1000, 10000);
 
         var (x, y) = transform.PixelToData(transform.DataToPixel(50, 300));
 
@@ -104,5 +81,22 @@ public class DataTransformTests
         var origin = transform.DataToPixel(0, 0);
         Assert.Equal(50, origin.X);
         Assert.Equal(50, origin.Y);
+    }
+
+    /// <summary>A transform is made for every axes on every draw, so it carries what each direction places by and no more: the two
+    /// directions, where each range ends, the range each shows and the plot (208 bytes of fields, 224 with the object's header on a
+    /// 64-bit runtime, the size it had before its directions became a pair). The edge an axis begins at is worked out when a cut asks
+    /// for it, not held: almost no axis is ever cut there.</summary>
+    [Fact]
+    public void ATransform_HoldsNoMoreThanItsDirectionsNeed()
+    {
+        var plot = new Rect(10, 20, 300, 200);
+        _ = new DataTransform(0, 10, 0, 10, plot);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = new DataTransform(0, 10, 0, 10, plot);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated <= 224, $"a transform took {allocated} bytes");
     }
 }

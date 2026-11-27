@@ -11,28 +11,8 @@ namespace MatPlotLibNet.Tests.Indicators;
 /// it removes. The estimate can be below 0 for independent series, and is not clamped.</summary>
 public sealed class TransferEntropyKraskovTests
 {
-    /// <summary>A generator with no libm: a 64-bit linear congruential generator, a uniform from the top 53 bits and a normal as the
-    /// sum of 12 uniforms less 6.</summary>
-    private sealed class Lcg(ulong seed)
-    {
-        private ulong _state = seed;
-
-        public double Uniform()
-        {
-            _state = unchecked(_state * 6364136223846793005UL + 1442695040888963407UL);
-            return (_state >> 11) / (double)(1UL << 53);
-        }
-
-        public double Normal()
-        {
-            double sum = 0;
-            for (int i = 0; i < 12; i++) sum += Uniform();
-            return sum - 6;
-        }
-    }
-
     /// <summary>n values from the generator, one array after another.</summary>
-    private static double[] Normals(Lcg rng, int n)
+    private static double[] Normals(SeededNormals rng, int n)
     {
         var values = new double[n];
         for (int t = 0; t < n; t++) values[t] = rng.Normal();
@@ -42,7 +22,7 @@ public sealed class TransferEntropyKraskovTests
     /// <summary>X standard normal; Y(t+1) = c·X(t) + noise of standard deviation sigma.</summary>
     private static (double[] X, double[] Y) Coupled(int n, double c, double sigma, ulong seed)
     {
-        var rng = new Lcg(seed);
+        var rng = new SeededNormals(seed);
         var x = Normals(rng, n);
         var noise = Normals(rng, n);
         var y = new double[n];
@@ -92,7 +72,7 @@ public sealed class TransferEntropyKraskovTests
     public void ACommonDriver_FoolsTheUnconditionalEstimate_AndTheConditionalOneSeesThroughIt(ulong seed)
     {
         const int n = 700;
-        var rng = new Lcg(seed);
+        var rng = new SeededNormals(seed);
         var driver = Normals(rng, n);
         var noiseOfX = Normals(rng, n);
         var noiseOfY = Normals(rng, n);
@@ -133,7 +113,6 @@ public sealed class TransferEntropyKraskovTests
 
         double te = sourceIsConstant ? Te(constant, y, new TransferEntropyOptions()) : Te(x, constant, new TransferEntropyOptions());
 
-        Assert.False(double.IsNaN(te));
         Assert.Equal(0, te, 12);
     }
 
@@ -144,7 +123,7 @@ public sealed class TransferEntropyKraskovTests
         int below = 0;
         for (ulong seed = 1; seed <= 12; seed++)
         {
-            var rng = new Lcg(seed);
+            var rng = new SeededNormals(seed);
             double[] a = [.. Enumerable.Range(0, 150).Select(_ => rng.Normal())];
             double[] b = [.. Enumerable.Range(0, 150).Select(_ => rng.Normal())];
             double te = Te(a, b, new TransferEntropyOptions());
@@ -166,7 +145,7 @@ public sealed class TransferEntropyKraskovTests
         double first = Te(x, y, new TransferEntropyOptions());
         double second = Te(x, y, new TransferEntropyOptions());
 
-        Assert.False(double.IsNaN(first));
+        first.AssertFinite();
         Assert.Equal(first, second);
     }
 
@@ -186,7 +165,7 @@ public sealed class TransferEntropyKraskovTests
     public void ALag_ReadsTheSourceThatManyBarsBack()
     {
         // Y(t+2) = X(t): with lag 2 the source is read two bars back from the future of the target, so the flow is seen at lag 2.
-        var rng = new Lcg(11);
+        var rng = new SeededNormals(11);
         const int n = 600;
         var x = new double[n];
         var y = new double[n];
@@ -209,49 +188,4 @@ public sealed class TransferEntropyKraskovTests
         Assert.Equal("TE(k=4,lag=1)", new TransferEntropy(x, y, new TransferEntropyOptions()).Label);
         Assert.Equal("TE(bins=6,lag=2)", new TransferEntropy(x, y, new TransferEntropyOptions(TransferEntropyEstimator.Binned, Bins: 6, Lag: 2)).Label);
     }
-
-    // ── What is refused, by name ──
-
-    private static ArgumentException Refused(double[]? source, double[]? target, TransferEntropyOptions options) =>
-        Assert.ThrowsAny<ArgumentException>(() => new TransferEntropy(source!, target!, options));
-
-    [Fact]
-    public void ANullSeries_IsRefusedByName()
-    {
-        Assert.Equal("source", Refused(null, [1.0, 2, 3], new()).ParamName);
-        Assert.Equal("target", Refused([1.0, 2, 3], null, new()).ParamName);
-    }
-
-    [Fact]
-    public void SeriesOfDifferentLengths_AreRefused() =>
-        Assert.Contains("equal length", Refused([1.0, 2, 3, 4, 5, 6, 7, 8], [1.0, 2, 3], new()).Message);
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-3)]
-    public void FewerThanOneNeighbour_IsRefusedByName(int neighbours) =>
-        Assert.Equal("Neighbours", Refused(new double[20], new double[20], new TransferEntropyOptions(Neighbours: neighbours)).ParamName);
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void ALagBelowOne_IsRefusedByName(int lag) =>
-        Assert.Equal("Lag", Refused(new double[20], new double[20], new TransferEntropyOptions(Lag: lag)).ParamName);
-
-    [Fact]
-    public void BinsBelowTwo_AreRefusedByName_WhenTheEstimatorIsBinned() =>
-        Assert.Equal("Bins", Refused(new double[20], new double[20], new TransferEntropyOptions(TransferEntropyEstimator.Binned, Bins: 1)).ParamName);
-
-    [Fact]
-    public void ASeriesTooShortForTheNeighbours_IsRefused() =>
-        Assert.Equal("source", Refused(new double[5], new double[5], new TransferEntropyOptions(Neighbours: 4)).ParamName);
-
-    [Fact]
-    public void AConditionOfAnotherLength_IsRefusedByName() =>
-        Assert.Equal("Condition", Refused(new double[20], new double[20], new TransferEntropyOptions(Condition: new double[19])).ParamName);
-
-    [Fact]
-    public void AConditionWithTheBinnedEstimator_IsRefusedByName() =>
-        Assert.Equal("Condition", Refused(new double[20], new double[20],
-            new TransferEntropyOptions(TransferEntropyEstimator.Binned, Condition: new double[20])).ParamName);
 }

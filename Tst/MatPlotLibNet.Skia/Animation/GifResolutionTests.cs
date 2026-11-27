@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Buffers.Binary;
+using MatPlotLibNet.Animation;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Transforms.Animation;
 
@@ -23,27 +24,17 @@ public class GifResolutionTests
     private static byte[] Gif(double dpi)
     {
         using var stream = new MemoryStream();
-        new FuncAnimation(2, i => Frame(i, dpi)).SaveGif(stream);
-        return stream.ToArray();
+        return new AnimationBuilder(2, i => Frame(i, dpi)).ToGif();
     }
 
-    [Fact]
-    public void DefaultDpi_DrawsOnePixelPerUnit()
+    /// <summary>96 dpi draws one pixel per unit, 192 dpi two, and a scaled size is rounded to whole pixels (20 * 150/96 = 31.25).</summary>
+    [Theory]
+    [InlineData(96, 20)]
+    [InlineData(192, 40)]
+    [InlineData(150, 31)]
+    public void TheScreen_IsTheFigureAtItsResolution(double dpi, int side)
     {
-        Assert.Equal(new GifScreen(20, 20), ScreenOf(Gif(96)));
-    }
-
-    [Fact]
-    public void WithDpi192_DrawsTwoPixelsPerUnit()
-    {
-        Assert.Equal(new GifScreen(40, 40), ScreenOf(Gif(192)));
-    }
-
-    [Fact]
-    public void ScaledSize_IsRoundedToWholePixels()
-    {
-        // 20 * 150/96 = 31.25
-        Assert.Equal(new GifScreen(31, 31), ScreenOf(Gif(150)));
+        Assert.Equal(new GifScreen(side, side), ScreenOf(Gif(dpi)));
     }
 
     [Fact]
@@ -71,7 +62,7 @@ public class GifResolutionTests
         string directory = Path.Combine(Path.GetTempPath(), $"s9_{Guid.NewGuid():N}");
         try
         {
-            new FuncAnimation(2, i => Frame(i, 192)).SaveFrames(directory, "frame");
+            new AnimationBuilder(2, i => Frame(i, 192)).SaveFrames(directory, "frame");
 
             foreach (string file in Directory.GetFiles(directory, "frame_*.png"))
             {

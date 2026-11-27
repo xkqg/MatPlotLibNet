@@ -9,28 +9,8 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 /// <summary>Coverage uplift Batch D — full coverage for <see cref="StreamingWilliamsR"/> (was 0%).
 /// Verifies the rolling high/low window, the high==low degenerate branch (returns -50),
 /// hand-derived %R values across a small zig-zag price series, and ring-buffer wraparound.</summary>
-public sealed class StreamingWilliamsRTests : OhlcStreamingIndicatorTests<StreamingWilliamsR>
+public sealed class StreamingWilliamsRTests
 {
-    protected override StreamingWilliamsR CreateIndicator(int period, int capacity = 256)
-        => new(period: period, capacity: capacity);
-
-    [Fact]
-    public void Construction_DefaultsAreCorrect()
-    {
-        var wr = new StreamingWilliamsR();
-        Assert.Equal(14, wr.WarmupPeriod);
-        Assert.Equal("W%R(14)", wr.Label);
-        Assert.Single(wr.OutputSeries);
-    }
-
-    [Fact]
-    public void Construction_CustomPeriod_PropagatesLabel()
-    {
-        var wr = new StreamingWilliamsR(period: 5);
-        Assert.Equal(5, wr.WarmupPeriod);
-        Assert.Equal("W%R(5)", wr.Label);
-    }
-
     [Fact]
     public void HighEqualsLow_PercentR_IsMinusFifty()
     {
@@ -95,19 +75,4 @@ public sealed class StreamingWilliamsRTests : OhlcStreamingIndicatorTests<Stream
         Assert.Equal(-50.0, y[3]);
         Assert.Equal(-50.0, y[4]);
     }
-
-    [Fact]
-    public void RingBuffer_WrapsCorrectly_WhenBarsExceedPeriod()
-    {
-        // Push 8 bars at period 3 — the index wraps multiple times. Just verify shape + non-NaN tail.
-        var wr = new StreamingWilliamsR(period: 3);
-        for (int i = 0; i < 8; i++)
-            wr.AppendCandle(new OhlcBar(i, i + 2, i - 1, i + 1));
-
-        var y = wr.OutputSeries[0].CreateSnapshot().YData;
-        Assert.Equal(8, y.Length);
-        Assert.False(double.IsNaN(y[7]));
-        Assert.InRange(y[7], -100, 0);
-    }
-
 }

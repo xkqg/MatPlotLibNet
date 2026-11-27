@@ -10,14 +10,14 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// <see cref="MatPlotLibNet.Rendering.SeriesRenderers.HistogramSeriesRenderer"/>.
 /// Pre-X.9 the renderer was at 74%L / 58%B because only HistType.Bar without
 /// weights/density/cumulative was tested. This file pins:
-///   - HistType.Bar (default — line 31 true arm)
-///   - HistType.Step (outline only — line 62 false arm of HistType.StepFilled)
-///   - HistType.StepFilled (filled polygon — line 57 true arm)
-///   - Weights set with matching length (line 75 BuildHeights true arm)
-///   - Density=true (line 92 BuildHeights true arm)
-///   - Cumulative=true (line 100 BuildHeights true arm)
-///   - EdgeColor=null path (line 28 ?? fallback)
-///   - Empty Data → early return (line 20)</summary>
+///   - HistType.Bar (default)
+///   - HistType.Step (outline only — false arm of HistType.StepFilled)
+///   - HistType.StepFilled (filled polygon)
+///   - Weights set with matching length (BuildHeights)
+///   - Density=true (BuildHeights)
+///   - Cumulative=true (BuildHeights)
+///   - EdgeColor=null path (?? fallback)
+///   - Empty Data → early return</summary>
 public class HistogramSeriesRendererTests
 {
     private static string Render(HistogramSeries s) =>
@@ -27,50 +27,60 @@ public class HistogramSeriesRendererTests
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_BasicBarHistogram_DrawsRectangles()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10]) { Bins = 5 });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>HistType.Step (line 62 false arm of `if (StepFilled)`) — draws the outline
-    /// via DrawLines, no polygon fill.</summary>
-    [Fact]
-    public void Render_StepHistType_DrawsOutlineOnly()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.Step });
+        new DrawnToken("Render_BasicBarHistogram_DrawsRectangles", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10]) { Bins = 5 }), "<rect"),
+        // HistType.Step (false arm of `if (StepFilled)`) — draws the outline via DrawLines, no polygon fill.
         // Step path emits a polyline (DrawLines) and no series-polygon.
-        Assert.Contains("<polyline", svg);
-        Assert.DoesNotContain("<polygon", svg);
-    }
+        new DrawnToken("Render_StepHistType_DrawsOutlineOnly", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.Step }), "<polyline") { Absent = ["<polygon"] },
+        // HistType.StepFilled — closes the path with bin start and emits a filled polygon.
+        new DrawnToken("Render_StepFilledHistType_DrawsPolygon", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled }), "<polygon"),
+        // Weights with length matching Data (BuildHeights). Each bin accumulates weights instead of raw counts.
+        new DrawnToken("Render_Weights_AccumulatesPerBin", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5])
+        {
+            Bins = 5,
+            Weights = new[] { 0.5, 1.0, 1.5, 2.0, 2.5 },
+        }), "<rect"),
+        // Density=true (BuildHeights) — heights are normalised so total area = 1.
+        new DrawnToken("Render_Density_NormalisesHeights", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5, 6, 7, 8])
+        {
+            Bins = 4,
+            Density = true,
+        }), "<rect"),
+        // Cumulative=true (BuildHeights) — each bin's height adds the previous bins' heights.
+        new DrawnToken("Render_Cumulative_StackedHeights", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5, 6])
+        {
+            Bins = 3,
+            Cumulative = true,
+        }), "<rect"),
+        // EdgeColor explicitly set (left-hand of `??` non-null).
+        new DrawnToken("Render_EdgeColor_SetExplicitly_AppliesEdge", () => Render(new HistogramSeries([1.0, 2, 3, 4, 5])
+        {
+            Bins = 5,
+            EdgeColor = Colors.Black,
+        }), "<rect"),
+        // Without an edge colour (the default theme sets none) the filled step polygon has no outline at all.
+        new DrawnToken("Render_StepFilledWithoutEdgeColor_HasNoOutline", () => PolygonTag(Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled }))) { Absent = ["stroke="] },
+    };
 
-    /// <summary>HistType.StepFilled (line 57 true arm) — closes the path with bin start
-    /// and emits a filled polygon.</summary>
-    [Fact]
-    public void Render_StepFilledHistType_DrawsPolygon()
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>A filled step histogram with an edge colour outlines its polygon in that colour: at half a pixel, the width a bar's
+    /// edge has, under the library's own themes; at matplotlib's <c>patch.linewidth</c>, 1 pt, under the matplotlib themes
+    /// (<c>hist(histtype='stepfilled', edgecolor='k')</c> draws its polygon 1.0 pt wide, matplotlib 3.11.2).</summary>
+    [Theory]
+    [InlineData("default", "0.5")]
+    [InlineData("v2", "1.39")]
+    public void Render_StepFilledWithEdgeColor_OutlinesThePolygonAtTheThemesWidth(string theme, string width)
     {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled });
-        Assert.Contains("<polygon", svg);
-    }
+        var svg = Plt.Create().WithSize(400, 300).WithTheme(theme.AsTheme())
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled, EdgeColor = Colors.Black }))
+            .Build().ToSvg();
 
-    /// <summary>A filled step histogram with an edge colour outlines its polygon in that colour at half a pixel, the width
-    /// a bar's edge has.</summary>
-    [Fact]
-    public void Render_StepFilledWithEdgeColor_OutlinesThePolygonAtHalfAPixel()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled, EdgeColor = Colors.Black });
-
-        Assert.Contains("stroke=\"#000000\" stroke-width=\"0.5\"", PolygonTag(svg));
-    }
-
-    /// <summary>Without an edge colour (the default theme sets none) the filled step polygon has no outline at all.</summary>
-    [Fact]
-    public void Render_StepFilledWithoutEdgeColor_HasNoOutline()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled });
-
-        Assert.DoesNotContain("stroke=", PolygonTag(svg));
+        Assert.Contains($"stroke=\"#000000\" stroke-width=\"{width}\"", PolygonTag(svg));
     }
 
     private static string PolygonTag(string svg)
@@ -80,64 +90,4 @@ public class HistogramSeriesRendererTests
         return svg[start..svg.IndexOf("/>", start, StringComparison.Ordinal)];
     }
 
-    /// <summary>Weights with length matching Data (BuildHeights line 75 true arm).
-    /// Each bin accumulates weights instead of raw counts.</summary>
-    [Fact]
-    public void Render_Weights_AccumulatesPerBin()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5])
-        {
-            Bins = 5,
-            Weights = new[] { 0.5, 1.0, 1.5, 2.0, 2.5 },
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Density=true (BuildHeights line 92 true arm) — heights are normalised
-    /// so total area = 1.</summary>
-    [Fact]
-    public void Render_Density_NormalisesHeights()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5, 6, 7, 8])
-        {
-            Bins = 4,
-            Density = true,
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Cumulative=true (BuildHeights line 100 true arm) — each bin's height
-    /// adds the previous bins' heights.</summary>
-    [Fact]
-    public void Render_Cumulative_StackedHeights()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5, 6])
-        {
-            Bins = 3,
-            Cumulative = true,
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>EdgeColor explicitly set (line 28 left-hand of `??` non-null).</summary>
-    [Fact]
-    public void Render_EdgeColor_SetExplicitly_AppliesEdge()
-    {
-        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5])
-        {
-            Bins = 5,
-            EdgeColor = Colors.Black,
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Empty Data → early return (line 20). Renderer must not throw; no
-    /// strict SVG-shape assertion here since the chart frame always emits a backing
-    /// &lt;rect&gt; even with zero series content.</summary>
-    [Fact]
-    public void Render_EmptyData_DoesNotThrow()
-    {
-        var svg = Render(new HistogramSeries([]) { Bins = 5 });
-        Assert.NotNull(svg);
-    }
 }

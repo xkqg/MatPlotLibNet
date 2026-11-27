@@ -6,7 +6,7 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>Phase G.7 of the v1.7.2 follow-on plan — static emission tests for
-/// <see cref="MatPlotLibNet.Rendering.Svg.SvgSankeyHoverScript"/>.
+/// <see cref="Transforms.SvgTransform.SankeyHoverScript"/>.
 ///
 /// <para>Mirrors the pattern in <c>SvgLegendToggleTests.cs</c> —
 /// script-string-presence assertions on the rendered SVG. Behavioural tests
@@ -26,67 +26,38 @@ public class SvgSankeyHoverTests
         new SankeyLink(1, 2, 8),
     };
 
-    [Fact]
-    public void WithSankeyHover_EmitsScript()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
-            .WithSankeyHover()
-            .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
-            .Build()
-            .ToSvg();
-        Assert.Contains("data-sankey-node-id", svg);
-        Assert.Contains("data-sankey-link-source", svg);
         // Script IIFE markers
-        Assert.Contains("function reachable(", svg);
-        Assert.Contains("function highlight(", svg);
-        Assert.Contains("function restore(", svg);
-    }
-
-    [Fact]
-    public void WithSankeyHover_WiresHoverAndFocusListeners()
-    {
-        var svg = Plt.Create()
+        new DrawnToken("WithSankeyHover_EmitsScript", () => Plt.Create()
             .WithSankeyHover()
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
             .Build()
-            .ToSvg();
-        Assert.Contains("mouseenter", svg);
-        Assert.Contains("mouseleave", svg);
-        Assert.Contains("'focus'", svg);
-        Assert.Contains("'blur'", svg);
-    }
-
-    [Fact]
-    public void WithSankeyHover_SetsCursorPointerAndTabindex()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "data-sankey-node-id", "data-sankey-link-source", "function reachable(", "function highlight(", "function restore("),
+        new DrawnToken("WithSankeyHover_WiresHoverAndFocusListeners", () => Plt.Create()
             .WithSankeyHover()
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
             .Build()
-            .ToSvg();
-        Assert.Contains("cursor = 'pointer'", svg);
-        Assert.Contains("'tabindex', '0'", svg);
-    }
-
-    [Fact]
-    public void WithoutSankeyHover_NoScript()
-    {
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
-            .Build()
-            .ToSvg();
-        Assert.DoesNotContain("function reachable(", svg);
-    }
-
-    [Fact]
-    public void WithSankeyHover_PerChartIsolation_SelfLocatesViaCurrentScript()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "mouseenter", "mouseleave", "'focus'", "'blur'"),
+        new DrawnToken("WithSankeyHover_SetsCursorPointerAndTabindex", () => Plt.Create()
             .WithSankeyHover()
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
             .Build()
-            .ToSvg();
+            .ToSvg(), "cursor = 'pointer'", "'tabindex', '0'"),
+        new DrawnToken("WithoutSankeyHover_NoScript", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
+            .Build()
+            .ToSvg()) { Absent = ["function reachable("] },
         // Phase 2 of v1.7.2 plan — per-chart self-locate pattern.
-        Assert.Contains("document.currentScript && document.currentScript.parentNode", svg);
-    }
+        new DrawnToken("WithSankeyHover_PerChartIsolation_SelfLocatesViaCurrentScript", () => Plt.Create()
+            .WithSankeyHover()
+            .AddSubPlot(1, 1, 1, ax => ax.Sankey(Nodes, Links).HideAllAxes())
+            .Build()
+            .ToSvg(), "document.currentScript && document.currentScript.parentNode"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

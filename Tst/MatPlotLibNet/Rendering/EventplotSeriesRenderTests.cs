@@ -12,70 +12,33 @@ public class EventplotSeriesRenderTests
 {
     private static readonly double[][] Positions = [[1.0, 2.0, 3.0], [4.0, 5.0]];
 
-    [Fact]
-    public void Eventplot_SvgContainsLines()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("Eventplot_SvgContainsLines", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions))
-            .ToSvg();
-        Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void Eventplot_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Eventplot(Positions)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    // ── Branch coverage ──────────────────────────────────────────────────────
-
-    [Fact]
-    public void Eventplot_EmptyPositions_ReturnsDefaultDataRange()
-    {
-        // EventplotSeries.ComputeDataRange: Positions.Length == 0 branch
-        // EventplotSeriesRenderer.Render: Positions.Length == 0 early-return branch
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Eventplot([]))
-            .ToSvg();
-        Assert.StartsWith("<svg", svg);
-    }
-
-    [Fact]
-    public void Eventplot_EmptyInnerArrays_AllPosEmptyBranch()
-    {
-        // EventplotSeries.ComputeDataRange: allPos.Length == 0 ternary false-branches
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Eventplot([[]]))
-            .ToSvg();
-        Assert.StartsWith("<svg", svg);
-    }
-
-    [Fact]
-    public void Eventplot_WithColors_UsesPerRowColor()
-    {
+            .ToSvg(), "<line"),
         // EventplotSeriesRenderer: series.Colors is not null true-branch
-        string svg = Plt.Create()
+        new DrawnToken("Eventplot_WithColors_UsesPerRowColor", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions, s =>
             {
                 s.Colors = [Colors.Red, Colors.Blue];
             }))
-            .ToSvg();
-        Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void Eventplot_MoreRowsThanColors_FallsBackForExtraRows()
-    {
+            .ToSvg(), "<line"),
         // EventplotSeriesRenderer: i >= series.Colors.Length false-branch
-        string svg = Plt.Create()
+        // 1 color for 2 rows
+        new DrawnToken("Eventplot_MoreRowsThanColors_FallsBackForExtraRows", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions, s =>
             {
-                s.Colors = [Colors.Red];  // 1 color for 2 rows
+                s.Colors = [Colors.Red];  
             }))
-            .ToSvg();
-        Assert.Contains("<line", svg);
-    }
+            .ToSvg(), "<line"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    // ── Branch coverage ──────────────────────────────────────────────────────
+
 }

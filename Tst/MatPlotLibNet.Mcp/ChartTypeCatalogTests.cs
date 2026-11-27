@@ -35,10 +35,12 @@ public class ChartTypeCatalogTests
         Assert.Equal(_catalog.Listed.Count, _catalog.Listed.Distinct(StringComparer.Ordinal).Count());
     }
 
+    /// <summary>The server carries the Geo package and registers its map reader before it reads the registry, so a map is a
+    /// type a spec may name, whether or not the process has touched a type of that package yet.</summary>
     [Fact]
-    public void GeoPolygon_IsNotListed_BecauseNothingRegistersIt()
+    public void GeoPolygon_IsListed_BecauseTheServerCarriesTheGeoPackage()
     {
-        Assert.DoesNotContain("geo_polygon", _catalog.Listed);
+        Assert.Contains("geo_polygon", _catalog.Listed);
         Assert.DoesNotContain("geo_polygon", _catalog.Excluded.Keys);
     }
 

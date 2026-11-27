@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Tests.Rendering;
+
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
 /// <summary>Smoke tests for the Phase-1 behavioural harness — confirms the Jint engine,
@@ -69,10 +71,8 @@ public class InteractionScriptHarnessTests
                 .Plot([1.0, 2.0], [5.0, 6.0])
                 .WithAddRightYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
 
-        var entry = System.Text.RegularExpressions.Regex.Match(
-            h.Svg, "data-legend-index=\"(?<i>\\d+)\"[^>]*aria-label=\"S\"");
-        Assert.True(entry.Success, "the secondary series has no legend entry");
-        string index = entry.Groups["i"].Value;
+        var entry = Assert.Single(h.Svg.LegendEntries(), legendEntry => legendEntry.Label == "S");
+        string index = entry.Index.ToString(System.Globalization.CultureInfo.InvariantCulture);
         Assert.Equal("2", index);
 
         h.Simulate($"[data-legend-index='{index}']", "click");
@@ -96,11 +96,10 @@ public class InteractionScriptHarnessTests
                     .Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S")
                     .Plot([1.0, 2.0], [70.0, 80.0], s => s.Label = "T").WithDirectLabel())));
 
-        var label = System.Xml.Linq.XDocument.Parse(h.Svg).Descendants()
-            .Single(e => e.Name.LocalName == "text" && e.Value == "T");
+        var label = h.Svg.Each("text").Single(e => e.Value == "T");
         var group = label.Parent!;
         Assert.Equal("2", (string?)group.Attribute("data-series-index"));
-        Assert.Single(group.Descendants(), e => e.Name.LocalName == "polyline");
+        Assert.Single(group.Each("polyline"));
 
         h.Simulate("[data-legend-index='1']", "click");
 
@@ -140,8 +139,7 @@ public class InteractionScriptHarnessTests
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
                 .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "B").WithDirectLabel()));
 
-        var label = System.Xml.Linq.XDocument.Parse(h.Svg).Descendants()
-            .Single(e => e.Name.LocalName == "text" && e.Value == "B");
+        var label = h.Svg.Each("text").Single(e => e.Value == "B");
         Assert.Equal("1", (string?)label.Parent!.Attribute("data-series-index"));
 
         h.Simulate("[data-legend-index='0']", "click");
@@ -181,7 +179,7 @@ public class InteractionScriptHarnessTests
     }
 
     /// <summary>Phase S regression for the v1.7.2 "plot disappears" bug
-    /// (2026-04-19, NOT specific to 3D). Pre-fix, <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendToggleScript"/>
+    /// (2026-04-19, NOT specific to 3D). Pre-fix, <see cref="Transforms.SvgTransform.LegendToggleScript"/>
     /// fired <c>toggle()</c> on <c>pointerdown</c> — the moment the user pressed a legend item, the matching
     /// series hid before they could release. Single- or two-series charts visibly emptied; users couldn't even
     /// hold-down to drag (Phase S feature) without losing data on screen. The fix moves toggle to <c>click</c>
@@ -206,7 +204,7 @@ public class InteractionScriptHarnessTests
     /// <summary>Phase G.3 of v1.7.2 follow-on — ARIA-button keyboard parity
     /// (WCAG 2.1 AA: Enter and Space must trigger the same action as click on
     /// any element with <c>role="button"</c>). Pins the <c>keydown</c> branch
-    /// in <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendToggleScript"/>.</summary>
+    /// in <see cref="Transforms.SvgTransform.LegendToggleScript"/>.</summary>
     [Theory]
     [InlineData("Enter")]
     [InlineData(" ")]

@@ -4,6 +4,7 @@
 using System.Reflection;
 using MatPlotLibNet.Models;
 using Verso.Abstractions;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Verso.Tests;
 
@@ -184,7 +185,7 @@ public class FigureFormatterTests
         var output = await new FigureFormatter().FormatAsync(Plt.Mosaic("AB\nCDE"), new StubFormatterContext("text/html"));
 
         Assert.True(output.IsError);
-        Assert.Contains("All rows must have the same length", output.Content, StringComparison.Ordinal);
+        Assert.Contains(3.RefusalAgainst(2, of: "row 1"), output.Content, StringComparison.Ordinal);
         Assert.Equal("System.ArgumentException", output.ErrorName);
         Assert.False(string.IsNullOrWhiteSpace(output.ErrorStackTrace));
     }

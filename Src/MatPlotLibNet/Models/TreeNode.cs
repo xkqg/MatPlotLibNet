@@ -6,7 +6,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Represents a node in a hierarchical tree structure, used by Treemap and Sunburst series.</summary>
-public sealed record TreeNode
+public sealed record TreeNode : IHatchSource
 {
     /// <summary>The name drawn on the node's rectangle or slice. Empty by default.</summary>
     public string Label { get; init; } = "";

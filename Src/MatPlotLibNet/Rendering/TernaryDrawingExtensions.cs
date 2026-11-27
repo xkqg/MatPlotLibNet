@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -40,19 +41,19 @@ internal static class TernaryDrawingExtensions
         /// <param name="label">The text of a tick at a fraction of the whole.</param>
         internal void DrawTernaryTicks(Func<TernaryPoint, Point> place, Font font, Func<double, string> label)
         {
-            double lift = font.Size * 0.35;
             foreach (double v in Fifths)
             {
-                string text = label(v);
+                var text = TextLabel.Of(label(v));
 
+                // Under the base, hung from the gap; beside a side, centred on the tick.
                 var onBase = place(new(0, 1 - v, v));
-                ctx.DrawText(text, new Point(onBase.X, onBase.Y + font.Size + TickGap - 2), font, TextAlignment.Center);
+                ctx.Draw(text, font, new TextPlacement(new Point(onBase.X, onBase.Y + TickGap - 2), TextAlignment.Center) { Vertical = TextVerticalAlignment.Top });
 
                 var onRight = place(new(v, 0, 1 - v));
-                ctx.DrawText(text, new Point(onRight.X + TickGap, onRight.Y + lift), font, TextAlignment.Left);
+                ctx.Draw(text, font, new TextPlacement(new Point(onRight.X + TickGap, onRight.Y), TextAlignment.Left) { Vertical = TextVerticalAlignment.Center });
 
                 var onLeft = place(new(1 - v, v, 0));
-                ctx.DrawText(text, new Point(onLeft.X - TickGap, onLeft.Y + lift), font, TextAlignment.Right);
+                ctx.Draw(text, font, new TextPlacement(new Point(onLeft.X - TickGap, onLeft.Y), TextAlignment.Right) { Vertical = TextVerticalAlignment.Center });
             }
         }
     }

@@ -14,7 +14,7 @@ internal readonly record struct KlingerPoint(double Kvo, double Signal);
 /// adds the range; the volume force is the volume times how far the range falls short of the cumulative measure, signed by the
 /// trend. The oscillator is the difference of two <see cref="SeededEmaStep"/> averages of the volume force, and the signal is a
 /// third of the oscillator. The first bar only gives the bar before, so the step says NaN for it.</summary>
-internal struct KlingerStep
+internal struct KlingerStep : IHlcvStep<KlingerPoint>
 {
     private SeededEmaStep _fast;
     private SeededEmaStep _slow;
@@ -41,7 +41,7 @@ internal struct KlingerStep
     /// <param name="low">The low of the bar.</param>
     /// <param name="close">The close of the bar.</param>
     /// <param name="volume">The volume of the bar.</param>
-    internal KlingerPoint Next(double high, double low, double close, double volume)
+    public KlingerPoint Next(double high, double low, double close, double volume)
     {
         double typical = (high + low + close) / 3.0;
         double range = high - low;

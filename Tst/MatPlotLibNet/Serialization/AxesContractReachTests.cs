@@ -22,8 +22,6 @@ public class AxesContractReachTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     // ---- the properties of an axes no public setter reaches ---------------------------------------------------------
 
     /// <summary>Every internally set property of an axes is either set by a public call of the routes, or named with the reason
@@ -45,18 +43,21 @@ public class AxesContractReachTests
         Assert.All(named, pair => Assert.False(string.IsNullOrWhiteSpace(pair.Value), $"{pair.Key} is named without a reason."));
     }
 
-    /// <summary>The reflection finds what the call that adds a subplot sets: a refactor that hid them would leave the guard above
-    /// with nothing to check.</summary>
-    [Fact]
-    public void TheGuard_FindsTheCellAndThePlaceOfASubplot()
+    public static TheoryData<IEnumerable<string>, string[], string[]> WhatTheGuardFinds => new()
     {
-        var names = DrawnAxesFixtures.InternallySet.Select(property => property.Name).ToList();
+        { DrawnAxesFixtures.InternallySet.Select(property => property.Name),
+            [nameof(Axes.GridRows), nameof(Axes.GridCols), nameof(Axes.GridIndex), nameof(Axes.GridPosition), nameof(Axes.ShareXWith)], [] },
+        { DrawnAxesFixtures.AxesLists.Select(list => list.Name),
+            [nameof(Axes.Spans), nameof(Axes.Signals), nameof(Axes.XBreaks)], [nameof(Axes.Series), nameof(Axes.Insets)] },
+    };
 
-        Assert.Contains(nameof(Axes.GridRows), names);
-        Assert.Contains(nameof(Axes.GridCols), names);
-        Assert.Contains(nameof(Axes.GridIndex), names);
-        Assert.Contains(nameof(Axes.GridPosition), names);
-        Assert.Contains(nameof(Axes.ShareXWith), names);
+    [Theory]
+    [MemberData(nameof(WhatTheGuardFinds))]
+    public void TheGuard_FindsTheCellAndThePlaceOfASubplot_AndTheOverlayListsOfAnAxes(IEnumerable<string> names, string[] found, string[] notFound)
+    {
+        var all = names.ToList();
+        Assert.All(found, name => Assert.Contains(name, all));
+        Assert.All(notFound, name => Assert.DoesNotContain(name, all));
     }
 
     /// <summary>A figure built through the public call of a route has the property set on some axes, and read back from JSON
@@ -68,7 +69,7 @@ public class AxesContractReachTests
         var figure = DrawnAxesFixtures.Route(property, call).Build();
         var written = DrawnAxesFixtures.InternallySetValues(figure, property);
 
-        var read = DrawnAxesFixtures.InternallySetValues(RoundTrip(figure), property);
+        var read = DrawnAxesFixtures.InternallySetValues(figure.RoundTripped(), property);
 
         object? atRest = DrawnAxesFixtures.InternallySetAtRest(property);
         Assert.True(written.Any(value => !Equals(value, atRest)), $"{property} through {call}: no axes of the figure has it set, so the row proves nothing.");
@@ -77,13 +78,6 @@ public class AxesContractReachTests
     }
 
     // ---- the overlay lists of an axes -------------------------------------------------------------------------------
-
-    /// <summary>The public types an item of a list of <paramref name="itemType"/> can be: the type itself when it is concrete,
-    /// and every concrete type of its assembly that derives from it.</summary>
-    private static IEnumerable<Type> ConcreteTypesOf(Type itemType) =>
-        itemType.Assembly.GetTypes()
-            .Where(type => type.IsPublic && !type.IsAbstract && !type.IsInterface && itemType.IsAssignableFrom(type))
-            .OrderBy(type => type.Name, StringComparer.Ordinal);
 
     /// <summary>Every concrete item type of every overlay list of an axes has a part whose holder is an item of that very list in
     /// the fixture, so the part sets every settable property of it and the JSON has to carry them; or the type is named for that
@@ -98,7 +92,8 @@ public class AxesContractReachTests
         foreach (var list in DrawnAxesFixtures.AxesLists)
         {
             var items = ((IEnumerable)list.GetValue(axes)!).Cast<object>().ToList();
-            foreach (var type in ConcreteTypesOf(list.PropertyType.GetGenericArguments()[0]))
+            var itemType = list.PropertyType.GetGenericArguments()[0];
+            foreach (var type in itemType.Assembly.ConcretePublicSubtypesOf(itemType))
             {
                 string key = DrawnAxesFixtures.OverlayKey(list.Name, type);
                 bool held = DrawnAxesFixtures.Parts.Any(part => part.Type == type && items.Any(item => ReferenceEquals(item, part.Holder(figure))));
@@ -112,18 +107,26 @@ public class AxesContractReachTests
         Assert.True(gaps.Count == 0, $"An overlay list item type with no part that holds an item of the list in the fixture, and no reason it is not carried: {string.Join("; ", gaps)}.");
     }
 
-    /// <summary>The reflection finds the overlay lists, the ones a series verb never builds included: a refactor that hid them
-    /// would leave the guard above with nothing to check.</summary>
+    /// <summary>A figure whose subplots share their scales draws the same picture after a round trip, whether the shares were asked
+    /// by key through the builder (<c>ShareX(key)</c>) or made as matplotlib's <c>add_subplot(sharex=ax)</c> makes them, with no key:
+    /// each shared subplot spans its partner's data too, so a share lost on the way moves its ticks.</summary>
     [Fact]
-    public void TheGuard_FindsTheOverlayListsOfAnAxes()
+    public void AFigureWithSharedScales_DrawsTheSameAfterARoundTrip()
     {
-        var names = DrawnAxesFixtures.AxesLists.Select(list => list.Name).ToList();
+        var keyed = Plt.Create()
+            .AddSubPlot(1, 2, 1, ax => ax.Plot([1.0, 2, 3], [2.0, 4, 3]), key: "left")
+            .AddSubPlot(1, 2, 2, ax => ax.Plot([10.0, 20, 30], [5.0, 1, 8]).ShareX("left").ShareY("left"))
+            .Build();
+        var unkeyed = DrawnAxesFixtures.SharedScalesWithNoKey();
 
-        Assert.Contains(nameof(Axes.Spans), names);
-        Assert.Contains(nameof(Axes.Signals), names);
-        Assert.Contains(nameof(Axes.XBreaks), names);
-        Assert.DoesNotContain(nameof(Axes.Series), names);
-        Assert.DoesNotContain(nameof(Axes.Insets), names);
+        foreach (var figure in new[] { keyed, unkeyed })
+        {
+            var read = figure.RoundTripped();
+            Assert.Same(read.SubPlots[0], read.SubPlots[1].ShareXWith);
+            Assert.Equal(figure.ToSvg(), read.ToSvg());
+        }
+        var readUnkeyed = unkeyed.RoundTripped();
+        Assert.Same(readUnkeyed.SubPlots[1], readUnkeyed.SubPlots[2].ShareYWith);
     }
 
     /// <summary>A buy and a sell signal, one of them coloured, sized and named, draw the same picture after a round trip: the
@@ -137,36 +140,41 @@ public class AxesContractReachTests
             .SellAt(3, 2.5, signal => { signal.Color = Color.FromHex("#9467BD"); signal.Size = 18; signal.Label = "exit"; })).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(2, figure.SubPlots[0].Signals.Count);
         Assert.Equal(drawn, readBack);
     }
 
-    /// <summary>An axes without a signal writes no signal list, so every figure without one writes the bytes it wrote before the
-    /// signals reached the JSON.</summary>
-    [Fact]
-    public void AnAxesWithoutASignal_WritesNoSignalsField()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Serializer.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2])).Build());
+        //  An axes without a signal writes no signal list, so every figure without one writes the bytes it wrote before the signals reached
+        // the JSON.
+        new DrawnToken("AnAxesWithoutASignal_WritesNoSignalsField", () => Serializer.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2])).Build())) { Absent = ["\"signals\""] },
+    };
 
-        Assert.DoesNotContain("\"signals\"", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>The lists an axes and a figure carry, each read value by value.</summary>
+    public static TheoryData<string, Func<Figure, IReadOnlyDictionary<string, object?>>> Lists => new()
+    {
+        { "Axes", DrawnAxesFixtures.AxesListValues },
+        { "Figure", DrawnAxesFixtures.FigureListValues },
+    };
 
     /// <summary>The length of each overlay list and every value of every item of it, the ones it was made with included (a
-    /// span's edges, a signal's place and direction, a break's ends), comes back from JSON as it was. One row per value, so a
-    /// field the DTO drops is named: <c>Spans[0].Max</c>, <c>Signals[0].Direction</c>.</summary>
+    /// span's edges, a signal's place and direction, a break's ends), and of each list of the figure, the ones given when it is
+    /// made (a text's words and place, an image's pixels and offsets) included, comes back from JSON as it was. One case, every
+    /// value the DTO drops named: <c>Spans[0].Max</c>, <c>Signals[0].Direction</c>, <c>Texts[0].Y</c>, <c>Images[0].XOffset</c>.</summary>
     [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.AxesListValueKeys), MemberType = typeof(DrawnAxesFixtures))]
-    public void AnOverlayListValue_ComesBackFromJson_AsItWasWritten(string key)
+    [MemberData(nameof(Lists))]
+    public void EveryListValue_ComesBackFromJson_AsItWasWritten(string subject, Func<Figure, IReadOnlyDictionary<string, object?>> valuesOf)
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        object? written = DrawnAxesFixtures.AxesListValues(figure)[key];
 
-        var read = DrawnAxesFixtures.AxesListValues(RoundTrip(figure));
-
-        Assert.True(read.ContainsKey(key), $"Axes.{key}: written as {DrawnSeriesFixtures.Show(written)}, and nothing of it came back from JSON.");
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read[key]),
-            $"Axes.{key}: written as {DrawnSeriesFixtures.Show(written)}, read back from JSON as {DrawnSeriesFixtures.Show(read[key])}.");
+        DrawnSeriesFixtures.AssertKept(subject, valuesOf(figure), valuesOf(figure.RoundTripped()), "from JSON");
     }
 }

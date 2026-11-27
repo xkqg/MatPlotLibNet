@@ -1,13 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -44,18 +44,15 @@ public class TurnedTickLabelRoomTests
         var measure = new SvgRenderContext();
         foreach (var name in names)
         {
-            var tag = Regex.Match(svg, "<text ([^>]*)>" + Regex.Escape(name) + "</text>");
-            if (!tag.Success) continue;
-            string attributes = tag.Groups[1].Value;
-            string Attribute(string key) => Regex.Match(attributes, key + "=\"([^\"]*)\"").Groups[1].Value;
-            double x = double.Parse(Attribute("x"), CultureInfo.InvariantCulture), y = double.Parse(Attribute("y"), CultureInfo.InvariantCulture);
-            double size = double.Parse(Attribute("font-size"), CultureInfo.InvariantCulture);
-            var turn = Regex.Match(attributes, "rotate\\((-?[\\d.]+)");
-            double degrees = turn.Success ? -double.Parse(turn.Groups[1].Value, CultureInfo.InvariantCulture) : 0;
-            if (turn.Success && degrees != 0) turned++;
-            var alignment = Attribute("text-anchor") switch { "end" => TextAlignment.Right, "middle" => TextAlignment.Center, _ => TextAlignment.Left };
-            var box = new TextBox(new Point(x, y), measure.MeasureText(name, new Font { Family = Attribute("font-family"), Size = size }), size, alignment,
-                TextVerticalAlignment.Baseline, degrees).Bounds();
+            var tag = svg.Elements("text").FirstOrDefault(text => text.Text == name);
+            if (tag.Attributes is null) continue;
+            double size = tag.Number("font-size");
+            double? turn = tag.Rotation();
+            double degrees = turn is { } angle ? -angle : 0;
+            if (turn.HasValue && degrees != 0) turned++;
+            var alignment = tag["text-anchor"] switch { "end" => TextAlignment.Right, "middle" => TextAlignment.Center, _ => TextAlignment.Left };
+            var box = new TextBox(new TextPlacement(new Point(tag.Number("x"), tag.Number("y")), alignment) { Rotation = degrees },
+                TextExtent.Of(measure.MeasureText(name, new Font { Family = tag["font-family"] ?? string.Empty, Size = size }), size)).Bounds();
             left = Math.Min(left, box.X);
             right = Math.Max(right, box.Right);
         }
@@ -78,8 +75,8 @@ public class TurnedTickLabelRoomTests
         var ink = InkOf(svg, names);
 
         Assert.True(ink.Turned > 0, "the labels were expected to turn at this width");
-        Assert.True(ink.Left >= ConstrainedLayoutEngine.PadLeft - 0.001, $"the first label's ink starts at {ink.Left:F1}, inside the pad of {ConstrainedLayoutEngine.PadLeft}");
-        Assert.True(ink.Right <= width - ConstrainedLayoutEngine.PadRight + 0.001, $"the last label's ink ends at {ink.Right:F1}, past the pad of {ConstrainedLayoutEngine.PadRight} from the edge");
+        Assert.True(ink.Left >= ConstrainedLayoutEngine.PadLeft - SvgMarkupExtensions.WrittenPrecision, $"the first label's ink starts at {ink.Left:F4}, inside the pad of {ConstrainedLayoutEngine.PadLeft}");
+        Assert.True(ink.Right <= width - ConstrainedLayoutEngine.PadRight + SvgMarkupExtensions.WrittenPrecision, $"the last label's ink ends at {ink.Right:F1}, past the pad of {ConstrainedLayoutEngine.PadRight} from the edge");
     }
 
     [Fact]
@@ -90,8 +87,8 @@ public class TurnedTickLabelRoomTests
 
         var ink = InkOf(svg, names);
 
-        Assert.True(ink.Left >= ConstrainedLayoutEngine.PadLeft - 0.001, $"ink starts at {ink.Left:F1}");
-        Assert.True(ink.Right <= 500 - ConstrainedLayoutEngine.PadRight + 0.001, $"ink ends at {ink.Right:F1}");
+        Assert.True(ink.Left >= ConstrainedLayoutEngine.PadLeft - SvgMarkupExtensions.WrittenPrecision, $"ink starts at {ink.Left:F1}");
+        Assert.True(ink.Right <= 500 - ConstrainedLayoutEngine.PadRight + SvgMarkupExtensions.WrittenPrecision, $"ink ends at {ink.Right:F1}");
     }
 
     /// <summary>The room is what the turn needs and no more: the first label's ink stands within a pixel of the pad, so a figure
@@ -104,7 +101,7 @@ public class TurnedTickLabelRoomTests
 
         var ink = InkOf(svg, names);
 
-        Assert.InRange(ink.Left, ConstrainedLayoutEngine.PadLeft - 0.001, ConstrainedLayoutEngine.PadLeft + 1);
+        Assert.InRange(ink.Left, ConstrainedLayoutEngine.PadLeft - SvgMarkupExtensions.WrittenPrecision, ConstrainedLayoutEngine.PadLeft + 1);
     }
 
     /// <summary>The rotation the layout measures at is the rotation the drawing draws at, across widths: all the labels turn or
@@ -121,8 +118,8 @@ public class TurnedTickLabelRoomTests
             Assert.True(ink.Turned == 0 || ink.Turned == names.Length, $"at {width} px {ink.Turned} of {names.Length} labels are turned");
             if (ink.Turned > 0)
             {
-                Assert.True(ink.Left >= ConstrainedLayoutEngine.PadLeft - 0.001, $"at {width} px the ink starts at {ink.Left:F1}");
-                Assert.True(ink.Right <= width - ConstrainedLayoutEngine.PadRight + 0.001, $"at {width} px the ink ends at {ink.Right:F1}");
+                Assert.True(ink.Left >= ConstrainedLayoutEngine.PadLeft - SvgMarkupExtensions.WrittenPrecision, $"at {width} px the ink starts at {ink.Left:F4}");
+                Assert.True(ink.Right <= width - ConstrainedLayoutEngine.PadRight + SvgMarkupExtensions.WrittenPrecision, $"at {width} px the ink ends at {ink.Right:F1}");
             }
         }
     }
@@ -135,10 +132,10 @@ public class TurnedTickLabelRoomTests
         double[] ramp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         string svg = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax.Plot(ramp, ramp)).ToSvg();
 
-        var plot = Regex.Matches(svg, @"<rect x=""([\d.]+)"" y=""([\d.]+)"" width=""([\d.]+)"" height=""([\d.]+)"" fill=""#FFFFFF"" />")[1];
+        var plot = svg.Elements("rect").Where(rect => rect["fill"] == "#FFFFFF").ElementAt(1);
 
-        Assert.Equal("62", plot.Groups[1].Value);
-        Assert.Equal("388", plot.Groups[3].Value);
+        Assert.Equal("62", plot["x"]);
+        Assert.Equal("388", plot["width"]);
     }
 
     // ---- a Y label at its own turn -----------------------------------------------------------------------------------
@@ -152,52 +149,37 @@ public class TurnedTickLabelRoomTests
 
         double leftmost = double.MaxValue;
         var measure = new SvgRenderContext();
-        foreach (Match tag in Regex.Matches(svg, "<text ([^>]*rotate[^>]*)>([^<]*)</text>"))
+        foreach (var tag in svg.Elements("text").Where(text => text.Rotation().HasValue && text["text-anchor"] == "end"))
         {
-            string attributes = tag.Groups[1].Value;
-            string Attribute(string key) => Regex.Match(attributes, key + "=\"([^\"]*)\"").Groups[1].Value;
-            if (Attribute("text-anchor") != "end") continue;
-            double x0 = double.Parse(Attribute("x"), CultureInfo.InvariantCulture), y0 = double.Parse(Attribute("y"), CultureInfo.InvariantCulture);
-            double size = double.Parse(Attribute("font-size"), CultureInfo.InvariantCulture);
-            double degrees = -double.Parse(Regex.Match(attributes, "rotate\\((-?[\\d.]+)").Groups[1].Value, CultureInfo.InvariantCulture);
-            var box = new TextBox(new Point(x0, y0), measure.MeasureText(tag.Groups[2].Value, new Font { Family = Attribute("font-family"), Size = size }), size,
-                TextAlignment.Right, TextVerticalAlignment.Baseline, degrees).Bounds();
+            double size = tag.Number("font-size");
+            double degrees = -tag.Rotation()!.Value;
+            var box = new TextBox(new TextPlacement(new Point(tag.Number("x"), tag.Number("y")), TextAlignment.Right) { Rotation = degrees },
+                TextExtent.Of(measure.MeasureText(tag.Text, new Font { Family = tag["font-family"] ?? string.Empty, Size = size }), size)).Bounds();
             leftmost = Math.Min(leftmost, box.X);
         }
 
-        Assert.True(leftmost >= ConstrainedLayoutEngine.PadLeft - 0.001, $"the Y labels' ink starts at {leftmost:F1}, inside the pad");
+        Assert.True(leftmost >= ConstrainedLayoutEngine.PadLeft - SvgMarkupExtensions.WrittenPrecision, $"the Y labels' ink starts at {leftmost:F1}, inside the pad");
     }
 
     // ---- what it costs ------------------------------------------------------------------------------------------------
 
     /// <summary>A context that counts how many times text is measured, and measures it as the vector context does.</summary>
-    private sealed class MeasureCounter : IRenderContext
+    private sealed class MeasureCounter : SilentRenderContext
     {
         private readonly SvgRenderContext _inner = new();
         public int Measured { get; private set; }
 
-        public Size MeasureText(string text, Font font)
+        public override Size MeasureText(string text, Font font)
         {
             Measured++;
             return _inner.MeasureText(text, font);
         }
-
-        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) => _inner.DrawLine(p1, p2, stroke);
-        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) => _inner.DrawLines(points, stroke);
-        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) => _inner.DrawPolygon(points, shape);
-        public void DrawCircle(Point center, double radius, ShapeStyle shape) => _inner.DrawCircle(center, radius, shape);
-        public void DrawRectangle(Rect rect, ShapeStyle shape) => _inner.DrawRectangle(rect, shape);
-        public void DrawEllipse(Rect bounds, ShapeStyle shape) => _inner.DrawEllipse(bounds, shape);
-        public void DrawText(string text, Point position, Font font, TextAlignment alignment) => _inner.DrawText(text, position, font, alignment);
-        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) => _inner.DrawPath(segments, shape);
-        public void PushClip(Rect clipRect) => _inner.PushClip(clipRect);
-        public void PopClip() => _inner.PopClip();
-        public void SetOpacity(double opacity) => _inner.SetOpacity(opacity);
     }
 
     /// <summary>Settling the room measures the labels again at the width that remains; it does so a bounded number of times, so
-    /// laying out a figure whose labels turn measures text a few times over, not without limit. The bound is pinned: three
-    /// times what the same figure costs when its labels are upright and nothing stands out.</summary>
+    /// laying out a figure whose labels turn measures text a few times over, not without limit. The bound is pinned: at most
+    /// the four passes the loop allows and the ends measured once more at the plots it settled on, five times what the same
+    /// figure costs when its labels are upright and nothing stands out, whose one pass hands its ends on.</summary>
     [Fact]
     public void SettlingTheRoom_MeasuresTextAFewTimesOver_NotWithoutLimit()
     {
@@ -211,6 +193,6 @@ public class TurnedTickLabelRoomTests
         int upright = Measures(Names(12), 1400);   // wide enough that no label turns: one measure of the labels at the width given
         int turned = Measures(Names(12), 500);
 
-        Assert.True(turned <= 3 * upright, $"{turned} text measures with the labels turned against {upright} upright");
+        Assert.True(turned <= 5 * upright, $"{turned} text measures with the labels turned against {upright} upright");
     }
 }

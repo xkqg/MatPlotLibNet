@@ -13,40 +13,14 @@ public class Bar3DSeriesRenderTests
     private static readonly double[] Y = [0.0, 0.0, 1.0];
     private static readonly double[] Z = [2.0, 3.5, 1.5];
 
-    [Fact]
-    public void Bar3D_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Bar3D(X, Y, Z))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        // The faces of the bars are filled polygons.
+        new DrawnToken("Bar3D_SvgContainsPolygons", () => TestFigures.OfOneVerb(ax => ax.Bar3D(X, Y, Z)).ToSvg(), "<polygon"),
+    };
 
-    [Fact]
-    public void Bar3D_SvgContainsPolygons()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Bar3D(X, Y, Z))
-            .ToSvg();
-        Assert.True(svg.Contains("<polygon") || svg.Contains("<path"),
-            "Expected SVG to contain filled polygon elements for bar faces");
-    }
-
-    [Fact]
-    public void Bar3D_EmptyData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Bar3D([], [], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Bar3D_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Bar3D(X, Y, Z)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

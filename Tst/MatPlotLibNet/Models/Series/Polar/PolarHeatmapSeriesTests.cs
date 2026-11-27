@@ -21,31 +21,6 @@ public class PolarHeatmapSeriesTests
         return d;
     }
 
-    // ---- Constructor --------------------------------------------------------
-
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        var data = MakeData(4, 3);
-        var s = new PolarHeatmapSeries(data, 4, 3);
-        Assert.Same(data, s.Data);
-    }
-
-    [Fact]
-    public void Constructor_StoresBinCounts()
-    {
-        var s = new PolarHeatmapSeries(MakeData(6, 4), 6, 4);
-        Assert.Equal(6, s.ThetaBins);
-        Assert.Equal(4, s.RBins);
-    }
-
-    [Fact]
-    public void DefaultRMax_Is1()
-    {
-        var s = new PolarHeatmapSeries(MakeData(), 4, 3);
-        Assert.Equal(1.0, s.RMax);
-    }
-
     // ---- GetColorBarRange ---------------------------------------------------
 
     [Fact]
@@ -58,24 +33,24 @@ public class PolarHeatmapSeriesTests
     }
 
     [Fact]
-    public void GetColorBarRange_ConstantData_Returns0To1()
+    public void GetColorBarRange_ConstantData_RunsFromTheValueToOneAboveIt()
     {
         var data = new double[2, 2];
         data[0, 0] = data[0, 1] = data[1, 0] = data[1, 1] = 5.0;
         var s = new PolarHeatmapSeries(data, 2, 2);
         var (min, max) = s.GetColorBarRange();
-        Assert.Equal(0.0, min);
-        Assert.Equal(1.0, max);
+        Assert.Equal(5.0, min);
+        Assert.Equal(6.0, max);
     }
 
     // ---- RadialExtent -------------------------------------------------------
 
     [Fact]
-    public void RadialExtent_IsTheRMaxTheCellsEndAt_ExactlyAndWithNoMargin()
+    public void RadialExtent_RunsFromTheCentreToTheRMaxTheCellsEndAt_ExactlyAndWithNoMargin()
     {
         var s = new PolarHeatmapSeries(MakeData(), 4, 3) { RMax = 5 };
 
-        Assert.Equal(new RadialExtent(5, Sticky: true), s.RadialExtent);
+        Assert.Equal(new RadialExtent(0, 5, Sticky: true), s.RadialExtent);
     }
 
     [Theory]
@@ -106,22 +81,6 @@ public class PolarHeatmapSeriesTests
     // ---- ToSeriesDto --------------------------------------------------------
 
     [Fact]
-    public void ToSeriesDto_SetsType()
-    {
-        var s = new PolarHeatmapSeries(MakeData(), 4, 3);
-        Assert.Equal("polarheatmap", s.ToSeriesDto().Type);
-    }
-
-    [Fact]
-    public void ToSeriesDto_SetsBinCounts()
-    {
-        var s = new PolarHeatmapSeries(MakeData(8, 5), 8, 5);
-        var dto = s.ToSeriesDto();
-        Assert.Equal(8, dto.ThetaBins);
-        Assert.Equal(5, dto.RBins);
-    }
-
-    [Fact]
     public void ToSeriesDto_SetsColorMapName_WhenSet()
     {
         var s = new PolarHeatmapSeries(MakeData(), 4, 3)
@@ -130,75 +89,5 @@ public class PolarHeatmapSeriesTests
         };
         var dto = s.ToSeriesDto();
         Assert.Equal("viridis", dto.ColorMapName);
-    }
-
-    // ---- Accept -------------------------------------------------------------
-
-    private sealed class RecordingVisitor : ISeriesVisitor
-    {
-        public bool WasCalled { get; private set; }
-        public void Visit(PolarHeatmapSeries series, RenderArea area) => WasCalled = true;
-
-        // required interface stubs
-        public void Visit(LineSeries s, RenderArea a) { }
-        public void Visit(ScatterSeries s, RenderArea a) { }
-        public void Visit(BarSeries s, RenderArea a) { }
-        public void Visit(HistogramSeries s, RenderArea a) { }
-        public void Visit(PieSeries s, RenderArea a) { }
-        public void Visit(HeatmapSeries s, RenderArea a) { }
-        public void Visit(ImageSeries s, RenderArea a) { }
-        public void Visit(Histogram2DSeries s, RenderArea a) { }
-        public void Visit(BoxSeries s, RenderArea a) { }
-        public void Visit(ViolinSeries s, RenderArea a) { }
-        public void Visit(KdeSeries s, RenderArea a) { }
-        public void Visit(RegressionSeries s, RenderArea a) { }
-        public void Visit(HexbinSeries s, RenderArea a) { }
-        public void Visit(ContourSeries s, RenderArea a) { }
-        public void Visit(ContourfSeries s, RenderArea a) { }
-        public void Visit(StemSeries s, RenderArea a) { }
-        public void Visit(AreaSeries s, RenderArea a) { }
-        public void Visit(StepSeries s, RenderArea a) { }
-        public void Visit(EcdfSeries s, RenderArea a) { }
-        public void Visit(StackedAreaSeries s, RenderArea a) { }
-        public void Visit(ErrorBarSeries s, RenderArea a) { }
-        public void Visit(CandlestickSeries s, RenderArea a) { }
-        public void Visit(QuiverSeries s, RenderArea a) { }
-        public void Visit(StreamplotSeries s, RenderArea a) { }
-        public void Visit(RadarSeries s, RenderArea a) { }
-        public void Visit(DonutSeries s, RenderArea a) { }
-        public void Visit(BubbleSeries s, RenderArea a) { }
-        public void Visit(OhlcBarSeries s, RenderArea a) { }
-        public void Visit(WaterfallSeries s, RenderArea a) { }
-        public void Visit(FunnelSeries s, RenderArea a) { }
-        public void Visit(GanttSeries s, RenderArea a) { }
-        public void Visit(GaugeSeries s, RenderArea a) { }
-        public void Visit(ProgressBarSeries s, RenderArea a) { }
-        public void Visit(SparklineSeries s, RenderArea a) { }
-        public void Visit(TreemapSeries s, RenderArea a) { }
-        public void Visit(SunburstSeries s, RenderArea a) { }
-        public void Visit(SankeySeries s, RenderArea a) { }
-        public void Visit(PolarLineSeries s, RenderArea a) { }
-        public void Visit(PolarScatterSeries s, RenderArea a) { }
-        public void Visit(PolarBarSeries s, RenderArea a) { }
-        public void Visit(SurfaceSeries s, RenderArea a) { }
-        public void Visit(WireframeSeries s, RenderArea a) { }
-        public void Visit(Scatter3DSeries s, RenderArea a) { }
-        public void Visit(RugplotSeries s, RenderArea a) { }
-        public void Visit(StripplotSeries s, RenderArea a) { }
-        public void Visit(EventplotSeries s, RenderArea a) { }
-        public void Visit(BrokenBarSeries s, RenderArea a) { }
-        public void Visit(CountSeries s, RenderArea a) { }
-        public void Visit(PcolormeshSeries s, RenderArea a) { }
-        public void Visit(ResidualSeries s, RenderArea a) { }
-        public void Visit(PointplotSeries s, RenderArea a) { }
-        public void Visit(SwarmplotSeries s, RenderArea a) { }
-        public void Visit(SpectrogramSeries s, RenderArea a) { }
-        public void Visit(TableSeries s, RenderArea a) { }
-        public void Visit(TricontourSeries s, RenderArea a) { }
-        public void Visit(TripcolorSeries s, RenderArea a) { }
-        public void Visit(QuiverKeySeries s, RenderArea a) { }
-        public void Visit(BarbsSeries s, RenderArea a) { }
-        public void Visit(Stem3DSeries s, RenderArea a) { }
-        public void Visit(Bar3DSeries s, RenderArea a) { }
     }
 }

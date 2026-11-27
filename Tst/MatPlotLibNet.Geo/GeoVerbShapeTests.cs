@@ -20,8 +20,6 @@ public class GeoVerbShapeTests
 {
     private const int ParameterBudget = 4;
 
-    private static readonly ChartSerializer Serializer = new();
-
     private static MethodInfo[] Verbs =>
     [
         .. typeof(GeoAxesExtensions).GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
@@ -34,7 +32,7 @@ public class GeoVerbShapeTests
     [Fact]
     public void TheVerbsOfTheMapLayers_AreFound() =>
         Assert.Equal(
-            ["Borders", "Bubbles", "Cartogram", "Choropleth", "Coastlines", "Dorling", "Flows", "HexBins", "Land", "Ocean", "Points", "WithProjection"],
+            ["Borders", "Bubbles", "Cartogram", "Choropleth", "Coastlines", "ContiguousCartogram", "Dorling", "Flows", "H3Bins", "H3Cells", "HexBins", "Land", "Ocean", "Points", "WithProjection"],
             Verbs.Select(verb => verb.Name).Distinct());
 
     [Theory]
@@ -109,6 +107,6 @@ public class GeoVerbShapeTests
             }
         });
 
-        Assert.Equal(figure.ToSvg(), Serializer.FromJson(Serializer.ToJson(figure)).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 }

@@ -25,7 +25,6 @@ public static class AxesTernaryVerbs
         public TernaryLineSeries TernaryPlot(double[] top, double[] left, double[] right)
         {
             TernarySeries.RefuseUnplaceable(top, left, right);
-            axes.CoordinateSystem = CoordinateSystem.Ternary;
             return axes.AddSeries(new TernaryLineSeries(top, left, right));
         }
 
@@ -51,7 +50,6 @@ public static class AxesTernaryVerbs
         public TernaryScatterSeries TernaryScatter(double[] top, double[] left, double[] right)
         {
             TernarySeries.RefuseUnplaceable(top, left, right);
-            axes.CoordinateSystem = CoordinateSystem.Ternary;
             return axes.AddSeries(new TernaryScatterSeries(top, left, right));
         }
     }

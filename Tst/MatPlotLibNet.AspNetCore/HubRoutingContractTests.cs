@@ -7,6 +7,8 @@ using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Tests;
+using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
@@ -44,9 +46,7 @@ public class HubRoutingContractTests
     [Fact]
     public void TheSamples_CoverEveryConcreteEventOfTheLibrary()
     {
-        var concrete = typeof(FigureInteractionEvent).Assembly.GetTypes()
-            .Where(t => t is { IsAbstract: false, IsPublic: true } && typeof(FigureInteractionEvent).IsAssignableFrom(t))
-            .ToHashSet();
+        var concrete = typeof(FigureInteractionEvent).Assembly.ConcretePublicSubtypesOf(typeof(FigureInteractionEvent));
 
         Assert.Equal(concrete.Order(TypeNameComparer.Instance), Samples.Select(s => s.GetType()).Order(TypeNameComparer.Instance));
     }
@@ -104,13 +104,63 @@ public class HubRoutingContractTests
     {
         // The names of the events, and the one method that is not an event: where a viewer's pointer is.
         var routed = Samples.Select(NameOf).Where(n => n is not null).Append(HubMethodNames.Cursor).ToHashSet();
-        var script = SvgSignalRInteractionScript.GetScript(
-            enableBrushSelect: true, enableHover: true, enableDataCursor: true, enableViewerCursors: true);
+        var script = SvgTransform.ServerInteractionScript(SvgTransform.ServerScriptBranches.All);
 
         var invoked = Regex.Matches(script, @"invoke\('(On[A-Za-z0-9]+)'").Select(m => m.Groups[1].Value).Distinct().ToArray();
 
         Assert.NotEmpty(invoked);
         Assert.All(invoked, name => Assert.Contains(name, routed));
+    }
+
+    /// <summary>The messages the server sends a viewer, by the names a page and a client listen for.</summary>
+    private static readonly string[] ServerMessages =
+    [
+        HubMethodNames.UpdateChart, HubMethodNames.UpdateChartSvg, HubMethodNames.UpdateChartParts, HubMethodNames.ReceiveTooltipContent,
+        HubMethodNames.ReceiveCursor, HubMethodNames.ViewChanged, HubMethodNames.ViewerLeft,
+    ];
+
+    /// <summary>The methods a viewer calls to join and leave a chart's group.</summary>
+    private static readonly string[] Subscriptions = [HubMethodNames.Subscribe, HubMethodNames.SubscribeToParts, HubMethodNames.Unsubscribe];
+
+    [Fact]
+    public void EveryMessageTheServerSends_IsNamedInHubMethodNames()
+    {
+        var sent = typeof(IChartHubClient).GetMethods().Select(m => m.Name).Order(StringComparer.Ordinal);
+
+        Assert.Equal(sent, ServerMessages.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void EverySubscriptionName_IsAMethodOfTheHub()
+    {
+        foreach (var name in Subscriptions)
+        {
+            var method = typeof(ChartHub).GetMethod(name, BindingFlags.Public | BindingFlags.Instance);
+            Assert.True(method is not null, $"ChartHub has no public method {name}");
+            Assert.Equal(typeof(string), Assert.Single(method!.GetParameters()).ParameterType);
+        }
+    }
+
+    [Fact]
+    public void EveryNameOfHubMethodNames_IsAMethodOfTheHubOrOfItsClient()
+    {
+        var names = typeof(HubMethodNames).GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!);
+        var methods = typeof(ChartHub).GetMethods(BindingFlags.Public | BindingFlags.Instance).Select(m => m.Name)
+            .Concat(typeof(IChartHubClient).GetMethods().Select(m => m.Name)).ToHashSet(StringComparer.Ordinal);
+
+        Assert.All(names, name => Assert.Contains(name, methods));
+    }
+
+    [Fact]
+    public void ThePagesScript_ListensOnlyForMessagesTheServerSends()
+    {
+        var script = SvgTransform.ServerInteractionScript(SvgTransform.ServerScriptBranches.All);
+
+        var heard = Regex.Matches(script, @"\.on\('([A-Za-z0-9]+)'").Select(m => m.Groups[1].Value).Distinct().ToArray();
+
+        Assert.NotEmpty(heard);
+        Assert.All(heard, name => Assert.Contains(name, ServerMessages));
     }
 
     private sealed class TypeNameComparer : IComparer<Type>

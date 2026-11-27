@@ -13,75 +13,19 @@ public class SpectrogramSeriesRenderTests
     private static readonly double[] Signal =
         Enumerable.Range(0, 512).Select(i => Math.Sin(2 * Math.PI * 50 * i / 1000.0)).ToArray();
 
-    [Fact]
-    public void Spectrogram_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("Spectrogram_SvgContainsRectangles", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(Signal, 1000, s => { s.WindowSize = 64; s.Overlap = 32; }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<rect"),
+    };
 
-    [Fact]
-    public void Spectrogram_SvgContainsRectangles()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(Signal, 1000, s => { s.WindowSize = 64; s.Overlap = 32; }))
-            .ToSvg();
-        Assert.Contains("<rect", svg);
-    }
-
-    [Fact]
-    public void Spectrogram_EmptySignal_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram([], 1))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Spectrogram_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Spectrogram(Signal, 1000, s => { s.WindowSize = 64; s.Overlap = 32; })
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Spectrogram_ShortSignal_RendersWithoutError()
-    {
-        double[] shortSignal = [1.0, -1.0, 0.5, -0.5];
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(shortSignal, 1, s => { s.WindowSize = 4; s.Overlap = 2; }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // Branch coverage — exercise both halves of the (nBins==0 || nFrames==0) guard.
     // Fft.Stft returns an empty (0,0) matrix when WindowSize<=0, hitting nBins==0 first.
 
-    [Fact]
-    public void Spectrogram_ZeroWindowSize_EarlyReturn()
-    {
-        // Non-empty signal but WindowSize=0 → Fft.Stft returns (0,0) matrix → renderer's
-        // nBins==0 guard returns. The Signal.Length==0 guard is bypassed.
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(Signal, 1000, s => { s.WindowSize = 0; }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Spectrogram_AllZeroSignal_DegenerateColorMappingGuard()
-    {
-        // Constant signal → STFT magnitudes all equal → ResolveColormapping (min == max)
-        // → degenerate guard sets max = min + 1 so normalize stays finite.
-        var flat = new double[256];
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(flat, 1000, s => { s.WindowSize = 64; s.Overlap = 32; }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

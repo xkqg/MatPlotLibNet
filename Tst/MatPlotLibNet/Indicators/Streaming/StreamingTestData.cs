@@ -11,19 +11,6 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 /// so the test files can compute expected values inline.</summary>
 internal static class StreamingTestData
 {
-    /// <summary>Six bars with monotonically rising O/H/L/C — useful for trend assertions where
-    /// signed-direction indicators (OBV, MACD) must produce strictly positive output.</summary>
-    public static OhlcBar[] RisingBars(int count = 6, double startClose = 100, double step = 1)
-    {
-        var bars = new OhlcBar[count];
-        for (int i = 0; i < count; i++)
-        {
-            double close = startClose + i * step;
-            bars[i] = new OhlcBar(Open: close - step / 2, High: close + step, Low: close - step, Close: close);
-        }
-        return bars;
-    }
-
     /// <summary>All bars share the same constant OHLC. Drives the high==low / zero-range branches
     /// in CCI, Williams %R and Stochastic.</summary>
     public static OhlcBar[] FlatBars(int count, double price = 100)

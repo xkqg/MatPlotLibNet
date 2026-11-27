@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Collections.Concurrent;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Transforms;
@@ -13,17 +12,21 @@ public static class FigureExtensions
 {
     // The registry starts with the formats core writes itself (SVG) and a refusal for each format it knows but cannot
     // write: .png and .pdf until MatPlotLibNet.Skia registers its exporters over them, .gif for good.
-    private static readonly ConcurrentDictionary<string, IFigureTransform> TransformRegistry = new()
+    private static readonly NamedTable<string, IFigureTransform> TransformRegistry = SeededTransforms();
+
+    private static NamedTable<string, IFigureTransform> SeededTransforms()
     {
-        [ExportExtension.Svg] = new SvgTransform(),
-        [ExportExtension.Png] = RefusingTransform.WithoutSkia(ExportExtension.Png),
-        [ExportExtension.Pdf] = RefusingTransform.WithoutSkia(ExportExtension.Pdf),
-        [ExportExtension.Gif] = RefusingTransform.ForAnimation(),
-    };
+        var table = new NamedTable<string, IFigureTransform>();
+        table.Set(ExportExtension.Svg, new SvgTransform());
+        table.Set(ExportExtension.Png, RefusingTransform.WithoutSkia(ExportExtension.Png));
+        table.Set(ExportExtension.Pdf, RefusingTransform.WithoutSkia(ExportExtension.Pdf));
+        table.Set(ExportExtension.Gif, RefusingTransform.ForAnimation());
+        return table;
+    }
 
     /// <summary>Registers a transform globally for a file extension (e.g., ".png"). Call once at startup.</summary>
     public static void RegisterTransform(string extension, IFigureTransform transform) =>
-        TransformRegistry[NormalizeExtension(extension)] = transform;
+        TransformRegistry.Set(NormalizeExtension(extension), transform);
 
     extension(Figure figure)
     {
@@ -56,7 +59,7 @@ public static class FigureExtensions
 
         /// <summary>Saves the figure as an SVG file.</summary>
         public void SaveSvg(string path) =>
-            File.WriteAllText(path, figure.ToSvg());
+            path.ReplaceFileWith(figure.ToSvg());
 
         /// <summary>Saves the figure to a file. The format follows the extension of <paramref name="path"/>: .json writes the
         /// figure as JSON, .svg an SVG, and with <c>MatPlotLibNet.Skia</c> loaded .png a PNG and .pdf a PDF. Without it a .png
@@ -86,20 +89,19 @@ public static class FigureExtensions
 
             if (ext == ExportExtension.Json)
             {
-                File.WriteAllText(path, figure.ToJson());
+                path.ReplaceFileWith(figure.ToJson());
                 return;
             }
 
-            if (TransformRegistry.TryGetValue(ext, out var transform))
+            if (TransformRegistry.Get(ext) is { } transform)
             {
-                using var buffer = new MemoryStream();
-                if (options is null)
-                    transform.Transform(figure, buffer);
-                else
-                    transform.Transform(figure, buffer, options);
-
-                using var file = File.Create(path);
-                buffer.WriteTo(file);
+                path.ReplaceFileWith(buffer =>
+                {
+                    if (options is null)
+                        transform.Transform(figure, buffer);
+                    else
+                        transform.Transform(figure, buffer, options);
+                });
                 return;
             }
 
@@ -110,7 +112,7 @@ public static class FigureExtensions
     private static void WriteSvgFile(Figure figure, string path, SaveOptions? options)
     {
         string svg = figure.ToSvg();
-        File.WriteAllText(path, options is null ? svg : svg.WithSaveOptions(options));
+        path.ReplaceFileWith(options is null ? svg : svg.WithSaveOptions(options));
     }
 
     private static string NormalizeExtension(string extension) =>

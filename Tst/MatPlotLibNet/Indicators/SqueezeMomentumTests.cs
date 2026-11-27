@@ -7,67 +7,12 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="SqueezeMomentum"/>. Covers all 12 branches enumerated in
-/// docs/contrib/indicator-tier-1d.md §1.</summary>
+/// <summary>Verifies <see cref="SqueezeMomentum"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class SqueezeMomentumTests
 {
     private static double[] Flat(int count, double value) =>
         Enumerable.Repeat(value, count).ToArray();
-
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var sq = new SqueezeMomentum(OhlcvBars.Hlc([], [], []), period: 20);
-        var r = sq.Compute();
-        Assert.Empty(r.SqueezeOn);
-        Assert.Empty(r.Momentum);
-    }
-
-    // ── Branch 2 — HLC length mismatch throws ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new SqueezeMomentum(OhlcvBars.Hlc([100.0, 101], [99.0], [100.0, 100.5]), period: 2));
-    }
-
-    // ── Branch 3 — period <= 1 throws ──
-    [Theory]
-    [InlineData(1)]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_PeriodBelowTwo_Throws(int period)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new SqueezeMomentum(OhlcvBars.Hlc([102.0, 103], [100.0, 101], [101.0, 102]), period));
-    }
-
-    // ── Branch 4 — bbMult or kcMult <= 0 throws ──
-    [Theory]
-    [InlineData(0.0, 1.5)]
-    [InlineData(-1.0, 1.5)]
-    [InlineData(2.0, 0.0)]
-    [InlineData(2.0, -0.5)]
-    public void Constructor_NonPositiveMultiplier_Throws(double bbMult, double kcMult)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new SqueezeMomentum(
-                OhlcvBars.Hlc([102.0, 103, 104], [100.0, 101, 102], [101.0, 102, 103]),
-                period: 2, bbMult, kcMult));
-    }
-
-    // ── Branch 5 — Length <= period + 1 → empty ──
-    [Fact]
-    public void Compute_LengthAtPeriodPlusOne_ReturnsEmpty()
-    {
-        int p = 3;
-        var h = new double[p + 1]; var l = new double[p + 1]; var c = new double[p + 1];
-        for (int i = 0; i < p + 1; i++) { h[i] = 101 + i; l[i] = 99 + i; c[i] = 100 + i; }
-        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
-        var r = sq.Compute();
-        Assert.Empty(r.Momentum);
-    }
 
     // ── Branch 6 — Length == period + 2 → single output row ──
     [Fact]
@@ -82,16 +27,6 @@ public class SqueezeMomentumTests
         Assert.Single(r.SqueezeOn);
     }
 
-    // ── Branch 7 — H < L on any bar → throw ──
-    [Fact]
-    public void Constructor_HighBelowLow_Throws()
-    {
-        // Bar 1 has H=100 < L=101 → throw.
-        Assert.Throws<ArgumentException>(() =>
-            new SqueezeMomentum(
-                OhlcvBars.Hlc([101.0, 100], [99.0, 101], [100.0, 100.5]), period: 2));
-    }
-
     // ── Branch 8 — Flat HLC → stddev=0, TR=0 → squeezeOn=false (strict <), momentum=0 ──
     [Fact]
     public void Compute_FlatPrices_SqueezeOffAndMomentumZero()
@@ -102,11 +37,7 @@ public class SqueezeMomentumTests
         var r = sq.Compute();
         Assert.NotEmpty(r.Momentum);
         Assert.All(r.SqueezeOn, v => Assert.False(v));
-        Assert.All(r.Momentum, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.Equal(0.0, v, precision: 9);
-        });
+        Assert.All(r.Momentum, v => Assert.Equal(0.0, v, precision: 9));
     }
 
     // ── Branch 9 — Narrow-range window → BB inside KC → squeezeOn=true ──
@@ -167,53 +98,5 @@ public class SqueezeMomentumTests
         var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
         var r = sq.Compute();
         Assert.All(r.Momentum, v => Assert.True(v < 0, $"expected momentum < 0, got {v}"));
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsAtLeastOneSeries()
-    {
-        var axes = new Axes();
-        int p = 5;
-        double[] c = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
-        double[] h = c.Select(v => v + 0.5).ToArray();
-        double[] l = c.Select(v => v - 0.5).ToArray();
-        new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p).Apply(axes);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        int p = 5;
-        double[] c = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
-        double[] h = c.Select(v => v + 0.5).ToArray();
-        double[] l = c.Select(v => v - 0.5).ToArray();
-        new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p).Apply(axes);
-        Assert.Equal("Squeeze(5)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultPeriod_Is20()
-    {
-        double[] c = Enumerable.Range(0, 25).Select(i => 100.0 + i).ToArray();
-        double[] h = c.Select(v => v + 0.5).ToArray();
-        double[] l = c.Select(v => v - 0.5).ToArray();
-        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c));
-        Assert.Equal("Squeeze(20)", sq.Label);
-    }
-
-    // ── Type system ──
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        int p = 5;
-        double[] c = Enumerable.Range(0, 10).Select(i => 100.0 + i).ToArray();
-        double[] h = c.Select(v => v + 0.5).ToArray();
-        double[] l = c.Select(v => v - 0.5).ToArray();
-        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
-        Assert.IsAssignableFrom<CandleIndicator<SqueezeResult>>(sq);
-        Assert.IsAssignableFrom<IIndicator>(sq);
     }
 }

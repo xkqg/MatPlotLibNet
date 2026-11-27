@@ -1,10 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Styling;
 
@@ -60,11 +59,6 @@ public class HatchTileTests
         Assert.Equal(6.0, HatchTile.Size);
     }
 
-    private static readonly Regex Line = new("""<line x1="(?<x1>[^"]+)" y1="(?<y1>[^"]+)" x2="(?<x2>[^"]+)" y2="(?<y2>[^"]+)" stroke""");
-    private static readonly Regex Dot = new("""<circle cx="(?<x>[^"]+)" cy="(?<y>[^"]+)" r="1" fill""");
-
-    private static double N(Match m, string group) => double.Parse(m.Groups[group].Value, CultureInfo.InvariantCulture);
-
     [Theory]
     [InlineData(HatchPattern.ForwardDiagonal)]
     [InlineData(HatchPattern.BackDiagonal)]
@@ -78,8 +72,10 @@ public class HatchTileTests
     {
         string svg = new HatchedRectangle(pattern).Svg;
 
-        var drawn = Line.Matches(svg).Select(m => new HatchMark(HatchMarkKind.Line, N(m, "x1"), N(m, "y1"), N(m, "x2"), N(m, "y2")))
-            .Concat(Dot.Matches(svg).Select(m => new HatchMark(HatchMarkKind.Dot, N(m, "x"), N(m, "y"), 0, 0)))
+        var drawn = svg.Elements("line").Where(line => line["x1"] is not null && line["y1"] is not null && line["x2"] is not null && line["y2"] is not null && line["stroke"] is not null)
+            .Select(line => new HatchMark(HatchMarkKind.Line, line.Number("x1"), line.Number("y1"), line.Number("x2"), line.Number("y2")))
+            .Concat(svg.Elements("circle").Where(circle => circle["r"] == "1" && circle["fill"] is not null)
+                .Select(circle => new HatchMark(HatchMarkKind.Dot, circle.Number("cx"), circle.Number("cy"), 0, 0)))
             .ToList();
         var expected = HatchTile.MarksOf(pattern);
 

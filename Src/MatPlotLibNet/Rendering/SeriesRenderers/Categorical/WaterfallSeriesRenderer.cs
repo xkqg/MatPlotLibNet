@@ -26,7 +26,6 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
     private const double TargetOverhangPx = 4;
 
     /// <summary>How thick a target mark is, in pixels.</summary>
-    private const double TargetThickness = 2.5;
 
     /// <summary>The short line across a bar at the level its step was meant to reach.</summary>
     private readonly record struct TargetMark(Point From, Point To);
@@ -47,12 +46,12 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
             var slot = series.SlotOf(i);
             // A total wears its own colour, a step the colour of its direction.
             var color = bar.IsTotal ? series.TotalColor : bar.Rises ? series.IncreaseColor : series.DecreaseColor;
-            // A bar stands on its foot (the total before a step, zero for a total) and reaches its top. A foot the axis
-            // cannot place (0 on a log axis) is clipped to the edge where the axis begins, as matplotlib clips it; a bar
-            // whose top the axes cannot place is skipped. A missing step is not known, and neither is any total after it
+            // A bar stands on its foot (the total before a step, zero for a total) and reaches its top. A foot or a top a
+            // log axis cannot place (0 or below) is cut at the edge where the axis begins, as matplotlib's plot cuts what its
+            // log scale clips, and a bar with both there is not drawn (PixelBox.OnFoot). A missing step is not known, and neither is any total after it
             // (a NaN carries on through the running sum) until a total states a level, so those steps and their
             // connectors go too.
-            var box = Transform.BoxOnFoot(slot, bar.Foot, bar.Top, bar.Rises, BarOrientation.Vertical);
+            var box = PixelBox.OnFoot(Transform, slot, bar.Foot, bar.Top, bar.Rises, BarOrientation.Vertical);
             Point? from = null, to = null;
             if (i < bars.Length - 1)
             {
@@ -76,16 +75,22 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
     /// <inheritdoc />
     public override void Render(WaterfallSeries series)
     {
-        var targetStroke = new StrokeStyle(series.TargetColor ?? Context.Theme.ForegroundText, TargetThickness, LineStyle.Solid);
+        var targetStroke = Slot.StrokeOf(series.TargetColor ?? Context.Theme.ForegroundText, LineWidthRule.OwnMark);
+        // No edge of its own: the theme's (matplotlib's forced black edge under classic), else none.
+        var edges = Context.Theme.PatchEdgesOf(series);
+        var edge = edges.Of();
         foreach (var step in Steps(series))
         {
             if (step.Bar.IsDrawable())
-                Ctx.DrawRectangle(step.Bar, new ShapeStyle(step.Colour, null, 0));
+            {
+                var style = edges.StyleOf(step.Colour, edge);
+                Ctx.DrawSnappedRectangle(step.Bar, style);
+            }
             // The mark of a target is drawn over its bar.
             if (step.Target is { } mark && mark.From.CanDrawLineTo(mark.To))
                 Ctx.DrawLine(mark.From, mark.To, targetStroke);
             if (step.ConnectorFrom is { } ls && step.ConnectorTo is { } le && ls.CanDrawLineTo(le))
-                Ctx.DrawLine(ls, le, new StrokeStyle(Context.Theme.Neutral, 0.5, LineStyle.Dashed));
+                Ctx.DrawLine(ls, le, Slot.StrokeOf(Context.Theme.Neutral, LineWidthRule.OwnHairline, LineStyle.Dashed));
         }
     }
 }

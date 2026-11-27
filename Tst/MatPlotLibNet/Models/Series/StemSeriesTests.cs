@@ -5,46 +5,17 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="StemSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="StemSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class StemSeriesTests
 {
-    /// <summary>Verifies that the constructor stores X and Y data.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        double[] x = [1.0, 2.0], y = [3.0, 4.0];
-        var series = new StemSeries(x, y);
-        Assert.Equal(x, series.XData);
-        Assert.Equal(y, series.YData);
-    }
-
-    /// <summary>Verifies that Marker defaults to Circle.</summary>
-    [Fact]
-    public void DefaultMarker_IsCircle()
-    {
-        var series = new StemSeries([1.0], [2.0]);
-        Assert.Equal(MarkerStyle.Circle, series.Marker);
-    }
-
-    /// <summary>Verifies that MarkerColor defaults to null.</summary>
-    [Fact]
-    public void DefaultMarkerColor_IsNull()
-    {
-        var series = new StemSeries([1.0], [2.0]);
-        Assert.Null(series.MarkerColor);
-    }
-
-    /// <summary>Verifies that StemColor defaults to null.</summary>
-    [Fact]
-    public void DefaultStemColor_IsNull()
-    {
-        var series = new StemSeries([1.0], [2.0]);
-        Assert.Null(series.StemColor);
-    }
-
     /// <summary>The stems stand on the baseline at 0, so the baseline is a sticky edge of the Y range. Along X nothing is
     /// sticky: the first and last stem are marks like any other and keep the axis margin, as matplotlib's stem does (it
     /// sets no sticky edge at all). Before, X was sticky at both ends of the data, so the first and last head stood on the
@@ -62,5 +33,13 @@ public class StemSeriesTests
         Assert.Null(range.StickyXMax);
         Assert.Equal(0.0, range.StickyYMin);
         Assert.Null(range.StickyYMax);
+    }
+
+    // StemSeries — `if (0 > yMax) yMax = 0` — all-negative Y.
+    [Fact] public void StemSeries_AllNegativeY_AdjustsYMaxToZero()
+    {
+        var s = new StemSeries(new double[] { 1, 2 }, new double[] { -1, -2 });
+        var range = s.ComputeDataRange(new TestAxesContext());
+        Assert.True(range.YMax >= 0);
     }
 }

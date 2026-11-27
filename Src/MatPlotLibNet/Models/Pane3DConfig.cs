@@ -11,7 +11,8 @@ namespace MatPlotLibNet.Models;
 /// (see <see cref="CubeFaceSelection"/>); each colour is bound to its AXIS, so a wall keeps its
 /// colour when the camera swings it to the opposite side.
 /// When <c>null</c> colors are used, the renderer falls back to the theme's <see cref="Theme.Pane3DColor"/>
-/// or the default <c>#F5F5F5</c>.</summary>
+/// or, when the theme names none, matplotlib's shade of each axis over white: <c>#F8F8F8</c> for the X wall,
+/// <c>#F2F2F2</c> for the Y wall and <c>#F5F5F5</c> for the floor.</summary>
 public sealed record Pane3DConfig
 {
     /// <summary>Color of the horizontal floor pane — the Z-axis back plane the camera selects
@@ -28,7 +29,8 @@ public sealed record Pane3DConfig
 
     /// <summary>Opacity applied to the pane surfaces, scaling each colour's own alpha.
     /// Range [0, 1]; 1 (the default) leaves every pane colour exactly as supplied.</summary>
-    public double Alpha { get; init; } = 1.0;
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double Alpha { get; init => field = value.ThrowIfNotOpacity(nameof(Alpha)); } = 1.0;
 
     /// <summary>Whether panes are visible. Set <c>false</c> for a transparent 3D background.</summary>
     public bool Visible { get; init; } = true;

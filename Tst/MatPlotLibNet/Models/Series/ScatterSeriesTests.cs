@@ -6,104 +6,22 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="ScatterSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="ScatterSeries"/> behaviour; what it starts from and the settings it stores are held by
+/// <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class ScatterSeriesTests
 {
-    /// <summary>Verifies that the constructor stores X and Y data.</summary>
+    /// <summary>The marker style a caller reads or writes through <see cref="IHasMarkerStyle"/> is the scatter's own
+    /// <see cref="ScatterSeries.Marker"/>: one setting, reached two ways.</summary>
     [Fact]
-    public void Constructor_StoresData()
+    public void TheMarkerStyleOfTheInterface_IsTheScattersMarker()
     {
-        double[] x = [1, 2], y = [3, 4];
-        var series = new ScatterSeries(x, y);
-        Assert.Equal(x, series.XData);
-        Assert.Equal(y, series.YData);
-    }
+        var scatter = new ScatterSeries([1.0], [2.0]);
+        IHasMarkerStyle styled = scatter;
 
-    /// <summary>Verifies that Alpha defaults to 1.0.</summary>
-    [Fact]
-    public void DefaultAlpha_IsOne()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Equal(1.0, series.Alpha);
-    }
+        styled.MarkerStyle = MarkerStyle.Square;
 
-    /// <summary>Verifies that Sizes defaults to null.</summary>
-    [Fact]
-    public void Sizes_DefaultNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.Sizes);
-    }
-
-    /// <summary>Verifies that EdgeColors defaults to null.</summary>
-    [Fact]
-    public void DefaultEdgeColors_IsNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.EdgeColors);
-    }
-
-    /// <summary>Verifies that LineWidths defaults to null.</summary>
-    [Fact]
-    public void DefaultLineWidths_IsNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.LineWidths);
-    }
-
-    /// <summary>Verifies that VMin defaults to null.</summary>
-    [Fact]
-    public void DefaultVMin_IsNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.VMin);
-    }
-
-    /// <summary>Verifies that VMax defaults to null.</summary>
-    [Fact]
-    public void DefaultVMax_IsNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.VMax);
-    }
-
-    /// <summary>Verifies that Normalizer defaults to null.</summary>
-    [Fact]
-    public void DefaultNormalizer_IsNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.Normalizer);
-    }
-
-    /// <summary>Verifies that EdgeColors can be assigned and retrieved.</summary>
-    [Fact]
-    public void EdgeColors_CanBeSet()
-    {
-        var colors = new[] { Color.FromHex("#FF0000"), Color.FromHex("#00FF00") };
-        var series = new ScatterSeries([1.0, 2.0], [3.0, 4.0]) { EdgeColors = colors };
-        Assert.Equal(colors, series.EdgeColors);
-    }
-
-    /// <summary>Verifies that VMin and VMax can be assigned and retrieved.</summary>
-    [Fact]
-    public void VMin_VMax_CanBeSet()
-    {
-        var series = new ScatterSeries([1.0], [2.0]) { VMin = 0.0, VMax = 100.0 };
-        Assert.Equal(0.0, series.VMin);
-        Assert.Equal(100.0, series.VMax);
-    }
-
-    [Fact]
-    public void C_DefaultsToNull()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Null(series.C);
-    }
-
-    [Fact]
-    public void C_CanBeSet()
-    {
-        var series = new ScatterSeries([1.0, 2.0], [3.0, 4.0]) { C = [0.0, 1.0] };
-        Assert.Equal([0.0, 1.0], series.C);
+        Assert.Equal(MarkerStyle.Square, scatter.Marker);
+        scatter.Marker = MarkerStyle.Diamond;
+        Assert.Equal(MarkerStyle.Diamond, styled.MarkerStyle);
     }
 }

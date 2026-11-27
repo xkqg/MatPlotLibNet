@@ -6,18 +6,13 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Rotates a 3D axes camera on right-mouse-drag. Arrow keys rotate ±5°.
-/// Home key resets to the default camera position (elevation 30°, azimuth -60°).
-/// Only activates on axes with <see cref="CoordinateSystem.ThreeD"/>.</summary>
-public sealed class Rotate3DModifier : IInteractionModifier
+/// Home key turns it back to the camera at rest (elevation <see cref="Camera3D.RestingElevation"/>, azimuth
+/// <see cref="Camera3D.RestingAzimuth"/>). Only activates on axes with <see cref="CoordinateSystem.ThreeD"/>.</summary>
+public sealed class Rotate3DModifier : InteractionModifier
 {
     private const double DegreesPerPixel = 0.5;
     private const double ArrowKeyDegrees = 5.0;
-    private const double DefaultElevation = 30.0;
-    private const double DefaultAzimuth = -60.0;
 
-    private readonly string _chartId;
-    private readonly IChartLayout _layout;
-    private readonly Action<FigureInteractionEvent> _sink;
     private readonly Figure _figure;
 
     private bool _active;
@@ -28,33 +23,31 @@ public sealed class Rotate3DModifier : IInteractionModifier
     /// <summary>Creates a 3D rotation modifier.</summary>
     public Rotate3DModifier(string chartId, IChartLayout layout,
         Action<FigureInteractionEvent> sink, Figure figure)
+        : base(chartId, layout, sink)
     {
-        _chartId = chartId;
-        _layout = layout;
-        _sink = sink;
         _figure = figure;
     }
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args)
+    public override bool HandlesPointerPressed(PointerInputArgs args)
     {
         if (args.Button != PointerButton.Right) return false;
-        var axesIndex = _layout.HitTestAxes(args.X, args.Y);
+        var axesIndex = Layout.HitTestAxes(args.X, args.Y);
         if (axesIndex is null) return false;
         return IsThreeD(axesIndex.Value);
     }
 
     /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args)
+    public override void OnPointerPressed(PointerInputArgs args)
     {
-        _activeAxes = _layout.HitTestAxes(args.X, args.Y) ?? 0;
+        _activeAxes = Layout.AxesOrFirstAt(args.X, args.Y);
         _active = true;
         _lastX = args.X;
         _lastY = args.Y;
     }
 
     /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args)
+    public override void OnPointerMoved(PointerInputArgs args)
     {
         if (!_active) return;
 
@@ -65,28 +58,22 @@ public sealed class Rotate3DModifier : IInteractionModifier
 
         if (dx == 0 && dy == 0) return;
 
-        _sink(new Rotate3DEvent(_chartId, _activeAxes,
+        Emit(new Rotate3DEvent(ChartId, _activeAxes,
             dx * DegreesPerPixel, -dy * DegreesPerPixel));
     }
 
     /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args) => _active = false;
+    public override void OnPointerReleased(PointerInputArgs args) => _active = false;
 
     /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args)
+    public override bool HandlesKeyDown(KeyInputArgs args)
     {
         if (!HasAnyThreeD()) return false;
         return args.Key is "Left" or "Right" or "Up" or "Down" or "Home";
     }
 
     /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args)
+    public override void OnKeyDown(KeyInputArgs args)
     {
         int axesIndex = FindFirstThreeD();
         if (axesIndex < 0) return;
@@ -97,13 +84,13 @@ public sealed class Rotate3DModifier : IInteractionModifier
             "Right" => (ArrowKeyDegrees, 0.0),
             "Up" => (0.0, ArrowKeyDegrees),
             "Down" => (0.0, -ArrowKeyDegrees),
-            "Home" => (DefaultAzimuth - _figure.SubPlots[axesIndex].Azimuth,
-                       DefaultElevation - _figure.SubPlots[axesIndex].Elevation),
+            "Home" => (Camera3D.RestingAzimuth - _figure.SubPlots[axesIndex].Azimuth,
+                       Camera3D.RestingElevation - _figure.SubPlots[axesIndex].Elevation),
             _ => (0.0, 0.0)
         };
 
         if (da != 0 || de != 0)
-            _sink(new Rotate3DEvent(_chartId, axesIndex, da, de));
+            Emit(new Rotate3DEvent(ChartId, axesIndex, da, de));
     }
 
     private bool IsThreeD(int axesIndex) =>

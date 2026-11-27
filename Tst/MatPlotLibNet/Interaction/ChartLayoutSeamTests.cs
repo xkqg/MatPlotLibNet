@@ -12,23 +12,12 @@ namespace MatPlotLibNet.Tests.Interaction;
 public class ChartLayoutSeamTests
 {
     /// <summary>A layout that states nothing but a plot area and a range, which is all an implementer has to write.</summary>
-    private sealed class BareLayout : IChartLayout
-    {
-        public int AxesCount => 1;
-
-        public Rect GetPlotArea(int axesIndex) => new(10, 20, 200, 100);
-
-        public DataRange GetDataRange(int axesIndex) => new(0, 10, 0, 100);
-
-        public int? HitTestAxes(double pixelX, double pixelY) => 0;
-
-        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => 7;
-    }
+    private static TestChartLayout BareLayout() => new(new Rect(10, 20, 200, 100), new DataRange(0, 10, 0, 100)) { LegendItemHit = 7 };
 
     [Fact]
     public void APixelOutsideThePlotArea_HasNoDataPoint_OnALayoutThatOnlyStatesTheArea()
     {
-        IChartLayout layout = new BareLayout();
+        IChartLayout layout = BareLayout();
 
         Assert.Null(layout.PixelToData(5, 50, 0));     // left of the area
         Assert.Null(layout.PixelToData(300, 50, 0));   // right of it
@@ -39,7 +28,7 @@ public class ChartLayoutSeamTests
     [Fact]
     public void APixelInsideThePlotArea_ReadsTheRangeLinearly_OnALayoutThatOnlyStatesTheArea()
     {
-        IChartLayout layout = new BareLayout();
+        IChartLayout layout = BareLayout();
 
         var point = layout.PixelToData(110, 70, 0);   // the middle of the area
 

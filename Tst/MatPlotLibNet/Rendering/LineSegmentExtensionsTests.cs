@@ -48,84 +48,48 @@ public class LineSegmentExtensionsTests
         Assert.Equal(corners, corners.ClippedTo(Area));
     }
 
-    /// <summary>A segment that runs along an edge, inside it, is kept whole.</summary>
-    [Fact]
-    public void ASegmentParallelToAnEdge_Inside_IsKeptWhole() =>
-        AssertSegment(Clip(100, 200, 300, 200), 100, 200, 300, 200);
+    /// <summary>A segment is cut where it crosses the edges of the area, whichever way it is drawn; one that runs along an edge inside it,
+    /// or a point inside, is kept whole.</summary>
+    [Theory]
+    [InlineData(100, 200, 300, 200, 100, 200, 300, 200)] // along an edge, inside it
+    [InlineData(100, 100, 100, 100, 100, 100, 100, 100)] // a point (no length) inside
+    [InlineData(100, 220, 300, -180, 100, 220, 200, 20)] // leaves through the top: crosses y = 20 half way, at x = 200
+    [InlineData(0, 100, 100, 200, 50, 150, 100, 200)] // comes in through the left: crosses x = 50 half way, at y = 150
+    [InlineData(0, -30, 500, 470, 50, 20, 350, 320)] // y = x - 30 through the area: enters at the top (50, 20), leaves at the bottom (350, 320)
+    [InlineData(500, 470, 0, -30, 350, 320, 50, 20)] // the same drawn the other way: the same cut, its ends swapped
+    [InlineData(350, 100, 550, 100, 350, 100, 450, 100)] // leaves through the right edge
+    public void ASegment_IsCutAtTheEdgesItCrosses(double x1, double y1, double x2, double y2, double fromX, double fromY, double toX, double toY) =>
+        AssertSegment(Clip(x1, y1, x2, y2), fromX, fromY, toX, toY);
 
-    /// <summary>A segment of no length (a point) inside the area is kept; one outside is dropped.</summary>
-    [Fact]
-    public void APoint_IsKeptInside_AndDroppedOutside()
-    {
-        AssertSegment(Clip(100, 100, 100, 100), 100, 100, 100, 100);
-        Assert.Null(Clip(10, 100, 10, 100));
-    }
+    /// <summary>A segment with nothing inside the area is dropped.</summary>
+    [Theory]
+    [InlineData(100, 0, 300, 10)] // wholly above
+    [InlineData(100, 400, 300, 400)] // parallel to an edge, outside it
+    [InlineData(550, 100, 500, 150)] // wholly to the right, drawn leftwards
+    [InlineData(-100, 100, 0, 150)] // wholly to the left
+    [InlineData(-100, 150, 150, -100)] // past a corner: x + y = 50 crosses x = 50 at y = 0 (above) and y = 20 at x = 30 (left)
+    [InlineData(0, 70, 70, 0)] // touching only the top left corner (50, 20): x + y = 70
+    [InlineData(50, 100, 0, 100)] // starts on an edge and runs away from the area
+    [InlineData(10, 100, 10, 100)] // a point (no length) outside
+    public void ASegmentWithNothingInside_IsDropped(double x1, double y1, double x2, double y2) => Assert.Null(Clip(x1, y1, x2, y2));
 
-    // ---- cut at an edge ---------------------------------------------------------------------------------------------------
+    // ---- the line through two points (axline) ----------------------------------------------------------------------------
 
-    /// <summary>A segment that leaves through the top edge ends where it crosses it.</summary>
-    [Fact]
-    public void ASegmentLeavingThroughTheTop_EndsOnTheTopEdge() =>
-        // From (100, 220) to (300, -180): it crosses y = 20 half way, at x = 200.
-        AssertSegment(Clip(100, 220, 300, -180), 100, 220, 200, 20);
+    /// <summary>The line through two points runs on both ways to the edges, in the direction from the first point toward the second,
+    /// whether the points lie inside the area or outside it.</summary>
+    [Theory]
+    [InlineData(100, 70, 200, 170, 50, 20, 350, 320)] // y = x - 30: enters the left edge at (50, 20), leaves the bottom at (350, 320)
+    [InlineData(200, 170, 100, 70, 350, 320, 50, 20)] // the same, toward the first point
+    [InlineData(0, 100, -10, 100, 450, 100, 50, 100)] // both points outside, the line crosses the area
+    [InlineData(100, 300, 100, 200, 100, 320, 100, 20)] // upright: edge to edge across the height
+    public void TheLineThroughTwoPoints_RunsOnToTheEdges(double x1, double y1, double x2, double y2, double fromX, double fromY, double toX, double toY) =>
+        AssertSegment(Area.LineThrough(new Point(x1, y1), new Point(x2, y2)), fromX, fromY, toX, toY);
 
-    /// <summary>A segment that comes in through the left edge starts where it crosses it.</summary>
-    [Fact]
-    public void ASegmentEnteringThroughTheLeft_StartsOnTheLeftEdge() =>
-        // From (0, 100) to (100, 200): it crosses x = 50 half way, at y = 150.
-        AssertSegment(Clip(0, 100, 100, 200), 50, 150, 100, 200);
-
-    /// <summary>A segment that runs through the area and out on both sides is cut on both: through the bottom edge and the
-    /// right edge.</summary>
-    [Fact]
-    public void ASegmentThroughTheArea_IsCutAtBothEdges() =>
-        // The line y = x - 30 from (0, -30) to (500, 470): it enters at the top (x = 50 gives y = 20) and leaves at the
-        // bottom (y = 320 at x = 350).
-        AssertSegment(Clip(0, -30, 500, 470), 50, 20, 350, 320);
-
-    /// <summary>The cut does not depend on the direction the segment is drawn in: the reversed segment is cut at the same
-    /// points, its ends swapped.</summary>
-    [Fact]
-    public void TheCut_DoesNotDependOnTheDirection() =>
-        AssertSegment(Clip(500, 470, 0, -30), 350, 320, 50, 20);
-
-    /// <summary>A segment that leaves through the right edge, with its start inside, ends on the right edge.</summary>
-    [Fact]
-    public void ASegmentLeavingThroughTheRight_EndsOnTheRightEdge() =>
-        AssertSegment(Clip(350, 100, 550, 100), 350, 100, 450, 100);
-
-    // ---- outside ----------------------------------------------------------------------------------------------------------
-
-    /// <summary>A segment wholly above the area is dropped.</summary>
-    [Fact]
-    public void ASegmentAbove_IsDropped() => Assert.Null(Clip(100, 0, 300, 10));
-
-    /// <summary>A segment parallel to an edge, outside it, is dropped.</summary>
-    [Fact]
-    public void ASegmentParallelToAnEdge_Outside_IsDropped() => Assert.Null(Clip(100, 400, 300, 400));
-
-    /// <summary>A segment wholly to the right of the area, drawn leftwards, is dropped.</summary>
-    [Fact]
-    public void ASegmentToTheRight_IsDropped() => Assert.Null(Clip(550, 100, 500, 150));
-
-    /// <summary>A segment wholly to the left of the area is dropped.</summary>
-    [Fact]
-    public void ASegmentToTheLeft_IsDropped() => Assert.Null(Clip(-100, 100, 0, 150));
-
-    /// <summary>A segment that passes outside a corner, crossing the lines of two edges but never the area, is dropped.</summary>
-    [Fact]
-    public void ASegmentPastACorner_IsDropped() =>
-        // The line x + y = 50 runs from (-100, 150) to (150, -100): it crosses the line x = 50 at y = 0 (above the area) and
-        // the line y = 20 at x = 30 (left of it).
-        Assert.Null(Clip(-100, 150, 150, -100));
-
-    /// <summary>A segment that touches the area in one point only (a corner) has nothing to draw and is dropped.</summary>
-    [Fact]
-    public void ASegmentTouchingOnlyACorner_IsDropped() =>
-        // The line x + y = 70 touches the area only at its top left corner (50, 20).
-        Assert.Null(Clip(0, 70, 70, 0));
-
-    /// <summary>A segment that starts on an edge and runs away from the area has nothing inside and is dropped.</summary>
-    [Fact]
-    public void ASegmentLeavingFromAnEdge_IsDropped() => Assert.Null(Clip(50, 100, 0, 100));
+    /// <summary>A line that misses the area is not drawn, and one point twice has no direction: there is no line, as matplotlib's axline
+    /// refuses it.</summary>
+    [Theory]
+    [InlineData(0, 0, 10, 0)] // misses the area
+    [InlineData(100, 100, 100, 100)] // one point twice
+    public void TheLineThroughTwoPoints_IsNotDrawn_WhenItMissesTheAreaOrHasNoDirection(double x1, double y1, double x2, double y2) =>
+        Assert.Null(Area.LineThrough(new Point(x1, y1), new Point(x2, y2)));
 }

@@ -13,9 +13,6 @@ using MatPlotLibNet.Models.Series;
 /// reference statistics are lifelines' (0.30.3), to 1e-9; the p-values come from the chi-square survival function.</summary>
 public class LogRankTests
 {
-    private static void Close(double expected, double actual, double relative) =>
-        Assert.True(Math.Abs(actual - expected) <= relative * Math.Abs(expected), $"expected {expected:R}, got {actual:R}");
-
     /// <summary>Freireich's leukaemia trial: 6-MP against placebo, 21 patients each, 12 of the 6-MP group censored. R's survdiff
     /// gives chi-square 16.8 on 1 degree of freedom, p = 4e-05.</summary>
     [Fact]
@@ -29,9 +26,9 @@ public class LogRankTests
 
         var result = LogRank.Test(groups);
 
-        Close(16.792940989216547, result.Statistic, 1e-9);
+        16.792940989216547.AssertCloseTo(result.Statistic, relative: 1e-9, floor: 0);
         Assert.Equal(1, result.DegreesOfFreedom);
-        Close(4.168809109334511e-05, result.PValue, 1e-6);
+        (4.168809109334511e-05).AssertCloseTo(result.PValue, relative: 1e-6, floor: 0);
         Assert.Equal(16.79, result.Statistic, 2);
     }
 
@@ -48,9 +45,9 @@ public class LogRankTests
 
         var result = LogRank.Test(groups);
 
-        Close(4.981659715785285, result.Statistic, 1e-9);
+        4.981659715785285.AssertCloseTo(result.Statistic, relative: 1e-9, floor: 0);
         Assert.Equal(2, result.DegreesOfFreedom);
-        Close(0.08284119162569575, result.PValue, 1e-6);
+        0.08284119162569575.AssertCloseTo(result.PValue, relative: 1e-6, floor: 0);
     }
 
     /// <summary>A pair small enough to work by hand, with a tie and a subject censored on an event time (who is still at risk
@@ -66,8 +63,8 @@ public class LogRankTests
 
         var result = LogRank.Test(groups);
 
-        Close(0.006634599436059062, result.Statistic, 1e-9);
-        Close(0.9350816610273595, result.PValue, 1e-6);
+        0.006634599436059062.AssertCloseTo(result.Statistic, relative: 1e-9, floor: 0);
+        0.9350816610273595.AssertCloseTo(result.PValue, relative: 1e-6, floor: 0);
     }
 
     /// <summary>The order of the groups and of the subjects within them does not change the statistic.</summary>
@@ -83,7 +80,7 @@ public class LogRankTests
         var shuffled = new[] { groups[2], groups[0], groups[1] };
         shuffled[0] = new("C", [8, 7, 2, 2], [true, true, false, true]);
 
-        Close(LogRank.Test(groups).Statistic, LogRank.Test(shuffled).Statistic, 1e-12);
+        LogRank.Test(groups).Statistic.AssertCloseTo(LogRank.Test(shuffled).Statistic, relative: 1e-12, floor: 0);
     }
 
     [Fact]

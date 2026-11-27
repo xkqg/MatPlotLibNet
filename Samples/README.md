@@ -27,7 +27,7 @@ A console app that creates every sample image shipped with the wiki and cookbook
 dotnet run --project MatPlotLibNet.Samples.Console
 ```
 
-Output goes to the `images/` directory at the repository root. Re-run it whenever a rendering change would alter committed sample output, and run it twice: two runs write the same bytes, so a file that differs between them is a defect to find, not a new picture. Commit only the files that changed. The program also draws the pictures the wiki shows that no sample draws (`WikiPictures.cs`: the gallery tiles, the control room and the picture of each Examples block); the wiki keeps a copy of every picture, and the wiki suite fails while a copy is older than the one drawn here.
+Output goes to the `images/` directory at the repository root (set `MPL_SAMPLES_OUT` to a folder and it writes there instead: its `images/` folder, and the package icon beside it, which is how a test draws every picture without touching the repository's). Re-run it whenever a rendering change would alter committed sample output, and run it twice: two runs write the same bytes, so a file that differs between them is a defect to find, not a new picture. Run the program from the build folder or from a copy of it elsewhere: the working directory plays no part (the output folder is found from the executable's location, and no font is looked up relative to it). Nor does the machine's set of fonts: every sample draws its text in the default family `sans-serif` or in DejaVu Sans by name, and both are the DejaVu Sans that ships inside `MatPlotLibNet.Skia`. Commit only the files that changed. The program also draws the pictures the wiki shows that no sample draws (`WikiPictures.cs`: the gallery tiles, the control room and the picture of each Examples block); the wiki keeps a copy of every picture, and the wiki suite fails while a copy is older than the one drawn here.
 
 ## Blazor
 
@@ -99,7 +99,7 @@ dotnet run --project MatPlotLibNet.Samples.AspNetCore
 ```
 
 - Figure registry pattern — register a figure once, mutate it, and clients receive live updates
-- `WithServerInteraction()` wires pan/zoom/reset/legend-toggle through the hub
+- `WithServerInteraction(chartId, configure)` wires pan/zoom/reset/legend-toggle through the hub
 
 ## Web API
 
@@ -130,19 +130,19 @@ dotnet run --project MatPlotLibNet.Samples.GraphQL
 
 ## Packages without dedicated sample projects
 
-These NuGet packages do not yet have runnable samples. Contributions are welcome:
+These NuGet packages have no sample project of their own; what each one adds is shown by the line below and the page it names:
 
 | Package | How to try it today |
 |---|---|
 | `MatPlotLibNet.Maui` | Add `<mpl:FigureView Figure="{Binding Figure}" />` in a MAUI page |
-| `MatPlotLibNet.DataFrame` | `df.PlotBar()` / `df.PlotLine()` extensions on `Microsoft.Data.Analysis.DataFrame` — covered in the DataFrame cookbook page |
+| `MatPlotLibNet.DataFrame` | `df.Line(x, y)`, `df.Scatter(x, y)` and `df.Hist(column)` extensions on `Microsoft.Data.Analysis.DataFrame` — covered in the DataFrame cookbook page |
 | `MatPlotLibNet.Skia` | `SkiaTransform` renders to `SKBitmap`; see unit tests in `Tst/MatPlotLibNet.Skia/` |
-| `MatPlotLibNet.Geo` | `ax.WithProjection(GeoProjection.Robinson)` (any of 13), then the layers `Land`, `Ocean`, `Coastlines`, `Borders`, `Choropleth`, `Bubbles`, `Flows`, `Cartogram` and `Dorling`; the console sample draws the maps, and the [geographic cookbook page](../docs/cookbook/geographic.md) shows each |
+| `MatPlotLibNet.Geo` | `ax.WithProjection(GeoProjection.Robinson)` (any of 13), then the layers `Land`, `Ocean`, `Coastlines`, `Borders`, `Choropleth`, `Bubbles`, `Flows`, `Cartogram`, `ContiguousCartogram` and `Dorling`; the console sample draws the maps, and the [geographic cookbook page](../docs/cookbook/geographic.md) shows each |
 | `MatPlotLibNet.Notebooks` | Polyglot Notebooks: `#r "nuget: MatPlotLibNet.Notebooks"`, then any `.ToSvg()` renders inline |
 | `MatPlotLibNet.Interactive` | .NET Interactive kernel extension; same inline rendering as Notebooks |
 | `MatPlotLibNet.Mcp` | Point an MCP host at it (`dnx MatPlotLibNet.Mcp`) and ask the model for a chart; see the [MCP cookbook page](../docs/cookbook/mcp.md) |
 
-Full sample projects for these are planned (no ETA). Until then, the patterns above and the cookbook pages are the reference.
+The patterns above and the cookbook pages are the reference for these packages.
 
 ## Note
 

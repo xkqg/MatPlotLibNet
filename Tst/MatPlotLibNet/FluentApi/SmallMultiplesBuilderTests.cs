@@ -28,6 +28,14 @@ public class SmallMultiplesBuilderTests
     }
 
     [Fact]
+    public void TheTitle_TitlesTheFigure()
+    {
+        var figure = Five().WithTitle("Processes").Build().Build();
+
+        Assert.Equal("Processes", figure.Title);
+    }
+
+    [Fact]
     public void EachPanel_IsItsOwnSubplot()
     {
         var figure = Five().Build().Build();
@@ -100,12 +108,13 @@ public class SmallMultiplesBuilderTests
         Assert.Throws<InvalidOperationException>(() => Plt.SmallMultiples().Build());
     }
 
-    [Fact]
-    public void ItRendersToSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Five().WithSharedYLimits(0, 100).WithWindow(Now, TimeSpan.FromMinutes(3)).Build().ToSvg();
+        new DrawnToken("ItRendersToSvg", () => Five().WithSharedYLimits(0, 100).WithWindow(Now, TimeSpan.FromMinutes(3)).Build().ToSvg(), "<svg", "P4"),
+    };
 
-        Assert.Contains("<svg", svg);
-        Assert.Contains("P4", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

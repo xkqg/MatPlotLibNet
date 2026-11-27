@@ -8,38 +8,16 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Verifies shared axes (sharex/sharey) behavior on <see cref="Axes"/> and <see cref="Figure"/>.</summary>
 public class SharedAxesTests
 {
-    [Fact]
-    public void ShareXWith_DefaultIsNull()
-    {
-        var axes = new Axes();
-        Assert.Null(axes.ShareXWith);
-    }
-
-    [Fact]
-    public void ShareYWith_DefaultIsNull()
-    {
-        var axes = new Axes();
-        Assert.Null(axes.ShareYWith);
-    }
-
-    [Fact]
-    public void AddSubPlot_WithShareX_SetsReference()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AddSubPlot_WithShareOfOneAxis_SetsReference(bool shareX)
     {
         var fig = new Figure();
-        var ax1 = fig.AddSubPlot(1, 2, 1);
-        var ax2 = fig.AddSubPlot(1, 2, 2, sharex: ax1);
+        var ax1 = shareX ? fig.AddSubPlot(1, 2, 1) : fig.AddSubPlot(2, 1, 1);
+        var ax2 = shareX ? fig.AddSubPlot(1, 2, 2, sharex: ax1) : fig.AddSubPlot(2, 1, 2, sharey: ax1);
 
-        Assert.Same(ax1, ax2.ShareXWith);
-    }
-
-    [Fact]
-    public void AddSubPlot_WithShareY_SetsReference()
-    {
-        var fig = new Figure();
-        var ax1 = fig.AddSubPlot(2, 1, 1);
-        var ax2 = fig.AddSubPlot(2, 1, 2, sharey: ax1);
-
-        Assert.Same(ax1, ax2.ShareYWith);
+        Assert.Same(ax1, shareX ? ax2.ShareXWith : ax2.ShareYWith);
     }
 
     [Fact]

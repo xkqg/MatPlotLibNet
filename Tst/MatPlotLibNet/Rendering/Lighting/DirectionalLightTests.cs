@@ -9,40 +9,14 @@ namespace MatPlotLibNet.Tests.Rendering.Lighting;
 /// <summary>Verifies <see cref="DirectionalLight"/> intensity computation.</summary>
 public class DirectionalLightTests
 {
-    [Fact]
-    public void DirectionalLight_FacingLight_MaxIntensity()
-    {
-        // Light from +Z, face normal pointing +Z → max diffuse
-        var light = new DirectionalLight(0, 0, 1, Ambient: 0.3, Diffuse: 0.7);
-        double intensity = light.ComputeIntensity(0, 0, 1);
-        Assert.Equal(1.0, intensity, 6);
-    }
-
-    [Fact]
-    public void DirectionalLight_FacingAway_AmbientOnly()
-    {
-        // Light from +Z, face normal pointing -Z → no diffuse, only ambient
-        var light = new DirectionalLight(0, 0, 1, Ambient: 0.3, Diffuse: 0.7);
-        double intensity = light.ComputeIntensity(0, 0, -1);
-        Assert.Equal(0.3, intensity, 6);
-    }
-
-    /// <summary>A face edge-on to the light gets the middle of the range, ambient plus half the diffuse: the intensity maps the
-    /// dot product from [-1, 1] onto [Ambient, Ambient + Diffuse], which is matplotlib's mapping with its constants named (its
-    /// 0.65 + 0.35 · dot is 0.3 + 0.7 · (dot + 1) / 2). Before, an edge-on face got the ambient alone, the Lambertian rule, which
-    /// is not what the surfaces and the bars of the other renderers were shaded by.</summary>
-    [Fact]
-    public void DirectionalLight_Perpendicular_IsAmbientPlusHalfTheDiffuse()
-    {
-        // Light from +Z, face normal pointing +X → dot product = 0
-        var light = new DirectionalLight(0, 0, 1, Ambient: 0.3, Diffuse: 0.7);
-        double intensity = light.ComputeIntensity(1, 0, 0);
-        Assert.Equal(0.65, intensity, 6);
-    }
-
     /// <summary>The intensity is ambient + diffuse · (dot + 1) / 2, held to [0, 1], for any ambient and diffuse (they need not add
-    /// up to 1): (0.1, 0.5) runs 0.1 to 0.6, (0.2, 0.2) 0.2 to 0.4, (0, 0) is black, and (1, 1) saturates at 1.</summary>
+    /// up to 1): (0.3, 0.7) runs 0.3 to 1 and gives a face edge-on to the light the middle, 0.65, which is matplotlib's mapping with its
+    /// constants named (its 0.65 + 0.35 · dot); (0.1, 0.5) runs 0.1 to 0.6, (0.2, 0.2) 0.2 to 0.4, (0, 0) is black, and (1, 1) saturates
+    /// at 1.</summary>
     [Theory]
+    [InlineData(0.3, 0.7, 0, 0, 1, 1.0)]      // facing the light: ambient plus all the diffuse
+    [InlineData(0.3, 0.7, 0, 0, -1, 0.3)]     // facing away: ambient only
+    [InlineData(0.3, 0.7, 1, 0, 0, 0.65)]     // edge-on: ambient plus half the diffuse
     [InlineData(0.1, 0.5, 0, 0, 1, 0.6)]      // facing the light
     [InlineData(0.1, 0.5, 0, 0, -1, 0.1)]     // facing away
     [InlineData(0.1, 0.5, 1, 0, 0, 0.35)]     // edge-on
@@ -89,14 +63,9 @@ public class DirectionalLightTests
     [Fact]
     public void ALightOfYourOwn_ShadesByItsIntensity_ByDefault()
     {
-        ILightSource light = new Half();
+        ILightSource light = new TestLightSource(0.5);
 
         Assert.Equal(new Color(100, 50, 25, 255), light.Shade(new Color(200, 100, 50, 255), 0, 0, 1));
-    }
-
-    private sealed class Half : ILightSource
-    {
-        public double ComputeIntensity(double nx, double ny, double nz) => 0.5;
     }
 
     /// <summary>The public six-argument <c>Color.Shade</c> is the light's own shading: the same colour, whichever way it is asked.</summary>
@@ -144,8 +113,7 @@ public class DirectionalLightTests
     }
 
     /// <summary>Phase X.2.b (v1.7.2, 2026-04-19) — zero-length light-direction vector
-    /// trips the `lLen &lt; 1e-10` guard arm at line 21, returning Ambient + Diffuse.
-    /// Pre-X this branch was unhit (DirectionalLight pinned at 100%L / 50%B).</summary>
+    /// trips the `lLen &lt; 1e-10` guard arm, returning Ambient + Diffuse.</summary>
     [Theory]
     [InlineData(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)]   // zero light direction (lLen == 0)
     [InlineData(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)]   // zero normal vector (nLen == 0)
@@ -165,5 +133,18 @@ public class DirectionalLightTests
         ILightSource light = new DirectionalLight(0, 0, 0, Ambient: 0.1, Diffuse: 0.2);
 
         Assert.Equal(new Color(10, 20, 30, 40), light.Shade(new Color(10, 20, 30, 40), 0, 0, 1));
+    }
+
+    /// <summary>matplotlib 3.11's <c>LightSource(azdeg=225, altdeg=19.4712).direction</c>, printed on this box:
+    /// <c>[-0.66666675, -0.66666675, 0.33333299]</c>, with matplotlib's ambient and diffuse.</summary>
+    [Fact]
+    public void MatplotlibDefault_IsMatplotlibsDefaultLight()
+    {
+        var light = DirectionalLight.MatplotlibDefault;
+
+        Assert.Equal(-0.66666675, light.Dx, 1e-7);
+        Assert.Equal(-0.66666675, light.Dy, 1e-7);
+        Assert.Equal(0.33333299, light.Dz, 1e-7);
+        Assert.Equal((0.3, 0.7), (light.Ambient, light.Diffuse));
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.Layout;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers.Flow;
@@ -15,7 +16,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers.Flow;
 /// Layout and drawing are separate classes:
 /// <list type="bullet">
 ///   <item><description><see cref="SankeyLayoutEngine"/> = layout (this class)</description></item>
-///   <item><description><see cref="SankeySeriesRenderer"/> = drawing</description></item>
+///   <item><description>the Sankey series renderer = drawing</description></item>
 /// </list>
 /// The renderer calls <see cref="Compute"/> once per render, then consumes
 /// the returned <see cref="SankeyLayout"/> to draw links and nodes.
@@ -40,30 +41,29 @@ public sealed class SankeyLayoutEngine
         // 3. Per-node total value
         var nodeValues = ComputeNodeValues(series);
 
-        // 4. Group node indices by column and sort within each column by total value
+        // 4. Group node indices by column (the columns in the order their first node is given), each column from its largest node
+        // down: the nodes are dealt out in the one largest-first order, so two nodes of one value keep the order given
         var colGroups = new Dictionary<int, List<int>>();
         for (int i = 0; i < n; i++)
-        {
-            if (!colGroups.TryGetValue(columns[i], out var list))
-                colGroups[columns[i]] = list = new List<int>();
-            list.Add(i);
-        }
-        foreach (var kv in colGroups)
-            kv.Value.Sort((a, b) => nodeValues[b].CompareTo(nodeValues[a]));
+            if (!colGroups.ContainsKey(columns[i])) colGroups[columns[i]] = [];
+        foreach (int i in nodeValues.DescendingOrder())
+            colGroups[columns[i]].Add(i);
 
         // 5. Initial greedy packing along the flow axis
-        bool vert = series.Orient == SankeyOrientation.Vertical;
+        // The flow runs along X (left to right), or along Y in a vertical diagram (top to bottom); the nodes of a column are
+        // stacked across it.
+        bool crossAlongX = !series.Orient.FlowsAlongX;
         var nodeRects = new Rect[n];
-        double primaryLen = vert ? bounds.Height : bounds.Width;
-        double crossLen   = vert ? bounds.Width  : bounds.Height;
+        double primaryLen = bounds.LengthAlong(!crossAlongX);
+        double crossLen   = bounds.LengthAlong(crossAlongX);
         double colStep = maxCol > 0 ? (primaryLen - series.NodeWidth) / maxCol : 0;
         double totalValuePerCol = ComputeMaxColumnValueSum(colGroups, nodeValues);
         double availableCross = Math.Max(1,
             crossLen - MaxPaddingSum(colGroups, series.NodePadding));
         double valueScale = totalValuePerCol > 0 ? availableCross / totalValuePerCol : 0;
 
-        double primaryOrigin = vert ? bounds.Y : bounds.X;
-        double crossOrigin   = vert ? bounds.X : bounds.Y;
+        double primaryOrigin = bounds.StartAlong(!crossAlongX);
+        double crossOrigin   = bounds.StartAlong(crossAlongX);
 
         foreach (var (col, nodeIndices) in colGroups)
         {
@@ -72,17 +72,15 @@ public sealed class SankeyLayoutEngine
             foreach (int idx in nodeIndices)
             {
                 double size = Math.Max(1, nodeValues[idx] * valueScale);
-                nodeRects[idx] = vert
-                    ? new Rect(crossPos, primaryPos, size, series.NodeWidth)
-                    : new Rect(primaryPos, crossPos, series.NodeWidth, size);
+                nodeRects[idx] = Rect.Along(!crossAlongX, primaryPos, series.NodeWidth, crossPos, size);
                 crossPos += size + series.NodePadding;
             }
         }
 
         // 6. Iterative relaxation
-        Relax(series, columns, colGroups, nodeRects, nodeValues, bounds, vert);
+        Relax(series, colGroups, nodeRects, bounds, crossAlongX);
 
-        return new SankeyLayout(columns, maxCol, nodeRects, nodeValues, vert);
+        return new SankeyLayout(columns, maxCol, nodeRects, nodeValues, crossAlongX);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -226,9 +224,8 @@ public sealed class SankeyLayoutEngine
     // Relaxation
     // ──────────────────────────────────────────────────────────────────────────
 
-    private static void Relax(SankeySeries series, int[] columns,
-        Dictionary<int, List<int>> colGroups, Rect[] nodeRects,
-        double[] nodeValues, Rect bounds, bool vert)
+    private static void Relax(SankeySeries series,
+        Dictionary<int, List<int>> colGroups, Rect[] nodeRects, Rect bounds, bool crossAlongX)
     {
         if (series.Iterations <= 0) return;
 
@@ -236,28 +233,17 @@ public sealed class SankeyLayoutEngine
 
         for (int iter = 0; iter < series.Iterations; iter++)
         {
-            RelaxColumn(series, colGroups, nodeRects, upstream: true, alpha, vert);
-            ResolveCollisions(colGroups, nodeRects, series.NodePadding, bounds, vert);
-            RelaxColumn(series, colGroups, nodeRects, upstream: false, alpha, vert);
-            ResolveCollisions(colGroups, nodeRects, series.NodePadding, bounds, vert);
+            RelaxColumn(series, colGroups, nodeRects, upstream: true, alpha, crossAlongX);
+            ResolveCollisions(colGroups, nodeRects, series.NodePadding, bounds, crossAlongX);
+            RelaxColumn(series, colGroups, nodeRects, upstream: false, alpha, crossAlongX);
+            ResolveCollisions(colGroups, nodeRects, series.NodePadding, bounds, crossAlongX);
             alpha *= 0.99;
         }
     }
 
-    private static double CrossCentre(Rect r, bool vert) =>
-        vert ? r.X + r.Width / 2 : r.Y + r.Height / 2;
-
-    private static double CrossStart(Rect r, bool vert) => vert ? r.X : r.Y;
-
-    private static double CrossSize(Rect r, bool vert) => vert ? r.Width : r.Height;
-
-    private static Rect WithCrossStart(Rect r, double newStart, bool vert) =>
-        vert ? new Rect(newStart, r.Y, r.Width, r.Height)
-             : new Rect(r.X, newStart, r.Width, r.Height);
-
     private static void RelaxColumn(SankeySeries series,
         Dictionary<int, List<int>> colGroups, Rect[] nodeRects,
-        bool upstream, double alpha, bool vert)
+        bool upstream, double alpha, bool crossAlongX)
     {
         foreach (var (_, nodeIndices) in colGroups)
         {
@@ -269,44 +255,44 @@ public sealed class SankeyLayoutEngine
                 {
                     if (upstream && link.TargetIndex == idx)
                     {
-                        weightedSum += CrossCentre(nodeRects[link.SourceIndex], vert) * link.Value;
+                        weightedSum += nodeRects[link.SourceIndex].CentreAlong(crossAlongX) * link.Value;
                         weightTotal += link.Value;
                     }
                     else if (!upstream && link.SourceIndex == idx)
                     {
-                        weightedSum += CrossCentre(nodeRects[link.TargetIndex], vert) * link.Value;
+                        weightedSum += nodeRects[link.TargetIndex].CentreAlong(crossAlongX) * link.Value;
                         weightTotal += link.Value;
                     }
                 }
                 if (weightTotal == 0) continue;
                 double desiredCentre = weightedSum / weightTotal;
-                double currentCentre = CrossCentre(nodeRects[idx], vert);
+                double currentCentre = nodeRects[idx].CentreAlong(crossAlongX);
                 double shift = (desiredCentre - currentCentre) * alpha;
-                double newStart = CrossStart(nodeRects[idx], vert) + shift;
-                nodeRects[idx] = WithCrossStart(nodeRects[idx], newStart, vert);
+                double newStart = nodeRects[idx].StartAlong(crossAlongX) + shift;
+                nodeRects[idx] = nodeRects[idx].WithStartAlong(crossAlongX, newStart);
             }
         }
     }
 
     private static void ResolveCollisions(Dictionary<int, List<int>> colGroups,
-        Rect[] nodeRects, double nodePadding, Rect bounds, bool vert)
+        Rect[] nodeRects, double nodePadding, Rect bounds, bool crossAlongX)
     {
-        double crossMin = vert ? bounds.X : bounds.Y;
-        double crossMax = vert ? bounds.X + bounds.Width : bounds.Y + bounds.Height;
+        double crossMin = bounds.StartAlong(crossAlongX);
+        double crossMax = bounds.EndAlong(crossAlongX);
 
         foreach (var (_, nodeIndices) in colGroups)
         {
             var spans = new Interval1D[nodeIndices.Count];
             for (int k = 0; k < spans.Length; k++)
-                spans[k] = new Interval1D(CrossStart(nodeRects[nodeIndices[k]], vert),
-                                          CrossSize(nodeRects[nodeIndices[k]], vert));
+                spans[k] = new Interval1D(nodeRects[nodeIndices[k]].StartAlong(crossAlongX),
+                                          nodeRects[nodeIndices[k]].LengthAlong(crossAlongX));
 
             spans.SpreadApart(nodePadding, crossMin, crossMax);
 
             for (int k = 0; k < spans.Length; k++)
             {
                 int idx = nodeIndices[k];
-                nodeRects[idx] = WithCrossStart(nodeRects[idx], spans[k].Start, vert);
+                nodeRects[idx] = nodeRects[idx].WithStartAlong(crossAlongX, spans[k].Start);
             }
         }
     }

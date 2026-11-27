@@ -17,24 +17,18 @@ namespace MatPlotLibNet.Tests.Rendering.Layout;
 public class LabelLayoutEngineTests
 {
     // A fixed-width font metric so test assertions don't depend on whichever provider the host
-    // has registered via ChartServices — every character is 10 px wide, 14 px tall, regardless
+    // has installed in FontMetricsDefault — every character is 10 px wide, 14 px tall, regardless
     // of the actual font family. Keeps overlap arithmetic in the tests trivial to reason about.
-    private sealed class FixedMetrics : IFontMetrics
-    {
-        public Size Measure(string text, Font font) =>
-            new(text.Length * 10.0, 14.0);
-    }
-
     private static readonly Font TestFont = new() { Family = "sans-serif", Size = 10 };
     private static readonly Rect BigBounds = new(0, 0, 1000, 1000);
-    private static readonly IFontMetrics Metrics = new FixedMetrics();
+    private static readonly IFontMetrics Metrics = new TestFontMetrics((text, _) => new(text.Length * 10.0, 14.0));
 
     /// <summary>Rebuilds the bounding rectangle the engine uses internally so overlap assertions
     /// in the tests match the engine's own collision geometry. Duplicates the private helper
     /// in <see cref="LabelLayoutEngine"/> — kept in sync with the production definition.</summary>
     private static Rect RectOf(Point pos, Size size, TextAlignment alignment)
     {
-        double top = pos.Y - size.Height * 0.75;
+        double top = pos.Y - TestFont.Size;   // the box's ascent: the font size under the library's measure (TextBox, TextExtent.Of)
         double left = alignment switch
         {
             TextAlignment.Center => pos.X - size.Width / 2,
@@ -196,8 +190,8 @@ public class LabelLayoutEngineTests
 
         var placed = LabelLayoutEngine.Place([a, b], BigBounds, Metrics);
 
-        double aShift = Distance(placed[0].FinalPoint, a.AnchorPoint);
-        double bShift = Distance(placed[1].FinalPoint, b.AnchorPoint);
+        double aShift = placed[0].FinalPoint.DistanceTo(a.AnchorPoint);
+        double bShift = placed[1].FinalPoint.DistanceTo(b.AnchorPoint);
         Assert.True(aShift < bShift,
             $"High-priority label should shift less than Normal-priority (got a={aShift:F2}, b={bShift:F2})");
     }
@@ -247,17 +241,10 @@ public class LabelLayoutEngineTests
         var normal = new LabelCandidate(new Point(510, 500), "NORMNORM", TestFont, Priority: LabelPriority.Normal);
         var placed = LabelLayoutEngine.Place([low, normal], BigBounds, Metrics);
 
-        double lowShift    = Distance(placed[0].FinalPoint, low.AnchorPoint);
-        double normalShift = Distance(placed[1].FinalPoint, normal.AnchorPoint);
+        double lowShift    = placed[0].FinalPoint.DistanceTo(low.AnchorPoint);
+        double normalShift = placed[1].FinalPoint.DistanceTo(normal.AnchorPoint);
         Assert.True(lowShift > normalShift,
             $"Low-priority should yield more (got low={lowShift:F2}, normal={normalShift:F2})");
-    }
-
-    private static double Distance(Point a, Point b)
-    {
-        double dx = a.X - b.X;
-        double dy = a.Y - b.Y;
-        return Math.Sqrt(dx * dx + dy * dy);
     }
 
     [Theory]

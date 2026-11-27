@@ -11,17 +11,19 @@ public class PanZoomRetirementTests
     [Fact]
     public void SvgPanZoomScript_TypeIsGone()
     {
-        var t = typeof(MatPlotLibNet.Rendering.Svg.SvgInteractivityScript).Assembly
+        var t = typeof(Plt).Assembly
             .GetType("MatPlotLibNet.Rendering.Svg.SvgPanZoomScript");
         Assert.Null(t);
     }
 
-    /// <summary>Cursor UX (grab/grabbing) was the one feature SvgPanZoomScript had that
-    /// SvgInteractivityScript lacked. Phase 10 ports it.</summary>
-    [Fact]
-    public void ZoomPanScript_SetsGrabCursor()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("grab", svg);
-    }
+        // Cursor UX (grab/grabbing) was the one feature SvgPanZoomScript had that SvgInteractivityScript lacked. Phase 10 ports it.
+        new DrawnToken("ZoomPanScript_SetsGrabCursor", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "grab"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

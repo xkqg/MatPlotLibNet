@@ -27,24 +27,23 @@ public class WaffleSeriesTests
         .AddSubPlot(1, 1, 1, ax => ax.Waffle(Names, values ?? Shares, s => { s.Colors = Palette; configure?.Invoke(s); }))
         .Build();
 
-    /// <summary>The cells as drawn: the rectangles and the colour each wears.</summary>
+    /// <summary>The cells as drawn: the rectangles and the colour each wears. The legend's handles, which wear the same colours, come
+    /// after the cells and are not cells.</summary>
     private static List<(Rect Box, Color Fill)> Cells(Figure figure)
     {
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
         var cells = new List<(Rect, Color)>();
-        foreach (var call in recording.OfKind("DrawRectangle"))
+        int legend = recording.Calls.FindIndex(c => c is BeginGroupCall { CssClass: "legend" });
+        foreach (var call in (legend < 0 ? recording.Calls : recording.Calls.Take(legend)).OfType<DrawRectangleCall>())
         {
-            dynamic args = call.Args!;
-            Color? fill = args.fill;
-            Rect box = args.rect;
+            Color? fill = call.Fill;
+            Rect box = call.Rect;
             if (fill is { } colour && Palette.Contains(colour)) cells.Add((box, colour));
         }
 
         return cells;
     }
-
-    private static Rect Plot(Figure figure) => new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
 
     [Theory]
     [InlineData(600, 600)]
@@ -74,7 +73,7 @@ public class WaffleSeriesTests
     public void TheGrid_IsCentredInThePlotArea_AndNoLargerThanFitsIt(int width, int height)
     {
         var figure = Of(width, height);
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
         var cells = Cells(figure);
 
         double left = cells.Min(cell => cell.Box.X), right = cells.Max(cell => cell.Box.X + cell.Box.Width);
@@ -153,7 +152,7 @@ public class WaffleSeriesTests
     {
         var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax.Waffle(Names, [60, 0, 40]).WithLegend()).Build();
 
-        var entries = figure.SubPlots[0].LegendEntries(directLabelsDrawn: false);
+        var entries = figure.SubPlots[0].LegendEntries(Theme.Default, directLabelsDrawn: false);
 
         Assert.Equal(["A", "B", "C"], entries.Select(entry => entry.Label));
         Assert.Equal(0, new Axes().Waffle(Names, [60, 0, 40]).CellCounts()[1]);
@@ -164,7 +163,7 @@ public class WaffleSeriesTests
     {
         var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax.Waffle(Names, Shares).WithLegend()).Build();
 
-        var slots = figure.SubPlots[0].LegendEntries(directLabelsDrawn: false).Select(entry => entry.ColorSlotIndex).ToArray();
+        var slots = figure.SubPlots[0].LegendEntries(Theme.Default, directLabelsDrawn: false).Select(entry => entry.ColorSlotIndex).ToArray();
 
         Assert.Equal([0, 1, 2], slots);
     }
@@ -174,7 +173,7 @@ public class WaffleSeriesTests
     {
         var figure = Of(600, 400, s => { s.Rows = 5; s.Columns = 8; s.CellGap = 0.1; });
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         var waffle = Assert.IsType<WaffleSeries>(Assert.Single(back.SubPlots[0].Series));
         Assert.Equal(Names, waffle.Categories);
@@ -182,16 +181,6 @@ public class WaffleSeriesTests
         Assert.Equal((5, 8, 0.1), (waffle.Rows, waffle.Columns, waffle.CellGap));
         Assert.Equal(Palette, waffle.Colors);
         Assert.Equal(figure.ToSvg(), back.ToSvg());
-    }
-
-    [Fact]
-    public void TheDefaultGrid_IsLeftOutOfTheJson()
-    {
-        string json = Of(600, 400).ToJson();
-
-        Assert.DoesNotContain("waffleRows", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("waffleColumns", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("cellGap", json, StringComparison.Ordinal);
     }
 
     [Theory]

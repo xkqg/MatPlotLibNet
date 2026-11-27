@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Tests.Rendering.Svg.Interaction;
@@ -31,15 +30,8 @@ public sealed class CameraDerivedFacesTests
         .Build()
         .ToSvg();
 
-    private static IReadOnlyList<double[]> V3dOf(string svg, string elementPattern)
-    {
-        var result = new List<double[]>();
-        foreach (Match m in Regex.Matches(svg, elementPattern))
-            result.Add(m.Groups["v3d"].Value.Split(' ')
-                .SelectMany(p => p.Split(',').Select(c => double.Parse(c, CultureInfo.InvariantCulture)))
-                .ToArray());
-        return result;
-    }
+    private static IReadOnlyList<double[]> V3dOf(string svg, string element, Func<SvgElement, bool> keep) =>
+        [.. svg.Elements(element).Where(tag => tag["data-v3d"] is not null && keep(tag)).Select(tag => tag.Vertices().SelectMany(vertex => vertex).ToArray())];
 
     /// <summary>Verifies the X wall is shaded on x = xMin at the default camera and on x = xMax past −90°.</summary>
     [Theory]
@@ -47,7 +39,7 @@ public sealed class CameraDerivedFacesTests
     [InlineData(-145, +1)]
     public void XWallPane_FollowsTheCamera(double azimuth, int expectedSign)
     {
-        var panes = V3dOf(Render(azimuth), "<polygon[^>]*class=\"mpl-pane\"[^>]*data-v3d=\"(?<v3d>[^\"]+)\"");
+        var panes = V3dOf(Render(azimuth), "polygon", tag => tag["class"] == "mpl-pane");
         Assert.Equal(3, panes.Count);
 
         // The X wall is the pane whose four vertices share one x — and that x must be on the
@@ -64,7 +56,7 @@ public sealed class CameraDerivedFacesTests
     {
         // Tick label anchors carry a single vertex; the Z row is the one whose z varies while x and
         // y stay pinned. Take the labels whose x-component is the same on every one of them.
-        var anchors = V3dOf(Render(azimuth), "<text[^>]*data-v3d=\"(?<v3d>[^\" ]+)\"[^>]*data-v3d-edge");
+        var anchors = V3dOf(Render(azimuth), "text", tag => tag["data-v3d-edge"] is not null && !tag["data-v3d"]!.Contains(' '));
         Assert.NotEmpty(anchors);
 
         // The emitted vertices carry 6 significant digits, so compare with a G6-sized tolerance.
@@ -82,9 +74,9 @@ public sealed class CameraDerivedFacesTests
     {
         var svg = Render(azimuth, elevation);
 
-        var match = Regex.Match(svg, "class=\"mpl-3d-scene\"[^>]*data-faces=\"(?<faces>[01]{3})\"");
-        Assert.True(match.Success, "the 3-D scene group must carry data-faces");
-        Assert.Equal(expected, match.Groups["faces"].Value);
+        var scene = svg.AllElements().FirstOrDefault(tag => tag["class"] == "mpl-3d-scene" && tag["data-faces"] is not null);
+        Assert.True(scene.Attributes is not null, "the 3-D scene group must carry data-faces");
+        Assert.Equal(expected, scene["data-faces"]);
     }
 
     /// <summary>Verifies every pane, cube edge and tick row declares which components the browser must mirror.</summary>
@@ -93,8 +85,7 @@ public sealed class CameraDerivedFacesTests
     {
         var svg = Render(-60);
 
-        Assert.All(Regex.Matches(svg, "<polygon[^>]*class=\"mpl-pane\"[^>]*>").Select(m => m.Value),
-            pane => Assert.Contains("data-v3d-pinned=\"xyz\"", pane));
+        Assert.All(svg.Elements("polygon").Where(polygon => polygon["class"] == "mpl-pane"), pane => Assert.Equal("xyz", pane["data-v3d-pinned"]));
         Assert.Contains("data-v3d-pinned=\"yz\"", svg);   // X tick row + floor edges
         Assert.Contains("data-v3d-pinned=\"xz\"", svg);   // Y tick row
         Assert.Contains("data-v3d-pinned=\"xy\"", svg);   // Z tick row + verticals

@@ -78,7 +78,7 @@ public readonly record struct Mat(double[,] Data)
     public static Mat operator *(Mat a, Mat b)
     {
         if (a.Cols != b.Rows)
-            throw new ArgumentException($"Cannot multiply {a.Rows}×{a.Cols} by {b.Rows}×{b.Cols}.");
+            throw new ArgumentException(string.Invariant($"Cannot multiply {a.Rows}×{a.Cols} by {b.Rows}×{b.Cols}."));
         var dst = new double[a.Rows, b.Cols];
         // Transpose B once so inner loop is row-dot-row (cache-friendly)
         Mat bt = b.T;
@@ -155,6 +155,6 @@ public readonly record struct Mat(double[,] Data)
     private static void AssertSameShape(Mat a, Mat b)
     {
         if (a.Rows != b.Rows || a.Cols != b.Cols)
-            throw new ArgumentException($"Shape mismatch: {a.Rows}×{a.Cols} vs {b.Rows}×{b.Cols}.");
+            throw new ArgumentException(string.Invariant($"Shape mismatch: {a.Rows}×{a.Cols} vs {b.Rows}×{b.Cols}."));
     }
 }

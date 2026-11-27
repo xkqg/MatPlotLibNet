@@ -15,14 +15,6 @@ namespace MatPlotLibNet.Tests.Styling;
 /// Nord, Dracula, Monokai, Gruvbox and OpsPanel.</summary>
 public class ThemeNeutralTests
 {
-    public static TheoryData<string> BuiltInThemes { get; } =
-        new(typeof(Theme).GetProperties(BindingFlags.Public | BindingFlags.Static)
-            .Where(p => p.PropertyType == typeof(Theme))
-            .Select(p => p.Name));
-
-    private static Theme BuiltIn(string name) =>
-        (Theme)typeof(Theme).GetProperty(name, BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
-
     /// <summary>The five themes whose plot cannot carry #808080 at 3 : 1, with the grey the theme derives instead: the nearest
     /// grey to #808080 that reaches it. The other 25 keep #808080.</summary>
     private static readonly Dictionary<string, string> Derived = new()
@@ -38,19 +30,19 @@ public class ThemeNeutralTests
     /// <summary>Measured before the change: #808080 stood at 2.55 (Nord), 2.32 (Dracula), 2.77 (Monokai), 2.94 (Gruvbox) and
     /// 2.70 (OpsPanel) : 1 against the plot.</summary>
     [Theory]
-    [MemberData(nameof(BuiltInThemes))]
+    [MemberData(nameof(ThemeCases.BuiltIn), MemberType = typeof(ThemeCases))]
     public void TheNeutral_OfEveryShippedTheme_StandsAtThreeToOneAgainstItsPlot(string name)
     {
-        var theme = BuiltIn(name);
+        var theme = name.AsTheme();
 
         Assert.True(theme.Neutral.ContrastRatioWith(PlotOf(theme)) >= 3.0,
             $"{name}: the neutral {theme.Neutral.ToHex()} stands at {theme.Neutral.ContrastRatioWith(PlotOf(theme)):F2} : 1 against {PlotOf(theme).ToHex()}");
     }
 
     [Theory]
-    [MemberData(nameof(BuiltInThemes))]
+    [MemberData(nameof(ThemeCases.BuiltIn), MemberType = typeof(ThemeCases))]
     public void TheNeutral_OfEveryShippedTheme_IsThePinnedGrey(string name) =>
-        Assert.Equal(Derived.GetValueOrDefault(name, "#808080"), BuiltIn(name).Neutral.ToHex());
+        Assert.Equal(Derived.GetValueOrDefault(name, "#808080"), name.AsTheme().Neutral.ToHex());
 
     [Fact]
     public void TheNeutral_OfAThemeThatNamesOne_IsThatColour_WhateverItsPlotIs()
@@ -112,13 +104,15 @@ public class ThemeNeutralTests
 
     // ── on the wire ──────────────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void ATheme_ThatNamesNoNeutral_WritesNone()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = new ChartSerializer().ToJson(Plt.Create().WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2])).Build());
+        new DrawnToken("ATheme_ThatNamesNoNeutral_WritesNone", () => new ChartSerializer().ToJson(Plt.Create().WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2])).Build())) { Absent = ["neutralColor"] },
+    };
 
-        Assert.DoesNotContain("neutralColor", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ANamedNeutral_IsWrittenAndReadBack()

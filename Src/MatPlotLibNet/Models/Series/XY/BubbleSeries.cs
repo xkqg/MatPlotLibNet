@@ -8,14 +8,18 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a bubble chart — a scatter plot where marker area encodes a third variable.</summary>
-public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
+public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha, ISeriesKind<BubbleSeries>
 {
+    /// <inheritdoc />
+    /// <remarks>A bubble chart is matplotlib's <c>scatter</c> with sizes.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Scatter;
+
     /// <summary>The area of each bubble, in points squared, one per data point; a larger value draws a larger bubble.</summary>
     public double[] Sizes { get; }
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
     /// <inheritdoc />
-    public double Alpha { get; set; } = 0.6;
+    public double Alpha { get; set => Change(ref field, value.ThrowIfNotOpacity(nameof(Alpha))); } = 0.6;
 
     /// <summary>Initializes a new <see cref="BubbleSeries"/> with position and size data.</summary>
     /// <param name="xData">X coordinates.</param>
@@ -26,26 +30,22 @@ public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
         Sizes = sizes;
     }
 
+    static string ISeriesKind<BubbleSeries>.Kind => "bubble";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "bubble",
+        Type = this.WireKind(),
         XData = XData, YData = YData, Sizes = Sizes,
         Color = Color, Alpha = Alpha
     };
 
-    /// <summary>Reconstructs a <see cref="BubbleSeries"/> from its serialization DTO, including alpha transparency, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="BubbleSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries alpha transparency.</summary>
     internal static BubbleSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Bubble(dto.XData ?? [], dto.YData ?? [], dto.Sizes ?? []);
         s.Color = dto.Color;
-        if (dto.Alpha.HasValue)
-        {
-            s.Alpha = dto.Alpha.Value;
-        }
+        if (dto.Alpha is { } alpha) s.Alpha = alpha;
         return s;
     }
 
@@ -53,8 +53,7 @@ public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
     /// <inheritdoc />
     /// <remarks>The point, and the size that is its third variable.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        this.WithRowKeys(ChartDataTable.FromNumberColumns(
-            [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("size")], [XData, YData, Sizes]));
+        this.WithRowKeys(ChartDataTable.XY(Label, XData, YData, new NumberColumn("size", Sizes)));
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

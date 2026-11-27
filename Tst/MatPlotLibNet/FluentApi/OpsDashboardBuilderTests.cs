@@ -16,6 +16,19 @@ public class OpsDashboardBuilderTests
     private static double[] Clock(int seconds) =>
         [.. Enumerable.Range(0, seconds).Select(i => Now.AddSeconds(i - seconds).ToOADate())];
 
+    /// <summary>What each row asks for (a tile, a timeline, a topology, a trace, an event marker) is kept as a step on the
+    /// panel's <see cref="AxesBuilder"/>, taken when the dashboard is built; the builder keeps no record of its own per row.</summary>
+    [Fact]
+    public void EachRow_IsKeptAsAStepOnItsPanel()
+    {
+        const System.Reflection.BindingFlags Instance = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var steps = typeof(OpsDashboardBuilder).GetFields(Instance).Count(f => f.FieldType == typeof(List<Action<AxesBuilder>>));
+
+        Assert.Equal(5, steps);
+        Assert.DoesNotContain(typeof(OpsDashboardBuilder).GetNestedTypes(System.Reflection.BindingFlags.NonPublic),
+            t => !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false));
+    }
+
     /// <summary>Tiles, timelines and the trend panel each get their own subplot.</summary>
     [Fact]
     public void EachElement_GetsItsOwnPanel()
@@ -144,21 +157,40 @@ public class OpsDashboardBuilderTests
         Assert.Single(figure.SubPlots[1].Spans);
     }
 
-    /// <summary>The title reaches the figure, and the trend configuration callback runs.</summary>
-    [Fact]
-    public void TitleAndTrendConfiguration_AreApplied()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.OpsDashboard()
+        //  The title reaches the figure, and the trend configuration callback runs.
+        new DrawnToken("TitleAndTrendConfiguration_AreApplied", () => Plt.OpsDashboard()
             .WithTitle("Order service")
             .AddTile(15)
             .AddTrend([0, 1], [1, 2])
             .ConfigureTrend(ax => ax.SetYLabel("Messages / s"))
             .Build()
-            .ToSvg();
+            .ToSvg(), "Order service", "Messages / s"),
+        //  A shelved tile is drawn with a pattern: someone silenced it, and a wall that hides that is telling the operator the system is
+        // calm when it is only muted.
+        new DrawnToken("AShelvedTile_CarriesAPattern", () =>
+        {
+            var figure = Plt.OpsDashboard()
+                .AddTile(412, t => t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved))
+                .Build()
+                .Build();
+            return figure.ToSvg();
+        }, "<pattern"),
+        //  A tile that was judged draws itself: the caller hands over the condition, not a colour.
+        new DrawnToken("ATileInACriticalCondition_TakesTheThemesCriticalColour", () => CriticalTile().ToSvg(),
+            CriticalTile().Theme.Alarm.Critical.ToHex()) { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.Contains("Order service", svg);
-        Assert.Contains("Messages / s", svg);
-    }
+    private static Figure CriticalTile() => Plt.OpsDashboard()
+        .AddTile(412, t => t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Observed))
+        .Build()
+        .Build();
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The library never reads a wall clock: the same builder inputs produce a byte-identical figure
     /// no matter when it is built. A charting library that calls DateTime.Now cannot be tested, cannot replay
@@ -384,33 +416,6 @@ public class OpsDashboardBuilderTests
     }
     // ── the condition a tile is in ─────────────────────────────────────────────
 
-    /// <summary>A tile that was judged draws itself: the caller hands over the condition, not a colour.</summary>
-    [Fact]
-    public void ATileInACriticalCondition_TakesTheThemesCriticalColour()
-    {
-        var figure = Plt.OpsDashboard()
-            .AddTile(412, t => t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Observed))
-            .Build()
-            .Build();
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains(figure.Theme.Alarm.Critical.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>A shelved tile is drawn with a pattern: someone silenced it, and a wall that hides that is
-    /// telling the operator the system is calm when it is only muted.</summary>
-    [Fact]
-    public void AShelvedTile_CarriesAPattern()
-    {
-        var figure = Plt.OpsDashboard()
-            .AddTile(412, t => t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved))
-            .Build()
-            .Build();
-
-        Assert.Contains("<pattern", figure.ToSvg(), StringComparison.Ordinal);
-    }
-
     /// <summary>An explicit colour still wins: the condition is a default, never an override of what the
     /// caller said in so many words.</summary>
     [Fact]
@@ -512,5 +517,4 @@ public class OpsDashboardBuilderTests
             figure.SubPlots.Where(ax => ax.ReferenceLines.Count > 0),
             ax => Assert.Equal(2, ax.ReferenceLines.Count));
     }
-
 }

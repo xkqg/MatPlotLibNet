@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -11,40 +12,36 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Cybernetic Analysis for Stocks and Futures</i>, Ch. 10.</summary>
 public sealed class LaguerreRsi : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>alpha</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultAlpha = 0.2;
+
     private readonly double _alpha;
 
     /// <summary>Creates a new Laguerre RSI indicator.</summary>
     /// <param name="prices">Price series (typically close).</param>
-    /// <param name="alpha">Smoothing parameter in (0, 1). Default 0.2.</param>
+    /// <param name="alpha">Smoothing parameter in (0, 1). Default <see cref="DefaultAlpha"/>.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="alpha"/> ∉ (0, 1).</exception>
-    public LaguerreRsi(double[] prices, double alpha = 0.2) : base(prices)
+    public LaguerreRsi(double[] prices, double alpha = DefaultAlpha) : base(prices, Spec(alpha))
     {
-        if (alpha <= 0 || alpha >= 1)
-            throw new ArgumentException($"alpha must be in (0, 1) (got {alpha}).", nameof(alpha));
         _alpha = alpha;
-        Label = $"LagRSI({alpha.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
+    }
+
+    internal static IndicatorSpec Spec(double alpha)
+    {
+        alpha.ThrowIfNotBetween(0, 1, nameof(alpha));
+        return IndicatorSpec.Of(1, $"LagRSI({alpha.InvariantText("0.00")})");
     }
 
     /// <inheritdoc />
-    public override SignalResult Compute()
-    {
-        int n = Prices.Length;
-        if (n < 2) return Array.Empty<double>();
-        var result = new double[n - 1];
-        var step = new LaguerreRsiStep(_alpha);
-        for (int i = 0; i < n; i++)
-        {
-            double value = step.Next(Prices[i]);
-            if (i >= 1) result[i - 1] = value;
-        }
-        return result;
-    }
+    public override SignalResult Compute() => FoldPrices(new LaguerreRsiStep(_alpha));
+
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingLaguerreRsi"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Unit;
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), warmup: 1);
-        axes.YAxis.Min = 0;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

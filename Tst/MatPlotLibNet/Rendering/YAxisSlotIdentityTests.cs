@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
@@ -18,7 +17,7 @@ public class YAxisSlotIdentityTests
     private static readonly double[] X = [0.0, 1, 2, 3];
     private static readonly Rect Plot = new(200, 50, 400, 300);
 
-    private static int NameCount(string svg, string name) => Regex.Matches(svg, ">" + Regex.Escape(name) + "<").Count;
+    private static int NameCount(string svg, string name) => svg.Elements("text").Count(text => text.Text == name);
 
     [Fact]
     public void ALeftSlotSeries_WithDirectLabel_KeepsItsName()
@@ -46,22 +45,20 @@ public class YAxisSlotIdentityTests
         var rightLine = right.AddSeries(new LineSeries(X, [10.0, 20, 30, 90]) { Label = "R0line", LabelPlacement = SeriesLabelPlacement.LineEnd });
         var left = axes.YAxes.Left.Add();
         var leftLine = left.AddSeries(new LineSeries(X, [90.0, 50, 20, 10]) { Label = "L0line", LabelPlacement = SeriesLabelPlacement.LineEnd });
-        var ctx = new RecordingRenderContext();
-
-        new CartesianAxesRenderer(axes, Plot, ctx, Theme.Default).Render();
+        var ctx = axes.Drawn(Plot);
 
         var calls = ctx.Calls;
-        int labelAt = calls.FindIndex(c => c.Kind == "DrawText" && (string)((dynamic)c.Args!).text == "L0line");
+        int labelAt = calls.FindIndex(c => c is DrawTextCall { Text: "L0line" });
         Assert.True(labelAt >= 0, "the left-axis line has no end label");
-        dynamic label = calls[labelAt].Args!;
+        var label = (DrawTextCall)calls[labelAt];
         // Drawn right after its own line, inside its series' turn, at the height of that line's last point.
-        var line = (Point[])((dynamic)calls.Take(labelAt).Last(c => c.Kind == "DrawLines").Args!).points;
-        var font = (Font)label.font;
-        Assert.Equal(line[^1].Y + font.Size * 0.35, ((Point)label.position).Y, 6);
+        var line = calls.Take(labelAt).OfType<DrawLinesCall>().Last().Points;
+        var font = label.Font;
+        Assert.Equal(line[^1].Y + font.Size * 0.35, label.Position.Y, 6);
         // In the same column as the right-axis line's label, past the right axis stack.
-        dynamic rightLabel = ctx.OfKind("DrawText").Single(c => (string)((dynamic)c.Args!).text == "R0line").Args!;
-        Assert.Equal(((Point)rightLabel.position).X, ((Point)label.position).X, 6);
-        Assert.True(((Point)label.position).X > Plot.X + Plot.Width + DirectLabelMetrics.Gap);
+        var rightLabel = ctx.Of<DrawTextCall>().Single(c => c.Text == "R0line");
+        Assert.Equal(rightLabel.Position.X, label.Position.X, 6);
+        Assert.True(label.Position.X > Plot.X + Plot.Width + DirectLabelMetrics.Gap);
         Assert.NotNull(rightLine);
         Assert.NotNull(leftLine);
     }
@@ -77,7 +74,7 @@ public class YAxisSlotIdentityTests
             .Build();
         var axes = figure.SubPlots[0];
 
-        var entry = Assert.Single(axes.LegendEntries(directLabelsDrawn: true), e => e.Label == "L0line");
+        var entry = Assert.Single(axes.LegendEntries(Theme.Default, directLabelsDrawn: true), e => e.Label == "L0line");
         Assert.Equal(axes.AllSeries.ToList().IndexOf(entry.Series), entry.OriginalIndex);
         Assert.Equal(1, NameCount(figure.ToSvg(), "L0line"));
     }
@@ -94,7 +91,7 @@ public class YAxisSlotIdentityTests
             .Build();
         var axes = figure.SubPlots[0];
 
-        var entries = axes.LegendEntries(directLabelsDrawn: true);
+        var entries = axes.LegendEntries(Theme.Default, directLabelsDrawn: true);
         var top = Assert.Single(entries, e => e.Label == "TopLine");
         Assert.Same(axes.XSecondarySeries[0], top.Series);
         // Its index is its place in the subplot's identity order: the primary's, then every Y slot's, then the top axis'.
@@ -111,7 +108,7 @@ public class YAxisSlotIdentityTests
         var axes = new Axes();
         axes.AddXSecondarySeries(new LineSeries(X, [1.0, 3, 2, 4]) { Label = "TopLine", LabelPlacement = SeriesLabelPlacement.LineEnd });
 
-        Assert.Single(axes.LegendEntries(directLabelsDrawn: true), e => e.Label == "TopLine");
+        Assert.Single(axes.LegendEntries(Theme.Default, directLabelsDrawn: true), e => e.Label == "TopLine");
     }
 
     [Fact]

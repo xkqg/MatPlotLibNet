@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
 /// <summary>Phase G.1 of the v1.7.2 follow-on plan — keyboard parity for 2D
 /// zoom/pan/reset. The code handler in
-/// <c>SvgInteractivityScript.cs</c> (L209-221) is in place and correct; this
+/// <c>SvgInteractivityScript.cs</c> is in place and correct; this
 /// Theory pins its behaviour end-to-end via the Jint harness so keyboard
 /// users (WCAG 2.1 AA) and matplotlib-muscle-memory users get the expected
 /// viewBox mutations every time.

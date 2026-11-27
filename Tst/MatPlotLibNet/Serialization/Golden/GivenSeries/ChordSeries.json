@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"chord","label":"text 1","categories":["a","b"],"alpha":0.296875,"zOrder":7,"visible":false,"colors":["#14C83C","#14AA64","#148C8C"],"chordFlows":[[1,2],[3,4]],"chordPadding":0.28125}]}]}

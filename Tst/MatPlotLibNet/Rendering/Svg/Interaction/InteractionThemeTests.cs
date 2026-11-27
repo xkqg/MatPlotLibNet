@@ -20,26 +20,23 @@ public class InteractionThemeTests
             .ToSvg();
         // The script body MENTIONS data-mpl-highlight-opacity (in a comment + getAttribute call),
         // but the SVG opening tag must NOT carry it as an attribute when default theme is used.
-        Assert.DoesNotMatch(@"<svg[^>]*\bdata-mpl-highlight-opacity=", svg);
+        Assert.Null(svg.Elements("svg")[0]["data-mpl-highlight-opacity"]);
     }
 
-    [Fact]
-    public void CustomTheme_EmitsHighlightOpacityAttribute()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
+        new DrawnToken("CustomTheme_EmitsHighlightOpacityAttribute", () => Plt.Create()
             .WithHighlight()
             .WithInteractionTheme(new InteractionTheme(HighlightOpacity: 0.15))
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-        Assert.Contains("data-mpl-highlight-opacity=\"0.15\"", svg);
-    }
+            .ToSvg(), "data-mpl-highlight-opacity=\"0.15\""),
+        new DrawnToken("HighlightScript_ReadsThemableOpacity", () => Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "data-mpl-highlight-opacity"),
+    };
 
-    [Fact]
-    public void HighlightScript_ReadsThemableOpacity()
-    {
-        var svg = Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("data-mpl-highlight-opacity", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Phase 7 of v1.7.2 — every non-default token must round-trip through the
     /// SVG opening tag as a <c>data-mpl-*</c> attribute. Theory covers the five remaining
@@ -53,7 +50,7 @@ public class InteractionThemeTests
             .WithInteractionTheme(theme)
             .Plot([1.0, 2.0], [3.0, 4.0])
             .ToSvg();
-        Assert.Matches(@"<svg[^>]*\b" + attributeName + "=\"" + expectedValueFragment + "\"", svg);
+        Assert.Equal(expectedValueFragment, svg.Elements("svg")[0][attributeName]);
     }
 
     public static IEnumerable<object[]> NonDefaultTokenCases() =>

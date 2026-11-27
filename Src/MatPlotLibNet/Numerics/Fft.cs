@@ -13,7 +13,7 @@ public sealed record StftResult(double[,] Magnitudes, double[] Frequencies, doub
 
 /// <summary>Fast Fourier transforms: Cooley-Tukey radix-2 for power-of-two lengths and Bluestein's chirp-z transform for
 /// any other length.</summary>
-public static partial class Fft
+public static class Fft
 {
     /// <summary>Computes the forward DFT of a real-valued signal after weighting it with a Hann window.
     /// The signal is multiplied by the symmetric Hann window of its own length (<see cref="SpectralWindow.Hann"/>, numpy's
@@ -40,7 +40,7 @@ public static partial class Fft
     internal static Complex[] Transform(Complex[] x)
     {
         int n = x.Length;
-        if ((n & (n - 1)) == 0)
+        if (n == 0 || int.IsPow2(n))
         {
             Complex[] result = [.. x];
             CooleyTukey(result);
@@ -48,6 +48,18 @@ public static partial class Fft
         }
 
         return Bluestein(x);
+    }
+
+    /// <summary>The transform of <see cref="Transform"/> written over <paramref name="x"/>, for a power-of-two length: a caller
+    /// that transforms many rows of one length reuses one buffer instead of taking a new array for each.</summary>
+    /// <param name="x">The samples, replaced by their bins.</param>
+    /// <exception cref="ArgumentException">The length is not a power of two.</exception>
+    internal static void TransformInPlace(Complex[] x)
+    {
+        int n = x.Length;
+        if (!int.IsPow2(n))
+            throw new ArgumentException(string.Invariant($"An in-place transform takes a power-of-two length, not {n}."), nameof(x));
+        CooleyTukey(x);
     }
 
     /// <summary>Computes the Short-Time Fourier Transform using overlapping windows. Each frame of
@@ -66,22 +78,21 @@ public static partial class Fft
         if (signal.Length == 0 || windowSize <= 0)
             return new StftResult(new double[0, 0], [], []);
 
-        int hopSize = Math.Max(1, windowSize - overlap);
-        int nFrames = Math.Max(1, (signal.Length - windowSize) / hopSize + 1);
-        int nBins = windowSize / 2 + 1;
+        var frames = StftFrames.Of(signal.Length, windowSize, overlap);
+        int nFrames = frames.Count, nBins = frames.Bins;
 
         var magnitudes = new double[nBins, nFrames];
         var times = new double[nFrames];
         var frequencies = new double[nBins];
 
         for (int b = 0; b < nBins; b++)
-            frequencies[b] = b * (double)sampleRate / windowSize;
+            frequencies[b] = frames.FrequencyOf(b, sampleRate);
 
         double[] window = SpectralWindow.Hann.Coefficients(windowSize);
 
         for (int f = 0; f < nFrames; f++)
         {
-            int start = f * hopSize;
+            int start = f * frames.Step;
             var frame = new Complex[windowSize];
             for (int i = 0; i < windowSize && start + i < signal.Length; i++)
                 frame[i] = signal[start + i] * window[i];
@@ -90,7 +101,7 @@ public static partial class Fft
             for (int b = 0; b < nBins; b++)
                 magnitudes[b, f] = spectrum[b].Magnitude;
 
-            times[f] = (start + windowSize / 2.0) / sampleRate;
+            times[f] = frames.CentreOf(f, sampleRate);
         }
 
         return new StftResult(magnitudes, frequencies, times);
@@ -106,7 +117,7 @@ public static partial class Fft
         if (n <= 1) return;
 
         // Bit-reversal permutation
-        int bits = (int)Math.Log2(n);
+        int bits = int.Log2(n);
         for (int i = 0; i < n; i++)
         {
             int rev = BitReverse(i, bits);
@@ -182,9 +193,76 @@ public static partial class Fft
     internal static int NextPowerOf2(int n)
     {
         if (n <= 0) return 1;
-        if ((n & (n - 1)) == 0) return n;
+        if (int.IsPow2(n)) return n;
         int p = 1;
         while (p < n) p <<= 1;
         return p;
+    }
+
+    /// <summary>Computes the inverse DFT from a complex spectrum, returning real-valued samples.
+    /// Length of the returned array equals <c>spectrum.Length</c>.</summary>
+    /// <param name="spectrum">Complex frequency-domain spectrum (length must be a power of 2).</param>
+    /// <returns>Real-valued time-domain samples of the same length.</returns>
+    public static double[] Inverse(Complex[] spectrum)
+    {
+        int n = spectrum.Length;
+        if (n == 0) return [];
+
+        // Conjugate, apply forward FFT, conjugate again, divide by N
+        var x = new Complex[n];
+        for (int i = 0; i < n; i++)
+            x[i] = Complex.Conjugate(spectrum[i]);
+
+        CooleyTukey(x);
+
+        var result = new double[n];
+        for (int i = 0; i < n; i++)
+            result[i] = Complex.Conjugate(x[i]).Real / n;
+
+        return result;
+    }
+
+    /// <summary>Returns the DFT sample frequencies for <paramref name="n"/> points and
+    /// sample spacing <paramref name="dt"/> (in seconds). Follows NumPy's <c>fftfreq</c> convention:
+    /// positive frequencies first, then negative.</summary>
+    /// <param name="n">Number of samples (same as FFT size).</param>
+    /// <param name="dt">Sample spacing in seconds (default 1.0 → frequencies in cycles/sample).</param>
+    /// <returns>Frequency array of length <paramref name="n"/>.</returns>
+    public static double[] Frequencies(int n, double dt = 1.0)
+    {
+        var freq = new double[n];
+        int half = (n + 1) / 2;
+        for (int i = 0; i < half; i++)
+            freq[i] = i / (n * dt);
+        for (int i = half; i < n; i++)
+            freq[i] = (i - n) / (n * dt);
+        return freq;
+    }
+
+    /// <summary>Shifts the zero-frequency component to the centre of a real array
+    /// (equivalent to NumPy's <c>fftshift</c>).</summary>
+    /// <param name="x">Real-valued array to shift.</param>
+    /// <returns>New array with the zero-frequency element at position <c>n/2</c>.</returns>
+    public static double[] Shift(double[] x)
+    {
+        int n = x.Length;
+        int shift = n / 2;
+        var result = new double[n];
+        for (int i = 0; i < n; i++)
+            result[(i + shift) % n] = x[i];
+        return result;
+    }
+
+    /// <summary>Shifts the zero-frequency component to the centre of a complex spectrum.</summary>
+    /// <param name="x">Complex spectrum to shift.</param>
+    /// <returns>New array with the zero-frequency element at position <c>n/2</c>.</returns>
+    public static Complex[] Shift(Complex[] x)
+    {
+        int n = x.Length;
+        int shift = n / 2;
+        var result = new Complex[n];
+        for (int i = 0; i < n; i++)
+            result[(i + shift) % n] = x[i];
+        return result;
     }
 }

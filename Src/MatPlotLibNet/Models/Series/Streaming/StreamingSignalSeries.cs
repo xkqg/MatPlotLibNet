@@ -18,11 +18,19 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 /// unrepresentable; the counter is now the writer's own and is never read on the read path.</para>
 ///
 /// <para>Ideal for oscilloscope, audio, and telemetry data at fixed sample rates.</para></summary>
-public sealed class StreamingSignalSeries : ChartSeries, IHasColor
+public sealed class StreamingSignalSeries : ChartSeries, IVersionedSeries, IHasColor, ISeriesKind<StreamingSignalSeries>, IWidthGiven
 {
+    /// <inheritdoc />
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    /// <remarks>The handle of the line it is drawn as (a <see cref="LineSeries"/> with the width it was given, by its kind's rule, and
+    /// no marker of its own): a line with the marker its colour slot cycles to, if any, at a line's resting size.</remarks>
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Of(LegendSwatchKind.LineMarker, this) with { MarkerSize = LineSeries.RestingMarkerSize };
+
+    private readonly StreamRing<SignalSample> _samples;
+
     // The writer's own counter: it hands out the next ordinal and is never read to answer a question.
-    private readonly RingBuffer<SignalSample> _samples;
-    private long _version;
     private long _nextOrdinal;
 
     /// <summary>One sample and the ordinal it was appended at — together, because X is derived from the
@@ -30,44 +38,63 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     private readonly record struct SignalSample(long Ordinal, double Y);
 
     /// <summary>Signal color. When <c>null</c> the theme's prop-cycler assigns one.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
-    /// <summary>Line width in pixels. Default 1.0.</summary>
-    public double LineWidth { get; set; } = 1.0;
+    /// <summary>The width of the line, in pixels. One given (the default included) is drawn as given; until one is, the line is drawn as a line
+    /// given none (a <see cref="SignalSeries"/>'s rule): the width the theme's cycler names, else the theme's (the matplotlib themes
+    /// draw matplotlib's <c>lines.linewidth</c>, 1.5 pt under v2 and 1 pt under classic), else the resting width of the library's one-pixel line, which this reads at rest.</summary>
+    public double LineWidth { get => this.ReportedLineWidth; set => GivenLineWidth = value; }
 
-    /// <summary>Samples per X-unit. Default 1.0 (one sample per X unit).</summary>
+    /// <summary>How wide the line is drawn where it was given no width: a line's rule (matplotlib's <c>Line2D</c>), with a resting width
+    /// of its own.</summary>
+    LineWidthRule IWidthGiven.WidthRule => LineWidthRule.OnePixelLine;
+
+    /// <summary>The width the line was given, <see langword="null"/> while none was and the slot decides.</summary>
+    internal double? GivenLineWidth { get; private set => Change(ref field, value); }
+
+    double? IWidthGiven.GivenLineWidth => GivenLineWidth;
+
+    /// <summary>Samples per X-unit. Default <see cref="RestingSampleRate"/>.</summary>
     public double SampleRate { get; }
 
-    /// <summary>X-coordinate of the first sample. Default 0.0.</summary>
+    /// <summary>X-coordinate of the first sample. Default <see cref="RestingXStart"/>.</summary>
     public double XStart { get; }
 
-    /// <summary>Monotonically increasing version counter.</summary>
-    public long Version => Interlocked.Read(ref _version);
+    /// <summary>Monotonically increasing version counter: one more at every append, batch and clear. A streaming figure that holds
+    /// this series asks for a frame when it rises.</summary>
+    public long Version => _samples.Version;
 
     /// <summary>Number of samples currently in the buffer.</summary>
     public int Count => _samples.Count;
 
     /// <summary>Maximum number of samples the buffer can hold.</summary>
-    public int Capacity { get; }
+    public int Capacity => _samples.Capacity;
+
+    /// <inheritdoc />
+    internal override long LatestChange => ChangeClock.Latest(base.LatestChange, _samples.LatestChange);
+
+    /// <summary>How many samples a streaming signal keeps when it is told no capacity.</summary>
+    internal const int RestingCapacity = 100_000;
+
+    /// <summary>The rate a streaming signal reads its samples at when it is told none: a signal's.</summary>
+    internal const double RestingSampleRate = SignalSeries.RestingSampleRate;
+
+    /// <summary>Where a streaming signal's first sample stands on X when it is told none: a signal's.</summary>
+    internal const double RestingXStart = SignalSeries.RestingXStart;
 
     /// <summary>Initializes a new streaming signal series.</summary>
-    /// <param name="capacity">Maximum samples retained. Default 100,000.</param>
-    /// <param name="sampleRate">Samples per X-unit. Default 1.0.</param>
-    /// <param name="xStart">X-coordinate of the first sample. Default 0.0.</param>
-    public StreamingSignalSeries(int capacity = 100_000, double sampleRate = 1.0, double xStart = 0.0)
+    /// <param name="capacity">Maximum samples retained. Default <see cref="RestingCapacity"/>.</param>
+    /// <param name="sampleRate">Samples per X-unit. Default <see cref="RestingSampleRate"/>.</param>
+    /// <param name="xStart">X-coordinate of the first sample. Default <see cref="RestingXStart"/>.</param>
+    public StreamingSignalSeries(int capacity = RestingCapacity, double sampleRate = RestingSampleRate, double xStart = RestingXStart)
     {
-        Capacity = capacity;
         SampleRate = sampleRate;
         XStart = xStart;
-        _samples = new RingBuffer<SignalSample>(capacity);
+        _samples = new StreamRing<SignalSample>(capacity);
     }
 
     /// <summary>Appends a single Y sample. X is computed automatically.</summary>
-    public void AppendSample(double y)
-    {
-        _samples.Append(new SignalSample(_nextOrdinal++, y));
-        Interlocked.Increment(ref _version);
-    }
+    public void AppendSample(double y) => _samples.Append(new SignalSample(_nextOrdinal++, y));
 
     /// <summary>Appends a batch of Y samples.</summary>
     public void AppendSamples(ReadOnlySpan<double> y)
@@ -79,15 +106,13 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
         }
 
         _samples.AppendRange(samples);
-        Interlocked.Increment(ref _version);
     }
 
     /// <summary>Removes all samples from the buffer.</summary>
     public void Clear()
     {
-        _samples.Clear();
         _nextOrdinal = 0;
-        Interlocked.Increment(ref _version);
+        _samples.Clear();
     }
 
     /// <summary>Computes the X-coordinate for the sample at logical index <paramref name="index"/>
@@ -96,15 +121,14 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     /// <returns>The X coordinate of that sample.</returns>
     public double XAt(int index) => XOf(_samples[index].Ordinal);
 
-    private double XOf(long ordinal) => XStart + ordinal / SampleRate;
+    private double XOf(double ordinal) => XStart + ordinal / SampleRate;
 
     /// <summary>Creates an immutable snapshot. X values are computed from sample rate.</summary>
     public StreamingSnapshot CreateSnapshot()
     {
         // ONE read. Every X comes from the ordinal its own Y was appended under, so no separately-advancing
         // counter can shift the whole trace by a sample.
-        long version = Version;
-        var samples = _samples.ToArray();
+        var (samples, version) = _samples.Read();
         var xData = new double[samples.Length];
         var yData = new double[samples.Length];
         for (int i = 0; i < samples.Length; i++)
@@ -119,17 +143,21 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        // One read, one state: the X ends and the Y extremes describe the same moment or none.
-        var samples = _samples.ToArray();
-        if (samples.Length == 0)
+        // One walk, one state: the X ends and the Y extremes describe the same moment or none, and asking copies nothing.
+        // The ordinals are folded along the box's first side, the values along its second. The ordinals rise from the oldest sample to
+        // the newest, so their extent runs from the first to the last.
+        var walked = _samples.Aggregate(StreamingSeries.Box.Empty, static (box, sample) => box.Extend(sample.Ordinal, sample.Y));
+        if (walked.Count == 0)
         {
-            return new(null, null, null, null);
+            return default;
         }
 
         // Over the drawable samples only: a missing sample (NaN) and an infinity are left out.
-        var y = samples.Aggregate(Range1D.Empty, static (range, sample) => range.Including(sample.Y)).OrNone();
-        return new(XOf(samples[0].Ordinal), XOf(samples[^1].Ordinal), y?.Lo, y?.Hi);
+        var y = walked.Y.OrNone();
+        return new(XOf(walked.X.Lo), XOf(walked.X.Hi), y?.Lo, y?.Hi);
     }
+
+    static string ISeriesKind<StreamingSignalSeries>.Kind => "streaming_signal";
 
     /// <inheritdoc />
     /// <remarks>Carries the ring buffer's current snapshot, its sample rate and its X start — the same fields
@@ -141,28 +169,24 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
         var snapshot = CreateSnapshot();
         return new()
         {
-            Type = "streaming_signal",
+            Type = this.WireKind(),
             YData = snapshot.YData,
             Capacity = Capacity,
             SignalSampleRate = SampleRate,
             SignalXStart = XStart,
             Color = Color,
-            LineWidth = LineWidth,
+            LineWidth = GivenLineWidth,
         };
     }
 
-    /// <summary>Reconstructs a <see cref="StreamingSignalSeries"/> at the capacity, sample rate and X start it was
-    /// written with, appends the snapshot's samples, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="StreamingSignalSeries"/> that <see cref="SeriesRegistry"/> takes; it restores the capacity, sample rate and X start it was written with, and the samples of the snapshot.</summary>
     internal static StreamingSignalSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.AddSeries(new StreamingSignalSeries(
-            dto.Capacity ?? 100_000, dto.SignalSampleRate ?? 1.0, dto.SignalXStart ?? 0.0));
+            dto.Capacity ?? RestingCapacity, dto.SignalSampleRate ?? RestingSampleRate, dto.SignalXStart ?? RestingXStart));
         s.AppendSamples(dto.YData ?? []);
-        if (dto.Color.HasValue) s.Color = dto.Color.Value;
-        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        if (dto.Color is { } color) s.Color = color;
+        if (dto.LineWidth is { } lineWidth) s.LineWidth = lineWidth;
         return s;
     }
 
@@ -172,8 +196,7 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     public override ChartDataTable? ToDataTable()
     {
         var snapshot = CreateSnapshot();
-        return ChartDataTable.FromNumberColumns(
-            [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y)], [snapshot.XData, snapshot.YData]);
+        return ChartDataTable.XY(Label, snapshot.XData, snapshot.YData);
     }
 
     /// <inheritdoc />

@@ -1,7 +1,6 @@
 ﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Collections.Concurrent;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 
@@ -13,6 +12,12 @@ namespace MatPlotLibNet.AspNetCore.Tests;
 /// event interleaved with notifications still triggers one publish per drained batch.</summary>
 public class ChartSessionHandlerTests
 {
+    private readonly RecordingChartPublisher publisher = new();
+    private readonly RecordingCallerPublisher caller = new();
+    private readonly FigureRegistry registry;
+
+    public ChartSessionHandlerTests() => registry = new FigureRegistry(publisher, caller);
+
     private static Figure NewFigure() => Plt.Create()
         .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
         .Build();
@@ -20,10 +25,6 @@ public class ChartSessionHandlerTests
     [Fact]
     public async Task BrushSelectHandler_Fires_OnEvent_NoRepublish()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
-
         var received = new TaskCompletionSource<BrushSelectEvent>();
         var figure = NewFigure();
         registry.Register("c1", figure, opts =>
@@ -48,10 +49,6 @@ public class ChartSessionHandlerTests
     [Fact]
     public async Task HoverHandler_ReturnsContent_RoutedToCallerPublisher()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
-
         var figure = NewFigure();
         registry.Register("c1", figure, opts =>
             opts.OnHover(evt => ValueTask.FromResult<string?>(System.FormattableString.Invariant($"<b>x={evt.X},y={evt.Y}</b>"))));
@@ -73,10 +70,6 @@ public class ChartSessionHandlerTests
     [Fact]
     public async Task HoverHandler_ReturnsNull_DoesNotInvokeCaller()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
-
         registry.Register("c1", NewFigure(), opts =>
             opts.OnHover(_ => ValueTask.FromResult<string?>(null)));
 
@@ -90,9 +83,6 @@ public class ChartSessionHandlerTests
     [Fact]
     public async Task NotificationEvent_NoHandler_IsSilentNoOp()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
         var figure = NewFigure();
 
         // No options.OnBrushSelect / OnHover registered
@@ -110,9 +100,6 @@ public class ChartSessionHandlerTests
     [Fact]
     public async Task MutationAfterNotification_StillPublishes_Once()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
         var figure = NewFigure();
         figure.SubPlots[0].XAxis.Min = 0;
         figure.SubPlots[0].XAxis.Max = 10;
@@ -138,9 +125,6 @@ public class ChartSessionHandlerTests
     public async Task ExistingRegister_WithoutOptions_BackwardCompatible()
     {
         // v1.2.0 API: Register(chartId, figure) with no options overload
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
         var figure = NewFigure();
 
         registry.Register("legacy", figure);
@@ -152,60 +136,12 @@ public class ChartSessionHandlerTests
         await registry.UnregisterAsync("legacy");
     }
 
-    // ---- Test doubles ----
-
-    private sealed class RecordingPublisher : IChartPublisher
-    {
-        public ConcurrentQueue<(string ChartId, Figure Figure)> Calls { get; } = new();
-        private readonly SemaphoreSlim _signal = new(0);
-
-        public Task PublishAsync(string chartId, Figure figure, CancellationToken ct = default) =>
-            Task.CompletedTask;
-
-        public Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default)
-        {
-            Calls.Enqueue((chartId, figure));
-            _signal.Release();
-            return Task.CompletedTask;
-        }
-
-        public async Task WaitForAtLeastAsync(int n)
-        {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-            while (Calls.Count < n && DateTime.UtcNow < deadline)
-                await Task.Delay(10);
-        }
-    }
-
-    private sealed class RecordingCallerPublisher : ICallerPublisher
-    {
-        public ConcurrentQueue<(string ConnectionId, string ChartId, string Html)> Calls { get; } = new();
-
-        public Task SendTooltipAsync(string connectionId, string chartId, string html,
-            CancellationToken ct = default)
-        {
-            Calls.Enqueue((connectionId, chartId, html));
-            return Task.CompletedTask;
-        }
-
-        public async Task WaitForAtLeastAsync(int n)
-        {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-            while (Calls.Count < n && DateTime.UtcNow < deadline)
-                await Task.Delay(10);
-        }
-    }
-
     /// <summary>A clicked point reaches the handler with the point in it, and nothing else happens: no
     /// re-render, no broadcast, no caller round-trip. It is the brush-select shape, not the hover shape,
     /// because there is no answer to send back.</summary>
     [Fact]
     public async Task DataCursorHandler_FiresWithTheClickedPoint_AndNothingIsRepublished()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
-
         var received = new TaskCompletionSource<DataCursorEvent>();
         registry.Register("c1", NewFigure(), opts =>
             opts.OnDataCursor(evt => { received.SetResult(evt); return default; }));
@@ -230,10 +166,6 @@ public class ChartSessionHandlerTests
     [Fact]
     public async Task ADataCursorEvent_WithNoHandler_ChangesNothing()
     {
-        var publisher = new RecordingPublisher();
-        var caller    = new RecordingCallerPublisher();
-        var registry  = new FigureRegistry(publisher, caller);
-
         registry.Register("c1", NewFigure());
         registry.Publish("c1", new DataCursorEvent("c1", 0, new PinnedAnnotation("load", 1.5, 5.5, 100, 50, 0)));
         await Task.Delay(150, TestContext.Current.CancellationToken);

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Tests.Packaging;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using MatPlotLibNet.Playground;
@@ -16,19 +17,7 @@ namespace MatPlotLibNet.Tests.Samples;
 /// </summary>
 public class SampleDocumentContractTests
 {
-    private static readonly string Root = RepoRoot();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static readonly string Root = RepositoryRoot.Folder;
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine([Root, .. parts]));
 
@@ -120,5 +109,21 @@ public class SampleDocumentContractTests
 
         Assert.True(count.Success, $"{folder}/{file} no longer says how many example charts the Playground has");
         Assert.Equal(PlaygroundExamples.Examples.Count, int.Parse(count.Groups["n"].Value, CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void NoSampleOrPage_WritesMatplotlibsFormOfAnAutoPct()
+    {
+        // PieSeries.AutoPct is a .NET format ("{0:F1}%"). The printf form reads too, but a sample and a page teach the form
+        // the property is documented in.
+        var offenders = new[] { "Samples", "docs", "articles" }
+            .SelectMany(folder => new[] { "*.cs", "*.md", "*.razor" }.SelectMany(pattern => RepositoryTree.Files(folder, pattern)))
+            .Where(file => Regex.IsMatch(file.Text, @"AutoPct\s*=\s*\\?""%|`\\?""%\.\d?f%%\\?""`"))
+            .Select(file => file.Path)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.True(offenders.Length == 0,
+            $"{offenders.Length} file(s) write matplotlib's printf form of AutoPct: {string.Join(", ", offenders)}");
     }
 }

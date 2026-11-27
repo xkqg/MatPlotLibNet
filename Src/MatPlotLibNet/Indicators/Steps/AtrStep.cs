@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// its bars and <see cref="Streaming.StreamingAtr"/> takes one bar at a time. The first bar has no true range (it has no close
 /// before it), so the first value is the mean of the true ranges of the next <c>period</c> bars and comes with the last of them; after
 /// that each value moves toward the new true range by <c>1 / period</c>. Before the first value the step says NaN.</summary>
-internal struct AtrStep
+internal struct AtrStep : IHlcStep<double>
 {
     private readonly int _period;
     private double _average;
@@ -22,7 +22,7 @@ internal struct AtrStep
     /// <param name="high">The high of the bar.</param>
     /// <param name="low">The low of the bar.</param>
     /// <param name="close">The close of the bar.</param>
-    internal double Next(double high, double low, double close)
+    public double Next(double high, double low, double close)
     {
         _count++;
         if (_count == 1)

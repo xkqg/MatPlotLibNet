@@ -59,9 +59,9 @@ internal sealed record FigureTextDto
         var text = figure.AddText(Text ?? "", X, Y);
         text.Font = Font?.ToFont();
         text.Color = Color;
-        text.Alignment = Alignment ?? Rest.Alignment;
-        text.VerticalAlignment = VerticalAlignment ?? Rest.VerticalAlignment;
-        text.Rotation = Rotation ?? Rest.Rotation;
+        if (Alignment is { } alignment) text.Alignment = alignment;
+        if (VerticalAlignment is { } verticalAlignment) text.VerticalAlignment = verticalAlignment;
+        if (Rotation is { } rotation) text.Rotation = rotation;
         return text;
     }
 }

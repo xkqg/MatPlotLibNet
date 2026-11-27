@@ -3,6 +3,13 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -14,35 +21,14 @@ public class SignalSeriesTests
     // ── Construction ─────────────────────────���───────────────────────────────
 
     [Fact]
-    public void Constructor_StoresYData()
-    {
-        var s = new SignalSeries(Y3, sampleRate: 100.0, xStart: 5.0);
-        Assert.Equal(Y3, s.YData);
-    }
-
-    [Fact]
-    public void Constructor_StoresSampleRate()
-    {
-        var s = new SignalSeries(Y3, sampleRate: 100.0);
-        Assert.Equal(100.0, s.SampleRate);
-    }
-
-    [Fact]
-    public void Constructor_StoresXStart()
-    {
-        var s = new SignalSeries(Y3, sampleRate: 100.0, xStart: 5.0);
-        Assert.Equal(5.0, s.XStart);
-    }
-
-    [Fact]
-    public void DefaultSampleRate_Is1()
+    public void ASignalGivenNoSampleRate_IsSampledOncePerUnit()
     {
         var s = new SignalSeries(Y3);
         Assert.Equal(1.0, s.SampleRate);
     }
 
     [Fact]
-    public void DefaultXStart_Is0()
+    public void ASignalGivenNoStart_StartsAtZero()
     {
         var s = new SignalSeries(Y3);
         Assert.Equal(0.0, s.XStart);
@@ -99,19 +85,13 @@ public class SignalSeriesTests
         Assert.True(start >= 0 && end <= 100);
     }
 
-    [Fact]
-    public void IndexRangeFor_OutsideLeft_ReturnsEmpty()
+    [Theory]
+    [InlineData(100, 10.0, -10.0, 5.0)] // the entire viewport is before xStart
+    [InlineData(10, 0.0, 50.0, 100.0)]  // the entire viewport is past the last sample
+    public void IndexRangeFor_OutsideTheSignal_ReturnsEmpty(int samples, double xStart, double viewMin, double viewMax)
     {
-        var s = new SignalSeries(new double[100], sampleRate: 1.0, xStart: 10.0);
-        var (start, end) = s.IndexRangeFor(-10, 5); // entire viewport before xStart
-        Assert.True(start >= end);
-    }
-
-    [Fact]
-    public void IndexRangeFor_OutsideRight_ReturnsEmpty()
-    {
-        var s = new SignalSeries(new double[10], sampleRate: 1.0, xStart: 0.0);
-        var (start, end) = s.IndexRangeFor(50, 100);
+        var s = new SignalSeries(new double[samples], sampleRate: 1.0, xStart: xStart);
+        var (start, end) = s.IndexRangeFor(viewMin, viewMax);
         Assert.True(start >= end);
     }
 
@@ -163,22 +143,6 @@ public class SignalSeriesTests
         Assert.Same(x1, x2);
     }
 
-    // ── Default visual properties ─────────────────────────────────────────────
-
-    [Fact]
-    public void DefaultLineStyle_IsSolid()
-    {
-        var s = new SignalSeries(Y3);
-        Assert.Equal(LineStyle.Solid, s.LineStyle);
-    }
-
-    [Fact]
-    public void DefaultLineWidth_Is1Point5()
-    {
-        var s = new SignalSeries(Y3);
-        Assert.Equal(1.5, s.LineWidth);
-    }
-
     // ── ComputeDataRange ─────────────────────────────────────────────────────
 
     [Fact]
@@ -194,37 +158,16 @@ public class SignalSeriesTests
         Assert.Equal(8.0, range.YMax!.Value);
     }
 
-    // ── Serialization ────────────────────────────────────────────────────────
-
+    /// <summary>SignalSeries.ComputeDataRange — `YData.Length == 0 ? new(0,0,0,0) : ...`
+    /// TRUE arm: an empty-sample signal falls back to the degenerate all-zero range.</summary>
     [Fact]
-    public void ToSeriesDto_TypeIsSignal()
+    public void SignalSeries_EmptyYData_ComputeDataRange_ReturnsZeroRange()
     {
-        var s = new SignalSeries(Y3, sampleRate: 100.0, xStart: 5.0);
-        Assert.Equal("signal", s.ToSeriesDto().Type);
-    }
-
-    [Fact]
-    public void ToSeriesDto_HasSignalSampleRate()
-    {
-        var s = new SignalSeries(Y3, sampleRate: 100.0, xStart: 5.0);
-        var dto = s.ToSeriesDto();
-        Assert.Equal(100.0, dto.SignalSampleRate);
-    }
-
-    [Fact]
-    public void ToSeriesDto_HasSignalXStart()
-    {
-        var s = new SignalSeries(Y3, sampleRate: 100.0, xStart: 5.0);
-        var dto = s.ToSeriesDto();
-        Assert.Equal(5.0, dto.SignalXStart);
-    }
-
-    [Fact]
-    public void ToSeriesDto_HasYData_NoXDataInDto()
-    {
-        var s = new SignalSeries(Y3, sampleRate: 100.0, xStart: 5.0);
-        var dto = s.ToSeriesDto();
-        Assert.NotNull(dto.YData);
-        Assert.Null(dto.XData);
+        var s = new SignalSeries(Array.Empty<double>());
+        var range = s.ComputeDataRange(new TestAxesContext());
+        Assert.Equal(0, range.XMin);
+        Assert.Equal(0, range.XMax);
+        Assert.Equal(0, range.YMin);
+        Assert.Equal(0, range.YMax);
     }
 }

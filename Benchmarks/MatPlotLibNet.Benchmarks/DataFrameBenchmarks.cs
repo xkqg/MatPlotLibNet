@@ -72,54 +72,54 @@ public class DataFrameBenchmarks
     // --- Price indicators ---
 
     [Benchmark]
-    public double[] Sma_20() => _df.Sma("Close", 20);
+    public double[] Sma_20() => new Sma(_df.Values("Close"), 20).Compute();
 
     [Benchmark]
-    public double[] Ema_20() => _df.Ema("Close", 20);
+    public double[] Ema_20() => new Ema(_df.Values("Close"), 20).Compute();
 
     [Benchmark]
-    public double[] Rsi_14() => _df.Rsi("Close");
+    public double[] Rsi_14() => new Rsi(_df.Values("Close")).Compute();
 
     [Benchmark]
-    public MacdResult Macd_12_26_9() => _df.Macd("Close");
+    public MacdResult Macd_12_26_9() => new Macd(_df.Values("Close")).Compute();
 
     [Benchmark]
-    public BandsResult BollingerBands_20() => _df.BollingerBands("Close", 20);
+    public BandsResult BollingerBands_20() => new BollingerBands(_df.Values("Close"), 20).Compute();
 
     [Benchmark]
-    public double[] DrawDown() => _df.DrawDown("Close");
+    public double[] DrawDown() => new DrawDown(_df.Values("Close")).Compute();
 
     [Benchmark]
-    public double[] Obv() => _df.Obv("Close", "Volume");
+    public double[] Obv() => new Obv(_df.Values("Close"), _df.Values("Volume")).Compute();
 
     // --- OHLCV indicators ---
 
     [Benchmark]
-    public double[] Atr_14() => _df.Atr("High", "Low", "Close");
+    public double[] Atr_14() => new Atr(_df.Hlc("High", "Low", "Close")).Compute();
 
     [Benchmark]
-    public double[] Adx_14() => _df.Adx("High", "Low", "Close");
+    public double[] Adx_14() => new Adx(_df.Hlc("High", "Low", "Close")).Compute();
 
     [Benchmark]
-    public AdxResult AdxFull_14() => _df.AdxFull("High", "Low", "Close");
+    public AdxResult AdxFull_14() => new Adx(_df.Hlc("High", "Low", "Close")).ComputeFull();
 
     [Benchmark]
-    public double[] Cci_20() => _df.Cci("High", "Low", "Close");
+    public double[] Cci_20() => new Cci(_df.Hlc("High", "Low", "Close")).Compute();
 
     [Benchmark]
-    public StochasticResult Stochastic_14() => _df.Stochastic("High", "Low", "Close");
+    public StochasticResult Stochastic_14() => new Stochastic(_df.Hlc("High", "Low", "Close")).Compute();
 
     [Benchmark]
-    public double[] WilliamsR_14() => _df.WilliamsR("High", "Low", "Close");
+    public double[] WilliamsR_14() => new WilliamsR(_df.Hlc("High", "Low", "Close")).Compute();
 
     [Benchmark]
-    public BandsResult KeltnerChannels_20() => _df.KeltnerChannels("High", "Low", "Close");
+    public BandsResult KeltnerChannels_20() => new KeltnerChannels(_df.Hlc("High", "Low", "Close")).Compute();
 
     [Benchmark]
-    public double[] Vwap() => _df.Vwap("High", "Low", "Close", "Volume");
+    public double[] Vwap() => new Vwap(_df.Hlcv("High", "Low", "Close", "Volume")).Compute();
 
     [Benchmark]
-    public double[] ParabolicSar() => _df.ParabolicSar("High", "Low");
+    public double[] ParabolicSar() => new ParabolicSar(_df.Values("High"), _df.Values("Low")).Compute().Sar;
 
     // --- Numerics extensions ---
 

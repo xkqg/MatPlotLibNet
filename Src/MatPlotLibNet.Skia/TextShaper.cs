@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Runtime.InteropServices;
 using HarfBuzzSharp;
 using MatPlotLibNet.Rendering.Text;
 using SkiaSharp;
@@ -28,10 +29,11 @@ internal static class TextShaper
         }
 
         List<Run> runs = Itemize(text);
+        InVisualOrder(runs);
         var glyphs = new List<ushort>(text.Length);
         var positions = new List<SKPoint>(text.Length);
         float cursor = 0f;
-        foreach (var run in VisualOrder(runs))
+        foreach (var run in runs)
         {
             using var buffer = new Buffer();
             buffer.AddUtf16(text.Substring(run.Start, run.Length));
@@ -63,16 +65,10 @@ internal static class TextShaper
         byte runLevel = levels[0];
         Script runScript = Script.Common;
 
-        for (int i = 0; i < text.Length;)
+        for (int i = 0; i < text.Length; i += text.UnitsAt(i))
         {
-            int length = 1;
-            int codePoint = text[i];
-            if (char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
-            {
-                codePoint = char.ConvertToUtf32(text[i], text[i + 1]);
-                length = 2;
-            }
-
+            int at = i;
+            int codePoint = text.CodePointAt(ref at);
             Script script = UnicodeFunctions.Default.GetScript(codePoint);
             bool neutral = script == Script.Common || script == Script.Inherited || script == Script.Unknown;
             bool scriptChanges = !neutral && runScript != Script.Common && script != runScript;
@@ -88,50 +84,17 @@ internal static class TextShaper
             {
                 runScript = script;
             }
-
-            i += length;
         }
 
         runs.Add(new Run(runStart, text.Length - runStart, runLevel, runScript));
         return runs;
     }
 
-    /// <summary>Rule L2 of UAX #9 applied to runs: from the highest level down to the lowest odd one, every stretch
-    /// of runs at that level or higher is reversed.</summary>
-    private static List<Run> VisualOrder(List<Run> runs)
+    /// <summary>Puts the runs in visual order in place, by rule L2 of the bidi algorithm (<see cref="BidiAlgorithm.ReverseByLevels"/>).</summary>
+    private static void InVisualOrder(List<Run> runs)
     {
-        byte highest = 0;
-        byte lowestOdd = byte.MaxValue;
-        foreach (var run in runs)
-        {
-            highest = Math.Max(highest, run.Level);
-            if ((run.Level & 1) == 1)
-            {
-                lowestOdd = Math.Min(lowestOdd, run.Level);
-            }
-        }
-
-        var ordered = new List<Run>(runs);
-        for (int level = highest; lowestOdd != byte.MaxValue && level >= lowestOdd; level--)
-        {
-            for (int k = 0; k < ordered.Count; k++)
-            {
-                if (ordered[k].Level < level)
-                {
-                    continue;
-                }
-
-                int end = k;
-                while (end + 1 < ordered.Count && ordered[end + 1].Level >= level)
-                {
-                    end++;
-                }
-
-                ordered.Reverse(k, end - k + 1);
-                k = end;
-            }
-        }
-
-        return ordered;
+        Span<byte> levels = runs.Count <= 64 ? stackalloc byte[runs.Count] : new byte[runs.Count];
+        for (int k = 0; k < runs.Count; k++) levels[k] = runs[k].Level;
+        BidiAlgorithm.ReverseByLevels(CollectionsMarshal.AsSpan(runs), levels);
     }
 }

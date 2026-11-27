@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Mollweide projection — equal-area pseudo-cylindrical. Popular for global thematic maps.
 /// Preserves area but distorts shapes, especially near the edges.</summary>
-public sealed class Mollweide : IGeoProjection
+public sealed class Mollweide : IGeoProjection, IProjectionOutline
 {
     private const double R = 1.0;
     private const double Sqrt2 = 1.4142135623730951;
@@ -28,15 +28,8 @@ public sealed class Mollweide : IGeoProjection
     public GeoCoordinate? Inverse(double x, double y) => null;
 
     /// <inheritdoc />
-    public GeoBounds Bounds
-    {
-        get
-        {
-            var (xMax, _) = Forward(0, 180);
-            var (_, yMax) = Forward(90, 0);
-            return new(-xMax, xMax, -yMax, yMax);
-        }
-    }
+    /// <remarks>The box round the edge of the world.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
 
     private static double SolveTheta(double phi)
     {
@@ -53,4 +46,6 @@ public sealed class Mollweide : IGeoProjection
         }
         return theta;
     }
+
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => this.MeridianOutline();
 }

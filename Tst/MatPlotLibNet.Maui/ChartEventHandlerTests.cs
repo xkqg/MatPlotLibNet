@@ -35,7 +35,7 @@ public class ChartEventHandlerTests
     /// <summary>A finger goes down inside the plot and drags: the view pans.</summary>
     private static void Drag(MplChartView view, Figure figure)
     {
-        var layout = ChartRendererDefault.Current.ComputeLayout(figure, new MauiGraphicsRenderContext(Substitute.For<ICanvas>()));
+        var layout = ChartRendererDefault.Current.ComputeLayout(figure, MauiRig.Fresh().Context);
         var area = ChartLayout.Create(figure, layout).GetPlotArea(0);
         ((IGraphicsView)view).StartInteraction([new PointF((float)(area.X + area.Width / 2), (float)(area.Y + area.Height / 2))]);
 
@@ -46,42 +46,20 @@ public class ChartEventHandlerTests
         pan.SendPanCompleted(view, GestureId);
     }
 
-    private sealed class RecordingHandler : IChartEventHandler
-    {
-        public List<string> Seen { get; } = [];
-        public Exception? Throw { get; init; }
-
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            Seen.Add(evt.GetType().Name);
-            return Throw is null ? default : ValueTask.FromException(Throw);
-        }
-    }
-
     [Fact]
-    public void TheView_TellsItsHandlerOfAGesture()
-    {
-        var figure = NewFigure();
-        var handler = new RecordingHandler();
-        var view = Show(figure, handler);
-
-        Drag(view, figure);
-
-        Assert.Contains("PanEvent", handler.Seen);
-        Assert.Same(handler, view.ChartEventHandler);
-    }
-
-    [Fact]
-    public void AHandlerThatFails_IsReportedOnTheView()
+    public void TheView_TellsItsHandlerOfAGesture_AndReportsItsFailures()
     {
         var figure = NewFigure();
         var failures = new List<Exception>();
-        var view = Show(figure, new RecordingHandler { Throw = new InvalidOperationException("boom") });
+        var handler = new RecordingChartEventHandler { Throw = new InvalidOperationException("boom") };
+        var view = Show(figure, handler);
         view.ChartEventHandlerFaulted += failures.Add;
 
         var thrown = Record.Exception(() => Drag(view, figure));
 
         Assert.Null(thrown);
+        Assert.Contains("PanEvent", handler.Names);
+        Assert.Same(handler, view.ChartEventHandler);
         Assert.NotEmpty(failures);
         Assert.All(failures, failure => Assert.IsType<InvalidOperationException>(failure));
     }

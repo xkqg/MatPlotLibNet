@@ -56,8 +56,8 @@ Plt.Create()
     .ToSvg();
 ```
 
-An edge with `IsDirected` set gets an arrowhead at the target end. It reuses
-`ArrowHeadBuilder.FancyArrow`, so it looks the same as an annotation arrow.
+An edge with `IsDirected` set gets an arrowhead at the target end. It is the head of
+`ArrowStyle.FancyArrow`, so it looks the same as an annotation arrow.
 
 ## Per-node colour and size
 

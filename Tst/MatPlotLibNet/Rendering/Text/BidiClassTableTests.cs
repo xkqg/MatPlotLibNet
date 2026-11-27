@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Tests.Packaging;
 using System.Globalization;
 using MatPlotLibNet.Rendering.Text;
 
@@ -11,19 +12,6 @@ namespace MatPlotLibNet.Tests.Rendering.Text;
 /// checked-in UCD text compared range for range with what the generator committed.</summary>
 public sealed class BidiClassTableTests
 {
-    /// <summary>The repository root, found the way ReleaseContractTests finds it: walk up until CHANGELOG.md.</summary>
-    internal static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
-
     [Theory]
     [InlineData(0x0041, "L")]    // A
     [InlineData(0x05D0, "R")]    // א
@@ -62,9 +50,8 @@ public sealed class BidiClassTableTests
     [Fact]
     public void TheTables_CarryTheVersionOfTheirSourceFiles()
     {
-        string root = RepoRoot();
-        string classesHeader = File.ReadLines(Path.Combine(root, "tools", "unicode", "ucd", "DerivedBidiClass.txt")).First();
-        string bracketsHeader = File.ReadLines(Path.Combine(root, "tools", "unicode", "ucd", "BidiBrackets.txt")).First();
+        string classesHeader = RepositoryTree.FileAt("tools", "unicode", "ucd", "DerivedBidiClass.txt").Lines[0];
+        string bracketsHeader = RepositoryTree.FileAt("tools", "unicode", "ucd", "BidiBrackets.txt").Lines[0];
 
         Assert.Equal($"# DerivedBidiClass-{BidiClassTable.UnicodeVersion}.txt", classesHeader);
         Assert.Equal($"# BidiBrackets-{BidiBrackets.UnicodeVersion}.txt", bracketsHeader);
@@ -75,21 +62,18 @@ public sealed class BidiClassTableTests
     public void TheCommittedClassTable_MatchesARegenerationFromTheSource()
     {
         // The same painting rule the generator applies: every @missing default in file order, then every explicit
-        // assignment on top. Compressed to ranges and compared entry for entry with what is compiled in.
-        var expected = RangesFromSource(Path.Combine(RepoRoot(), "tools", "unicode", "ucd", "DerivedBidiClass.txt"));
+        // assignment on top. Compared code point by code point with what the compiled table answers.
+        var expected = ClassesFromSource(RepositoryTree.FileAt("tools", "unicode", "ucd", "DerivedBidiClass.txt"));
 
-        Assert.Equal(expected.Count, BidiClassTable.RangeCount);
-        for (int i = 0; i < expected.Count; i++)
-        {
-            Assert.Equal(expected[i], BidiClassTable.Range(i));
-        }
+        var differing = Enumerable.Range(0, expected.Length).Where(cp => BidiClassTable.GetClass(cp) != expected[cp]).Take(5).ToList();
+        Assert.True(differing.Count == 0, "The table differs from the source at " + string.Join(", ", differing.Select(cp => $"U+{cp:X4}")));
     }
 
     [Fact]
     public void TheCommittedBracketTable_MatchesARegenerationFromTheSource()
     {
         var expected = new List<(int CodePoint, int Pair, bool Opens)>();
-        foreach (var raw in File.ReadLines(Path.Combine(RepoRoot(), "tools", "unicode", "ucd", "BidiBrackets.txt")))
+        foreach (var raw in RepositoryTree.FileAt("tools", "unicode", "ucd", "BidiBrackets.txt").Lines)
         {
             string line = raw.Split('#', 2)[0].Trim();
             if (line.Length == 0)
@@ -136,7 +120,7 @@ public sealed class BidiClassTableTests
     public void Canonical_FoldsTheTwoEquivalentPairs(int codePoint, int expected) =>
         Assert.Equal(expected, BidiBrackets.Canonical(codePoint));
 
-    private static List<BidiClassRange> RangesFromSource(string path)
+    private static BidiClass[] ClassesFromSource(SourceFile source)
     {
         var longNames = new Dictionary<string, BidiClass>
         {
@@ -155,7 +139,7 @@ public sealed class BidiClassTableTests
 
         var painted = new BidiClass[0x110000];
         var explicitLines = new List<(int Lo, int Hi, BidiClass Class)>();
-        foreach (var raw in File.ReadLines(path))
+        foreach (var raw in source.Lines)
         {
             if (raw.StartsWith("# @missing:", StringComparison.Ordinal))
             {
@@ -181,18 +165,7 @@ public sealed class BidiClassTableTests
             Array.Fill(painted, cls, lo, hi - lo + 1);
         }
 
-        var ranges = new List<BidiClassRange>();
-        int rangeStart = 0;
-        for (int cp = 1; cp <= painted.Length; cp++)
-        {
-            if (cp == painted.Length || painted[cp] != painted[rangeStart])
-            {
-                ranges.Add(new BidiClassRange(rangeStart, cp - 1, painted[rangeStart]));
-                rangeStart = cp;
-            }
-        }
-
-        return ranges;
+        return painted;
     }
 
     private static (int Lo, int Hi) ParseRange(string field)

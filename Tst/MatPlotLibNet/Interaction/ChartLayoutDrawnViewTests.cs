@@ -40,22 +40,15 @@ public class ChartLayoutDrawnViewTests
         return renderer.DrawnTransform!;
     }
 
-    private static void AssertClose(double expected, double actual, string what, double relative = 1e-9)
-    {
-        double tolerance = Math.Max(Math.Abs(expected), 1e-6) * relative;
-        Assert.True(Math.Abs(actual - expected) <= tolerance,
-            $"{what}: expected {expected.ToString("R", CultureInfo.InvariantCulture)}, got {actual.ToString("R", CultureInfo.InvariantCulture)}");
-    }
-
     private static void AssertReads(ChartLayout layout, int axes, Point pixel, double x, double y)
     {
         var read = layout.PixelToData(pixel.X, pixel.Y, axes);
         Assert.NotNull(read);
-        AssertClose(x, read!.Value.DataX, "x");
-        AssertClose(y, read.Value.DataY, "y");
+        x.AssertCloseTo(read!.Value.DataX, relative: 1e-9, floor: 1e-6, what: "x");
+        y.AssertCloseTo(read.Value.DataY, relative: 1e-9, floor: 1e-6, what: "y");
     }
 
-    // â”€â”€ pixel -> data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── pixel -> data ────────────────────────────────────────────────────────────
 
     [Fact]
     public void AutoscaledAxes_ThePixelOfADrawnPoint_ReadsThatPoint()
@@ -77,10 +70,10 @@ public class ChartLayoutDrawnViewTests
 
         var range = LayoutOf(figure).GetDataRange(0);
 
-        AssertClose(lowLeft.X, range.XMin, "xMin");
-        AssertClose(highRight.X, range.XMax, "xMax");
-        AssertClose(lowLeft.Y, range.YMin, "yMin");
-        AssertClose(highRight.Y, range.YMax, "yMax");
+        lowLeft.X.AssertCloseTo(range.XMin, relative: 1e-9, floor: 1e-6, what: "xMin");
+        highRight.X.AssertCloseTo(range.XMax, relative: 1e-9, floor: 1e-6, what: "xMax");
+        lowLeft.Y.AssertCloseTo(range.YMin, relative: 1e-9, floor: 1e-6, what: "yMin");
+        highRight.Y.AssertCloseTo(range.YMax, relative: 1e-9, floor: 1e-6, what: "yMax");
     }
 
     [Fact]
@@ -145,14 +138,14 @@ public class ChartLayoutDrawnViewTests
         var layout = ChartLayout.Create(figure, [new Rect(100, 50, 400, 300)]);
 
         var range = layout.GetDataRange(0);
-        AssertClose(xMin, range.XMin, "xMin");
-        AssertClose(xMax, range.XMax, "xMax");
-        AssertClose(yMin, range.YMin, "yMin");
-        AssertClose(yMax, range.YMax, "yMax");
+        xMin.AssertCloseTo(range.XMin, relative: 1e-9, floor: 1e-6, what: "xMin");
+        xMax.AssertCloseTo(range.XMax, relative: 1e-9, floor: 1e-6, what: "xMax");
+        yMin.AssertCloseTo(range.YMin, relative: 1e-9, floor: 1e-6, what: "yMin");
+        yMax.AssertCloseTo(range.YMax, relative: 1e-9, floor: 1e-6, what: "yMax");
         AssertReads(layout, 0, new Point(300, 200), (xMin + xMax) / 2, (yMin + yMax) / 2);
     }
 
-    // â”€â”€ what the modifiers do with it â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── what the modifiers do with it ────────────────────────────────────────────
 
     [Fact]
     public void LogAxis_HoverOnADrawnPoint_FindsThatPoint()
@@ -179,7 +172,7 @@ public class ChartLayoutDrawnViewTests
 
         Assert.NotNull(hit);
         Assert.Equal(2, hit!.PointIndex);
-        AssertClose(10, hit.PixelDistance, "pixel distance", 1e-6);
+        10.0.AssertCloseTo(hit.PixelDistance, relative: 1e-6, floor: 1e-6, what: "pixel distance");
     }
 
     [Fact]
@@ -192,8 +185,8 @@ public class ChartLayoutDrawnViewTests
         crosshair.UpdatePosition(pixel.X, pixel.Y);
 
         var state = crosshair.ActiveCrosshair!.Value;
-        AssertClose(2, state.DataX, "x");
-        AssertClose(40, state.DataY, "y");
+        2.0.AssertCloseTo(state.DataX, relative: 1e-9, floor: 1e-6, what: "x");
+        40.0.AssertCloseTo(state.DataY, relative: 1e-9, floor: 1e-6, what: "y");
     }
 
     [Fact]
@@ -208,13 +201,13 @@ public class ChartLayoutDrawnViewTests
         controller.HandleKeyDown(new KeyInputArgs("Home", ModifierKeys.None));
 
         var back = LayoutOf(figure).GetDataRange(0);
-        AssertClose(first.XMin, back.XMin, "xMin");
-        AssertClose(first.XMax, back.XMax, "xMax");
-        AssertClose(first.YMin, back.YMin, "yMin");
-        AssertClose(first.YMax, back.YMax, "yMax");
+        first.XMin.AssertCloseTo(back.XMin, relative: 1e-9, floor: 1e-6, what: "xMin");
+        first.XMax.AssertCloseTo(back.XMax, relative: 1e-9, floor: 1e-6, what: "xMax");
+        first.YMin.AssertCloseTo(back.YMin, relative: 1e-9, floor: 1e-6, what: "yMin");
+        first.YMax.AssertCloseTo(back.YMax, relative: 1e-9, floor: 1e-6, what: "yMax");
     }
 
-    // â”€â”€ round trips: apply what the controller emits, lay out again â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── round trips: apply what the controller emits, lay out again ─────────────
 
     [Fact]
     public void AutoscaledAxes_AWheelZoom_KeepsThePointUnderThePointer_AndNarrowsTheView()
@@ -227,11 +220,11 @@ public class ChartLayoutDrawnViewTests
         controller.HandleScroll(new ScrollInputArgs(pixel.X, pixel.Y, 0, -1, ModifierKeys.None));
 
         var after = Drawn(figure, 0).DataToPixel(2, 40);
-        AssertClose(pixel.X, after.X, "pixel x", 1e-6);
-        AssertClose(pixel.Y, after.Y, "pixel y", 1e-6);
+        pixel.X.AssertCloseTo(after.X, relative: 1e-6, floor: 1e-6, what: "pixel x");
+        pixel.Y.AssertCloseTo(after.Y, relative: 1e-6, floor: 1e-6, what: "pixel y");
         var range = LayoutOf(figure).GetDataRange(0);
-        AssertClose(0.85 * (before.XMax - before.XMin), range.XMax - range.XMin, "x span");
-        AssertClose(0.85 * (before.YMax - before.YMin), range.YMax - range.YMin, "y span");
+        (0.85 * (before.XMax - before.XMin)).AssertCloseTo(range.XMax - range.XMin, relative: 1e-9, floor: 1e-6, what: "x span");
+        (0.85 * (before.YMax - before.YMin)).AssertCloseTo(range.YMax - range.YMin, relative: 1e-9, floor: 1e-6, what: "y span");
     }
 
     [Fact]
@@ -247,8 +240,8 @@ public class ChartLayoutDrawnViewTests
         controller.HandleScroll(new ScrollInputArgs(pixel.X, pixel.Y, 0, -1, ModifierKeys.None));
 
         var range = LayoutOf(figure).GetDataRange(0);
-        AssertClose(0.85 * 0.85 * (before.XMax - before.XMin), range.XMax - range.XMin, "x span");
-        AssertClose(pixel.X, Drawn(figure, 0).DataToPixel(2, 40).X, "pixel x", 1e-6);
+        (0.85 * 0.85 * (before.XMax - before.XMin)).AssertCloseTo(range.XMax - range.XMin, relative: 1e-9, floor: 1e-6, what: "x span");
+        pixel.X.AssertCloseTo(Drawn(figure, 0).DataToPixel(2, 40).X, relative: 1e-6, floor: 1e-6, what: "pixel x");
     }
 
     [Fact]
@@ -262,9 +255,9 @@ public class ChartLayoutDrawnViewTests
         controller.HandleScroll(new ScrollInputArgs(pixel.X, pixel.Y, 0, -1, ModifierKeys.None));
 
         var after = Drawn(figure, 0).DataToPixel(100, 3);
-        AssertClose(pixel.X, after.X, "pixel x", 1e-6);
+        pixel.X.AssertCloseTo(after.X, relative: 1e-6, floor: 1e-6, what: "pixel x");
         var range = LayoutOf(figure).GetDataRange(0);
-        AssertClose(0.85 * Math.Log10(before.XMax / before.XMin), Math.Log10(range.XMax / range.XMin), "decades");
+        (0.85 * Math.Log10(before.XMax / before.XMin)).AssertCloseTo(Math.Log10(range.XMax / range.XMin), relative: 1e-9, floor: 1e-6, what: "decades");
     }
 
     [Fact]
@@ -284,8 +277,8 @@ public class ChartLayoutDrawnViewTests
         controller.HandlePointerReleased(new PointerInputArgs(to.X, to.Y + 25, PointerButton.Left, ModifierKeys.None));
 
         var moved = Drawn(figure, 0).DataToPixel(2, 40);
-        AssertClose(to.X, moved.X, "pixel x", 1e-6);
-        AssertClose(to.Y, moved.Y, "pixel y", 1e-6);
+        to.X.AssertCloseTo(moved.X, relative: 1e-6, floor: 1e-6, what: "pixel x");
+        to.Y.AssertCloseTo(moved.Y, relative: 1e-6, floor: 1e-6, what: "pixel y");
     }
 
     [Fact]
@@ -303,8 +296,8 @@ public class ChartLayoutDrawnViewTests
         controller.HandlePointerReleased(new PointerInputArgs(grab.X - 50, grab.Y, PointerButton.Left, ModifierKeys.None));
 
         var redrawn = Drawn(figure, 0);
-        AssertClose(a.X - 50, redrawn.DataToPixel(10, 2).X, "point at 10", 1e-6);
-        AssertClose(b.X - 50, redrawn.DataToPixel(1000, 4).X, "point at 1000", 1e-6);
+        (a.X - 50).AssertCloseTo(redrawn.DataToPixel(10, 2).X, relative: 1e-6, floor: 1e-6, what: "point at 10");
+        (b.X - 50).AssertCloseTo(redrawn.DataToPixel(1000, 4).X, relative: 1e-6, floor: 1e-6, what: "point at 1000");
     }
 
     [Fact]
@@ -321,6 +314,6 @@ public class ChartLayoutDrawnViewTests
         controller.HandlePointerMoved(new PointerInputArgs(from.X + 40, from.Y - 25, PointerButton.Left, ModifierKeys.None));
         controller.HandlePointerReleased(new PointerInputArgs(from.X + 40, from.Y - 25, PointerButton.Left, ModifierKeys.None));
 
-        AssertClose(from.X + 40, Drawn(figure, 0).DataToPixel(2, 40).X, "pixel x", 1e-6);
+        (from.X + 40).AssertCloseTo(Drawn(figure, 0).DataToPixel(2, 40).X, relative: 1e-6, floor: 1e-6, what: "pixel x");
     }
 }

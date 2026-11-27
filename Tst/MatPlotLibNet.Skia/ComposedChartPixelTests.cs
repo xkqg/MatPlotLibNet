@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Tests.Rendering;
@@ -44,8 +43,6 @@ public class ComposedChartPixelTests
     /// <summary>One element of the SVG, in the order it is drawn, with the geometry needed to say where it lies.</summary>
     private sealed class SvgPart(int index, string kind, IReadOnlyDictionary<string, string> attributes)
     {
-        private static readonly Regex AttributeRx = new(@"(?<name>[a-z0-9\-]+)=""(?<value>[^""]*)""", RegexOptions.Compiled);
-
         public int Index { get; } = index;
 
         public string Kind { get; } = kind;
@@ -53,21 +50,19 @@ public class ComposedChartPixelTests
         public IReadOnlyDictionary<string, string> Attributes { get; } = attributes;
 
         public double[] Points { get; } = attributes.TryGetValue("points", out var points)
-            ? [.. points.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).Select(Parse)]
+            ? [.. points.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries).Select(t => t.Number())]
             : [];
 
-        public static SvgPart Read(int index, Match tag) =>
-            new(index, tag.Groups["kind"].Value, AttributeRx.Matches(tag.Value).ToDictionary(m => m.Groups["name"].Value, m => m.Groups["value"].Value, StringComparer.Ordinal));
+        public static SvgPart Read(int index, SvgElement tag) => new(index, tag.Name, tag.Attributes);
+        public double Number(string name) => Attributes[name].Number();
 
-        private static double Parse(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-        public double Number(string name) => Parse(Attributes[name]);
+        public double[] PathNumbers() => new SvgElement(Kind, Attributes, string.Empty).PathNumbers();
 
         public string? Text(string name) => Attributes.GetValueOrDefault(name);
 
-        public double Opacity => Text("fill-opacity") is { } fill ? Parse(fill) : Text("opacity") is { } any ? Parse(any) : 1.0;
+        public double Opacity => Text("fill-opacity") is { } fill ? fill.Number() : Text("opacity") is { } any ? any.Number() : 1.0;
 
-        public double StrokeWidth => Text("stroke-width") is { } width ? Parse(width) : 1.0;
+        public double StrokeWidth => Text("stroke-width") is { } width ? width.Number() : 1.0;
 
         public bool HasFill => Text("fill") is { } fill && fill != "none";
 
@@ -88,6 +83,12 @@ public class ComposedChartPixelTests
                     bool inside = x >= left - margin && x <= right + margin && y >= top - margin && y <= bottom + margin;
                     double nearestEdge = Math.Min(Math.Min(Math.Abs(x - left), Math.Abs(x - right)), Math.Min(Math.Abs(y - top), Math.Abs(y - bottom)));
                     return inside && (HasFill || (HasStroke && nearestEdge <= StrokeWidth / 2 + margin));
+                case "path":
+                    // The rounded frame of a legend: its bounds stand for it (every corner of the path lies in them).
+                    var numbers = PathNumbers();
+                    if (numbers.Length < 4 || !HasFill) return false;
+                    double[] xs = [.. numbers.Where((_, i) => i % 2 == 0)], ys = [.. numbers.Where((_, i) => i % 2 == 1)];
+                    return x >= xs.Min() - margin && x <= xs.Max() + margin && y >= ys.Min() - margin && y <= ys.Max() + margin;
                 case "polygon":
                     return (HasFill && IsInsidePolygon(x, y)) || (HasStroke && DistanceToPath(x, y, closed: true) <= StrokeWidth / 2 + margin);
                 case "line":
@@ -142,9 +143,8 @@ public class ComposedChartPixelTests
         public int Total => Matched + Covered + Mismatches.Count;
     }
 
-    private static readonly Regex Tag = new("""<(?<kind>circle|rect|line|polyline|polygon)\s[^>]*>""", RegexOptions.Compiled);
-
-    private static IReadOnlyList<SvgPart> PartsOf(string svg) => [.. Tag.Matches(svg).Select((tag, index) => SvgPart.Read(index, tag))];
+    private static IReadOnlyList<SvgPart> PartsOf(string svg) =>
+        [.. svg.AllElements().Where(tag => tag.Name is "circle" or "rect" or "line" or "polyline" or "polygon" or "path").Select((tag, index) => SvgPart.Read(index, tag))];
 
     private static bool IsThePage(SvgPart part) =>
         part.Kind == "rect" && part.Text("fill") == "#FFFFFF" && !part.Attributes.ContainsKey("fill-opacity");
@@ -161,7 +161,7 @@ public class ComposedChartPixelTests
             case "rect" when part.HasFill && part.Text("fill")!.Length == 7 && !IsThePage(part) && part.Opacity > 0 && part.Number("width") > 3 && part.Number("height") > 3:
                 yield return new Probe(part, part.Number("x") + part.Number("width") / 2, part.Number("y") + part.Number("height") / 2, Rgb.FromHex(part.Text("fill")!), part.Opacity, Blended: part.Opacity < 1);
                 break;
-            case "line" when part.HasStroke && part.Text("stroke")!.Length == 7 && part.Text("stroke") != "#262626":
+            case "line" when part.HasStroke && part.Text("stroke")!.Length == 7 && part.Text("stroke") != "#000000":
                 double x1 = part.Number("x1"), y1 = part.Number("y1"), x2 = part.Number("x2"), y2 = part.Number("y2");
                 if (Math.Abs(x1 - x2) + Math.Abs(y1 - y2) > 6)
                 {

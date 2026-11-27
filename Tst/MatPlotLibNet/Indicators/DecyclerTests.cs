@@ -7,53 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="Decycler"/>. Covers all 7 branches in
-/// docs/contrib/indicator-tier-3c.md §2.</summary>
+/// <summary>Verifies <see cref="Decycler"/>. Its arithmetic is held here against reference values; what it keeps with every indicator (its
+/// lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class DecyclerTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var dec = new Decycler([]);
-        Assert.Empty(dec.Compute().Values);
-    }
-
-    // ── Branch 2 — Length < 3 → empty (filter needs prev values) ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public void Compute_LengthBelowThree_ReturnsEmpty(int n)
-    {
-        var prices = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
-        var dec = new Decycler(prices, hpPeriod: 20);
-        Assert.Empty(dec.Compute().Values);
-    }
-
-    // ── Branch 3 — hpPeriod < 4 → throw ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(3)]
-    public void Constructor_HpPeriodBelowFour_Throws(int hp)
-    {
-        Assert.Throws<ArgumentException>(() => new Decycler([100.0, 101, 102, 103, 104], hp));
-    }
-
-    // ── Branch 4 — Flat prices → HP settles to 0 → decycler = prices ──
-    [Fact]
-    public void Compute_FlatPrices_EqualsPrices()
-    {
-        int n = 100;
-        var flat = Enumerable.Repeat(100.0, n).ToArray();
-        var dec = new Decycler(flat, hpPeriod: 20).Compute().Values;
-        Assert.Equal(n, dec.Length);
-        // After the HP transient settles, decycler should track the flat input.
-        for (int i = 40; i < n; i++)
-            Assert.Equal(100.0, dec[i], precision: 6);
-    }
-
     // ── Branch 5 — Pure low-frequency trend → HP removes nothing → decycler ≈ prices ──
     [Fact]
     public void Compute_LowFrequencyTrend_ApproxPrices()
@@ -97,36 +54,6 @@ public class DecyclerTests
             prices[i] = 100 + i * 0.1 + rng.NextDouble() * 2;
         var dec = new Decycler(prices, hpPeriod: 20).Compute().Values;
         Assert.Equal(n, dec.Length);
-        Assert.All(dec, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.False(double.IsInfinity(v));
-        });
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        var flat = Enumerable.Repeat(100.0, 40).ToArray();
-        new Decycler(flat, hpPeriod: 20).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void DefaultLabel_HasHpPeriod()
-    {
-        var dec = new Decycler([1.0, 2, 3]);
-        Assert.Equal("Decycler(60)", dec.Label);
-    }
-
-    [Fact]
-    public void InheritsPriceIndicator()
-    {
-        var dec = new Decycler([1.0, 2, 3]);
-        Assert.IsAssignableFrom<PriceIndicator<SignalResult>>(dec);
-        Assert.IsAssignableFrom<IIndicator>(dec);
+        dec.AssertAllFinite();
     }
 }

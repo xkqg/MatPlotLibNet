@@ -11,50 +11,34 @@ public class DataFrameColumnReaderTests
 {
     // ── ToDoubleArray ─────────────────────────────────────────────────────────
 
-    [Fact]
-    public void ToDoubleArray_Int32Column_ConvertsAllRows()
+    public static TheoryData<DataFrameColumn, double[]> ExactColumns => new()
     {
-        var col = new PrimitiveDataFrameColumn<int>("x", [1, 2, 3]);
-        var result = DataFrameColumnReader.ToDoubleArray(col);
-        Assert.Equal(new double[] { 1.0, 2.0, 3.0 }, result);
+        { new PrimitiveDataFrameColumn<int>("x", [1, 2, 3]), [1.0, 2.0, 3.0] },
+        { new PrimitiveDataFrameColumn<double>("x", [1.5, 2.5, 3.5]), [1.5, 2.5, 3.5] },
+        { new PrimitiveDataFrameColumn<long>("x", [10L, 20L, 30L]), [10.0, 20.0, 30.0] },
+    };
+
+    [Theory]
+    [MemberData(nameof(ExactColumns))]
+    public void ToDoubleArray_AnIntegerOrDoubleColumn_ConvertsAllRows(DataFrameColumn column, double[] expected)
+    {
+        var result = DataFrameColumnReader.ToDoubleArray(column);
+        Assert.Equal(expected, result);
     }
 
-    [Fact]
-    public void ToDoubleArray_DoubleColumn_PreservesValues()
+    public static TheoryData<DataFrameColumn, double[]> InexactColumns => new()
     {
-        var col = new PrimitiveDataFrameColumn<double>("x", [1.5, 2.5, 3.5]);
-        var result = DataFrameColumnReader.ToDoubleArray(col);
-        Assert.Equal(new double[] { 1.5, 2.5, 3.5 }, result);
-    }
+        { new PrimitiveDataFrameColumn<float>("x", [1.0f, 2.0f, 3.0f]), [1.0, 2.0, 3.0] },
+        { new PrimitiveDataFrameColumn<decimal>("x", [1.1m, 2.2m, 3.3m]), [1.1, 2.2, 3.3] },
+    };
 
-    [Fact]
-    public void ToDoubleArray_FloatColumn_ConvertsAllRows()
+    [Theory]
+    [MemberData(nameof(InexactColumns))]
+    public void ToDoubleArray_AFloatOrDecimalColumn_ConvertsAllRows(DataFrameColumn column, double[] expected)
     {
-        var col = new PrimitiveDataFrameColumn<float>("x", [1.0f, 2.0f, 3.0f]);
-        var result = DataFrameColumnReader.ToDoubleArray(col);
-        Assert.Equal(3, result.Length);
-        Assert.Equal(1.0, result[0], 5);
-        Assert.Equal(2.0, result[1], 5);
-        Assert.Equal(3.0, result[2], 5);
-    }
-
-    [Fact]
-    public void ToDoubleArray_Int64Column_ConvertsAllRows()
-    {
-        var col = new PrimitiveDataFrameColumn<long>("x", [10L, 20L, 30L]);
-        var result = DataFrameColumnReader.ToDoubleArray(col);
-        Assert.Equal(new double[] { 10.0, 20.0, 30.0 }, result);
-    }
-
-    [Fact]
-    public void ToDoubleArray_DecimalColumn_ConvertsAllRows()
-    {
-        var col = new PrimitiveDataFrameColumn<decimal>("x", [1.1m, 2.2m, 3.3m]);
-        var result = DataFrameColumnReader.ToDoubleArray(col);
-        Assert.Equal(3, result.Length);
-        Assert.Equal(1.1, result[0], 5);
-        Assert.Equal(2.2, result[1], 5);
-        Assert.Equal(3.3, result[2], 5);
+        var result = DataFrameColumnReader.ToDoubleArray(column);
+        Assert.Equal(expected.Length, result.Length);
+        for (int i = 0; i < expected.Length; i++) Assert.Equal(expected[i], result[i], 5);
     }
 
     [Fact]

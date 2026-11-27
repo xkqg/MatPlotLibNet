@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet;
 
@@ -19,7 +20,7 @@ public sealed class SmallMultiplesBuilder
     private int _maxCols = DefaultMaxCols;
     private double _panelWidth = DefaultPanelWidth;
     private double _panelHeight = DefaultPanelHeight;
-    private (double Min, double Max)? _yLimits;
+    private MinMaxRange? _yLimits;
     private DateTime? _windowEnd;
     private TimeSpan _windowSpan;
     private string? _title;
@@ -49,8 +50,7 @@ public sealed class SmallMultiplesBuilder
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxCols"/> is below one.</exception>
     public SmallMultiplesBuilder WithMaxCols(int maxCols)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(maxCols, 1);
-        _maxCols = maxCols;
+        _maxCols = maxCols.ThrowIfBelow(1, nameof(maxCols));
         return this;
     }
 
@@ -65,7 +65,7 @@ public sealed class SmallMultiplesBuilder
     /// <summary>One y range for every panel — what makes the shapes comparable.</summary>
     public SmallMultiplesBuilder WithSharedYLimits(double min, double max)
     {
-        _yLimits = (min, max);
+        _yLimits = new MinMaxRange(min, max);
         return this;
     }
 
@@ -101,12 +101,11 @@ public sealed class SmallMultiplesBuilder
             throw new InvalidOperationException("Small multiples need at least one panel.");
         }
 
-        int rows = ((_panels.Count - 1) / _maxCols) + 1;
-        int columns = ((_panels.Count - 1) / rows) + 1;
+        var wrap = PanelWrap.Balanced(_panels.Count, _maxCols);
 
         var figure = Plt.Create()
-            .WithSize(_panelWidth * columns, _panelHeight * rows)
-            .WithGridSpec(rows, columns)
+            .WithSize(_panelWidth * wrap.Columns, _panelHeight * wrap.Rows)
+            .WithGridSpec(wrap.Rows, wrap.Columns)
             .TightLayout();
         if (_title is not null)
         {
@@ -116,9 +115,7 @@ public sealed class SmallMultiplesBuilder
         for (int i = 0; i < _panels.Count; i++)
         {
             var spec = _panels[i];
-            int row = i / columns;
-            int column = i % columns;
-            figure.AddSubPlot(GridPosition.Single(row, column), ax =>
+            figure.AddSubPlot(wrap.At(i), ax =>
             {
                 ax.Plot(spec.X, spec.Y, spec.Configure);
                 if (_yLimits is { } y)
@@ -127,12 +124,10 @@ public sealed class SmallMultiplesBuilder
                 }
                 if (_windowEnd is { } end)
                 {
-                    ax.SetXLim((end - _windowSpan).ToOADate(), end.ToOADate());
-                    ax.SetXDateAxis();
+                    ax.PinTimeWindow(end, _windowSpan);
                 }
                 ax.Annotate(spec.Label, LabelX, LabelY, a => a.Coordinates = AnnotationCoordinates.AxesFraction);
-                ax.HideTopSpine();
-                ax.HideRightSpine();
+                ax.OpenFrame();
                 ax.WithLegend(visible: false);
                 _configurePanel?.Invoke(ax);
             });

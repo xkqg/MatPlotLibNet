@@ -20,21 +20,13 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// </list></para></summary>
 public class ThreeDInteractionIsolationTests
 {
-    private static InteractionScriptHarness Build3DScene() =>
-        InteractionScriptHarness.FromBuilder(b => b
-            .WithSize(600, 500)
-            .WithBrowserInteraction()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithCamera(elevation: 30, azimuth: -60, distance: 8)
-                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } })));
-
     /// <summary>Fix A.2: when the SVG hosts a 3D scene, the 2D pan/zoom handler must not
     /// be wired. Firing a pointer drag on the SVG root therefore leaves the viewBox
     /// untouched (no pan).</summary>
     [Fact]
     public void Drag3DSceneViaSvgRoot_DoesNotPanViewBox()
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var initialVb = h.GetAttribute("svg", "viewBox");
         Assert.NotNull(initialVb);
 
@@ -53,7 +45,7 @@ public class ThreeDInteractionIsolationTests
     [Fact]
     public void Drag3DSceneViaSceneGroup_RotatesAndLeavesViewBoxAlone()
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var initialPoints = h.GetAttribute("polygon[data-v3d]", "points");
         Assert.NotNull(initialPoints);
         var initialVb = h.GetAttribute("svg", "viewBox");
@@ -76,7 +68,7 @@ public class ThreeDInteractionIsolationTests
     [Fact]
     public void Wheel3DScene_ChangesProjection_NotViewBox()
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var initialPoints = h.GetAttribute("polygon[data-v3d]", "points");
         Assert.NotNull(initialPoints);
         var initialVb = h.GetAttribute("svg", "viewBox");

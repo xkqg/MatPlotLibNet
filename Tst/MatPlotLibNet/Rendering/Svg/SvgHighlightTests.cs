@@ -6,86 +6,42 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// <summary>Verifies SVG highlight-on-hover script injection and behavior.</summary>
 public class SvgHighlightTests
 {
-    /// <summary>Verifies that enabling highlight injects a script element.</summary>
-    [Fact]
-    public void WithHighlight_InjectsScriptElement()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Verifies that enabling highlight injects a script element.
+        new DrawnToken("WithHighlight_InjectsScriptElement", () => Plt.Create()
             .WithHighlight()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("<script", svg);
-    }
-
-    /// <summary>Verifies that the highlight script uses mouseenter to trigger dimming.</summary>
-    [Fact]
-    public void HighlightScript_UsesMouseenterEvent()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<script"),
+        // Verifies that the highlight script uses mouseenter to trigger dimming.
+        new DrawnToken("HighlightScript_UsesMouseenterEvent", () => Plt.Create()
             .WithHighlight()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("mouseenter", svg);
-    }
-
-    /// <summary>Verifies that the highlight script manipulates opacity.</summary>
-    [Fact]
-    public void HighlightScript_ManipulatesOpacity()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "mouseenter"),
+        // Verifies that the highlight script manipulates opacity.
+        new DrawnToken("HighlightScript_ManipulatesOpacity", () => Plt.Create()
             .WithHighlight()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("opacity", svg);
-    }
-
-    /// <summary>Verifies that the highlight script restores sibling opacity on mouseleave.</summary>
-    [Fact]
-    public void HighlightScript_RestoresOnMouseleave()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "opacity"),
+        // Verifies that the highlight script restores sibling opacity on mouseleave.
+        new DrawnToken("HighlightScript_RestoresOnMouseleave", () => Plt.Create()
             .WithHighlight()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("mouseleave", svg);
-    }
-
-    /// <summary>Verifies that the highlight script dims siblings to 0.3 opacity.</summary>
-    [Fact]
-    public void HighlightScript_DimsSiblingToThirtyPercent()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "mouseleave"),
+        // Verifies that the highlight script dims siblings to 0.3 opacity.
+        new DrawnToken("HighlightScript_DimsSiblingToThirtyPercent", () => Plt.Create()
             .WithHighlight()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("0.3", svg);
-    }
-
-    /// <summary>Verifies that without WithHighlight(), no highlight script is present.</summary>
-    [Fact]
-    public void WithoutHighlight_NoScript()
-    {
-        string svg = Plt.Create()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.DoesNotContain("<script", svg);
-    }
-
-    /// <summary>Verifies that WithHighlight(false) disables the feature.</summary>
-    [Fact]
-    public void WithHighlightFalse_NoScript()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "0.3"),
+        // Verifies that WithHighlight(false) disables the feature.
+        new DrawnToken("WithHighlightFalse_NoScript", () => Plt.Create()
             .WithHighlight(false)
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
+            .ToSvg()) { Absent = ["<script"] },
+    };
 
-        Assert.DoesNotContain("<script", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

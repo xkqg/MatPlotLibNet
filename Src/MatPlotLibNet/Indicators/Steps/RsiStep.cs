@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// over its prices and <see cref="Streaming.StreamingRsi"/> takes one price at a time. The average gain and the average loss start
 /// as the mean of the first <c>period</c> changes (so the first value comes with the price after them), and after that each moves
 /// toward the new change by <c>1 / period</c>. With no loss at all the index is 100. Before the first value the step says NaN.</summary>
-internal struct RsiStep
+internal struct RsiStep : IPriceStep<double>
 {
     private readonly int _period;
     private double _averageGain;
@@ -21,7 +21,7 @@ internal struct RsiStep
 
     /// <summary>Takes one price and returns the index, or NaN before <c>period + 1</c> prices have come.</summary>
     /// <param name="price">The price.</param>
-    internal double Next(double price)
+    public double Next(double price)
     {
         _count++;
         if (_count == 1)

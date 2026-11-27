@@ -4,3 +4,4 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("MatPlotLibNet.Mcp.Tests")]
+[assembly: InternalsVisibleTo("MatPlotLibNet.Benchmarks")]

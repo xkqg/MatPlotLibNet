@@ -4,7 +4,9 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.Layout;
@@ -28,7 +30,7 @@ internal readonly record struct DirectLabel(ISeries Series, SeriesAxisPair Pair,
 /// it, so the two always measure the same text in the same font.</summary>
 /// <remarks>A label replaces the series' legend entry, so it wears the legend's font (with
 /// <see cref="Legend.FontSize"/> applied) and writes a value the way the legend does
-/// (<see cref="AxesRenderer.WithLegendValue"/>). Which point is the end of a line is ONE rule, used for the label's
+/// (<see cref="LegendValueTextExtensions"/>). Which point is the end of a line is ONE rule, used for the label's
 /// position, for the value it shows and for the legend's value (<see cref="MissingValueExtensions.LastDrawableIndex"/>):
 /// the last point, in data order, whose x and y can be drawn and, here, whose x lies in the visible X range. A line
 /// without such a point has no label. So a trailing NaN or a point cut off by the X limits never puts "NaN" in the text,
@@ -58,7 +60,7 @@ internal sealed class DirectLabelMetrics
     internal DirectLabelMetrics(Axes axes, Theme theme, IRenderContext ctx, MinMaxRange visibleX)
     {
         _ctx = ctx;
-        Font = LegendMeasurer.LegendFont(axes, theme);
+        Font = theme.EndLabelFontOf(axes.Legend);
         Labels = Collect(axes, theme, ctx, visibleX);
     }
 
@@ -69,13 +71,11 @@ internal sealed class DirectLabelMetrics
     /// when the axes' renderer draws no end labels (polar, 3D: there the name stays in the legend).</summary>
     internal IReadOnlyList<DirectLabel> Labels { get; }
 
-    /// <summary>The size of <paramref name="text"/> in <see cref="Font"/>; a label with math markup is measured as the
+    /// <summary>The extent of <paramref name="text"/> in <see cref="Font"/>; a label with math markup is measured as the
     /// rich text it is drawn as.</summary>
     /// <param name="text">The label text.</param>
-    /// <returns>The measured size in pixels.</returns>
-    internal Size Measure(string text) => MathTextParser.ContainsMath(text)
-        ? _ctx.MeasureRichText(MathTextParser.Parse(text), Font)
-        : _ctx.MeasureText(text, Font);
+    /// <returns>The measured extent in pixels.</returns>
+    internal TextExtent ExtentOf(string text) => _ctx.ExtentOf(TextLabel.Of(text), Font);
 
     /// <summary>The width of the widest label; 0 when there is none.</summary>
     /// <returns>The width in pixels.</returns>
@@ -83,8 +83,17 @@ internal sealed class DirectLabelMetrics
     {
         double widest = 0;
         foreach (var label in Labels)
-            widest = Math.Max(widest, Measure(label.Text).Width);
+            widest = Math.Max(widest, ExtentOf(label.Text).Width);
         return widest;
+    }
+
+    /// <summary>The band the end labels take past what they follow: the gap and the widest label; 0 when there is none
+    /// (<see cref="RightBand.EndLabels"/>).</summary>
+    /// <returns>The band in pixels.</returns>
+    internal double Band()
+    {
+        double widest = WidestLabel();
+        return widest > 0 ? Gap + widest : 0;
     }
 
     private static List<DirectLabel> Collect(Axes axes, Theme theme, IRenderContext ctx, MinMaxRange visibleX)
@@ -107,7 +116,7 @@ internal sealed class DirectLabelMetrics
         var series = seat.Slot.Series;
         for (int i = 0; i < series.Count; i++)
         {
-            if (series[i] is not IHasLabelPlacement { LabelPlacement: SeriesLabelPlacement.LineEnd } placed) continue;
+            if (series[i] is not IHasLinePoints { LabelPlacement: SeriesLabelPlacement.LineEnd } placed) continue;
             var one = series[i];
             if (!one.Visible || string.IsNullOrEmpty(one.Label)) continue;
             var points = placed.LinePoints();
@@ -115,7 +124,7 @@ internal sealed class DirectLabelMetrics
             if (end < 0) continue;
             double x = points.XData[end], y = points.YData[end];
             labels.Add(new DirectLabel(one, seat.Pair, seat.FirstIndexInPair + i, seat.Slot,
-                                       legendValues ? AxesRenderer.WithLegendValue(one.Label, y) : one.Label, x, y));
+                                       legendValues ? one.Label.WithLegendValue(y) : one.Label, x, y));
         }
     }
 }

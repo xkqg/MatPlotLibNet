@@ -15,13 +15,6 @@ public class TransformOptionsTests
     private static Figure Chart() =>
         Plt.Create().WithSize(300, 200).WithTitle("Revenue").Plot([0.0, 1.0, 2.0], [0.123456, 2.718281, 1.414213]).Build();
 
-    private sealed class InterfaceOnly : IFigureTransform
-    {
-        public int TwoArgumentCalls { get; private set; }
-
-        public void Transform(Figure figure, Stream output) => TwoArgumentCalls++;
-    }
-
     private sealed class BaseOnly : FigureTransform
     {
         public int TwoArgumentCalls { get; private set; }
@@ -41,12 +34,12 @@ public class TransformOptionsTests
     [Fact]
     public void AnInterfaceOnlyTransform_IsCalledTheOldWay_WhenOptionsAreGiven()
     {
-        var transform = new InterfaceOnly();
+        var transform = new RecordingFigureTransform();
         IFigureTransform viaInterface = transform;
 
         viaInterface.Transform(Chart(), Stream.Null, new SaveOptions { Dpi = 300, Title = "T" });
 
-        Assert.Equal(1, transform.TwoArgumentCalls);
+        Assert.Equal(1, transform.Calls);
     }
 
     [Fact]

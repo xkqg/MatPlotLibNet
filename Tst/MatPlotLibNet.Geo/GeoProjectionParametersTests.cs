@@ -10,18 +10,6 @@ namespace MatPlotLibNet.Geo.Tests;
 /// make again.</summary>
 public class GeoProjectionParametersTests
 {
-    /// <summary>A projection from outside the package: the package knows nothing of its numbers.</summary>
-    private sealed class ForeignProjection : IGeoProjection
-    {
-        public string Name => "Foreign";
-
-        public ProjectedPoint Forward(double latitude, double longitude) => new(longitude, latitude);
-
-        public GeoCoordinate? Inverse(double x, double y) => new(y, x);
-
-        public GeoBounds Bounds => new(-180, 180, -90, 90);
-    }
-
     public static readonly string[] Names =
     [
         "PlateCarree", "Mercator", "Robinson", "Mollweide", "Sinusoidal", "NaturalEarth", "EqualEarth", "Orthographic",
@@ -50,14 +38,14 @@ public class GeoProjectionParametersTests
 
     [Fact]
     public void AProjectionThePackageDoesNotKnow_HasNone() =>
-        Assert.Empty(new ForeignProjection().ParametersOf());
+        Assert.Empty(new TestGeoProjection(new GeoBounds(-180, 180, -90, 90)).ParametersOf());
 
     // ---- is it the same projection ---------------------------------------------------------------------------------------
 
     [Fact]
     public void AProjection_IsTheSameAsItself()
     {
-        var projection = new ForeignProjection();
+        var projection = new TestGeoProjection(new GeoBounds(-180, 180, -90, 90));
 
         Assert.True(projection.IsSameProjectionAs(projection));
     }
@@ -83,7 +71,7 @@ public class GeoProjectionParametersTests
 
     [Fact]
     public void AProjectionFromOutsideThePackage_IsTheSameAsItselfAndAsNothingElse() =>
-        Assert.False(new ForeignProjection().IsSameProjectionAs(new ForeignProjection()));
+        Assert.False(new TestGeoProjection(new GeoBounds(-180, 180, -90, 90)).IsSameProjectionAs(new TestGeoProjection(new GeoBounds(-180, 180, -90, 90))));
 
     // ---- how it reads in a message ---------------------------------------------------------------------------------------
 

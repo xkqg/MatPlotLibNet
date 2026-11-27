@@ -5,9 +5,10 @@ namespace MatPlotLibNet.Styling;
 
 /// <summary>Fluent builder for <see cref="PropCycler"/>.</summary>
 /// <remarks>
-/// Any property arrays left unset receive single-element defaults:
+/// Any property arrays left unset receive single-element defaults when the cycler is asked for them:
 /// Color → <see cref="Colors.Tab10Blue"/>, LineStyle → <see cref="LineStyle.Solid"/>,
-/// MarkerStyle → <see cref="MarkerStyle.None"/>, LineWidth → 1.5.
+/// MarkerStyle → <see cref="MarkerStyle.None"/>, LineWidth → 1.5. A theme drawn with a cycler that names no colours takes the colours of
+/// its own cycle (<see cref="Theme.CycleColors"/>), as one that names no line widths leaves the width to the theme.
 /// </remarks>
 public sealed class PropCyclerBuilder
 {
@@ -31,7 +32,7 @@ public sealed class PropCyclerBuilder
     /// <returns>This builder for chaining.</returns>
     public PropCyclerBuilder WithMarkerStyles(params MarkerStyle[] markers) { _markerStyles = markers; return this; }
 
-    /// <summary>Sets the line widths (in points) to cycle through.</summary>
+    /// <summary>Sets the line widths (in pixels, as every series' line width) to cycle through.</summary>
     /// <param name="widths">One or more line widths.</param>
     /// <returns>This builder for chaining.</returns>
     public PropCyclerBuilder WithLineWidths(params double[] widths) { _lineWidths = widths; return this; }

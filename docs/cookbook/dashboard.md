@@ -386,8 +386,8 @@ Plt.OpsDashboard()
 ### The rolling axis
 
 `WithWindow` pins the axis bounds **exactly** and lets the locator round only the **ticks**. This is what
-makes a live chart move smoothly instead of in jumps. An automatic axis expands its bounds outward to the
-nearest round number, so it stands still while the data grows into it and then jumps a whole step at once.
+makes a live chart move smoothly instead of in jumps. An automatic axis under the operator themes expands its bounds
+outward to the nearest round number, so it stands still while the data grows into it and then jumps a whole step at once.
 Pinned bounds slide continuously, and the round ticks move out of frame together with the data they belong
 to.
 
@@ -406,6 +406,10 @@ ax.Bullet(2412, b =>
     b.Bands = [new(1800, band1), new(2200, band2), new(2800, band3)];
 });
 ```
+
+The strip is as long as the furthest of the value, the target and the last band's threshold. To say that the last band
+covers everything above the one before it, give it the threshold `double.PositiveInfinity`: that band runs to the end of the
+strip, and since an infinite threshold sizes nothing, the value or the target decides where the strip ends.
 
 ### A tile that leads somewhere — progressive disclosure
 
@@ -548,6 +552,11 @@ Measured at 1400×300: nine processes label cleanly. At twenty processes, `Label
 across their neighbours. A wall with more than about 12 processes needs more height, or `Fit`/`Truncate`. An
 empty tree draws nothing.
 
+Under the library's own themes the largest rectangle stands at the top left and each rectangle has a white edge. Under the
+matplotlib themes, which the default figure style is, the treemap is drawn as the `squarify` package draws one in a matplotlib
+axes: the largest rectangle stands at the bottom left, the rectangles are cut off at the frame, and each has the edge of a
+matplotlib bar (black under the classic style, none under the default one).
+
 ### A tree grid — the numbers a treemap cannot show
 
 When the leaves are many and small, area no longer shows anything useful. In one running system, two lanes out of
@@ -592,8 +601,9 @@ measures.
 ### A log axis for latencies
 
 `SetYScale(AxisScale.Log)` ranges over the positive values only: a measurement bucket whose value is 0 µs is
-masked, not drawn. The axis pads in log space and installs decade ticks (`10¹`, `10²`) by itself. For data
-that legitimately includes zero, use `SetYScaleSymLog(linthresh)` instead; it keeps a linear band around zero.
+masked, not drawn. The axis pads in log space and installs decade ticks (`10¹`, `10²`) by itself; a view of one decade or
+less names the multiples too (`2×10¹`). For data
+that legitimately includes zero, use `WithSymlogYScale(linthresh)` instead; it keeps a linear band around zero.
 
 ### The wall, read rather than seen
 

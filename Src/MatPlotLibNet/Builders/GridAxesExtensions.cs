@@ -1,10 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Rendering;
+using System.Globalization;
+using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet;
 
@@ -129,57 +132,15 @@ public static class GridAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(dates);
             ArgumentNullException.ThrowIfNull(kinds);
-            if (kinds.Length != dates.Length)
-            {
-                throw new ArgumentException($"{kinds.Length} kinds were given for {dates.Length} dates; there must be one kind per date.", nameof(kinds));
-            }
+            kinds.Length.ThrowIfMisaligned(dates.Length, nameof(kinds));
 
             // Every refusal comes from laying out the grid, before the axes are touched.
             var grid = CalendarGrid.Of(dates, new double[dates.Length], firstDayOfWeek);
 
-            // The days: a cell for every day of the span (0), blank outside it, in the theme's neutral grey, drawn behind the marks.
-            var cells = new double[CalendarGrid.DaysPerWeek, grid.Columns];
-            for (int row = 0; row < CalendarGrid.DaysPerWeek; row++)
-            {
-                for (int column = 0; column < grid.Columns; column++)
-                {
-                    cells[row, column] = grid.DateAt(row, column) is null ? double.NaN : 0;
-                }
-            }
-
-            // The events of a day, in the order given, share its cell: their place among the day's events is their stripe.
-            var eventsOnDay = dates.GroupBy(date => date.Date).ToDictionary(group => group.Key, group => group.Count());
-            int mostOnADay = eventsOnDay.Values.Max();
-            var placed = new Dictionary<DateTime, int>();
-            var kindMarks = new Dictionary<string, KindMarks>();
-            var kindOrder = new List<string>();
-            for (int i = 0; i < dates.Length; i++)
-            {
-                var day = dates[i].Date;
-                int index = placed.GetValueOrDefault(day);
-                placed[day] = index + 1;
-                string kind = kinds[i] ?? string.Empty;
-                if (!kindMarks.TryGetValue(kind, out var marks))
-                {
-                    kindMarks[kind] = marks = new KindMarks();
-                    kindOrder.Add(kind);
-                }
-
-                marks.Add(day, grid.StripeOf(day, index, eventsOnDay[day], mostOnADay));
-            }
-
-            var bars = new List<BarSeries>();
-            foreach (string kind in kindOrder)
-            {
-                var marks = kindMarks[kind];
-                bars.Add(new BarSeries([.. marks.Days], [.. marks.Heights])
-                {
-                    XCoordinate = [.. marks.Centres],
-                    StackBaseline = [.. marks.Feet],
-                    BarWidth = marks.Width,
-                    Label = kind.Length > 0 ? kind : null,
-                });
-            }
+            // The days: a cell for every day of the span (0), blank outside it, in the theme's neutral grey, drawn behind the marks;
+            // the events of a day share its cell, one bar series for each kind.
+            var cells = grid.DayCells();
+            var bars = grid.EventMarks(dates, kinds);
 
             var days = new HeatmapSeries(cells) { FirstCellDate = grid.FirstCellDate, WearsNeutral = true, ZOrder = -1 };
             foreach (var bar in bars) axes.AddSeries(bar);
@@ -197,8 +158,8 @@ public static class GridAxesExtensions
         /// <see cref="Spy"/>), and a colour bar to read the values against.
         /// <para>The cells are square because the plot has an aspect of one (<see cref="Models.Axes.Aspect"/>): the plot is the
         /// largest rectangle of the matrix' own proportions that fits, centred, at any figure size. The column numbers stand
-        /// on the top edge and on the bottom edge too, since this library draws a mirrored tick on both. A missing value (NaN)
-        /// is a blank cell, never a zero.</para>
+        /// on the top edge only, the bottom edge keeping its tick marks (<see cref="AxesBuilderTickVerbs.WithXTickLabelsOnTop"/>, matplotlib's
+        /// <c>tick_top()</c> then <c>set_ticks_position('both')</c>). A missing value (NaN) is a blank cell, never a zero.</para>
         /// <para>The chart is ONE <see cref="HeatmapSeries"/>: written to JSON it is the heatmap, the named ticks, the aspect
         /// and the colour bar, and read back it draws the same picture. It is not laid out again; change the matrix and call
         /// the verb again.</para></summary>
@@ -223,19 +184,17 @@ public static class GridAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(matrix);
+            matrix.ThrowIfNoCell("a matrix shown");
             int rows = matrix.GetLength(0), columns = matrix.GetLength(1);
-            if (rows == 0 || columns == 0)
-            {
-                throw new ArgumentException($"The matrix has {rows} rows and {columns} columns; a matrix shown needs at least one cell.", nameof(matrix));
-            }
 
             // A heatmap draws row 0 at the top while its Y axis counts upward: the rows are numbered from the top down.
+            var rowNames = NamesOf(rows);
             return axes
                 .Heatmap(matrix, configure)
                 .SetAspect(1)
-                .SetXCategoryTicks(WholeTickNames(columns))
-                .SetYCategoryTicks([.. Enumerable.Range(0, rows).Select(row => WholeTickNames(rows).GetValueOrDefault(row, string.Empty))], topDown: true)
-                .WithXTicksMirrored()
+                .SetXCategoryTicks(NamesOf(columns))
+                .SetYCategoryTicks([.. Enumerable.Range(0, rows).Select(row => rowNames.GetValueOrDefault(row, string.Empty))], topDown: true)
+                .WithXTickLabelsOnTop()
                 .WithColorBar();
         }
 
@@ -292,34 +251,13 @@ public static class GridAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(matrix);
+            matrix.ThrowIfNoCell("a spy plot");
             int rows = matrix.GetLength(0), columns = matrix.GetLength(1);
-            if (rows == 0 || columns == 0)
-            {
-                throw new ArgumentException($"The matrix has {rows} rows and {columns} columns; a spy plot needs at least one cell.", nameof(matrix));
-            }
 
-            if (!double.IsFinite(threshold) || threshold < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(threshold), threshold,
-                    "The threshold must be a finite number of 0 or more; a cell is a marker when its magnitude is above it.");
-            }
-
-            var x = new List<double>();
-            var y = new List<double>();
-            for (int r = 0; r < rows; r++)
-            {
-                for (int c = 0; c < columns; c++)
-                {
-                    // NaN is above nothing, so a missing value falls out here without a branch of its own.
-                    if (Math.Abs(matrix[r, c]) > threshold)
-                    {
-                        x.Add(c);
-                        y.Add(r);
-                    }
-                }
-            }
-
-            var cells = new ScatterSeries([.. x], [.. y]) { Marker = MarkerStyle.Square };
+            threshold.ThrowIfNotFinite(nameof(threshold)).ThrowIfBelow(0, nameof(threshold));
+            var marks = matrix.CellsAbove(threshold);
+            // matplotlib's spy draws its markers as a Line2D it adds itself (add_line), in lines.color, asking no cycle.
+            var cells = new ScatterSeries(marks.Columns, marks.Rows) { Marker = MarkerStyle.Square, AsksAs = CycleCall.Neither };
 
             // The half cell at each end is the margin a marker needs: a limit clips at the frame, so a marker standing on the
             // first or last column or row would be cut in half. The Y limits run downward: row 0 on top. The same limits are why
@@ -327,72 +265,284 @@ public static class GridAxesExtensions
             return axes.AddSeries(cells, configure)
                 .SetXLim(-0.5, columns - 0.5).SetYLim(rows - 0.5, -0.5)
                 .SetAspect(1)
-                .SetXTickLocator(new MultipleLocator(WholeTickStep(columns)))
-                .SetYTickLocator(new MultipleLocator(WholeTickStep(rows)));
+                .SetXTickLocator(new MultipleLocator(StepOf(columns)))
+                .SetYTickLocator(new MultipleLocator(StepOf(rows)));
         }
     }
 
+    /// <summary>The steps a whole-number tick step is a power of ten times.</summary>
+    private static readonly int[] Ladder = [1, 2, 5];
+
     /// <summary>The step between the ticks of an axis that numbers <paramref name="cells"/> cells: the smallest of 1, 2, 5, 10,
-    /// 20, 50 ... that leaves at most nine intervals across them (matplotlib's whole-number locator of a spy plot, nine bins
-    /// and the steps 1, 2, 5 and 10), so a small matrix is ticked at every cell and a large one at round numbers.</summary>
+    /// 20, 50 ... that leaves at most nine intervals across them (<see cref="TickBudget.Standard"/>; matplotlib's whole-number locator
+    /// of a spy plot: nine bins and the steps 1, 2, 5 and 10).</summary>
     /// <param name="cells">The number of cells along the axis; 1 or more.</param>
-    private static double WholeTickStep(int cells)
+    /// <returns>The distance between two ticks, in cells.</returns>
+    internal static int StepOf(int cells)
     {
-        for (double magnitude = 1; ; magnitude *= 10)
+        for (long magnitude = 1; ; magnitude *= 10)
         {
-            foreach (int ladder in WholeTickLadder)
+            foreach (int rung in Ladder)
             {
-                if (cells <= MaxTickIntervals * ladder * magnitude)
+                if (cells <= TickBudget.Standard.Most * rung * magnitude)
                 {
-                    return ladder * magnitude;
+                    return (int)(rung * magnitude);
                 }
             }
         }
     }
 
-    /// <summary>The marks of one kind of event, as the arrays a bar series is made of: the event's day (its ISO date names the
-    /// bar), the middle of its stripe along X, where the bar begins and how tall it is along Y. Every stripe of a calendar is
-    /// as wide as the others of the calendar, so the width is the first one's.</summary>
-    private sealed class KindMarks
-    {
-        internal List<string> Days { get; } = [];
-
-        internal List<double> Centres { get; } = [];
-
-        internal List<double> Feet { get; } = [];
-
-        internal List<double> Heights { get; } = [];
-
-        internal double Width { get; private set; }
-
-        internal void Add(DateTime day, EventStripe stripe)
-        {
-            Days.Add(day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-            Centres.Add(stripe.Centre);
-            Feet.Add(stripe.Foot);
-            Heights.Add(stripe.Height);
-            if (Width == 0) Width = stripe.Width;
-        }
-    }
-
-    /// <summary>The numbers of the cells a whole-number tick stands on, by the cell's index: every <see cref="WholeTickStep"/>
-    /// cells from the first, each naming its own index.</summary>
+    /// <summary>The numbers of the cells a tick stands on, by the cell's index: every <see cref="GridAxesExtensions.StepOf"/> cells from the first,
+    /// each naming its own index.</summary>
     /// <param name="cells">The number of cells along the axis; 1 or more.</param>
-    private static Dictionary<int, string> WholeTickNames(int cells)
+    /// <returns>The name of each ticked cell; a cell between two ticks has no entry.</returns>
+    internal static Dictionary<int, string> NamesOf(int cells)
     {
-        int step = (int)WholeTickStep(cells);
+        int step = StepOf(cells);
         var names = new Dictionary<int, string>();
         for (int cell = 0; cell < cells; cell += step)
         {
-            names[cell] = cell.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            names[cell] = cell.InvariantText();
         }
 
         return names;
     }
 
-    /// <summary>The steps a whole-number tick step is a power of ten times.</summary>
-    private static readonly int[] WholeTickLadder = [1, 2, 5];
+    /// <summary>The share of a cell's side left clear on each edge, so a mark never touches the cell's border.</summary>
+    internal const double CellInset = 0.1;
 
-    /// <summary>The most intervals the ticks of a spy plot divide an axis into.</summary>
-    private const int MaxTickIntervals = 9;
+    /// <summary>The share of its stripe a mark fills; the rest is the gap between two events of a day.</summary>
+    internal const double StripeFill = 0.9;
+
+    extension(CalendarGrid grid)
+    {
+        /// <summary>The date of the cell at <paramref name="row"/> and <paramref name="column"/>, or <see langword="null"/> when
+        /// the cell lies before the first date or after the last (the days of the first and the last week the span does not
+        /// hold).</summary>
+        /// <param name="row">The row, from 0 (the top).</param>
+        /// <param name="column">The week column, from 0.</param>
+        /// <returns>The day the cell stands for, if it is in the span.</returns>
+        internal DateTime? DateAt(int row, int column)
+        {
+            int days = column * CalendarGrid.DaysPerWeek + row - grid.RowOf(grid.First);
+            return days >= 0 && days <= (grid.Last - grid.First).Days ? grid.First.AddDays(days) : null;
+        }
+
+        /// <summary>The days of the calendar as the cells of a heatmap: 0 for every day of the span, missing for the cells of the first
+        /// and the last week outside it, so the days draw as a neutral grid behind the marks.</summary>
+        /// <returns>One row for each weekday and one column for each week.</returns>
+        internal double[,] DayCells()
+        {
+            var cells = new double[CalendarGrid.DaysPerWeek, grid.Columns];
+            for (int row = 0; row < CalendarGrid.DaysPerWeek; row++)
+            {
+                for (int column = 0; column < grid.Columns; column++)
+                {
+                    cells[row, column] = grid.DateAt(row, column) is null ? double.NaN : 0;
+                }
+            }
+
+            return cells;
+        }
+
+        /// <summary>The events as bar series, one for each kind in the order the kinds first appear: each event is a bar named by
+        /// its ISO date, standing in the stripe the events of its day share (<see cref="GridAxesExtensions.StripeOf"/>), in the order they were
+        /// given. Every mark is as wide as the narrowest stripe of the calendar, so one width serves all of a kind. A kind with no
+        /// name has no legend name.</summary>
+        /// <param name="dates">The day of each event.</param>
+        /// <param name="kinds">The kind of each event, one per date; <see langword="null"/> counts as no kind.</param>
+        /// <returns>The series, in the order of the kinds.</returns>
+        internal List<BarSeries> EventMarks(DateTime[] dates, string[] kinds)
+        {
+            var eventsOnDay = dates.GroupBy(date => date.Date).ToDictionary(group => group.Key, group => group.Count());
+            int mostOnADay = eventsOnDay.Values.Max();
+            var placed = new Dictionary<DateTime, int>();
+            var marksOfKind = new Dictionary<string, FloatingBars>();
+            var kindOrder = new List<string>();
+            for (int i = 0; i < dates.Length; i++)
+            {
+                var day = dates[i].Date;
+                int index = placed.GetValueOrDefault(day);
+                placed[day] = index + 1;
+                string kind = kinds[i] ?? string.Empty;
+                var stripe = grid.StripeOf(day, index, eventsOnDay[day], mostOnADay);
+                if (!marksOfKind.TryGetValue(kind, out var marks))
+                {
+                    marksOfKind[kind] = marks = new FloatingBars(stripe.Width, null);
+                    kindOrder.Add(kind);
+                }
+
+                marks.Add(day.InvariantText("yyyy-MM-dd"), stripe.Centre, stripe.Foot, stripe.Height);
+            }
+
+            return [.. kindOrder.Select(kind => marksOfKind[kind].ToSeries(kind.Length > 0 ? kind : null))];
+        }
+
+        /// <summary>Where the event number <paramref name="index"/> of <paramref name="count"/> that fall on <paramref name="day"/>
+        /// stands in the cell of that day, in the units of the grid drawn as a heatmap (row 0 at the top).</summary>
+        /// <param name="day">A day of the span.</param>
+        /// <param name="index">The event's place among the events of that day, from 0.</param>
+        /// <param name="count">How many events the day has; at least 1.</param>
+        /// <param name="mostOnADay">The most events any day of the calendar has, which sets the width of every mark; at least
+        /// <paramref name="count"/>.</param>
+        /// <returns>The stripe the event's mark fills.</returns>
+        internal EventStripe StripeOf(DateTime day, int index, int count, int mostOnADay)
+        {
+            // A heatmap draws row 0 at the top while the Y axis counts upward: the row's slot along Y is counted from the bottom.
+            var row = CategorySlot.FromTop(grid.RowOf(day), CalendarGrid.DaysPerWeek);
+            double inner = 1 - 2 * CellInset;
+            double stripe = inner / count;
+            return new EventStripe(
+                grid.ColumnOf(day) + CellInset + (index + 0.5) * stripe,
+                inner / mostOnADay * StripeFill,
+                row.Left + CellInset,
+                inner);
+        }
+    }
+
+    /// <summary>Where one event stands inside the cell of its day, in the units of the calendar grid (a cell is one unit across
+    /// and one unit down): the middle of its stripe along the week axis, the stripe's width, and the foot and the height of the
+    /// mark.</summary>
+    /// <param name="Centre">The middle of the stripe along X.</param>
+    /// <param name="Width">How wide the stripe's mark is; narrower than the stripe, so neighbours do not touch.</param>
+    /// <param name="Foot">Where the mark begins along Y.</param>
+    /// <param name="Height">How tall the mark is.</param>
+    internal readonly record struct EventStripe(double Centre, double Width, double Foot, double Height);
+
+    /// <summary>A span of days laid out as a calendar, and the one owner of where a day stands in it: seven rows, one for each
+    /// day of the week, the first row the day the caller's week starts on (<see cref="GridAxesExtensions.CalendarGrid.FirstDayOfWeek"/>), by one column for
+    /// each week, from the week that holds the first date to the week that holds the last.
+    /// <para>A day's row is its place in the week counted from the week start, <c>((int)day.DayOfWeek - (int)FirstDayOfWeek +
+    /// 7) % 7</c>, and its column is the number of weeks since the week that holds the first date. The arithmetic is exact
+    /// integer math on the week start the caller names, never on the culture's, which differs between machines (Sunday under
+    /// en-US, Monday under most of Europe) and between Windows and Linux; the names of the days and months are the invariant
+    /// culture's for the same reason.</para>
+    /// <para>A day's cell holds the sum of the values given for it, whatever their time of day. A missing value (NaN) adds
+    /// nothing, and a day without a value, or with only missing values, is NaN: blank, never zero. A year is 53 columns wide,
+    /// never 52 (365 days are one more than 52 weeks), and 54 when it has 366 days and starts on the last day of a week.</para>
+    /// <para>Read by <see cref="GridAxesExtensions.CalendarHeatmap"/>, which draws <see cref="GridAxesExtensions.CalendarGrid.Cells"/> as one heatmap, row 0 at
+    /// the top.</para></summary>
+    internal sealed class CalendarGrid
+    {
+        /// <summary>The number of rows: the days of a week.</summary>
+        internal const int DaysPerWeek = 7;
+
+        /// <summary>A Sunday (the 1st of January 2006): the week from it holds the days in the order of <see cref="DayOfWeek"/>, so the
+        /// date <c>(int)day</c> days after it names <c>day</c>.</summary>
+        private static readonly DateTime ASunday = new(2006, 1, 1);
+
+        private CalendarGrid(DateTime first, DateTime last, DayOfWeek firstDayOfWeek)
+        {
+            First = first;
+            Last = last;
+            FirstDayOfWeek = firstDayOfWeek;
+            Cells = new double[DaysPerWeek, ColumnOf(last) + 1];
+            MonthColumns = MonthStarts();
+        }
+
+        /// <summary>The first day of the span: the earliest date, without its time of day.</summary>
+        internal DateTime First { get; }
+
+        /// <summary>The last day of the span: the latest date, without its time of day.</summary>
+        internal DateTime Last { get; }
+
+        /// <summary>The day a week starts on: the day of the top row.</summary>
+        internal DayOfWeek FirstDayOfWeek { get; }
+
+        /// <summary>The date of the cell in row 0, column 0: the first day of the week that holds <see cref="GridAxesExtensions.CalendarGrid.First"/>. It lies up to
+        /// six days before the first date, and is <see langword="null"/> only when that is before the first day a
+        /// <see cref="DateTime"/> holds. The table of the heatmap gives every cell its date from this one.</summary>
+        internal DateTime? FirstCellDate =>
+            RowOf(First) is var back && First.Ticks >= back * TimeSpan.TicksPerDay ? First.AddDays(-back) : null;
+
+        /// <summary>The cells, <c>[row, column]</c>: the sum of the values of the day that stands there, NaN where no value
+        /// was given (the days before the first date and after the last included).</summary>
+        internal double[,] Cells { get; }
+
+        /// <summary>The number of week columns.</summary>
+        internal int Columns => Cells.GetLength(1);
+
+        /// <summary>The name of each row, from the top: the invariant culture's abbreviation of the day that stands there
+        /// (<c>Mon</c>, <c>Tue</c>, ...).</summary>
+        internal string[] WeekdayNames =>
+            [.. Enumerable.Range(0, DaysPerWeek).Select(row => ASunday.AddDays(((int)FirstDayOfWeek + row) % DaysPerWeek).InvariantText("ddd"))];
+
+        /// <summary>The column that holds the 1st of each month of the span, with the month's name (the invariant culture's
+        /// abbreviation, <c>Jan</c>, <c>Feb</c>, ...), from left to right. A month whose 1st lies before the first date is not
+        /// on the calendar and has no entry.</summary>
+        internal IReadOnlyDictionary<int, string> MonthColumns { get; }
+
+        /// <summary>Lays out <paramref name="values"/> on the days of <paramref name="dates"/>: one grid over the span from the
+        /// earliest date to the latest, each value added to its day's cell.</summary>
+        /// <param name="dates">The day of each value; in any order, a day may come more than once, and the time of day is
+        /// ignored.</param>
+        /// <param name="values">The value of each date, one per date; NaN marks a missing value.</param>
+        /// <param name="firstDayOfWeek">The day a week starts on: the day of the top row.</param>
+        /// <returns>The grid.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="dates"/> or <paramref name="values"/> is
+        /// <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="dates"/> is empty, or <paramref name="values"/> does not carry
+        /// one value per date.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="firstDayOfWeek"/> is not a day of the week.</exception>
+        internal static CalendarGrid Of(DateTime[] dates, double[] values, DayOfWeek firstDayOfWeek)
+        {
+            ArgumentNullException.ThrowIfNull(dates);
+            dates.ThrowIfEmpty("No dates were given; a calendar draws one cell per day.");
+
+            ArgumentNullException.ThrowIfNull(values);
+            values.Length.ThrowIfMisaligned(dates.Length, nameof(values));
+            firstDayOfWeek.ThrowIfNotDefined(nameof(firstDayOfWeek), "A week starts on one of the seven days of the week.");
+
+            var grid = new CalendarGrid(dates.Min().Date, dates.Max().Date, firstDayOfWeek);
+            var given = new bool[DaysPerWeek, grid.Columns];
+            for (int i = 0; i < dates.Length; i++)
+            {
+                // A missing value adds nothing; a day that only has missing values stays blank.
+                if (values[i].IsMissing()) continue;
+
+                int row = grid.RowOf(dates[i]), column = grid.ColumnOf(dates[i]);
+                grid.Cells[row, column] += values[i];
+                given[row, column] = true;
+            }
+
+            for (int row = 0; row < DaysPerWeek; row++)
+            {
+                for (int column = 0; column < grid.Columns; column++)
+                {
+                    if (!given[row, column]) grid.Cells[row, column] = double.NaN;
+                }
+            }
+
+            return grid;
+        }
+
+        /// <summary>The row <paramref name="date"/> stands in: its place in the week, counted from
+        /// <see cref="GridAxesExtensions.CalendarGrid.FirstDayOfWeek"/>.</summary>
+        /// <param name="date">Any date; only its day of the week counts.</param>
+        /// <returns>The row, from 0 (the top) to 6.</returns>
+        internal int RowOf(DateTime date) => ((int)date.DayOfWeek - (int)FirstDayOfWeek + DaysPerWeek) % DaysPerWeek;
+
+        /// <summary>The column <paramref name="date"/> stands in: the number of weeks since the week that holds
+        /// <see cref="GridAxesExtensions.CalendarGrid.First"/>. The days of the first column before <see cref="GridAxesExtensions.CalendarGrid.First"/> are counted in, so a week start is
+        /// always the top of a column.</summary>
+        /// <param name="date">A date of the span; its time of day is ignored.</param>
+        /// <returns>The column, from 0.</returns>
+        internal int ColumnOf(DateTime date) => (RowOf(First) + (date.Date - First).Days) / DaysPerWeek;
+
+        /// <summary>The column of the 1st of every month from the first date to the last, counted in months so the end of the
+        /// calendar a <see cref="DateTime"/> can hold is never stepped past.</summary>
+        private Dictionary<int, string> MonthStarts()
+        {
+            var columns = new Dictionary<int, string>();
+            int firstMonth = First.Year * 12 + First.Month - 1 + (First.Day == 1 ? 0 : 1);
+            int lastMonth = Last.Year * 12 + Last.Month - 1;
+            for (int month = firstMonth; month <= lastMonth; month++)
+            {
+                var start = new DateTime(month / 12, month % 12 + 1, 1);
+                columns.Add(ColumnOf(start), start.InvariantText("MMM"));
+            }
+
+            return columns;
+        }
+    }
 }

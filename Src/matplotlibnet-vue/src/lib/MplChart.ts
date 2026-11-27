@@ -3,7 +3,7 @@
 
 import { defineComponent, h, ref, toRef, watchEffect } from 'vue';
 import { useMplChart } from './use-mpl-chart';
-import { mountSvg } from './mount-svg';
+import { mountSvg } from '@matplotlibnet/client';
 
 /**
  * Static chart component that fetches SVG from a MatPlotLibNet endpoint and renders it inline.

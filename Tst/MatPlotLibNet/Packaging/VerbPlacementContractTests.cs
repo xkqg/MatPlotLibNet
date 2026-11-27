@@ -21,21 +21,9 @@ public class VerbPlacementContractTests
 
     private const string LibraryNamespace = "MatPlotLibNet";
 
-    private static readonly string Root = RepoRoot();
+    private static readonly string Root = RepositoryRoot.Folder;
 
     private static IReadOnlyList<Type> Families => VerbFamilies.All;
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
 
     private static string Architecture => File.ReadAllText(Path.Combine(Root, "Src", "MatPlotLibNet", "ARCHITECTURE.md"));
 
@@ -53,20 +41,11 @@ public class VerbPlacementContractTests
 
     // ---- the documents ---------------------------------------------------------------------------------------------
 
-    /// <summary>The text of a "## heading" section of a Markdown document, up to the next "## " heading.</summary>
-    private static string SectionOf(string markdown, string heading)
-    {
-        int start = markdown.IndexOf($"\n## {heading}", StringComparison.Ordinal);
-        Assert.True(start >= 0, $"The document has no section \"## {heading}\".");
-        int next = markdown.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
-        return next < 0 ? markdown[start..] : markdown[start..next];
-    }
-
     /// <summary>The text of one bullet of a section, wrapped lines joined: from the line that opens with
     /// <paramref name="opening"/> to the line before the next bullet or the first line that is not indented.</summary>
     private static string BulletOf(string section, string opening)
     {
-        var lines = section.Split('\n');
+        var lines = SourceFile.LinesOf(section);
         int first = Array.FindIndex(lines, line => line.TrimStart().StartsWith("- " + opening, StringComparison.Ordinal));
         Assert.True(first >= 0, $"No bullet opens with \"{opening}\".");
 
@@ -79,11 +58,13 @@ public class VerbPlacementContractTests
         return string.Join(' ', text);
     }
 
+    private static readonly string[] TestClassSuffixes = ["Tests", "Shapes", "Fixtures"];
+
     private static string[] CodeSpansAfter(string text, string label)
     {
         int at = text.IndexOf(label, StringComparison.Ordinal);
         Assert.True(at >= 0, $"The text carries no \"{label}\" list: {text}");
-        return [.. Regex.Matches(text[(at + label.Length)..], "`([A-Za-z0-9_]+)`").Select(match => match.Groups[1].Value)];
+        return [.. SourceFile.CodeSpansOf(text[(at + label.Length)..]).Select(span => span.Code).Where(code => code.All(letter => char.IsAsciiLetterOrDigit(letter) || letter == '_'))];
     }
 
     private static string Show(IEnumerable<string> names) => names.Any() ? string.Join(", ", names) : "(none)";
@@ -100,7 +81,7 @@ public class VerbPlacementContractTests
     [MemberData(nameof(FamilyNames))]
     public void Architecture_NamesTheVerbsOfEachFamily_AndOnlyThose(string family)
     {
-        string section = SectionOf(Architecture, "Where a verb lives");
+        string section = SourceFile.SectionOf(Architecture, "Where a verb lives");
         string[] named = CodeSpansAfter(BulletOf(section, $"`{family}`"), "Verbs:");
         string[] shipped = [.. VerbsOf(Families.Single(type => type.Name == family)).Select(verb => verb.Name)];
 
@@ -111,7 +92,7 @@ public class VerbPlacementContractTests
     [Fact]
     public void Architecture_NamesThePartsAndTheNamedData_TheVerbsIntroduce()
     {
-        string section = SectionOf(Architecture, "Where a verb lives");
+        string section = SourceFile.SectionOf(Architecture, "Where a verb lives");
         string[] named =
         [
             .. CodeSpansAfter(BulletOf(section, "Parts"), "Parts:"),
@@ -126,7 +107,7 @@ public class VerbPlacementContractTests
     [Fact]
     public void Architecture_StatesTheNumberOfVerbs_AndTheParameterBudget_TheCodeKeeps()
     {
-        string section = SectionOf(Architecture, "Where a verb lives");
+        string section = SourceFile.SectionOf(Architecture, "Where a verb lives");
 
         var verbs = Regex.Match(section, @"(\d+) verbs");
         var budget = Regex.Match(section, @"at most (\d+) parameters besides");
@@ -140,7 +121,7 @@ public class VerbPlacementContractTests
     [Fact]
     public void Contributing_GivesThePlacementRule_AndNamesEveryFamily()
     {
-        string rule = SectionOf(Contributing, "Adding a chart verb");
+        string rule = SourceFile.SectionOf(Contributing, "Adding a chart verb");
 
         var missing = Families.Select(family => family.Name).Where(name => !rule.Contains($"`{name}`", StringComparison.Ordinal)).ToArray();
         var budget = Regex.Match(rule, @"at most (\d+) parameters besides");
@@ -153,9 +134,9 @@ public class VerbPlacementContractTests
     [Fact]
     public void Contributing_NamesTheFixtureAndTheTestsAVerbIsAddedTo()
     {
-        string rule = SectionOf(Contributing, "Adding a chart verb");
+        string rule = SourceFile.SectionOf(Contributing, "Adding a chart verb");
 
-        string[] mustName = ["ComposedChartShapes", "ComposedChartRoundTripTests"];
+        string[] mustName = ["ComposedChartShapes", "ComposedChartContractTests", "VerbContractTests"];
         var missing = mustName.Where(name => !rule.Contains($"`{name}`", StringComparison.Ordinal)).ToArray();
 
         Assert.True(missing.Length == 0, $"CONTRIBUTING.md's rule for adding a verb does not name: {Show(missing)}.");
@@ -164,7 +145,7 @@ public class VerbPlacementContractTests
     [Fact]
     public void Contributing_ExplainsTheDrawnPropertyContract_ByNamingItsTests()
     {
-        string contract = SectionOf(Contributing, "The JSON keeps what is drawn");
+        string contract = SourceFile.SectionOf(Contributing, "The JSON keeps what is drawn");
 
         string[] mustName =
         [
@@ -183,31 +164,21 @@ public class VerbPlacementContractTests
         string text = document == "ARCHITECTURE.md" ? Architecture : Contributing;
         var exists = typeof(VerbPlacementContractTests).Assembly.GetTypes().Select(type => type.Name.Split('`')[0]).ToHashSet(StringComparer.Ordinal);
 
-        var named = Regex.Matches(text, @"`(\w+(?:Tests|Shapes|Fixtures))`").Select(match => match.Groups[1].Value).Distinct().ToArray();
+        var named = SourceFile.CodeSpansOf(text).Select(span => span.Code)
+            .Where(code => code.All(letter => char.IsAsciiLetterOrDigit(letter) || letter == '_') && TestClassSuffixes.Any(suffix => code.EndsWith(suffix, StringComparison.Ordinal)))
+            .Distinct().ToArray();
         var absent = named.Where(name => !exists.Contains(name)).ToArray();
 
         Assert.True(absent.Length == 0, $"{document} names test classes the test assembly does not have: {Show(absent)}.");
     }
 
-    /// <summary>The documents that describe what the library is today, as the colormap count is held across them: every
-    /// Markdown file but the changelog (a record of what each release added) and the path manifests (working records).</summary>
-    private static string[] CurrentStateDocuments() =>
-        [.. Directory.EnumerateFiles(Root, "*.md", SearchOption.AllDirectories)
-            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
-            .Where(path => !path.Contains("/bin/", StringComparison.Ordinal)
-                        && !path.Contains("/obj/", StringComparison.Ordinal)
-                        && !path.Contains("node_modules/", StringComparison.Ordinal)
-                        && !path.StartsWith(".path-manifests/", StringComparison.Ordinal)
-                        && path != "CHANGELOG.md")
-            .OrderBy(path => path, StringComparer.Ordinal)];
-
     [Fact]
     public void EveryDocumentThatCountsTheVerbs_CountsWhatTheLibraryShips()
     {
         var wrong = new List<string>();
-        foreach (string path in CurrentStateDocuments())
+        foreach (var (path, text) in RepositoryTree.CurrentStateDocuments())
         {
-            foreach (Match match in Regex.Matches(File.ReadAllText(Path.Combine(Root, path)), @"\b(\d+) (?:chart )?verbs\b"))
+            foreach (Match match in Regex.Matches(text, @"\b(\d+) (?:chart )?verbs\b"))
             {
                 if (int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) != AllVerbs.Length)
                 {
@@ -256,18 +227,18 @@ public class VerbPlacementContractTests
 
     // ---- the container verbs ------------------------------------------------------------------------------------------
 
-    /// <summary>The verbs that add a Y axis to the container: instance methods of the builder (they add an axis, not a
-    /// composed chart, so they are not in a family), found through the callback they hand a
+    /// <summary>The verbs that add a Y axis to the container: calls of the builder (they add an axis, not a composed chart, so they
+    /// are not in a family; <c>AxesBuilderLinkedAxesVerbs</c> holds them), found through the callback they hand a
     /// <see cref="YAxisSlotBuilder"/> to, so a verb added tomorrow is found without an edit here.</summary>
-    private static MethodInfo[] ContainerVerbs =>
-        [.. typeof(AxesBuilder).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(method => method.GetParameters().Any(parameter => parameter.ParameterType == typeof(Action<YAxisSlotBuilder>)))
-            .OrderBy(method => method.Name, StringComparer.Ordinal)];
+    private static BuilderCall[] ContainerVerbs =>
+        [.. typeof(AxesBuilder).Calls()
+            .Where(call => call.Parameters.Any(parameter => parameter.ParameterType == typeof(Action<YAxisSlotBuilder>)))
+            .OrderBy(call => call.Method.Name, StringComparer.Ordinal)];
 
     [Fact]
     public void TheContainerVerbs_AreFound()
     {
-        Assert.Equal(["WithAddLeftYAxis", "WithAddRightYAxis"], ContainerVerbs.Select(verb => verb.Name));
+        Assert.Equal(["WithAddLeftYAxis", "WithAddRightYAxis"], ContainerVerbs.Select(verb => verb.Method.Name));
     }
 
     [Fact]
@@ -277,7 +248,7 @@ public class VerbPlacementContractTests
         {
             var violations = verb.ContainerVerbViolations(ParameterBudget);
 
-            Assert.True(violations.Count == 0, $"AxesBuilder.{verb.Name}: {Show(violations)}.");
+            Assert.True(violations.Count == 0, $"AxesBuilder.{verb.Method.Name}: {Show(violations)}.");
         }
     }
 
@@ -293,7 +264,7 @@ public class VerbPlacementContractTests
     {
         var method = typeof(ContainerVerbViolators).GetMethod(violator, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-        var violations = method.ContainerVerbViolations(ParameterBudget);
+        var violations = new BuilderCall(method).ContainerVerbViolations(ParameterBudget);
 
         Assert.Contains(violations, violation => violation.Contains(fragment, StringComparison.Ordinal));
     }
@@ -303,7 +274,7 @@ public class VerbPlacementContractTests
     {
         var method = typeof(ContainerVerbViolators).GetMethod(nameof(ContainerVerbViolators.Fine))!;
 
-        Assert.Empty(method.ContainerVerbViolations(ParameterBudget));
+        Assert.Empty(new BuilderCall(method).ContainerVerbViolations(ParameterBudget));
     }
 
     [Fact]
@@ -415,22 +386,22 @@ internal static class VerbShapeExtensions
         return violations;
     }
 
-    /// <summary>The shape of a container verb, an instance method of the builder that stacks one Y axis and hands it to a
-    /// callback: public, returns the builder so the chain goes on, takes at most <paramref name="parameterBudget"/>
-    /// parameters, and ends with the callback, named <c>configure</c> and typed <c>Action&lt;YAxisSlotBuilder&gt;</c>.</summary>
-    internal static IReadOnlyList<string> ContainerVerbViolations(this MethodInfo verb, int parameterBudget)
+    /// <summary>The shape of a container verb, a call of the builder that stacks one Y axis and hands it to a callback: public,
+    /// returns the builder so the chain goes on, takes at most <paramref name="parameterBudget"/> parameters besides the builder,
+    /// and ends with the callback, named <c>configure</c> and typed <c>Action&lt;YAxisSlotBuilder&gt;</c>.</summary>
+    internal static IReadOnlyList<string> ContainerVerbViolations(this BuilderCall verb, int parameterBudget)
     {
         var violations = new List<string>();
-        var parameters = verb.GetParameters();
+        var parameters = verb.Parameters;
 
-        if (!verb.IsPublic)
+        if (!verb.Method.IsPublic)
         {
             violations.Add("is not public");
         }
 
-        if (verb.ReturnType != typeof(AxesBuilder))
+        if (verb.Method.ReturnType != typeof(AxesBuilder))
         {
-            violations.Add($"returns {verb.ReturnType.Name}, not AxesBuilder, so the chain breaks");
+            violations.Add($"returns {verb.Method.ReturnType.Name}, not AxesBuilder, so the chain breaks");
         }
 
         if (parameters.Length > parameterBudget)

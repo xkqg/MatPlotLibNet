@@ -1,7 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -26,12 +28,55 @@ public class StackableExtensionsTests
         Assert.Equal([0.0, 7, 9], feet[2]);
     }
 
+    /// <summary>The stack is worked out once: its feet are where the layers stand, and its ends are each foot plus its value.</summary>
+    [Fact]
+    public void TheStack_HoldsTheFeet_AndTheEndsOnThem()
+    {
+        IStackable[] layers = [Layer(1, 2, 3), Layer(4, 5, 6), Layer(-2, 0, 1)];
+
+        var stack = layers.Stack();
+
+        Assert.Equal(layers.StackedFeet(), stack.Feet);
+        Assert.Equal([[1.0, 2, 3], [5.0, 7, 9], [-2.0, 7, 10]], stack.Ends);
+    }
+
+    /// <summary>The axes a draw asks for its range keeps the stack it worked out, so every bar that asks for the range reads the
+    /// one stack: the layers' values are read once.</summary>
+    [Fact]
+    public void TheAxesOfADraw_WorkTheStackOutOnce()
+    {
+        var axes = new Axes { BarMode = BarMode.Stacked };
+        var counting = new TestStackable([1.0, 2.0]);
+        axes.AddSeries(counting);
+        axes.Bar(["A", "B"], [3.0, 4.0]);
+        IAxesContext context = new AxesContextAdapter(axes);
+
+        var first = context.BarStack;
+        var second = context.BarStack;
+
+        Assert.Same(first.Ends, second.Ends);
+        Assert.Equal(1, counting.Reads);
+        Assert.Equal([[1.0, 2], [4.0, 6]], first.Ends);
+    }
+
+    /// <summary>A context that keeps no stack (one an application wrote) gets the stack worked out on the spot, by the same rule.</summary>
+    [Fact]
+    public void AContextThatKeepsNoStack_GetsItWorkedOutOnTheSpot()
+    {
+        IAxesContext context = new TestAxesContext(BarMode: BarMode.Stacked, Series: [(ISeries)Layer(1, 2), (ISeries)Layer(3, 4)]);
+
+        var stack = context.BarStack;
+
+        Assert.Equal([[0.0, 0], [1.0, 2]], stack.Feet);
+        Assert.Equal([[1.0, 2], [4.0, 6]], stack.Ends);
+    }
+
     [Fact]
     public void EachLayer_EndsAtItsFootPlusItsValue_AFallingLayerBelowIt()
     {
         IStackable[] layers = [Layer(1, 2, 3), Layer(4, 5, 6), Layer(-2, 0, 1)];
 
-        var ends = layers.StackedEnds();
+        var ends = layers.Stack().Ends;
 
         Assert.Equal([1.0, 2, 3], ends[0]);
         Assert.Equal([5.0, 7, 9], ends[1]);
@@ -47,7 +92,7 @@ public class StackableExtensionsTests
         IStackable[] layers = [Layer(2, 3), Layer(-1, -2), Layer(4, 1)];
 
         Assert.Equal([[0.0, 0], [0.0, 0], [2.0, 3]], layers.StackedFeet());
-        Assert.Equal([[2.0, 3], [-1.0, -2], [6.0, 4]], layers.StackedEnds());
+        Assert.Equal([[2.0, 3], [-1.0, -2], [6.0, 4]], layers.Stack().Ends);
     }
 
     [Fact]
@@ -56,7 +101,7 @@ public class StackableExtensionsTests
         IStackable[] layers = [Layer(-1, -1), Layer(-2, -3)];
 
         Assert.Equal([[0.0, 0], [-1.0, -1]], layers.StackedFeet());
-        Assert.Equal([[-1.0, -1], [-3.0, -4]], layers.StackedEnds());
+        Assert.Equal([[-1.0, -1], [-3.0, -4]], layers.Stack().Ends);
     }
 
     [Fact]
@@ -75,7 +120,7 @@ public class StackableExtensionsTests
         IStackable[] layers = [Layer(2, 1), Layer(double.NaN, 2), Layer(3, 3)];
 
         var feet = layers.StackedFeet();
-        var ends = layers.StackedEnds();
+        var ends = layers.Stack().Ends;
 
         Assert.Equal([2.0, 3], feet[2]);
         Assert.True(double.IsNaN(ends[1][0]));
@@ -98,7 +143,7 @@ public class StackableExtensionsTests
         IStackable[] layers = [Layer(1, 2, 3), Layer(10), Layer(100, 100, 100, 100)];
 
         var feet = layers.StackedFeet();
-        var ends = layers.StackedEnds();
+        var ends = layers.Stack().Ends;
 
         Assert.Equal([11.0, 2, 3], feet[2]);
         Assert.Equal([11.0], ends[1]);
@@ -111,7 +156,7 @@ public class StackableExtensionsTests
         IStackable[] layers = [];
 
         Assert.Empty(layers.StackedFeet());
-        Assert.Empty(layers.StackedEnds());
+        Assert.Empty(layers.Stack().Ends);
     }
 
     /// <summary>Plain columns stack by the same rule as series do: the layers of a polar axes' bars are not series that the
@@ -122,7 +167,7 @@ public class StackableExtensionsTests
         double[][] columns = [[2, 3], [-1, -2], [4, 1]];
 
         Assert.Equal([[0.0, 0], [0.0, 0], [2.0, 3]], columns.StackedFeet());
-        Assert.Equal([[2.0, 3], [-1.0, -2], [6.0, 4]], columns.StackedEnds());
+        Assert.Equal([[2.0, 3], [-1.0, -2], [6.0, 4]], columns.Stack().Ends);
     }
 
     [Fact]
@@ -131,6 +176,6 @@ public class StackableExtensionsTests
         double[][] none = [];
 
         Assert.Empty(none.StackedFeet());
-        Assert.Empty(none.StackedEnds());
+        Assert.Empty(none.Stack().Ends);
     }
 }

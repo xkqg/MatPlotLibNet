@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -15,11 +16,10 @@ public sealed class StreamingCorwinSchultz : WindowedStreamingIndicator<OhlcvBar
     /// <summary>Creates a streaming CorwinSchultz.</summary>
     /// <param name="period">How many bars the spread is averaged over; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingCorwinSchultz(int period = 20, int capacity = 10_000)
-        : base(period + 1, capacity)
+    public StreamingCorwinSchultz(int period = CorwinSchultz.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(CorwinSchultz.Spec(period), capacity)
     {
         _period = period;
-        Label = $"CS({period})";
     }
 
     /// <inheritdoc />

@@ -63,27 +63,24 @@ public static class NpStats
     // Histogram
     // -------------------------------------------------------------------------
 
-    /// <summary>Computes a histogram with uniform bins over the data range.</summary>
+    /// <summary>Computes a histogram with uniform bins over the data range, as <c>numpy.histogram(v, bins)</c> does: the edges are
+    /// <c>numpy.linspace</c> over the range, a value on an inner edge opens the bin above it, the last edge belongs to the last bin, and a
+    /// range of no width is widened by a half either side.</summary>
     /// <param name="v">Input data vector.</param>
     /// <param name="bins">Number of equal-width bins.</param>
     /// <returns><see cref="HistogramResult"/> with <c>Counts</c> (length <paramref name="bins"/>) and <c>Edges</c> (length <c>bins + 1</c>).</returns>
     public static HistogramResult Histogram(Vec v, int bins)
     {
-        double min = VectorMath.Min(v.Data);
-        double max = VectorMath.Max(v.Data);
-        double width = (max - min) / bins;
+        var (low, high) = new Rendering.Range1D(TensorPrimitives.Min(v.Data), TensorPrimitives.Max(v.Data)).OpenedWhenFlat();
+        var equal = new EqualWidthBins(low, high, bins);
 
         var edges = new double[bins + 1];
         for (int i = 0; i <= bins; i++)
-            edges[i] = min + i * width;
+            edges[i] = equal.EdgeAt(i);
 
         var counts = new double[bins];
         foreach (double x in v.Data)
-        {
-            int b = width > 0 ? (int)((x - min) / width) : 0;
-            b = Math.Clamp(b, 0, bins - 1);   // last edge belongs to last bin
-            counts[b]++;
-        }
+            counts[equal.IndexOf(x)]++;
         return new HistogramResult(counts, edges);
     }
 
@@ -138,7 +135,7 @@ public static class NpStats
     {
         int p = columns.Length;
         int n = columns[0].Length;
-        double[] means = columns.Select(c => VectorMath.Sum(c) / n).ToArray();
+        double[] means = columns.Select(c => TensorPrimitives.Sum<double>(c) / n).ToArray();
 
         var cov = new double[p, p];
         for (int i = 0; i < p; i++)

@@ -5,10 +5,9 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Interaction;
 
-/// <summary>Rotates a 3D axes camera by the specified azimuth and elevation deltas.
-/// Mutates <see cref="Models.Axes.Azimuth"/> and <see cref="Models.Axes.Elevation"/>,
-/// and nulls <see cref="Models.Axes.Projection"/> to force a fresh <see cref="Rendering.Projection3D"/>
-/// rebuild on the next render pass.</summary>
+/// <summary>Rotates a 3D axes camera by the specified azimuth and elevation deltas: the camera's turn
+/// (<see cref="Models.Axes.Azimuth"/> moves, <see cref="Models.Axes.Elevation"/> moves and is held between the poles, and
+/// <see cref="Models.Axes.Projection"/> is dropped so the next render builds a fresh <see cref="Rendering.Projection3D"/>).</summary>
 public sealed record Rotate3DEvent(
     string ChartId,
     int AxesIndex,
@@ -22,13 +21,9 @@ public sealed record Rotate3DEvent(
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
-    internal override bool TryApplyTo(Figure figure)
+    internal override bool TryApplyTo(Figure figure) => OnTargetAxes(figure, axes =>
     {
-        if (!TryTargetAxes(figure, out var axes)) return false;
         figure.Home.Remember(axes);
-        axes.Azimuth += DeltaAzimuth;
-        axes.Elevation = Math.Clamp(axes.Elevation + DeltaElevation, -90, 90);
-        axes.Projection = null; // force rebuild
-        return true;
-    }
+        axes.Camera.Turn(DeltaAzimuth, DeltaElevation);
+    });
 }

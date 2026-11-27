@@ -5,10 +5,10 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Azimuthal Equidistant projection — preserves distances from center point.
 /// Used for polar maps and aviation route planning.</summary>
-public sealed class AzimuthalEquidistant : IGeoProjection, IProjectionParameters
+public sealed class AzimuthalEquidistant : IGeoProjection, IProjectionParameters, IProjectionOutline
 {
-    private readonly double _phi0, _lam0, _cosPhi0, _sinPhi0;
-    private readonly Dictionary<string, double> _parameters;
+    private readonly ProjectionParameterSet _parameters;
+    private readonly CentredFrame _centre;
 
     /// <inheritdoc />
     public string Name => "AzimuthalEquidistant";
@@ -17,36 +17,39 @@ public sealed class AzimuthalEquidistant : IGeoProjection, IProjectionParameters
     /// <param name="centerLat">Latitude of the centre point in degrees. Default 90.</param>
     /// <param name="centerLon">Longitude of the centre point in degrees. Default 0.</param>
     public AzimuthalEquidistant(double centerLat = 90, double centerLon = 0)
+        : this(ProjectionParameterSet.Centred(centerLat, centerLon))
     {
-        _parameters = new() { ["lat_0"] = centerLat, ["lon_0"] = centerLon };
-        _phi0 = centerLat.ToRadians();
-        _lam0 = centerLon.ToRadians();
-        _cosPhi0 = Math.Cos(_phi0);
-        _sinPhi0 = Math.Sin(_phi0);
     }
 
-    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+    private AzimuthalEquidistant(ProjectionParameterSet parameters)
+    {
+        _parameters = parameters;
+        _centre = CentredFrame.At(parameters.Lat0, parameters.Lon0);
+    }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters.Numbers;
 
     /// <inheritdoc />
-    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
-        new AzimuthalEquidistant(parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]), parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]));
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) => new AzimuthalEquidistant(_parameters.With(parameters));
 
     /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude.ToRadians(), lam = longitude.ToRadians();
-        double cosPhi = Math.Cos(phi), sinPhi = Math.Sin(phi);
-        double cosC = _sinPhi0 * sinPhi + _cosPhi0 * cosPhi * Math.Cos(lam - _lam0);
-        double c = Math.Acos(Math.Clamp(cosC, -1, 1));
+        var place = _centre.Of(latitude, longitude);
+        double c = Math.Acos(Math.Clamp(place.CosDistance, -1, 1));
         if (c < 1e-10) return new(0, 0);
         double k = c / Math.Sin(c);
-        double x = k * cosPhi * Math.Sin(lam - _lam0);
-        double y = k * (_cosPhi0 * sinPhi - _sinPhi0 * cosPhi * Math.Cos(lam - _lam0));
-        return new(x.ToDegrees(), y.ToDegrees());
+        return new(place.EastBy(k).ToDegrees(), place.NorthBy(k).ToDegrees());
     }
 
     /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
     /// <inheritdoc />
-    public GeoBounds Bounds => new(-180, 180, -180, 180);
+    /// <remarks>The square round the circle of the antipode, half a turn of arc from the centre, as cartopy's limits of an azimuthal
+    /// equidistant map are (<c>a * pi</c>).</remarks>
+    public GeoBounds Bounds => GeoBounds.Symmetric(Math.PI.ToDegrees(), Math.PI.ToDegrees());
+
+    /// <inheritdoc />
+    /// <remarks>The circle of the antipode, 61 points as cartopy draws it.</remarks>
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => Bounds.InscribedCircle(61);
 }

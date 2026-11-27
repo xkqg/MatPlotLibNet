@@ -14,7 +14,7 @@ namespace MatPlotLibNet.AspNetCore;
 /// figure the stream writes. The two share one gate, so a gesture is never applied while a frame is being scaled and
 /// rendered, nor the other way round; and while a viewer has moved an axes the scale mode leaves it alone
 /// (<see cref="StreamingFigure.ApplyAxisScaling"/>) until Home gives it back.</para></summary>
-internal sealed class StreamingChartSession : IAsyncDisposable
+internal sealed class StreamingChartSession : IRegisteredChart
 {
     private readonly object _gate = new();
     private readonly IChartPublisher _publisher;
@@ -23,11 +23,6 @@ internal sealed class StreamingChartSession : IAsyncDisposable
     private readonly string _chartId;
     private long _faultedPublishes;
     private bool _disposed;
-
-    public StreamingChartSession(string chartId, StreamingFigure streamingFigure, IChartPublisher publisher)
-        : this(chartId, streamingFigure, publisher, NullCallerPublisher.Instance, new ChartSessionOptions())
-    {
-    }
 
     public StreamingChartSession(
         string chartId,
@@ -43,8 +38,8 @@ internal sealed class StreamingChartSession : IAsyncDisposable
         _streamingFigure.RenderRequested += OnRenderRequested;
     }
 
-    /// <summary>Where the gestures of the viewers are written; the session applies them in order.</summary>
-    internal System.Threading.Channels.ChannelWriter<FigureInteractionEvent> Gestures => _gestures.Events.Writer;
+    /// <inheritdoc />
+    public System.Threading.Channels.ChannelWriter<FigureInteractionEvent> Gestures => _gestures.Events.Writer;
 
     /// <summary>How many publishes of a frame failed. A failure costs that frame; the next one is published as usual.</summary>
     internal long FaultedPublishCount => Interlocked.Read(ref _faultedPublishes);

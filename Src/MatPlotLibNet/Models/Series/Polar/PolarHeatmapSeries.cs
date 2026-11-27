@@ -4,14 +4,22 @@
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a heatmap on a polar grid where each cell is a wedge/sector
 /// defined by a theta bin and a radial bin.</summary>
-public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormalizable, IColorBarDataProvider
+public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormalizable, IColorBarDataProvider, IColorScaled, ISeriesKind<PolarHeatmapSeries>
 {
+    /// <inheritdoc />
+    internal override CoordinateSystem? DrawnIn => CoordinateSystem.Polar;
+
+    /// <inheritdoc />
+    /// <remarks>matplotlib's <c>pcolormesh</c> on a polar axes asks neither cycle.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Mesh;
+
     /// <summary>2D data array indexed as [thetaBin, rBin].</summary>
     public double[,] Data { get; }
 
@@ -21,14 +29,21 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     /// <summary>Number of radial bins (cells along the radius).</summary>
     public int RBins { get; }
 
-    /// <summary>Maximum data-space radius. Defaults to 1.0.</summary>
-    public double RMax { get; set; } = 1.0;
+    private const double RestingRMax = 1.0;
+    /// <summary>Maximum data-space radius. Defaults to <see cref="RestingRMax"/>.</summary>
+    public double RMax { get; set => Change(ref field, value); } = RestingRMax;
 
     /// <inheritdoc />
-    public IColorMap? ColorMap { get; set; }
+    public IColorMap? ColorMap { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
-    public INormalizer? Normalizer { get; set; }
+    public INormalizer? Normalizer { get; set => Change(ref field, value); }
+
+    /// <summary>The angular divisions a heatmap document that names none is read with.</summary>
+    private const int UnnamedThetaBins = 8;
+
+    /// <summary>The radial divisions a heatmap document that names none is read with.</summary>
+    private const int UnnamedRBins = 4;
 
     /// <summary>Initializes a new polar heatmap series.</summary>
     /// <param name="data">2D data array [thetaBins, rBins].</param>
@@ -42,63 +57,47 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     }
 
     /// <inheritdoc />
-    public MinMaxRange GetColorBarRange() => Data.ScanColorBarRange();
+    public MinMaxRange GetColorBarRange() => this.ColourRangeUnder(Theme.Default);
 
     /// <inheritdoc />
-    /// <remarks>The heatmap's cells end at <see cref="RMax"/>, so the scale reaches at least that far, exactly.</remarks>
-    internal override RadialExtent? RadialExtent => double.IsFinite(RMax) && RMax > 0 ? new RadialExtent(RMax, Sticky: true) : null;
+    MinMaxRange IColorScaled.ColourRangeOver(ColorMapping mapping) => mapping.RangeOf(Data);
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    /// <remarks>The heatmap's cells run from the centre to <see cref="RMax"/>, so the scale reaches at least that far, exactly.</remarks>
+    internal override RadialExtent? RadialExtent => RMax.IsPositiveFinite() ? new RadialExtent(0, RMax, Sticky: true) : null;
+
+    /// <inheritdoc />
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
+
+    static string ISeriesKind<PolarHeatmapSeries>.Kind => "polarheatmap";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "polarheatmap",
+        Type = this.WireKind(),
         HeatmapData = Data.To2DList(),
         ThetaBins = ThetaBins,
         RBins = RBins,
-        ColorMapName = ColorMap.NameForJson(),
-        ColorMap = ColorMap.DescriptionForJson(),
-        RMax = RMax.OrNullAtRest(1.0),
-        Normalizer = this.DescribeNormalizer(),
+        ColorScale = this.ColorScaleOnTheWire(),
+        RMax = RMax.OrNullAtRest(RestingRMax),
     };
 
-    /// <summary>Reconstructs a <see cref="PolarHeatmapSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="PolarHeatmapSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static PolarHeatmapSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.PolarHeatmap(dto.HeatmapData.From2DList(),
-            dto.ThetaBins ?? 8, dto.RBins ?? 4);
-        s.RestoreColorMap(dto);
-        if (dto.RMax.HasValue)
-        {
-            s.RMax = dto.RMax.Value;
-        }
-        s.RestoreNormalizer(dto);
+            dto.ThetaBins ?? UnnamedThetaBins, dto.RBins ?? UnnamedRBins);
+        s.RestoreColorScale(dto);
+        if (dto.RMax is { } rMax) s.RMax = rMax;
         return s;
     }
 
 
     /// <inheritdoc />
     /// <remarks>Long form over the wedge grid: which ring, which sector, and the value in that cell.</remarks>
-    public override ChartDataTable? ToDataTable()
-    {
-        int rows = Data.GetLength(0), cols = Data.GetLength(1);
-        var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
-        for (int r = 0; r < rows; r++)
-        {
-            for (int c = 0; c < cols; c++)
-            {
-                out_.Add([DataCell.FromNumber(r), DataCell.FromNumber(c), DataCell.FromNumber(Data[r, c])]);
-            }
-        }
-
-        return new ChartDataTable(null, [new("r bin"), new("theta bin"), new(Label ?? "value")], out_);
-    }
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.PerCell(Data.GetLength(0), Data.GetLength(1), [new("r bin"), new("theta bin"), new(Label ?? "value")],
+            (r, c) => [DataCell.FromNumber(r), DataCell.FromNumber(c), DataCell.FromNumber(Data[r, c])]);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -12,40 +12,24 @@ public class BrokenAxisSerializationTests
     private static double[] X => [0, 50, 100, 150, 200];
     private static double[] Y => [0, 1, 2, 3, 4];
 
-    [Fact]
-    public void RoundTrip_XBreaks_PreservesFromTo()
+    /// <summary>A break on either axis comes back from JSON with its ends.</summary>
+    [Theory]
+    [InlineData("X", 60.0, 90.0)]
+    [InlineData("Y", 1.5, 2.5)]
+    public void RoundTrip_ABreakOnEitherAxis_PreservesFromTo(string axis, double from, double to)
     {
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.Plot(X, Y);
-                ax.WithXBreak(60, 90);
+                _ = axis == "X" ? ax.WithXBreak(from, to) : ax.WithYBreak(from, to);
             })
             .Build();
-        var json = new ChartSerializer().ToJson(figure);
-        var restored = new ChartSerializer().FromJson(json);
-        var xBreaks = restored.SubPlots[0].XBreaks;
-        Assert.Single(xBreaks);
-        Assert.Equal(60.0, xBreaks[0].From, 1e-9);
-        Assert.Equal(90.0, xBreaks[0].To, 1e-9);
-    }
+        var restored = figure.RoundTripped().SubPlots[0];
 
-    [Fact]
-    public void RoundTrip_YBreaks_PreservesFromTo()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.Plot(X, Y);
-                ax.WithYBreak(1.5, 2.5);
-            })
-            .Build();
-        var json = new ChartSerializer().ToJson(figure);
-        var restored = new ChartSerializer().FromJson(json);
-        var yBreaks = restored.SubPlots[0].YBreaks;
-        Assert.Single(yBreaks);
-        Assert.Equal(1.5, yBreaks[0].From, 1e-9);
-        Assert.Equal(2.5, yBreaks[0].To, 1e-9);
+        var only = Assert.Single(axis == "X" ? restored.XBreaks : restored.YBreaks);
+        Assert.Equal(from, only.From, 1e-9);
+        Assert.Equal(to, only.To, 1e-9);
     }
 
     [Fact]
@@ -58,21 +42,25 @@ public class BrokenAxisSerializationTests
                 ax.WithXBreak(60, 90, BreakStyle.Straight);
             })
             .Build();
-        var json = new ChartSerializer().ToJson(figure);
-        var restored = new ChartSerializer().FromJson(json);
+        var restored = figure.RoundTripped();
         Assert.Equal(BreakStyle.Straight, restored.SubPlots[0].XBreaks[0].Style);
     }
 
-    [Fact]
-    public void NoBreaks_XBreaksProperty_AbsentFromJson()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y))
-            .Build();
-        var json = new ChartSerializer().ToJson(figure);
-        Assert.DoesNotContain("\"xBreaks\"", json);
-        Assert.DoesNotContain("\"yBreaks\"", json);
-    }
+        new DrawnToken("NoBreaks_XBreaksProperty_AbsentFromJson", () =>
+        {
+            var figure = Plt.Create()
+                .AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y))
+                .Build();
+            return new ChartSerializer().ToJson(figure);
+        }) { Absent = ["\"xBreaks\"", "\"yBreaks\""] },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void MultipleXBreaks_AllRoundTrip()
@@ -84,8 +72,7 @@ public class BrokenAxisSerializationTests
                 ax.WithXBreak(20, 40).WithXBreak(80, 100);
             })
             .Build();
-        var json = new ChartSerializer().ToJson(figure);
-        var restored = new ChartSerializer().FromJson(json);
+        var restored = figure.RoundTripped();
         Assert.Equal(2, restored.SubPlots[0].XBreaks.Count);
     }
 }

@@ -6,7 +6,7 @@ using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Models.Series;
+using MatPlotLibNet.Tests.Serialization;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -40,12 +40,6 @@ public class AxisLessCapabilityContractTests
         typeof(Text3DSeries), typeof(VoxelSeries),
     ];
 
-    /// <summary>The series that fill the plot rectangle whatever its limits are, and are read against the axes all the same:
-    /// the cells of an image or of a 2-D histogram are positions on an axis, and the ticks say which. Their renderers ignore
-    /// the limits the axes was given (a defect the measurement shows, not a property), so these keep their axes until they
-    /// follow the limits.</summary>
-    private static readonly Type[] FillsThePlotButIsReadAgainstTheAxes = [typeof(ImageSeries), typeof(Histogram2DSeries)];
-
     /// <summary>What the series draws, as SVG, on a plot of 400 by 300 under the limits given.</summary>
     private static string Drawn(ISeries series, double xMin, double xMax, double yMin, double yMax)
     {
@@ -72,37 +66,61 @@ public class AxisLessCapabilityContractTests
         return first.Length > 0 && first == second;
     }
 
+    /// <summary>The series a kind is measured with: the roster's instance, but for the three hierarchies whose roster instance is a root
+    /// alone and so draws nothing to measure, which are measured over a root with one leaf.</summary>
+    private static ISeries DrawnHere(string type) => type switch
+    {
+        nameof(TreemapSeries) => new TreemapSeries(RootWithALeaf()),
+        nameof(SunburstSeries) => new SunburstSeries(RootWithALeaf()),
+        nameof(IcicleSeries) => new IcicleSeries(RootWithALeaf()),
+        _ => DrawnSeriesFixtures.Instance(type),
+    };
+
+    private static TreeNode RootWithALeaf() => new() { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] };
+
     [Fact]
     public void NoTypeStandsInTwoRows()
     {
-        var all = DrawsWithoutAxes.Concat(OwnCoordinateSystem).Concat(FillsThePlotButIsReadAgainstTheAxes).ToList();
+        var all = DrawsWithoutAxes.Concat(OwnCoordinateSystem).ToList();
 
         Assert.Equal(all.Count, all.Distinct().Count());
     }
 
     [Theory]
-    [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void EveryShippedSeries_MovesWithTheLimits_OrStandsInExactlyOneRowThatSaysWhyNot(ISeries series, string name)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void EveryShippedSeries_MovesWithTheLimits_OrStandsInExactlyOneRowThatSaysWhyNot(string type)
     {
-        var type = series.GetType();
+        var series = DrawnHere(type);
         bool staysPut = DrawsTheSameUnderAnyLimits(series);
-        bool inARow = DrawsWithoutAxes.Contains(type) || OwnCoordinateSystem.Contains(type)
-            || FillsThePlotButIsReadAgainstTheAxes.Contains(type);
+        bool inARow = DrawsWithoutAxes.Contains(series.GetType()) || OwnCoordinateSystem.Contains(series.GetType());
 
         Assert.True(staysPut == inARow,
             staysPut
-                ? $"{name} draws the same marks under any limits and is in no row: it either draws without axes, stands on a coordinate system of its own, or ignores limits it should follow."
-                : $"{name} moves with the limits (or draws nothing here) and stands in a row that says it does not.");
+                ? $"{type} draws the same marks under any limits and is in no row: it either draws without axes, stands on a coordinate system of its own, or ignores limits it should follow."
+                : $"{type} moves with the limits (or draws nothing here) and stands in a row that says it does not.");
     }
 
     [Theory]
-    [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void ASeriesDeclaresItDrawsWithoutAxes_ExactlyWhenItIsInThatRow(ISeries series, string name)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void ASeriesDeclaresItDrawsWithoutAxes_ExactlyWhenItIsInThatRow(string type)
     {
+        var series = DrawnSeriesFixtures.Instance(type);
         bool declared = series is ChartSeries { DrawsWithoutAxes: true };
 
         Assert.True(declared == DrawsWithoutAxes.Contains(series.GetType()),
-            $"{name}: DrawsWithoutAxes is {declared}, the table says {!declared}.");
+            $"{type}: DrawsWithoutAxes is {declared}, the table says {!declared}.");
+    }
+
+    /// <summary>An image stands on its extent through the transform, under the library's own themes too, so its cells move with
+    /// the limits and it needs no row: it draws something, and something else under other limits.</summary>
+    [Fact]
+    public void AnImage_MovesWithTheLimits()
+    {
+        var image = new ImageSeries(new double[,] { { 1, 2 }, { 3, 4 } });
+        string first = Drawn(image, 0, 1, 0, 1), second = Drawn(image, -50, 80, 3, 900);
+
+        Assert.NotEqual("", first);
+        Assert.NotEqual(first, second);
     }
 
     [Fact]

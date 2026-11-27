@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.DataFrame;
 using MatPlotLibNet.Numerics;
 using MsDataFrame = Microsoft.Data.Analysis.DataFrame;
 
@@ -48,14 +47,14 @@ public static class DataFrameNumericsExtensions
         /// <param name="degree">Polynomial degree (0–10). Prefer ≤ 6 for numerical stability.</param>
         /// <returns>Coefficient array [a₀, a₁, …, aₙ] of length <c>degree + 1</c>.</returns>
         public double[] PolyFit(string xCol, string yCol, int degree) =>
-            LeastSquares.PolyFit(df.DoubleCol(xCol), df.DoubleCol(yCol), degree);
+            LeastSquares.PolyFit(df.Values(xCol), df.Values(yCol), degree);
 
         /// <summary>Evaluates a fitted polynomial at every value in the named X column.</summary>
         /// <param name="xCol">Name of the numeric X column whose values are the evaluation points.</param>
         /// <param name="coefficients">Polynomial coefficients from <see cref="PolyFit"/>.</param>
         /// <returns>Evaluated Y values — same length as the X column.</returns>
         public double[] PolyEval(string xCol, double[] coefficients) =>
-            LeastSquares.PolyEval(coefficients, df.DoubleCol(xCol));
+            LeastSquares.PolyEval(coefficients, df.Values(xCol));
 
         /// <summary>
         /// Computes confidence bands for a fitted polynomial at the specified evaluation X values.
@@ -64,11 +63,11 @@ public static class DataFrameNumericsExtensions
         /// <param name="yCol">Name of the original Y data column.</param>
         /// <param name="coefficients">Fitted polynomial coefficients from <see cref="PolyFit"/>.</param>
         /// <param name="evalX">X values at which the confidence band is evaluated.</param>
-        /// <param name="level">Confidence level (default 0.95).</param>
+        /// <param name="level">Confidence level (default <see cref="Numerics.ConfidenceBand.DefaultLevel"/>).</param>
         /// <returns>A <see cref="ConfidenceBand"/> with <c>Upper</c> and <c>Lower</c> bound arrays.</returns>
         public ConfidenceBand ConfidenceBand(
             string xCol, string yCol,
-            double[] coefficients, double[] evalX, double level = 0.95) =>
-            LeastSquares.ConfidenceBand(df.DoubleCol(xCol), df.DoubleCol(yCol), coefficients, evalX, level);
+            double[] coefficients, double[] evalX, double level = Numerics.ConfidenceBand.DefaultLevel) =>
+            LeastSquares.ConfidenceBand(df.Values(xCol), df.Values(yCol), coefficients, evalX, level);
     }
 }

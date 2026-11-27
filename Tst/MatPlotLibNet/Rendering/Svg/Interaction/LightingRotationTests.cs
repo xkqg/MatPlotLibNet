@@ -13,8 +13,8 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// what nothing reads.</summary>
 public class LightingRotationTests
 {
-    [Fact]
-    public void SceneGroup_CarriesNoLightAttribute_WhenLightingEnabled()
+    /// <summary>A lit surface of three by three, made rotatable, as the scene markup reads.</summary>
+    private static string LitSurfaceSvg()
     {
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax =>
@@ -24,27 +24,17 @@ public class LightingRotationTests
             })
             .With3DRotation()
             .Build();
-
-        var svg = new SvgTransform().Render(figure);
-        Assert.Contains("<g class=\"mpl-3d-scene\"", svg);
-        Assert.DoesNotContain("data-light", svg);
+        return new SvgTransform().Render(figure);
     }
 
-    [Fact]
-    public void Faces_CarryNoShadingRecipe_WhenLightingEnabled()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.WithLighting(dx: 0.5, dy: -0.5, dz: 1.0);
-                ax.Surface([0, 5, 10], [0, 5, 10], new double[,] { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } });
-            })
-            .With3DRotation()
-            .Build();
+        new DrawnToken("SceneGroup_CarriesNoLightAttribute_WhenLightingEnabled", LitSurfaceSvg, "<g class=\"mpl-3d-scene\"") { Absent = ["data-light"] },
+        new DrawnToken("Faces_CarryNoShadingRecipe_WhenLightingEnabled", LitSurfaceSvg, "data-v3d") { Absent = ["data-face-normal", "data-base-color"] },
+    };
 
-        var svg = new SvgTransform().Render(figure);
-        Assert.Contains("data-v3d", svg);
-        Assert.DoesNotContain("data-face-normal", svg);
-        Assert.DoesNotContain("data-base-color", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

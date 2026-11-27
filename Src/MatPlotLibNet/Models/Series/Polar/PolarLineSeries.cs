@@ -8,44 +8,51 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line plot in polar coordinates (r, theta).</summary>
-public sealed class PolarLineSeries : PolarSeries, IHasColor
+public sealed class PolarLineSeries : PolarSeries, IHasColor, ISeriesKind<PolarLineSeries>, IGivenStroked
 {
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    /// <remarks>2: <c>plot</c> on a polar axes draws a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    /// <remarks>A line, from the stroke it was given: matplotlib's <c>HandlerLine2D</c> draws the handle of a polar <c>plot</c>.</remarks>
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Line(this);
+
+    /// <inheritdoc />
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The dash pattern of the line: solid, dashed, dotted and so on. Default solid.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
-    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <summary>Initializes a new polar line series.</summary>
     public PolarLineSeries(double[] r, double[] theta) : base(r, theta) { }
 
+    static string ISeriesKind<PolarLineSeries>.Kind => "polarline";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "polarline",
+        Type = this.WireKind(),
         RData = R,
         ThetaData = Theta,
         Color = Color,
-        LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth.OrNullAtRest(1.5),
+        Stroking = Stroke,
     };
 
-    /// <summary>Reconstructs a <see cref="PolarLineSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="PolarLineSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static PolarLineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.PolarPlot(dto.RData ?? [], dto.ThetaData ?? []);
         s.Color = dto.Color;
-        dto.LineStyle.ApplyEnum<LineStyle>(v => s.LineStyle = v);
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
+        s.Stroke = dto.StrokeOver(s.Stroke);
         return s;
     }
 

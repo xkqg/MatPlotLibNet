@@ -17,14 +17,20 @@ public readonly record struct SvdResult(Mat U, Vec S, Mat Vt);
 /// <summary>Linear algebra operations for <see cref="Mat"/> and <see cref="Vec"/>.</summary>
 public static class Linalg
 {
+    /// <summary>The magnitude below which a pivot of the elimination is no pivot: the direction it would fix is singular, the column is
+    /// skipped and the unknown it would give is 0. The one tolerance every linear system of the library is judged by, whether it is a
+    /// matrix handed to <see cref="Solve"/> and <see cref="Inv"/> or the normal equations of a fit.</summary>
+    private const double SingularPivot = 1e-15;
+
     // -------------------------------------------------------------------------
     // Solve  Ax = b  via LU with partial pivoting (Doolittle)
     // -------------------------------------------------------------------------
 
-    /// <summary>Solves Ax = b via LU decomposition with partial pivoting.</summary>
+    /// <summary>Solves Ax = b via LU decomposition with partial pivoting. A singular direction (a pivot below the tolerance) leaves its
+    /// unknown at 0 rather than at a quotient of nothing, so a fit through values of one x is a flat line through their mean.</summary>
     /// <param name="a">Square coefficient matrix A (n × n).</param>
     /// <param name="b">Right-hand side vector of length n.</param>
-    /// <returns>Solution vector x such that Ax = b.</returns>
+    /// <returns>Solution vector x such that Ax = b; 0 for each unknown a singular direction would have fixed.</returns>
     public static Vec Solve(Mat a, Vec b)
     {
         int n = a.Rows;
@@ -34,9 +40,9 @@ public static class Linalg
         return new Vec(LuSolve(lu, piv, b.Data, n));
     }
 
-    /// <summary>Computes the matrix inverse via LU.</summary>
+    /// <summary>Computes the matrix inverse via LU, column by column through <see cref="Solve"/>'s rule for a singular direction.</summary>
     /// <param name="a">Square invertible matrix (n × n).</param>
-    /// <returns>The inverse of <paramref name="a"/>.</returns>
+    /// <returns>The inverse of <paramref name="a"/>; finite for a singular matrix too, with 0 where a direction could not be inverted.</returns>
     public static Mat Inv(Mat a)
     {
         int n = a.Rows;
@@ -205,7 +211,13 @@ public static class Linalg
                 swaps++;
             }
 
-            if (Math.Abs(lu[k, k]) < 1e-15) continue;  // singular / near-singular
+            if (IsSingular(lu[k, k]))
+            {
+                // Pivoting took the largest entry of the column, so what is left below is as small: nothing is eliminated, and
+                // no multiplier is left for the forward substitution to read.
+                for (int i = k + 1; i < n; i++) lu[i, k] = 0;
+                continue;
+            }
 
             for (int i = k + 1; i < n; i++)
             {
@@ -228,15 +240,24 @@ public static class Linalg
             for (int j = 0; j < i; j++)
                 x[i] -= lu[i, j] * x[j];
 
-        // Back substitution (U)
+        // Back substitution (U); a singular direction fixes nothing, its unknown stays 0
         for (int i = n - 1; i >= 0; i--)
         {
+            if (IsSingular(lu[i, i]))
+            {
+                x[i] = 0;
+                continue;
+            }
+
             for (int j = i + 1; j < n; j++)
                 x[i] -= lu[i, j] * x[j];
             x[i] /= lu[i, i];
         }
         return x;
     }
+
+    /// <summary>Whether a pivot is below <see cref="SingularPivot"/> in magnitude: no pivot, a singular or near-singular direction.</summary>
+    private static bool IsSingular(double pivot) => Math.Abs(pivot) < SingularPivot;
 
     // -------------------------------------------------------------------------
     // Jacobi rotation helper

@@ -12,7 +12,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
-/// <summary>The top X axis is placed in ONE place (<see cref="CartesianAxesRenderer.PlaceTopAxis"/>), which its drawing, the
+/// <summary>The top X axis is placed in ONE place (<see cref="CartesianAxisPlacement.PlaceTopAxis"/>), which its drawing, the
 /// band the layout reserves for it and the marks a legend keeps clear of all read, and it honours what is set on it as every
 /// other axis does: its own tick locator, a tick spacing, its own scale (a log top axis takes the log locator's decades written by
 /// the log formatter, draws its series on its log scale and pads its range in log space) and its minor ticks. A top axis that sets
@@ -47,22 +47,6 @@ public class TopAxisPlacementTests
     /// <summary>Where the log top axis of <see cref="LogTop"/> stands decade <paramref name="i"/>.</summary>
     private static double DecadeX(int i) => Plot.X + i / 3.0 * Plot.Width;
 
-    private static RecordingRenderContext Render(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        new CartesianAxesRenderer(axes, Plot, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
-    /// <summary>One upright tick label of the top axis: its text and the X it is centred on.</summary>
-    private readonly record struct Label(string Text, double X);
-
-    /// <summary>The labels drawn above the top spine, upright and centred, in the order drawn.</summary>
-    private static List<Label> TopLabels(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
-            .Where(a => ((Point)a.position).Y < Plot.Y && (TextAlignment)a.alignment == TextAlignment.Center && (double)a.rotation == 0)
-            .Select(a => new Label((string)a.text, ((Point)a.position).X))];
-
     private static string Text(double value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Where a top axis over 0..100, padded five per cent each side to -5..105, stands <paramref name="value"/>.</summary>
@@ -78,11 +62,11 @@ public class TopAxisPlacementTests
         var axes = WithTopLine(0, 50, 100);
         axes.SecondaryXAxis!.TickLocator = new MultipleLocator(25);
 
-        var labels = TopLabels(Render(axes));
+        var labels = axes.Drawn(Plot).LabelsAbove(Plot);
 
         Assert.Equal(Quarters.Select(Text), labels.Select(l => l.Text));
         for (int i = 0; i < Quarters.Length; i++)
-            Assert.Equal(PaddedX(Quarters[i]), labels[i].X, 9);
+            Assert.Equal(PaddedX(Quarters[i]), labels[i].Along, 9);
     }
 
     [Fact]
@@ -92,7 +76,7 @@ public class TopAxisPlacementTests
         var top = axes.SecondaryXAxis!;
         top.MajorTicks = top.MajorTicks with { Spacing = 25 };
 
-        var labels = TopLabels(Render(axes));
+        var labels = axes.Drawn(Plot).LabelsAbove(Plot);
 
         Assert.Equal(Quarters.Select(Text), labels.Select(l => l.Text));
     }
@@ -100,21 +84,21 @@ public class TopAxisPlacementTests
     [Fact]
     public void ATopAxisOnALogScale_TakesTheLogLocatorsDecades_WrittenByTheLogFormatter_WhereItsLogScaleStandsThem()
     {
-        var labels = TopLabels(Render(LogTop()));
+        var labels = LogTop().Drawn(Plot).LabelsAbove(Plot);
 
         double[] decades = [1, 10, 100, 1000];
         Assert.Equal(decades.Select(new LogTickFormatter().Format), labels.Select(l => l.Text));
         for (int i = 0; i < decades.Length; i++)
-            Assert.Equal(DecadeX(i), labels[i].X, 9);
+            Assert.Equal(DecadeX(i), labels[i].Along, 9);
     }
 
     [Fact]
     public void ASeriesOnALogTopAxis_IsDrawnOnItsLogScale()
     {
-        var ctx = Render(LogTop());
+        var ctx = LogTop().Drawn(Plot);
 
-        var line = Assert.Single(ctx.OfKind("DrawLines"), c => ((Point[])((dynamic)c.Args!).points).Length == 4);
-        var points = (Point[])((dynamic)line.Args!).points;
+        var line = Assert.Single(ctx.Of<DrawLinesCall>(), c => c.Points.Length == 4);
+        var points = line.Points;
         for (int i = 0; i < points.Length; i++)
             Assert.Equal(DecadeX(i), points[i].X, 9);
     }
@@ -124,9 +108,9 @@ public class TopAxisPlacementTests
     {
         var axes = WithTopLine(1, 10, 100, 1000);
         axes.SecondaryXAxis!.Scale = AxisScale.Log;
-        var renderer = new CartesianAxesRenderer(axes, Plot, new RecordingRenderContext(), Theme.Default);
+        var placement = new CartesianAxisPlacement(axes, Plot, new RecordingRenderContext(), Theme.Default);
 
-        var range = renderer.ComputeSecondaryXDataRanges(0, 100);
+        var range = placement.ComputeSecondaryXDataRanges(0, 100);
 
         // Five per cent of the three decades each side (Range1D.Padded): 10^-0.15 .. 10^3.15, never a linear margin below 0.
         double low = Math.Pow(10, 0 - 3 * 0.05), high = Math.Pow(10, 3 + 3 * 0.05);
@@ -142,9 +126,9 @@ public class TopAxisPlacementTests
         top.Scale = AxisScale.Log;
         top.Min = 0;
         top.Max = 1000;
-        var renderer = new CartesianAxesRenderer(axes, Plot, new RecordingRenderContext(), Theme.Default);
+        var placement = new CartesianAxisPlacement(axes, Plot, new RecordingRenderContext(), Theme.Default);
 
-        var range = renderer.ComputeSecondaryXDataRanges(0, 100);
+        var range = placement.ComputeSecondaryXDataRanges(0, 100);
 
         // A log axis cannot place 0 (Range1D.PositiveForLog): the floor is lifted to 1000 / 1000, the set ceiling stays.
         Assert.Equal(1, range.XMin);
@@ -159,13 +143,13 @@ public class TopAxisPlacementTests
         top.TickLocator = new MultipleLocator(25);
         top.MinorTicks = top.MinorTicks with { Visible = true };
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         // A minor mark rises its own length from the top edge; between 0 and 25 they stand at 5, 10, 15 and 20, and none stands
         // on a major tick.
-        var minors = ctx.OfKind("DrawLine").Select(c => (dynamic)c.Args!)
-            .Where(a => Math.Abs(((Point)a.p1).Y - (Plot.Y - top.MinorTicks.Length)) < 1e-9)
-            .Select(a => ((Point)a.p1).X).ToList();
+        var minors = ctx.Of<DrawLineCall>()
+            .Where(a => Math.Abs((a.P1).Y - (Plot.Y - top.MinorTicks.Length)) < 1e-9)
+            .Select(a => (a.P1).X).ToList();
         foreach (double value in new[] { 5.0, 10, 15, 20 })
             Assert.Contains(minors, x => Math.Abs(x - PaddedX(value)) < 1e-9);
         Assert.DoesNotContain(minors, x => Quarters.Any(q => Math.Abs(x - PaddedX(q)) < 1e-9));
@@ -176,13 +160,13 @@ public class TopAxisPlacementTests
     [Fact]
     public void ATopAxisWithARangeOfItsOwn_IsPlacedOnThatRange_ThroughItsOwnScale_ItsTicksStoodByItsOwnTransform()
     {
-        var renderer = new CartesianAxesRenderer(LogTop(), Plot, new RecordingRenderContext(), Theme.Default);
-        var primary = renderer.ComputeDataRanges();
+        var placement = new CartesianAxisPlacement(LogTop(), Plot, new RecordingRenderContext(), Theme.Default);
+        var primary = placement.ComputeDataRanges();
 
-        var placed = renderer.PlaceTopAxis(primary);
+        var placed = placement.PlaceTopAxis(primary);
 
-        Assert.Equal(renderer.ComputeSecondaryXDataRanges(primary.YMin, primary.YMax), placed.Range);
-        Assert.Equal(AxisScale.Log, placed.Transform.XScale);
+        Assert.Equal(placement.ComputeSecondaryXDataRanges(primary.YMin, primary.YMax), placed.Range);
+        Assert.Equal(AxisScale.Log, placed.Transform.XRule.Scale);
         Assert.Same(placed.Transform, placed.Placement);
         Assert.Equal(new LogLocator().Locate(1, 1000), placed.Ticks);
         Assert.IsType<LogLocator>(placed.Source.Locator);
@@ -201,20 +185,20 @@ public class TopAxisPlacementTests
             return axes;
         }
         static double TitleY(RecordingRenderContext ctx) =>
-            ((Point)ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "A Title").position).Y;
+            (ctx.Of<DrawTextCall>().Single(a => a.Text == "A Title").Position).Y;
         var plain = Titled(new Axes());
         plain.Plot(X, [0.0, 50, 100]);
         var axes = Titled(LogTop());
         axes.SecondaryXAxis!.LabelRotation = 30;
 
         double measured = AxesRenderer.Create(axes, Plot, new RecordingRenderContext(), Theme.Default).MeasureEdgeBands().Top;
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
-        var turned = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
-            .Where(a => (double)a.rotation == 30 && ((Point)a.position).Y < Plot.Y).ToList();
-        Assert.Equal(new double[] { 1, 10, 100, 1000 }.Select(new LogTickFormatter().Format), turned.Select(a => (string)a.text));
+        var turned = ctx.Of<DrawTextCall>()
+            .Where(a => a.Rotation == 30 && (a.Position).Y < Plot.Y).ToList();
+        Assert.Equal(new double[] { 1, 10, 100, 1000 }.Select(new LogTickFormatter().Format), turned.Select(a => a.Text));
         Assert.True(measured > 0);
-        Assert.Equal(TitleY(Render(plain)) - measured, TitleY(ctx), 9);
+        Assert.Equal(TitleY(plain.Drawn(Plot)) - measured, TitleY(ctx), 9);
     }
 
     [Fact]
@@ -268,22 +252,22 @@ public class TopAxisPlacementTests
     {
         // The precondition the short case of ATopAxisWithNeither_KeepsItsBytes stands on: at 150 px the default placement of every
         // other axis lays the top range out differently from the eight intervals the top axis has always drawn.
-        var renderer = new CartesianAxesRenderer(PlainTop(), new Rect(80, 60, 150, 300), new RecordingRenderContext(), Theme.Default);
-        var range = renderer.ComputeSecondaryXDataRanges(0, 100);
+        var placement = new CartesianAxisPlacement(PlainTop(), new Rect(80, 60, 150, 300), new RecordingRenderContext(), Theme.Default);
+        var range = placement.ComputeSecondaryXDataRanges(0, 100);
 
-        Assert.NotEqual(AxesRenderer.DefaultTickValues(range.XMin, range.XMax, 150), new AutoLocator(8).LocateInterval(range.XMin, range.XMax));
+        Assert.NotEqual(AutoLocator.ForLength(150).LocateInterval(range.XMin, range.XMax), new AutoLocator(8).LocateInterval(range.XMin, range.XMax));
     }
 
     [Fact]
     public void TheSeriesOfATopAxisWithNeither_AreMappedLinearlyOverItsOwnRange()
     {
         var axes = PlainTop();
-        var renderer = new CartesianAxesRenderer(axes, Plot, new RecordingRenderContext(), Theme.Default);
-        var range = renderer.ComputeSecondaryXDataRanges(0, 100);
-        var ctx = Render(axes);
+        var placement = new CartesianAxisPlacement(axes, Plot, new RecordingRenderContext(), Theme.Default);
+        var range = placement.ComputeSecondaryXDataRanges(0, 100);
+        var ctx = axes.Drawn(Plot);
 
-        var line = Assert.Single(ctx.OfKind("DrawLines"), c => ((Point[])((dynamic)c.Args!).points).Length == 3);
-        var points = (Point[])((dynamic)line.Args!).points;
+        var line = Assert.Single(ctx.Of<DrawLinesCall>(), c => c.Points.Length == 3);
+        var points = line.Points;
         double[] topX = [0, 37, 113];
         for (int i = 0; i < topX.Length; i++)
             Assert.Equal(Plot.X + (topX[i] - range.XMin) / (range.XMax - range.XMin) * Plot.Width, points[i].X, 9);
@@ -301,8 +285,7 @@ public class TopAxisPlacementTests
         axes.PlotXSecondary(X, [1.0, 10, 100]);
         axes.YAxis.Scale = scale;
 
-        var lines = Render(axes).OfKind("DrawLines")
-            .Select(c => (Point[])((dynamic)c.Args!).points).Where(points => points.Length == 3).ToList();
+        var lines = axes.Drawn(Plot).Polylines().Where(points => points.Length == 3).ToList();
 
         Assert.Equal(2, lines.Count);
         for (int i = 0; i < 3; i++)
@@ -319,9 +302,9 @@ public class TopAxisPlacementTests
         var live = axes.AddXSecondarySeries(new StreamingLineSeries(capacity: 10));
         live.AppendPoint(1000, 1);
         live.AppendPoint(2000, 2);
-        var renderer = new CartesianAxesRenderer(axes, Plot, new RecordingRenderContext(), Theme.Default);
+        var placement = new CartesianAxisPlacement(axes, Plot, new RecordingRenderContext(), Theme.Default);
 
-        var range = renderer.ComputeSecondaryXDataRanges(0, 100);
+        var range = placement.ComputeSecondaryXDataRanges(0, 100);
 
         Assert.True(range.XMin <= 1000 && range.XMax >= 2000, $"{range.XMin}..{range.XMax} does not cover 1000..2000");
     }

@@ -9,42 +9,9 @@ using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="Contour3DSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="Contour3DSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class Contour3DSeriesTests
 {
-    private static readonly double[] X = [1, 2, 3];
-    private static readonly double[] Y = [4, 5];
-    private static readonly double[,] Z = { { 1, 2, 3 }, { 4, 5, 6 } };
-    private static readonly double[] SingleX = [1.0];
-    private static readonly double[] SingleY = [2.0];
-    private static readonly double[,] SingleZ = { { 1.0 } };
-
-    /// <summary>Verifies that the constructor stores X, Y, and Z grid data.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        var series = new Contour3DSeries(X, Y, Z);
-        Assert.Equal(X, series.X);
-        Assert.Equal(Y, series.Y);
-        Assert.Equal(Z, series.Z);
-    }
-
-    /// <summary>Verifies that Levels defaults to 10.</summary>
-    [Fact]
-    public void DefaultLevels_Is10()
-    {
-        var series = new Contour3DSeries(SingleX, SingleY, SingleZ);
-        Assert.Equal(10, series.Levels);
-    }
-
-    /// <summary>Verifies that LineWidth defaults to 1.0.</summary>
-    [Fact]
-    public void DefaultLineWidth_Is1Point0()
-    {
-        var series = new Contour3DSeries(SingleX, SingleY, SingleZ);
-        Assert.Equal(1.0, series.LineWidth);
-    }
-
     public static TheoryData<int> MarchingSquaresCases { get; } = new(Enumerable.Range(1, 14));
 
     /// <summary>Every marching-squares case of one cell draws its crossing: one segment per level, two for the saddles
@@ -64,15 +31,30 @@ public class Contour3DSeriesTests
 
         new Contour3DSeriesRenderer(context).Render(new Contour3DSeries([0, 1], [0, 1], z) { Levels = 2 });
 
-        Assert.Equal(code is 5 or 10 ? 4 : 2, ctx.CountOf("DrawLine"));
+        Assert.Equal(code is 5 or 10 ? 4 : 2, ctx.Count<DrawLineCall>());
     }
 
-    /// <summary>Verifies that ToSeriesDto sets type to "contour3d".</summary>
+    /// <summary>A 3-D contour traces its levels by the one marching squares of a 2-D contour (<c>MarchingSquares</c>, contourpy's
+    /// decisions): in a saddle cell whose bottom-left and top-right corners stand above the level, the line from the bottom crossing
+    /// runs to the left crossing and the line from the top crossing to the right one. On the grid [[1, 0], [0, 1]] the lower level
+    /// (0.25) then cuts the two long diagonals, the upper level (0.75) the two short corners; the 3-D contour paired them the other
+    /// way round.</summary>
     [Fact]
-    public void ToSeriesDto_TypeIsContour3D()
+    public void ASaddleCell_IsTracedAsTheTwoDimensionalContourTracesIt()
     {
-        var series = new Contour3DSeries(SingleX, SingleY, SingleZ);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("contour3d", dto.Type);
+        const double Width = 1.7;
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Contour3D([0.0, 1.0], [0.0, 1.0], new double[,] { { 1, 0 }, { 0, 1 } }, s =>
+        {
+            s.Levels = 2;
+            s.LineWidth = Width;
+        })).Build();
+        var ctx = new RecordingRenderContext();
+        new ChartRenderer().Render(figure, ctx);
+
+        double[] lengths = [.. ctx.Of<DrawLineCall>().Where(c => c.Thickness == Width)
+            .Select(c => c.P1.DistanceTo(c.P2))];
+
+        Assert.Equal(4, lengths.Length);
+        Assert.True(lengths[..2].Min() > 2 * lengths[2..].Max(), string.Join(", ", lengths));
     }
 }

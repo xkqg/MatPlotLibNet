@@ -6,7 +6,7 @@ namespace MatPlotLibNet.Styling;
 /// <summary>
 /// Scoped override of <see cref="RcParams.Current"/>.
 /// Uses <see langword="using"/> to restore the previous scope on disposal.
-/// Because <see cref="RcParams.ScopeValue"/> uses <c>AsyncLocal&lt;T&gt;</c>, the override
+/// Because the scope uses <c>AsyncLocal&lt;T&gt;</c>, the override
 /// flows correctly across <c>await</c> boundaries within the same logical call chain.
 /// </summary>
 public sealed class StyleContext : IDisposable
@@ -29,5 +29,5 @@ public sealed class StyleContext : IDisposable
     }
 
     /// <summary>Restores the previous <see cref="RcParams.Current"/>.</summary>
-    public void Dispose() => RcParams.ScopeValue = _previous == RcParams.Default ? null : _previous;
+    public void Dispose() => RcParams.ScopeValue = ReferenceEquals(_previous, RcParams.Default) ? null : _previous;
 }

@@ -1,9 +1,10 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Linq;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Builders;
@@ -17,43 +18,110 @@ namespace MatPlotLibNet.Tests.Builders;
 /// stream one unit and had to redraw the whole figure to move the other.</para></summary>
 public class RightYAxisLegendAndStreamingTests
 {
-    [Fact]
-    public void TheLegendNAMESTheRightTrace_notOnlyThePrimaryOne()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
+        new DrawnToken("TheLegendNAMESTheRightTrace_notOnlyThePrimaryOne", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5), l => l.Label = "left-line")
                 .WithAddRightYAxis(s => s
                     .Plot(EdgeCaseData.Ramp(5), new[] { 10.0, 20, 30, 40, 50 }, l => l.Label = "right-line"))
                 .WithLegend())
-            .ToSvg();
-
-        Assert.Contains("left-line", svg);
-        Assert.Contains("right-line", svg);
-    }
-
-    [Fact]
-    public void TheRightLegendEntryWearsTheCOLOURTheSeriesIsDrawnIn()
-    {
-        // The secondary renderer offsets its cycle index by the primary series count
-        // (CartesianYAxisSlotPart.RenderSeries), so a legend that started its own count at 0 would hand the
-        // right-hand line the LEFT one's colour — a key that points at the wrong trace.
-        var explicitColour = Color.FromHex("#123456");
-
-        var svg = Plt.Create()
+            .ToSvg(), "left-line", "right-line"),
+        new DrawnToken("TheRightLegendEntryWearsTheCOLOURTheSeriesIsDrawnIn", () =>
+        {
+            // The secondary renderer offsets its cycle index by the primary series count
+            // (SeriesPass.DrawSteps, numbering each series by its seat), so a legend that started its own count at 0 would hand the
+            // right-hand line the LEFT one's colour — a key that points at the wrong trace.
+            var explicitColour = Color.FromHex("#123456");
+            return Plt.Create()
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5), l => l.Label = "left-line")
+                    .WithAddRightYAxis(s => s
+                        .Plot(EdgeCaseData.Ramp(5), new[] { 10.0, 20, 30, 40, 50 }, l =>
+                        {
+                            l.Label = "right-line";
+                            l.Color = explicitColour;
+                        }))
+                    .WithLegend())
+                .ToSvg();
+        }, "#123456"),
+        //  The secondary part built its renderer without the axes' tooltip switch, so with tooltips on the
+        //  right-hand points had none while the left-hand ones did.
+        new DrawnToken("ARightScatterCarriesTooltips_likeAPrimaryOne", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTooltips()
+                .Scatter(new[] { 0.0, 1 }, new[] { 0.0, 1 })
+                .WithAddRightYAxis(s => s.Scatter(new[] { 0.0, 1 }, new[] { 100.0, 200 })))
+            .ToSvg(), "<title>x=1, y=1</title>", "<title>x=1, y=200</title>"),
+        new DrawnToken("ATopAxisScatterCarriesTooltips_likeAPrimaryOne", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTooltips()
+                .Scatter(new[] { 0.0, 1 }, new[] { 0.0, 1 })
+                .WithSecondaryXAxis(s => s.ScatterXSecondary(new[] { 0.0, 300 }, new[] { 0.0, 1 })))
+            .ToSvg(), "<title>x=300, y=1</title>"),
+        new DrawnToken("AnUnlabelledRightSeriesAddsNoLegendEntry", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5), l => l.Label = "left-line")
-                .WithAddRightYAxis(s => s
-                    .Plot(EdgeCaseData.Ramp(5), new[] { 10.0, 20, 30, 40, 50 }, l =>
-                    {
-                        l.Label = "right-line";
-                        l.Color = explicitColour;
-                    }))
+                .WithAddRightYAxis(s => s.Plot(EdgeCaseData.Ramp(5), new[] { 10.0, 20, 30, 40, 50 }))
                 .WithLegend())
-            .ToSvg();
+            .ToSvg(), "left-line") { Absent = ["Series 2"] },
+        //  The right-hand ticks now span the streamed data instead of the 0..1 sentinel.
+        new DrawnToken("ARightStreamingSeriesCONTRIBUTESItsRangeToTheRightAxis", () =>
+        {
+            // The range walk used to gate on `is IHasDataRange`, a marker a streaming series does not carry, so
+            // its data never reached the right-hand scale. (DRAWING a streaming series in SVG is a separate,
+            // still-open gap: ISeriesVisitor.Visit(StreamingLineSeries) is an empty default body and
+            // SvgSeriesRenderer does not override it, so no streaming series renders to SVG on EITHER axis.)
+            StreamingLineSeries? right = null;
+            var figure = Plt.Create()
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 1, 2 }, l => l.Label = "left-line")
+                    .WithAddRightYAxis(s =>
+                    {
+                        right = s.StreamingPlot(capacity: 100, configure: l => l.Label = "right-live");
+                        s.SetYLabel("right");
+                    }))
+                .Build();
+            right!.AppendPoint(0, 100);
+            right.AppendPoint(1, 200);
+            right.AppendPoint(2, 300);
+            return figure.ToSvg();
+        }, "300"),
+        new DrawnToken("AnEmptyStreamingSeriesDrawsNOTHING_notAFlatLineAtZero", () =>
+        {
+            var figure = Plt.Create()
+                .AddSubPlot(1, 1, 1, ax => ax.StreamingPlot(100, l => l.Label = "live"))
+                .Build();
+            return figure.ToSvg();
+        }) { Absent = ["<polyline"] },
+        new DrawnToken("ARightAxisWithBLANKTickLabelsStillPlacesItsLabel", () =>
+        {
+            // The measured clearance needs something to measure. With blank tick labels there is nothing to
+            // clear, and the label falls back to the constant offset — the arm that carries the placement when
+            // the measurement comes back zero.
+            var figure = Plt.Create()
+                .WithSize(600, 300)
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 1, 2 }, l => l.Label = "left")
+                    .WithAddRightYAxis(s => s
+                        .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 125.0, 225.0 }, l => l.Label = "right")
+                        .SetYLabel("kB / sec")))
+                .Build();
+            figure.SubPlots[0].YAxes.Right[0].Axis.TickFormatter = new TestTickFormatter(_ => string.Empty);
+            return figure.ToSvg();
+        }, ">kB / sec</text>") { Absent = [">225</text>"] },
+        new DrawnToken("AnEmptyStreamingSCATTERSeriesDrawsNOTHING", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingScatter(100, s => s.Label = "live points"))
+            .ToSvg()) { Absent = ["<circle"] },
+        new DrawnToken("AnEmptyStreamingSIGNALSeriesDrawsNOTHING", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingSignal(100, 1.0, s => s.Label = "live signal"))
+            .ToSvg()) { Absent = ["<polyline"] },
+    };
 
-        Assert.Contains("#123456", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     private static readonly PropCycler RedGreenBlue =
         new PropCyclerBuilder().WithColors(Colors.Red, Colors.Green, Colors.Blue).Build();
@@ -80,8 +148,8 @@ public class RightYAxisLegendAndStreamingTests
 
         // One primary series, so the secondary line holds slot 1 (primary count + its own index 0).
         var expected = RedGreenBlue[1].Color.ToHex();
-        var lines = Tests.Rendering.AxesRendererCoverageTests.PolylineStrokes(svg);
-        var swatches = Tests.Rendering.AxesRendererCoverageTests.LegendSwatchStrokes(svg);
+        var lines = Tests.Rendering.AxesRendererTests.PolylineStrokes(svg);
+        var swatches = Tests.Rendering.AxesRendererTests.LegendSwatchStrokes(svg);
         Assert.Equal(2, lines.Length);
         Assert.Equal(2, swatches.Length);
         Assert.Equal(expected, lines[1]);
@@ -98,53 +166,9 @@ public class RightYAxisLegendAndStreamingTests
 
         Assert.Equal(WithoutStrokeColour(plain), WithoutStrokeColour(cycled));
 
-        static string SecondaryPolyline(string svg) =>
-            System.Text.RegularExpressions.Regex.Matches(svg, "<polyline[^>]*>")[1].Value;
-        static string WithoutStrokeColour(string element) =>
-            System.Text.RegularExpressions.Regex.Replace(element, " stroke=\"#[0-9A-F]{6}\"", " stroke=\"\"");
-    }
-
-    [Fact]
-    public void ARightScatterCarriesTooltips_likeAPrimaryOne()
-    {
-        // The secondary part built its renderer without the axes' tooltip switch, so with tooltips on the
-        // right-hand points had none while the left-hand ones did.
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTooltips()
-                .Scatter(new[] { 0.0, 1 }, new[] { 0.0, 1 })
-                .WithAddRightYAxis(s => s.Scatter(new[] { 0.0, 1 }, new[] { 100.0, 200 })))
-            .ToSvg();
-
-        Assert.Contains("<title>x=1, y=1</title>", svg);
-        Assert.Contains("<title>x=1, y=200</title>", svg);
-    }
-
-    [Fact]
-    public void ATopAxisScatterCarriesTooltips_likeAPrimaryOne()
-    {
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTooltips()
-                .Scatter(new[] { 0.0, 1 }, new[] { 0.0, 1 })
-                .WithSecondaryXAxis(s => s.ScatterXSecondary(new[] { 0.0, 300 }, new[] { 0.0, 1 })))
-            .ToSvg();
-
-        Assert.Contains("<title>x=300, y=1</title>", svg);
-    }
-
-    [Fact]
-    public void AnUnlabelledRightSeriesAddsNoLegendEntry()
-    {
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5), l => l.Label = "left-line")
-                .WithAddRightYAxis(s => s.Plot(EdgeCaseData.Ramp(5), new[] { 10.0, 20, 30, 40, 50 }))
-                .WithLegend())
-            .ToSvg();
-
-        Assert.Contains("left-line", svg);
-        Assert.DoesNotContain("Series 2", svg);
+        static SvgElement SecondaryPolyline(string svg) => svg.Elements("polyline")[1];
+        static string WithoutStrokeColour(SvgElement element) =>
+            string.Join(' ', element.Attributes.Where(attribute => attribute.Key != "stroke").Select(attribute => $"{attribute.Key}={attribute.Value}"));
     }
 
     [Fact]
@@ -161,35 +185,6 @@ public class RightYAxisLegendAndStreamingTests
 
         Assert.NotNull(right);
         Assert.Same(right, (object)Assert.Single(fig.SubPlots[0].YAxes.Right[0].Series));
-    }
-
-    [Fact]
-    public void ARightStreamingSeriesCONTRIBUTESItsRangeToTheRightAxis()
-    {
-        // The range walk used to gate on `is IHasDataRange`, a marker a streaming series does not carry, so
-        // its data never reached the right-hand scale. (DRAWING a streaming series in SVG is a separate,
-        // still-open gap: ISeriesVisitor.Visit(StreamingLineSeries) is an empty default body and
-        // SvgSeriesRenderer does not override it, so no streaming series renders to SVG on EITHER axis.)
-        StreamingLineSeries? right = null;
-
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 1, 2 }, l => l.Label = "left-line")
-                .WithAddRightYAxis(s =>
-                {
-                    right = s.StreamingPlot(capacity: 100, configure: l => l.Label = "right-live");
-                    s.SetYLabel("right");
-                }))
-            .Build();
-
-        right!.AppendPoint(0, 100);
-        right.AppendPoint(1, 200);
-        right.AppendPoint(2, 300);
-
-        var svg = figure.ToSvg();
-
-        // The right-hand ticks now span the streamed data instead of the 0..1 sentinel.
-        Assert.Contains("300", svg);
     }
 
     [Fact]
@@ -217,19 +212,7 @@ public class RightYAxisLegendAndStreamingTests
 
         var svg = figure.ToSvg();
 
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
-    }
-
-    [Fact]
-    public void AnEmptyStreamingSeriesDrawsNOTHING_notAFlatLineAtZero()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StreamingPlot(100, l => l.Label = "live"))
-            .Build();
-
-        var svg = figure.ToSvg();
-
-        Assert.DoesNotContain("<polyline", svg);
+        Assert.Equal(2, svg.Elements("polyline").Count);
     }
 
     [Fact]
@@ -248,12 +231,8 @@ public class RightYAxisLegendAndStreamingTests
                     .SetYLabel("kB / sec")))
             .ToSvg();
 
-        var labelX = double.Parse(
-            System.Text.RegularExpressions.Regex.Match(svg, "<text[^>]*x=\"([0-9.]+)\"[^>]*>kB / sec</text>").Groups[1].Value,
-            System.Globalization.CultureInfo.InvariantCulture);
-        var tickXs = System.Text.RegularExpressions.Regex.Matches(svg, "<text[^>]*x=\"([0-9.]+)\"[^>]*>(?:225|200|175|125)</text>")
-            .Select(m => double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))
-            .ToList();
+        var labelX = svg.Elements("text").First(text => text.Text == "kB / sec").Number("x");
+        var tickXs = svg.Elements("text").Where(text => text.Text is "225" or "200" or "175" or "125").Select(text => text.Number("x")).ToList();
 
         Assert.NotEmpty(tickXs);
         Assert.True(labelX > tickXs.Max() + 20,
@@ -272,56 +251,7 @@ public class RightYAxisLegendAndStreamingTests
                     .SetYLabel("right unit")))
             .ToSvg();
 
-        var label = System.Text.RegularExpressions.Regex.Match(svg, "<text[^>]*>right unit</text>").Value;
-        Assert.Contains("rotate(", label);
-    }
-
-    /// <summary>A formatter that hides the numbers but keeps the ticks — legitimate on a right-hand axis
-    /// whose scale is carried by its label alone.</summary>
-    private sealed class BlankTickFormatter : MatPlotLibNet.Rendering.TickFormatters.ITickFormatter
-    {
-        public string Format(double value) => string.Empty;
-    }
-
-    [Fact]
-    public void ARightAxisWithBLANKTickLabelsStillPlacesItsLabel()
-    {
-        // The measured clearance needs something to measure. With blank tick labels there is nothing to
-        // clear, and the label falls back to the constant offset — the arm that carries the placement when
-        // the measurement comes back zero.
-        var figure = Plt.Create()
-            .WithSize(600, 300)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 1, 2 }, l => l.Label = "left")
-                .WithAddRightYAxis(s => s
-                    .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 125.0, 225.0 }, l => l.Label = "right")
-                    .SetYLabel("kB / sec")))
-            .Build();
-        figure.SubPlots[0].YAxes.Right[0].Axis.TickFormatter = new BlankTickFormatter();
-
-        var svg = figure.ToSvg();
-
-        Assert.Contains(">kB / sec</text>", svg);
-        Assert.DoesNotContain(">225</text>", svg);
-    }
-
-    [Fact]
-    public void AnEmptyStreamingSCATTERSeriesDrawsNOTHING()
-    {
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StreamingScatter(100, s => s.Label = "live points"))
-            .ToSvg();
-
-        Assert.DoesNotContain("<circle", svg);
-    }
-
-    [Fact]
-    public void AnEmptyStreamingSIGNALSeriesDrawsNOTHING()
-    {
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StreamingSignal(100, 1.0, s => s.Label = "live signal"))
-            .ToSvg();
-
-        Assert.DoesNotContain("<polyline", svg);
+        var label = svg.Elements("text").First(text => text.Text == "right unit");
+        Assert.Contains("rotate(", label["transform"] ?? string.Empty);
     }
 }

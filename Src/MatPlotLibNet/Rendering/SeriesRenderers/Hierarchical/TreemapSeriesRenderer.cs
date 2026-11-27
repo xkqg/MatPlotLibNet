@@ -3,17 +3,18 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
+using System.Globalization;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>
-/// Renders a <see cref="TreemapSeries"/> using the squarified treemap algorithm
-/// (Bruls, Huijse, van Wijk 1999). Leaves whose nodes have no explicit colour
-/// are coloured by their index through the series colormap (default viridis) so
-/// flat trees don't render as a single-colour block.
-/// </summary>
+/// <summary>Renders a <see cref="TreemapSeries"/>: each node as a rectangle, its children laid out inside it by
+/// <see cref="SquarifiedLayout"/>. Leaves whose nodes have no explicit colour are coloured by their index through the series
+/// colormap (default viridis), so flat trees don't render as a single-colour block.</summary>
 internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
 {
     /// <inheritdoc />
@@ -23,33 +24,37 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
     public override void Render(TreemapSeries series)
     {
         var bounds = Context.Area.PlotBounds;
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var colours = series.ColorRange();
-        (_cMin, _cMax) = (colours.Lo, colours.Hi);
+        _scale = series.ColorScaleUnder(Context.Theme);
+        _edges = Context.Theme.PatchEdgesOf(series);
         // An EMPTY tree draws nothing. A childless root used to render as one full-area leaf — "one healthy
         // thing fills the fleet" on a wall that in fact knows nothing (measured 2026-08-30).
         if (series.Root.Children.Count == 0)
         {
             return;
         }
-        RenderNode(series.Root, bounds, series, cmap,
+        // squarify's tiles are bars, which matplotlib clips to the axes (the half of an edge beyond the frame is cut off): the series pass
+        // cuts them off there, as every artist an axes adds, and their labels stand whole.
+        RenderNode(series.Root, bounds, series,
             depth: 0, indexInParent: 0, siblingCount: 1, nodeId: "0", parentId: "");
     }
 
-    /// <summary>The colour-value range of this render, resolved once in <see cref="Render"/>.</summary>
-    private double _cMin, _cMax;
+    /// <summary>The colour scale of this render (the series' <c>ColorScaleUnder</c>), resolved once in <see cref="Render"/>.</summary>
+    private ColormapContext _scale;
+
+    /// <summary>What the theme decides about the edge of a tile, resolved once in <see cref="Render"/>: a tile asks it, not the theme.</summary>
+    private ResolvedPatchEdge _edges;
 
     /// <summary>
     /// Renders one node and recurses into its children. <paramref name="nodeId"/> is a
     /// deterministic path-based identifier (root = "0", first child of root = "0.0", etc.)
-    /// used by <c>SvgTreemapDrilldownScript</c> to navigate the hierarchy on click. Path IDs
+    /// used by <c>SvgTransform.TreemapDrilldownScript</c> to navigate the hierarchy on click. Path IDs
     /// are emitted as <c>data-treemap-*</c> attributes on every rect regardless of whether
     /// interactivity is enabled — the cost is 3 attributes per rect (~60 bytes each) and the
     /// drilldown JS is only loaded when <see cref="Models.Figure.EnableTreemapDrilldown"/>
     /// is set, so non-interactive renders carry harmless unused attributes.
     /// </summary>
     private void RenderNode(TreeNode node, Rect bounds, TreemapSeries series,
-        IColorMap cmap, int depth, int indexInParent, int siblingCount,
+        int depth, int indexInParent, int siblingCount,
         string nodeId, string parentId)
     {
         // Phase W (v1.7.2, 2026-04-19): constant readable font at every depth.
@@ -61,7 +66,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // "When no browserInteraction he sees all" — every label emits unconditionally
         // so the static SVG carries the full hierarchy in the DOM (selectable, screen-
         // reader accessible, zoomable via OS controls).
-        const double fontSize = 12.0;
+        double fontSize = series.TextSizeUnder(Context.Theme);
 
         // A node that LEADS somewhere is one anchor around everything it draws — its rect, its text and, for an
         // interior node, the whole subtree nested inside it.
@@ -72,7 +77,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         }
         try
         {
-            RenderNodeCore(node, bounds, series, cmap, depth, indexInParent, siblingCount, nodeId, parentId, fontSize);
+            RenderNodeCore(node, bounds, series, depth, indexInParent, siblingCount, nodeId, parentId, fontSize);
         }
         finally
         {
@@ -84,44 +89,38 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
     }
 
     private void RenderNodeCore(TreeNode node, Rect bounds, TreemapSeries series,
-        IColorMap cmap, int depth, int indexInParent, int siblingCount,
+        int depth, int indexInParent, int siblingCount,
         string nodeId, string parentId, double fontSize)
     {
         if (node.Children.Count == 0)
         {
-            // Leaf: fill with node colour, or cmap sample at the sibling fraction.
-            // Explicit colour, else the node's own VALUE through the map, else the sibling-index ramp.
-            var color = node.Color
-                ?? series.ColorFromValue(node, cmap, _cMin, _cMax)
-                ?? cmap.GetColor(indexInParent.ColormapFraction(siblingCount));
-            Ctx.SetNextElementData("treemap-node", nodeId);
-            Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            Ctx.SetNextElementData("treemap-parent", parentId);
-            Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
-            Ctx.DrawRectangle(bounds, new ShapeStyle(color, Colors.White, 1) { Hatch = node.Hatch, HatchColor = node.HatchColor });
+            // Leaf: its own colour, else its value through the scale, else the map at its place among its siblings.
+            var color = HierarchicalSeries.ColourOf(node, _scale, indexInParent, siblingCount);
+            TagTreemapNode(Ctx, nodeId, depth, parentId, node.Label ?? string.Empty);
+            Ctx.DrawRectangleOnPixelGrid(bounds, TileStyle(color, node.Hatching));
+            var cellLabel = CellLabel.Standard;
             if (series.ShowLabels && !string.IsNullOrEmpty(node.Label))
             {
-                var font = new Font { Size = fontSize, Color = Colors.White };
-                var label = FitLabel(node.Label, font, bounds.Width - 8, series.LabelFit);
+                var font = Context.Theme.DataTextFontOn(color, fontSize, GroundInk.Readable);
+                var label = FitLabel(node.Label, font, cellLabel.RoomIn(bounds), series.LabelFit);
+                var name = cellLabel.Name(bounds);
+                var nameExtent = label is null ? default : Ctx.ExtentOf(TextLabel.Of(label), font);
                 if (label is not null)
                 {
-                    Ctx.SetNextElementData("treemap-node", nodeId);
-                    Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    Ctx.SetNextElementData("treemap-parent", parentId);
-                    Ctx.DrawText(label, new Point(bounds.X + 4, bounds.Y + fontSize + 2),
-                        font, TextAlignment.Left);
+                    TagTreemapNode(Ctx, nodeId, depth, parentId);
+                    Ctx.Draw(TextLabel.Of(label), font, name, nameExtent);
                 }
                 // The MEASURE, under the name and larger — the stat tile's anatomy inside the cell. It is the
                 // FIRST thing dropped when the cell cannot hold both: a number without its subject says
                 // nothing, so a cell whose name did not fit never shows a bare number either.
                 if (label is not null && !string.IsNullOrEmpty(node.Headline))
                 {
-                    var headlineFont = new Font { Size = series.HeadlineFontSize, Weight = FontWeight.Bold, Color = Colors.White };
-                    double top = bounds.Y + fontSize + 2 + series.HeadlineFontSize + 4;
-                    if (top <= bounds.Y + bounds.Height - 2
-                        && Ctx.MeasureText(node.Headline, headlineFont).Width <= bounds.Width - 8)
+                    var headlineFont = Context.Theme.DataTextFontOn(color, series.HeadlineFontSize, GroundInk.Readable, FontWeight.Bold);
+                    var measure = cellLabel.MeasureUnder(bounds, new TextBox(name, nameExtent).Baseline.Y);
+                    var measureExtent = Ctx.ExtentOf(TextLabel.Of(node.Headline), headlineFont);
+                    if (cellLabel.MeasureFits(bounds, new TextBox(measure, measureExtent).Baseline.Y) && measureExtent.Width <= cellLabel.RoomIn(bounds))
                     {
-                        Ctx.DrawText(node.Headline, new Point(bounds.X + 4, top), headlineFont, TextAlignment.Left);
+                        Ctx.Draw(TextLabel.Of(node.Headline), headlineFont, measure, measureExtent);
                     }
                 }
             }
@@ -135,14 +134,9 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // parent colour is visible as a frame. Pre-fix the parent rect was overlaid by
         // children edge-to-edge, so the parent label collided with the first child's
         // label and the hierarchy was invisible.
-        var interiorColor = node.Color
-            ?? series.ColorFromValue(node, cmap, _cMin, _cMax)
-            ?? cmap.GetColor(indexInParent.ColormapFraction(siblingCount));
-        Ctx.SetNextElementData("treemap-node", nodeId);
-        Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        Ctx.SetNextElementData("treemap-parent", parentId);
-        Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
-        Ctx.DrawRectangle(bounds, new ShapeStyle(interiorColor, Colors.White, 1));
+        var interiorColor = HierarchicalSeries.ColourOf(node, _scale, indexInParent, siblingCount);
+        TagTreemapNode(Ctx, nodeId, depth, parentId, node.Label ?? string.Empty);
+        Ctx.DrawRectangleOnPixelGrid(bounds, TileStyle(interiorColor));
 
         // Header strip: constant height (paired with the constant 12 pt font, Phase W).
         // Pre-W the header shrank with the depth-driven font; post-W it's fixed at 18 px
@@ -151,25 +145,21 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // (Shneiderman z-order) so the deepest visible label wins in any overlapping
         // region. Only suppress the header when the parent rect itself can't even hold
         // a header strip + a tiny child area beneath it (sub-pixel-noise gate).
-        const double headerH = HierarchicalLayout.Treemap.HeaderHeightPx;
-        const double sidePad = HierarchicalLayout.Treemap.SidePaddingPx;
+        const double headerH = HeaderHeightPx;
+        const double sidePad = SidePaddingPx;
         Rect childBounds = bounds;
         bool headerDrawn = false;
         if (series.ShowLabels && !string.IsNullOrEmpty(node.Label)
             && bounds.Height > headerH + 20 && bounds.Width > 40)
         {
-            var font = new Font { Size = fontSize, Color = Colors.White };
-            Ctx.SetNextElementData("treemap-node", nodeId);
-            Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            Ctx.SetNextElementData("treemap-parent", parentId);
-            Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + headerH - 4),
-                font, TextAlignment.Left);
+            var font = Context.Theme.DataTextFontOn(interiorColor, fontSize, GroundInk.Readable);
+            TagTreemapNode(Ctx, nodeId, depth, parentId);
+            Ctx.Draw(TextLabel.Of(node.Label), font, new TextPlacement(CellLabel.Standard.HeaderName(bounds, headerH), TextAlignment.Left));
             // The parent's own measure, at the far end of its header strip — the total beside the name.
             if (!string.IsNullOrEmpty(node.Headline)
-                && Ctx.MeasureText(node.Headline, font).Width + Ctx.MeasureText(node.Label, font).Width + 16 <= bounds.Width)
+                && CellLabel.Standard.HeaderPairFits(Ctx.ExtentOf(TextLabel.Of(node.Headline), font).Width, Ctx.ExtentOf(TextLabel.Of(node.Label), font).Width, bounds))
             {
-                Ctx.DrawText(node.Headline, new Point(bounds.X + bounds.Width - 4, bounds.Y + headerH - 4),
-                    font, TextAlignment.Right);
+                Ctx.Draw(TextLabel.Of(node.Headline), font, new TextPlacement(CellLabel.Standard.HeaderMeasure(bounds, headerH), TextAlignment.Right));
             }
             headerDrawn = true;
         }
@@ -180,25 +170,30 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
                 bounds.Width - sidePad * 2,
                 bounds.Height - headerH - sidePad);
 
-        // Squarify the children into the REDUCED bounds so the parent frame stays visible.
-        var children = node.Children.OrderByDescending(c => c.TotalValue).ToList();
-        double total = children.Sum(c => c.TotalValue);
-        if (total <= 0) return;
-
-        var rects = Squarify(children, childBounds, total, series.Padding);
-        for (int i = 0; i < children.Count; i++)
+        // Lay the children out in the REDUCED bounds so the parent frame stays visible.
+        var cells = SquarifiedLayout.Of(node, childBounds, series.Padding, Context.Theme.Looks.Treemap.LikeSquarify);
+        for (int i = 0; i < cells.Length; i++)
         {
-            string childId = nodeId + "." + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            RenderNode(children[i], rects[i], series, cmap,
-                depth + 1, i, children.Count, childId, nodeId);
+            string childId = nodeId + "." + i.InvariantText();
+            RenderNode(cells[i].Node, cells[i].Bounds, series,
+                depth + 1, i, cells.Length, childId, nodeId);
         }
     }
+
+    /// <summary>The style of a tile of <paramref name="fill"/>: edged as a bar of matplotlib is under the matplotlib themes (squarify draws
+    /// its tiles as bars: black at 1 pt under classic, none under the default style; a tile's own opacity is its colour's, which its edge
+    /// does not take, as matplotlib's <c>bar</c> given no <c>alpha</c> keeps the edge's), in a white pixel under every other theme
+    /// (<see cref="Theme.PatchEdgeOf"/>).</summary>
+    /// <param name="fill">The tile's colour.</param>
+    /// <param name="hatch">The pattern its node lays over it and the colour the node names for it: the colour of a bar's hatch where it
+    /// names none, the theme's rule over the tile's edge.</param>
+    private ShapeStyle TileStyle(Color fill, HatchFill hatch = default) => _edges.StyleOf(fill, fill, hatch);
 
     /// <summary>The label as it will be drawn under <paramref name="fit"/>: the full text, a shortened one with
     /// an ellipsis, or null for "not drawn" — the rect carries the full text in <c>data-treemap-label</c> either way.</summary>
     private string? FitLabel(string label, Font font, double width, TreemapLabelFit fit)
     {
-        if (fit == TreemapLabelFit.Always || Ctx.MeasureText(label, font).Width <= width)
+        if (fit == TreemapLabelFit.Always || Ctx.ExtentOf(TextLabel.Of(label), font).Width <= width)
         {
             return label;
         }
@@ -209,7 +204,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         for (int keep = label.Length - 1; keep > 0; keep--)
         {
             var shortened = label[..keep].TrimEnd() + "…";
-            if (Ctx.MeasureText(shortened, font).Width <= width)
+            if (Ctx.ExtentOf(TextLabel.Of(shortened), font).Width <= width)
             {
                 return shortened;
             }
@@ -217,108 +212,25 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         return "…";
     }
 
-    /// <summary>Squarified treemap layout (Bruls et al. 1999). Produces rectangles with
-    /// aspect ratios close to 1, much better than naive slice-and-dice for flat trees.</summary>
-    private static Rect[] Squarify(IReadOnlyList<TreeNode> nodes, Rect bounds, double total, double pad)
+    /// <summary>Pixel height reserved at the top of an interior rectangle for its label.</summary>
+    private const double HeaderHeightPx = 18.0;
+
+    /// <summary>Pixel padding between sibling rectangles inside an interior frame.</summary>
+    private const double SidePaddingPx = 2.0;
+
+    /// <summary>Tags the next element drawn with the node it stands for (<c>data-treemap-node</c>, <c>-depth</c>, <c>-parent</c>)
+    /// and, when <paramref name="label"/> is given, the node's label (<c>-label</c>): the rect carries the full text whatever
+    /// is drawn of it.</summary>
+    /// <param name="nodeId">The node's path, the root "0", its first child "0.0".</param>
+    /// <param name="depth">How many levels the node stands below the root.</param>
+    /// <param name="parentId">The path of the node's parent; empty for the root.</param>
+    /// <param name="label">The node's full label for a tile, or <see langword="null"/> for the text drawn on it.</param>
+    /// <param name="ctx">The <see cref="IRenderContext"/> it works on.</param>
+    internal static void TagTreemapNode(IRenderContext ctx, string nodeId, int depth, string parentId, string? label = null)
     {
-        var rects = new Rect[nodes.Count];
-
-        // Scale values to the available pixel area.
-        double area = bounds.Width * bounds.Height;
-        double scale = area / total;
-        double[] sizes = new double[nodes.Count];
-        for (int i = 0; i < nodes.Count; i++)
-            sizes[i] = nodes[i].TotalValue * scale;
-
-        // Running cursor + "row" accumulator. Direction: lay out rows along the shorter side.
-        var row = new List<int>();
-        double x = bounds.X, y = bounds.Y;
-        double w = bounds.Width, h = bounds.Height;
-        int index = 0;
-
-        while (index < nodes.Count)
-        {
-            double shorter = Math.Min(w, h);
-            // Try adding the next node to the current row — if aspect ratio gets worse, emit row.
-            double rowSum = row.Sum(i => sizes[i]);
-            int cand = index;
-            double candSum = rowSum + sizes[cand];
-            if (row.Count == 0 || Worst(row, rowSum, shorter, sizes) >= Worst(Append(row, cand), candSum, shorter, sizes))
-            {
-                row.Add(cand);
-                index++;
-                continue;
-            }
-
-            // Emit the current row perpendicular to the shorter side.
-            EmitRow(row, sizes, ref x, ref y, ref w, ref h, rects, pad);
-            row.Clear();
-        }
-        // Emit leftover row.
-        if (row.Count > 0)
-            EmitRow(row, sizes, ref x, ref y, ref w, ref h, rects, pad);
-
-        return rects;
-    }
-
-    private static double Worst(IReadOnlyList<int> row, double sum, double shorter, double[] sizes)
-    {
-        if (row.Count == 0 || sum <= 0) return double.PositiveInfinity;
-        double max = double.MinValue, min = double.MaxValue;
-        foreach (int i in row)
-        {
-            if (sizes[i] > max) max = sizes[i];
-            if (sizes[i] < min) min = sizes[i];
-        }
-        double s2 = sum * sum;
-        double side2 = shorter * shorter;
-        return Math.Max(side2 * max / s2, s2 / (side2 * min));
-    }
-
-    private static int[] Append(List<int> row, int extra)
-    {
-        var arr = new int[row.Count + 1];
-        for (int i = 0; i < row.Count; i++) arr[i] = row[i];
-        arr[^1] = extra;
-        return arr;
-    }
-
-    private static void EmitRow(List<int> row, double[] sizes,
-        ref double x, ref double y, ref double w, ref double h, Rect[] rects, double pad)
-    {
-        if (row.Count == 0) return;
-        double rowSum = 0;
-        foreach (int i in row) rowSum += sizes[i];
-        if (rowSum <= 0) return;
-
-        bool horizontalStrip = w >= h;   // lay out along the shorter side
-        double stripWidth = rowSum / (horizontalStrip ? h : w);
-
-        if (horizontalStrip)
-        {
-            double cursorY = y;
-            foreach (int i in row)
-            {
-                double cellH = sizes[i] / stripWidth;
-                rects[i] = new Rect(x + pad / 2, cursorY + pad / 2,
-                    Math.Max(1, stripWidth - pad), Math.Max(1, cellH - pad));
-                cursorY += cellH;
-            }
-            x += stripWidth;
-            w -= stripWidth;
-        }
-        else
-        {
-            double cursorX = x;
-            foreach (int i in row)
-            {
-                double cellW = sizes[i] / stripWidth;
-                rects[i] = new Rect(cursorX + pad / 2, y + pad / 2,
-                    Math.Max(1, cellW - pad), Math.Max(1, stripWidth - pad));
-                cursorX += cellW;
-            }
-            y += stripWidth;
-            h -= stripWidth;
-        }
+        ctx.SetNextElementData("treemap-node", nodeId);
+        ctx.SetNextElementData("treemap-depth", depth.InvariantText());
+        ctx.SetNextElementData("treemap-parent", parentId);
+        if (label is not null) ctx.SetNextElementData("treemap-label", label);
     }
 }

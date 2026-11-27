@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Rendering;
 public readonly record struct Size(double Width, double Height)
 {
     /// <summary>A zero-sized extent — used as a "nothing to measure" sentinel by
-    /// <see cref="Layout.LegendMeasurer.MeasureBox"/> and other measurement helpers that
+    /// <c>Axes.MeasureLegendBox</c> and other measurement helpers that
     /// want a clearly-empty return value.</summary>
     public static Size Empty => new(0, 0);
 }

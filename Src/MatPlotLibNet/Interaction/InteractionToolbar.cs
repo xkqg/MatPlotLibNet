@@ -6,8 +6,7 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Manages the interactive toolbar state: which tool is active, which buttons are
-/// available, and toolbar layout. Platform-agnostic — controls use <see cref="ToolbarState"/>
-/// to draw the overlay.</summary>
+/// available. Platform-agnostic — a control reads <see cref="Buttons"/> and <see cref="ActiveToolId"/> to draw the overlay.</summary>
 public sealed class InteractionToolbar
 {
     /// <summary>Active tool modes.</summary>

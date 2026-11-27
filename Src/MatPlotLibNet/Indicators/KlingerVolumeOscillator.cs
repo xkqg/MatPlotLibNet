@@ -4,6 +4,7 @@
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -14,50 +15,57 @@ namespace MatPlotLibNet.Indicators;
 /// Stocks &amp; Commodities</i>.</summary>
 public sealed class KlingerVolumeOscillator : CandleIndicator<KlingerResult>
 {
+    /// <summary>The <c>fastPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultFastPeriod = 34;
+
+    /// <summary>The <c>slowPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultSlowPeriod = 55;
+
+    /// <summary>The <c>signalPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultSignalPeriod = 13;
+
     private readonly int _fastPeriod;
     private readonly int _slowPeriod;
     private readonly int _signalPeriod;
 
     /// <summary>Creates a new Klinger Volume Oscillator.</summary>
     /// <param name="bars">High, Low, Close and Volume; built via <see cref="OhlcvBars.Hlcv"/>.</param>
-    /// <param name="fastPeriod">Fast EMA span for volume-force smoothing. Default 34. Must be ≥ 2.</param>
-    /// <param name="slowPeriod">Slow EMA span. Default 55. Must be &gt; <paramref name="fastPeriod"/>.</param>
-    /// <param name="signalPeriod">EMA span for the signal line. Default 13. Must be ≥ 1.</param>
-    public KlingerVolumeOscillator(OhlcvBars bars, int fastPeriod = 34, int slowPeriod = 55, int signalPeriod = 13)
-        : base(bars)
+    /// <param name="fastPeriod">Fast EMA span for volume-force smoothing. Default <see cref="DefaultFastPeriod"/>. Must be ≥ 2.</param>
+    /// <param name="slowPeriod">Slow EMA span. Default <see cref="DefaultSlowPeriod"/>. Must be &gt; <paramref name="fastPeriod"/>.</param>
+    /// <param name="signalPeriod">EMA span for the signal line. Default <see cref="DefaultSignalPeriod"/>. Must be ≥ 1.</param>
+    public KlingerVolumeOscillator(OhlcvBars bars, int fastPeriod = DefaultFastPeriod, int slowPeriod = DefaultSlowPeriod, int signalPeriod = DefaultSignalPeriod)
+        : base(bars, Spec(fastPeriod, slowPeriod, signalPeriod))
     {
-        if (fastPeriod < 2)
-            throw new ArgumentException($"fastPeriod must be >= 2 (got {fastPeriod}).", nameof(fastPeriod));
-        if (slowPeriod <= fastPeriod)
-            throw new ArgumentException(
-                $"slowPeriod must be > fastPeriod (got slow={slowPeriod}, fast={fastPeriod}).", nameof(slowPeriod));
-        if (signalPeriod < 1)
-            throw new ArgumentException($"signalPeriod must be >= 1 (got {signalPeriod}).", nameof(signalPeriod));
         _fastPeriod = fastPeriod;
         _slowPeriod = slowPeriod;
         _signalPeriod = signalPeriod;
-        Label = $"KVO({fastPeriod}/{slowPeriod}/{signalPeriod})";
+    }
+
+    internal static IndicatorSpec Spec(int fastPeriod, int slowPeriod, int signalPeriod)
+    {
+        fastPeriod.ThrowIfBelow(2, nameof(fastPeriod));
+        slowPeriod.ThrowIfBelow(fastPeriod + 1, nameof(slowPeriod));
+        signalPeriod.ThrowIfBelow(1, nameof(signalPeriod));
+        string label = string.Invariant($"KVO({fastPeriod}/{slowPeriod}/{signalPeriod})");
+        return IndicatorSpec.Of(1, label, label, "Signal");
     }
 
     /// <inheritdoc />
-    public override KlingerResult Compute()
+    public override KlingerResult Compute() =>
+        FoldHlcv<KlingerStep, KlingerPoint, Lines>(new(_fastPeriod, _slowPeriod, _signalPeriod), new(ValueCount)).Result;
+
+    /// <summary>The oscillator and its signal, one entry per bar from the first value on.</summary>
+    private readonly struct Lines(int count) : IOutputLines<KlingerPoint>
     {
-        int n = BarCount;
-        if (n < 2) return new KlingerResult(Array.Empty<double>(), Array.Empty<double>());
+        private readonly double[] _kvo = new double[count], _signal = new double[count];
 
-        int outLen = n - 1;
-        var kvo = new double[outLen];
-        var signal = new double[outLen];
-        var step = new KlingerStep(_fastPeriod, _slowPeriod, _signalPeriod);
-        for (int b = 0; b < n; b++)
+        internal KlingerResult Result => new(_kvo, _signal);
+
+        public void Set(int index, KlingerPoint output)
         {
-            var point = step.Next(High[b], Low[b], Close[b], Volume[b]);
-            if (b == 0) continue;
-            kvo[b - 1] = point.Kvo;
-            signal[b - 1] = point.Signal;
+            _kvo[index] = output.Kvo;
+            _signal[index] = output.Signal;
         }
-
-        return new KlingerResult(kvo, signal);
     }
 
     /// <summary>Exponential moving average, <c>adjust=False</c> (pandas convention): seeds with
@@ -68,7 +76,7 @@ public sealed class KlingerVolumeOscillator : CandleIndicator<KlingerResult>
     public override void Apply(Axes axes)
     {
         var r = Compute();
-        PlotSignal(axes, r.Kvo, warmup: 1, label: "KVO");
-        PlotSignal(axes, r.Signal, warmup: 1, label: "Signal", color: Colors.Tab10Orange);
+        PlotLine(axes, r.Kvo);
+        PlotLine(axes, r.Signal, LineLabel(1), null, IndicatorLook.Library.Lines.Second);
     }
 }

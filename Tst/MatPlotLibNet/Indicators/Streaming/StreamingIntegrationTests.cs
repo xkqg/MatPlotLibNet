@@ -22,7 +22,6 @@ public sealed class StreamingIntegrationTests
         candles.AppendBar(110, 120, 105, 115);
 
         Assert.Equal(3, sma.ProcessedCount);
-        Assert.False(double.IsNaN(sma.GetLatest()));
         Assert.Equal(110.0, sma.GetLatest(), 6); // avg(105, 110, 115)
     }
 
@@ -31,7 +30,7 @@ public sealed class StreamingIntegrationTests
     {
         var axes = new Axes();
         var candles = axes.AddSeries(new StreamingCandlestickSeries(100));
-        var bb = candles.WithStreamingBollinger(axes, 5, 2.0);
+        candles.WithStreamingBollinger(axes, 5, 2.0);
 
         // 3 band series added to axes
         Assert.Equal(4, axes.Series.Count); // candles + 3 bands
@@ -50,8 +49,8 @@ public sealed class StreamingIntegrationTests
 
         Assert.Equal(10, sma.ProcessedCount);
         Assert.Equal(10, ema.ProcessedCount);
-        Assert.False(double.IsNaN(sma.GetLatest()));
-        Assert.False(double.IsNaN(ema.GetLatest()));
+        sma.GetLatest().AssertFinite();
+        ema.GetLatest().AssertFinite();
     }
 
     [Fact]
@@ -73,7 +72,7 @@ public sealed class StreamingIntegrationTests
     {
         var axes = new Axes();
         var candles = axes.AddSeries(new StreamingCandlestickSeries(100));
-        var stoch = candles.WithStreamingStochastic(axes, 5, 3);
+        candles.WithStreamingStochastic(axes, 5, 3);
 
         // 2 output series (%K, %D) + candles
         Assert.Equal(3, axes.Series.Count);

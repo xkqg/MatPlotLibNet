@@ -44,8 +44,23 @@ public class FilledContourTests
         return ctx;
     }
 
-    private static IEnumerable<Point> Vertices(RecordingRenderContext ctx, string kind) =>
-        ctx.OfKind(kind).SelectMany(c => (Point[])((dynamic)c.Args!).points);
+    /// <summary>The vertices of the fill: the points of the pieces of every band painted above the lowest, and the corners of the
+    /// rectangle the lowest band is painted over the grid in (an iso-line at the grid's lowest value stands on its corner).</summary>
+    private static IEnumerable<Point> FillVertices(RecordingRenderContext ctx) =>
+        ctx.Of<DrawPathCall>().SelectMany(c => c.Segments.Select(VertexOf).OfType<Point>())
+            .Concat(ctx.Rects().SelectMany(r =>
+                new[] { new Point(r.X, r.Y), new Point(r.X + r.Width, r.Y), new Point(r.X, r.Y + r.Height), new Point(r.X + r.Width, r.Y + r.Height) }));
+
+    private static Point? VertexOf(PathSegment segment) => segment switch
+    {
+        MoveToSegment move => move.Point,
+        LineToSegment line => line.Point,
+        _ => null,
+    };
+
+    /// <summary>How many colours the bands are painted in: the lowest under the grid, and each band above it.</summary>
+    private static int BandColours(RecordingRenderContext ctx) =>
+        ctx.Of<ShapeCall>().Where(c => c is DrawRectangleCall or DrawPathCall).Select(c => c.Fill).Distinct().Count();
 
     private static bool Same(Point a, Point b) => Math.Abs(a.X - b.X) < 1e-9 && Math.Abs(a.Y - b.Y) < 1e-9;
 
@@ -58,9 +73,9 @@ public class FilledContourTests
         // colour to take from it and nothing to paint.
         var ctx = Render(c => new ContourfSeriesRenderer(c).Render(new ContourfSeries(Grid, Grid, Sum()) { LevelValues = [1.0, 1.0 + 1e-14] }));
 
-        Assert.Empty(ctx.OfKind("DrawRectangle"));
-        Assert.Empty(ctx.OfKind("DrawPolygon"));
-        Assert.Empty(ctx.OfKind("DrawLines"));    // the lines would stand on levels that are one level, in a colour of no range
+        Assert.Empty(ctx.Of<DrawRectangleCall>());
+        Assert.Empty(ctx.Of<DrawPathCall>());
+        Assert.Empty(ctx.Of<DrawLinesCall>());    // the lines would stand on levels that are one level, in a colour of no range
     }
 
     // ---- the fill stands where the grid stands --------------------------------------------------------------------------
@@ -71,8 +86,8 @@ public class FilledContourTests
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, Sum()) { Filled = true, Levels = 3 }));
 
         // The grid runs from x = 0 to 4: 100 + 200 · (0 - 1) = -100 to 100 + 200 · 3 = 700 (clipped by the plot, not by the fill).
-        var bottom = Assert.Single(ctx.OfKind("DrawRectangle"));
-        Assert.Equal(new Rect(-100, 50, 800, 300), (Rect)((dynamic)bottom.Args!).rect);
+        var bottom = Assert.Single(ctx.Of<DrawRectangleCall>());
+        Assert.Equal(new Rect(-100, 50, 800, 300), bottom.Rect);
     }
 
     [Fact]
@@ -82,8 +97,8 @@ public class FilledContourTests
             new DataTransform(0, 10, 0, 4, Plot));
 
         // The limits run to 10 and the grid to 4: the fill ends at 100 + 400 · 4 / 10 = 260, where the grid ends.
-        var bottom = Assert.Single(ctx.OfKind("DrawRectangle"));
-        Assert.Equal(new Rect(100, 50, 160, 300), (Rect)((dynamic)bottom.Args!).rect);
+        var bottom = Assert.Single(ctx.Of<DrawRectangleCall>());
+        Assert.Equal(new Rect(100, 50, 160, 300), bottom.Rect);
     }
 
     // ---- the fill follows the lines --------------------------------------------------------------------------------------
@@ -93,8 +108,8 @@ public class FilledContourTests
     {
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, Sum()) { Filled = true, Levels = 3 }));
 
-        var fill = Vertices(ctx, "DrawPolygon").ToList();
-        var lines = Vertices(ctx, "DrawLines").ToList();
+        var fill = FillVertices(ctx).ToList();
+        var lines = ctx.Polylines().SelectMany(p => p).ToList();
         Assert.NotEmpty(lines);
         Assert.All(lines, vertex => Assert.Contains(fill, f => Same(f, vertex)));
     }
@@ -105,8 +120,7 @@ public class FilledContourTests
         // The levels 2, 4 and 6 of the range 0..8 bound four bands.
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, Sum()) { Filled = true, Levels = 3 }));
 
-        var fills = ctx.OfKind("DrawPolygon").Select(c => ((dynamic)c.Args!).fill).Distinct().Count();
-        Assert.Equal(4, fills);
+        Assert.Equal(4, BandColours(ctx));
     }
 
     [Fact]
@@ -115,7 +129,7 @@ public class FilledContourTests
         // Named 3 and 5 bound three bands: 0..3, 3..5 and 5..8.
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, Sum()) { Filled = true, LevelValues = [3, 5] }));
 
-        Assert.Equal(3, ctx.OfKind("DrawPolygon").Select(c => ((dynamic)c.Args!).fill).Distinct().Count());
+        Assert.Equal(3, BandColours(ctx));
     }
 
     [Fact]
@@ -124,7 +138,7 @@ public class FilledContourTests
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, Sum()) { Filled = true, LevelValues = [-5, 4, 99] }));
 
         // Only 4 lies inside 0..8: two bands.
-        Assert.Equal(2, ctx.OfKind("DrawPolygon").Select(c => ((dynamic)c.Args!).fill).Distinct().Count());
+        Assert.Equal(2, BandColours(ctx));
     }
 
     // ---- the fill follows the axes ---------------------------------------------------------------------------------------
@@ -134,11 +148,12 @@ public class FilledContourTests
     {
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, YRamp()) { Filled = true, Levels = 2 }));
 
-        // z = y: the levels 4/3 and 8/3 of the range 0..4 bound three bands; the last painted is the highest, y from 8/3 to 4,
-        // which is 350 - 75 · 8/3 = 150 up to 50.
-        var polygons = ctx.OfKind("DrawPolygon").Select(c => (Point[])((dynamic)c.Args!).points).ToList();
-        var highest = polygons[^1];
-        Assert.All(highest, p => Assert.InRange(p.Y, 50 - 1e-9, 150 + 1e-9));
+        // z = y: the levels 4/3 and 8/3 of the range 0..4 bound three bands; the last painted is the highest, the region from
+        // y = 8/3 up to 4, which is 350 - 75 · 8/3 = 150 up to 50.
+        var highest = ctx.Of<DrawPathCall>()[^1];
+        var points = highest.Segments.Select(VertexOf).OfType<Point>().ToList();
+        Assert.NotEmpty(points);
+        Assert.All(points, p => Assert.InRange(p.Y, 50 - 1e-9, 150 + 1e-9));
     }
 
     [Fact]
@@ -148,7 +163,7 @@ public class FilledContourTests
             new DataTransform(3, 1, 0, 4, Plot));
 
         // x = 0 maps to 100 + 200 · (0 - 3) / (1 - 3) · ... : with the X axis reversed the grid still fills from its own corners.
-        var bottom = (Rect)((dynamic)Assert.Single(ctx.OfKind("DrawRectangle")).Args!).rect;
+        var bottom = (Rect)Assert.Single(ctx.Of<DrawRectangleCall>()).Rect;
         double left = new DataTransform(3, 1, 0, 4, Plot).DataToPixel(4, 0).X, right = new DataTransform(3, 1, 0, 4, Plot).DataToPixel(0, 0).X;
         Assert.Equal(left, bottom.X, 9);
         Assert.Equal(right - left, bottom.Width, 9);
@@ -165,7 +180,7 @@ public class FilledContourTests
         var ctx = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(Grid, Grid, z) { Filled = true, Levels = 3 }));
 
         // The four cells that have the missing value as a corner are not filled: 16 - 4 = 12 cells of the lowest band.
-        Assert.Equal(12, ctx.CountOf("DrawRectangle"));
+        Assert.Equal(12, ctx.Count<DrawRectangleCall>());
     }
 
     // ---- what is written -------------------------------------------------------------------------------------------------
@@ -176,8 +191,7 @@ public class FilledContourTests
         var figure = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
             .Contour(Grid, Grid, Sum(), s => { s.Filled = true; s.Levels = 3; })
             .SetXLim(1, 3)).Build();
-        var serializer = new ChartSerializer();
 
-        Assert.Equal(figure.ToSvg(), serializer.FromJson(serializer.ToJson(figure)).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 }

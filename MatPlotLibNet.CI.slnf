@@ -26,7 +26,8 @@
       "Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj",
       "Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj",
       "Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj",
-      "Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj"
+      "Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj",
+      "Tst/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.Tests.csproj"
     ]
   }
 }

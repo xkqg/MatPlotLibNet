@@ -17,7 +17,7 @@ namespace MatPlotLibNet;
 /// limits, because a limit clips every series on the axes and overwrites the caller's own. A missing observation (NaN) and
 /// an infinity are left out of a sample; a survival duration is refused instead when it is missing, because a subject
 /// without a time cannot be counted among those at risk.</summary>
-public static class DistributionAxesExtensions
+public static partial class DistributionAxesExtensions
 {
     extension(AxesBuilder axes)
     {
@@ -78,41 +78,42 @@ public static class DistributionAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(groups);
-            if (groups.Count == 0)
-            {
-                throw new ArgumentException("No groups were given; a ridgeline draws one ridge per group.", nameof(groups));
-            }
+            groups.ThrowIfEmpty("No groups were given; a ridgeline draws one ridge per group.");
 
-            if (bandwidth is { } given && !(given > 0 && double.IsFinite(given)))
-            {
-                throw new ArgumentOutOfRangeException(nameof(bandwidth), given, "A bandwidth is a width: a finite number above 0.");
-            }
-
+            bandwidth?.ThrowIfNotFinite(nameof(bandwidth)).ThrowIfNotAbove(0, nameof(bandwidth));
             double[][] observations = [.. groups.Select(g => g.SortedObservations(DensityObservations, nameof(groups)))];
-            double[] pooled = [.. observations.SelectMany(o => o).Order()];
             double h = bandwidth ?? GaussianKde.JointBandwidth(observations);
-            double[] grid = GaussianKde.Grid(pooled, h, RidgePoints);
-            double[][] densities = [.. observations.Select(o => GaussianKde.DensityAt(o, h, grid))];
+
+            // Each group is sorted, so the smallest observation of all is the first of some group and the largest the last of
+            // some group: the shared grid needs no pooled copy of every observation sorted again.
+            double min = observations[0][0], max = observations[0][^1];
+            foreach (double[] group in observations)
+            {
+                min = Math.Min(min, group[0]);
+                max = Math.Max(max, group[^1]);
+            }
+
+            double[] grid = GaussianKde.Grid(min, max, h, RidgePoints);
+            double[][] densities = GaussianKde.JointDensities(observations, h, grid);
             double tallest = densities.Max(d => d.Max());
 
             // The grid, the bandwidth and the densities are finite for every sample a double can spread over; observations
             // from -1e308 to 1e308 have no finite spread, and a bandwidth of 5e-324 no finite density.
-            if (!double.IsFinite(h) || !double.IsFinite(grid[0]) || !double.IsFinite(grid[^1]) || !(tallest > 0 && double.IsFinite(tallest)))
-            {
-                throw new ArgumentException(
-                    "The density of these observations cannot be computed in double precision: their spread, the bandwidth or the density is beyond what a double holds.",
-                    bandwidth is null ? nameof(groups) : nameof(bandwidth));
-            }
+            string from = bandwidth is null ? nameof(groups) : nameof(bandwidth);
+            h.ThrowIfBeyondADouble(from, "The bandwidth of these observations");
+            grid[0].ThrowIfBeyondADouble(from, "The spread of these observations");
+            grid[^1].ThrowIfBeyondADouble(from, "The spread of these observations");
+            tallest.ThrowIfBeyondADouble(from, "The density of these observations");
 
             int count = groups.Count;
             for (int g = 0; g < count; g++)
             {
                 // The first group on the highest slot. Each ridge rises from its baseline by its density over the tallest
                 // density of all, times the distance to the next baseline (one slot), so the tallest ridge reaches it exactly.
-                var slot = CategorySlot.Of(count - 1 - g);
-                double baseline = slot.Centre, spacing = slot.Right - slot.Left;
+                var slot = CategorySlot.FromTop(g, count);
+                double baseline = slot.Centre, spacing = slot.Width;
                 double[] top = [.. densities[g].Select(d => baseline + d / tallest * spacing)];
-                var ridge = new AreaSeries([.. grid], top) { YData2 = [.. grid.Select(_ => baseline)] };
+                var ridge = AreaSeries.Band([.. grid], top, [.. grid.Select(_ => baseline)], AreaSeries.RestingAlpha);
 
                 // Added in the order of the groups, all at the area's resting z-order: the lower ridges are drawn later, in front.
                 axes.AddSeries(ridge, configure);
@@ -194,8 +195,9 @@ public static class DistributionAxesExtensions
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="sample"/> is
         /// <see langword="null"/>.</exception>
-        /// <exception cref="ArgumentException">The sample has fewer than two observations that can be drawn, or the reference has
-        /// no finite quantile at one of the plotting positions.</exception>
+        /// <exception cref="ArgumentException">The sample has fewer than two observations that can be drawn.</exception>
+        /// <exception cref="InvalidOperationException">The reference has no finite quantile at one of the plotting positions: its
+        /// quantile function broke its contract, as a window function that gives a weight that is not finite does.</exception>
         /// <example>
         /// <code>
         /// double[] waits = [2.1, 0.4, 5.6, 1.3, 0.9, 3.8, 0.2, 1.7, 2.6, 0.6, 8.4, 1.1];
@@ -212,30 +214,17 @@ public static class DistributionAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(sample);
-            double[] ordered = sample.SortedObservations(LineObservations, "The sample", "a Q-Q plot is drawn from", nameof(sample));
+            double[] ordered = sample.SortedObservations(LineObservations, "The sample", "a Q-Q plot", nameof(sample));
 
-            // The k-th smallest observation against the reference's quantile of its rank, and the least-squares line through
-            // them (scipy's linregress of osr on osm), evaluated at the first and the last quantile.
-            double[] positions = FillibenPositions(ordered.Length);
-            double[] theoretical = [.. positions.Select(reference.Quantile)];
-            int unfinite = Array.FindIndex(theoretical, quantile => !double.IsFinite(quantile));
-            if (unfinite >= 0)
-            {
-                throw new ArgumentException(
-                    $"The reference '{reference.Name}' has no finite quantile at the plotting position {positions[unfinite].ToString(CultureInfo.InvariantCulture)}; a Q-Q plot is drawn from the quantiles of its reference.",
-                    nameof(reference));
-            }
-
-            double[] fit = LeastSquares.PolyFit(theoretical, ordered, 1);
-            double[] ends = LeastSquares.PolyEval(fit, [theoretical[0], theoretical[^1]]);
-
+            var fit = reference.FitTo(ordered);
+            double[] theoretical = fit.Theoretical;
             var points = new ScatterSeries(theoretical, ordered);
             Trendline line = null!;
             axes.AddSeries(points)
-                .AddTrendline(theoretical[0], ends[0], theoretical[^1], ends[1], t =>
+                .AddTrendline(theoretical[0], fit.StartY, theoretical[^1], fit.EndY, t =>
                 {
                     line = t;
-                    t.Color = ReferenceColor; t.LineWidth = ReferenceLineWidth;
+                    t.Color = ReferenceColor; t.LineWidth = LineWidthRule.Line.Resting;
                 })
                 .SetXLabel(reference.XAxisTitle)
                 .SetYLabel(SampleQuantilesTitle);
@@ -310,34 +299,26 @@ public static class DistributionAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(groups);
-            if (groups.Count == 0)
-            {
-                throw new ArgumentException("No groups were given; a Kaplan-Meier chart draws one curve per group.", nameof(groups));
-            }
+            groups.ThrowIfEmpty("No groups were given; a Kaplan-Meier chart draws one curve per group.");
 
             // Every group is estimated before the first curve is added, so a refused call leaves the axes as it was.
             SurvivalCurve[] curves = [.. groups.Select(g => g.ProductLimit(nameof(groups)))];
             for (int g = 0; g < curves.Length; g++)
             {
-                int colorGroup = axes.NextColorGroup();
-
+                // The curve, its band and its censor marks are one group: they wear the curve's colour.
                 var curve = new LineSeries(curves[g].Times, curves[g].Survival) { DrawStyle = DrawStyle.StepsPost, Label = groups[g].Label };
-                curve.ColorGroup = colorGroup;
+                var greenwood = curves[g].GreenwoodBand();
+                var band = AreaSeries.Band(curves[g].Times, greenwood.Upper, greenwood.Lower, GreenwoodAlpha);
+                double[] censoringTimes = groups[g].CensoringTimes();
+                ScatterSeries? marks = censoringTimes.Length > 0
+                    ? new ScatterSeries(censoringTimes, [.. censoringTimes.Select(t => curves[g].LevelAt(t))]) { Marker = MarkerStyle.Plus }
+                    : null;
+                ChartSeries[] members = marks is null ? [curve, band] : [curve, band, marks];
+                axes.Axes.InColorGroup(members);
+
                 axes.AddSeries(curve, configure);
-
-                var greenwood = GreenwoodBand(curves[g]);
-                var band = new AreaSeries(curves[g].Times, greenwood.Upper) { YData2 = greenwood.Lower, Alpha = 0.2 };
-                band.ColorGroup = colorGroup;
                 axes.AddSeries(band);
-
-                double[] censoringTimes = CensoringTimesOf(groups[g]);
-                if (censoringTimes.Length > 0)
-                {
-                    double[] marksY = [.. censoringTimes.Select(t => LevelAt(curves[g], t))];
-                    var marks = new ScatterSeries(censoringTimes, marksY) { Marker = MarkerStyle.Plus };
-                    marks.ColorGroup = colorGroup;
-                    axes.AddSeries(marks);
-                }
+                if (marks is not null) axes.AddSeries(marks);
             }
 
             return axes.SetYLabel(SurvivalProbabilityTitle);
@@ -347,7 +328,7 @@ public static class DistributionAxesExtensions
         /// subjects still at risk (followed to that time or longer: the count the survival curve is estimated with, R's
         /// <c>n.risk</c>), and below the rows one line stating the log-rank test of whether the groups' survival differs.
         /// <para>The table is an axes of its own: stack it under the survival axes and share the X axis with
-        /// <see cref="AxesBuilder.ShareX"/>, so a count stands directly under its time on the survival curve, and the two plot
+        /// <see cref="AxesBuilderLinkedAxesVerbs.ShareX"/>, so a count stands directly under its time on the survival curve, and the two plot
         /// areas have the same width (see the example). Without the shared X axis the table has no range of its own to place the
         /// times in.</para>
         /// <para>Each count is an <see cref="Annotation"/> at its time along the X axis and on the row of its group, centred, with
@@ -401,18 +382,14 @@ public static class DistributionAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(groups);
-            if (groups.Count == 0)
-            {
-                throw new ArgumentException("No groups were given; a risk table counts one row per group.", nameof(groups));
-            }
+            groups.ThrowIfEmpty("No groups were given; a risk table counts one row per group.");
 
             // Everything is checked before the first annotation is added, so a refused call leaves the axes as it was.
             double[][] followed = [.. groups.Select(g => g.ThrowIfNotSurvivalData(nameof(groups)))];
-            double[] readAt = times ?? [.. new Rendering.TickLocators.MaxNLocator(Rendering.TickLocators.MaxNLocator.MostTicks).Locate(0, followed.Max(d => d.Max()))];
-            if (readAt.Length == 0 || readAt.Any(time => !double.IsFinite(time)))
-            {
-                throw new ArgumentException("The times of a risk table are one or more finite numbers.", nameof(times));
-            }
+            double[] readAt = times ?? [.. new Rendering.TickLocators.MaxNLocator(Rendering.TickLocators.TickBudget.Standard.Most).Locate(0, followed.Max(d => d.Max()))];
+            readAt.ThrowIfEmpty("The times of a risk table are one or more finite numbers.", nameof(times));
+
+            foreach (double time in readAt) time.ThrowIfNotFinite(nameof(times), "A time of a risk table");
 
             // The groups take the rows from the top; one slot below them holds the test, when there is anything to compare.
             var logRank = LogRank.Test(groups);
@@ -420,13 +397,16 @@ public static class DistributionAxesExtensions
             string[] names = [.. groups.Select(g => g.Label ?? string.Empty), .. compared ? new[] { string.Empty } : []];
             int rows = names.Length;
 
+            // The centre of each group's row, worked out once: the counts stand on them and so do the names.
+            double[] rowCentres = CategorySlot.CentresFromTop(groups.Count, rows);
+
             var counts = new List<Annotation>(groups.Count * readAt.Length);
             for (int g = 0; g < groups.Count; g++)
             {
-                double row = CategorySlot.Of(rows - 1 - g).Centre;
+                double row = rowCentres[g];
                 foreach (double time in readAt)
                 {
-                    axes.Annotate(groups[g].AtRiskAt(time).ToString(CultureInfo.InvariantCulture), time, row, count =>
+                    axes.Annotate(groups[g].AtRiskAt(time).InvariantText(), time, row, count =>
                     {
                         // The start of follow-up is the left edge of the plot, where a centred number would run into the row names.
                         bool atStart = time <= 0;
@@ -452,7 +432,6 @@ public static class DistributionAxesExtensions
             }
 
             // The names stand on the rows of the groups; the slot of the test below them has no tick, so no mark stands without a name.
-            double[] rowCentres = [.. Enumerable.Range(0, groups.Count).Select(g => CategorySlot.Of(rows - 1 - g).Centre)];
             axes.SetYTickLocator(new Rendering.TickLocators.FixedLocator(rowCentres))
                 .SetYTickFormatter(names.AsCategoryTicks(topDown: true).Formatter)
                 .SetYLim(0, rows)
@@ -505,37 +484,26 @@ public static class DistributionAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(groups);
-            if (groups.Count == 0)
-            {
-                throw new ArgumentException("No groups were given; a raincloud chart draws one violin, one box and one scatter per set of groups.", nameof(groups));
-            }
+            groups.ThrowIfEmpty("No groups were given; a raincloud chart draws one violin, one box and one scatter per set of groups.");
 
             double[][] samples = [.. groups.Select(g => g.Values)];
             double[] pointX = [.. samples.SelectMany((s, g) => s.Select((_, i) => g + 0.35 + (i % 4) * 0.03))];
             double[] pointY = [.. samples.SelectMany(s => s)];
 
-            int colorGroup = axes.NextColorGroup();
-            var violin = new ViolinSeries(samples) { Side = ViolinSide.High, Alpha = 0.5, Label = "Samples" };
-            violin.ColorGroup = colorGroup;
-            axes.AddSeries(violin);
-
-            var box = new BoxSeries(samples) { Widths = 0.1, ShowOutliers = false };
-            box.ColorGroup = colorGroup;
-            axes.AddSeries(box);
-
+            // The violin and the box stand at their dataset's index, whatever theme draws them: a violin or a box that is given no
+            // position stands at 1, 2, ... under the matplotlib themes, and the points and the names stand at the index.
+            double[] positions = [.. Enumerable.Range(0, samples.Length).Select(k => (double)k)];
+            var violin = new ViolinSeries(samples) { Side = ViolinSide.High, Alpha = 0.5, Label = "Samples", Positions = positions };
+            var box = new BoxSeries(samples) { Widths = 0.1, ShowOutliers = false, Positions = positions };
             var points = new ScatterSeries(pointX, pointY) { MarkerSize = 6, Alpha = 1 };
-            points.ColorGroup = colorGroup;
-            axes.AddSeries(points);
+            axes.Axes.InColorGroup(violin, box, points);
+            axes.AddSeries(violin).AddSeries(box).AddSeries(points);
 
             configure?.Invoke(new RaincloudParts(violin, box, points));
 
             // One tick per group AT ITS DATASET INDEX, not the bar-style half-slot SetXCategoryTicks places a name at:
-            // the violin and the box already stand at their dataset's own index (the default a multi-dataset series takes
-            // when it is given no Positions), so the name belongs on that same number, not half a slot further on.
-            double[] positions = [.. Enumerable.Range(0, groups.Count).Select(k => (double)k)];
-            return axes
-                .SetXTickLocator(new Rendering.TickLocators.FixedLocator(positions))
-                .SetXTickFormatter(new Rendering.TickFormatters.CategoryFormatter([.. groups.Select(g => g.Label)], positions));
+            // the violin and the box stand at their dataset's own index, so the name belongs on that same number.
+            return axes.SetXCategoryTicks([.. groups.Select(g => g.Label)], positions);
         }
 
         /// <summary>Draws a stem-and-leaf display: every observation of the sample on a row, the digits above the last one as the
@@ -547,7 +515,8 @@ public static class DistributionAxesExtensions
         /// <paramref name="leafUnit"/> the finest power of ten is taken whose rows do not outnumber twice the square root of the
         /// observations (at least five) while its stems have no more than two digits.</para>
         /// <para>Each leaf has a column of its own, so the leaves of every row stand under each other because the cells are
-        /// the same width, in any font: the display is a <see cref="TableSeries"/> with no borders and no fill, the stems aligned to
+        /// the same width, in any font: the display is a <see cref="TableSeries"/> in the plot (<see cref="TableLocation.InPlot"/>, under every
+        /// theme) with no borders and no fill, the stems aligned to
         /// the right against a bar and the leaves centred. A line at the lower left of the plot says how to read it, such as
         /// <c>Key: 1 | 2 = 1.2</c>. The verb sets no axis limits.</para>
         /// <para>The chart is its parts: written to JSON it is the table and the annotation, and read back it draws the same
@@ -579,18 +548,11 @@ public static class DistributionAxesExtensions
             ArgumentNullException.ThrowIfNull(sample);
             var display = sample.StemAndLeaf(leafUnit);
 
-            // One column for each leaf of the fullest row, after the stem and the bar.
-            int leaves = display.Rows.Max(row => row.Leaves.Count);
-            string[][] cells =
-            [
-                .. display.Rows.Select(row => (string[])
-                [
-                    row.Stem, "|",
-                    .. Enumerable.Range(0, leaves).Select(i => i < row.Leaves.Count ? row.Leaves[i].ToString(CultureInfo.InvariantCulture) : string.Empty),
-                ]),
-            ];
-            var table = new TableSeries(cells)
+            int leaves = display.LeafColumns;
+            var table = new TableSeries(display.Cells())
             {
+                // The display fills its plot under every theme; a table on its own stands below the axes under the matplotlib themes.
+                Location = TableLocation.InPlot,
                 ColumnAlignments = [TextAlignment.Right, TextAlignment.Center, .. Enumerable.Repeat(TextAlignment.Center, leaves)],
                 ColumnWidths = [StemColumnWidth, BarColumnWidth, .. Enumerable.Repeat(1.0, leaves)],
                 CellHeight = StemRowHeight,
@@ -600,7 +562,7 @@ public static class DistributionAxesExtensions
             axes.AddSeries(table);
 
             Annotation? key = null;
-            axes.Annotate(KeyOf(display), 0, KeyInset, line =>
+            axes.Annotate(display.Key, 0, KeyInset, line =>
             {
                 line.Coordinates = AnnotationCoordinates.AxesFraction;
                 line.Alignment = TextAlignment.Left;
@@ -623,17 +585,6 @@ public static class DistributionAxesExtensions
     /// <summary>How far above the foot of the plot (a share of its height) and in from its left edge (pixels) the key stands.</summary>
     private const double KeyInset = 0.02, KeyOffset = 8;
 
-    /// <summary>The line that says how to read a stem-and-leaf display: the first leaf on the display, written as the value it
-    /// stands for, such as <c>Key: 1 | 2 = 1.2</c>.</summary>
-    private static string KeyOf(StemAndLeafDisplay display)
-    {
-        var row = display.Rows.First(candidate => candidate.Leaves.Count > 0);
-        int leaf = row.Leaves[0];
-        decimal digits = decimal.Parse(row.Stem.TrimStart('-'), CultureInfo.InvariantCulture) * 10 + leaf;
-        decimal value = (row.Stem.StartsWith('-') ? -digits : digits) * display.LeafUnit;
-        return $"Key: {row.Stem} | {leaf} = {value.ToString(CultureInfo.InvariantCulture)}";
-    }
-
     /// <summary>The title of a Kaplan-Meier chart's Y axis.</summary>
     private const string SurvivalProbabilityTitle = "Survival probability";
 
@@ -646,90 +597,15 @@ public static class DistributionAxesExtensions
     /// <summary>How far a count at time 0 stands in from the left edge of the risk table, in pixels.</summary>
     private const double StartCountInset = 3;
 
-    /// <summary>Greenwood's confidence band around <paramref name="curve"/>, PLAIN form (<see cref="KaplanMeier"/>'s
-    /// own doc explains why not the log or log-log transform): the variance accumulates only at a point with an event
-    /// (<see cref="SurvivalCurve.Events"/> above 0) and only while every subject at risk there did not all have the event
-    /// (dividing by n_i - d_i = 0 is undefined; a level of exactly 0 already has a band of [0, 0], so nothing is lost by
-    /// stopping the sum there).</summary>
-    /// <param name="curve">The curve the band surrounds.</param>
-    /// <returns>The lower and the upper bound, one pair per point of <paramref name="curve"/>, each clamped to [0, 1].</returns>
-    private static ConfidenceBand GreenwoodBand(SurvivalCurve curve)
-    {
-        int n = curve.Times.Length;
-        var lower = new double[n];
-        var upper = new double[n];
-        double cumulative = 0;
-        for (int i = 0; i < n; i++)
-        {
-            if (curve.Events[i] > 0 && curve.AtRisk[i] > curve.Events[i])
-            {
-                cumulative += (double)curve.Events[i] / (curve.AtRisk[i] * (curve.AtRisk[i] - curve.Events[i]));
-            }
-
-            double s = curve.Survival[i];
-            double se = Math.Sqrt(s * s * cumulative);
-            lower[i] = Math.Clamp(s - Z95 * se, 0, 1);
-            upper[i] = Math.Clamp(s + Z95 * se, 0, 1);
-        }
-
-        return new ConfidenceBand(lower, upper);
-    }
-
-    /// <summary>The two edges of a confidence band, one value for each point of its curve.</summary>
-    /// <param name="Lower">The lower bound.</param>
-    /// <param name="Upper">The upper bound.</param>
-    private readonly record struct ConfidenceBand(double[] Lower, double[] Upper);
-
-    /// <summary>The standard normal distribution's 97.5th percentile: a two-sided 95 % confidence band is the estimate
-    /// plus and minus this many standard errors.</summary>
-    private const double Z95 = 1.959963984540054;
-
-    /// <summary>The times <paramref name="group"/>'s subjects left without an event (<see cref="SurvivalGroup.Observed"/> is
-    /// <see langword="false"/>), ascending.</summary>
-    private static double[] CensoringTimesOf(SurvivalGroup group) =>
-        [.. group.Durations.Where((_, i) => !group.Observed[i]).Order()];
-
-    /// <summary>The level <paramref name="curve"/> is drawn at AT <paramref name="time"/>: the survival of the last point
-    /// at or before it, read "steps-post" exactly as the curve itself is drawn (a level holds from its point to the
-    /// next).</summary>
-    private static double LevelAt(SurvivalCurve curve, double time)
-    {
-        double level = curve.Survival[0];
-        for (int i = 0; i < curve.Times.Length && curve.Times[i] <= time; i++)
-        {
-            level = curve.Survival[i];
-        }
-
-        return level;
-    }
-
-    /// <summary>Filliben's plotting positions for <paramref name="count"/> observations (Filliben 1975, scipy's
-    /// <c>_calc_uniform_order_statistic_medians</c>): the median of the k-th smallest of <paramref name="count"/> uniform
-    /// observations on (0, 1), in ascending order. The last is 0.5^(1/n), the first one minus that, and the ones between
-    /// (k - 0.3175) / (n + 0.365) for rank k; they are symmetric around 0.5.</summary>
-    /// <param name="count">The number of observations, two or more.</param>
-    private static double[] FillibenPositions(int count)
-    {
-        var positions = new double[count];
-        positions[^1] = Math.Pow(0.5, 1.0 / count);
-        positions[0] = 1 - positions[^1];
-        for (int rank = 2; rank < count; rank++)
-        {
-            positions[rank - 1] = (rank - 0.3175) / (count + 0.365);
-        }
-
-        return positions;
-    }
-
     /// <summary>How many observations a Q-Q plot is drawn from at the least: a reference line is fitted through two points
     /// or more.</summary>
     private const int LineObservations = 2;
 
+    /// <summary>The opacity of the band of a Kaplan-Meier curve: its pointwise confidence band (Greenwood's formula).</summary>
+    private const double GreenwoodAlpha = 0.2;
+
     /// <summary>The colour of a Q-Q plot's reference line: red, as scipy's probplot draws it (<c>'r-'</c>).</summary>
     private static readonly Color ReferenceColor = Colors.Red;
-
-    /// <summary>The width of a Q-Q plot's reference line, in points: matplotlib's line width.</summary>
-    private const double ReferenceLineWidth = 1.5;
 
     /// <summary>The title of a Q-Q plot's Y axis.</summary>
     private const string SampleQuantilesTitle = "Sample quantiles";
@@ -741,4 +617,70 @@ public static class DistributionAxesExtensions
     /// <summary>The number of points of a ridgeline's shared grid: seaborn's grid for a density curve, fine enough that a
     /// ridge drawn through them strays from the true density by less than a pixel at the usual sizes.</summary>
     private const int RidgePoints = 200;
+
+    /// <summary>The product-limit (Kaplan-Meier) estimate of one <see cref="SurvivalGroup"/>, as the points of a step curve read
+    /// "after each point, the level holds until the next" (matplotlib's <c>steps-post</c>): <see cref="DistributionAxesExtensions.SurvivalCurve.Times"/> ascending, and
+    /// <see cref="DistributionAxesExtensions.SurvivalCurve.Survival"/> the estimated probability of surviving past each.</summary>
+    /// <param name="Times">The time of each point: 0, then every time at which an event happened, then the last follow-up time
+    /// when it is later than the last event.</param>
+    /// <param name="Survival">The estimate at each of <paramref name="Times"/>: 1 at 0, then the level the curve drops to at each
+    /// event time, then that last level again at the last follow-up.</param>
+    /// <param name="AtRisk">The number at risk at each of <paramref name="Times"/> (n_i): the subjects whose duration is that
+    /// time or later, counted just before that time's events. Greenwood's variance is computed from this and
+    /// <paramref name="Events"/>, not re-derived.</param>
+    /// <param name="Events">The number of events at each of <paramref name="Times"/> (d_i): 0 at the seed point and at an
+    /// extension to the last follow-up, which hold no event of their own.</param>
+    internal readonly record struct SurvivalCurve(double[] Times, double[] Survival, int[] AtRisk, int[] Events)
+    {
+        /// <summary>The standard normal distribution's 97.5th percentile: a two-sided 95 % confidence band is the estimate plus and
+        /// minus this many standard errors. Written as the literal, not computed from the normal quantile, so the band keeps its bits.</summary>
+        private const double Z95 = 1.959963984540054;
+
+        /// <summary>Greenwood's confidence band around this curve, PLAIN form (the Kaplan-Meier verb's own doc explains why not the
+        /// log or log-log transform): the variance accumulates only at a point with an event (<see cref="DistributionAxesExtensions.SurvivalCurve.Events"/> above 0) and
+        /// only while every subject at risk there did not all have the event (dividing by n_i - d_i = 0 is undefined; a level of
+        /// exactly 0 already has a band of [0, 0], so nothing is lost by stopping the sum there).</summary>
+        /// <returns>The lower and the upper bound, one pair per point of the curve, each clamped to [0, 1].</returns>
+        internal SurvivalBand GreenwoodBand()
+        {
+            int n = Times.Length;
+            var lower = new double[n];
+            var upper = new double[n];
+            double cumulative = 0;
+            for (int i = 0; i < n; i++)
+            {
+                if (Events[i] > 0 && AtRisk[i] > Events[i])
+                {
+                    cumulative += (double)Events[i] / (AtRisk[i] * (AtRisk[i] - Events[i]));
+                }
+
+                double s = Survival[i];
+                double se = Math.Sqrt(s * s * cumulative);
+                lower[i] = (s - Z95 * se).Saturate();
+                upper[i] = (s + Z95 * se).Saturate();
+            }
+
+            return new SurvivalBand(lower, upper);
+        }
+
+        /// <summary>The level the curve is drawn at AT <paramref name="time"/>: the survival of the last point at or before it, read
+        /// "steps-post" exactly as the curve itself is drawn (a level holds from its point to the next).</summary>
+        /// <param name="time">A time, in the unit of the durations.</param>
+        /// <returns>The level there; before the first point, the first level.</returns>
+        internal double LevelAt(double time)
+        {
+            double level = Survival[0];
+            for (int i = 0; i < Times.Length && Times[i] <= time; i++)
+            {
+                level = Survival[i];
+            }
+
+            return level;
+        }
+    }
+
+    /// <summary>The two edges of a survival curve's confidence band, one value for each point of the curve.</summary>
+    /// <param name="Lower">The lower bound.</param>
+    /// <param name="Upper">The upper bound.</param>
+    internal readonly record struct SurvivalBand(double[] Lower, double[] Upper);
 }

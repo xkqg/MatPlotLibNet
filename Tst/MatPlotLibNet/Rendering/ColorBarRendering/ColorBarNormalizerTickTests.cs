@@ -46,8 +46,11 @@ public class ColorBarNormalizerTickTests
         _ => null,
     };
 
+    // The documented formula of the LogNormalizer (and the ticks of values it places) is the library's own themes'; under the matplotlib
+    // themes, which the figure wears by default, the normaliser is matplotlib's LogNorm and its bar names the powers of ten
+    // (ColorBarLogTicksTests), so a log row is drawn under the library's own theme here.
     private static Figure Chart(INormalizer? normalizer, ColorBarOrientation orientation) =>
-        Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax =>
+        Plt.Create().WithSize(600, 400).WithTheme(normalizer is LogNormalizer ? Theme.Default : Theme.MatplotlibV2).AddSubPlot(1, 1, 1, ax =>
         {
             ax.Heatmap(Data);
             if (normalizer is not null) ax.WithNormalizer(normalizer);
@@ -57,16 +60,17 @@ public class ColorBarNormalizerTickTests
     /// <summary>The calls the axes' colour bar makes: those between its group's start and end.</summary>
     private static BarCalls ReadBar(RecordingRenderContext ctx)
     {
-        int start = ctx.Calls.FindIndex(c => c.Kind == "BeginGroup" && (string)((dynamic)c.Args!).cssClass == "colorbar");
-        int end = ctx.Calls.FindIndex(start, c => c.Kind == "EndGroup");
+        int start = ctx.Calls.FindIndex(c => c is BeginGroupCall { CssClass: "colorbar" });
+        int end = ctx.Calls.FindIndex(start, c => c is EndGroupCall);
         var bar = ctx.Calls.GetRange(start + 1, end - start - 1);
-        var rectangles = bar.Where(c => c.Kind == "DrawRectangle").ToList();
-        var frame = (Rect)((dynamic)rectangles.Last(c => ((Color?)((dynamic)c.Args!).fill) is null).Args!).rect;
-        var gradient = rectangles.Where(c => ((Color?)((dynamic)c.Args!).fill) is not null)
-            .Select(c => (Color)((dynamic)c.Args!).fill).ToList();
-        var ticks = bar.Where(c => c.Kind == "DrawText")
-            .Select(c => (Text: (string)((dynamic)c.Args!).text, At: (Point)((dynamic)c.Args!).position))
-            .Where(t => double.TryParse(t.Text, out _)).ToList();
+        var rectangles = bar.OfType<DrawRectangleCall>().ToList();
+        var frame = (Rect)rectangles.Last(c => (c.Fill) is null).Rect;
+        var gradient = rectangles.Where(c => (c.Fill) is not null)
+            .Select(c => c.Fill!.Value).ToList();
+        var ticks = bar.OfType<DrawTextCall>()
+            // A negative number is written with the minus sign under the matplotlib themes (axes.unicode_minus); read as a number here.
+            .Select(c => (Text: c.Text.Replace('\u2212', '-'), At: Centred(c.Position, c.Font)))
+            .Where(t => double.TryParse(t.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _)).ToList();
         return new BarCalls(frame, ticks, gradient);
     }
 
@@ -77,10 +81,15 @@ public class ColorBarNormalizerTickTests
         return ReadBar(ctx);
     }
 
+    /// <summary>The point a tick label drawn at <paramref name="baseline"/> in <paramref name="font"/> is centred on, for a label beside a
+    /// vertical bar: its baseline stands 0.35 of its ascent (its font's size under the library's measure) below its mark, by the box's
+    /// rule; a label below a horizontal bar is read along the bar only, where the drop does not count.</summary>
+    private static Point Centred(Point baseline, Font font) => new(baseline.X, baseline.Y - 0.35 * font.Size);
+
     /// <summary>Where along the bar (0 at its start, 1 at its end) a tick label stands.</summary>
     private static double FractionAlong(BarCalls bar, (string Text, Point At) tick, ColorBarOrientation orientation) =>
         orientation == ColorBarOrientation.Vertical
-            ? 1 - (tick.At.Y - 4 - bar.Frame.Y) / bar.Frame.Height
+            ? 1 - (tick.At.Y - bar.Frame.Y) / bar.Frame.Height
             : (tick.At.X - bar.Frame.X) / bar.Frame.Width;
 
     // ---- a tick stands at its colour -------------------------------------------------------------------------------------
@@ -121,7 +130,7 @@ public class ColorBarNormalizerTickTests
     public void NoTwoLabels_ReadingAnyNormaliser_StandCloserThanALabelTakes(ColorBarOrientation orientation, string name)
     {
         var bar = Render(NormalizerNamed(name), orientation);
-        var font = ThemedFontProvider.TickFont(Theme.MatplotlibV2);
+        var font = Theme.MatplotlibV2.TickFont();
         var ctx = new RecordingRenderContext();
         var ordered = bar.Ticks.OrderBy(t => FractionAlong(bar, t, orientation)).ToList();
 
@@ -169,6 +178,24 @@ public class ColorBarNormalizerTickTests
         Assert.True(new HashSet<Color> { map.GetColor(0), map.GetColor(0.25), map.GetColor(0.5), map.GetColor(0.75) }.SetEquals(bar.Gradient));
     }
 
+    [Theory]
+    [InlineData(ColorBarOrientation.Vertical)]
+    [InlineData(ColorBarOrientation.Horizontal)]
+    public void ALogBarUnderTheMatplotlibThemes_NamesThePowersOfTenWhereTheNormPutsThem(ColorBarOrientation orientation)
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax =>
+            ax.Heatmap(Data).WithNormalizer(new LogNormalizer()).WithColorBar(cb => cb with { Orientation = orientation })).Build();
+
+        new ChartRenderer().Render(figure, ctx);
+
+        var labels = ctx.Of<DrawTextCall>().Select(c => c.Text).ToList();
+        Assert.Contains("10⁰", labels);
+        Assert.Contains("10¹", labels);
+        Assert.Contains("10²", labels);
+        Assert.Contains("10³", labels);
+    }
+
     // ---- the colour bar of a figure ------------------------------------------------------------------------------------------
 
     [Theory]
@@ -182,14 +209,15 @@ public class ColorBarNormalizerTickTests
         new ChartRenderer().RenderFigureColorBar(figure, [new Rect(80, 40, 600, 400)],
             new ColorBar { Visible = true, Orientation = orientation }, ctx);
 
-        var rectangles = ctx.OfKind("DrawRectangle").ToList();
-        var frame = (Rect)((dynamic)rectangles.Last(c => ((Color?)((dynamic)c.Args!).fill) is null).Args!).rect;
-        var ticks = ctx.OfKind("DrawText")
-            .Select(c => (Text: (string)((dynamic)c.Args!).text, At: (Point)((dynamic)c.Args!).position))
-            .Where(t => double.TryParse(t.Text, out _)).ToList();
+        var rectangles = ctx.Of<DrawRectangleCall>().ToList();
+        var frame = (Rect)rectangles.Last(c => (c.Fill) is null).Rect;
+        var ticks = ctx.Of<DrawTextCall>()
+            // A negative number is written with the minus sign under the matplotlib themes (axes.unicode_minus); read as a number here.
+            .Select(c => (Text: c.Text.Replace('\u2212', '-'), At: Centred(c.Position, c.Font)))
+            .Where(t => double.TryParse(t.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _)).ToList();
         var tick = ticks.Single(t => t.Text == "200");
         double fraction = orientation == ColorBarOrientation.Vertical
-            ? 1 - (tick.At.Y - 4 - frame.Y) / frame.Height
+            ? 1 - (tick.At.Y - frame.Y) / frame.Height
             : (tick.At.X - frame.X) / frame.Width;
         Assert.Equal(Math.Log(200) / Math.Log(1000), fraction, 6);
     }
@@ -203,10 +231,10 @@ public class ColorBarNormalizerTickTests
     public void TheRoomReserved_IsAtLeastTheWidestLabelDrawn(ColorBarOrientation orientation, string name)
     {
         var ctx = new RecordingRenderContext();
-        var font = ThemedFontProvider.TickFont(Theme.MatplotlibV2);
+        var font = Theme.MatplotlibV2.TickFont();
         var bar = Render(NormalizerNamed(name), orientation);
 
-        double reserved = MatPlotLibNet.Rendering.ColorBarRendering.ColorBarScale.WidestLabel(Low, High, ctx, font, NormalizerNamed(name) ?? LinearNormalizer.Instance);
+        double reserved = MatPlotLibNet.Rendering.ColorBarRendering.ColorBarScale.WidestLabel(Low, High, ctx, font, NormalizerNamed(name) ?? LinearNormalizer.Instance, Theme.Default);
 
         Assert.All(bar.Ticks, t => Assert.True(ctx.MeasureText(t.Text, font).Width <= reserved + 1e-9));
     }
@@ -245,18 +273,22 @@ public class ColorBarNormalizerTickTests
     }
 
     [Fact]
-    public void ASpectrogramsBar_NamesValuesInsideTheMagnitudesItWasDrawnOver()
+    public void ASpectrogramsBar_NamesValuesInsideTheCellsItWasDrawnOver()
     {
         var series = Spectrogram();
-        var range = series.GetColorBarRange();
         var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax.AddSeries(series).WithColorBar()).Build();
+        // The cells the figure's theme fills them with: the one-sided density of each window under the default matplotlib style.
+        var range = series.ColourRangeUnder(figure.Theme);
         var ctx = new RecordingRenderContext();
 
         new ChartRenderer().Render(figure, ctx);
 
         var bar = ReadBar(ctx);
         Assert.True(bar.Ticks.Count >= 2);
-        Assert.All(bar.Ticks, t => Assert.InRange(double.Parse(t.Text), range.Min, range.Max));
-        Assert.True(range.Max > 2, "the magnitudes of this signal reach past 2, where a bar from 0 to 1 stops");
+        // A tick within 1e-10 of the span of an end counts as on it, as matplotlib's Axis keeps it (_interval_contains_close): the density
+        // reaches down to 2.7e-12, where the bar names 0.
+        double close = 1e-10 * (range.Max - range.Min);
+        Assert.All(bar.Ticks, t => Assert.InRange(double.Parse(t.Text, System.Globalization.CultureInfo.InvariantCulture), range.Min - close, range.Max + close));
+        Assert.True(series.GetColorBarRange().Max > 2, "the magnitudes of this signal reach past 2, where a bar from 0 to 1 stops");
     }
 }

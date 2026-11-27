@@ -9,36 +9,19 @@ namespace MatPlotLibNet.Tests.Packaging;
 /// comes from a per-platform assets package, and a program that renders must bring all three or it dies on the platform it
 /// lacks ("Unable to load shared library 'libSkiaSharp'", which is what the picture-comparison suite did on Linux). The six
 /// references are written once, in <c>SkiaNativeAssets.props</c>, and every host that renders (the MCP tool, the Skia test
-/// project, the picture-comparison suite) imports that file, so the set and its versions cannot drift apart.</summary>
+/// project, the picture-comparison suite, the sample program) imports that file, so the set and its versions cannot drift apart.</summary>
 public class SkiaNativeAssetsContractTests
 {
     private const string PropsFile = "SkiaNativeAssets.props";
 
-    private static readonly string Root = RepoRoot();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static readonly string Root = RepositoryRoot.Folder;
 
     /// <summary>The hosts that load libSkiaSharp and libHarfBuzzSharp themselves and so have to bring the natives.</summary>
     public static TheoryData<string> Hosts { get; } = new(
         "Src/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.csproj",
         "Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj",
-        "Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj");
-
-    private static IEnumerable<string> ProjectFiles() =>
-        Directory.EnumerateFiles(Root, "*.csproj", SearchOption.AllDirectories)
-            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                        && !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-                        && !file.Contains("node_modules", StringComparison.Ordinal));
+        "Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj",
+        "Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj");
 
     [Fact]
     public void TheSharedProps_DeclareThreeSkiaAndThreeHarfBuzzAssets()
@@ -59,9 +42,9 @@ public class SkiaNativeAssetsContractTests
     [Fact]
     public void NoProjectDeclaresANativeAssetsPackageItself()
     {
-        var offenders = ProjectFiles()
-            .Where(file => Regex.IsMatch(File.ReadAllText(file), @"<PackageReference Include=""[^""]*NativeAssets[^""]*"""))
-            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
+        var offenders = RepositoryTree.Files("", "*.csproj")
+            .Where(file => Regex.IsMatch(file.Text, @"<PackageReference Include=""[^""]*NativeAssets[^""]*"""))
+            .Select(file => file.Path)
             .ToArray();
 
         Assert.True(offenders.Length == 0, $"These projects list native assets themselves instead of importing {PropsFile}: {string.Join(", ", offenders)}.");

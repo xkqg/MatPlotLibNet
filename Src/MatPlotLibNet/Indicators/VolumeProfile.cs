@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -19,6 +21,9 @@ namespace MatPlotLibNet.Indicators;
 /// it shares with the chart it is drawn on.</para></remarks>
 public sealed class VolumeProfile : CandleIndicator<VolumeProfileResult>
 {
+    /// <summary>The <c>bins</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultBins = 12;
+
     /// <summary>The share of the plot's width the longest bar covers.</summary>
     internal const double LongestBarShare = 0.25;
 
@@ -29,16 +34,11 @@ public sealed class VolumeProfile : CandleIndicator<VolumeProfileResult>
 
     /// <summary>Creates a new volume profile.</summary>
     /// <param name="bars">Close and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
-    /// <param name="bins">The number of equal price bins, 1 or more. Default 12.</param>
+    /// <param name="bins">The number of equal price bins, 1 or more. Default <see cref="DefaultBins"/>.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="bins"/> is below 1.</exception>
-    public VolumeProfile(OhlcvBars bars, int bins = 12) : base(bars)
+    public VolumeProfile(OhlcvBars bars, int bins = DefaultBins) : base(bars)
     {
-        if (bins < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(bins), bins, "A volume profile has 1 bin or more.");
-        }
-
-        _bins = bins;
+        _bins = bins.ThrowIfBelow(1, nameof(bins));
         Label = "Volume profile";
     }
 
@@ -48,28 +48,18 @@ public sealed class VolumeProfile : CandleIndicator<VolumeProfileResult>
         int[] counted = [.. Enumerable.Range(0, Math.Min(BarCount, Volume.Length)).Where(i => double.IsFinite(Close[i]) && double.IsFinite(Volume[i]))];
         if (counted.Length == 0) return new VolumeProfileResult([], [], []);
 
-        // The range of the closes; with none (every close the same) a unit centred on the price.
-        double low = counted.Min(i => Close[i]), high = counted.Max(i => Close[i]);
-        if (low == high)
-        {
-            low -= 0.5;
-            high += 0.5;
-        }
+        // The range of the closes; with none (every close the same, or a rounding error apart) a unit centred on the price.
+        var (low, high) = new Range1D(counted.Min(i => Close[i]), counted.Max(i => Close[i])).OpenedWhenFlat();
 
-        // Equal bins from the lowest close to the highest, the last edge exactly the highest (no drift from adding a width).
-        double[] edges = [.. Enumerable.Range(0, _bins + 1).Select(k => low + (high - low) * k / _bins)];
-        edges[^1] = high;
+        // Equal bins from the lowest close to the highest, numpy's: the edges its linspace lays, the last exactly the highest.
+        var equal = new EqualWidthBins(low, high, _bins);
+        double[] edges = equal.Edges();
         double[] centres = [.. Enumerable.Range(0, _bins).Select(k => (edges[k] + edges[k + 1]) / 2)];
 
         // A close on an edge belongs to the bin that starts there; the highest close, on the last edge, to the last bin. The
-        // bin is found against the very edges the result reports, so membership and edges cannot disagree.
+        // bin is settled against the very edges the result reports, so membership and edges cannot disagree.
         double[] volumes = new double[_bins];
-        foreach (int i in counted)
-        {
-            int at = Array.BinarySearch(edges, Close[i]);
-            int bin = at >= 0 ? at : ~at - 1;
-            volumes[Math.Min(bin, _bins - 1)] += Volume[i];
-        }
+        foreach (int i in counted) volumes[equal.IndexOf(Close[i])] += Volume[i];
 
         return new VolumeProfileResult(centres, edges, volumes);
     }

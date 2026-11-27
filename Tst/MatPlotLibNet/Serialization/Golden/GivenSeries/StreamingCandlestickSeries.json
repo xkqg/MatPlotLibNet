@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"streaming_candlestick","label":"text 2","color":"#14C83C","open":[10,11,12],"high":[15,16,17],"low":[8,9,10],"close":[13,12,14],"downColor":"#1BC33F","zOrder":6,"visible":false,"capacity":16}]}]}

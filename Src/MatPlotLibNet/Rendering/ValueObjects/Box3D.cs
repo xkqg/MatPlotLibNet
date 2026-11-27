@@ -28,6 +28,16 @@ public readonly record struct Box3D(Range1D X, Range1D Y, Range1D Z)
     /// <summary>Returns a new <see cref="Box3D"/> with <see cref="Z"/> replaced.</summary>
     public Box3D WithZ(Range1D z) => this with { Z = z };
 
+    /// <summary>The range one axis of the box spans.</summary>
+    /// <param name="axis">The axis.</param>
+    /// <returns><see cref="X"/>, <see cref="Y"/> or <see cref="Z"/>.</returns>
+    internal Range1D RangeOf(CubeAxis axis) => axis switch
+    {
+        CubeAxis.X => X,
+        CubeAxis.Y => Y,
+        _ => Z,
+    };
+
     /// <summary>
     /// Converts this box into a <see cref="DataRangeContribution"/>, optionally attaching
     /// sticky-edge constraints. Lets 3-D series phrase their range computation as

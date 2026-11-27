@@ -11,23 +11,9 @@ namespace MatPlotLibNet.Skia.Tests;
 /// <summary>Verifies <see cref="SkiaRenderContext"/> behavior.</summary>
 public class SkiaRenderContextTests : IDisposable
 {
-    private readonly SKBitmap _bitmap;
-    private readonly SKCanvas _canvas;
-    private readonly SkiaRenderContext _ctx;
+    private readonly SkiaCanvasFixture _fixture = new(200);
 
-    public SkiaRenderContextTests()
-    {
-        _bitmap = new SKBitmap(100, 100);
-        _canvas = new SKCanvas(_bitmap);
-        _canvas.Clear(SKColors.Transparent);
-        _ctx = new SkiaRenderContext(_canvas);
-    }
-
-    public void Dispose()
-    {
-        _canvas.Dispose();
-        _bitmap.Dispose();
-    }
+    public void Dispose() => _fixture.Dispose();
 
     /// <summary>Verifies that the constructor accepts an SKCanvas without throwing.</summary>
     [Fact]
@@ -43,8 +29,8 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawLine_RendersNonTransparentPixels()
     {
-        _ctx.DrawLine(new Point(10, 50), new Point(90, 50), new StrokeStyle(Colors.Red, 2, LineStyle.Solid));
-        _canvas.Flush();
+        _fixture.Context.DrawLine(new Point(10, 50), new Point(90, 50), new StrokeStyle(Colors.Red, 2, LineStyle.Solid));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -54,8 +40,8 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawLines_RendersPolyline()
     {
         var points = new List<Point> { new(10, 10), new(50, 90), new(90, 10) };
-        _ctx.DrawLines(points, new StrokeStyle(Colors.Blue, 2, LineStyle.Solid));
-        _canvas.Flush();
+        _fixture.Context.DrawLines(points, new StrokeStyle(Colors.Blue, 2, LineStyle.Solid));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -65,8 +51,8 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawPolygon_WithFill_RendersFilled()
     {
         var points = new List<Point> { new(10, 10), new(90, 10), new(90, 90), new(10, 90) };
-        _ctx.DrawPolygon(points, new ShapeStyle(Colors.Green, null, 0));
-        _canvas.Flush();
+        _fixture.Context.DrawPolygon(points, new ShapeStyle(Colors.Green, null, 0));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -76,8 +62,8 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawPolygon_WithStroke_RendersOutline()
     {
         var points = new List<Point> { new(10, 10), new(90, 10), new(90, 90), new(10, 90) };
-        _ctx.DrawPolygon(points, new ShapeStyle(null, Colors.Red, 2));
-        _canvas.Flush();
+        _fixture.Context.DrawPolygon(points, new ShapeStyle(null, Colors.Red, 2));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -86,11 +72,11 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawCircle_WithFill_RendersCenterArea()
     {
-        _ctx.DrawCircle(new Point(50, 50), 30, new ShapeStyle(Colors.Blue, null, 0));
-        _canvas.Flush();
+        _fixture.Context.DrawCircle(new Point(50, 50), 30, new ShapeStyle(Colors.Blue, null, 0));
+        _fixture.Canvas.Flush();
 
         // Verify the center area has non-transparent pixels
-        var pixel = _bitmap.GetPixel(50, 50);
+        var pixel = _fixture.Bitmap.GetPixel(50, 50);
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
@@ -98,20 +84,23 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawCircle_WithStroke_RendersOutline()
     {
-        _ctx.DrawCircle(new Point(50, 50), 30, new ShapeStyle(null, Colors.Red, 3));
-        _canvas.Flush();
+        _fixture.Context.DrawCircle(new Point(50, 50), 30, new ShapeStyle(null, Colors.Red, 3));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
 
-    /// <summary>Verifies that DrawRectangle with a fill color renders non-transparent pixels at the center.</summary>
-    [Fact]
-    public void DrawRectangle_WithFill_RendersFilled()
+    /// <summary>Verifies that DrawRectangle and DrawEllipse with a fill color render non-transparent pixels at the center.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DrawRectangleAndEllipse_WithFill_RenderFilled(bool rectangle)
     {
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Green, null, 0));
-        _canvas.Flush();
+        if (rectangle) _fixture.Context.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Green, null, 0));
+        else _fixture.Context.DrawEllipse(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Magenta, null, 0));
+        _fixture.Canvas.Flush();
 
-        var pixel = _bitmap.GetPixel(50, 50);
+        var pixel = _fixture.Bitmap.GetPixel(50, 50);
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
@@ -119,30 +108,19 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawRectangle_WithStroke_RendersOutline()
     {
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(null, Colors.Black, 2));
-        _canvas.Flush();
+        _fixture.Context.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(null, Colors.Black, 2));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
-    }
-
-    /// <summary>Verifies that DrawEllipse with a fill color renders non-transparent pixels at the center.</summary>
-    [Fact]
-    public void DrawEllipse_WithFill_RendersFilled()
-    {
-        _ctx.DrawEllipse(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Magenta, null, 0));
-        _canvas.Flush();
-
-        var pixel = _bitmap.GetPixel(50, 50);
-        Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
     /// <summary>Verifies that DrawText renders non-transparent pixels on the canvas.</summary>
     [Fact]
     public void DrawText_RendersPixels()
     {
-        _ctx.DrawText("Hello", new Point(10, 50), new Font { Size = 20, Color = Colors.Black },
+        _fixture.Context.DrawText("Hello", new Point(10, 50), new Font { Size = 20, Color = Colors.Black },
             TextAlignment.Left);
-        _canvas.Flush();
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -157,8 +135,8 @@ public class SkiaRenderContextTests : IDisposable
             new LineToSegment(new Point(90, 50)),
             new LineToSegment(new Point(50, 90))
         };
-        _ctx.DrawPath(segments, new ShapeStyle(null, Colors.Red, 2));
-        _canvas.Flush();
+        _fixture.Context.DrawPath(segments, new ShapeStyle(null, Colors.Red, 2));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -174,8 +152,8 @@ public class SkiaRenderContextTests : IDisposable
             new LineToSegment(new Point(50, 90)),
             new CloseSegment()
         };
-        _ctx.DrawPath(segments, new ShapeStyle(Colors.Cyan, null, 0));
-        _canvas.Flush();
+        _fixture.Context.DrawPath(segments, new ShapeStyle(Colors.Cyan, null, 0));
+        _fixture.Canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
     }
@@ -185,27 +163,46 @@ public class SkiaRenderContextTests : IDisposable
     public void PushClip_ClipsDrawingOutsideRect()
     {
         // Clip to a small region in the top-left
-        _ctx.PushClip(new Rect(0, 0, 10, 10));
+        _fixture.Context.PushClip(new Rect(0, 0, 10, 10));
         // Draw a rectangle in the bottom-right, fully outside the clip
-        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), new ShapeStyle(Colors.Red, null, 0));
-        _canvas.Flush();
+        _fixture.Context.DrawRectangle(new Rect(50, 50, 40, 40), new ShapeStyle(Colors.Red, null, 0));
+        _fixture.Canvas.Flush();
 
         // Verify the bottom-right area remains transparent (alpha == 0)
-        var pixel = _bitmap.GetPixel(70, 70);
+        var pixel = _fixture.Bitmap.GetPixel(70, 70);
         Assert.Equal(0, pixel.Alpha);
+    }
+
+    /// <summary>A clip to an outline (the disc of a polar axes, the triangle of a ternary one) keeps what is drawn inside the outline
+    /// and cuts what lies in the box round it but outside the outline.</summary>
+    [Fact]
+    public void AnOutlineClip_KeepsTheInside_AndCutsTheRestOfItsBox()
+    {
+        PathSegment[] triangle =
+            [new MoveToSegment(new Point(50, 0)), new LineToSegment(new Point(0, 100)), new LineToSegment(new Point(100, 100)), new CloseSegment()];
+
+        using (_fixture.Context.ClippedTo(new ClipRegion(new Rect(0, 0, 100, 100), triangle)))
+        {
+            _fixture.Context.DrawRectangle(new Rect(0, 0, 100, 100), new ShapeStyle(Colors.Red, null, 0));
+        }
+
+        _fixture.Canvas.Flush();
+
+        Assert.Equal(0, _fixture.Bitmap.GetPixel(5, 10).Alpha);
+        Assert.Equal(SKColors.Red, _fixture.Bitmap.GetPixel(50, 80));
     }
 
     /// <summary>Verifies that PopClip restores full-canvas drawing after removing the clip region.</summary>
     [Fact]
     public void PopClip_RestoresDrawingAfterClip()
     {
-        _ctx.PushClip(new Rect(0, 0, 10, 10));
-        _ctx.PopClip();
+        _fixture.Context.PushClip(new Rect(0, 0, 10, 10));
+        _fixture.Context.PopClip();
         // Drawing should now work across the full canvas
-        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), new ShapeStyle(Colors.Blue, null, 0));
-        _canvas.Flush();
+        _fixture.Context.DrawRectangle(new Rect(50, 50, 40, 40), new ShapeStyle(Colors.Blue, null, 0));
+        _fixture.Canvas.Flush();
 
-        var pixel = _bitmap.GetPixel(70, 70);
+        var pixel = _fixture.Bitmap.GetPixel(70, 70);
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
@@ -213,7 +210,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void MeasureText_ReturnsNonZeroSize()
     {
-        var size = _ctx.MeasureText("Hello World", new Font { Size = 12 });
+        var size = _fixture.Context.MeasureText("Hello World", new Font { Size = 12 });
 
         Assert.True(size.Width > 0);
         Assert.True(size.Height > 0);
@@ -223,8 +220,8 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void MeasureText_LargerFont_ReturnsLargerSize()
     {
-        var smallSize = _ctx.MeasureText("Hello", new Font { Size = 10 });
-        var largeSize = _ctx.MeasureText("Hello", new Font { Size = 24 });
+        var smallSize = _fixture.Context.MeasureText("Hello", new Font { Size = 10 });
+        var largeSize = _fixture.Context.MeasureText("Hello", new Font { Size = 24 });
 
         Assert.True(largeSize.Width > smallSize.Width);
         Assert.True(largeSize.Height > smallSize.Height);
@@ -244,10 +241,10 @@ public class SkiaRenderContextTests : IDisposable
         var opaquePixel = opaqueBitmap.GetPixel(50, 50);
 
         // Now draw with 50% opacity
-        _ctx.SetOpacity(0.5);
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Red, null, 0));
-        _canvas.Flush();
-        var semiPixel = _bitmap.GetPixel(50, 50);
+        _fixture.Context.SetOpacity(0.5);
+        _fixture.Context.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Red, null, 0));
+        _fixture.Canvas.Flush();
+        var semiPixel = _fixture.Bitmap.GetPixel(50, 50);
 
         Assert.True(semiPixel.Alpha < opaquePixel.Alpha,
             $"Semi-transparent alpha ({semiPixel.Alpha}) should be less than opaque alpha ({opaquePixel.Alpha})");
@@ -266,162 +263,109 @@ public class SkiaRenderContextTests : IDisposable
 
     private static readonly Point[] Square = [new(10, 50), new(90, 50), new(90, 90), new(10, 90)];
 
-    /// <summary>A path stroked dashed leaves the gaps of the dashed line.</summary>
-    [Fact]
-    public void ADashedPathStroke_LeavesTheGapsOfADashedLine()
+    /// <summary>The shapes a stroke is drawn on, by name: a path and a polygon along their first edge, a rectangle along its top edge (the
+    /// rectangle, the circle and the ellipse stroke through the same fill-then-stroke sequence, so they take the line style too).</summary>
+    private void StrokeOn(string shape, ShapeStyle style)
     {
-        _ctx.DrawPath(HorizontalStroke, Stroked(LineStyle.Dashed));
-        _canvas.Flush();
-
-        Assert.True(_bitmap.GetPixel(15, 50).Alpha > 0, "the first dash is not inked");
-        Assert.Equal(0, _bitmap.GetPixel(22, 50).Alpha);
-        Assert.True(_bitmap.GetPixel(28, 50).Alpha > 0, "the second dash is not inked");
+        switch (shape)
+        {
+            case "path": _fixture.Context.DrawPath(HorizontalStroke, style); break;
+            case "polygon": _fixture.Context.DrawPolygon(Square, style); break;
+            default: _fixture.Context.DrawRectangle(new Rect(10, 50, 80, 40), style); break;
+        }
+        _fixture.Canvas.Flush();
     }
 
-    /// <summary>A path stroked solid, the default, has no gap: the figures drawn before a shape had a line style.</summary>
-    [Fact]
-    public void ASolidPathStroke_LeavesNoGap()
+    /// <summary>A shape stroked dashed leaves the gaps of the dashed line: the library's 5 on and 2 off from x = 10, the lengths the SVG
+    /// writes, whatever the width.</summary>
+    [Theory]
+    [InlineData("path")]
+    [InlineData("polygon")]
+    [InlineData("rectangle")]
+    public void ADashedStroke_LeavesTheGapsOfADashedLine(string shape)
     {
-        _ctx.DrawPath(HorizontalStroke, Stroked(LineStyle.Solid));
-        _canvas.Flush();
+        StrokeOn(shape, Stroked(LineStyle.Dashed));
 
-        Assert.True(_bitmap.GetPixel(22, 50).Alpha > 0);
+        Assert.True(_fixture.Bitmap.GetPixel(12, 50).Alpha > 0, "the first dash is not inked");
+        Assert.Equal(0, _fixture.Bitmap.GetPixel(16, 50).Alpha);
+        Assert.True(_fixture.Bitmap.GetPixel(19, 50).Alpha > 0, "the second dash is not inked");
+    }
+
+    /// <summary>A shape stroked solid, the default, has no gap: the figures drawn before a shape had a line style.</summary>
+    [Theory]
+    [InlineData("path")]
+    [InlineData("polygon")]
+    public void ASolidStroke_LeavesNoGap(string shape)
+    {
+        StrokeOn(shape, Stroked(LineStyle.Solid));
+
+        Assert.True(_fixture.Bitmap.GetPixel(22, 50).Alpha > 0);
     }
 
     /// <summary>A path whose stroke has the line style None draws no stroke, and the fill under it is still drawn.</summary>
     [Fact]
     public void ANonePathStroke_DrawsNoStroke()
     {
-        _ctx.DrawPath(HorizontalStroke, new ShapeStyle(null, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
-        _canvas.Flush();
+        _fixture.Context.DrawPath(HorizontalStroke, new ShapeStyle(null, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _fixture.Canvas.Flush();
         Assert.False(HasNonTransparentPixels());
 
-        _ctx.DrawPath([new MoveToSegment(new Point(10, 10)), new LineToSegment(new Point(90, 10)), new LineToSegment(new Point(50, 90)), new CloseSegment()],
+        _fixture.Context.DrawPath([new MoveToSegment(new Point(10, 10)), new LineToSegment(new Point(90, 10)), new LineToSegment(new Point(50, 90)), new CloseSegment()],
             new ShapeStyle(Colors.Green, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
-        _canvas.Flush();
-        Assert.True(_bitmap.GetPixel(50, 30).Alpha > 0, "the fill is gone");
-        Assert.Equal(0, _bitmap.GetPixel(50, 9).Alpha);
-    }
-
-    /// <summary>A polygon stroked dashed leaves the gaps of the dashed line along its first edge.</summary>
-    [Fact]
-    public void ADashedPolygonStroke_LeavesTheGapsOfADashedLine()
-    {
-        _ctx.DrawPolygon(Square, Stroked(LineStyle.Dashed));
-        _canvas.Flush();
-
-        Assert.True(_bitmap.GetPixel(15, 50).Alpha > 0, "the first dash is not inked");
-        Assert.Equal(0, _bitmap.GetPixel(22, 50).Alpha);
-        Assert.True(_bitmap.GetPixel(28, 50).Alpha > 0, "the second dash is not inked");
-    }
-
-    /// <summary>A polygon stroked solid has no gap along its first edge.</summary>
-    [Fact]
-    public void ASolidPolygonStroke_LeavesNoGap()
-    {
-        _ctx.DrawPolygon(Square, Stroked(LineStyle.Solid));
-        _canvas.Flush();
-
-        Assert.True(_bitmap.GetPixel(22, 50).Alpha > 0);
+        _fixture.Canvas.Flush();
+        Assert.True(_fixture.Bitmap.GetPixel(50, 30).Alpha > 0, "the fill is gone");
+        Assert.Equal(0, _fixture.Bitmap.GetPixel(50, 9).Alpha);
     }
 
     /// <summary>A polygon whose stroke has the line style None draws no stroke, and the fill under it is still drawn.</summary>
     [Fact]
     public void ANonePolygonStroke_DrawsNoStroke()
     {
-        _ctx.DrawPolygon(Square, new ShapeStyle(null, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
-        _canvas.Flush();
+        _fixture.Context.DrawPolygon(Square, new ShapeStyle(null, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _fixture.Canvas.Flush();
         Assert.False(HasNonTransparentPixels());
 
-        _ctx.DrawPolygon(Square, new ShapeStyle(Colors.Green, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
-        _canvas.Flush();
-        Assert.True(_bitmap.GetPixel(50, 70).Alpha > 0, "the fill is gone");
-        Assert.Equal(0, _bitmap.GetPixel(50, 49).Alpha);
-    }
-
-    /// <summary>The rectangle, the circle and the ellipse stroke through the same fill-then-stroke sequence, so they take
-    /// the line style too: a dashed rectangle has a gap along its top edge.</summary>
-    [Fact]
-    public void ADashedRectangleStroke_LeavesTheGapsOfADashedLine()
-    {
-        _ctx.DrawRectangle(new Rect(10, 50, 80, 40), Stroked(LineStyle.Dashed));
-        _canvas.Flush();
-
-        Assert.True(_bitmap.GetPixel(15, 50).Alpha > 0, "the first dash is not inked");
-        Assert.Equal(0, _bitmap.GetPixel(22, 50).Alpha);
+        _fixture.Context.DrawPolygon(Square, new ShapeStyle(Colors.Green, Colors.Black, 2) { StrokeLineStyle = LineStyle.None });
+        _fixture.Canvas.Flush();
+        Assert.True(_fixture.Bitmap.GetPixel(50, 70).Alpha > 0, "the fill is gone");
+        Assert.Equal(0, _fixture.Bitmap.GetPixel(50, 49).Alpha);
     }
 
     private bool HasNonTransparentPixels()
     {
-        for (int y = 0; y < _bitmap.Height; y++)
-            for (int x = 0; x < _bitmap.Width; x++)
-                if (_bitmap.GetPixel(x, y).Alpha > 0)
+        for (int y = 0; y < _fixture.Bitmap.Height; y++)
+            for (int x = 0; x < _fixture.Bitmap.Width; x++)
+                if (_fixture.Bitmap.GetPixel(x, y).Alpha > 0)
                     return true;
         return false;
-    }
-}
-
-// ─── SkiaRenderContextCoverageTests.cs ───────────────────────────────────────
-
-/// <summary>Phase Y.6 (v1.7.2, 2026-04-19) — branch coverage for
-/// <see cref="SkiaRenderContext"/> methods that the existing harness left at
-/// 50–88% branch. Pre-Y.6: 68.5%L / 60.2%B (complexity 98). Each fact pins a
-/// specific cobertura `condition-coverage` marker:
-///
-/// - `DrawLines` line 37: `points.Count &lt; 2` true arm (early return)
-/// - `DrawPolygon` line 49: `points.Count &lt; 3` true arm (early return)
-/// - `DrawEllipse` line 110: stroke + strokeThickness combo arms
-/// - `DrawText(rotation)` line 128: alignment switch's Right arm
-/// - `DrawRichText` whole method (was 0% covered) — empty richtext, multi-span,
-///   sub/super baseline shift, rotation arm
-/// - `DrawPath`: ArcSegment + BezierSegment + CloseSegment switch arms
-/// - `PushClip` / `PopClip` — stack discipline
-/// - `SetOpacity` — clamping arms (negative, &gt;1)</summary>
-public class SkiaRenderContextCoverageTests : IDisposable
-{
-    private readonly SKBitmap _bitmap;
-    private readonly SKCanvas _canvas;
-    private readonly SkiaRenderContext _ctx;
-
-    public SkiaRenderContextCoverageTests()
-    {
-        _bitmap = new SKBitmap(200, 200);
-        _canvas = new SKCanvas(_bitmap);
-        _canvas.Clear(SKColors.Transparent);
-        _ctx = new SkiaRenderContext(_canvas);
-    }
-
-    public void Dispose()
-    {
-        _canvas.Dispose();
-        _bitmap.Dispose();
     }
 
     [Fact]
     public void DrawLines_FewerThanTwoPoints_NoOp()
     {
-        _ctx.DrawLines(new List<Point> { new(10, 10) }, new StrokeStyle(Colors.Red, 1, LineStyle.Solid));
+        _fixture.Context.DrawLines(new List<Point> { new(10, 10) }, new StrokeStyle(Colors.Red, 1, LineStyle.Solid));
     }
 
     [Fact]
     public void DrawLines_TwoOrMorePoints_DrawsPath()
     {
-        _ctx.DrawLines(new List<Point> { new(10, 10), new(50, 50), new(90, 30) },
+        _fixture.Context.DrawLines(new List<Point> { new(10, 10), new(50, 50), new(90, 30) },
             new StrokeStyle(Colors.Black, 2, LineStyle.Solid));
-        Assert.NotEqual(SKColors.Transparent, _bitmap.GetPixel(50, 50));
+        Assert.NotEqual(SKColors.Transparent, _fixture.Bitmap.GetPixel(50, 50));
     }
 
     [Fact]
-    public void DrawPolygon_FewerThanThreePoints_NoOp()
+    public void DrawPolygon_FewerThanThreePoints_DrawsTheOutlineItIs()
     {
-        _ctx.DrawPolygon(new List<Point> { new(10, 10), new(20, 20) },
+        _fixture.Context.DrawPolygon(new List<Point> { new(10, 10), new(20, 20) },
             new ShapeStyle(Colors.Red, Colors.Black, 1));
+        Assert.NotEqual(SKColors.Transparent, _fixture.Bitmap.GetPixel(15, 15));
     }
 
     [Fact]
     public void DrawPolygon_StrokeOnly_NoFill_DrawsOutline()
     {
-        _ctx.DrawPolygon(new List<Point> { new(10, 10), new(50, 10), new(30, 50) }, new ShapeStyle(null, Colors.Black, 2));
+        _fixture.Context.DrawPolygon(new List<Point> { new(10, 10), new(50, 10), new(30, 50) }, new ShapeStyle(null, Colors.Black, 2));
     }
 
     [Theory]
@@ -431,7 +375,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void DrawEllipse_StrokeStrokeThickness_AllArms(bool hasStroke, double thickness)
     {
         Color? stroke = hasStroke ? Colors.Black : (Color?)null;
-        _ctx.DrawEllipse(new Rect(10, 10, 50, 30), new ShapeStyle(Colors.Red, stroke, thickness));
+        _fixture.Context.DrawEllipse(new Rect(10, 10, 50, 30), new ShapeStyle(Colors.Red, stroke, thickness));
     }
 
     [Theory]
@@ -441,7 +385,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [InlineData(TextAlignment.Center, 90.0)]
     public void DrawText_AlignmentAndRotation_AllArms(TextAlignment alignment, double rotation)
     {
-        _ctx.DrawText("Hello", new Point(50, 50),
+        _fixture.Context.DrawText("Hello", new Point(50, 50),
             new Font { Family = "sans-serif", Size = 12 }, alignment, rotation);
     }
 
@@ -453,30 +397,24 @@ public class SkiaRenderContextCoverageTests : IDisposable
             Family = "sans-serif", Size = 14,
             Weight = FontWeight.Bold, Slant = FontSlant.Italic,
         };
-        _ctx.DrawText("Bold-Italic", new Point(20, 100), font, TextAlignment.Left);
+        _fixture.Context.DrawText("Bold-Italic", new Point(20, 100), font, TextAlignment.Left);
     }
 
-    [Fact]
-    public void DrawRichText_SingleNormalSpan_DoesNotThrow()
+    [Theory]
+    [InlineData("alpha", 10, 50, 12, TextAlignment.Left)]    // a single normal span
+    [InlineData("x_i^2", 20, 100, 14, TextAlignment.Center)] // a subscript and a superscript
+    public void DrawRichText_DoesNotThrow(string text, double x, double y, double size, TextAlignment alignment)
     {
-        var rt = MathTextParser.Parse("alpha");
-        _ctx.DrawRichText(rt, new Point(10, 50),
-            new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left);
-    }
-
-    [Fact]
-    public void DrawRichText_WithSubscriptSuperscript_DoesNotThrow()
-    {
-        var rt = MathTextParser.Parse("x_i^2");
-        _ctx.DrawRichText(rt, new Point(20, 100),
-            new Font { Family = "sans-serif", Size = 14 }, TextAlignment.Center);
+        var rt = MathTextParser.Parse(text);
+        _fixture.Context.DrawRichText(rt, new Point(x, y),
+            new Font { Family = "sans-serif", Size = size }, alignment);
     }
 
     [Fact]
     public void DrawRichText_Rotated_DoesNotThrow()
     {
         var rt = MathTextParser.Parse("rotated");
-        _ctx.DrawRichText(rt, new Point(50, 50),
+        _fixture.Context.DrawRichText(rt, new Point(50, 50),
             new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Right, rotation: 45);
     }
 
@@ -491,16 +429,16 @@ public class SkiaRenderContextCoverageTests : IDisposable
             new ArcSegment(new Point(100, 100), 20, 20, 0, 180),
             new CloseSegment(),
         };
-        _ctx.DrawPath(segments, new ShapeStyle(Colors.Blue, Colors.Black, 1));
+        _fixture.Context.DrawPath(segments, new ShapeStyle(Colors.Blue, Colors.Black, 1));
     }
 
     [Fact]
     public void PushClip_PopClip_StackDisciplineWorks()
     {
-        _ctx.PushClip(new Rect(10, 10, 30, 30));
-        _ctx.DrawRectangle(new Rect(0, 0, 50, 50), new ShapeStyle(Colors.Red, null, 0));
-        _ctx.PopClip();
-        _ctx.DrawRectangle(new Rect(60, 60, 30, 30), new ShapeStyle(Colors.Green, null, 0));
+        _fixture.Context.PushClip(new Rect(10, 10, 30, 30));
+        _fixture.Context.DrawRectangle(new Rect(0, 0, 50, 50), new ShapeStyle(Colors.Red, null, 0));
+        _fixture.Context.PopClip();
+        _fixture.Context.DrawRectangle(new Rect(60, 60, 30, 30), new ShapeStyle(Colors.Green, null, 0));
     }
 
     [Theory]
@@ -511,35 +449,30 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [InlineData(1.5)]
     public void SetOpacity_ClampedToValidRange(double opacity)
     {
-        _ctx.SetOpacity(opacity);
-        _ctx.DrawRectangle(new Rect(10, 10, 30, 30), new ShapeStyle(Colors.Red, null, 0));
+        _fixture.Context.SetOpacity(opacity);
+        _fixture.Context.DrawRectangle(new Rect(10, 10, 30, 30), new ShapeStyle(Colors.Red, null, 0));
     }
 
     [Fact]
     public void MeasureText_ReturnsNonZeroWidth()
     {
-        var size = _ctx.MeasureText("Hello", new Font { Family = "sans-serif", Size = 12 });
+        var size = _fixture.Context.MeasureText("Hello", new Font { Family = "sans-serif", Size = 12 });
         Assert.True(size.Width > 0);
     }
 
-    [Fact]
-    public void DrawText_BoldWeight_RendersWithoutError()
+    [Theory]
+    [InlineData("bold", FontWeight.Bold, FontSlant.Normal)]
+    [InlineData("italic", FontWeight.Normal, FontSlant.Italic)]
+    public void DrawText_BoldWeightOrItalicSlant_RendersWithoutError(string text, FontWeight weight, FontSlant slant)
     {
-        _ctx.DrawText("bold", new Point(10, 30),
-            new Font { Family = "sans-serif", Size = 12, Weight = FontWeight.Bold }, TextAlignment.Left);
-    }
-
-    [Fact]
-    public void DrawText_ItalicSlant_RendersWithoutError()
-    {
-        _ctx.DrawText("italic", new Point(10, 30),
-            new Font { Family = "sans-serif", Size = 12, Slant = FontSlant.Italic }, TextAlignment.Left);
+        _fixture.Context.DrawText(text, new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12, Weight = weight, Slant = slant }, TextAlignment.Left);
     }
 
     [Fact]
     public void DrawText_BoldItalicCombo_RendersWithoutError()
     {
-        _ctx.DrawText("bi", new Point(10, 30),
+        _fixture.Context.DrawText("bi", new Point(10, 30),
             new Font { Family = "sans-serif", Size = 12, Weight = FontWeight.Bold, Slant = FontSlant.Italic },
             TextAlignment.Center);
     }
@@ -551,7 +484,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
             new TextSpan("x", TextSpanKind.Normal, FontSizeScale: 1.0),
             new TextSpan("2", TextSpanKind.Superscript, FontSizeScale: 0.7),
         ]);
-        _ctx.DrawRichText(rt, new Point(10, 30),
+        _fixture.Context.DrawRichText(rt, new Point(10, 30),
             new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left);
     }
 
@@ -563,7 +496,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
             new TextSpan("2", TextSpanKind.Subscript, FontSizeScale: 0.7),
             new TextSpan("O", TextSpanKind.Normal, FontSizeScale: 1.0),
         ]);
-        _ctx.DrawRichText(rt, new Point(10, 30),
+        _fixture.Context.DrawRichText(rt, new Point(10, 30),
             new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Right);
     }
 
@@ -571,7 +504,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void DrawRichText_WithRotation_RendersWithoutError()
     {
         var rt = new RichText([new TextSpan("rot", TextSpanKind.Normal, FontSizeScale: 1.0)]);
-        _ctx.DrawRichText(rt, new Point(50, 50),
+        _fixture.Context.DrawRichText(rt, new Point(50, 50),
             new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left, rotation: 90);
     }
 
@@ -579,16 +512,16 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void DrawRichText_EmptySpans_NoOp()
     {
         var rt = new RichText([]);
-        _ctx.DrawRichText(rt, new Point(10, 30),
+        _fixture.Context.DrawRichText(rt, new Point(10, 30),
             new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left);
     }
 
     [Fact]
     public void SetOpacity_BelowOne_ReducesPixelAlpha()
     {
-        _ctx.SetOpacity(0.5);
-        _ctx.DrawRectangle(new Rect(60, 60, 30, 30), new ShapeStyle(new Color(255, 0, 0, 255), null, 0));
-        var px = _bitmap.GetPixel(75, 75);
+        _fixture.Context.SetOpacity(0.5);
+        _fixture.Context.DrawRectangle(new Rect(60, 60, 30, 30), new ShapeStyle(new Color(255, 0, 0, 255), null, 0));
+        var px = _fixture.Bitmap.GetPixel(75, 75);
         Assert.InRange(px.Alpha, 100, 160);
     }
 
@@ -598,14 +531,14 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [InlineData(LineStyle.DashDot)]
     public void DrawLine_DashedStyles_PathEffectApplied(LineStyle style)
     {
-        _ctx.DrawLine(new Point(10, 100), new Point(190, 100), new StrokeStyle(Colors.Black, 2, style));
-        Assert.NotEqual(SKColors.Transparent, _bitmap.GetPixel(100, 100));
+        _fixture.Context.DrawLine(new Point(10, 100), new Point(190, 100), new StrokeStyle(Colors.Black, 2, style));
+        Assert.NotEqual(SKColors.Transparent, _fixture.Bitmap.GetPixel(100, 100));
     }
 
     [Fact]
     public void DrawText_CssStyleFamilyStack_RendersWithoutError()
     {
-        _ctx.DrawText("css", new Point(10, 30),
+        _fixture.Context.DrawText("css", new Point(10, 30),
             new Font { Family = "DejaVu Sans, sans-serif", Size = 12 },
             TextAlignment.Left);
     }
@@ -613,7 +546,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [Fact]
     public void DrawText_FamilyStackWithEmptyCandidate_SkipsAndResolves()
     {
-        _ctx.DrawText("css2", new Point(10, 30),
+        _fixture.Context.DrawText("css2", new Point(10, 30),
             new Font { Family = ", , DejaVu Sans", Size = 12 },
             TextAlignment.Left);
     }
@@ -621,90 +554,73 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [Fact]
     public void DrawText_NullFamily_FallsThroughToOsLookup()
     {
-        _ctx.DrawText("os", new Point(10, 30),
+        _fixture.Context.DrawText("os", new Point(10, 30),
             new Font { Family = null!, Size = 12 },
             TextAlignment.Left);
     }
 
-    [Fact]
-    public void SkiaFontMetrics_BoldOnlyNotItalic_FlipsBoldArmAlone()
+    [Theory]
+    [InlineData(FontWeight.Bold, FontSlant.Normal, "test")]
+    [InlineData(FontWeight.Normal, FontSlant.Italic, "test")]
+    [InlineData(FontWeight.Bold, FontSlant.Italic, "bi")]
+    [InlineData(FontWeight.Normal, FontSlant.Normal, "plain")]
+    public void SkiaFontMetrics_MeasuresATextInEveryWeightAndSlantArm(FontWeight weight, FontSlant slant, string text)
     {
-        var fm = new SkiaFontMetrics();
-        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Bold, Slant = FontSlant.Normal };
-        var size = fm.Measure("test", font);
-        Assert.True(size.Width > 0);
+        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = weight, Slant = slant };
+
+        Assert.True(new SkiaFontMetrics().Measure(text, font).Width > 0);
     }
 
+    /// <summary>A shape is painted fill then stroke without a delegate made for its geometry: a shape with nothing visible
+    /// creates no paint, so drawing it allocates nothing at all.</summary>
     [Fact]
-    public void SkiaFontMetrics_ItalicOnlyNotBold_FlipsItalicArmAlone()
+    public void DrawingAShape_AllocatesNoDelegateForItsGeometry()
     {
-        var fm = new SkiaFontMetrics();
-        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Normal, Slant = FontSlant.Italic };
-        var size = fm.Measure("test", font);
-        Assert.True(size.Width > 0);
+        var invisible = new ShapeStyle(null, null, 0);
+        var rect = new Rect(10, 10, 20, 20);
+        for (int i = 0; i < 100; i++) DrawInvisibleShapes(rect, invisible); // warm up the JIT
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++) DrawInvisibleShapes(rect, invisible);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
     }
 
-    [Fact]
-    public void SkiaFontMetrics_BoldAndItalic_FlipsBothArmsTrue()
+    private void DrawInvisibleShapes(Rect rect, ShapeStyle invisible)
     {
-        var fm = new SkiaFontMetrics();
-        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Bold, Slant = FontSlant.Italic };
-        var size = fm.Measure("bi", font);
-        Assert.True(size.Width > 0);
+        _fixture.Context.DrawCircle(new Point(50, 50), 10, invisible);
+        _fixture.Context.DrawRectangle(rect, invisible);
+        _fixture.Context.DrawEllipse(rect, invisible);
     }
 
+    /// <summary>Each shape is painted through the geometry it was given: a filled and stroked circle, rectangle, ellipse,
+    /// polygon and path each cover the pixel at their centre in the fill and the pixel on their outline in the stroke.</summary>
     [Fact]
-    public void SkiaFontMetrics_NormalNeitherBoldNorItalic_FlipsBothArmsFalse()
+    public void EveryShape_IsPaintedThroughItsOwnGeometry()
     {
-        var fm = new SkiaFontMetrics();
-        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Normal, Slant = FontSlant.Normal };
-        var size = fm.Measure("plain", font);
-        Assert.True(size.Width > 0);
+        var style = new ShapeStyle(Colors.Red, Colors.Blue, 2);
+
+        AssertPainted(c => c.DrawCircle(new Point(50, 50), 20, style), centre: new(50, 50), outline: new(70, 50));
+        AssertPainted(c => c.DrawRectangle(new Rect(30, 30, 40, 40), style), centre: new(50, 50), outline: new(30, 50));
+        AssertPainted(c => c.DrawEllipse(new Rect(20, 35, 60, 30), style), centre: new(50, 50), outline: new(20, 50));
+        AssertPainted(c => c.DrawPolygon([new Point(30, 30), new Point(70, 30), new Point(70, 70), new Point(30, 70)], style),
+            centre: new(50, 50), outline: new(30, 50));
+        AssertPainted(c => c.DrawPath([new MoveToSegment(new Point(30, 30)), new LineToSegment(new Point(70, 30)),
+                new LineToSegment(new Point(70, 70)), new LineToSegment(new Point(30, 70)), new CloseSegment()], style),
+            centre: new(50, 50), outline: new(30, 50));
     }
 
-    [Fact]
-    public void BuildKey_BoldAndItalic_ReturnsBoldItalicSuffix()
+    private static void AssertPainted(Action<SkiaRenderContext> draw, SKPointI centre, SKPointI outline)
     {
-        var style = new SKFontStyle((int)SKFontStyleWeight.Bold, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Italic);
-        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
-        Assert.Equal("DejaVu Sans|BoldItalic", key);
-    }
+        using var bitmap = new SKBitmap(100, 100);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Transparent);
+        draw(new SkiaRenderContext(canvas));
+        canvas.Flush();
 
-    [Fact]
-    public void BuildKey_BoldNotItalic_ReturnsBoldSuffix()
-    {
-        var style = new SKFontStyle((int)SKFontStyleWeight.Bold, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
-        Assert.Equal("DejaVu Sans|Bold", key);
-    }
-
-    [Fact]
-    public void BuildKey_ItalicNotBold_ReturnsItalicSuffix()
-    {
-        var style = new SKFontStyle((int)SKFontStyleWeight.Normal, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Italic);
-        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
-        Assert.Equal("DejaVu Sans|Italic", key);
-    }
-
-    [Fact]
-    public void BuildKey_NormalWeight_ReturnsBareFamily()
-    {
-        var style = new SKFontStyle((int)SKFontStyleWeight.Normal, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
-        Assert.Equal("DejaVu Sans", key);
-    }
-
-    [Fact]
-    public void ResolveTypeface_NullFamily_FallsBackToOsLookup()
-    {
-        var tf = SkiaFonts.Resolve(null, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
-    }
-
-    [Fact]
-    public void ResolveTypeface_UnknownFamily_FallsBackToOsLookup()
-    {
-        var tf = SkiaFonts.Resolve("NotABundledFont", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotNull(tf);
+        Assert.Equal(new SKColor(255, 0, 0, 255), bitmap.GetPixel(centre.X, centre.Y));
+        var edge = bitmap.GetPixel(outline.X, outline.Y);
+        Assert.True(edge.Blue > 128 && edge.Red < 128, $"outline pixel {edge}");
     }
 }

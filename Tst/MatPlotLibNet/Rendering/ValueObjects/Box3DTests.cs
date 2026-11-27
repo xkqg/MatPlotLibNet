@@ -86,4 +86,13 @@ public class Box3DTests
         Assert.Null(contrib.StickyXMax);
         Assert.Null(contrib.StickyYMin);
     }
+
+    [Fact]
+    public void RangeOf_NamesTheRangeOfEachAxis()
+    {
+        var box = new Box3D(0, 1, 2, 3, 4, 5);
+        Assert.Equal(box.X, box.RangeOf(CubeAxis.X));
+        Assert.Equal(box.Y, box.RangeOf(CubeAxis.Y));
+        Assert.Equal(box.Z, box.RangeOf(CubeAxis.Z));
+    }
 }

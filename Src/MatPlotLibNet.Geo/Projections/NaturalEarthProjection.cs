@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Natural Earth projection — a compromise pseudo-cylindrical projection designed
 /// by Tom Patterson (2012). Similar to Robinson but with smoother edges.</summary>
-public sealed class NaturalEarthProjection : IGeoProjection
+public sealed class NaturalEarthProjection : IGeoProjection, IProjectionOutline
 {
     /// <inheritdoc />
     public string Name => "NaturalEarth";
@@ -24,13 +24,8 @@ public sealed class NaturalEarthProjection : IGeoProjection
     public GeoCoordinate? Inverse(double x, double y) => null;
 
     /// <inheritdoc />
-    public GeoBounds Bounds
-    {
-        get
-        {
-            var (xMax, _) = Forward(0, 180);
-            var (_, yMax) = Forward(90, 0);
-            return new(-xMax, xMax, -yMax, yMax);
-        }
-    }
+    /// <remarks>The box round the edge of the world.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
+
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => this.MeridianOutline();
 }

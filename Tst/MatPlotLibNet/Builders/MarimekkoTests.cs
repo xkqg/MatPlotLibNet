@@ -1,13 +1,12 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -33,11 +32,8 @@ public class MarimekkoTests
         new("C", [15, 30, 15]),
     ];
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Chart(IReadOnlyList<BarGroup> segments, Action<AreaSeries>? configure = null) =>
-        AxesOf(ax => ax.Marimekko(Columns, segments, configure));
+        Plt.Create().OneAxes(ax => ax.Marimekko(Columns, segments, configure));
 
     private static AreaSeries[] Areas(Axes axes) => [.. axes.Series.Cast<AreaSeries>()];
 
@@ -77,18 +73,7 @@ public class MarimekkoTests
         return cells;
     }
 
-    private static void AssertClose(double expected, double actual, string what)
-    {
-        Assert.True(double.IsNaN(expected) ? double.IsNaN(actual) : Math.Abs(expected - actual) <= 1e-9,
-            $"{what}: expected {expected.ToString("R", CultureInfo.InvariantCulture)}, got {actual.ToString("R", CultureInfo.InvariantCulture)}");
-    }
-
     // ---- reading the picture ---------------------------------------------------------------------------------------
-
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     private readonly record struct Vertex(double X, double Y);
 
     private static string Svg(Action<AxesBuilder> configure, Theme? theme = null)
@@ -98,28 +83,15 @@ public class MarimekkoTests
         return builder.AddSubPlot(1, 1, 1, configure).Build().ToSvg();
     }
 
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
-
-    private static List<XElement> SeriesGroups(string svg) =>
-        [.. Named(XDocument.Parse(svg), "g").Where(g => (string?)g.Attribute("class") == "series")];
-
-    private static Area PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new Area(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-            Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
-
     private static List<Vertex[]> Shapes(XElement group, string element) =>
-        [.. Named(group, element).Select(e => ((string)e.Attribute("points")!)
+        [.. group.Each(element).Select(e => ((string)e.Attribute("points")!)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Split(','))
-            .Select(p => new Vertex(Num(p[0]), Num(p[1])))
+            .Select(p => new Vertex(p[0].Number(), p[1].Number()))
             .ToArray())];
 
     private static List<string> FigureTexts(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "text").Select(e => e.Value)];
+        [.. svg.Direct("text").Select(e => e.Value)];
 
     // ---- one area series per segment ---------------------------------------------------------------------------------
 
@@ -185,7 +157,7 @@ public class MarimekkoTests
         double[] totals = [45, 90, 30];
         for (int c = 0; c < Columns.Length; c++)
         {
-            AssertClose(totals[c] / 165 * 100, cells[c].Right - cells[c].Left, $"width of column {c}");
+            Assert.Equal(totals[c] / 165 * 100, cells[c].Right - cells[c].Left, SvgMarkupExtensions.WrittenPrecision);
             if (c > 0) Assert.Equal(cells[c - 1].Right, cells[c].Left);
         }
     }
@@ -205,7 +177,7 @@ public class MarimekkoTests
             Assert.Equal(100.0, cells[^1][c].Top);
             for (int r = 0; r < Segments.Length; r++)
             {
-                AssertClose(expected[r][c].Top - expected[r][c].Bottom, cells[r][c].Top - cells[r][c].Bottom, $"height of {r} in {c}");
+                Assert.Equal(expected[r][c].Top - expected[r][c].Bottom, cells[r][c].Top - cells[r][c].Bottom, SvgMarkupExtensions.WrittenPrecision);
                 if (r > 0) Assert.Equal(cells[r - 1][c].Top, cells[r][c].Bottom);
             }
         }
@@ -218,12 +190,12 @@ public class MarimekkoTests
     public void EveryCell_IsDrawnAsOneExactRectangle_AndNoColumnIsJoinedToTheNext()
     {
         string svg = Svg(ax => ax.Marimekko(Columns, Segments));
-        var plot = PlotArea(svg);
-        double Px(double x) => plot.X + x / 100 * plot.W;
-        double Py(double y) => plot.Y + plot.H - y / 100 * plot.H;
+        var plot = svg.PlotArea();
+        double Px(double x) => plot.X + x / 100 * plot.Width;
+        double Py(double y) => plot.Y + plot.Height - y / 100 * plot.Height;
         var expected = Expected(Segments, Columns.Length);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal(3, groups.Count);
         for (int r = 0; r < groups.Count; r++)
         {
@@ -237,8 +209,8 @@ public class MarimekkoTests
                 Assert.Equal(4, polygons[c].Length);
                 for (int k = 0; k < 4; k++)
                 {
-                    AssertClose(corners[k].X, polygons[c][k].X, $"segment {r}, column {c}, corner {k}, x");
-                    AssertClose(corners[k].Y, polygons[c][k].Y, $"segment {r}, column {c}, corner {k}, y");
+                    Assert.Equal(corners[k].X, polygons[c][k].X, SvgMarkupExtensions.WrittenPrecision);
+                    Assert.Equal(corners[k].Y, polygons[c][k].Y, SvgMarkupExtensions.WrittenPrecision);
                 }
             }
 
@@ -257,13 +229,13 @@ public class MarimekkoTests
     public void TheChart_FillsThePlotArea()
     {
         string svg = Svg(ax => ax.Marimekko(Columns, Segments));
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
-        var vertices = SeriesGroups(svg).SelectMany(g => Shapes(g, "polygon")).SelectMany(p => p).ToList();
-        AssertClose(plot.X, vertices.Min(v => v.X), "left");
-        AssertClose(plot.X + plot.W, vertices.Max(v => v.X), "right");
-        AssertClose(plot.Y, vertices.Min(v => v.Y), "top");
-        AssertClose(plot.Y + plot.H, vertices.Max(v => v.Y), "bottom");
+        var vertices = svg.SeriesGroups().SelectMany(g => Shapes(g, "polygon")).SelectMany(p => p).ToList();
+        Assert.Equal(plot.X, vertices.Min(v => v.X), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.X + plot.Width, vertices.Max(v => v.X), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.Y, vertices.Min(v => v.Y), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.Y + plot.Height, vertices.Max(v => v.Y), SvgMarkupExtensions.WrittenPrecision);
     }
 
     // ---- a missing size and a size of 0 ------------------------------------------------------------------------------------
@@ -288,13 +260,13 @@ public class MarimekkoTests
         Assert.True(double.IsNaN(cells[1][1].Bottom));
         Assert.Equal(cells[0][1].Top, cells[2][1].Bottom);
         Assert.Equal(100.0, cells[2][1].Top);
-        AssertClose(80.0 / 155 * 100, cells[0][1].Right - cells[0][1].Left, "width of the column with the missing size");
+        Assert.Equal(80.0 / 155 * 100, cells[0][1].Right - cells[0][1].Left, SvgMarkupExtensions.WrittenPrecision);
         for (int r = 0; r < 3; r++)
         {
             for (int c = 0; c < 3; c++)
             {
-                AssertClose(expected[r][c].Top, cells[r][c].Top, $"top of {r} in {c}");
-                AssertClose(expected[r][c].Bottom, cells[r][c].Bottom, $"bottom of {r} in {c}");
+                Assert.Equal(expected[r][c].Top, cells[r][c].Top, SvgMarkupExtensions.WrittenPrecision);
+                Assert.Equal(expected[r][c].Bottom, cells[r][c].Bottom, SvgMarkupExtensions.WrittenPrecision);
             }
         }
     }
@@ -306,9 +278,9 @@ public class MarimekkoTests
     {
         string svg = Svg(ax => ax.Marimekko(Columns, WithAMissingSize));
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal([3, 2, 3], groups.Select(g => Shapes(g, "polygon").Count));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>A size of 0 is a cell of no height: nothing is drawn for it, no fill and no outline across the column (a line
@@ -321,7 +293,7 @@ public class MarimekkoTests
         string svg = Svg(ax => ax.Marimekko(Columns, segments));
         var cells = Areas(Chart(segments)).Select(CellsOf).ToArray();
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal([3, 2, 3], groups.Select(g => Shapes(g, "polygon").Count));
         Assert.Equal([3, 2, 3], groups.Select(g => Shapes(g, "polyline").Count));
         Assert.Equal(cells[0][1].Top, cells[2][1].Bottom);
@@ -336,7 +308,7 @@ public class MarimekkoTests
         string[] columns = ["Retail", "Nothing", "Missing", "Online"];
         BarGroup[] segments = [new("A", [10, 0, double.NaN, 30]), new("B", [30, 0, double.NaN, 10])];
 
-        var axes = AxesOf(ax => ax.Marimekko(columns, segments));
+        var axes = Plt.Create().OneAxes(ax => ax.Marimekko(columns, segments));
         string svg = Svg(ax => ax.Marimekko(columns, segments));
 
         var cells = CellsOf(Areas(axes)[0]);
@@ -344,11 +316,11 @@ public class MarimekkoTests
         Assert.Equal(cells[1].Left, cells[1].Right);
         Assert.Equal(cells[2].Left, cells[2].Right);
         Assert.Equal(50.0, cells[3].Left);
-        Assert.Equal([2, 2], SeriesGroups(svg).Select(g => Shapes(g, "polygon").Count));
+        Assert.Equal([2, 2], svg.SeriesGroups().Select(g => Shapes(g, "polygon").Count));
         var ticks = axes.XAxis.TickLocator!.Locate(0, 100);
         Assert.Equal([25.0, 75.0], ticks);
         Assert.Equal(["Retail", "Online"], ticks.Select(axes.XAxis.TickFormatter!.Format));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- the names and the axes ----------------------------------------------------------------------------------------------
@@ -375,7 +347,7 @@ public class MarimekkoTests
     [Fact]
     public void AColumnWithoutAName_IsAnEmptyTick()
     {
-        var axes = AxesOf(ax => ax.Marimekko(["Retail", null!], [new("A", [1, 2])]));
+        var axes = Plt.Create().OneAxes(ax => ax.Marimekko(["Retail", null!], [new("A", [1, 2])]));
 
         var ticks = axes.XAxis.TickLocator!.Locate(0, 100);
         Assert.Equal(["Retail", ""], ticks.Select(axes.XAxis.TickFormatter!.Format));
@@ -395,28 +367,6 @@ public class MarimekkoTests
         Assert.Contains("100%", texts);
     }
 
-    /// <summary>The verb sets no axis limits and keeps one the caller set before the call; it sets the Y margin to 0 so the
-    /// columns fill the plot, and a margin set after the call replaces it.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Chart(Segments);
-        var kept = AxesOf(ax => ax.SetXLim(-10, 110).SetYLim(0, 50).Marimekko(Columns, Segments));
-        var margin = AxesOf(ax => ax.Marimekko(Columns, Segments).SetYMargin(0.1));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(0.0, axes.YAxis.Margin);
-        Assert.Equal(-10.0, kept.XAxis.Min);
-        Assert.Equal(110.0, kept.XAxis.Max);
-        Assert.Equal(0.0, kept.YAxis.Min);
-        Assert.Equal(50.0, kept.YAxis.Max);
-        Assert.Equal(0.1, margin.YAxis.Margin);
-    }
-
     // ---- colours and the legend ------------------------------------------------------------------------------------------
 
     /// <summary>One drawn unit is one colour: segment i wears the theme's colour at slot i in every column, in order; no two
@@ -426,7 +376,7 @@ public class MarimekkoTests
     {
         string svg = Svg(ax => ax.Marimekko(Columns, Segments));
 
-        var fills = SeriesGroups(svg).Select(g => Named(g, "polygon").Select(p => ((string)p.Attribute("fill")!)[..7]).Distinct().ToList()).ToList();
+        var fills = svg.SeriesGroups().Select(g => g.Each("polygon").Select(p => ((string)p.Attribute("fill")!)[..7]).Distinct().ToList()).ToList();
         Assert.Equal([[Colors.Tab10Blue.ToHex()], [Colors.Tab10Orange.ToHex()], [Colors.Tab10Green.ToHex()]], fills);
     }
 
@@ -436,7 +386,7 @@ public class MarimekkoTests
     {
         string svg = Svg(ax => ax.Marimekko(Columns, Segments), Theme.Ggplot);
 
-        var fills = SeriesGroups(svg).Select(g => ((string)Named(g, "polygon").First().Attribute("fill")!)[..7]).ToList();
+        var fills = svg.SeriesGroups().Select(g => ((string)g.Each("polygon").First().Attribute("fill")!)[..7]).ToList();
         Assert.Equal([.. Theme.Ggplot.CycleColors.Take(3).Select(c => c.ToHex())], fills);
     }
 
@@ -450,8 +400,7 @@ public class MarimekkoTests
 
         string svg = figure.ToSvg();
 
-        var entries = Regex.Matches(svg, """<g data-legend-index="([0-9]+)" [^>]*aria-label="([^"]*)">""");
-        Assert.Equal(["0:A", "1:B", "2:C"], entries.Select(e => $"{e.Groups[1].Value}:{e.Groups[2].Value}"));
+        Assert.Equal(["0:A", "1:B", "2:C"], svg.LegendEntries().Select(entry => $"{entry.Index}:{entry.Label}"));
     }
 
     /// <summary>A segment with no name (null or empty) is drawn and has no legend entry.</summary>
@@ -468,50 +417,7 @@ public class MarimekkoTests
         Assert.Null(areas[0].Label);
         Assert.Null(areas[1].Label);
         Assert.Equal("named", areas[2].Label);
-        Assert.Single(Regex.Matches(figure.ToSvg(), "data-legend-index="));
-    }
-
-    /// <summary>The cells are opaque, as bars are, so a cell wears exactly the colour of its legend entry (an area is faint,
-    /// 0.3, by default).</summary>
-    [Fact]
-    public void TheCells_AreOpaque()
-    {
-        Assert.All(Areas(Chart(Segments)), area => Assert.Equal(1.0, area.Alpha));
-    }
-
-    // ---- the callback ----------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once for each segment, in the order of the segments, after the verb has built and styled the
-    /// area, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerSegment_InOrder_AfterTheVerbStyledIt()
-    {
-        var seen = new List<string?>();
-
-        var axes = Chart(Segments, area =>
-        {
-            Assert.Equal(1.0, area.Alpha);
-            seen.Add(area.Label);
-            area.Alpha = 0.6;
-        });
-
-        Assert.Equal(["A", "B", "C"], seen);
-        Assert.All(Areas(axes), area => Assert.Equal(0.6, area.Alpha));
-    }
-
-    // ---- the verb draws what the hand chain draws -------------------------------------------------------------------------
-
-    /// <summary>The verb adds nothing to the picture that the hand-written chain of public building blocks did not draw, and
-    /// leaves nothing out: same SVG, byte for byte, with and without a missing size.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("marimekko").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.MarimekkoByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
+        Assert.Equal(1, figure.ToSvg().CountOf("data-legend-index="));
     }
 
     // ---- JSON ----------------------------------------------------------------------------------------------------------------
@@ -529,7 +435,7 @@ public class MarimekkoTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.Marimekko(Columns, missing ? WithAMissingSize : Segments)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.All(Columns, name => Assert.Contains(name, FigureTexts(readBack)));
@@ -537,20 +443,11 @@ public class MarimekkoTests
 
     // ---- refused arguments -----------------------------------------------------------------------------------------------
 
-    /// <summary>An axes, a list of columns or a list of segments that is not there is refused by name.</summary>
-    [Fact]
-    public void ANullArgument_IsRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).Marimekko(Columns, Segments)).ParamName);
-        Assert.Equal("columns", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.Marimekko(null!, Segments))).ParamName);
-        Assert.Equal("segments", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.Marimekko(Columns, null!))).ParamName);
-    }
-
     /// <summary>No columns or no segments draw nothing: refused by name, in words that say what a Marimekko chart needs.</summary>
     [Fact]
     public void NoColumnsOrNoSegments_AreRefusedByName()
     {
-        var noColumns = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.Marimekko([], [new("A", [])])));
+        var noColumns = Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.Marimekko([], [new("A", [])])));
         var noSegments = Assert.Throws<ArgumentException>(() => Chart([]));
 
         Assert.Equal("columns", noColumns.ParamName);
@@ -567,7 +464,7 @@ public class MarimekkoTests
         var error = Assert.Throws<ArgumentException>(() => Chart([new("A", [1, 2, 3]), new("B", [1, 2])]));
 
         Assert.Equal("segments", error.ParamName);
-        Assert.Equal("Group 'B' carries 2 values; there are 3 columns. (Parameter 'segments')", error.Message);
+        Assert.Equal(2.RefusalAgainst(3, "segments", "group 'B'"), error.Message);
         Assert.Equal("segments", Assert.Throws<ArgumentException>(() => Chart([new BarGroup("A", null!)])).ParamName);
         Assert.Equal("segments", Assert.Throws<ArgumentException>(() => Chart([default])).ParamName);
     }
@@ -580,11 +477,11 @@ public class MarimekkoTests
     [InlineData(double.PositiveInfinity, "Infinity")]
     public void ASizeThatIsNotASize_IsRefusedByName(double size, string written)
     {
-        var error = Assert.Throws<ArgumentException>(() => Chart([new("A", [1, 2, 3]), new("B", [1, size, 1])]));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Chart([new("A", [1, 2, 3]), new("B", [1, size, 1])]));
 
         Assert.Equal("segments", error.ParamName);
-        Assert.StartsWith(
-            $"The size of 'B' in 'Online' is {written}; a size is finite and 0 or more (NaN marks a missing size).", error.Message);
+        Assert.StartsWith("The size of 'B' in 'Online' must be ", error.Message, StringComparison.Ordinal);
+        Assert.Contains($"(got {written}).", error.Message, StringComparison.Ordinal);
     }
 
     /// <summary>Sizes that do not add up to a finite number above 0 have no shares to draw: only zeros, only missing sizes,
@@ -595,29 +492,11 @@ public class MarimekkoTests
     [InlineData(1e308, 1e308, "Infinity")]
     public void SizesThatDoNotAddUpToAFiniteTotalAboveZero_AreRefusedByName(double first, double second, string written)
     {
-        var error = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.Marimekko(["a", "b"], [new("A", [first, second])])));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Plt.Create().OneAxes(ax => ax.Marimekko(["a", "b"], [new("A", [first, second])])));
 
         Assert.Equal("segments", error.ParamName);
-        Assert.StartsWith(
-            $"The sizes add up to {written}; a Marimekko chart draws each column as its share of the total, which must be a finite number above 0.",
-            error.Message);
-    }
-
-    /// <summary>A refused call has added nothing: the checks come before the first area, so no series, no tick locator and no
-    /// margin is left behind.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.Marimekko(Columns, [new("A", [1, 2, 3]), new("B", [1, -2, 3])]));
-        Assert.Throws<ArgumentException>(() => builder.Marimekko(Columns, [new("A", [0, 0, 0])]));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.XAxis.TickLocator);
-        Assert.Null(axes.YAxis.TickFormatter);
-        Assert.Null(axes.YAxis.Margin);
+        Assert.StartsWith("The total of the sizes must be ", error.Message, StringComparison.Ordinal);
+        Assert.Contains($"(got {written}).", error.Message, StringComparison.Ordinal);
     }
 
     // ---- the example in the documentation ---------------------------------------------------------------------------------
@@ -642,7 +521,7 @@ public class MarimekkoTests
                 .WithLegend(LegendPosition.OutsideRight))
             .ToSvg();
 
-        Assert.Equal(9, SeriesGroups(svg).Sum(g => Shapes(g, "polygon").Count));
+        Assert.Equal(9, svg.SeriesGroups().Sum(g => Shapes(g, "polygon").Count));
         Assert.All(channels, name => Assert.Contains($">{name}<", svg));
     }
 }

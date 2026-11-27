@@ -4,12 +4,12 @@
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="GarmanKlass"/> behavior. Covers all branches enumerated in
-/// docs/contrib/indicator-tier-1a.md §1: empty, below-period, exact-period boundary,
-/// non-positive guard, H==L zero-range, doji O==C, all-flat, single-window, rolling.</summary>
+/// <summary>Verifies <see cref="GarmanKlass"/> behavior. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class GarmanKlassTests
 {
     // Canonical 5-bar vector from spec §1 test vectors:
@@ -23,46 +23,6 @@ public class GarmanKlassTests
     //   np.sqrt(np.mean(0.5*np.log(h/l)**2 - (2*np.log(2)-1)*np.log(c/o)**2)) ≈ 0.0277119
     // Hand-verified: Σ σ²_GK = 0.00383972, mean = 0.000767943, √ = 0.0277119
 
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var gk = new GarmanKlass(OhlcvBars.Ohlc([], [], [], []), period: 5);
-        Assert.Empty(gk.Compute().Values);
-    }
-
-    // ── Branch 2 — Length < period ──
-    [Fact]
-    public void Compute_LengthBelowPeriod_ReturnsEmpty()
-    {
-        var gk = new GarmanKlass(
-            OhlcvBars.Ohlc(
-                [100.0, 101.0, 102.0], [101.0, 102.0, 103.0],
-                [99.0, 100.0, 101.0], [100.5, 101.5, 102.5]), period: 5);
-        Assert.Empty(gk.Compute().Values);
-    }
-
-    // ── Branch 3 — Length == period (boundary, returns length-1 array) ──
-    [Fact]
-    public void Compute_LengthEqualsPeriod_ReturnsSingleWindow()
-    {
-        var gk = new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5);
-        Assert.Single(gk.Compute().Values);
-    }
-
-    // ── Branch 4 — Non-positive price guard ──
-    [Theory]
-    [InlineData(0.0, 1.0, 1.0, 1.0)]    // O <= 0
-    [InlineData(1.0, 0.0, 1.0, 1.0)]    // H <= 0
-    [InlineData(1.0, 1.0, 0.0, 1.0)]    // L <= 0
-    [InlineData(1.0, 1.0, 1.0, 0.0)]    // C <= 0
-    [InlineData(-1.0, 1.0, 1.0, 1.0)]   // O negative
-    public void Constructor_NonPositivePrice_Throws(double o, double h, double l, double c)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new GarmanKlass(OhlcvBars.Ohlc([o, 1, 1, 1, 1], [h, 1, 1, 1, 1], [l, 1, 1, 1, 1], [c, 1, 1, 1, 1]), period: 5));
-    }
-
     // ── Branch 5 — H == L (zero range) contributes 0, no NaN ──
     [Fact]
     public void Compute_ZeroRangeBar_NoNaN()
@@ -74,7 +34,7 @@ public class GarmanKlassTests
         double[] c = [100, 100, 100, 100, 100];
         var result = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute().Values;
         Assert.Single(result);
-        Assert.False(double.IsNaN(result[0]));
+        result[0].AssertFinite();
     }
 
     // ── Branch 6 — O == C (doji) contributes 0, no NaN ──
@@ -87,33 +47,35 @@ public class GarmanKlassTests
         double[] c = [100, 100, 100, 100, 100]; // O == C every bar
         var result = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute().Values;
         Assert.Single(result);
-        Assert.False(double.IsNaN(result[0]));
+        result[0].AssertFinite();
         Assert.True(result[0] > 0); // HL range non-zero → σ > 0
     }
 
-    // ── Branch 7 — All-flat window (H=L=O=C) → 0.0, no NaN ──
-    [Fact]
-    public void Compute_AllFlatWindow_ReturnsZero()
+    // ── Branch 7 — All-flat window (H=L=O=C) → 0.0, no NaN: the Garman-Klass and the Yang-Zhang estimator alike ──
+    public static TheoryData<Func<OhlcvBars, double[]>> Estimators => new()
     {
-        double[] flat = [100, 100, 100, 100, 100, 100, 100];
-        var gk = new GarmanKlass(OhlcvBars.Ohlc(flat, flat, flat, flat), period: 5);
-        var result = gk.Compute().Values;
-        Assert.All(result, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.Equal(0.0, v, precision: 12);
-        });
-    }
+        bars => new GarmanKlass(bars, period: 5).Compute().Values,
+        bars => new YangZhang(bars, period: 5).Compute().Values,
+    };
+
+    [Theory]
+    [MemberData(nameof(Estimators))]
+    public void Compute_AllFlatWindow_ReturnsZero(Func<OhlcvBars, double[]> estimate) =>
+        EdgeCaseData.AssertFlatBarsHaveNoVolatility(estimate);
 
     // ── Branch 8 — Normal single-window path ──
-    [Fact]
-    public void Compute_KnownVector_MatchesPythonReference()
+    /// <summary>The two volatility estimators over the same kind of reference vector (GarmanKlass: the canonical 5-bar vector, checked
+    /// against numpy; YangZhang: 6 bars with O_t = C_(t-1), hand-computed, see its class header).</summary>
+    public static TheoryData<Func<OhlcvBars, double[]>, OhlcvBars, double, int> KnownVectors => new()
     {
-        var gk = new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5);
-        var result = gk.Compute().Values;
-        Assert.Single(result);
-        Assert.Equal(0.0277119, result[0], precision: 5);
-    }
+        { bars => new GarmanKlass(bars, period: 5).Compute().Values, OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), 0.0277119, 5 },
+        { bars => new YangZhang(bars, period: 5).Compute().Values, OhlcvBars.Ohlc(YangZhangTests.RefO, YangZhangTests.RefH, YangZhangTests.RefL, YangZhangTests.RefC), 0.03421, 3 },
+    };
+
+    [Theory]
+    [MemberData(nameof(KnownVectors))]
+    public void Compute_KnownVector_MatchesTheReference(Func<OhlcvBars, double[]> estimate, OhlcvBars bars, double expected, int precision) =>
+        EdgeCaseData.AssertOneValue(estimate(bars), expected, precision);
 
     // ── Branch 9 — Rolling path (length > period → multiple window outputs) ──
     [Fact]
@@ -126,48 +88,7 @@ public class GarmanKlassTests
         double[] c = [102, 103, 105, 107, 108, 110, 111];
         var result = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute().Values;
         Assert.Equal(3, result.Length);
-        Assert.All(result, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.True(v > 0);
-        });
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 7).Apply(axes);
-        Assert.Equal("GK(7)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultPeriod_Is20()
-    {
-        // Constructor default applied via label
-        var o = new double[25]; var h = new double[25]; var l = new double[25]; var c = new double[25];
-        for (int i = 0; i < 25; i++) { o[i] = 100; h[i] = 101; l[i] = 99; c[i] = 100; }
-        var gk = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c));
-        Assert.Equal("GK(20)", gk.Label);
-    }
-
-    // ── Type-system: inherits CandleIndicator<SignalResult> ──
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(
-            new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC)));
-        Assert.IsAssignableFrom<IIndicator>(
-            new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC)));
+        result.AssertAllFinite();
+        Assert.All(result, v => Assert.True(v > 0));
     }
 }

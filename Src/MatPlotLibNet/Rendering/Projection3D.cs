@@ -8,44 +8,45 @@ namespace MatPlotLibNet.Rendering;
 /// <c>mpl_toolkits.mplot3d</c> pipeline: <c>World → View → Ortho/Persp → NDC → Pixel</c>.
 /// </summary>
 /// <remarks>
-/// The pipeline is faithful to matplotlib 3.10 <c>axes3d.py / proj3d.py</c>:
+/// The pipeline is faithful to matplotlib 3.11 <c>axes3d.py / proj3d.py</c>:
 /// <list type="bullet">
 ///   <item>World matrix scales data ranges by <c>pb_aspect</c> so the data box becomes the world box.</item>
 ///   <item>View matrix places the camera on a sphere around the box center at distance <c>_dist</c>,
 ///         with basis <c>(u, v, w)</c> derived from elevation, azimuth and roll.</item>
 ///   <item>Ortho projection gives depth-independent <c>(x, y)</c>; perspective projection (if
 ///         <c>focalLength</c> set) applies foreshortening.</item>
-///   <item>The resulting NDC bounding box of the 8 cube corners is then fit into the pixel plot
-///         bounds. matplotlib's exact pixel scale depends on axes zoom and bbox, so we use a
-///         fit-to-plot-bounds with a small margin multiplier. Verified against matplotlib by
-///         dumping <c>get_proj()</c> output and comparing pixel positions.</item>
+///   <item>The projected point is placed as matplotlib places it: the plot is shrunk to a square centred in it, and the
+///         square shows the projected points from -0.95 / dist to 0.9 / dist in both directions, whatever the corners of
+///         the box project to.</item>
 /// </list>
 /// </remarks>
 public sealed class Projection3D
 {
-    private readonly Rect _plotBounds;
-    private readonly double _xMin, _xMax, _yMin, _yMax, _zMin, _zMax;
+    /// <summary>The three axes of the world box: the data range along each (widened when flat) and the share of the box it spans.</summary>
+    private readonly WorldAxis _x, _y, _z;
     private readonly double? _distance;
 
-    // matplotlib default box aspect: (4, 4, 3) / (3 * zoom) at zoom=1, then SCALED by an
-    // internal factor so get_box_aspect() returns (25/21, 25/21, 25/28) ≈ (1.190, 1.190, 0.893).
-    // These values make the cube corners project to NDC values in range ~[-0.09, +0.09],
-    // which matplotlib then scales to its axes pixel bbox using an additional ~11× factor.
+    // matplotlib's default box aspect (set_box_aspect): (4, 4, 3) times 1.8294640721620434 * 25/24 / |(4, 4, 3)| at zoom 1,
+    // which is (25/21, 25/21, 25/28) ≈ (1.190, 1.190, 0.893).
     private const double BoxAspectX = 25.0 / 21.0;  // ≈ 1.19047619
     private const double BoxAspectY = 25.0 / 21.0;
     private const double BoxAspectZ = 25.0 / 28.0;  // ≈ 0.89285714
 
-    // Default matplotlib camera distance and focal length.
-    // matplotlib Axes3D __init__: self._dist = 10, proj_type='persp', focal_length=None (→ 1).
-    private const double DefaultDist = 10.0;
+    // matplotlib's focal length (Axes3D __init__: proj_type='persp', focal_length=None → 1); the camera's distance at rest is
+    // Camera3D.RestingDistance (self._dist = 10).
     private const double DefaultFocalLength = 1.0;
 
-    // Full 4×4 projection matrix M = ProjM · ViewM · WorldM (row-major).
-    private readonly double[,] _m;
+    // The rows of the full 4×4 projection matrix M = ProjM · ViewM · WorldM, each applied by MatrixRow.Of to a data point
+    // measured from the box's first corner (WorldAxis.From).
+    private readonly MatrixRow _m0, _m1, _m2, _m3;
 
-    // Post-rotation screen-space fit bounds, computed from the 8 corners of the normalized
-    // [0, ax] × [0, ay] × [0, az] world box. The renderer fits this bbox into _plotBounds.
-    private readonly double _fitXMin, _fitXMax, _fitYMin, _fitYMax;
+    // matplotlib's view limits times the camera distance (axes3d.py set_top_view): the view runs from -0.95 to 0.9 in
+    // both directions, 1.85 in all.
+    private const double ViewBelow = 0.95, ViewAbove = 0.9, ViewSpan = 1.85;
+
+    // The fit of the box into the plot, worked out once: the pixel the projected origin (the centre of the box) lands on and
+    // the one pixel scale both directions share (see Project).
+    private readonly double _originX, _originY, _fitScale;
 
     /// <summary>The camera elevation above the XY plane, in degrees.</summary>
     public double Elevation { get; }
@@ -53,7 +54,8 @@ public sealed class Projection3D
     /// <summary>The camera azimuth, its rotation around the Z axis, in degrees.</summary>
     public double Azimuth { get; }
 
-    /// <summary>Camera distance for perspective projection. Null = orthographic. Clamped to minimum 2.0.</summary>
+    /// <summary>The camera distance the caller set, at least 2; null for matplotlib's default camera, at <see cref="Models.Camera3D.RestingDistance"/>. The projection is
+    /// a perspective one either way.</summary>
     public double? Distance => _distance;
 
     /// <summary>The data box this projection maps — the <c>(xMin…zMax)</c> the constructor received, with an axis of no
@@ -76,39 +78,36 @@ public sealed class Projection3D
     /// <param name="yMax">Maximum Y data value.</param>
     /// <param name="zMin">Minimum Z data value.</param>
     /// <param name="zMax">Maximum Z data value.</param>
-    /// <param name="distance">Camera distance (persp focal length). Null = orthographic with dist=10.</param>
+    /// <param name="distance">The camera's distance from the centre of the box, at least 2; null for matplotlib's default
+    /// camera, at <see cref="Models.Camera3D.RestingDistance"/>. A distance d draws as matplotlib's perspective with focal length d / 10.</param>
     /// <remarks>An axis whose range has no width (one point, a constant column) places its values in the middle of the
     /// box: the range is widened by half a unit on each side, the rule every 2-D axis follows
-    /// (<see cref="Range1D.Normalized"/>), and <see cref="DataBox"/> holds the widened range. Fitting the box to eight
-    /// corners that coincide would divide by zero.</remarks>
+    /// (<see cref="Range1D.Normalized"/>), and <see cref="DataBox"/> holds the widened range. Scaling a range of no width
+    /// to the box would divide by zero. A range given high to low (a limit set that way) draws its axis the
+    /// other way round, as matplotlib's inverted 3-D axis does.</remarks>
     public Projection3D(double elevation, double azimuth, Rect plotBounds,
         double xMin, double xMax, double yMin, double yMax, double zMin, double zMax,
         double? distance = null)
     {
-        var xRange = new Range1D(xMin, xMax).Normalized();
-        var yRange = new Range1D(yMin, yMax).Normalized();
-        var zRange = new Range1D(zMin, zMax).Normalized();
-        xMin = xRange.Lo; xMax = xRange.Hi;
-        yMin = yRange.Lo; yMax = yRange.Hi;
-        zMin = zRange.Lo; zMax = zRange.Hi;
+        _x = WorldAxis.Of(new Range1D(xMin, xMax), BoxAspectX);
+        _y = WorldAxis.Of(new Range1D(yMin, yMax), BoxAspectY);
+        _z = WorldAxis.Of(new Range1D(zMin, zMax), BoxAspectZ);
 
         Elevation = elevation;
         Azimuth = azimuth;
-        _plotBounds = plotBounds;
-        _xMin = xMin; _xMax = xMax; _yMin = yMin; _yMax = yMax; _zMin = zMin; _zMax = zMax;
         _distance = distance.HasValue ? Math.Max(2.0, distance.Value) : null;
 
         // Camera distance drives BOTH the view transform (eye placement along the
         // camera-forward axis) AND the perspective projection matrix's `zfront`/`zback`
         // clip range. Previously this field was stored but never consumed, so every
-        // projection ran with the hard-coded `DefaultDist = 10` regardless of the caller's
+        // projection ran with the hard-coded resting distance regardless of the caller's
         // `distance:` argument — masking the perspective-parallax behaviour entirely.
         // Null (the common case) still resolves to 10 for backward compatibility with
         // every production 3-D renderer that doesn't set `Axes.CameraDistance`.
-        double dist = _distance ?? DefaultDist;
+        double dist = _distance ?? Models.Camera3D.RestingDistance;
         double focalLength = DefaultFocalLength;
-        double elRad = elevation * Math.PI / 180;
-        double azRad = azimuth * Math.PI / 180;
+        double elRad = elevation.ToRadians();
+        double azRad = azimuth.ToRadians();
         double cosEl = Math.Cos(elRad), sinEl = Math.Sin(elRad);
         double cosAz = Math.Cos(azRad), sinAz = Math.Sin(azRad);
 
@@ -118,12 +117,12 @@ public sealed class Projection3D
         //    [   0,   ay/dy,   0,   -ymin*ay/dy ],
         //    [   0,     0,   az/dz, -zmin*az/dz ],
         //    [   0,     0,     0,        1      ]]
-        double dx = xMax - xMin, dy = yMax - yMin, dz = zMax - zMin;
-        if (dx <= 0) dx = 1;
-        if (dy <= 0) dy = 1;
-        if (dz <= 0) dz = 1;
-        double sx = BoxAspectX / dx, sy = BoxAspectY / dy, sz = BoxAspectZ / dz;
-        double tx = -xMin * sx, ty = -yMin * sy, tz = -zMin * sz;
+        // A range set high to low has a negative width, and the negative scale draws its axis the other way round, as
+        // matplotlib's world transformation does; Range1D.Normalized has already widened a range of no width, so no width
+        // is 0. The translation column -xmin*ax/dx is taken out of the matrix: a point is measured from the box's first corner
+        // before it meets the matrix ((x - xmin) * ax/dx, the same number in exact arithmetic), so a narrow box far from 0
+        // (a millisecond of dates) keeps its digits instead of losing them to two large terms that cancel.
+        double sx = _x.Scale, sy = _y.Scale, sz = _z.Scale;
 
         // --- View matrix (port of proj3d._view_axes + _view_transformation_uvw) ---
         //   R   = 0.5 * box_aspect                               (box centre in world coords)
@@ -140,7 +139,7 @@ public sealed class Projection3D
         //       = (-sin(el)cos(az), -sin(el)sin(az), cos(el))
         //
         //   viewM = Mr · Mt   with Mr = [[u], [v], [w]] and Mt translates by -eye_focal
-        double rcx = 0.5 * BoxAspectX, rcy = 0.5 * BoxAspectY, rcz = 0.5 * BoxAspectZ;
+        double rcx = _x.Middle, rcy = _y.Middle, rcz = _z.Middle;
         double ex = rcx + dist * focalLength * cosEl * cosAz;
         double ey = rcy + dist * focalLength * cosEl * sinAz;
         double ez = rcz + dist * focalLength * sinEl;
@@ -154,15 +153,12 @@ public sealed class Projection3D
         double wT = -(wx * ex + wy * ey + wz * ez);
 
         // --- view · world (3-row × 4-col result; bottom row is [0,0,0,1]) ---
-        // worldM[i][j] is diagonal sx/sy/sz with translation column tx/ty/tz,
+        // worldM[i][j] is diagonal sx/sy/sz (its translation is the anchoring above),
         // so (view · world)[r][c] = view[r][0..2] · worldDiag[0..2][c] when c<3,
-        // and = view[r][0..2] · (tx,ty,tz) + view[r][3] when c==3.
-        double vw00 = ux * sx, vw01 = uy * sy, vw02 = uz * sz;
-        double vw03 = ux * tx + uy * ty + uz * tz + uT;
-        double vw10 = vx * sx, vw11 = vy * sy, vw12 = vz * sz;
-        double vw13 = vx * tx + vy * ty + vz * tz + vT;
-        double vw20 = wx * sx, vw21 = wy * sy, vw22 = wz * sz;
-        double vw23 = wx * tx + wy * ty + wz * tz + wT;
+        // and = view[r][3] when c==3.
+        double vw00 = ux * sx, vw01 = uy * sy, vw02 = uz * sz, vw03 = uT;
+        double vw10 = vx * sx, vw11 = vy * sy, vw12 = vz * sz, vw13 = vT;
+        double vw20 = wx * sx, vw21 = wy * sy, vw22 = wz * sz, vw23 = wT;
 
         // --- Persp projection matrix (matplotlib _persp_transformation(-dist, dist, focal_length)) ---
         //   e = focal_length, a = 1
@@ -189,32 +185,22 @@ public sealed class Projection3D
         double b = (zfront + zback) / (zfront - zback);
         double c = -2 * (zfront * zback) / (zfront - zback);
 
-        double[,] M = new double[4, 4];
-        M[0, 0] = e * vw00;   M[0, 1] = e * vw01;   M[0, 2] = e * vw02;   M[0, 3] = e * vw03;
-        M[1, 0] = (e / a) * vw10; M[1, 1] = (e / a) * vw11; M[1, 2] = (e / a) * vw12; M[1, 3] = (e / a) * vw13;
-        M[2, 0] = b * vw20;   M[2, 1] = b * vw21;   M[2, 2] = b * vw22;   M[2, 3] = b * vw23 + c;
-        M[3, 0] = -vw20;      M[3, 1] = -vw21;      M[3, 2] = -vw22;      M[3, 3] = -vw23;
+        _m0 = new MatrixRow(e * vw00, e * vw01, e * vw02, e * vw03);
+        _m1 = new MatrixRow((e / a) * vw10, (e / a) * vw11, (e / a) * vw12, (e / a) * vw13);
+        _m2 = new MatrixRow(b * vw20, b * vw21, b * vw22, b * vw23 + c);
+        _m3 = new MatrixRow(-vw20, -vw21, -vw22, -vw23);
 
-        _m = M;
+        // The fit, matplotlib's rule (axes3d.py): the axes is the plot shrunk to a square and centred in it (apply_aspect,
+        // anchor 'C'), and its view limits are fixed at (-0.95 / dist, 0.9 / dist) in both directions (set_top_view), so the
+        // box is never fitted to its projected corners. A camera distance d draws as matplotlib's perspective with focal
+        // length d / 10 (the same eye, the projected point d / 10 the size of ours), so the limits scale with the distance
+        // and the box keeps its size. Svg3DRotationScript fits the box by the same rule.
+        double side = plotBounds.ShorterSide;
+        _fitScale = side * dist / ViewSpan;
+        _originX = Range1D.CentredIn(plotBounds.X, plotBounds.Width, side).Lo + side * ViewBelow / ViewSpan;
+        _originY = Range1D.CentredIn(plotBounds.Y, plotBounds.Height, side).Lo + side * ViewAbove / ViewSpan;
 
-        // Pre-compute rotated screen-space extent of the 8 world-box corners [0,ax]×[0,ay]×[0,az].
-        double minX = double.MaxValue, maxX = double.MinValue;
-        double minY = double.MaxValue, maxY = double.MinValue;
-        for (int i = 0; i < 8; i++)
-        {
-            double wxv = (i & 1) == 0 ? 0 : BoxAspectX;
-            double wyv = (i & 2) == 0 ? 0 : BoxAspectY;
-            double wzv = (i & 4) == 0 ? 0 : BoxAspectZ;
-            var p = ProjectWorldToNdc(wxv, wyv, wzv);
-            if (p.X < minX) minX = p.X;
-            if (p.X > maxX) maxX = p.X;
-            if (p.Y < minY) minY = p.Y;
-            if (p.Y > maxY) maxY = p.Y;
-        }
-        _fitXMin = minX; _fitXMax = maxX;
-        _fitYMin = minY; _fitYMax = maxY;
-
-        DataBox = new Box3D(xMin, xMax, yMin, yMax, zMin, zMax);
+        DataBox = new Box3D(_x.Range, _y.Range, _z.Range);
         Faces = SelectFaces();
     }
 
@@ -240,8 +226,8 @@ public sealed class Projection3D
     /// </remarks>
     private CubeFaceSelection SelectFaces()
     {
-        Span<double> lo = [_xMin, _yMin, _zMin];
-        Span<double> hi = [_xMax, _yMax, _zMax];
+        Span<double> lo = [_x.Range.Lo, _y.Range.Lo, _z.Range.Lo];
+        Span<double> hi = [_x.Range.Hi, _y.Range.Hi, _z.Range.Hi];
         Span<bool> backAtMax = stackalloc bool[3];
         Span<bool> edgeOn = stackalloc bool[3];
         int edgeOnCount = 0;
@@ -300,39 +286,27 @@ public sealed class Projection3D
 
     /// <summary>
     /// The POST-divide projected z of a data point — matplotlib's <c>proj_transform</c> third
-    /// component, the statistic its face selection compares. Distinct from <see cref="Depth"/>,
-    /// which is the pre-divide painter's-algorithm sort key.
+    /// component, the statistic its face selection compares and its depth shading measures by. Distinct from
+    /// <see cref="Depth"/>, which is the pre-divide painter's-algorithm sort key.
     /// </summary>
     private double ProjectedDepth(double x, double y, double z)
     {
-        double mz = _m[2, 0] * x + _m[2, 1] * y + _m[2, 2] * z + _m[2, 3];
-        double mw = _m[3, 0] * x + _m[3, 1] * y + _m[3, 2] * z + _m[3, 3];
-        return mz / mw;
+        double ax = _x.From(x), ay = _y.From(y), az = _z.From(z);
+        return _m2.Of(ax, ay, az) / _m3.Of(ax, ay, az);
     }
 
-    /// <summary>Applies the full 4×4 matrix M to a world-box point, returning post-divide NDC (x, y).</summary>
-    private Point ProjectWorldToNdc(double wx, double wy, double wz)
+    /// <summary>A data point as matplotlib's <c>proj_transform</c> gives it, before the plot's fit: the view coordinates of
+    /// <see cref="Project"/> and the POST-divide depth (<see cref="ProjectedDepth"/>), which grows with the distance. What the depth
+    /// shading of a 3-D scatter measures its markers by.</summary>
+    /// <param name="x">The data x.</param>
+    /// <param name="y">The data y.</param>
+    /// <param name="z">The data z.</param>
+    /// <returns>The projected point.</returns>
+    internal Projected3DPoint ProjectedAt(double x, double y, double z)
     {
-        // Direct M @ [wx, wy, wz, 1] without the intermediate world_M step (world coords already).
-        // But _m was built as M = Proj · View · World, so feed DATA coords in. For the cube-corner
-        // pre-fit pass we feed world coords directly and bypass the world step — so we need a
-        // "view+proj only" path. Re-apply the inverse world transform: data = (wx - tx)/sx etc.
-        // Simpler: just recompute view·proj on the fly using the stored matrix inverted through world.
-        // Easiest: call Project via inverse world map. But for clarity here, we inline a fresh
-        // view·proj multiply on (wx, wy, wz) directly.
-        //
-        // Actually, since _m already includes world, and here wx is ALREADY a world coord (not data),
-        // we compute it via the view·proj submatrix. We re-derive that by multiplying the inverse
-        // world step. But since the caller passes WORLD coords in [0, BoxAspect*], we can just
-        // invert the world: data_x = (wx - tx)/sx. For the pre-fit this returns xMin/xMax.
-        // Simpler still: feed DATA coords matching the world corners. World corner (0, 0, 0) = data (xMin, yMin, zMin).
-        double dataX = (wx == 0) ? _xMin : _xMax;
-        double dataY = (wy == 0) ? _yMin : _yMax;
-        double dataZ = (wz == 0) ? _zMin : _zMax;
-        double x = _m[0, 0] * dataX + _m[0, 1] * dataY + _m[0, 2] * dataZ + _m[0, 3];
-        double y = _m[1, 0] * dataX + _m[1, 1] * dataY + _m[1, 2] * dataZ + _m[1, 3];
-        double w = _m[3, 0] * dataX + _m[3, 1] * dataY + _m[3, 2] * dataZ + _m[3, 3];
-        return new(x / w, y / w);
+        double ax = _x.From(x), ay = _y.From(y), az = _z.From(z);
+        double mw = _m3.Of(ax, ay, az);
+        return new Projected3DPoint(_m0.Of(ax, ay, az) / mw, _m1.Of(ax, ay, az) / mw, ProjectedDepth(x, y, z));
     }
 
     /// <summary>Normalizes data coordinates to matplotlib's world box.</summary>
@@ -341,52 +315,24 @@ public sealed class Projection3D
     /// <c>(25/21, 25/21, 25/28)</c> world box, not a uniform [-1, 1]³ cube.</remarks>
     public Normalized3DPoint Normalize(double x, double y, double z)
     {
-        double nx = _xMax > _xMin ? BoxAspectX * (x - _xMin) / (_xMax - _xMin) : 0;
-        double ny = _yMax > _yMin ? BoxAspectY * (y - _yMin) / (_yMax - _yMin) : 0;
-        double nz = _zMax > _zMin ? BoxAspectZ * (z - _zMin) / (_zMax - _zMin) : 0;
+        // A range set high to low normalises the other way round, where the projection draws it; no range has no width
+        // (the constructor widened it).
+        double nx = _x.Share(x), ny = _y.Share(y), nz = _z.Share(z);
         // Recenter to [-BoxAspect/2, +BoxAspect/2] for backward-compat with old callers that
         // expect zero-centered normalized points (used by a handful of grid/label helpers).
-        return new(nx - BoxAspectX / 2, ny - BoxAspectY / 2, nz - BoxAspectZ / 2);
+        return new(nx - _x.Middle, ny - _y.Middle, nz - _z.Middle);
     }
 
     /// <summary>Projects a 3D point to 2D pixel coordinates via matplotlib's full M matrix.</summary>
     public Point Project(double x, double y, double z)
     {
-        // M @ [x, y, z, 1] — full pipeline including world · view · proj.
-        double mx = _m[0, 0] * x + _m[0, 1] * y + _m[0, 2] * z + _m[0, 3];
-        double my = _m[1, 0] * x + _m[1, 1] * y + _m[1, 2] * z + _m[1, 3];
-        double mw = _m[3, 0] * x + _m[3, 1] * y + _m[3, 2] * z + _m[3, 3];
-        double nx = mx / mw;
-        double ny = my / mw;
-
-        // Fit the cube's NDC bbox into the plot bounds, PRESERVING its natural aspect ratio.
-        // Verified: matplotlib uses the same px/NDC rate on both axes (~2290 px per NDC unit
-        // for a 423.5 px axes bbox). The cube's NDC w/h ≈ 1.047 — wider than tall — and
-        // fills roughly 90 % of matplotlib's square axes bbox.
-        //
-        // Uniform scale: pick whichever of (plotWidth / rangeX) or (plotHeight / rangeY)
-        // is smaller so the cube fits within both dimensions. Then centre the cube in the
-        // plot bounds. The 0.95 margin factor leaves ~5 % breathing room around the cube
-        // for tick labels, matching matplotlib's pane-fill behaviour.
-        double rangeX = _fitXMax - _fitXMin;
-        double rangeY = _fitYMax - _fitYMin;
-        double cxFit = (_fitXMin + _fitXMax) / 2;
-        double cyFit = (_fitYMin + _fitYMax) / 2;
-
-        double scaleX = _plotBounds.Width / rangeX;
-        double scaleY = _plotBounds.Height / rangeY;
-        // Phase P fix (2026-04-18) — was *1.00 "fill the plot area exactly", which at
-        // typical camera angles (el=35, az=-50) leaves visible L/R whitespace because
-        // the projected cube's horizontal extent is narrower than its vertical extent.
-        // First iteration tried 1.25× (user approved "aggressive fill"); at that scale
-        // the cube top overlapped the axes title. 1.15 keeps most of the gained real
-        // estate while leaving the title row clear. Must stay in lockstep with
-        // Svg3DRotationScript's BOX_FILL constant.
-        double scale = Math.Min(scaleX, scaleY) * 1.15;
-
-        double px = _plotBounds.X + _plotBounds.Width / 2 + (nx - cxFit) * scale;
-        double pyScreen = _plotBounds.Y + _plotBounds.Height / 2 - (ny - cyFit) * scale;
-        return new Point(px, pyScreen);
+        // M @ [x - xmin, y - ymin, z - zmin, 1], divided by its w, then fitted into the plot (the fit is worked out once, in
+        // the constructor).
+        double ax = _x.From(x), ay = _y.From(y), az = _z.From(z);
+        double mw = _m3.Of(ax, ay, az);
+        double nx = _m0.Of(ax, ay, az) / mw;
+        double ny = _m1.Of(ax, ay, az) / mw;
+        return new Point(_originX + nx * _fitScale, _originY - ny * _fitScale);
     }
 
     /// <summary>
@@ -396,9 +342,46 @@ public sealed class Projection3D
     /// eye. Negating again gives "low = far" so the caller's ascending sort paints the
     /// farthest polygon first.
     /// </summary>
-    public double Depth(double x, double y, double z)
+    public double Depth(double x, double y, double z) => -_m3.Of(_x.From(x), _y.From(y), _z.From(z));
+
+    /// <summary>One row of the projection matrix, applied to a point measured from the box's first corner.</summary>
+    private readonly record struct MatrixRow(double X, double Y, double Z, double W)
     {
-        double dw = _m[3, 0] * x + _m[3, 1] * y + _m[3, 2] * z + _m[3, 3];
-        return -dw;
+        /// <summary>The row applied to the point (<paramref name="x"/>, <paramref name="y"/>, <paramref name="z"/>, 1), each
+        /// coordinate already measured from the box's first corner, summed left to right.</summary>
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+        internal double Of(double x, double y, double z) => X * x + Y * y + Z * z + W;
+    }
+
+    /// <summary>One axis of the world box a 3-D projection maps its data into (matplotlib's <c>world_transformation</c>, with
+    /// <c>pb_aspect</c>): the data range along it and the share of the box it spans. The one place a value along X, Y or Z is measured from
+    /// the box's first corner and scaled into the box, so <see cref="Projection3D"/> says it once for the three axes.</summary>
+    /// <param name="Range">The data range, widened when flat (<see cref="Range1D.Normalized"/>); a range set high to low scales the other way
+    /// round, as matplotlib draws an inverted 3-D axis.</param>
+    /// <param name="Aspect">The share of the box the axis spans (matplotlib's box aspect, 25/21 along X and Y and 25/28 along Z).</param>
+    internal readonly record struct WorldAxis(Range1D Range, double Aspect)
+    {
+        /// <summary>The axis over <paramref name="range"/>, widened first when it is flat, spanning <paramref name="aspect"/> of the box.</summary>
+        /// <param name="range">The data range.</param>
+        /// <param name="aspect">The share of the box.</param>
+        /// <returns>The axis.</returns>
+        internal static WorldAxis Of(Range1D range, double aspect) => new(range.Normalized(), aspect);
+
+        /// <summary>How far <paramref name="value"/> lies from the low end of the range: a point is measured from the box's first corner
+        /// before it meets the projection's matrix, so a narrow box far from 0 keeps its digits.</summary>
+        /// <param name="value">The data value.</param>
+        /// <returns>The offset, in data units.</returns>
+        internal double From(double value) => value - Range.Lo;
+
+        /// <summary>The factor a data offset along the axis is scaled into the box by: its share over the width of the range.</summary>
+        internal double Scale => Aspect / (Range.Hi - Range.Lo);
+
+        /// <summary>Where <paramref name="value"/> stands in the box along the axis, from 0 at the low end to <see cref="Rendering.Projection3D.WorldAxis.Aspect"/> at the high.</summary>
+        /// <param name="value">The data value.</param>
+        /// <returns>The place in the box.</returns>
+        internal double Share(double value) => Aspect * (value - Range.Lo) / (Range.Hi - Range.Lo);
+
+        /// <summary>The middle of the box along the axis: half its share.</summary>
+        internal double Middle => Aspect / 2;
     }
 }

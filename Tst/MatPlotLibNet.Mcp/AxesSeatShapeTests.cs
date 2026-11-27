@@ -27,8 +27,10 @@ public class AxesSeatShapeTests
             {
                 "xAxis", "yAxis", "zAxis", "secondaryYAxis", "secondaryXAxis",
                 "extraRightYAxes[].axis", "rightYAxesOverflow[].axis", "leftYAxes[].axis", "leftYAxesOverflow[].axis",
+                "bottomXAxes[].axis",
             }.Order(StringComparer.Ordinal),
             names.Where(name => name.Kind == SeatKind.Axis).Select(name => name.Path).Order(StringComparer.Ordinal));
+        // An X axis below the plot shows the primary's range and holds no series, so its list has no series seat.
         Assert.Equal(
             new[]
             {
@@ -43,7 +45,13 @@ public class AxesSeatShapeTests
     {
         Assert.Equal(
             new[] { "extraRightYAxes", "rightYAxesOverflow", "leftYAxes", "leftYAxesOverflow" }.Order(StringComparer.Ordinal),
-            AxesSeatShape.OfSubplot.SlotLists.Order(StringComparer.Ordinal));
+            AxesSeatShape.OfSubplot.SlotListsOf(Dto("SecondaryAxisSlotDto")).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void TheListOfXAxesBelowThePlot_IsBottomXAxes()
+    {
+        Assert.Equal(["bottomXAxes"], AxesSeatShape.OfSubplot.SlotListsOf(Dto("XAxisSlotDto")));
     }
 
     /// <summary>The claim the whole step rests on: nothing on the wire holds an axis or a series that the shape does not
@@ -52,9 +60,10 @@ public class AxesSeatShapeTests
     [Theory]
     [InlineData("AxesDto")]
     [InlineData("SecondaryAxisSlotDto")]
+    [InlineData("XAxisSlotDto")]
     public void EveryMemberOfTheWireRecords_ThatHoldsAnAxisOrASeries_IsASeat(string record)
     {
-        var holders = new[] { Dto("AxisDto"), typeof(SeriesDto), Dto("SecondaryAxisSlotDto") };
+        var holders = new[] { Dto("AxisDto"), typeof(SeriesDto), Dto("SecondaryAxisSlotDto"), Dto("XAxisSlotDto") };
         var covered = AxesSeatShape.OfSubplot.Names
             .SelectMany(name => name.Path.Split("[]."))
             .Select(segment => segment.TrimEnd('[', ']'))
@@ -94,6 +103,7 @@ public class AxesSeatShapeTests
           "rightYAxesOverflow": [{"axis": {}, "series": [{}]}],
           "leftYAxes": [{"axis": {}, "series": [{}]}],
           "leftYAxesOverflow": [{"axis": {}}, {"series": [{}]}],
+          "bottomXAxes": [{"location": -0.2}, {"axis": {}}],
           "annotations": [{}], "insets": [{"series": [{}]}]
         }
         """;
@@ -103,7 +113,7 @@ public class AxesSeatShapeTests
     {
         var subplot = JsonNode.Parse(EverySeat)!.AsObject();
 
-        var seats = subplot.Seats("$.subPlots[0]").Select(seat => $"{seat.Kind}:{seat.Path}").Order(StringComparer.Ordinal).ToList();
+        var seats = AxesSeatShape.OfSubplot.Seats(subplot, "$.subPlots[0]", JsonSeatNodes.Instance).Select(seat => $"{seat.Kind}:{seat.Path}").Order(StringComparer.Ordinal).ToList();
 
         string[] expected =
         [
@@ -113,6 +123,7 @@ public class AxesSeatShapeTests
             "Axis:$.subPlots[0].rightYAxesOverflow[0].axis",
             "Axis:$.subPlots[0].leftYAxes[0].axis",
             "Axis:$.subPlots[0].leftYAxesOverflow[0].axis",
+            "Axis:$.subPlots[0].bottomXAxes[1].axis",
             "Series:$.subPlots[0].series[0]", "Series:$.subPlots[0].series[1]",
             "Series:$.subPlots[0].secondarySeries[0]",
             "Series:$.subPlots[0].xSecondarySeries[0]",
@@ -131,8 +142,8 @@ public class AxesSeatShapeTests
         var subplot = JsonNode.Parse(EverySeat)!.AsObject();
         var inset = subplot["insets"]!.AsArray()[0]!.AsObject();
 
-        Assert.DoesNotContain(subplot.Seats("$"), seat => seat.Path.Contains("insets", StringComparison.Ordinal));
-        Assert.Equal("$.insets[0].series[0]", Assert.Single(inset.Seats("$.insets[0]")).Path);
+        Assert.DoesNotContain(AxesSeatShape.OfSubplot.Seats(subplot, "$", JsonSeatNodes.Instance), seat => seat.Path.Contains("insets", StringComparison.Ordinal));
+        Assert.Equal("$.insets[0].series[0]", Assert.Single(AxesSeatShape.OfSubplot.Seats(inset, "$.insets[0]", JsonSeatNodes.Instance)).Path);
     }
 
     [Fact]
@@ -140,7 +151,7 @@ public class AxesSeatShapeTests
     {
         var subplot = JsonNode.Parse("""{"series":[5,{"type":"line"},"x"]}""")!.AsObject();
 
-        var seat = Assert.Single(subplot.Seats("$"));
+        var seat = Assert.Single(AxesSeatShape.OfSubplot.Seats(subplot, "$", JsonSeatNodes.Instance));
 
         Assert.Equal("$.series[1]", seat.Path);
     }
@@ -150,7 +161,7 @@ public class AxesSeatShapeTests
     {
         var subplot = JsonNode.Parse("""{"xAxis":5,"series":"x","leftYAxes":{},"secondaryYAxis":null,"extraRightYAxes":[1]}""")!.AsObject();
 
-        Assert.Empty(subplot.Seats("$"));
+        Assert.Empty(AxesSeatShape.OfSubplot.Seats(subplot, "$", JsonSeatNodes.Instance));
     }
 
     [Fact]
@@ -158,7 +169,7 @@ public class AxesSeatShapeTests
     {
         var subplot = JsonNode.Parse("""{"leftYAxes":[{"series":[{}, null]}]}""")!.AsObject();
 
-        var refusal = Assert.Throws<ToolRefusalException>(() => subplot.Seats("$").ToList());
+        var refusal = Assert.Throws<ToolRefusalException>(() => AxesSeatShape.OfSubplot.Seats(subplot, "$", JsonSeatNodes.Instance).ToList());
 
         Assert.Contains("$.leftYAxes[0].series[1]", refusal.Message);
     }

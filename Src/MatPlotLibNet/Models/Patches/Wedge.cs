@@ -16,8 +16,8 @@ namespace MatPlotLibNet.Models.Patches;
 /// centre; equal angles enclose nothing, and an edge draws the radius at that angle. These are matplotlib's rules.</para>
 /// <para>The outline is matplotlib's arc of the circle (<c>Path.arc</c>) as cubic Bézier curves, every control point in data units,
 /// then a line to the centre and a close; with a <see cref="Width"/>, the inner ring at <see cref="Radius"/> - <see cref="Width"/> is
-/// run backwards in its place, so a whole ring is filled with its hole open. A radius of 0 or less, or a number that is not finite,
-/// draws nothing.</para>
+/// run backwards in its place, so a whole ring is filled with its hole open. A radius of 0, or a number that is not finite,
+/// draws nothing, and a negative radius mirrors the wedge through its centre, as matplotlib's scale does.</para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -44,22 +44,22 @@ public sealed class Wedge : FilledPatch
     }
 
     /// <summary>The centre of the disc, in data units (matplotlib's <c>center</c>).</summary>
-    public DataPoint Center { get; set; }
+    public DataPoint Center { get; set => Change(ref field, value); }
 
-    /// <summary>The radius of the disc, in data units (matplotlib's <c>r</c>); 0 or less draws nothing.</summary>
-    public double Radius { get; set; }
+    /// <summary>The radius of the disc, in data units (matplotlib's <c>r</c>); 0 draws nothing, and a negative radius mirrors the wedge through its centre.</summary>
+    public double Radius { get; set => Change(ref field, value); }
 
     /// <summary>The angle the wedge starts at, in degrees counter-clockwise from +X.</summary>
-    public double Theta1 { get; set; }
+    public double Theta1 { get; set => Change(ref field, value); }
 
     /// <summary>The angle the wedge ends at, in degrees counter-clockwise from +X; the wedge runs counter-clockwise to it from
     /// <see cref="Theta1"/>.</summary>
-    public double Theta2 { get; set; }
+    public double Theta2 { get; set => Change(ref field, value); }
 
     /// <summary>How far the wedge reaches in from its <see cref="Radius"/>, in data units, making it the slice of a ring from
     /// <see cref="Radius"/> - <see cref="Width"/> out to <see cref="Radius"/>. <see langword="null"/> (the default) reaches the
     /// centre.</summary>
-    public double? Width { get; set; }
+    public double? Width { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
     internal override IReadOnlyList<PathSegment> Outline()

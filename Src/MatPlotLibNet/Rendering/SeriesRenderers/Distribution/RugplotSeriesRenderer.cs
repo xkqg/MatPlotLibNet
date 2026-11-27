@@ -38,9 +38,13 @@ internal sealed class RugplotSeriesRenderer : SeriesRenderer<RugplotSeries>
     /// <inheritdoc />
     public override void Render(RugplotSeries series)
     {
-        var color = ResolveColor(series.Color);
-        var tickColor = ApplyAlpha(color, series.Alpha);
+        var color = ColorOf(series);
+        var tickColor = color.WithOpacityGiven(series.Alpha);
         foreach (var tick in Ticks(series))
-            Ctx.DrawLine(tick.From, tick.To, new StrokeStyle(tickColor, series.LineWidth, Styling.LineStyle.Solid));
+        {
+            // seaborn draws the ticks as a LineCollection of vertical segments, which Agg puts on the pixel grid, with butt ends.
+            var drawn = Ctx.OnPixelGrid(tick, series.LineWidth, projectingEnds: false);
+            Ctx.DrawLine(drawn.From, drawn.To, StrokeStyle.Solid(tickColor, series.LineWidth));
+        }
     }
 }

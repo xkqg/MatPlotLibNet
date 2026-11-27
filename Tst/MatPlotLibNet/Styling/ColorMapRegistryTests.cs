@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
@@ -63,8 +63,8 @@ public class ColorMapRegistryTests
         Assert.Equal("viridis_r", map!.Name);
     }
 
-    /// <summary>Every colormap the library declares, found the way the registry's own constructor finds them:
-    /// the static colormap properties of the seven classes that hold them. A hand-kept list of names went stale
+    /// <summary>Every colormap the library declares: the static colormap properties of the seven classes that hold them, the
+    /// maps the registry reads from those classes' shelves. A hand-kept list of names went stale
     /// the moment a category was added — it was missing thirteen maps and Okabe-Ito when this replaced it.</summary>
     internal static IColorMap[] DeclaredColorMaps() =>
         [.. new[]
@@ -134,20 +134,12 @@ public class ColorMapRegistryTests
     [InlineData("crest")]
     [InlineData("flare")]
     [InlineData("icefire")]
-    public void PerceptualColorMaps2_ResolvesByName(string name)
-    {
-        var map = ColorMapRegistry.Get(name);
-        Assert.NotNull(map);
-        Assert.Equal(name, map!.Name);
-    }
-
-    [Theory]
     [InlineData("rocket_r")]
     [InlineData("mako_r")]
     [InlineData("crest_r")]
     [InlineData("flare_r")]
     [InlineData("icefire_r")]
-    public void PerceptualColorMaps2_ReversedVariantRegistered(string name)
+    public void PerceptualColorMaps2_ResolvesByName(string name)
     {
         var map = ColorMapRegistry.Get(name);
         Assert.NotNull(map);
@@ -213,5 +205,17 @@ public class ColorMapRegistryTests
         Assert.Equal("#656364", ColorMapRegistry.Get("petroff8")!.GetColor(1).ToHex());
         Assert.Equal("#3F90DA", ColorMapRegistry.Get("petroff10")!.GetColor(0).ToHex());
         Assert.Equal("#92DADD", ColorMapRegistry.Get("petroff10")!.GetColor(1).ToHex());
+    }
+
+    /// <summary>Every name under which the registry holds a map the library ships gives a map of that name: each table the library was
+    /// written from is read under its name. The registry is process-wide, so the maps other tests register under names of their own are
+    /// left out.</summary>
+    [Fact]
+    public void EveryListedName_GivesAMapOfThatName()
+    {
+        var shipped = ColorMapRegistry.Names.Where(name => ColorMapRegistry.Get(name) is { } map && ColorMapRegistry.IsShipped(map)).ToList();
+
+        Assert.NotEmpty(shipped);
+        Assert.All(shipped, name => Assert.Equal(name, ColorMapRegistry.Get(name)!.Name, StringComparer.OrdinalIgnoreCase));
     }
 }

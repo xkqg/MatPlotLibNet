@@ -9,25 +9,14 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies <see cref="FigureTransform"/> behavior.</summary>
 public class FigureTransformTests
 {
-    /// <summary>Verifies that SvgTransform implements IFigureTransform.</summary>
-    [Fact]
-    public void SvgTransform_ImplementsIFigureTransform()
+    /// <summary>Verifies that SvgTransform implements IFigureTransform and ISvgRenderer and extends the FigureTransform base class.</summary>
+    [Theory]
+    [InlineData(typeof(IFigureTransform))]
+    [InlineData(typeof(ISvgRenderer))]
+    [InlineData(typeof(FigureTransform))]
+    public void SvgTransform_IsATransform(Type type)
     {
-        Assert.IsAssignableFrom<IFigureTransform>(new SvgTransform());
-    }
-
-    /// <summary>Verifies that SvgTransform implements ISvgRenderer.</summary>
-    [Fact]
-    public void SvgTransform_ImplementsISvgRenderer()
-    {
-        Assert.IsAssignableFrom<ISvgRenderer>(new SvgTransform());
-    }
-
-    /// <summary>Verifies that SvgTransform extends the FigureTransform base class.</summary>
-    [Fact]
-    public void SvgTransform_ExtendsFigureTransform()
-    {
-        Assert.IsAssignableFrom<FigureTransform>(new SvgTransform());
+        Assert.IsAssignableFrom(type, new SvgTransform());
     }
 
     /// <summary>Verifies that ToStream writes valid SVG content to the stream.</summary>
@@ -74,15 +63,6 @@ public class FigureTransformTests
         {
             if (File.Exists(path)) File.Delete(path);
         }
-    }
-
-    /// <summary>Verifies that the legacy SvgRendererDefault.Current path still produces valid SVG.</summary>
-    [Fact]
-    public void ChartServices_SvgRenderer_StillWorks()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        string svg = SvgRendererDefault.Current.Render(figure);
-        Assert.Contains("<svg", svg);
     }
 
     /// <summary>Verifies that TransformResult is a record type.</summary>

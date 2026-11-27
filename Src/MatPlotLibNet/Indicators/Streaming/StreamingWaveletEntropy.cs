@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming WaveletEntropy: the Shannon entropy of the Haar wavelet band energies over the last <c>window</c> prices. It keeps the inputs the value depends on (<see cref="WindowedStreamingIndicator{TInput}.Width"/>)
@@ -10,14 +12,16 @@ public sealed class StreamingWaveletEntropy : WindowedStreamingIndicator<double>
 {
     private readonly int _window;
 
+    /// <inheritdoc />
+    internal override PaneRange? PinnedRange => WaveletEntropy.Pane;
+
     /// <summary>Creates a streaming WaveletEntropy.</summary>
     /// <param name="window">How many prices the transform is taken over; a power of 2 of at least 4.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingWaveletEntropy(int window = 64, int capacity = 10_000)
-        : base(window, capacity)
+    public StreamingWaveletEntropy(int window = WaveletEntropy.DefaultWindow, int capacity = StreamingSeries.RestingCapacity)
+        : base(WaveletEntropy.Spec(window), capacity)
     {
         _window = window;
-        Label = $"WEnt(W={window})";
     }
 
     /// <inheritdoc />

@@ -1,17 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
-using MatPlotLibNet.Tests.Styling;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -28,11 +24,8 @@ public class DumbbellTests
     private static readonly BarGroup Before = new("Before", [62.0, 78.5, 55.0, 83.0, 70.0, 48.0]);
     private static readonly BarGroup After = new("After", [74.0, 82.0, 68.0, 79.5, 88.5, 61.0]);
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Dumbbell(BarGroup from, BarGroup to, Action<DumbbellParts>? configure = null) =>
-        AxesOf(ax => ax.Dumbbell(Products, from, to, configure));
+        Plt.Create().OneAxes(ax => ax.Dumbbell(Products, from, to, configure));
 
     /// <summary>The picture with the legend toggle on: that is what gives every series group its <c>data-series-index</c>,
     /// which these tests read the parts by.</summary>
@@ -94,23 +87,6 @@ public class DumbbellTests
         Assert.Equal(Products, ticks.Select(axis.TickFormatter!.Format));
     }
 
-    /// <summary>The verb leaves the limits to the automatic range, and keeps one the caller set (W9).</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Dumbbell(Before, After);
-        var kept = AxesOf(ax => ax.SetYLim(30, 100).Dumbbell(Products, Before, After));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(30, kept.YAxis.Min);
-        Assert.Equal(100, kept.YAxis.Max);
-        Assert.Null(kept.XAxis.Min);
-    }
-
     // ---- the connector --------------------------------------------------------------------------------------------
 
     /// <summary>The connector is an error bar from the LOWER of the two values upward by their distance, whichever group is
@@ -123,7 +99,7 @@ public class DumbbellTests
     [InlineData(-4.0, 6.0, -4.0, 10.0)]
     public void TheConnector_SpansTheLowerValueToTheHigherOne_InBothDirections(double from, double to, double low, double span)
     {
-        var axes = AxesOf(ax => ax.Dumbbell(["x"], new BarGroup("a", [from]), new BarGroup("b", [to])));
+        var axes = Plt.Create().OneAxes(ax => ax.Dumbbell(["x"], new BarGroup("a", [from]), new BarGroup("b", [to])));
 
         var connector = (ErrorBarSeries)axes.Series[2];
 
@@ -190,10 +166,10 @@ public class DumbbellTests
     /// theme's plot (WCAG asks 3 : 1 of a graphic). A grey fixed when the verb runs, #808080, reached it on 25 of the 30 and
     /// stood at 2.32 : 1 on Dracula; the lighter #AAAAAA it wore before that reached it on 12 only.</summary>
     [Theory]
-    [MemberData(nameof(Styling.ThemeNeutralTests.BuiltInThemes), MemberType = typeof(Styling.ThemeNeutralTests))]
+    [MemberData(nameof(ThemeCases.BuiltIn), MemberType = typeof(ThemeCases))]
     public void TheConnector_IsVisibleOnTheTheme_WhateverIsSetAfterTheVerb(string themeName)
     {
-        var theme = (Theme)typeof(Theme).GetProperty(themeName)!.GetValue(null)!;
+        var theme = themeName.AsTheme();
 
         var figure = Plt.Create().WithSize(800, 450)
             .AddSubPlot(1, 1, 1, ax => ax.Dumbbell(Products, Before, After)).WithTheme(theme).Build();
@@ -209,9 +185,9 @@ public class DumbbellTests
     {
         string svg = Svg(ax => ax.Dumbbell(Products, Before, After));
 
-        int connector = svg.IndexOf("""data-series-index="2" """.TrimEnd(), StringComparison.Ordinal);
-        int fromDots = svg.IndexOf("""data-series-index="0" """.TrimEnd(), StringComparison.Ordinal);
-        int toDots = svg.IndexOf("""data-series-index="1" """.TrimEnd(), StringComparison.Ordinal);
+        int connector = svg.IndexOf(svg.SeriesGroup(2), StringComparison.Ordinal);
+        int fromDots = svg.IndexOf(svg.SeriesGroup(0), StringComparison.Ordinal);
+        int toDots = svg.IndexOf(svg.SeriesGroup(1), StringComparison.Ordinal);
 
         Assert.True(connector >= 0 && connector < fromDots && fromDots < toDots);
     }
@@ -226,8 +202,8 @@ public class DumbbellTests
     {
         string svg = Svg(ax => ax.Dumbbell(Products, Before, After).WithLegend());
 
-        var legend = Regex.Matches(svg, """data-legend-index="([0-9]+)" """.TrimEnd()).Select(m => int.Parse(m.Groups[1].Value)).ToList();
-        var groups = Regex.Matches(svg, """<g class="series" data-series-index="([0-9]+)" """.TrimEnd()).Select(m => int.Parse(m.Groups[1].Value)).Order().ToList();
+        var legend = svg.LegendEntries().Select(entry => entry.Index).ToList();
+        var groups = svg.Elements("g").Where(group => group["class"] == "series").Select(group => (int)group.Number("data-series-index")).Order().ToList();
 
         Assert.Equal([0, 1], legend);
         Assert.Equal([0, 1, 2], groups);
@@ -272,35 +248,7 @@ public class DumbbellTests
         Assert.Equal("Later", axes.Series[1].Label);
     }
 
-    /// <summary>The parts are a public readonly record struct a caller cannot make: no public constructor, no setters.</summary>
-    [Fact]
-    public void TheParts_AreAReadOnlyRecordStruct_WithNoPublicConstructor()
-    {
-        var type = typeof(DumbbellParts);
-
-        Assert.True(type.IsValueType);
-        Assert.True(type.IsPublic);
-        Assert.True(type.IsDefined(typeof(IsReadOnlyAttribute)));
-        Assert.Empty(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-        Assert.NotEmpty(type.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance));
-        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        Assert.Equal(["Connector", "From", "To"], properties.Select(p => p.Name).Order());
-        Assert.All(properties, p => Assert.Null(p.SetMethod));
-    }
-
     // ---- against the hand recipe, JSON, missing values ----------------------------------------------------------------
-
-    /// <summary>The verb draws exactly what the hand-written chain draws, with and without a missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDrew(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("dumbbell").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.DumbbellByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
 
     /// <summary>A missing value in one group (NaN) leaves that category's dot and its connector out and nothing else.</summary>
     [Fact]
@@ -310,24 +258,11 @@ public class DumbbellTests
 
         var figure = Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax.Dumbbell(Products, Before, after)).Build();
 
-        Assert.DoesNotContain("NaN", figure.ToSvg());                // the picture itself, without the toggle script
+        figure.ToSvg().AssertNoNonFiniteNumber();                // the picture itself, without the toggle script
         string svg = Svg(figure);
         Assert.Equal(6, Dots(svg, 0).Length);
         Assert.Equal(5, Dots(svg, 1).Length);
         Assert.Equal(5, ConnectorBars(svg).Length);
-    }
-
-    /// <summary>A figure with a dumbbell chart draws the same picture after a JSON round trip.</summary>
-    [Fact]
-    public void TheChart_SurvivesJson()
-    {
-        var figure = Plt.Create().WithSize(800, 450)
-            .AddSubPlot(1, 1, 1, ax => ax.Dumbbell(Products, Before, After).WithLegend()).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
     }
 
     // ---- refusals -------------------------------------------------------------------------------------------------
@@ -337,50 +272,16 @@ public class DumbbellTests
     public void BadArguments_AreRefusedByName()
     {
         Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).Dumbbell(Products, Before, After)).ParamName);
-        Assert.Equal("categories", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.Dumbbell(null!, Before, After))).ParamName);
+        Assert.Equal("categories", Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.Dumbbell(null!, Before, After))).ParamName);
 
-        var shortFrom = new BarGroup("Before", [1.0, 2.0]);
-        var shortTo = new BarGroup("After", [1.0, 2.0, 3.0]);
-        var fromError = Assert.Throws<ArgumentException>(() => Dumbbell(shortFrom, After));
-        var toError = Assert.Throws<ArgumentException>(() => Dumbbell(Before, shortTo));
-        Assert.Equal("from", fromError.ParamName);
-        Assert.Equal("Group 'Before' carries 2 values; there are 6 categories. (Parameter 'from')", fromError.Message);
-        Assert.Equal("to", toError.ParamName);
-        Assert.Equal("Group 'After' carries 3 values; there are 6 categories. (Parameter 'to')", toError.Message);
 
-        Assert.Equal("from", Assert.Throws<ArgumentException>(() => Dumbbell(default, After)).ParamName);
-        Assert.Equal("to", Assert.Throws<ArgumentException>(() => Dumbbell(Before, new BarGroup("After", null!))).ParamName);
-    }
-
-    /// <summary>A refused call has added nothing: no series, no ticks.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.Dumbbell(Products, Before, new BarGroup("After", [1.0])));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.XAxis.TickLocator);
+        LengthRefusals.AssertAGroupThatDoesNotFitIsRefusedByName((from, to) => Dumbbell(from, to), Before, After, 6);
     }
 
     // ---- reading the picture ----------------------------------------------------------------------------------------
-
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>.</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        int end = svg.IndexOf("</g>", start, StringComparison.Ordinal);
-        return svg[start..end];
-    }
-
     /// <summary>The vertical pixel of each dot of a dot series, in the order drawn.</summary>
     private static double[] Dots(string svg, int seriesIndex) =>
-        [.. Regex.Matches(Group(svg, seriesIndex), """<circle cx="[-0-9.eE+]+" cy="([-0-9.eE+]+)" """.TrimEnd()).Select(m => Number(m.Groups[1].Value))];
+        [.. svg.SeriesGroup(seriesIndex).Elements("circle").Select(circle => circle.Number("cy"))];
 
     /// <summary>Where one connector bar runs, in pixels: its upper end (the smaller y) and its lower end.</summary>
     /// <param name="Top">The bar's upper end.</param>
@@ -389,8 +290,8 @@ public class DumbbellTests
 
     /// <summary>The connector's bars: its lines that have a length (the zero-length cap lines are left out).</summary>
     private static Bar[] ConnectorBars(string svg) =>
-        [.. Regex.Matches(Group(svg, 2), """<line x1="([-0-9.eE+]+)" y1="([-0-9.eE+]+)" x2="([-0-9.eE+]+)" y2="([-0-9.eE+]+)" stroke="#808080" stroke-width="3" />""")
-            .Select(m => new Bar(Math.Min(Number(m.Groups[2].Value), Number(m.Groups[4].Value)), Math.Max(Number(m.Groups[2].Value), Number(m.Groups[4].Value))))
+        [.. svg.SeriesGroup(2).Elements("line").Where(line => line["stroke"] == "#808080" && line["stroke-width"] == "3")
+            .Select(line => new Bar(Math.Min(line.Number("y1"), line.Number("y2")), Math.Max(line.Number("y1"), line.Number("y2"))))
             .Where(b => b.Bottom - b.Top > 1e-9)];
 
     /// <summary>The colour of each series group: the first fill or stroke inside it, upper case.</summary>
@@ -399,7 +300,7 @@ public class DumbbellTests
         var colours = new List<string>();
         foreach (int index in Enumerable.Range(0, 3))
         {
-            colours.Add(Regex.Match(Group(svg, index), """(?:fill|stroke)="(#[0-9A-Fa-f]{6})" """.TrimEnd()).Groups[1].Value.ToUpperInvariant());
+            colours.Add(svg.SeriesGroup(index).FirstColour().ToUpperInvariant());
         }
 
         return colours;

@@ -10,10 +10,26 @@ namespace MatPlotLibNet.Tests.Models;
 /// list as it is, in the order it was added, and comes back with its own type so it can be configured further.</summary>
 public class AxesPatchesTests
 {
+    /// <summary>Bytes a new axes allocates: every figure pays them for each subplot, so a list kept for a feature most axes never
+    /// use (where each patch stands among the series) is made when the first patch is added, not with the axes. Measured: 1,744 B on
+    /// net10.0 Release (the three build-time requests ShareXKey, ShareYKey and BarSlotX included); the ceiling is one 8-byte field
+    /// above it.</summary>
+    private const long NewAxesBytes = 1_752;
+
     [Fact]
-    public void AnAxes_HasNoPatch_UntilOneIsAdded()
+    public void AnAxes_AllocatesNoListForItsPatches_UntilOneIsAdded()
     {
-        Assert.Empty(new Axes().Patches);
+        _ = new Axes();
+        Axes axes;
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        axes = new Axes();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated <= NewAxesBytes, $"A new axes allocated {allocated} bytes; the ceiling is {NewAxesBytes}.");
+        axes.AddPatch(new Rectangle(new(0, 0), 1, 1));
+        axes.AddPatch(new Rectangle(new(1, 1), 1, 1));
+        Assert.Equal(2, axes.Patches.Count);
     }
 
     [Fact]

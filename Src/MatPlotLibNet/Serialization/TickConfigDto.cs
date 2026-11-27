@@ -23,43 +23,58 @@ internal sealed record TickConfigDto
     public Color? LabelColor { get; init; }
     public double? Pad { get; init; }
     public bool? Mirror { get; init; }
+    /// <summary>Whether the labels stand on the axis' own side; <see langword="false"/> leaves them to the opposite side.</summary>
+    public bool? LabelsOnOwnSide { get; init; }
     public double? LabelRotation { get; init; }
 
     /// <summary>The JSON's form of <paramref name="ticks"/>, or <see langword="null"/> when they equal
     /// <paramref name="resting"/>.</summary>
     /// <param name="ticks">The ticks the axis holds.</param>
     /// <param name="resting">The ticks a new axis holds in the same seat.</param>
-    internal static TickConfigDto? From(TickConfig ticks, TickConfig resting) => ticks == resting ? null : new()
+    /// <returns>The record of the ticks, or <see langword="null"/> when they are the resting ticks.</returns>
+    internal static TickConfigDto? From(TickConfig ticks, TickConfig resting) => ticks.DescribedUnlessAtRest(resting, Describe);
+
+    /// <summary>The JSON's form of ticks away from <paramref name="resting"/>, each property against the resting one's.</summary>
+    private static TickConfigDto Describe(TickConfig ticks, TickConfig resting) => new()
     {
-        Visible = ticks.Visible.OrNullAtRest(resting.Visible),
+        Visible = ticks.GivenVisible.OrNullAtRest(resting.GivenVisible),
         Spacing = ticks.Spacing.OrNullAtRest(resting.Spacing),
         Format = ticks.Format.OrNullAtRest(resting.Format),
-        Direction = ticks.Direction.OrNullAtRest(resting.Direction),
-        Length = ticks.Length.OrNullAtRest(resting.Length),
-        Width = ticks.Width.OrNullAtRest(resting.Width),
+        Direction = ticks.GivenDirection.OrNullAtRest(resting.GivenDirection),
+        Length = ticks.GivenLength.OrNullAtRest(resting.GivenLength),
+        Width = ticks.GivenWidth.OrNullAtRest(resting.GivenWidth),
         Color = ticks.Color.OrNullAtRest(resting.Color),
         LabelSize = ticks.LabelSize.OrNullAtRest(resting.LabelSize),
         LabelColor = ticks.LabelColor.OrNullAtRest(resting.LabelColor),
-        Pad = ticks.Pad.OrNullAtRest(resting.Pad),
+        Pad = ticks.GivenPad.OrNullAtRest(resting.GivenPad),
         Mirror = ticks.Mirror.OrNullAtRest(resting.Mirror),
+        LabelsOnOwnSide = ticks.LabelsOnOwnSide.OrNullAtRest(resting.LabelsOnOwnSide),
         LabelRotation = ticks.LabelRotation.OrNullAtRest(resting.LabelRotation),
     };
 
     /// <summary>The ticks this record describes, over <paramref name="resting"/>.</summary>
     /// <param name="resting">The ticks a new axis holds in the seat being read.</param>
-    internal TickConfig ToTickConfig(TickConfig resting) => resting with
+    /// <returns>The ticks of the record.</returns>
+    internal TickConfig ToTickConfig(TickConfig resting)
     {
-        Visible = Visible ?? resting.Visible,
-        Spacing = Spacing ?? resting.Spacing,
-        Format = Format ?? resting.Format,
-        Direction = Direction ?? resting.Direction,
-        Length = Length ?? resting.Length,
-        Width = Width ?? resting.Width,
-        Color = Color ?? resting.Color,
-        LabelSize = LabelSize ?? resting.LabelSize,
-        LabelColor = LabelColor ?? resting.LabelColor,
-        Pad = Pad ?? resting.Pad,
-        Mirror = Mirror ?? resting.Mirror,
-        LabelRotation = LabelRotation ?? resting.LabelRotation,
-    };
+        var ticks = resting with
+        {
+            Spacing = Spacing ?? resting.Spacing,
+            Format = Format ?? resting.Format,
+            Color = Color ?? resting.Color,
+            LabelSize = LabelSize ?? resting.LabelSize,
+            LabelColor = LabelColor ?? resting.LabelColor,
+            Mirror = Mirror ?? resting.Mirror,
+            LabelsOnOwnSide = LabelsOnOwnSide ?? resting.LabelsOnOwnSide,
+            LabelRotation = LabelRotation ?? resting.LabelRotation,
+        };
+        // A visibility, a direction, a length, a width or a pad the record does not write was not given, and is left so: the
+        // ticks then draw as their kind, their scale and their theme say.
+        if (Visible is { } visible) ticks = ticks with { Visible = visible };
+        if (Direction is { } direction) ticks = ticks with { Direction = direction };
+        if (Length is { } length) ticks = ticks with { Length = length };
+        if (Width is { } width) ticks = ticks with { Width = width };
+        if (Pad is { } pad) ticks = ticks with { Pad = pad };
+        return ticks;
+    }
 }

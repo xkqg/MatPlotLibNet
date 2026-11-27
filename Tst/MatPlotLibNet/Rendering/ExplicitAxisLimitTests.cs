@@ -7,6 +7,7 @@ using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -22,11 +23,10 @@ public class ExplicitAxisLimitTests
     /// <summary>The view the renderer wrote for the axes at <paramref name="index"/>: its plot area and the range it drew.</summary>
     private static (Rect Plot, DataRange Range) View(string svg, int index = 0)
     {
-        var view = XDocument.Parse(svg).Descendants()
+        var view = svg.Xml().Descendants()
             .Single(e => (string?)e.Attribute("data-axes-index") == index.ToString(CultureInfo.InvariantCulture));
-        double A(string name) => double.Parse(view.Attribute(name)!.Value, CultureInfo.InvariantCulture);
-        return (new Rect(A("data-plot-x"), A("data-plot-y"), A("data-plot-w"), A("data-plot-h")),
-                new DataRange(A("data-xmin"), A("data-xmax"), A("data-ymin"), A("data-ymax")));
+        return (new Rect(view.Number("data-plot-x"), view.Number("data-plot-y"), view.Number("data-plot-w"), view.Number("data-plot-h")),
+                new DataRange(view.Number("data-xmin"), view.Number("data-xmax"), view.Number("data-ymin"), view.Number("data-ymax")));
     }
 
     private static void AssertRange(DataRange expected, DataRange actual, double tolerance = 1e-9)
@@ -57,7 +57,7 @@ public class ExplicitAxisLimitTests
         axes.XAxis.Min = 1.5; axes.XAxis.Max = 2.5;
         axes.YAxis.Min = 15;  axes.YAxis.Max = 35;
 
-        var range = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
+        var range = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
             MatPlotLibNet.Styling.Theme.MatplotlibV2).ComputeDataRanges();
 
         AssertRange(new DataRange(1.5, 2.5, 15, 35), range);
@@ -71,7 +71,7 @@ public class ExplicitAxisLimitTests
         axes.XAxis.Min = 1.5;     // max left to autoscale
         axes.YAxis.Max = 30;      // min left to autoscale
 
-        var range = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
+        var range = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
             MatPlotLibNet.Styling.Theme.MatplotlibV2).ComputeDataRanges();
 
         Assert.Equal(1.5, range.XMin);
@@ -87,7 +87,7 @@ public class ExplicitAxisLimitTests
         axes.Plot(X, Y);
         axes.XAxis.Min = 5;       // every x (1..3) lies below the floor
 
-        var range = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
+        var range = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
             MatPlotLibNet.Styling.Theme.MatplotlibV2).ComputeDataRanges();
 
         Assert.Equal(5, range.XMin);
@@ -102,10 +102,10 @@ public class ExplicitAxisLimitTests
         axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(X, [100.0, 500.0, 300.0]));
         axes.YAxes.Right[0].Axis.Min = 200; axes.YAxes.Right[0].Axis.Max = 400;
 
-        var renderer = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
+        var placement = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
             MatPlotLibNet.Styling.Theme.MatplotlibV2);
         var right = axes.YAxes.Right[0];
-        var sec = renderer.ComputeSecondaryDataRanges(1, 3, right.Axis, right.Series);
+        var sec = placement.ComputeSecondaryDataRanges(1, 3, right.Axis, right.Series);
 
         Assert.Equal(200, sec.YMin);
         Assert.Equal(400, sec.YMax);
@@ -119,9 +119,9 @@ public class ExplicitAxisLimitTests
         axes.PlotXSecondary([0.0, 50.0, 100.0], Y);
         axes.SecondaryXAxis!.Min = 25; axes.SecondaryXAxis.Max = 75;
 
-        var renderer = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
+        var placement = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
             MatPlotLibNet.Styling.Theme.MatplotlibV2);
-        var sec = renderer.ComputeSecondaryXDataRanges(10, 40);
+        var sec = placement.ComputeSecondaryXDataRanges(10, 40);
 
         Assert.Equal(25, sec.XMin);
         Assert.Equal(75, sec.XMax);
@@ -161,20 +161,19 @@ public class ExplicitAxisLimitTests
                 .Bar(["a", "b", "c"], [5.0, 50.0, 25.0], s => s.Label = "bars")
                 .SetXLim(1.5, 2.5).SetYLim(15, 35))
             .ToSvg();
-        var doc = XDocument.Parse(svg);
+        var doc = svg.Xml();
         var plot = View(svg).Plot;
-        var clips = doc.Descendants().Where(e => e.Name.LocalName == "clipPath")
+        var clips = doc.Each("clipPath")
             .ToDictionary(e => (string)e.Attribute("id")!, e => e.Elements().Single());
 
-        var groups = doc.Descendants().Where(e => e.Name.LocalName == "g" && e.Attribute("data-series-index") is not null).ToList();
+        var groups = doc.Each("g").Where(e => e.Attribute("data-series-index") is not null).ToList();
         Assert.Equal(3, groups.Count);
         foreach (var group in groups)
         {
-            var clipped = group.Elements().Single(e => e.Name.LocalName == "g" && e.Attribute("clip-path") is not null);
+            var clipped = group.Children("g").Single(e => e.Attribute("clip-path") is not null);
             string id = clipped.Attribute("clip-path")!.Value["url(#".Length..^1];
             var rect = clips[id];
-            double R(string a) => double.Parse(rect.Attribute(a)!.Value, CultureInfo.InvariantCulture);
-            Assert.Equal(plot, new Rect(R("x"), R("y"), R("width"), R("height")));
+            Assert.Equal(plot, new Rect(rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height")));
             Assert.NotEmpty(clipped.Elements());
         }
     }
@@ -190,10 +189,9 @@ public class ExplicitAxisLimitTests
         axes.YAxes.Right[0].Axis.Min = 200; axes.YAxes.Right[0].Axis.Max = 400;
         var svg = figure.ToSvg();
 
-        var groups = XDocument.Parse(svg).Descendants()
-            .Where(e => e.Name.LocalName == "g" && e.Attribute("data-series-index") is not null).ToList();
+        var groups = svg.Each("g").Where(e => e.Attribute("data-series-index") is not null).ToList();
         Assert.Equal(3, groups.Count);
-        Assert.All(groups, g => Assert.Contains(g.Elements(), e => e.Name.LocalName == "g" && e.Attribute("clip-path") is not null));
+        Assert.All(groups, g => Assert.Contains(g.Children("g"), e => e.Attribute("clip-path") is not null));
     }
 
     [Fact]
@@ -204,9 +202,8 @@ public class ExplicitAxisLimitTests
                 .SetYLim(0, 50))
             .ToSvg();
 
-        var group = XDocument.Parse(svg).Descendants()
-            .Single(e => e.Name.LocalName == "g" && e.Attribute("data-series-index") is not null);
-        var label = group.Descendants().Single(e => e.Name.LocalName == "text" && e.Value == "load");
+        var group = svg.Each("g").Single(e => e.Attribute("data-series-index") is not null);
+        var label = group.Each("text").Single(e => e.Value == "load");
         Assert.DoesNotContain(label.Ancestors(), a => a.Attribute("clip-path") is not null);
     }
 
@@ -214,8 +211,9 @@ public class ExplicitAxisLimitTests
     public void TheLimitOfALinkedTopAxis_IsNoLimit_SoNothingIsClipped()
     {
         // A linked axis shows the primary's range in other units and has no range of its own (AxisTransform), so a limit set
-        // on it is not a limit of the axes: the series keep the clip-free drawing of an autoscaled figure.
-        static string Svg(bool limited) => Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+        // on it is not a limit of the axes: the series keep the clip-free drawing of an autoscaled figure under a library theme (the
+        // matplotlib themes clip every series).
+        static string Svg(bool limited) => Plt.Create().WithTheme(Theme.Default).AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y, s => s.Label = "A")
             .WithSecondaryXAxis(top =>
             {
@@ -229,12 +227,15 @@ public class ExplicitAxisLimitTests
         Assert.Equal(Svg(limited: false), limited);
     }
 
-    [Fact]
-    public void AnAutoscaledFigure_DrawsNoClip()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        // Autoscale encloses every series, so nothing can lie outside the plot area: the figure keeps its bytes.
-        var svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y, s => s.Label = "A")).ToSvg();
+        // Autoscale encloses every series, so under a library theme nothing can lie outside the plot area: the figure keeps its bytes
+        // (the matplotlib themes clip every series, as matplotlib clips every artist: SeriesPassTests).
+        new DrawnToken("AnAutoscaledFigure_DrawsNoClip", () => Plt.Create().WithTheme(Theme.Default).AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y, s => s.Label = "A")).ToSvg()) { Absent = ["clip-path"] },
+    };
 
-        Assert.DoesNotContain("clip-path", svg, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

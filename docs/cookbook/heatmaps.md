@@ -33,7 +33,7 @@ round, and a zoom moves the cells with the axes like every other series.
 
 ## Colormap comparison
 
-MatPlotLibNet ships 148 colormaps (74 base maps, each with an auto-registered reversed `_r` variant). Here are four popular ones side by side:
+MatPlotLibNet ships 148 colormaps (74 base maps, each with an auto-registered reversed `_r` variant). A map that has matplotlib's name is matplotlib's own table, so `plasma`, `Blues` or `jet` gives a value the colour matplotlib gives it. Here are four popular ones side by side:
 
 ```csharp
 string[] maps = ["viridis", "turbo", "coolwarm", "greys"];
@@ -77,6 +77,17 @@ tick font, a horizontal bar one for every three, never fewer than 2 or more than
 11 reads 0, 2, 4, 6, 8 and 10, and a short bar is not crowded. The bar spaces its gradient and its ticks evenly in the value,
 whatever normaliser the series has.
 
+A bar given a tick locator of its own (`Locator`, matplotlib's `cbar.locator`) names every tick that locator places inside its
+range instead, whatever its length. A bar over 0 to 20 with a `MultipleLocator(5)` reads 0, 5, 10, 15 and 20:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(new double[,] { { 0, 10 }, { 15, 20 } })
+        .WithColorBar(cb => cb with { Locator = new MultipleLocator(5) }))
+    .Save("colorbar_locator.svg");
+```
+
 ## Color normalization
 
 Control how data values map to colors:
@@ -102,8 +113,12 @@ Plt.Create()
 ```
 
 The colour bar follows the normaliser. A tick stands where the colour of its value is drawn, not at the value's share of
-the range, so under a log normaliser the ticks crowd towards the top of the bar exactly as the colours do, and a tick
-that would stand within one label of the one before it is left out:
+the range, and a tick that would stand within one label of the one before it is left out. Under the matplotlib themes, which
+a figure wears unless it is given another, a `LogNormalizer` is matplotlib's `LogNorm`: the colours run over the logarithm of
+the value from the smallest value above 0 to the largest, a value of 0 or below is drawn in the colour map's missing colour,
+and the bar names the powers of ten of its range, and, when the range holds one power of ten or none, the multiples of it that
+matplotlib labels too (10², 2×10², 3×10², 4×10², 6×10²). The library's own themes keep the documented formula of the
+normaliser, `log(1 + value - min) / log(1 + max - min)`, and name values as any other bar does:
 
 ![A colour bar under a log normaliser, 100 to 1000](../images/heatmap_log_colorbar.png)
 
@@ -194,6 +209,10 @@ Plt.Create()
         .WithColorBar())
     .Save("imshow.svg");
 ```
+
+How the image is scaled to its plot follows the theme where you name nothing: `Interpolation` left alone draws the cells as they are under the library's own themes, as matplotlib's `image.interpolation` does under the matplotlib themes. The default matplotlib style (`"auto"`) draws them as they are where the image is shown at 1, 2 or more than 3 times its size and filters them with a Hanning window otherwise; the classic style (`"bilinear"`) smooths them. Name `"nearest"`, `"bilinear"`, `"bicubic"`, `"hanning"`, `"auto"` or `"antialiased"` to choose one under any theme.
+
+Where the image stands follows the theme too. Under the matplotlib themes it stands as matplotlib's `imshow` stands it: each cell is centred on its column and row number, so an image of 170 rows by 220 columns shows -0.5 to 219.5 across and 169.5 down to -0.5, exactly, with no margin and no rounding out to a tick, the first row on top. A line that reaches past the image widens the view on that side only. A Y limit of your own is kept as you set it, low to high puts the first row at the bottom. Under the library's own themes the image stands on 0 to the columns across and 0 to the rows up, which a lone image fills exactly, the first row on top.
 
 ## 2D histogram (density)
 
@@ -358,7 +377,7 @@ plot has an aspect of one, so the cells are square.
 
 ## Matrix show
 
-`MatShow(matrix)` draws a matrix as square cells, the first row on top, the columns and rows numbered from 0, with a colour
+`MatShow(matrix)` draws a matrix as square cells, the first row on top, the columns numbered from 0 along the top and the rows down the left, with a colour
 bar: matplotlib's `matshow`.
 
 ```csharp

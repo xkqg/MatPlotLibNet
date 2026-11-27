@@ -33,6 +33,7 @@
     <Project Path="Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.Tests.csproj" />
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj" />

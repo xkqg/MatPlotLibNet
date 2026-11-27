@@ -14,32 +14,33 @@ namespace MatPlotLibNet.AspNetCore;
 /// <summary>Extension methods for mapping chart rendering endpoints in ASP.NET Core minimal APIs.</summary>
 public static class MatPlotLibNetEndpoints
 {
-    /// <summary>Maps a GET endpoint that returns the figure as JSON at the specified route pattern.</summary>
-    public static IEndpointRouteBuilder MapChartEndpoint(
-        this IEndpointRouteBuilder endpoints,
-        string pattern,
-        Func<HttpContext, Figure> figureFactory)
-        => MapChartEndpointCore(endpoints, pattern, figureFactory,
-            (f, sp) => sp.GetRequiredService<IChartSerializer>().ToJson(f), "application/json");
+    /// <param name="endpoints">The endpoint route builder to map onto.</param>
+    extension(IEndpointRouteBuilder endpoints)
+    {
+        /// <summary>Maps a GET endpoint that returns the figure as JSON at the specified route pattern.</summary>
+        public IEndpointRouteBuilder MapChartEndpoint(
+            string pattern,
+            Func<HttpContext, Figure> figureFactory)
+            => MapChartEndpointCore(endpoints, pattern, figureFactory,
+                (f, sp) => sp.GetRequiredService<IChartSerializer>().ToJson(f), "application/json");
 
-    /// <summary>Maps a GET endpoint that returns the figure as SVG at the specified route pattern.</summary>
-    public static IEndpointRouteBuilder MapChartSvgEndpoint(
-        this IEndpointRouteBuilder endpoints,
-        string pattern,
-        Func<HttpContext, Figure> figureFactory)
-        => MapChartEndpointCore(endpoints, pattern, figureFactory,
-            (f, sp) => sp.GetRequiredService<ISvgRenderer>().Render(f), "image/svg+xml");
+        /// <summary>Maps a GET endpoint that returns the figure as SVG at the specified route pattern.</summary>
+        public IEndpointRouteBuilder MapChartSvgEndpoint(
+            string pattern,
+            Func<HttpContext, Figure> figureFactory)
+            => MapChartEndpointCore(endpoints, pattern, figureFactory,
+                (f, sp) => sp.GetRequiredService<ISvgRenderer>().Render(f), "image/svg+xml");
 
-    /// <summary>Maps a GET endpoint that returns the figure's DATA as an HTML table at the specified route -
-    /// the accessible alternative that carries what the picture carries, for a reader the SVG cannot reach.
-    /// The body is a fragment (one <c>&lt;table&gt;</c> per group of series), so the page that embeds it supplies
-    /// the CSS; the charset is declared on the header because a fragment has nowhere to declare its own.</summary>
-    public static IEndpointRouteBuilder MapChartTableEndpoint(
-        this IEndpointRouteBuilder endpoints,
-        string pattern,
-        Func<HttpContext, Figure> figureFactory)
-        => MapChartEndpointCore(endpoints, pattern, figureFactory,
-            (f, _) => string.Concat(f.ToDataTables().Select(table => table.ToHtml())), "text/html; charset=utf-8");
+        /// <summary>Maps a GET endpoint that returns the figure's DATA as an HTML table at the specified route -
+        /// the accessible alternative that carries what the picture carries, for a reader the SVG cannot reach.
+        /// The body is a fragment (one <c>&lt;table&gt;</c> per group of series), so the page that embeds it supplies
+        /// the CSS; the charset is declared on the header because a fragment has nowhere to declare its own.</summary>
+        public IEndpointRouteBuilder MapChartTableEndpoint(
+            string pattern,
+            Func<HttpContext, Figure> figureFactory)
+            => MapChartEndpointCore(endpoints, pattern, figureFactory,
+                (f, _) => string.Concat(f.ToDataTables().Select(table => table.ToHtml())), "text/html; charset=utf-8");
+    }
 
     private static IEndpointRouteBuilder MapChartEndpointCore(
         IEndpointRouteBuilder endpoints,

@@ -8,114 +8,31 @@ public class SvgAriaInteractivityTests
 {
     // ── Legend toggle ──────────────────────────────────────────────────────────
 
-    [Fact]
-    public void LegendToggle_Script_ContainsTabindex()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("tabindex", svg);
-    }
-
-    [Fact]
-    public void LegendToggle_Script_ContainsAriaPressed()
-    {
-        var svg = Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("aria-pressed", svg);
-    }
-
-    [Fact]
-    public void LegendToggle_Script_ContainsKeydownListener()
-    {
-        var svg = Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("keydown", svg);
-    }
-
-    [Fact]
-    public void LegendToggle_Script_ContainsRoleButton()
-    {
-        var svg = Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("role", svg);
-        Assert.Contains("button", svg);
-    }
-
-    // ── Highlight ──────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Highlight_Script_ContainsFocusListener()
-    {
-        var svg = Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("focus", svg);
-    }
-
-    [Fact]
-    public void Highlight_Script_ContainsBlurListener()
-    {
-        var svg = Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("blur", svg);
-    }
-
-    [Fact]
-    public void Highlight_Script_AddsTabindex()
-    {
-        var svg = Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("tabindex", svg);
-    }
-
-    // ── Zoom/Pan ───────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ZoomPan_Script_ContainsKeyboardZoom()
-    {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
+        new DrawnToken("LegendToggle_Script_ContainsTabindex", () => Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "tabindex"),
+        new DrawnToken("LegendToggle_Script_ContainsAriaPressed", () => Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "aria-pressed"),
+        new DrawnToken("LegendToggle_Script_ContainsKeydownListener", () => Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "keydown"),
+        new DrawnToken("LegendToggle_Script_ContainsRoleButton", () => Plt.Create().WithLegendToggle().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "role", "button"),
+        new DrawnToken("Highlight_Script_ContainsFocusListener", () => Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "focus"),
+        new DrawnToken("Highlight_Script_ContainsBlurListener", () => Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "blur"),
+        new DrawnToken("Highlight_Script_AddsTabindex", () => Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "tabindex"),
         // '+' or '=' for zoom in
-        Assert.Contains("keydown", svg);
-    }
-
-    [Fact]
-    public void ZoomPan_Script_ContainsArrowKeyPan()
-    {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("ArrowLeft", svg);
-    }
-
-    [Fact]
-    public void ZoomPan_Script_ContainsHomeReset()
-    {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("Home", svg);
-    }
-
-    // ── Selection ─────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Selection_Script_ContainsEscapeCancel()
-    {
-        var svg = Plt.Create().WithSelection().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("Escape", svg);
-    }
-
-    // ── Tooltip ───────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Tooltip_Script_ContainsAriaLive()
-    {
-        var svg = Plt.Create().WithRichTooltips().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("aria-live", svg);
-    }
-
-    [Fact]
-    public void Tooltip_Script_ContainsRoleTooltip()
-    {
-        var svg = Plt.Create().WithRichTooltips().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("tooltip", svg);
-    }
-
-    [Fact]
-    public void LegendToggle_FullSvg_ContainsAriaPressed()
-    {
-        var svg = Plt.Create()
+        new DrawnToken("ZoomPan_Script_ContainsKeyboardZoom", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "keydown"),
+        new DrawnToken("ZoomPan_Script_ContainsArrowKeyPan", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "ArrowLeft"),
+        new DrawnToken("ZoomPan_Script_ContainsHomeReset", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "Home"),
+        new DrawnToken("Selection_Script_ContainsEscapeCancel", () => Plt.Create().WithSelection().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "Escape"),
+        new DrawnToken("Tooltip_Script_ContainsAriaLive", () => Plt.Create().WithRichTooltips().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "aria-live"),
+        new DrawnToken("Tooltip_Script_ContainsRoleTooltip", () => Plt.Create().WithRichTooltips().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "tooltip"),
+        new DrawnToken("LegendToggle_FullSvg_ContainsAriaPressed", () => Plt.Create()
             .WithLegendToggle()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Sales")
-            .ToSvg();
-        Assert.Contains("aria-pressed", svg);
-    }
+            .ToSvg(), "aria-pressed"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
 }

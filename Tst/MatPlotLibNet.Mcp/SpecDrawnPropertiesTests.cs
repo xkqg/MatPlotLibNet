@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Serialization;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -12,37 +13,33 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// be a chart the agent cannot send back as it was drawn.</summary>
 public class SpecDrawnPropertiesTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     private static string Spec(string series) =>
         $$"""{"width":400,"height":300,"subPlots":[{"series":[{{series}}]}]}""";
 
     private static readonly ChartTypeCatalog Catalog = new();
 
-    /// <summary>The rows of the core contract, less the types the catalog does not list because their JSON reader builds a
+    /// <summary>The series types of the core contract, less the types the catalog does not list because their JSON reader builds a
     /// placeholder (the treemap and the sunburst): a roadmap row of its own, not a property the reader drops.</summary>
-    public static TheoryData<string, string> ReaderRows { get; } =
-        new(DrawnSeriesFixtures.DrawnTypes
-            .Where(type => !Catalog.Excluded.ContainsKey(DiscriminatorOf(type)))
-            .SelectMany(type => DrawnSeriesFixtures.DrawnProperties(type).Select(property => (type.Name, property.Name))));
+    public static TheoryData<string> ReaderTypes { get; } =
+        new(DrawnSeriesFixtures.DrawnTypes.Where(type => !Catalog.Excluded.ContainsKey(DiscriminatorOf(type))).Select(type => type.Name));
 
     /// <summary>The <c>type</c> the series of <paramref name="type"/> is written as.</summary>
     private static string DiscriminatorOf(Type type) =>
-        DrawnSeriesFixtures.TheSeries(DrawnSeriesFixtures.Build(type.Name, everyPropertySet: false)).ToSeriesDto().Type!;
+        DrawnSeriesFixtures.Instance(type.Name).ToSeriesDto().Type!;
 
-    /// <summary>The same rows as the core contract, read through the reader instead of the serializer alone.</summary>
+    /// <summary>The same properties as the core contract, read through the reader instead of the serializer alone: one case per
+    /// type, every property the reader drops named.</summary>
     [Theory]
-    [MemberData(nameof(ReaderRows))]
-    public void ADrawnProperty_PassesTheSpecReader_WithTheValueItWasGiven(string type, string property)
+    [MemberData(nameof(ReaderTypes))]
+    public void EveryDrawnProperty_PassesTheSpecReader_WithTheValueItWasGiven(string type)
     {
         var figure = DrawnSeriesFixtures.Build(type, everyPropertySet: true);
-        object? written = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(figure), property);
 
         var read = Reader.Read(new ChartSpec(figure.ToJson()));
 
-        object? readBack = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(read), property);
-        Assert.True(DrawnSeriesFixtures.SameValue(written, readBack),
-            $"{type}.{property}: set to {DrawnSeriesFixtures.Show(written)}, read back through the spec reader as {DrawnSeriesFixtures.Show(readBack)}.");
+        DrawnSeriesFixtures.AssertKept(type, DrawnSeriesFixtures.ValuesOf(DrawnSeriesFixtures.TheSeries(figure)),
+            DrawnSeriesFixtures.ValuesOf(DrawnSeriesFixtures.TheSeries(read)), "through the spec reader");
     }
 
     [Theory]
@@ -103,7 +100,7 @@ public class SpecDrawnPropertiesTests
     /// next build, as a seat is.</summary>
     [Fact]
     public void TheTreesASeriesHolds_AreFoundOffTheSeriesRecord() =>
-        Assert.Equal(["columnTree", "rowTree", "treeRoot"], new SpecVocabulary().TreeFields.Order(StringComparer.Ordinal));
+        Assert.Equal(["columnTree", "rowTree", "treeRoot"], new ChartSpecReader.SpecVocabulary().TreeFields.Order(StringComparer.Ordinal));
 
     [Theory]
     [InlineData("diamond")]

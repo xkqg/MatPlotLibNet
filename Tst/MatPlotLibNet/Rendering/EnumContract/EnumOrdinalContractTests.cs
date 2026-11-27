@@ -60,7 +60,7 @@ public static class EnumOrdinalSnapshot
                 ["Linear"] = 0, ["Log"] = 1, ["SymLog"] = 2, ["Logit"] = 3, ["Date"] = 4,
             },
             [typeof(AxisSide)] = new Dictionary<string, int> {
-                ["Left"] = 0, ["Right"] = 1,
+                ["Left"] = 0, ["Right"] = 1, ["Bottom"] = 2,
             },
             [typeof(BarAlignment)] = new Dictionary<string, int> {
                 ["Center"] = 0, ["Edge"] = 1,
@@ -164,6 +164,9 @@ public static class EnumOrdinalSnapshot
             [typeof(DendrogramOrientation)] = new Dictionary<string, int> {
                 ["Top"] = 0, ["Bottom"] = 1, ["Left"] = 2, ["Right"] = 3,
             },
+            [typeof(TableLocation)] = new Dictionary<string, int> {
+                ["InPlot"] = 0, ["BelowAxes"] = 1,
+            },
             [typeof(OpsSeverity)] = new Dictionary<string, int> {
                 ["Normal"] = 0, ["Warning"] = 1, ["Critical"] = 2,
             },
@@ -181,6 +184,9 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(GraphLayout)] = new Dictionary<string, int> {
                 ["Manual"] = 0, ["ForceDirected"] = 1, ["Circular"] = 2, ["Hierarchical"] = 3, ["Arc"] = 4,
+            },
+            [typeof(QuiverKeyLabelPosition)] = new Dictionary<string, int> {
+                ["Above"] = 0, ["Below"] = 1, ["Right"] = 2, ["Left"] = 3,
             },
             [typeof(RrgFormula)] = new Dictionary<string, int> {
                 ["DualEma"] = 0, ["ZScore"] = 1, ["LogReturn"] = 2,
@@ -200,6 +206,9 @@ public static class EnumOrdinalSnapshot
                 ["CenterLeft"] = 6, ["CenterRight"] = 7, ["LowerCenter"] = 8,
                 ["UpperCenter"] = 9, ["Center"] = 10, ["OutsideRight"] = 11,
                 ["OutsideLeft"] = 12, ["OutsideTop"] = 13, ["OutsideBottom"] = 14,
+            },
+            [typeof(JoinStyle)] = new Dictionary<string, int> {
+                ["Miter"] = 0, ["Round"] = 1, ["Bevel"] = 2,
             },
             [typeof(LineStyle)] = new Dictionary<string, int> {
                 ["Solid"] = 0, ["Dashed"] = 1, ["Dotted"] = 2,
@@ -254,6 +263,9 @@ public static class EnumOrdinalSnapshot
             [typeof(MatPlotLibNet.Numerics.SpectralScaling)] = new Dictionary<string, int> {
                 ["Density"] = 0, ["Spectrum"] = 1,
             },
+            [typeof(MatPlotLibNet.Numerics.SpectralSides)] = new Dictionary<string, int> {
+                ["Default"] = 0, ["OneSided"] = 1, ["TwoSided"] = 2,
+            },
             [typeof(SpinePosition)] = new Dictionary<string, int> {
                 ["Edge"] = 0, ["Data"] = 1, ["Axes"] = 2,
             },
@@ -298,6 +310,9 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(ViolinSide)] = new Dictionary<string, int> {
                 ["Both"] = 0, ["Low"] = 1, ["High"] = 2,
+            },
+            [typeof(ZDirection)] = new Dictionary<string, int> {
+                ["Z"] = 0, ["X"] = 1, ["Y"] = 2,
             },
         };
 }

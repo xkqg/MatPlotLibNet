@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -15,11 +16,10 @@ public sealed class StreamingAmihudIlliquidity : WindowedStreamingIndicator<Ohlc
     /// <summary>Creates a streaming AmihudIlliquidity.</summary>
     /// <param name="period">How many bars the illiquidity is averaged over; at least 1.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingAmihudIlliquidity(int period = 20, int capacity = 10_000)
-        : base(period + 1, capacity)
+    public StreamingAmihudIlliquidity(int period = AmihudIlliquidity.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(AmihudIlliquidity.Spec(period), capacity)
     {
         _period = period;
-        Label = $"ILLIQ({period})";
     }
 
     /// <inheritdoc />

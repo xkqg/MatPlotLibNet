@@ -18,7 +18,6 @@ namespace MatPlotLibNet.Geo.Tests;
 [Collection("ChartSerializerGlobalState")]
 public class GeoNeutralOutlineTests
 {
-    private static readonly ChartSerializer Serializer = new();
     private static readonly IReadOnlyDictionary<string, double> Values = new Dictionary<string, double> { ["FRA"] = 1, ["DEU"] = 2, ["ESP"] = 4 };
 
     public static TheoryData<string> Layers => ["borders", "choropleth", "cartogram"];
@@ -55,15 +54,47 @@ public class GeoNeutralOutlineTests
     public void AnOutline_WearsTheLibrarysGrey_UnderTheDefaultTheme(string layer) =>
         Assert.Contains(Stroke("#808080"), Map(layer, Theme.Default).ToSvg());
 
-    [Fact]
-    public void ANamedOutlineColour_WinsOverTheNeutral()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create().WithSize(600, 330).WithTheme(Theme.Nord)
-            .AddSubPlot(1, 1, 1, ax => ax.WithProjection(GeoProjection.PlateCarree).Borders(Colors.Red)).Build().ToSvg();
+        new DrawnToken("ANamedOutlineColour_WinsOverTheNeutral", () => Plt.Create().WithSize(600, 330).WithTheme(Theme.Nord)
+            .AddSubPlot(1, 1, 1, ax => ax.WithProjection(GeoProjection.PlateCarree).Borders(Colors.Red)).Build().ToSvg(), Stroke("#FF0000")) { Absent = [Stroke("#8D8D8D")] },
+        //  The role is written, not a colour, so a map read back and drawn under another theme wears that theme's grey.
+        new DrawnToken("TheRole_SurvivesTheJson_AndFollowsTheTheme (#1)", () =>
+        {
+            var figure = Map("borders", Theme.Default);
+            var read = figure.RoundTripped();
+            read.Theme = Theme.Nord;
+            return figure.ToJson();
+        }, "\"wearsNeutral\":true"),
+        new DrawnToken("TheRole_SurvivesTheJson_AndFollowsTheTheme (#2)", () =>
+        {
+            var figure = Map("borders", Theme.Default);
+            var read = figure.RoundTripped();
+            read.Theme = Theme.Nord;
+            return read.ToSvg();
+        }, Stroke("#8D8D8D")),
+        //  A visitor that is not the library's renderer is handed no map, as it is handed no series it has no Visit for: the map is drawn
+        // by its renderer through the library's series pass, and draws nothing of its own into the area it is given.
+        new DrawnToken("AVisitorOfYourOwn_IsHandedNoMap", () =>
+        {
+            var series = Map("choropleth", Theme.Default).SubPlots[0].Series.OfType<GeoPolygonSeries>().Single();
+            var context = new SvgRenderContext();
+            series.Accept(DispatchProxy.Create<ISeriesVisitor, SilentVisitor>(), new RenderArea(new Rect(0, 0, 600, 330), context));
+            return context.GetOutput();
+        }) { Absent = ["<path"] },
+        //  A series wearing the neutral holds no colour of the cycle, so the layer drawn after the borders wears the theme's first colour
+        // and not its second.
+        new DrawnToken("TheBordersTakeNoColourSlot_SoThePointsOnTopWearTheFirstColour", () => BordersWithPoints().ToSvg(),
+            $"fill=\"{BordersWithPoints().Theme.CycleColors[0].ToHex()}\"") { Absent = [$"fill=\"{BordersWithPoints().Theme.CycleColors[1].ToHex()}\""] },
+    };
 
-        Assert.Contains(Stroke("#FF0000"), svg);
-        Assert.DoesNotContain(Stroke("#8D8D8D"), svg);
-    }
+    private static Figure BordersWithPoints() => Plt.Create().WithSize(600, 330).AddSubPlot(1, 1, 1, ax => ax
+        .WithProjection(GeoProjection.PlateCarree).Borders().Points([48.85], [2.35])).Build();
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Theory]
     [MemberData(nameof(Layers))]
@@ -73,48 +104,6 @@ public class GeoNeutralOutlineTests
 
         Assert.Null(figure.SubPlots[0].Series.OfType<GeoPolygonSeries>().Single().StrokeColor);
         Assert.Contains("\"wearsNeutral\":true", figure.ToJson());
-    }
-
-    /// <summary>The role is written, not a colour, so a map read back and drawn under another theme wears that theme's grey.</summary>
-    [Fact]
-    public void TheRole_SurvivesTheJson_AndFollowsTheTheme()
-    {
-        var figure = Map("borders", Theme.Default);
-
-        var read = Serializer.FromJson(figure.ToJson());
-        read.Theme = Theme.Nord;
-
-        Assert.Contains("\"wearsNeutral\":true", figure.ToJson());
-        Assert.Contains(Stroke("#8D8D8D"), read.ToSvg());
-    }
-
-    /// <summary>A series wearing the neutral holds no colour of the cycle, so the layer drawn after the borders wears the theme's
-    /// first colour and not its second.</summary>
-    [Fact]
-    public void TheBordersTakeNoColourSlot_SoThePointsOnTopWearTheFirstColour()
-    {
-        var figure = Plt.Create().WithSize(600, 330).AddSubPlot(1, 1, 1, ax => ax
-            .WithProjection(GeoProjection.PlateCarree).Borders().Points([48.85], [2.35])).Build();
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains($"fill=\"{figure.Theme.CycleColors[0].ToHex()}\"", svg);
-        Assert.DoesNotContain($"fill=\"{figure.Theme.CycleColors[1].ToHex()}\"", svg);
-    }
-
-    /// <summary>A visitor that is not the SVG renderer has no theme to read the neutral from, so a series that wears the neutral
-    /// draws its regions filled with no outline, not outlined in a colour nobody chose.</summary>
-    [Fact]
-    public void AVisitorWithNoTheme_GivesTheNeutralNothingToWear_SoTheRegionsHaveNoOutline()
-    {
-        var series = Map("choropleth", Theme.Default).SubPlots[0].Series.OfType<GeoPolygonSeries>().Single();
-        var context = new SvgRenderContext();
-
-        series.Accept(DispatchProxy.Create<ISeriesVisitor, SilentVisitor>(), new RenderArea(new Rect(0, 0, 600, 330), context));
-
-        string markup = context.GetOutput();
-        Assert.Contains("<path", markup);
-        Assert.DoesNotContain("stroke=\"#", markup);
     }
 
     /// <summary>An <see cref="ISeriesVisitor"/> that does nothing and is not the SVG renderer.</summary>

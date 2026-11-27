@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
@@ -9,243 +8,6 @@ using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Layout;
-
-/// <summary>
-/// Wave J.1 branch close-out for <see cref="ConstrainedLayoutEngine"/>: targets the seven branches
-/// flagged sub-100 in baseline.cobertura.xml — outside-top legend (Compute switch L109 + Measure switch L282),
-/// interior-subplot horizontal/vertical gap widening (L70/L71/L86), stacked horizontal gap (L92),
-/// suptitle-only top floor when no top-row subplot exists (L96), legacy GridRows/Cols positioning
-/// fallback (L171/L185), and EstimateYTickLabel min-only path (L309).
-/// </summary>
-public class ConstrainedLayoutEngineCoverageTests
-{
-    private static IRenderContext MakeCtx() => new SvgRenderContext();
-    private static ConstrainedLayoutEngine Engine() => new();
-
-    // ── L109/L118-119 + L282/L291-292 ────────────────────────────────────────
-    /// <summary>OutsideTop legend hits the OutsideTop arm in both the Measure switch (Lines 291-292)
-    /// and the figure-level clamp switch (Lines 118-119) — the only switch arm of the four positions
-    /// not exercised by the existing OutsideRight/Left/Bottom tests.</summary>
-    [Fact]
-    public void OutsideTopLegend_WidensTopMarginAboveInsidePosition()
-    {
-        var ctx = MakeCtx();
-        var inside = new FigureBuilder()
-            .WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "Alpha");
-                ax.Plot([1.0, 2.0], [2.0, 3.0], s => s.Label = "Beta");
-                ax.WithLegend(l => l with { Position = LegendPosition.UpperCenter });
-            })
-            .Build();
-        var outsideTop = new FigureBuilder()
-            .WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "Alpha");
-                ax.Plot([1.0, 2.0], [2.0, 3.0], s => s.Label = "Beta");
-                ax.WithLegend(l => l with { Position = LegendPosition.OutsideTop });
-            })
-            .Build();
-
-        var insideSpacing = Engine().Compute(inside, ctx);
-        var outsideSpacing = Engine().Compute(outsideTop, ctx);
-
-        Assert.True(outsideSpacing.MarginTop > insideSpacing.MarginTop,
-            $"OutsideTop must widen top margin; got inside={insideSpacing.MarginTop}, outside={outsideSpacing.MarginTop}");
-    }
-
-    // ── L309 / L310 ───────────────────────────────────────────────────────────
-    /// <summary>YAxis with Min set but Max null hits the second arm of EstimateYTickLabel
-    /// (<c>else if (axes.YAxis.Min.HasValue) return FormatTickValue(Min)</c>, line 309-310).
-    /// SetYLim sets both, so we mutate the model after build to leave Max null.</summary>
-    [Fact]
-    public void YAxisMinOnly_MaxUnset_LeftMarginEstimatesFromMin()
-    {
-        var ctx = MakeCtx();
-        var figure = new FigureBuilder()
-            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-        // Bypass SetYLim (which sets both) to land on the Min-only branch
-        figure.SubPlots[0].YAxis.Min = 1_234_567.0;
-        figure.SubPlots[0].YAxis.Max = null;
-
-        var bare = new FigureBuilder()
-            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-
-        var minOnlySpacing = Engine().Compute(figure, ctx);
-        var bareSpacing    = Engine().Compute(bare, ctx);
-
-        // Engine ran without throwing on the Min-only branch; left margin reflects the
-        // Min-derived label width (≥ the conservative fallback proxy "−9.999")
-        Assert.True(minOnlySpacing.MarginLeft >= bareSpacing.MarginLeft);
-    }
-
-    // ── L70 (true) + L86 (true) ───────────────────────────────────────────────
-    /// <summary>Two-column grid where the LEFT subplot (ColEnd=1 &lt; maxCols=2) carries a
-    /// vertical colorbar — its RightNeeded contribution is what the engine accumulates into hGap
-    /// at line 70 and into <c>maxNonRightRight</c> at line 86. With only a right-edge subplot
-    /// in existing fixtures, the inner branch never fires.</summary>
-    [Fact]
-    public void TwoColGrid_LeftSubplotVerticalColorBar_WidensHorizontalGap()
-    {
-        var ctx = MakeCtx();
-        var bareTwoCol = new FigureBuilder()
-            .AddSubPlot(1, 2, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .AddSubPlot(1, 2, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-
-        var leftCb = new FigureBuilder()
-            .AddSubPlot(1, 2, 1, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0]);
-                ax.WithColorBar(cb => cb with { Visible = true, Orientation = ColorBarOrientation.Vertical, Label = "Intensity scale" });
-            })
-            .AddSubPlot(1, 2, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-
-        var bareSpacing  = Engine().Compute(bareTwoCol, ctx);
-        var leftCbSpacing = Engine().Compute(leftCb, ctx);
-
-        Assert.True(leftCbSpacing.HorizontalGap > bareSpacing.HorizontalGap,
-            $"Left-column colorbar must widen hGap; got bare={bareSpacing.HorizontalGap}, leftCb={leftCbSpacing.HorizontalGap}");
-    }
-
-    // ── L71 (true) ────────────────────────────────────────────────────────────
-    /// <summary>Two-row grid where the BOTTOM subplot (RowStart=1 &gt; 0) carries a title — its
-    /// TopNeeded contribution is what the engine accumulates into vGap at line 71. Existing
-    /// fixtures only have titles on top-row subplots, so the inner branch never fires.</summary>
-    [Fact]
-    public void TwoRowGrid_BottomSubplotTitle_WidensVerticalGap()
-    {
-        var ctx = MakeCtx();
-        var bareTwoRow = new FigureBuilder()
-            .AddSubPlot(2, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .AddSubPlot(2, 1, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-
-        var bottomTitle = new FigureBuilder()
-            .AddSubPlot(2, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .AddSubPlot(2, 1, 2, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0]);
-                ax.WithTitle("Bottom subplot title");
-            })
-            .Build();
-
-        var bareSpacing = Engine().Compute(bareTwoRow, ctx);
-        var withTitle   = Engine().Compute(bottomTitle, ctx);
-
-        Assert.True(withTitle.VerticalGap > bareSpacing.VerticalGap,
-            $"Bottom-row subplot title must widen vGap; got bare={bareSpacing.VerticalGap}, withTitle={withTitle.VerticalGap}");
-    }
-
-    // ── L92 (true) ────────────────────────────────────────────────────────────
-    /// <summary>Three-column grid where every subplot has both a Y-label (left demand) and a
-    /// secondary Y-label (right demand). The middle subplot is interior on BOTH edges, so
-    /// <c>maxNonLeftLeft</c> and <c>maxNonRightRight</c> both accumulate, and their sum
-    /// (stackedH at line 91) exceeds the single-edge hGap — firing line 92's true branch.</summary>
-    [Fact]
-    public void ThreeColGrid_BothSideDemands_StackedHorizontalGapExceedsSingleSide()
-    {
-        var ctx = MakeCtx();
-        var figure = new FigureBuilder()
-            .AddSubPlot(1, 3, 1, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0]);
-                ax.SetYLabel("Long left Y label");
-                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
-            })
-            .AddSubPlot(1, 3, 2, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0]);
-                ax.SetYLabel("Long left Y label");
-                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
-            })
-            .AddSubPlot(1, 3, 3, ax =>
-            {
-                ax.Plot([1.0, 2.0], [1.0, 2.0]);
-                ax.SetYLabel("Long left Y label");
-                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
-            })
-            .Build();
-
-        var spacing = Engine().Compute(figure, ctx);
-
-        // hGap must reflect the stacked sum (left + right interior demand on the middle subplot).
-        // Only need to assert the engine completed and produced a positive gap; the branch at
-        // line 92 fires whenever stackedH (sum) exceeds the single-edge max set by lines 69-70.
-        Assert.True(spacing.HorizontalGap > 0);
-    }
-
-    // ── L96 (true) ────────────────────────────────────────────────────────────
-    /// <summary>Suptitle present, but the only subplot lives in row 1 of a 2-row GridSpec — so
-    /// <c>pos.RowStart == 0</c> at line 62 is false for every subplot, top stays at default 20,
-    /// and the supReserved-vs-top floor at line 96 fires its true branch.</summary>
-    [Fact]
-    public void SuptitleWithNoRow0Subplot_TopFloorBranchFires()
-    {
-        var ctx = MakeCtx();
-        var figure = new FigureBuilder()
-            .WithTitle("Figure suptitle")
-            .WithGridSpec(2, 1)
-            .AddSubPlot(new GridPosition(1, 2, 0, 1), ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-
-        var spacing = Engine().Compute(figure, ctx);
-
-        // Top must reflect the suptitle reservation (>= ~30px floor for any reasonable title font).
-        Assert.True(spacing.MarginTop >= 30,
-            $"Top margin must honour suptitle floor when no row-0 subplot raised it; got {spacing.MarginTop}");
-    }
-
-    // ── L171 + L185 (legacy GridRows/Cols fallback) ──────────────────────────
-    /// <summary>A figure with one subplot using the legacy <c>(rows, cols, index)</c> overload
-    /// AND another subplot with no positioning at all (forcing the GetEffectivePosition fallback
-    /// to call GetMaxRows / GetMaxCols, which then iterates and hits the
-    /// <c>else if (ax.GridRows &gt; max)</c> arms at lines 171 and 185).</summary>
-    [Fact]
-    public void LegacyGridRowsCols_FallbackPath_DoesNotThrow()
-    {
-        var ctx = MakeCtx();
-        var figure = new FigureBuilder()
-            .AddSubPlot(3, 2, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .Build();
-        // Mutate one subplot to remove its GridIndex but keep GridRows/Cols — forces the
-        // GetEffectivePosition fallback (returns 0..maxRows × 0..maxCols), which calls
-        // GetMaxRows / GetMaxCols whose else-if arms then iterate and use ax.GridRows.
-        figure.SubPlots[0].GridIndex = 0;
-
-        var spacing = Engine().Compute(figure, ctx);
-
-        Assert.True(spacing.MarginLeft >= 30);
-        Assert.True(spacing.MarginBottom >= 30);
-    }
-
-    // ── L171 + L185 (mixed positioning, true legacy + GridPosition fallback) ──
-    /// <summary>A figure with one subplot using GridPosition AND a second using legacy GridRows
-    /// without a GridIndex — forces the GetMaxRows/GetMaxCols loop to iterate over both arms
-    /// (<c>HasValue + RowEnd &gt; max</c> and <c>else if (GridRows &gt; max)</c>).</summary>
-    [Fact]
-    public void MixedGridPositioning_LegacyAndExplicit_ComputesWithoutError()
-    {
-        var ctx = MakeCtx();
-        var figure = new FigureBuilder()
-            .WithGridSpec(2, 2)
-            .AddSubPlot(new GridPosition(0, 1, 0, 1), ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
-            .AddSubPlot(2, 2, 4, ax => ax.Plot([3.0, 4.0], [5.0, 6.0]))
-            .Build();
-        // Drop the legacy subplot's GridIndex to force the GetEffectivePosition fallback path
-        // for that one specific subplot, which then exercises GetMaxRows/Cols across the mixed set.
-        figure.SubPlots[1].GridIndex = 0;
-
-        var spacing = Engine().Compute(figure, ctx);
-
-        Assert.True(spacing.MarginLeft >= 30);
-    }
-}
 
 /// <summary>The right edge reserves what is drawn there, in this order: the secondary Y axis (its tick labels, then
 /// its title) and after it the end-of-line labels. Before 1.19.0 the engine charged a fixed 45 px plus half the
@@ -255,6 +17,8 @@ public class ConstrainedLayoutEngineCoverageTests
 /// uses; the drawn end label itself is pinned with the label drawing.</para></summary>
 public class ConstrainedLayoutEngineTests
 {
+    private const string WideLabel = "a formatted tick label";
+
     private const double FigureWidth = 800;
     private static readonly double[] X = [0.0, 1.0, 2.0];
 
@@ -312,7 +76,8 @@ public class ConstrainedLayoutEngineTests
         // The plain gutter already holds the right subplot's Y tick labels; the label band is stacked on it.
         double growth = Gutter(PlotAreas(labelled)) - Gutter(PlotAreas(plain));
         double band = DirectLabelMetrics.Gap + LabelWidth(labelled, "Left series");
-        Assert.True(growth >= band, $"gutter grew {growth:F2} px, the label band needs {band:F2}");
+        // matplotlib's tight_layout keeps one pad in a gap (the default theme's): the gutter grows by the band itself.
+        Assert.True(growth >= band - 1e-9, $"gutter grew {growth:F2} px, the label band needs {band:F2}");
     }
 
     [Fact]
@@ -342,15 +107,15 @@ public class ConstrainedLayoutEngineTests
         var area = PlotAreas(figure, ctx)[0];
         double plotRight = area.X + area.Width;
         // Right of the plot: the secondary tick labels, and the end label itself (left out here: it is what must fit).
-        var tickLabels = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
-            .Where(a => (double)a.position.X > plotRight && (string)a.text != "Revenue").ToList();
+        var tickLabels = ctx.Of<DrawTextCall>()
+            .Where(a => (double)a.Position.X > plotRight && a.Text != "Revenue").ToList();
         Assert.NotEmpty(tickLabels);
         double labelBand = DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue", ctx);
         foreach (var a in tickLabels)
         {
-            double tickRight = (double)a.position.X + ctx.MeasureText((string)a.text, (Font)a.font).Width;
+            double tickRight = (double)a.Position.X + ctx.MeasureText(a.Text, a.Font).Width;
             Assert.True(tickRight + labelBand <= FigureWidth,
-                $"tick label '{a.text}' ends at {tickRight:F2}; the end label after it needs {labelBand:F2} more of {FigureWidth}");
+                $"tick label '{a.Text}' ends at {tickRight:F2}; the end label after it needs {labelBand:F2} more of {FigureWidth}");
         }
     }
 
@@ -364,9 +129,9 @@ public class ConstrainedLayoutEngineTests
         var ctx = new RecordingRenderContext();
         new ChartRenderer().Render(figure, ctx);
 
-        var title = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Margin %");
+        var title = ctx.Of<DrawTextCall>().Single(a => a.Text == "Margin %");
         // The turned title's ink ends its descent past its anchor (FacingInk); the end labels stand past that.
-        double titleInkEnd = (double)title.position.X + FacingInk.Descent * ((Font)title.font).Size;
+        double titleInkEnd = (double)title.Position.X + FacingInk.Descent * (title.Font).Size;
         double labelBand = DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue", ctx);
         Assert.True(titleInkEnd + labelBand <= FigureWidth,
             $"secondary title ink ends at {titleInkEnd:F2} and leaves no room for the end label band {labelBand:F2}");
@@ -418,7 +183,7 @@ public class ConstrainedLayoutEngineTests
     private static RightBand Band(Action<AxesBuilder> configure, IRenderContext? ctx = null)
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, configure).Build();
-        return new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx ?? new RecordingRenderContext(), figure.Theme, 0);
+        return new AxesEdgeNeeds().MeasureRightBand(figure.SubPlots[0], ctx ?? new RecordingRenderContext(), figure.Theme, 0);
     }
 
     [Fact]
@@ -427,7 +192,7 @@ public class ConstrainedLayoutEngineTests
         var band = Band(ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "legend"));
 
         Assert.Equal(new RightBand(0, 0, 0), band);
-        Assert.Equal(0, band.Width);
+        Assert.Equal(0, band.WidthWith(ConstrainedLayoutEngine.PadRight));
     }
 
     [Fact]
@@ -439,21 +204,21 @@ public class ConstrainedLayoutEngineTests
             .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
         var axes = figure.SubPlots[0];
 
-        var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
+        var band = new AxesEdgeNeeds().MeasureRightBand(axes, ctx, figure.Theme, 0);
 
         // What the secondary part draws: the labels left-aligned at Length + Pad past the edge.
         new ChartRenderer().Render(figure, ctx);
-        var drawn = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Where(a => (string)a.text != "" && (int)a.alignment == (int)TextAlignment.Left).ToList();
-        double widest = drawn.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Width);
+        var drawn = ctx.Of<DrawTextCall>().Where(a => a.Text != "" && (int)a.Alignment == (int)TextAlignment.Left).ToList();
+        double widest = drawn.Max(a => ctx.MeasureText(a.Text, a.Font).Width);
         var ticks = axes.YAxes.Right[0].Axis.MajorTicks;
         Assert.Equal(ticks.Length + ticks.Pad + widest, band.SecondaryAxis, 6);
         Assert.Equal(0, band.EndLabels);
-        Assert.Equal(band.SecondaryAxis + ConstrainedLayoutEngine.PadRight, band.Width, 6);
+        Assert.Equal(band.SecondaryAxis + ConstrainedLayoutEngine.PadRight, band.WidthWith(ConstrainedLayoutEngine.PadRight), 6);
     }
 
     /// <summary>ROADMAP.md row 101: a second, stacked right axis — the total the layout reserves is the SUM
-    /// of every slot's own band, read by <see cref="ConstrainedLayoutEngine.SecondaryAxisBand"/> and by
-    /// <c>CartesianYAxisSlotPart</c>'s own outward offset (<see cref="AxisStackingExtensions.StackedOffsets"/>)
+    /// of every slot's own band, read by <see cref="ConstrainedLayoutEngine.MeasureRightBand"/> (through <see cref="RightBand.Of"/>) and by
+    /// <c>CartesianAxisPlacement.PlaceYSlots</c>'s own outward offset (<see cref="AxisStackingExtensions.StackedOffsets"/>)
     /// alike, so the two can never disagree about where a slot's edge is.</summary>
     [Fact]
     public void RightBand_TwoStackedAxes_TotalIsEachSlotsOwnBand_AndTheGapBetween()
@@ -465,8 +230,8 @@ public class ConstrainedLayoutEngineTests
         var axes = figure.SubPlots[0];
         axes.YAxes.Right.Add().AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [1.0, 2.0, 3.0]));
 
-        var perSlotBands = ConstrainedLayoutEngine.SecondaryAxisBands(axes, ctx, figure.Theme);
-        var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
+        var perSlotBands = new AxesEdgeNeeds().SecondaryAxisBands(axes, ctx, figure.Theme);
+        var band = new AxesEdgeNeeds().MeasureRightBand(axes, ctx, figure.Theme, 0);
 
         Assert.Equal(2, perSlotBands.Length);
         Assert.True(perSlotBands[0] > 0 && perSlotBands[1] > 0, "Both slots should charge a nonzero band.");
@@ -474,7 +239,7 @@ public class ConstrainedLayoutEngineTests
         // the same band measured twice.
         Assert.NotEqual(perSlotBands[0], perSlotBands[1]);
         // The second slot stands the container's gap past the far side of the first.
-        Assert.Equal(perSlotBands[0] + axes.YAxes.TitleGap + perSlotBands[1], band.SecondaryAxis, 6);
+        Assert.Equal(perSlotBands[0] + axes.YAxes.TitleGapUnder(figure.Theme) + perSlotBands[1], band.SecondaryAxis, 6);
     }
 
     /// <summary>ROADMAP.md row 101: a left-stacked axis widens the left margin past the primary
@@ -490,7 +255,7 @@ public class ConstrainedLayoutEngineTests
 
         var marginWithout = new ConstrainedLayoutEngine().Compute(without, ctx).MarginLeft;
         var marginWith = new ConstrainedLayoutEngine().Compute(with, ctx).MarginLeft;
-        var leftBand = ConstrainedLayoutEngine.LeftAxisBands(with.SubPlots[0], ctx, with.Theme);
+        var leftBand = new AxesEdgeNeeds().LeftAxisBands(with.SubPlots[0], ctx, with.Theme);
 
         Assert.Single(leftBand);
         Assert.True(leftBand[0] > 0);
@@ -510,13 +275,14 @@ public class ConstrainedLayoutEngineTests
             .WithAddLeftYAxis(left => left.Plot(X, [1.0, 2.0, 3.0]))).Build();
         var axes = figure.SubPlots[0];
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Visible = false };
-        axes.YAxes.Left[1].Axis.TickFormatter = new WideFormatter();
+        axes.YAxes.Left[1].Axis.TickFormatter = new TestTickFormatter(_ => WideLabel);
 
-        double slot = Assert.Single(ConstrainedLayoutEngine.LeftAxisBands(axes, ctx, figure.Theme));
+        double slot = Assert.Single(new AxesEdgeNeeds().LeftAxisBands(axes, ctx, figure.Theme));
         double margin = new ConstrainedLayoutEngine().Compute(figure, ctx).MarginLeft;
 
         Assert.True(slot > 120, $"precondition: the slot's band ({slot:F2}) is wider than the 120 px cap");
-        Assert.Equal(0 + axes.YAxes.TitleGap + slot + ConstrainedLayoutEngine.PadLeft, margin, 6);
+        // The default theme (matplotlib v2) keeps matplotlib's tight_layout pad: 1.08 of its 10 pt font.
+        Assert.Equal(0 + axes.YAxes.TitleGapUnder(figure.Theme) + slot + 1.08 * 10 * 100 / 72, margin, 6);
     }
 
     [Fact]
@@ -525,19 +291,13 @@ public class ConstrainedLayoutEngineTests
         var ctx = new RecordingRenderContext();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
             .WithAddRightYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
-        figure.SubPlots[0].YAxes.Right[0].Axis.TickFormatter = new WideFormatter();
-        var wide = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
+        figure.SubPlots[0].YAxes.Right[0].Axis.TickFormatter = new TestTickFormatter(_ => WideLabel);
+        var wide = new AxesEdgeNeeds().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
 
         var ticks = figure.SubPlots[0].YAxes.Right[0].Axis.MajorTicks;
         double expected = ticks.Length + ticks.Pad
-            + ctx.MeasureText(WideFormatter.Text, ticks.LabelFont(ThemedFontProvider.TickFont(figure.Theme))).Width;
+            + ctx.MeasureText(WideLabel, new TickDrawContext { BaseFont = figure.Theme.TickFont(), Theme = figure.Theme }.LabelFont(ticks)).Width;
         Assert.Equal(expected, wide.SecondaryAxis, 6);
-    }
-
-    private sealed class WideFormatter : MatPlotLibNet.Rendering.TickFormatters.ITickFormatter
-    {
-        internal const string Text = "a formatted tick label";
-        public string Format(double value) => Text;
     }
 
     [Fact]
@@ -548,7 +308,7 @@ public class ConstrainedLayoutEngineTests
         var axis = figure.SubPlots[0].YAxes.Right[0].Axis;
         axis.MajorTicks = axis.MajorTicks with { Visible = false };
 
-        var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], new RecordingRenderContext(), figure.Theme, 0);
+        var band = new AxesEdgeNeeds().MeasureRightBand(figure.SubPlots[0], new RecordingRenderContext(), figure.Theme, 0);
 
         Assert.Equal(0, band.SecondaryAxis);
     }
@@ -563,13 +323,13 @@ public class ConstrainedLayoutEngineTests
             .WithAddRightYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
         var axes = figure.SubPlots[0];
 
-        var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
+        var band = new AxesEdgeNeeds().MeasureRightBand(axes, ctx, figure.Theme, 0);
 
         new ChartRenderer().Render(figure, ctx);
         var area = PlotAreas(figure, ctx)[0];
-        var title = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Margin %");
-        double centre = (double)title.position.X - (area.X + area.Width);
-        Assert.Equal(centre + FacingInk.Descent * ((Font)title.font).Size, band.SecondaryAxis, 6);
+        var title = ctx.Of<DrawTextCall>().Single(a => a.Text == "Margin %");
+        double centre = (double)title.Position.X - (area.X + area.Width);
+        Assert.Equal(centre + FacingInk.Descent * (title.Font).Size, band.SecondaryAxis, 6);
     }
 
     [Fact]
@@ -582,10 +342,10 @@ public class ConstrainedLayoutEngineTests
         axis.MajorTicks = axis.MajorTicks with { Visible = false };
         axis.LabelStyle = new TextStyle { Pad = 7 };
 
-        var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
+        var band = new AxesEdgeNeeds().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
 
         // The title keeps its fixed 45 px plus its pad, and the band reaches its descent past that.
-        double size = axis.LabelStyle.ApplyTo(ThemedFontProvider.LabelFont(figure.Theme)).Size;
+        double size = axis.LabelStyle.ApplyTo(figure.Theme.LabelFont()).Size;
         Assert.Equal(45 + 7 + FacingInk.Descent * size, band.SecondaryAxis, 6);
     }
 
@@ -596,12 +356,12 @@ public class ConstrainedLayoutEngineTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "short").WithDirectLabel()
             .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "the longest name").WithDirectLabel()).Build();
-        var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
+        var band = new AxesEdgeNeeds().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
 
-        var font = ThemedFontProvider.TickFont(figure.Theme);
+        var font = figure.Theme.TickFont();
         Assert.Equal(0, band.SecondaryAxis);
         Assert.Equal(DirectLabelMetrics.Gap + ctx.MeasureText("the longest name", font).Width, band.EndLabels, 6);
-        Assert.Equal(band.EndLabels + ConstrainedLayoutEngine.PadRight, band.Width, 6);
+        Assert.Equal(band.EndLabels + ConstrainedLayoutEngine.PadRight, band.WidthWith(ConstrainedLayoutEngine.PadRight), 6);
     }
 
     [Fact]
@@ -613,6 +373,188 @@ public class ConstrainedLayoutEngineTests
             .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0])), ctx);
 
         Assert.True(both.SecondaryAxis > 0 && both.EndLabels > 0);
-        Assert.Equal(both.SecondaryAxis + both.EndLabels + ConstrainedLayoutEngine.PadRight, both.Width, 6);
+        Assert.Equal(both.SecondaryAxis + both.EndLabels + ConstrainedLayoutEngine.PadRight, both.WidthWith(ConstrainedLayoutEngine.PadRight), 6);
+    }
+
+    // ── the X axis title of an axes whose renderer measures nothing below its bottom spine ─────────────
+
+    /// <summary>An axes whose renderer measures nothing below its bottom spine (polar, 3-D) is kept room for its X axis title
+    /// by the one rule the title is placed by (<see cref="AxesTitleExtensions"/>' <c>BottomTitleExtent</c>): in the
+    /// title's own font, past its pad, below an estimated band of tick labels when they are drawn and at the fixed place
+    /// when they are hidden.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TheEstimatedBottom_KeepsRoomForTheXTitleByTheOneTitleRule(bool ticksVisible)
+    {
+        var ctx = new SvgRenderContext();
+        var figure = Tight().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])).Build();
+        var axes = figure.SubPlots[0];
+        axes.XAxis.Label = "Angle";
+        axes.XAxis.LabelStyle = new TextStyle { FontSize = 30, Pad = 10 };
+        axes.XAxis.MajorTicks = axes.XAxis.MajorTicks with { Visible = ticksVisible };
+        double tickH = ticksVisible ? ctx.MeasureText("0", figure.Theme.TickFont()).Height : 0;
+
+        var needs = new AxesEdgeNeeds().MeasureEnds(axes, figure, ctx, default);
+
+        double expected = axes.XAxis.BottomTitleExtent(axes.XAxis.Label, ctx, figure.Theme, tickH) + ConstrainedLayoutEngine.PadBottom;
+        Assert.Equal(expected, needs.End, 9);
+    }
+
+    private static IRenderContext MakeCtx() => new SvgRenderContext();
+
+    /// <summary>The engine gives <paramref name="wider"/> more of an edge than it gives <paramref name="bare"/>.</summary>
+    private static void AssertWidens(Figure wider, Figure bare, Func<SubPlotSpacing, double> edge, string what)
+    {
+        var ctx = MakeCtx();
+        double before = edge(Engine().Compute(bare, ctx));
+        double after = edge(Engine().Compute(wider, ctx));
+
+        Assert.True(after > before, $"{what}; got bare={before}, wider={after}");
+    }
+    private static ConstrainedLayoutEngine Engine() => new();
+
+    /// <summary>OutsideTop legend hits the OutsideTop arm in both the Measure switch
+    /// and the figure-level clamp switch — the only switch arm of the four positions
+    /// not exercised by the existing OutsideRight/Left/Bottom tests.</summary>
+    [Fact]
+    public void OutsideTopLegend_WidensTopMarginAboveInsidePosition()
+    {
+        var ctx = MakeCtx();
+        var inside = new FigureBuilder()
+            .WithSize(800, 600)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "Alpha");
+                ax.Plot([1.0, 2.0], [2.0, 3.0], s => s.Label = "Beta");
+                ax.WithLegend(l => l with { Position = LegendPosition.UpperCenter });
+            })
+            .Build();
+        var outsideTop = new FigureBuilder()
+            .WithSize(800, 600)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "Alpha");
+                ax.Plot([1.0, 2.0], [2.0, 3.0], s => s.Label = "Beta");
+                ax.WithLegend(l => l with { Position = LegendPosition.OutsideTop });
+            })
+            .Build();
+
+        AssertWidens(outsideTop, inside, spacing => spacing.MarginTop, "OutsideTop must widen top margin");
+    }
+
+    /// <summary>YAxis with Min set but Max null hits the second arm of EstimateYTickLabel
+    /// (<c>else if (axes.YAxis.Min.HasValue) return NumericTickFormatter.FormatValue(Min)</c>).
+    /// SetYLim sets both, so we mutate the model after build to leave Max null.</summary>
+    [Fact]
+    public void YAxisMinOnly_MaxUnset_LeftMarginEstimatesFromMin()
+    {
+        var ctx = MakeCtx();
+        var figure = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+        // Bypass SetYLim (which sets both) to land on the Min-only branch
+        figure.SubPlots[0].YAxis.Min = 1_234_567.0;
+        figure.SubPlots[0].YAxis.Max = null;
+
+        var bare = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        var minOnlySpacing = Engine().Compute(figure, ctx);
+        var bareSpacing    = Engine().Compute(bare, ctx);
+
+        // Engine ran without throwing on the Min-only branch; left margin reflects the
+        // Min-derived label width (≥ the conservative fallback proxy "−9.999")
+        Assert.True(minOnlySpacing.MarginLeft >= bareSpacing.MarginLeft);
+    }
+
+    /// <summary>Two-column grid where the LEFT subplot (ColEnd=1 &lt; maxCols=2) carries a
+    /// vertical colorbar — its RightNeeded contribution is what the engine accumulates into hGap
+    /// at the horizontal gap and into <c>maxNonRightRight</c>. With only a right-edge subplot
+    /// in existing fixtures, the inner branch never fires.</summary>
+    [Fact]
+    public void TwoColGrid_LeftSubplotVerticalColorBar_WidensHorizontalGap()
+    {
+        var ctx = MakeCtx();
+        var bareTwoCol = new FigureBuilder()
+            .AddSubPlot(1, 2, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .AddSubPlot(1, 2, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        var leftCb = new FigureBuilder()
+            .AddSubPlot(1, 2, 1, ax =>
+            {
+                ax.Plot([1.0, 2.0], [1.0, 2.0]);
+                ax.WithColorBar(cb => cb with { Visible = true, Orientation = ColorBarOrientation.Vertical, Label = "Intensity scale" });
+            })
+            .AddSubPlot(1, 2, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        AssertWidens(leftCb, bareTwoCol, spacing => spacing.HorizontalGap, "Left-column colorbar must widen hGap");
+    }
+
+    /// <summary>Two-row grid where the BOTTOM subplot (RowStart=1 &gt; 0) carries a title — its
+    /// TopNeeded contribution is what the engine accumulates into vGap. Existing
+    /// fixtures only have titles on top-row subplots, so the inner branch never fires.</summary>
+    [Fact]
+    public void TwoRowGrid_BottomSubplotTitle_WidensVerticalGap()
+    {
+        var ctx = MakeCtx();
+        var bareTwoRow = new FigureBuilder()
+            .AddSubPlot(2, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .AddSubPlot(2, 1, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        var bottomTitle = new FigureBuilder()
+            .AddSubPlot(2, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .AddSubPlot(2, 1, 2, ax =>
+            {
+                ax.Plot([1.0, 2.0], [1.0, 2.0]);
+                ax.WithTitle("Bottom subplot title");
+            })
+            .Build();
+
+        AssertWidens(bottomTitle, bareTwoRow, spacing => spacing.VerticalGap, "Bottom-row subplot title must widen vGap");
+    }
+
+    /// <summary>Three-column grid where every subplot has both a Y-label (left demand) and a
+    /// secondary Y-label (right demand). The middle subplot is interior on BOTH edges, so
+    /// <c>maxNonLeftLeft</c> and <c>maxNonRightRight</c> both accumulate, and their sum
+    /// (stackedH) exceeds the single-edge hGap — firing the stacked branch.</summary>
+    [Fact]
+    public void ThreeColGrid_BothSideDemands_StackedHorizontalGapExceedsSingleSide()
+    {
+        var ctx = MakeCtx();
+        static void BothSides(AxesBuilder ax) =>
+            ax.Plot([1.0, 2.0], [1.0, 2.0]).SetYLabel("Long left Y label").WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
+        var figure = new FigureBuilder().AddSubPlot(1, 3, 1, BothSides).AddSubPlot(1, 3, 2, BothSides).AddSubPlot(1, 3, 3, BothSides).Build();
+
+        var spacing = Engine().Compute(figure, ctx);
+
+        // hGap must reflect the stacked sum (left + right interior demand on the middle subplot).
+        // Only need to assert the engine completed and produced a positive gap; the stacked branch
+        // fires whenever stackedH (sum) exceeds the single-edge max.
+        Assert.True(spacing.HorizontalGap > 0);
+    }
+
+    /// <summary>Suptitle present, but the only subplot lives in row 1 of a 2-row GridSpec — so
+    /// <c>pos.RowStart == 0</c> is false for every subplot, top stays at default 20,
+    /// and the supReserved-vs-top floor fires its true branch.</summary>
+    [Fact]
+    public void SuptitleWithNoRow0Subplot_TopFloorBranchFires()
+    {
+        var ctx = MakeCtx();
+        var figure = new FigureBuilder()
+            .WithTitle("Figure suptitle")
+            .WithGridSpec(2, 1)
+            .AddSubPlot(new GridPosition(1, 2, 0, 1), ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        var spacing = Engine().Compute(figure, ctx);
+
+        // Top must reflect the suptitle reservation (>= ~30px floor for any reasonable title font).
+        Assert.True(spacing.MarginTop >= 30,
+            $"Top margin must honour suptitle floor when no row-0 subplot raised it; got {spacing.MarginTop}");
     }
 }

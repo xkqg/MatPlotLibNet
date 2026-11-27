@@ -15,9 +15,10 @@ Add `.WithBrowserInteraction()` to make SVG output interactive. You get pan, zoo
 Plt.Create()
     .WithBrowserInteraction()
     .WithTitle("Interactive Chart")
-    .Plot(x, y, s => s.Label = "Sensor A")
-    .Scatter(x, y2, s => s.Label = "Sensor B")
-    .WithLegend()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "Sensor A")
+        .Scatter(x, y2, s => s.Label = "Sensor B")
+        .WithLegend())
     .Save("interactive.svg");
 ```
 
@@ -48,8 +49,9 @@ Plt.Create()
     .WithLegendToggle()         // click legend to hide/show series
     .WithHighlight()            // dim siblings on series hover
     .WithSelection()            // Shift+drag rectangular data selection
-    .Plot(x, y, s => s.Label = "Data")
-    .WithLegend()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "Data")
+        .WithLegend())
     .Save("custom_interactive.svg");
 ```
 
@@ -76,7 +78,8 @@ formula (`dazim/delev = -(dx/w or dy/h) × 180`), so a drag across the full axes
 turns the view by 180°. Wheel zoom works on every 3D chart, with no explicit
 `distance:` needed. Labels keep their perpendicular offset outside the cube while the
 view rotates. Back panes never paint over surface quads, because the depth-sort is
-scoped to the `mpl-3d-data` tier group.
+scoped to the `mpl-3d-data` tier group; inside it, the marks of each series are sorted
+again within the series' own group, so the legend toggle still finds them after a turn.
 
 ```csharp
 Plt.Create()
@@ -240,5 +243,5 @@ The interaction scripts add ~3KB to the SVG file size.
 | `.With3DRotation()` | Drag to rotate (matplotlib parity), arrow keys ±5°, `+`/`-` distance, wheel zoom, `Home` reset |
 | `.WithTreemapDrilldown()` | Every depth is visible by default, so the interactive view shows the same picture as the static SVG. Click a parent rect to *collapse* its entire subtree, all the way down; each descendant keeps its own state. Click again to restore it. You can collapse several subtrees independently. Z-order paints children over parents, so the deepest visible label wins. |
 | `.WithSankeyHover()` | Hovering a node emphasises its upstream and downstream flow (ECharts `focus: adjacency` parity); keyboard users reach it with `Tab` |
-| `.WithInteractionTheme(theme)` | Themable opacity and transition tokens (highlight opacity, sankey dim opacities, treemap transition ms, tooltip offset) |
+| `.WithInteractionTheme(theme)` | Themable opacity and transition tokens (highlight opacity, sankey dim opacities, the treemap drilldown's fade in ms, the offset of the page's and the server's tooltips); each script reads its own, and a figure at the default carries none |
 | `.WithServerInteraction(id, cfg)` | Bidirectional SignalR interaction (hub methods `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` / `OnBrushSelect` / `OnHover`) |

@@ -44,17 +44,12 @@ internal sealed record LinearColorMapDto(string? Name, Color[]? Colors, double[]
 {
     internal override IColorMap Restore()
     {
-        if (Colors is not { Length: > 0 } colors)
-        {
-            throw new ArgumentException("A linear colour map needs at least one colour.", "colors");
-        }
+        var colors = Colors ?? [];
+        colors.ThrowIfEmpty("A linear colour map needs at least one colour.", "colors");
 
         if (Positions is { } positions)
         {
-            if (positions.Length != colors.Length)
-            {
-                throw new ArgumentException($"{positions.Length} positions were given for {colors.Length} colours; there must be one position per colour.", "positions");
-            }
+            positions.Length.ThrowIfMisaligned(colors.Length, "positions");
 
             LinearColorMap.ThrowIfNotStops(positions, "positions");
         }
@@ -71,10 +66,12 @@ internal sealed record LinearColorMapDto(string? Name, Color[]? Colors, double[]
 /// <param name="BadColor">The colour of a missing value; absent for transparent.</param>
 internal sealed record ListedColorMapDto(string? Name, Color[]? Colors, Color? UnderColor, Color? OverColor, Color? BadColor) : ColorMapDto
 {
-    internal override IColorMap Restore() =>
-        Colors is { Length: > 0 } colors
-            ? new ListedColorMap(Name ?? string.Empty, colors) { UnderColor = UnderColor, OverColor = OverColor, BadColor = BadColor }
-            : throw new ArgumentException("A listed colour map needs at least one colour.", "colors");
+    internal override IColorMap Restore()
+    {
+        var colors = Colors ?? [];
+        colors.ThrowIfEmpty("A listed colour map needs at least one colour.", "colors");
+        return new ListedColorMap(Name ?? string.Empty, colors) { UnderColor = UnderColor, OverColor = OverColor, BadColor = BadColor };
+    }
 }
 
 /// <summary>Describes a <see cref="ReversedColorMap"/>: the map it reverses, described in turn.</summary>

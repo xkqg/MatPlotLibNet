@@ -23,6 +23,16 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The doubles and the wait the core suite writes once: an animation source that counts its listeners and raises a frame on
+         request, a handler that records, and a wait that fails when the condition never holds. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\FakeAnimationSource.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\RecordingChartEventHandler.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\Eventually.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ServerInteractionProbe.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>

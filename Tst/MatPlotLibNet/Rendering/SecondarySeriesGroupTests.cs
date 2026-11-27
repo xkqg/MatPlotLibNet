@@ -18,7 +18,7 @@ public class SecondarySeriesGroupTests
     private static readonly double[] X = [1.0, 2.0, 3.0];
 
     private static IEnumerable<XElement> Groups(XDocument doc) =>
-        doc.Descendants().Where(e => e.Name.LocalName == "g");
+        doc.Each("g");
 
     private static XElement SeriesGroup(XDocument doc, string ariaLabel) =>
         Assert.Single(Groups(doc), g => (string?)g.Attribute("class") == "series" && (string?)g.Attribute("aria-label") == ariaLabel);
@@ -31,17 +31,17 @@ public class SecondarySeriesGroupTests
     [InlineData("T", "3")]
     public void WithInteractiveAttributes_ARightYGroup_CarriesTheIndexOfItsLegendEntry_AndItsLabel(string name, string index)
     {
-        var doc = XDocument.Parse(Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+        var doc = Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "A")
             .Plot(X, [3.0, 2.0, 1.0], s => s.Label = "B")
             .WithAddRightYAxis(y2 => y2
                 .Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S")
-                .Plot(X, [30.0, 20.0, 10.0], s => s.Label = "T"))).ToSvg());
+                .Plot(X, [30.0, 20.0, 10.0], s => s.Label = "T"))).ToSvg().Xml();
 
         var group = SeriesGroup(doc, name);
         Assert.Equal(index, (string?)group.Attribute("data-series-index"));
         Assert.Equal(index, (string?)LegendItem(doc, name).Attribute("data-legend-index"));
-        Assert.Single(group.Descendants(), e => e.Name.LocalName == "polyline");
+        Assert.Single(group.Each("polyline"));
     }
 
     /// <summary>The slot of a series is its place in <see cref="Axes.AllSeries"/>: the primary series, then every right
@@ -66,7 +66,7 @@ public class SecondarySeriesGroupTests
         Assert.Equal(4, axes.SlotIndex(SeriesAxisPair.SecondaryX, 0));
         Assert.Equal(["P", "R0", "R1", "L0", "top"], axes.AllSeries.Select(s => s.Label));
 
-        var doc = XDocument.Parse(figure.ToSvg());
+        var doc = figure.ToSvg().Xml();
         string[] names = ["P", "R0", "R1", "L0", "top"];
         for (int index = 0; index < names.Length; index++)
             Assert.Equal($"{index}", (string?)SeriesGroup(doc, names[index]).Attribute("data-series-index"));
@@ -79,47 +79,47 @@ public class SecondarySeriesGroupTests
     [Fact]
     public void WithInteractiveAttributes_ASecondaryXGroup_CarriesTheSlotAfterThePrimaryAndSecondaryYSeries()
     {
-        var doc = XDocument.Parse(Plt.Create().WithHighlight().AddSubPlot(1, 1, 1, ax => ax
+        var doc = Plt.Create().WithHighlight().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "A")
             .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S"))
-            .WithSecondaryXAxis(x2 => x2.PlotXSecondary([100.0, 200.0, 300.0], [1.0, 3.0, 2.0], s => s.Label = "top"))).ToSvg());
+            .WithSecondaryXAxis(x2 => x2.PlotXSecondary([100.0, 200.0, 300.0], [1.0, 3.0, 2.0], s => s.Label = "top"))).ToSvg().Xml();
 
         var group = SeriesGroup(doc, "top");
         Assert.Equal("2", (string?)group.Attribute("data-series-index"));
-        Assert.Single(group.Descendants(), e => e.Name.LocalName == "polyline");
+        Assert.Single(group.Each("polyline"));
     }
 
     [Fact]
     public void WithoutInteractiveAttributes_ALabelledRightLine_GetsTheAccessibleGroupAPrimaryLineGets()
     {
-        var doc = XDocument.Parse(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+        var doc = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "A")
             .WithAddRightYAxis(y2 => y2
                 .Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S")
                 .Plot(X, [30.0, 20.0, 10.0]))
-            .WithSecondaryXAxis(x2 => x2.PlotXSecondary([100.0, 200.0, 300.0], [1.0, 3.0, 2.0], s => s.Label = "top"))).ToSvg());
+            .WithSecondaryXAxis(x2 => x2.PlotXSecondary([100.0, 200.0, 300.0], [1.0, 3.0, 2.0], s => s.Label = "top"))).ToSvg().Xml();
 
         foreach (var name in new[] { "A", "S", "top" })
         {
             var group = SeriesGroup(doc, name);
             Assert.Null(group.Attribute("data-series-index"));
-            Assert.Single(group.Descendants(), e => e.Name.LocalName == "polyline");
+            Assert.Single(group.Each("polyline"));
         }
         // The unlabelled secondary line has nothing to announce and gets no group, as an unlabelled primary line.
         Assert.Equal(3, Groups(doc).Count(g => (string?)g.Attribute("class") == "series"));
-        Assert.Equal(4, doc.Descendants().Count(e => e.Name.LocalName == "polyline"));
+        Assert.Equal(4, doc.Each("polyline").Count());
     }
 
     [Fact]
     public void ARightEndLabel_IsDrawnInsideTheGroupOfItsSeries()
     {
-        var doc = XDocument.Parse(Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+        var doc = Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "A")
-            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S").WithDirectLabel())).ToSvg());
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S").WithDirectLabel())).ToSvg().Xml();
 
-        var label = Assert.Single(doc.Descendants(), e => e.Name.LocalName == "text" && e.Value == "S");
+        var label = Assert.Single(doc.Each("text"), e => e.Value == "S");
         Assert.Equal("1", (string?)label.Parent!.Attribute("data-series-index"));
-        Assert.Equal((string?)label.Parent!.Descendants().Single(e => e.Name.LocalName == "polyline").Attribute("stroke"),
+        Assert.Equal((string?)label.Parent!.Each("polyline").Single().Attribute("stroke"),
                      (string?)label.Attribute("fill"));
     }
 

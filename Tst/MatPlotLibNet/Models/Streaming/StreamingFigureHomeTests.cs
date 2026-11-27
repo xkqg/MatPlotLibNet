@@ -28,14 +28,21 @@ public sealed class StreamingFigureHomeTests
         return (stream, series);
     }
 
-    [Fact]
-    public void AZoomedAxes_IsLeftWhereTheReaderPutIt_WhileDataKeepsArriving()
+    /// <summary>A following stream that took each event, then ten more points, and scaled its axes.</summary>
+    private static StreamingFigure FollowedAfterMoreData(params FigureInteractionEvent[] events)
     {
         var (stream, series) = Following();
-        new ZoomEvent("c", 0, 2, 4, 4, 8).ApplyTo(stream.Figure);
+        foreach (var evt in events) evt.ApplyTo(stream.Figure);
 
         for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
         stream.ApplyAxisScaling();
+        return stream;
+    }
+
+    [Fact]
+    public void AZoomedAxes_IsLeftWhereTheReaderPutIt_WhileDataKeepsArriving()
+    {
+        var stream = FollowedAfterMoreData(new ZoomEvent("c", 0, 2, 4, 4, 8));
 
         Assert.Equal(2.0, stream.Figure.SubPlots[0].XAxis.Min);
         Assert.Equal(4.0, stream.Figure.SubPlots[0].XAxis.Max);
@@ -45,12 +52,7 @@ public sealed class StreamingFigureHomeTests
     [Fact]
     public void Home_HandsTheAxesBackToTheScaleMode_WhichFollowsTheDataAgain()
     {
-        var (stream, series) = Following();
-        new ZoomEvent("c", 0, 2, 4, 4, 8).ApplyTo(stream.Figure);
-        new ResetEvent("c", 0, 0, 0, 0, 0).ApplyTo(stream.Figure);
-
-        for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
-        stream.ApplyAxisScaling();
+        var stream = FollowedAfterMoreData(new ZoomEvent("c", 0, 2, 4, 4, 8), new ResetEvent("c", 0, 0, 0, 0, 0));
 
         Assert.Equal(0.0, stream.Figure.SubPlots[0].XAxis.Min);
         Assert.Equal(19.0, stream.Figure.SubPlots[0].XAxis.Max);
@@ -60,10 +62,7 @@ public sealed class StreamingFigureHomeTests
     [Fact]
     public void AnAxesNobodyZoomed_StillFollowsTheData()
     {
-        var (stream, series) = Following();
-
-        for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
-        stream.ApplyAxisScaling();
+        var stream = FollowedAfterMoreData();
 
         Assert.Equal(19.0, stream.Figure.SubPlots[0].XAxis.Max);
         stream.Dispose();

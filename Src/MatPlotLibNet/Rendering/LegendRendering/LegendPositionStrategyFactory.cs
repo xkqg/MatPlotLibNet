@@ -23,7 +23,7 @@ public static class LegendPositionStrategyFactory
         LegendPosition.LowerLeft     => new LowerLeftStrategy(),
         LegendPosition.Right         => new RightStrategy(),
         LegendPosition.CenterLeft    => new CenterLeftStrategy(),
-        LegendPosition.CenterRight   => new CenterRightStrategy(),
+        LegendPosition.CenterRight   => new RightStrategy(),
         LegendPosition.LowerCenter   => new LowerCenterStrategy(),
         LegendPosition.UpperCenter   => new UpperCenterStrategy(),
         LegendPosition.Center        => new CenterStrategy(),

@@ -32,6 +32,17 @@ public class Vec3AndColorLightingTests
         Assert.Equal(-nz1, nz2, 6);
     }
 
+    /// <summary>The length of a vector (a light's direction, a face's normal, the diagonal of a scene's box) is the square root of the
+    /// sum of the three squares, digit for digit as the sums the light and the depth shade wrote by hand.</summary>
+    [Theory]
+    [InlineData(1.0, 2.0, 2.0)]
+    [InlineData(-0.3, 0.7, 1.9)]
+    [InlineData(123.456789, -98.7654321, 1e-6)]
+    public void TheLength_IsTheSquareRootOfTheSumOfTheThreeSquares(double x, double y, double z)
+    {
+        Assert.Equal(Math.Sqrt(x * x + y * y + z * z), new Vec3(x, y, z).Length);
+    }
+
     [Fact]
     public void Modulate_FullIntensity_NoChange()
     {
@@ -80,10 +91,7 @@ public class Vec3AndColorLightingTests
     {
         var baseColor = new Color(200, 150, 100, 255);
         var result = baseColor.Shade(nx, ny, nz, lx, ly, lz);
-        Assert.Equal(baseColor.R, result.R);
-        Assert.Equal(baseColor.G, result.G);
-        Assert.Equal(baseColor.B, result.B);
-        Assert.Equal(baseColor.A, result.A);
+        Assert.Equal(baseColor, result);
     }
 
     /// <summary>Front-facing normal (dot==1) → k=1.0; back-facing (dot==-1) → k=0.3

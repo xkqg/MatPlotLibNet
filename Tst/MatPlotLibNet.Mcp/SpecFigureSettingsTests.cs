@@ -6,6 +6,7 @@ using MatPlotLibNet.Skia;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Tests.Serialization;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -15,7 +16,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 [Collection("ChartServicesGlobalState")]
 public class SpecFigureSettingsTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     /// <summary>A spec with <paramref name="theme"/> (a JSON object) as its theme, and one line.</summary>
     private static string Spec(string theme) =>
@@ -29,6 +29,11 @@ public class SpecFigureSettingsTests
     [InlineData("""{"propCycler":{"lineStyles":["solid","wavy"]}}""", "wavy", "Dashed")]
     [InlineData("""{"propCycler":{"markerStyles":["circle","blob"]}}""", "blob", "Diamond")]
     [InlineData("""{"defaultLegendPosition":"topRight"}""", "topRight", "UpperRight")]
+    [InlineData("""{"box":{"whiskerStyle":"wavy"}}""", "wavy", "Dotted")]
+    [InlineData("""{"box":{"flierMarker":"blob"}}""", "blob", "Diamond")]
+    [InlineData("""{"box":{"meanMarker":"blob"}}""", "blob", "Diamond")]
+    [InlineData("""{"cycles":"twoCycles"}""", "twoCycles", "MatplotlibClassic")]
+    [InlineData("""{"strokeJoin":"rounded"}""", "rounded", "Bevel")]
     public void AMisspelledValueInATheme_IsRefusedWithTheAcceptedValues(string theme, string wrong, string accepted)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(theme))));
@@ -46,22 +51,27 @@ public class SpecFigureSettingsTests
         Assert.Equal(LegendPosition.OutsideRight, figure.Theme.DefaultLegendPosition);
     }
 
-    [Fact]
-    public void AMisspelledValueInACyclerList_IsRefusedByPath()
+    /// <summary>How a theme hands out the colours of its cycle (one cycle, or matplotlib's two) and how it joins the corners of its strokes
+    /// are accepted in any case and reach the theme, which writes them back into the figure's JSON.</summary>
+    [Theory]
+    [InlineData("""{"cycles":"MATPLOTLIBCLASSIC"}""", "cycles", "matplotlibClassic")]
+    [InlineData("""{"strokeJoin":"BEVEL"}""", "strokeJoin", "bevel")]
+    public void AnAcceptedThemeSetting_ReachesTheTheme_InAnyCase(string theme, string field, string written)
     {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(
-            """{"propCycler":{"markerStyles":["circle","blob"]}}"""))));
+        var figure = Reader.Read(new ChartSpec(Spec(theme)));
 
-        Assert.Contains("theme.propCycler.markerStyles[1]", refusal.Message);
+        Assert.Matches($"(?i)\"{field}\":\\s*\"{written}\"", figure.ToJson());
     }
 
-    /// <summary>An item that is not a string is left to the strict pass, as a single value of the wrong shape is: it is
-    /// refused there by path.</summary>
-    [Fact]
-    public void ACyclerListItemThatIsNotAString_IsRefusedByPath()
+    /// <summary>A misspelt value in a cycler list is refused by its path, and so is an item that is not a string: that one is left to the
+    /// strict pass, as a single value of the wrong shape is, and refused there.</summary>
+    [Theory]
+    [InlineData("\"blob\"")]
+    [InlineData("true")]
+    public void ACyclerListItemThatIsNoMarkerStyle_IsRefusedByPath(string item)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(
-            """{"propCycler":{"markerStyles":["circle",true]}}"""))));
+            $$$"""{"propCycler":{"markerStyles":["circle",{{{item}}}]}}"""))));
 
         Assert.Contains("theme.propCycler.markerStyles[1]", refusal.Message);
     }
@@ -94,16 +104,6 @@ public class SpecFigureSettingsTests
         Assert.Equal(Color.FromHex("#C0C0C0"), theme.Alarm.Unknown);
     }
 
-    [Fact]
-    public void AnUnknownColourInAThemesCycle_IsRefusedByPath()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(
-            """{"cycleColors":["red","reddish"]}"""))));
-
-        Assert.Contains("'reddish'", refusal.Message);
-        Assert.Contains("theme.cycleColors[1]", refusal.Message);
-    }
-
     /// <summary>A built-in theme travels as the data it is: what a figure under it writes, the reader reads back to the
     /// same theme.</summary>
     [Fact]
@@ -116,16 +116,29 @@ public class SpecFigureSettingsTests
         Assert.Equal(figure.ToSvg(), read.ToSvg());
     }
 
+    /// <summary>The look the matplotlib themes give a box plot is written with the theme, and the reader reads it back: the figure
+    /// written by the default theme draws the same boxes once read.</summary>
+    [Fact]
+    public void TheBoxLookOfTheDefaultTheme_PassesTheSpecReader_AndDrawsTheSameBoxes()
+    {
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.BoxPlot([[1.0, 2, 3, 4, 5, 9]])).Build();
+
+        var read = Reader.Read(new ChartSpec(figure.ToJson()));
+
+        Assert.Equal(figure.ToSvg(), read.ToSvg());
+    }
+
     [Fact]
     public void TheSchema_ListsTheThemeAndSpacingFields()
     {
-        string schema = new ChartSchemaDescription(new ChartTypeCatalog()).Describe(null);
+        string schema = Description.Describe(null);
 
         foreach (var (section, field) in new[]
                  {
                      ("Theme fields", "cycleColors: string (colour)[]"),
                      ("Theme fields", "propCycler: object"),
                      ("Spacing fields", "tightLayout: boolean"),
+                     ("Spacing fields", "layoutRect: number[]"),
                      ("Interaction theme fields", "highlightOpacity: number"),
                  })
         {
@@ -134,7 +147,24 @@ public class SpecFigureSettingsTests
             Assert.Contains(field, schema[at..]);
         }
 
-        Assert.Contains(schema.Split(Environment.NewLine), line => line.TrimStart().StartsWith("theme:", StringComparison.Ordinal) && line.Contains("default", StringComparison.Ordinal));
+        Assert.Contains(SourceFile.LinesOf(schema), line => line.TrimStart().StartsWith("theme:", StringComparison.Ordinal) && line.Contains("default", StringComparison.Ordinal));
+    }
+
+    /// <summary>The figure's title takes a style as an axes title does, its weight and slant in any case, and the tight layout
+    /// a rectangle to fit the subplots into (matplotlib's <c>rect</c>: left, bottom, right, top).</summary>
+    [Fact]
+    public void TheTitleStyleOfTheFigure_AndTheLayoutRect_PassTheSpecReader()
+    {
+        var figure = Reader.Read(new ChartSpec(FigureSpec(
+            """
+            "title":"Runs","titleStyle":{"fontSize":19.5,"fontWeight":"BOLD","color":"red"},
+            "spacing":{"tightLayout":true,"layoutRect":[0,0,1,0.93]}
+            """)));
+
+        Assert.Equal(19.5, figure.TitleStyle!.FontSize);
+        Assert.Equal(FontWeight.Bold, figure.TitleStyle.FontWeight);
+        Assert.Equal(Color.FromHex("#FF0000"), figure.TitleStyle.Color);
+        Assert.Equal(new LayoutRect(0, 0, 1, 0.93), figure.Spacing.LayoutRect);
     }
 
     /// <summary>The fixture this project links is the core contract's: its theme rows reach this reader too.</summary>
@@ -151,6 +181,58 @@ public class SpecFigureSettingsTests
     private static string FigureSpec(string fields) =>
         $$"""{"width":400,"height":300,{{fields}},"subPlots":[{"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}]}""";
 
+    /// <summary>Each fault a figure's own part can hold (a colour in the theme's cycle, a weight of the title, a colour of a text, a null
+    /// entry among the texts, a position of a legend, a colour in an image's map) is refused with the value and the path that holds it.</summary>
+    public static TheoryData<string, string, string> FaultsInAFigurePart => new()
+    {
+        { Spec("""{"cycleColors":["red","reddish"]}"""), "'reddish'", "theme.cycleColors[1]" },
+        {
+            FigureSpec(
+                """
+                "titleStyle":{"fontWeight":"heavy"}
+                """),
+            "'heavy'", "$.titleStyle.fontWeight"
+        },
+        {
+            FigureSpec(
+                """
+                "texts":[{"text":"a","x":0.5,"y":0.5,"color":"reddish"}]
+                """),
+            "'reddish'", "$.texts[0].color"
+        },
+        {
+            FigureSpec(
+                """
+                "texts":[null]
+                """),
+            "$.texts[0]", "null"
+        },
+        {
+            FigureSpec(
+                """
+                "legends":[{},{"position":"topRight"}]
+                """),
+            "'topRight'", "$.legends[1].position"
+        },
+        {
+            FigureSpec(
+                """
+                "images":[{"data":[[1,2]],"colorMap":{"type":"linear","colors":["red","reddish"]}}]
+                """),
+            "'reddish'", "$.images[0].colorMap.colors[1]"
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(FaultsInAFigurePart))]
+    public void AFaultInAFigurePart_IsRefusedByPath(string spec, string fault, string path)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(spec)));
+
+        Assert.Contains(fault, refusal.Message);
+        Assert.Contains(path, refusal.Message);
+    }
+
     /// <summary>The fixture this project links holds the figure's texts, legend and images too.</summary>
     [Fact]
     public void TheLinkedContract_HoldsTheFiguresLegendTextsAndImages()
@@ -159,22 +241,6 @@ public class SpecFigureSettingsTests
         Assert.Contains(DrawnAxesFixtures.Parts, part => part.Name == "FigureText");
         Assert.Contains(DrawnAxesFixtures.Parts, part => part.Name == "FigureImage");
         Assert.NotEmpty(DrawnAxesFixtures.FigureLists);
-    }
-
-    /// <summary>Every value of every item of the figure's lists, the ones a text and an image are made with included (their
-    /// words, places and pixels), passes the reader as written; the rows of the settable properties are the axes parts'.</summary>
-    [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.FigureListValueKeys), MemberType = typeof(DrawnAxesFixtures))]
-    public void AFigureListValue_PassesTheSpecReader_AsItWasWritten(string key)
-    {
-        var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        object? written = DrawnAxesFixtures.FigureListValues(figure)[key];
-
-        var read = DrawnAxesFixtures.FigureListValues(Reader.Read(new ChartSpec(figure.ToJson())));
-
-        Assert.True(read.ContainsKey(key), $"Figure.{key}: written as {DrawnSeriesFixtures.Show(written)}, and nothing of it came through the spec reader.");
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read[key]),
-            $"Figure.{key}: written as {DrawnSeriesFixtures.Show(written)}, read back through the spec reader as {DrawnSeriesFixtures.Show(read[key])}.");
     }
 
     [Fact]
@@ -215,18 +281,6 @@ public class SpecFigureSettingsTests
     }
 
     [Fact]
-    public void AnUnknownColourInAFigureText_IsRefusedByPath()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(FigureSpec(
-            """
-            "texts":[{"text":"a","x":0.5,"y":0.5,"color":"reddish"}]
-            """))));
-
-        Assert.Contains("'reddish'", refusal.Message);
-        Assert.Contains("$.texts[0].color", refusal.Message);
-    }
-
-    [Fact]
     public void AFigureTextThatIsTooLong_IsRefusedByPath()
     {
         string longText = new('x', RenderLimits.Default.MaxTextLength + 1);
@@ -252,18 +306,6 @@ public class SpecFigureSettingsTests
     }
 
     [Fact]
-    public void ANullEntryInTheFigureTexts_IsRefusedByPath()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(FigureSpec(
-            """
-            "texts":[null]
-            """))));
-
-        Assert.Contains("$.texts[0]", refusal.Message);
-        Assert.Contains("null", refusal.Message);
-    }
-
-    [Fact]
     public void AFigureLegend_PassesTheSpecReader_WithColourNamesAndThePositionInAnyCase()
     {
         var figure = Reader.Read(new ChartSpec(FigureSpec(
@@ -271,7 +313,7 @@ public class SpecFigureSettingsTests
             "legend":{"position":"lowercenter","title":"Series","nCols":2,"edgeColor":"red","faceColor":"#eee"}
             """)));
 
-        var legend = figure.Legend!;
+        var legend = Assert.Single(figure.Legends);
         Assert.Equal(LegendPosition.LowerCenter, legend.Position);
         Assert.Equal("Series", legend.Title);
         Assert.Equal(2, legend.NCols);
@@ -287,8 +329,25 @@ public class SpecFigureSettingsTests
         var with = Reader.Read(new ChartSpec(FigureSpec("\"legend\":{}")));
         var without = Reader.Read(new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"line","xData":[1,2],"yData":[1,2],"label":"a"}]}]}"""));
 
-        Assert.Equal(new Legend(), with.Legend);
-        Assert.Null(without.Legend);
+        Assert.Equal([new Legend()], with.Legends);
+        Assert.Empty(without.Legends);
+    }
+
+    /// <summary>A figure holds a list of legends (matplotlib adds one for each <c>fig.legend()</c>): each item of
+    /// <c>legends</c> passes the reader as the one <c>legend</c> does, its position in any case.</summary>
+    [Fact]
+    public void FigureLegends_PassTheSpecReader_InTheirOrder_WithThePositionInAnyCase()
+    {
+        var figure = Reader.Read(new ChartSpec(FigureSpec(
+            """
+            "legends":[{"position":"outsideright","title":"first"},{"position":"LOWERLEFT","edgeColor":"red"}]
+            """)));
+
+        Assert.Equal(2, figure.Legends.Count);
+        Assert.Equal(LegendPosition.OutsideRight, figure.Legends[0].Position);
+        Assert.Equal("first", figure.Legends[0].Title);
+        Assert.Equal(LegendPosition.LowerLeft, figure.Legends[1].Position);
+        Assert.Equal(Color.FromHex("#FF0000"), figure.Legends[1].EdgeColor);
     }
 
     [Fact]
@@ -313,7 +372,7 @@ public class SpecFigureSettingsTests
              "subPlots":[{"legend":{"position":"upperLeft"},"series":[{"type":"line","xData":[1,2],"yData":[1,2],"label":"a"}]}]}
             """));
 
-        Assert.Equal(LegendPosition.LowerRight, figure.Legend!.Position);
+        Assert.Equal(LegendPosition.LowerRight, Assert.Single(figure.Legends).Position);
         Assert.Equal(LegendPosition.UpperLeft, figure.SubPlots[0].Legend.Position);
     }
 
@@ -389,18 +448,6 @@ public class SpecFigureSettingsTests
         Assert.Contains(path, refusal.Message);
     }
 
-    [Fact]
-    public void AnUnknownColourInAFigureImagesColourMap_IsRefusedByPath()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(FigureSpec(
-            """
-            "images":[{"data":[[1,2]],"colorMap":{"type":"linear","colors":["red","reddish"]}}]
-            """))));
-
-        Assert.Contains("'reddish'", refusal.Message);
-        Assert.Contains("$.images[0].colorMap.colors[1]", refusal.Message);
-    }
-
     /// <summary>Rows of different lengths are no image: the reader says so and names the field, rather than keeping the first
     /// row's width and dropping the rest of the longer ones.</summary>
     [Fact]
@@ -412,7 +459,7 @@ public class SpecFigureSettingsTests
             """))));
 
         Assert.Contains("data", refusal.Message);
-        Assert.Contains("same number", refusal.Message);
+        Assert.Contains(2.RefusalAgainst(3, of: "row 1"), refusal.Message);
     }
 
     /// <summary>An image is cut at the figure's edge and never makes the picture bigger, so the canvas ceiling that bounds the

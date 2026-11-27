@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -36,29 +35,49 @@ public class TreeGridSeriesTests
 
     private static double X(string svg, string text)
     {
-        var m = Regex.Match(svg, "<text[^>]*x=\"([-0-9.]+)\"[^>]*>" + Regex.Escape(text) + "<");
-        Assert.True(m.Success, $"'{text}' is drawn");
-        return double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        return svg.TextReading(text).Number("x");
     }
 
     private static double Y(string svg, string text)
     {
-        var m = Regex.Match(svg, "<text[^>]*y=\"([-0-9.]+)\"[^>]*>" + Regex.Escape(text) + "<");
-        Assert.True(m.Success, $"'{text}' is drawn");
-        return double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        return svg.TextReading(text).Number("y");
     }
 
-    [Fact]
-    public void EveryRowAndEveryCell_IsDrawn()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Render();
+        new DrawnToken("EveryRowAndEveryCell_IsDrawn", () => Render(), ">Svc<", ">Svc.Billing<", ">14 920<", ">6 972 KiB<", ">Messages<"),
+        new DrawnToken("ARowWithAUrl_IsAnAnchorWithItsState", () => Render(), "<a href=\"/?process=Svc.Billing\"", "aria-expanded=\"false\"", "cursor:pointer"),
+        new DrawnToken("ARowWithoutAUrl_IsNotAnAnchor", () => Render(rows: [new("BillingCycle", ["", "14 920", ""]) { Depth = 2 }])) { Absent = ["<a href"] },
+        // Every row says how deep it sits, so the grid is navigable and not merely visible (ARIA treegrid).
+        new DrawnToken("EveryRow_CarriesItsLevel", () => Render(), "aria-level=\"1\"", "aria-level=\"2\"", "aria-level=\"3\""),
+        // A row that leads somewhere shows the disclosure mark, ▸ closed and ▾ open — the same chevron the stat tile uses, so one wall has
+        // one idiom.
+        new DrawnToken("AnExpandableRow_CarriesTheChevron", () => Render(), "mpl-treegrid-chevron"),
+        new DrawnToken("NoRows_DrawsNothingRatherThanAFrame", () => Render(rows: [])) { Absent = ["<text"] },
+        // A headerless grid draws no rule and starts at the first row.
+        new DrawnToken("WithoutColumnHeaders_TheGridStartsAtItsFirstRow", () => Plt.Create().WithSize(900, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid(Fleet))
+            .ToSvg(), ">Svc<") { Absent = [">Messages<"] },
+        new DrawnToken("ARowWithNoCellsAtAll_IsStillDrawn", () => Render(rows: [new("Svc", [])]), ">Svc<"),
+        // More headers than any row has cells: the extra column is still titled, and nothing throws.
+        new DrawnToken("MoreHeadersThanCells_IsHarmless", () => Plt.Create().WithSize(900, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("Svc", ["1"])], s => s.ColumnHeaders = ["CPU", "Messages", "Traffic"]))
+            .ToSvg(), ">Traffic<"),
+        // More rows than the region can hold: the overflow is DROPPED, never drawn over the panel below.
+        new DrawnToken("RowsPastTheRegionsEdge_AreNotDrawn", () =>
+        {
+            TreeGridRow[] many = [.. Enumerable.Range(0, 200).Select(i => new TreeGridRow($"row{i}", ["1"]))];
+            return Plt.Create().WithSize(400, 120)
+                .AddSubPlot(1, 1, 1, ax => ax.TreeGrid(many))
+                .ToSvg();
+        }, ">row0<") { Absent = [">row199<"] },
+        new DrawnToken("ARowMayCarryAnAccent_AndTheRestStayNeutral", () => Render(rows: [new("Svc.Billing", ["120 %"]) { Accent = Colors.Red }]), Colors.Red.ToHex()) { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.Contains(">Svc<", svg);
-        Assert.Contains(">Svc.Billing<", svg);
-        Assert.Contains(">14 920<", svg);
-        Assert.Contains(">6 972 KiB<", svg);
-        Assert.Contains(">Messages<", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ADeeperRow_IsIndented()
@@ -90,113 +109,13 @@ public class TreeGridSeriesTests
     }
 
     [Fact]
-    public void ARowWithAUrl_IsAnAnchorWithItsState()
-    {
-        string svg = Render();
-
-        Assert.Contains("<a href=\"/?process=Svc.Billing\"", svg);
-        Assert.Contains("aria-expanded=\"false\"", svg);
-        Assert.Contains("cursor:pointer", svg);
-    }
-
-    [Fact]
-    public void ARowWithoutAUrl_IsNotAnAnchor()
-    {
-        string svg = Render(rows: [new("BillingCycle", ["", "14 920", ""]) { Depth = 2 }]);
-
-        Assert.DoesNotContain("<a href", svg);
-    }
-
-    /// <summary>Every row says how deep it sits, so the grid is navigable and not merely visible (ARIA treegrid).</summary>
-    [Fact]
-    public void EveryRow_CarriesItsLevel()
-    {
-        string svg = Render();
-
-        Assert.Contains("aria-level=\"1\"", svg);
-        Assert.Contains("aria-level=\"2\"", svg);
-        Assert.Contains("aria-level=\"3\"", svg);
-    }
-
-    /// <summary>A row that leads somewhere shows the disclosure mark, ▸ closed and ▾ open — the same chevron
-    /// the stat tile uses, so one wall has one idiom.</summary>
-    [Fact]
-    public void AnExpandableRow_CarriesTheChevron()
-    {
-        string svg = Render();
-
-        Assert.Contains("mpl-treegrid-chevron", svg);
-    }
-
-    [Fact]
-    public void ARowMayCarryAnAccent_AndTheRestStayNeutral()
-    {
-        string svg = Render(rows: [new("Svc.Billing", ["120 %"]) { Accent = Colors.Red }]);
-
-        Assert.Contains(Colors.Red.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void NoRows_DrawsNothingRatherThanAFrame()
-    {
-        string svg = Render(rows: []);
-
-        Assert.DoesNotContain("<text", svg);
-    }
-
-    /// <summary>A headerless grid draws no rule and starts at the first row.</summary>
-    [Fact]
-    public void WithoutColumnHeaders_TheGridStartsAtItsFirstRow()
-    {
-        string svg = Plt.Create().WithSize(900, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid(Fleet))
-            .ToSvg();
-
-        Assert.DoesNotContain(">Messages<", svg);
-        Assert.Contains(">Svc<", svg);
-    }
-
-    /// <summary>More rows than the region can hold: the overflow is DROPPED, never drawn over the panel below.</summary>
-    [Fact]
-    public void RowsPastTheRegionsEdge_AreNotDrawn()
-    {
-        TreeGridRow[] many = [.. Enumerable.Range(0, 200).Select(i => new TreeGridRow($"row{i}", ["1"]))];
-
-        string svg = Plt.Create().WithSize(400, 120)
-            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid(many))
-            .ToSvg();
-
-        Assert.Contains(">row0<", svg);
-        Assert.DoesNotContain(">row199<", svg);
-    }
-
-    [Fact]
     public void AnEmptyCell_DrawsNothingRatherThanABlank()
     {
         string svg = Plt.Create().WithSize(900, 300)
             .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("BillingCycle", ["", "14 920", ""]) { Depth = 2 }]))
             .ToSvg();
 
-        Assert.Single(Regex.Matches(svg, "text-anchor=\"end\""));
-    }
-
-    [Fact]
-    public void ARowWithNoCellsAtAll_IsStillDrawn()
-    {
-        string svg = Render(rows: [new("Svc", [])]);
-
-        Assert.Contains(">Svc<", svg);
-    }
-
-    /// <summary>More headers than any row has cells: the extra column is still titled, and nothing throws.</summary>
-    [Fact]
-    public void MoreHeadersThanCells_IsHarmless()
-    {
-        string svg = Plt.Create().WithSize(900, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("Svc", ["1"])], s => s.ColumnHeaders = ["CPU", "Messages", "Traffic"]))
-            .ToSvg();
-
-        Assert.Contains(">Traffic<", svg);
+        Assert.Equal(1, svg.CountOf("text-anchor=\"end\""));
     }
 
     /// <summary>The grid's rows round-trip through JSON (JSON-roundtrip plan, cluster A) — they used to be left
@@ -206,9 +125,8 @@ public class TreeGridSeriesTests
     public void TheDto_CarriesTheRowsAndTheirDepthUrlAndExpandedState()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.TreeGrid(Fleet)).Build();
-        var serializer = new MatPlotLibNet.Serialization.ChartSerializer();
 
-        var back = serializer.FromJson(serializer.ToJson(figure));
+        var back = figure.RoundTripped();
 
         var rows = back.SubPlots[0].Series.OfType<TreeGridSeries>().Single().Rows;
         Assert.Equal(Fleet.Length, rows.Count);

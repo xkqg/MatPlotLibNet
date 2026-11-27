@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
+
 namespace MatPlotLibNet.Indicators.Steps;
 
 /// <summary>What the Hilbert discriminator knows about a bar once it has taken it: the dominant cycle period, the phase of the cycle,
@@ -11,18 +13,18 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// <param name="Q1">The quadrature component.</param>
 internal readonly record struct HilbertRow(double Period, double Phase, double I1, double Q1);
 
-/// <summary>One step of the Ehlers homodyne discriminator: the recursion that <c>HilbertDiscriminate</c> folds over a series and the
-/// streaming forms of MAMA, the instantaneous trend, the sine wave and the adaptive stochastic take one price at a time, so the
-/// arithmetic exists once. It keeps seven values of each of the smoothed price, the detrender, the in-phase and the quadrature
-/// component (the filter reaches back six bars) and the last value of each smoothing recursion.</summary>
+/// <summary>One step of the Ehlers homodyne discriminator: the recursion that MAMA, the instantaneous trend, the sine wave and the adaptive
+/// stochastic fold over a series and their streaming forms take one price at a time, so the arithmetic exists once. It keeps
+/// seven values of each of the smoothed price, the detrender, the in-phase and the quadrature component (the filter reaches back six
+/// bars) and the last value of each smoothing recursion.</summary>
 internal struct HilbertStep
 {
     private const int Lags = 7;
 
-    private readonly double[] _smooth = new double[Lags];
-    private readonly double[] _detrender = new double[Lags];
-    private readonly double[] _i1 = new double[Lags];
-    private readonly double[] _q1 = new double[Lags];
+    private InputWindow<double> _smooth = new(Lags);
+    private InputWindow<double> _detrender = new(Lags);
+    private InputWindow<double> _i1 = new(Lags);
+    private InputWindow<double> _q1 = new(Lags);
     private double _price1, _price2, _price3;
     private double _i2, _q2, _re, _im, _period, _phase;
     private int _count;
@@ -43,23 +45,23 @@ internal struct HilbertStep
         _price3 = _price2;
         _price2 = _price1;
         _price1 = price;
-        _smooth[i % Lags] = smooth;
+        _smooth.Push(smooth);
         if (i < 6) return new HilbertRow(0, 0, 0, 0);
 
         double adjPrev = 0.075 * _period + 0.54;
-        double detrender = (0.0962 * smooth + 0.5769 * _smooth[(i - 2) % Lags]
-                          - 0.5769 * _smooth[(i - 4) % Lags] - 0.0962 * _smooth[(i - 6) % Lags]) * adjPrev;
-        _detrender[i % Lags] = detrender;
-        double q1 = (0.0962 * detrender + 0.5769 * _detrender[(i - 2) % Lags]
-                   - 0.5769 * _detrender[(i - 4) % Lags] - 0.0962 * _detrender[(i - 6) % Lags]) * adjPrev;
-        _q1[i % Lags] = q1;
-        double i1 = _detrender[(i - 3) % Lags];
-        _i1[i % Lags] = i1;
+        double detrender = (0.0962 * smooth + 0.5769 * _smooth.Back(2)
+                          - 0.5769 * _smooth.Back(4) - 0.0962 * _smooth.Back(6)) * adjPrev;
+        _detrender.Push(detrender);
+        double q1 = (0.0962 * detrender + 0.5769 * _detrender.Back(2)
+                   - 0.5769 * _detrender.Back(4) - 0.0962 * _detrender.Back(6)) * adjPrev;
+        _q1.Push(q1);
+        double i1 = _detrender.Back(3);
+        _i1.Push(i1);
 
-        double jI = (0.0962 * i1 + 0.5769 * _i1[(i - 2) % Lags]
-                   - 0.5769 * _i1[(i - 4) % Lags] - 0.0962 * _i1[(i - 6) % Lags]) * adjPrev;
-        double jQ = (0.0962 * q1 + 0.5769 * _q1[(i - 2) % Lags]
-                   - 0.5769 * _q1[(i - 4) % Lags] - 0.0962 * _q1[(i - 6) % Lags]) * adjPrev;
+        double jI = (0.0962 * i1 + 0.5769 * _i1.Back(2)
+                   - 0.5769 * _i1.Back(4) - 0.0962 * _i1.Back(6)) * adjPrev;
+        double jQ = (0.0962 * q1 + 0.5769 * _q1.Back(2)
+                   - 0.5769 * _q1.Back(4) - 0.0962 * _q1.Back(6)) * adjPrev;
 
         double i2Raw = i1 - jQ;
         double q2Raw = q1 + jI;
@@ -85,7 +87,7 @@ internal struct HilbertStep
         _period = 0.2 * pNew + 0.8 * _period;
 
         if (q1 != 0)
-            _phase = (180.0 / Math.PI) * Math.Atan(i1 / q1);
+            _phase = Math.Atan(i1 / q1).ToDegrees();
 
         return new HilbertRow(_period, _phase, i1, q1);
     }

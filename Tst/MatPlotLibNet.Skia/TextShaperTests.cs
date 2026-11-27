@@ -104,6 +104,16 @@ public sealed class TextShaperTests
     }
 
     [Fact]
+    public void ALineOfManyRuns_KeepsEachRunInItsPlace_AndReversesOnlyTheHebrewInside()
+    {
+        // 80 runs, more than the shaper keeps the levels of on the stack: each Latin and Hebrew word is a run of its own.
+        var once = Shape("ab אב ");
+        var many = Shape(string.Concat(Enumerable.Repeat("ab אב ", 40)));
+
+        Assert.Equal(Enumerable.Repeat(once.Glyphs, 40).SelectMany(g => g), many.Glyphs);
+    }
+
+    [Fact]
     public void AnOverrideControl_TakesNoRoom_AndReversesWhatItCovers()
     {
         var overridden = Shape("‮ab‬");

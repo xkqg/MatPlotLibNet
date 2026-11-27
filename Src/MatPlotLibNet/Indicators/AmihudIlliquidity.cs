@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -14,58 +15,37 @@ namespace MatPlotLibNet.Indicators;
 /// illiquid). Reference: Amihud (2002), <i>Journal of Financial Markets</i> 5(1).</remarks>
 public sealed class AmihudIlliquidity : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 20;
+
     private readonly int _period;
 
     /// <summary>Creates a new Amihud illiquidity indicator.</summary>
     /// <param name="bars">Close (strictly positive) and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
-    /// <param name="period">Rolling window length (default 20, must be ≥ 1).</param>
+    /// <param name="period">Rolling window length (default <see cref="DefaultPeriod"/>, must be ≥ 1).</param>
     /// <exception cref="ArgumentException">Thrown on length mismatch, non-positive period,
     /// or non-positive close.</exception>
-    public AmihudIlliquidity(OhlcvBars bars, int period = 20)
-        : base(bars)
+    public AmihudIlliquidity(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period <= 0)
-            throw new ArgumentException($"period must be > 0 (got {period}).", nameof(period));
-        for (int i = 0; i < bars.Close.Length; i++)
-        {
-            if (bars.Close[i] <= 0)
-                throw new ArgumentException(
-                    $"AmihudIlliquidity requires strictly positive close; bar {i} has {bars.Close[i]}.",
-                    nameof(bars));
-        }
+        bars.Close.ThrowIfNotPositivePrices(nameof(AmihudIlliquidity), "close", nameof(bars));
         _period = period;
-        Label = $"ILLIQ({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("ILLIQ", period, 1, period);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = BarCount;
-        if (n <= _period) return Array.Empty<double>();
-
         // Per-bar ILLIQ over bars 1..n-1 (length n-1).
-        var illiq = new double[n - 1];
-        for (int i = 0; i < n - 1; i++)
+        return RollingMeanOfPairs(_period, t =>
         {
-            int t = i + 1;
             double absR = Math.Abs(Math.Log(Close[t] / Close[t - 1]));
             double dollarVol = Close[t] * Volume[t];
-            illiq[i] = dollarVol == 0 ? double.PositiveInfinity : absR / dollarVol;
-        }
-
-        int outLen = n - _period;
-        var result = new double[outLen];
-        double sum = 0;
-        for (int i = 0; i < _period; i++) sum += illiq[i];
-        result[0] = sum / _period;
-        for (int i = 1; i < outLen; i++)
-        {
-            sum += illiq[i + _period - 1] - illiq[i - 1];
-            result[i] = sum / _period;
-        }
-        return result;
+            return dollarVol == 0 ? double.PositiveInfinity : absR / dollarVol;
+        });
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

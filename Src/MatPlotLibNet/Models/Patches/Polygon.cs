@@ -37,13 +37,13 @@ public sealed class Polygon : FilledPatch
         set
         {
             ArgumentNullException.ThrowIfNull(value);
-            _vertices = [.. value];
+            Change(ref _vertices, [.. value]);
         }
     }
 
     /// <summary>Whether the outline closes back from the last vertex to the first. <see langword="true"/> by default, as in
     /// matplotlib; <see langword="false"/> draws the line through the vertices and leaves it open.</summary>
-    public bool Closed { get; set; } = true;
+    public bool Closed { get; set => Change(ref field, value); } = true;
 
     /// <inheritdoc />
     internal override IReadOnlyList<PathSegment> Outline() => _vertices.Length < 3 ? [] : OutlineThrough(_vertices, Closed);

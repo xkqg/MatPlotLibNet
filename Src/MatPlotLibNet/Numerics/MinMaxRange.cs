@@ -1,6 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>Inclusive numeric interval <c>[Min, Max]</c>. Returned by color-bar data-range
@@ -18,10 +21,8 @@ public static class MinMaxRangeExtensions
     {
         /// <summary>Scans every element of this array and returns the inclusive
         /// <c>[min, max]</c> range of the values a colour scale can place: a missing value (NaN) and an
-        /// infinity are left out, the range the renderer colours the cells over. Falls back to
-        /// <c>[0, 1]</c> when all such values are equal, or there is none, so downstream normalizers
-        /// never divide by zero.</summary>
-        public MinMaxRange ScanColorBarRange() =>
-            data.DrawableRange() is { } range && range.Lo < range.Hi ? new(range.Lo, range.Hi) : new(0, 1);
+        /// infinity are left out, the range the renderer colours the cells over. When all such values are equal the range runs from
+        /// that value to one above it, and with none it is <c>[0, 1]</c>, so downstream normalizers never divide by zero.</summary>
+        public MinMaxRange ScanColorBarRange() => Styling.ColorMaps.ColorMapping.ColourRangeOf(data.DrawableRange(), null, null);
     }
 }

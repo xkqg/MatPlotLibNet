@@ -17,13 +17,19 @@ public class PlanarBar3DSeriesRenderTests
     private static readonly double[] Y = [0.0, 0.0, 1.0];
     private static readonly double[] Z = [2.0, 3.5, 1.5];
 
+    /// <summary>A planar bar is matplotlib's <c>Axes3D.bar</c>: a <c>Patch3D</c> made from the 2-D bar patch (printed with 3.11.2:
+    /// <c>type(ax.bar(..., zs=1, zdir='y')[0])</c> is <c>Patch3D</c>, <c>get_joinstyle()</c> 'miter'), so its face keeps the mitre of a
+    /// patch under matplotlib's themes, where a collection (a <c>bar3d</c>, a surface) is joined round.</summary>
     [Fact]
-    public void PlanarBar3D_RendersWithoutError()
+    public void APlanarBarsFace_IsAPatch_MitredUnderMatplotlibsThemes()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.PlanarBar3D(X, Y, Z))
+        string svg = Plt.Create().WithTheme(Theme.MatplotlibV2)
+            .AddSubPlot(1, 1, 1, ax => ax.PlanarBar3D(X, Y, Z, s => s.Color = Colors.Red))
             .ToSvg();
-        Assert.Contains("<svg", svg);
+
+        var faces = svg.AllElements().Where(element => element.Name is "polygon" or "path" && element["fill"] == "#FF0000").ToList();
+        Assert.Equal(X.Length, faces.Count);
+        Assert.All(faces, face => Assert.Null(face["stroke-linejoin"]));
     }
 
     [Fact]
@@ -36,42 +42,24 @@ public class PlanarBar3DSeriesRenderTests
             "Expected SVG to contain filled polygon or path elements for bar faces");
     }
 
+    /// <summary>A planar bar series drawn off a 3-D axes (no scene shared with other series) is still one scene: its bars are drawn
+    /// the farthest first, as on a 3-D axes, not in the order they were given. The camera at rest looks from the side of negative Y,
+    /// so the bar at Y = 3 stands behind the one at Y = 0 and is drawn first, although it was given second.</summary>
     [Fact]
-    public void PlanarBar3D_EmptyData_RendersWithoutError()
+    public void OffAThreeDAxes_TheBarsAreDrawnBackToFront()
     {
-        var empty = Array.Empty<double>();
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.PlanarBar3D(empty, empty, empty))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        var front = Color.FromHex("#FF0000");
+        var back = Color.FromHex("#0000FF");
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.PlanarBar3D([0.0, 0.0], [0.0, 3.0], [1.0, 1.0], s => s.Colors = [front, back]))
+            .Build();
+        figure.SubPlots[0].CoordinateSystem = CoordinateSystem.Cartesian;
 
-    [Fact]
-    public void PlanarBar3D_MultiPlane_RendersAllBars()
-    {
-        // Two planes at Y=0 and Y=1 — ensures the per-plane color override path and the
-        // back-to-front depth order both engage. 6 bars total.
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.PlanarBar3D([0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [3.0, 5.0, 2.0]);
-                ax.PlanarBar3D([0.0, 1.0, 2.0], [1.0, 1.0, 1.0], [4.0, 1.0, 3.0]);
-            })
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        string svg = figure.ToSvg();
+        int frontAt = svg.IndexOf($"fill=\"{front.ToHex()}\"", StringComparison.Ordinal);
+        int backAt = svg.IndexOf($"fill=\"{back.ToHex()}\"", StringComparison.Ordinal);
 
-    [Fact]
-    public void PlanarBar3D_WithAlphaAndEdgeColor_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.PlanarBar3D(X, Y, Z, s =>
-            {
-                s.Alpha = 0.5;
-                s.EdgeColor = Colors.Black;
-                s.BarWidth = 0.6;
-            }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
+        Assert.True(frontAt > 0 && backAt > 0, "both bars are drawn");
+        Assert.True(backAt < frontAt, "the bar behind is drawn before the bar in front");
     }
 }

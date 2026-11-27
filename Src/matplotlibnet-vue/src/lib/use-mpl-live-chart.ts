@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import { ref, readonly, onMounted, onUnmounted, type Ref } from 'vue';
-import { ChartSubscriptionClient } from './chart-subscription.client';
-import type { MplHub } from './mount-svg';
+import { ChartSubscriptionClient, type MplHub } from '@matplotlibnet/client';
 
 /** Return type for the useMplLiveChart composable. */
 export interface UseMplLiveChartResult {

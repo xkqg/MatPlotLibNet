@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -44,28 +42,7 @@ public class ForceDirectedLayoutRenderTests
 
     /// <summary>Every node marker, as (cx, cy) in pixels, in document order.</summary>
     private static (double X, double Y)[] Nodes(string svg) =>
-        [.. Regex.Matches(svg, @"<circle[^>]*\bcx=""([0-9.eE+-]+)""[^>]*\bcy=""([0-9.eE+-]+)""")
-            .Select(m => (double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-                          double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)))];
-
-    /// <summary>The plot rectangle the axes reserved: the widest rectangle that is not the whole figure.</summary>
-    private static (double X0, double X1, double Y0, double Y1) PlotArea(string svg)
-    {
-        double x0 = 0, y0 = 0, w = 0, h = 0;
-        foreach (Match m in Regex.Matches(svg,
-            @"<rect x=""([0-9.eE+-]+)"" y=""([0-9.eE+-]+)"" width=""([0-9.eE+-]+)"" height=""([0-9.eE+-]+)"""))
-        {
-            double mw = double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
-            double mh = double.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture);
-            if (mw < 799 && mw * mh > w * h)
-            {
-                x0 = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
-                y0 = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
-                w = mw; h = mh;
-            }
-        }
-        return (x0, x0 + w, y0, y0 + h);
-    }
+        [.. svg.Elements("circle").Select(circle => (circle.Number("cx"), circle.Number("cy")))];
 
     [Theory]
     [InlineData(1)]
@@ -74,14 +51,14 @@ public class ForceDirectedLayoutRenderTests
     public void EveryNode_IsDrawnInsideThePlotArea(int iterations)
     {
         string svg = Render(iterations: iterations);
-        var area = PlotArea(svg);
+        var area = svg.PlotArea();
 
         var outside = Nodes(svg)
-            .Where(n => n.X < area.X0 - 0.5 || n.X > area.X1 + 0.5 || n.Y < area.Y0 - 0.5 || n.Y > area.Y1 + 0.5)
+            .Where(n => n.X < area.X - 0.5 || n.X > area.Right + 0.5 || n.Y < area.Y - 0.5 || n.Y > area.Bottom + 0.5)
             .ToArray();
 
         Assert.True(outside.Length == 0,
-            $"{outside.Length} node(s) outside the plot area {area.X0:F0}..{area.X1:F0} x {area.Y0:F0}..{area.Y1:F0}: " +
+            $"{outside.Length} node(s) outside the plot area {area.X:F0}..{area.Right:F0} x {area.Y:F0}..{area.Bottom:F0}: " +
             string.Join(", ", outside.Select(n => $"({n.X:F0},{n.Y:F0})")));
     }
 

@@ -5,49 +5,29 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
-/// <summary>Verifies the HighContrast theme (WCAG AAA target).</summary>
+/// <summary>What only the HighContrast theme (WCAG AAA target) has: a bold font, minimums above the other themes' and a dark grid (what
+/// every theme states is a row of <c>ThemeTests.Facts</c>).</summary>
 public class HighContrastThemeTests
 {
-    [Fact]
-    public void HighContrastTheme_Exists()
-    {
-        Assert.NotNull(Theme.HighContrast);
-    }
-
-    [Fact]
-    public void HighContrastTheme_HasCorrectName()
-    {
-        Assert.Equal("high-contrast", Theme.HighContrast.Name);
-    }
-
-    [Fact]
-    public void HighContrastTheme_HasWhiteBackground()
-    {
-        Assert.Equal(Colors.White, Theme.HighContrast.Background);
-    }
-
-    [Fact]
-    public void HighContrastTheme_HasBlackForeground()
-    {
-        Assert.Equal(Colors.Black, Theme.HighContrast.ForegroundText);
-    }
-
     [Fact]
     public void HighContrastTheme_HasBoldFont()
     {
         Assert.Equal(FontWeight.Bold, Theme.HighContrast.DefaultFont.Weight);
     }
 
-    [Fact]
-    public void HighContrastTheme_HasLargerFont()
-    {
-        Assert.True(Theme.HighContrast.DefaultFont.Size >= 13);
-    }
+    public static IEnumerable<object[]> Minimums() =>
+    [
+        ["the default font size", (Func<Theme, double>)(theme => theme.DefaultFont.Size), 13.0],
+        ["the grid line width", (Func<Theme, double>)(theme => theme.DefaultGrid.LineWidth), 1.5],
+        ["the number of cycle colours", (Func<Theme, double>)(theme => theme.CycleColors.Length), 8.0],
+    ];
 
-    [Fact]
-    public void HighContrastTheme_GridIsBolder()
+    /// <summary>The theme reads larger and bolder than the others: a larger font, a bolder grid, and at least eight colours in its cycle.</summary>
+    [Theory]
+    [MemberData(nameof(Minimums))]
+    public void HighContrastTheme_IsAtLeast(string what, Func<Theme, double> measure, double least)
     {
-        Assert.True(Theme.HighContrast.DefaultGrid.LineWidth >= 1.5);
+        Assert.True(measure(Theme.HighContrast) >= least, $"{what} is {measure(Theme.HighContrast)}, below {least}");
     }
 
     [Fact]
@@ -57,31 +37,5 @@ public class HighContrastThemeTests
         var c = Theme.HighContrast.DefaultGrid.Color;
         int luminance = (c.R + c.G + c.B) / 3;
         Assert.True(luminance <= 120, $"Grid color is too light: R={c.R} G={c.G} B={c.B}");
-    }
-
-    [Fact]
-    public void HighContrastTheme_HasAtLeastEightCycleColors()
-    {
-        Assert.True(Theme.HighContrast.CycleColors.Length >= 8);
-    }
-
-    [Fact]
-    public void HighContrastTheme_CanBuildWithThemeBuilder()
-    {
-        var custom = Theme.CreateFrom(Theme.HighContrast).Build();
-        // ThemeBuilder.Build() generates "custom-{baseName}"
-        Assert.Equal("custom-high-contrast", custom.Name);
-    }
-
-    [Fact]
-    public void HighContrastTheme_RendersSvg_WithoutError()
-    {
-        var svg = Plt.Create()
-            .WithTheme(Theme.HighContrast)
-            .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
-            .ToSvg();
-
-        Assert.NotEmpty(svg);
-        Assert.Contains("<svg", svg);
     }
 }

@@ -5,21 +5,19 @@ using System.Runtime.CompilerServices;
 
 namespace MatPlotLibNet;
 
-/// <summary>Many line segments as the points of ONE line: segment <c>i</c> contributes its start, its end and a missing point
-/// (NaN) that parts it from the next, so a line series holding the points draws one polyline for each segment and is one
-/// series, one colour slot and one legend entry whatever the number of segments. The one owner of that geometry: the verbs that
-/// draw segments (<see cref="XYAxesExtensions.VLines"/>, <see cref="XYAxesExtensions.HLines"/>,
-/// <see cref="XYAxesExtensions.Triplot"/>) build it here and none of them writes a separator by hand.
+/// <summary>Many line segments as the points of ONE line: segment <c>i</c> contributes its start and its end, and a missing point
+/// (NaN) parts it from the next (none after the last: <see cref="GappedLine"/>), so a line series holding the points draws one
+/// polyline for each segment and is one series, one colour slot and one legend entry whatever the number of segments. The one
+/// owner of that geometry: the verbs that draw segments (<see cref="XYAxesExtensions.VLines"/>,
+/// <see cref="XYAxesExtensions.HLines"/>, <see cref="XYAxesExtensions.Triplot"/>) build it here and none of them writes a
+/// separator by hand.
 /// <para>A segment with a coordinate that cannot be drawn (NaN or an infinity) is left out WHOLE: it leaves no point, not even
 /// a stub, so the line is never joined across it and never ends in a mark at a place the data does not name. A segment built
 /// from a missing value is missing, not a zero.</para></summary>
-/// <param name="X">The x coordinate of each point, three for every segment drawn.</param>
-/// <param name="Y">The y coordinate of each point, three for every segment drawn.</param>
+/// <param name="X">The x coordinate of each point: two for every segment drawn and one separator between two segments.</param>
+/// <param name="Y">The y coordinate of each point, as <paramref name="X"/>.</param>
 internal readonly record struct SegmentPath(double[] X, double[] Y)
 {
-    /// <summary>The points one segment adds to a path: its start, its end, and the missing point after it.</summary>
-    private const int PointsPerSegment = 3;
-
     /// <summary>The path of the segments that run from (<paramref name="x0"/>, <paramref name="y0"/>) to
     /// (<paramref name="x1"/>, <paramref name="y1"/>), one for each index.
     /// <para>The four arrays pair by index and are one value for each segment; an array of one value stands for every segment
@@ -37,7 +35,8 @@ internal readonly record struct SegmentPath(double[] X, double[] Y)
     /// <param name="y0Name">The caller's expression for <paramref name="y0"/>; filled in by the compiler.</param>
     /// <param name="x1Name">The caller's expression for <paramref name="x1"/>; filled in by the compiler.</param>
     /// <param name="y1Name">The caller's expression for <paramref name="y1"/>; filled in by the compiler.</param>
-    /// <returns>The points of the segments that can be drawn, three for each, with nothing for the others.</returns>
+    /// <returns>The points of the segments that can be drawn, two for each and a separator between two, with nothing for the
+    /// others.</returns>
     /// <exception cref="ArgumentNullException">An array is <see langword="null"/>; the exception names it.</exception>
     /// <exception cref="ArgumentException">Two arrays differ in length and neither is a single value; the exception names the
     /// first array that disagrees with the first array that is not a single value.</exception>
@@ -56,33 +55,21 @@ internal readonly record struct SegmentPath(double[] X, double[] Y)
         string[] names = [x0Name, y0Name, x1Name, y1Name];
         int segments = SegmentCountOf(bounds, names);
 
-        double[] x = new double[PointsPerSegment * segments];
-        double[] y = new double[PointsPerSegment * segments];
-        int written = 0;
-        for (int i = 0; i < segments; i++)
+        var data = GappedLine.Segments(segments, new Bounds(x0, y0, x1, y1));
+        return new SegmentPath(data.X, data.Y);
+    }
+
+    /// <summary>The four arrays as the segments they describe, a segment with a coordinate that cannot be drawn left out.</summary>
+    private readonly struct Bounds(double[] x0, double[] y0, double[] x1, double[] y1) : ISegmentSource
+    {
+        public bool TryGet(int index, out double sx, out double sy, out double ex, out double ey)
         {
-            double sx = At(x0, i), sy = At(y0, i), ex = At(x1, i), ey = At(y1, i);
-            if (!(sx.IsDrawable() && sy.IsDrawable() && ex.IsDrawable() && ey.IsDrawable()))
-            {
-                continue;
-            }
-
-            x[written] = sx;
-            y[written] = sy;
-            x[written + 1] = ex;
-            y[written + 1] = ey;
-            x[written + 2] = double.NaN;
-            y[written + 2] = double.NaN;
-            written += PointsPerSegment;
+            sx = At(x0, index);
+            sy = At(y0, index);
+            ex = At(x1, index);
+            ey = At(y1, index);
+            return sx.IsDrawable() && sy.IsDrawable() && ex.IsDrawable() && ey.IsDrawable();
         }
-
-        if (written < x.Length)
-        {
-            Array.Resize(ref x, written);
-            Array.Resize(ref y, written);
-        }
-
-        return new SegmentPath(x, y);
     }
 
     /// <summary>The value of segment <paramref name="index"/>: the array's one value for every segment, or its own.</summary>
@@ -111,7 +98,7 @@ internal readonly record struct SegmentPath(double[] X, double[] Y)
             else if (length != count)
             {
                 throw new ArgumentException(
-                    $"{names[owner]} has {count} values and {names[k]} has {length}; give every segment one value in each, or one value in an array to use it for all of them.",
+                    string.Invariant($"{names[owner]} has {count} values and {names[k]} has {length}; give every segment one value in each, or one value in an array to use it for all of them."),
                     names[k]);
             }
         }

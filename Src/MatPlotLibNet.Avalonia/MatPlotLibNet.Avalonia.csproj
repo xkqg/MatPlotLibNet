@@ -4,13 +4,16 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.29.0</Version>
+    <Version>1.30.0</Version>
     <PackageId>MatPlotLibNet.Avalonia</PackageId>
     <Description>Avalonia 12 chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset/brush-select interaction.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;avalonia;skiasharp;cross-platform;interactive</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Reads internals of the packages it references (InternalsVisibleTo), so it depends on each at exactly this
+         version (Directory.Build.targets). -->
+    <DependsOnInternals>true</DependsOnInternals>
     <!-- NU5104 (a stable release should not carry a prerelease dependency) stays suppressed defensively for the
          Avalonia 12 dependency graph; SkiaSharp itself is now GA (3.* stable), no longer the 3.x preview. -->
     <NoWarn>$(NoWarn);NU5104</NoWarn>

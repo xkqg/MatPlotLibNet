@@ -11,7 +11,8 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// <see cref="FromEpochMs"/> when tick values are Unix milliseconds (LineSeries).</summary>
 public sealed class DateTimeTickFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
-    /// <summary>The format both factories use when none is given.</summary>
+    /// <summary>The format a date tick label is written in when none is given: both factories here, <see cref="DateTickFormatter"/> and the
+    /// date verbs of the axes builder read it.</summary>
     internal const string DefaultFormat = "yyyy-MM-dd";
 
     private readonly DateTime[]? _timestamps;   // null → epoch-ms mode
@@ -26,7 +27,7 @@ public sealed class DateTimeTickFormatter : ITickFormatter, IJsonDescribed<TickF
     /// <summary>Index-based factory: the tick value is rounded to the nearest integer and
     /// used as an index into <paramref name="timestamps"/>. Out-of-range → empty string.</summary>
     /// <param name="timestamps">DateTime array; index 0 corresponds to tick value 0.</param>
-    /// <param name="format">.NET date format string (default <c>"yyyy-MM-dd"</c>).</param>
+    /// <param name="format">.NET date format string (default <see cref="DefaultFormat"/>).</param>
     public static DateTimeTickFormatter FromArray(
         DateTime[] timestamps, string format = DefaultFormat)
     {
@@ -36,7 +37,7 @@ public sealed class DateTimeTickFormatter : ITickFormatter, IJsonDescribed<TickF
 
     /// <summary>Epoch-milliseconds factory: the tick value is interpreted as
     /// Unix milliseconds since 1970-01-01 UTC.</summary>
-    /// <param name="format">.NET date format string (default <c>"yyyy-MM-dd"</c>).</param>
+    /// <param name="format">.NET date format string (default <see cref="DefaultFormat"/>).</param>
     public static DateTimeTickFormatter FromEpochMs(string format = DefaultFormat) =>
         new(null, format);
 
@@ -49,11 +50,9 @@ public sealed class DateTimeTickFormatter : ITickFormatter, IJsonDescribed<TickF
         if (_timestamps is not null)
         {
             int idx = (int)Math.Round(value);
-            return idx >= 0 && idx < _timestamps.Length
-                ? _timestamps[idx].ToString(_format, CultureInfo.InvariantCulture)
-                : string.Empty;
+            return _timestamps.ElementOrNull(idx)?.InvariantText(_format) ?? string.Empty;
         }
         return DateTimeOffset.FromUnixTimeMilliseconds((long)value)
-            .ToString(_format, CultureInfo.InvariantCulture);
+            .InvariantText(_format);
     }
 }

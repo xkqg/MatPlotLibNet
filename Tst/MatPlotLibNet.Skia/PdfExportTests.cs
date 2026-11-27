@@ -2,65 +2,21 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Skia;
 using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Skia.Tests;
 
-/// <summary>Verifies <see cref="PdfTransform"/> behavior.</summary>
-public class PdfExportTests
+/// <summary>What <see cref="PdfTransform"/> writes: a PDF file, one page or several.</summary>
+public class PdfExportTests : TransformExportTests<PdfTransform>
 {
-    /// <summary>Verifies that PdfTransform implements the IFigureTransform interface.</summary>
-    [Fact]
-    public void PdfTransform_ImplementsIFigureTransform()
-    {
-        Assert.IsAssignableFrom<IFigureTransform>(new PdfTransform());
-    }
+    /// <inheritdoc/>
+    protected override byte[] Export(Figure figure) => figure.ToPdf();
 
-    /// <summary>Verifies that PdfTransform extends the FigureTransform base class.</summary>
-    [Fact]
-    public void PdfTransform_ExtendsFigureTransform()
-    {
-        Assert.IsAssignableFrom<FigureTransform>(new PdfTransform());
-    }
+    /// <inheritdoc/>
+    protected override byte[] Magic => "%PDF"u8.ToArray();
 
-    /// <summary>Verifies that ToPdf produces a non-empty byte array for a figure with data.</summary>
-    [Fact]
-    public void ToPdf_ProducesNonEmptyByteArray()
-    {
-        var figure = Plt.Create()
-            .WithTitle("Test PDF")
-            .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
-            .Build();
-
-        Assert.NotEmpty(figure.ToPdf());
-    }
-
-    /// <summary>Verifies that ToPdf output starts with the %PDF magic header bytes.</summary>
-    [Fact]
-    public void ToPdf_StartsWithPdfHeader()
-    {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        var bytes = figure.ToPdf();
-        Assert.Equal((byte)'%', bytes[0]);
-        Assert.Equal((byte)'P', bytes[1]);
-        Assert.Equal((byte)'D', bytes[2]);
-        Assert.Equal((byte)'F', bytes[3]);
-    }
-
-    /// <summary>Verifies that the fluent Transform API produces bytes with a valid PDF header.</summary>
-    [Fact]
-    public void FluentTransform_ToBytes_ProducesValidPdf()
-    {
-        byte[] bytes = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build().Transform(new PdfTransform()).ToBytes();
-
-        Assert.Equal((byte)'%', bytes[0]);
-    }
-
-    // ── Phase X.4.f (v1.7.2, 2026-04-19) — lift PdfTransform from 38.5%L / 0%B → 90%L+ ──
-
-    /// <summary>Constructor with explicit renderer (line 14) — pre-X only the
-    /// parameterless ctor was tested.</summary>
     [Fact]
     public void PdfTransform_ExplicitRenderer_ConstructorIsCovered()
     {
@@ -68,8 +24,7 @@ public class PdfExportTests
         Assert.IsAssignableFrom<FigureTransform>(transform);
     }
 
-    /// <summary>TransformMultiPage(IReadOnlyList&lt;Figure&gt;, Stream) (line 39-58)
-    /// renders multiple figures as separate pages in one PDF document.</summary>
+    /// <summary>Several figures are written as separate pages of one document.</summary>
     [Fact]
     public void TransformMultiPage_StreamOverload_RendersMultiplePages()
     {
@@ -81,23 +36,18 @@ public class PdfExportTests
         new PdfTransform().TransformMultiPage([f1, f2, f3], stream);
 
         var bytes = stream.ToArray();
-        Assert.Equal((byte)'%', bytes[0]);
-        Assert.Equal((byte)'P', bytes[1]);
-        Assert.Equal((byte)'D', bytes[2]);
-        Assert.Equal((byte)'F', bytes[3]);
+        Assert.Equal(Magic, bytes[..Magic.Length]);
         Assert.True(bytes.Length > 1000, "Multi-page PDF should be at least 1KB");
     }
 
-    /// <summary>TransformMultiPage with empty list throws ArgumentException (line 41-42).</summary>
     [Fact]
     public void TransformMultiPage_EmptyList_ThrowsArgumentException()
     {
         using var stream = new MemoryStream();
-        Assert.Throws<ArgumentException>(() => new PdfTransform().TransformMultiPage(Array.Empty<MatPlotLibNet.Models.Figure>(), stream));
+        Assert.Throws<ArgumentException>(() => new PdfTransform().TransformMultiPage(Array.Empty<Figure>(), stream));
     }
 
-    /// <summary>TransformMultiPage(IReadOnlyList&lt;Figure&gt;, string) (line 63-67)
-    /// writes a multi-page PDF to a file path.</summary>
+    /// <summary>A multi-page document can be written to a file path.</summary>
     [Fact]
     public void TransformMultiPage_FilePathOverload_WritesValidPdf()
     {
@@ -108,7 +58,7 @@ public class PdfExportTests
         {
             new PdfTransform().TransformMultiPage([f1, f2], path);
             var bytes = File.ReadAllBytes(path);
-            Assert.Equal((byte)'%', bytes[0]);
+            Assert.Equal(Magic, bytes[..Magic.Length]);
             Assert.True(bytes.Length > 500);
         }
         finally

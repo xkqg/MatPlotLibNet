@@ -1,8 +1,6 @@
 ﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Reflection;
-using Xunit;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
@@ -18,22 +16,12 @@ public class IndicatorCountContractTests
     /// result (<c>MacdResult</c>, <c>AdxResult</c>, …), the interfaces and the generic bases; those are
     /// scaffolding around an indicator, never one themselves, and no document ever meant to count them.</summary>
     internal static Type[] Calculators() =>
-        [.. typeof(MatPlotLibNet.Indicators.Sma).Assembly
-            .GetTypes()
-            .Where(t => t.IsPublic && t.Namespace == "MatPlotLibNet.Indicators" && !t.IsGenericTypeDefinition
-                        && t.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                            .Any(m => m.Name is "Calculate" or "Compute"))
-            .OrderBy(t => t.Name, StringComparer.Ordinal)];
+        typeof(MatPlotLibNet.Indicators.Sma).Assembly.ConcretePublicSubtypesOf(typeof(MatPlotLibNet.Indicators.Indicator<>));
 
     /// <summary>The streaming tier, called out separately wherever the count appears, because a streaming
     /// indicator is fed one bar at a time instead of handed an array.</summary>
     private static Type[] StreamingIndicators() =>
-        [.. typeof(MatPlotLibNet.Indicators.Sma).Assembly
-            .GetTypes()
-            .Where(t => t.IsPublic && t.IsClass && !t.IsAbstract
-                        && t.Namespace == "MatPlotLibNet.Indicators.Streaming"
-                        && t.Name.StartsWith("Streaming", StringComparison.Ordinal))
-            .OrderBy(t => t.Name, StringComparer.Ordinal)];
+        typeof(MatPlotLibNet.Indicators.Sma).Assembly.ConcretePublicSubtypesOf(typeof(MatPlotLibNet.Indicators.Streaming.StreamingIndicator<>));
 
     /// <summary>The number the documents publish. Changing it is a DOCUMENTED change: bump this, and bump
     /// README.md and the wiki's Home page with it.</summary>
@@ -44,23 +32,11 @@ public class IndicatorCountContractTests
 
     [Fact]
     public void TheCorePackageShips_ExactlyTheNumberOfIndicatorsTheDocumentsClaim()
-    {
-        var indicators = Calculators();
-
-        Assert.True(indicators.Length == PublishedIndicators,
-            $"the published count is {PublishedIndicators}; the assembly carries {indicators.Length}: " +
-            string.Join(", ", indicators.Select(t => t.Name)));
-    }
+        => PublishedCounts.AssertAre(Calculators(), PublishedIndicators);
 
     [Fact]
     public void TheStreamingTierIs_ExactlyTheNumberTheDocumentsCallOutSeparately()
-    {
-        var streaming = StreamingIndicators();
-
-        Assert.True(streaming.Length == PublishedStreamingIndicators,
-            $"expected {PublishedStreamingIndicators}; found {streaming.Length}: " +
-            string.Join(", ", streaming.Select(t => t.Name)));
-    }
+        => PublishedCounts.AssertAre(StreamingIndicators(), PublishedStreamingIndicators);
 
     /// <summary>Every streaming indicator answers to an indicator that can also be calculated over an array, so a
     /// reader who meets one in the streaming list can look it up in the other. A streaming type with no

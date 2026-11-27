@@ -111,81 +111,12 @@ public class TernarySeriesTests
     [Fact]
     public void ARangeIsContributedToNoAxis_BecauseTheFrameIsFixed()
     {
-        var contribution = new Axes().TernaryScatter(Top, Left, Right).ComputeDataRange(new NoLimits());
+        var contribution = new Axes().TernaryScatter(Top, Left, Right).ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(new DataRangeContribution(null, null, null, null), contribution);
     }
 
-    private sealed class NoLimits : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => default;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
     // ── the picture, the JSON ───────────────────────────────────────────────────
-
-    [Fact]
-    public void AScatter_RoundTripsThroughTheJson_WithWhatItDraws()
-    {
-        var figure = new Figure { Width = 500, Height = 400 };
-        var axes = figure.AddSubPlot(1, 1, 1);
-        axes.XAxis.Label = "Sand";
-        var scatter = axes.TernaryScatter(Top, Left, Right);
-        scatter.Color = Color.FromHex("#C03030");
-        scatter.MarkerSize = 9;
-        scatter.Label = "samples";
-
-        var read = new ChartSerializer().FromJson(figure.ToJson());
-
-        var back = Assert.IsType<TernaryScatterSeries>(Assert.Single(read.SubPlots[0].Series));
-        Assert.Equal(CoordinateSystem.Ternary, read.SubPlots[0].CoordinateSystem);
-        Assert.Equal(Top, back.Top);
-        Assert.Equal(Left, back.Left);
-        Assert.Equal(Right, back.Right);
-        Assert.Equal(Color.FromHex("#C03030"), back.Color);
-        Assert.Equal(9.0, back.MarkerSize);
-        Assert.Equal("samples", back.Label);
-        Assert.Equal("Sand", read.SubPlots[0].XAxis.Label);
-    }
-
-    [Fact]
-    public void ALine_RoundTripsThroughTheJson_WithItsStyle()
-    {
-        var figure = new Figure { Width = 500, Height = 400 };
-        var line = figure.AddSubPlot(1, 1, 1).TernaryPlot(Top, Left, Right);
-        line.LineStyle = LineStyle.Dashed;
-        line.LineWidth = 3;
-
-        var read = new ChartSerializer().FromJson(figure.ToJson());
-
-        var back = Assert.IsType<TernaryLineSeries>(Assert.Single(read.SubPlots[0].Series));
-        Assert.Equal(LineStyle.Dashed, back.LineStyle);
-        Assert.Equal(3.0, back.LineWidth);
-    }
-
-    [Fact]
-    public void WhatIsAtRest_IsLeftOutOfTheJson()
-    {
-        var dto = new Axes().TernaryScatter(Top, Left, Right).ToSeriesDto();
-        var lineDto = new Axes().TernaryPlot(Top, Left, Right).ToSeriesDto();
-
-        Assert.Equal("ternaryscatter", dto.Type);
-        Assert.Null(dto.MarkerSize);
-        Assert.Equal("ternaryline", lineDto.Type);
-        Assert.Null(lineDto.LineStyle);
-        Assert.Null(lineDto.LineWidth);
-    }
-
-    [Fact]
-    public void BothKinds_AreInTheRegistry()
-    {
-        Assert.Contains("ternaryscatter", SeriesRegistry.Discriminators);
-        Assert.Contains("ternaryline", SeriesRegistry.Discriminators);
-    }
 
     [Fact]
     public void ASeriesWithALabel_HasALegendEntry()
@@ -193,6 +124,6 @@ public class TernarySeriesTests
         var scatter = new Axes().TernaryScatter(Top, Left, Right);
         scatter.Label = "samples";
 
-        Assert.Equal("samples", Assert.Single(scatter.LegendParts).Label);
+        Assert.Equal("samples", Assert.Single(scatter.LegendPartsUnder(Theme.Default)).Label);
     }
 }

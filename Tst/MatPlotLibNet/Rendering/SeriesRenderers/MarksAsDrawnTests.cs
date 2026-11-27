@@ -5,6 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 
@@ -18,7 +19,6 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 public class MarksAsDrawnTests
 {
     private static readonly Rect Plot = new(50, 40, 400, 300);
-    private static DataTransform Transform() => new(0, 10, 0, 10, Plot);
 
     private static readonly double[] X = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     private static readonly double[] Y = [3, 5, 4, 7, 6, 8, 5, 9, 7, 6, 8];
@@ -118,27 +118,29 @@ public class MarksAsDrawnTests
     }
 
     private static SvgSeriesRenderer Visitor(IRenderContext ctx, MarkObstacles.Builder? marks = null) =>
-        new(Transform(), ctx, Colors.Blue, Theme.Default, plotArea: Plot) { Marks = marks };
+        new(Plot.Linear(), ctx, Colors.Blue, Theme.Default, plotArea: Plot) { Marks = marks };
 
     private static IEnumerable<Point> DrawnPoints(RecordingRenderContext ctx)
     {
         foreach (var call in ctx.Calls)
         {
-            dynamic args = call.Args!;
-            switch (call.Kind)
+            switch (call)
             {
-                case "DrawLines" or "DrawPolygon":
-                    foreach (var p in (Point[])args.points) yield return p;
+                case DrawLinesCall { Points: var points }:
+                    foreach (var p in points) yield return p;
                     break;
-                case "DrawLine":
-                    yield return (Point)args.p1;
-                    yield return (Point)args.p2;
+                case DrawPolygonCall { Points: var points }:
+                    foreach (var p in points) yield return p;
                     break;
-                case "DrawCircle":
-                    yield return (Point)args.center;
+                case DrawLineCall line:
+                    yield return line.P1;
+                    yield return line.P2;
                     break;
-                case "DrawPath":
-                    foreach (var segment in (PathSegment[])args.segments)
+                case DrawCircleCall circle:
+                    yield return circle.Center;
+                    break;
+                case DrawPathCall path:
+                    foreach (var segment in path.Segments)
                     {
                         if (segment is MoveToSegment move) yield return move.Point;
                         else if (segment is LineToSegment line) yield return line.Point;
@@ -167,23 +169,22 @@ public class MarksAsDrawnTests
         Assert.Empty(collector.Calls);   // collecting draws nothing
         Assert.True(marks.Boxes.Count + marks.Paths.Count + marks.Points.Count > 0, $"{name}: collected no mark at all");
 
-        var rects = drawn.OfKind("DrawRectangle").Select(c => (Rect)((dynamic)c.Args!).rect).ToList();
+        var rects = drawn.Rects().ToList();
         // An ellipse is a box as well: the rectangle it is inscribed in.
-        rects.AddRange(drawn.OfKind("DrawEllipse").Select(c => (Rect)((dynamic)c.Args!).bounds));
+        rects.AddRange(drawn.Of<DrawEllipseCall>().Select(c => c.Bounds));
         // A text the series draws is a box as well: where it stands, measured as the legend's pass measures it.
-        foreach (var text in drawn.OfKind("DrawText"))
+        foreach (var text in drawn.Of<DrawTextCall>())
         {
-            dynamic args = text.Args!;
-            var font = (Font)args.font;
-            rects.Add(new TextBox((Point)args.position, drawn.MeasureText((string)args.text, font), font.Size,
-                (TextAlignment)args.alignment, TextVerticalAlignment.Baseline, (double)args.rotation).Bounds());
+            var font = text.Font;
+            rects.Add(new TextBox(new TextPlacement(text.Position, text.Alignment) { Rotation = text.Rotation },
+                TextExtent.Of(drawn.MeasureText(text.Text, font), font.Size)).Bounds());
         }
         foreach (var box in marks.Boxes)
             Assert.Contains(rects, r => Same(new Point(r.X, r.Y), new Point(box.X, box.Y)) && Math.Abs(r.Width - box.Width) < 1e-9 && Math.Abs(r.Height - box.Height) < 1e-9);
 
         var points = DrawnPoints(drawn).ToList();
         // An arc is drawn by its centre and radius; the points a collected path samples along it lie on that circle.
-        var arcs = drawn.OfKind("DrawPath").SelectMany(c => (PathSegment[])((dynamic)c.Args!).segments).OfType<ArcSegment>().ToList();
+        var arcs = drawn.Of<DrawPathCall>().SelectMany(c => c.Segments).OfType<ArcSegment>().ToList();
         bool OnAnArc(Point p) => arcs.Any(a => Math.Abs(Math.Sqrt((p.X - a.Center.X) * (p.X - a.Center.X) + (p.Y - a.Center.Y) * (p.Y - a.Center.Y)) - a.RadiusX) < 1e-6);
         foreach (var path in marks.Paths)
         foreach (var vertex in path)
@@ -258,7 +259,7 @@ public class MarksAsDrawnTests
         Series["waffle"]().Accept(new SvgSeriesRenderer(transform, new RecordingRenderContext(), Colors.Blue, Theme.Default, plotArea: empty) { Marks = builder },
             new RenderArea(empty, new RecordingRenderContext()));
 
-        Assert.Empty(drawn.OfKind("DrawRectangle"));
+        Assert.Empty(drawn.Of<DrawRectangleCall>());
         Assert.Equal(0, MarkCount(builder.Build()));
     }
 

@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// parser, and it is capped, because a ten-thousand-row table is a context window spent on one chart.</summary>
 public class ChartTabulationTests
 {
-    private readonly ChartTabulation _tabulation = new(
+    private static readonly ChartTabulation _tabulation = new(
         new ChartSpecReader(new ChartTypeCatalog(), RenderLimits.Default), RenderLimits.Default);
 
     private static ChartSpec Spec(string json) => new(json);
@@ -16,25 +16,20 @@ public class ChartTabulationTests
     private static readonly ChartSpec Line = Spec(
         """{"width":400,"height":300,"title":"Revenue","subPlots":[{"xAxis":{"label":"Quarter"},"series":[{"type":"line","xData":[1,2,3],"yData":[12,18,15],"label":"2026"}]}]}""");
 
-    [Fact]
-    public void TheTable_IsMarkdownUnderTheChartsOwnName()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string text = _tabulation.Tabulate(Line).Markdown;
+        new DrawnToken("TheTable_IsMarkdownUnderTheChartsOwnName", () => _tabulation.Tabulate(Line).Markdown, "**Revenue**", "| Quarter | 2026 |", "| 3 | 15 |"),
+        //  A quiver key is a reference arrow — an annotation, not data. The chart draws; the table has nothing.
+        new DrawnToken("AChartWithNothingTabular_SaysSo_RatherThanReturningNothing", () => _tabulation.Tabulate(Spec(
+            """{"width":200,"height":200,"subPlots":[{"series":[{"type":"quiverkey","quiverKeyX":0.5,"quiverKeyY":0.9,"quiverKeyU":1,"quiverKeyLabel":"1 m/s"}]}]}""")).Markdown, "no tabular") { Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("TwoSubplots_AreTwoTables", () => _tabulation.Tabulate(Spec(
+            """{"width":400,"height":300,"subPlots":[{"title":"A","series":[{"type":"line","xData":[1],"yData":[2]}]},{"title":"B","series":[{"type":"line","xData":[3],"yData":[4]}]}]}""")).Markdown, "**A**", "**B**"),
+    };
 
-        Assert.Contains("**Revenue**", text);
-        Assert.Contains("| Quarter | 2026 |", text);
-        Assert.Contains("| 3 | 15 |", text);
-    }
-
-    [Fact]
-    public void AChartWithNothingTabular_SaysSo_RatherThanReturningNothing()
-    {
-        // A quiver key is a reference arrow — an annotation, not data. The chart draws; the table has nothing.
-        string text = _tabulation.Tabulate(Spec(
-            """{"width":200,"height":200,"subPlots":[{"series":[{"type":"quiverkey","quiverKeyX":0.5,"quiverKeyY":0.9,"quiverKeyU":1,"quiverKeyLabel":"1 m/s"}]}]}""")).Markdown;
-
-        Assert.Contains("no tabular", text, StringComparison.OrdinalIgnoreCase);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>A spec of nothing but a text on the figure is a picture (the reader takes it), and its data is the words on it.</summary>
     [Fact]
@@ -44,17 +39,7 @@ public class ChartTabulationTests
             """{"width":400,"height":300,"texts":[{"text":"only a note","x":0.5,"y":0.5}]}"""));
 
         Assert.Contains("only a note", result.Markdown);
-        Assert.Equal("only a note", Assert.Single(Assert.Single(Assert.Single(result.Tables).Rows)));
-    }
-
-    [Fact]
-    public void TwoSubplots_AreTwoTables()
-    {
-        string text = _tabulation.Tabulate(Spec(
-            """{"width":400,"height":300,"subPlots":[{"title":"A","series":[{"type":"line","xData":[1],"yData":[2]}]},{"title":"B","series":[{"type":"line","xData":[3],"yData":[4]}]}]}""")).Markdown;
-
-        Assert.Contains("**A**", text);
-        Assert.Contains("**B**", text);
+        Assert.Equal("only a note", Assert.Single(Assert.Single(Assert.Single(result.Values.Tables).Rows)));
     }
 
     [Fact]
@@ -98,7 +83,7 @@ public class ChartTabulationTests
     [Fact]
     public void TheValues_ComeBackAsNumbers_NotAsText()
     {
-        var table = Assert.Single(_tabulation.Tabulate(Line).Tables);
+        var table = Assert.Single(_tabulation.Tabulate(Line).Values.Tables);
 
         Assert.Equal("Revenue", table.Caption);
         Assert.Equal(3, table.Rows.Count);
@@ -109,7 +94,7 @@ public class ChartTabulationTests
     [Fact]
     public void EveryColumn_SaysWhatItHoldsAndWhichAxisItIsOn()
     {
-        var table = Assert.Single(_tabulation.Tabulate(Line).Tables);
+        var table = Assert.Single(_tabulation.Tabulate(Line).Values.Tables);
 
         Assert.Equal(["Quarter", "2026"], table.Columns.Select(c => c.Header));
         Assert.Equal(["number", "number"], table.Columns.Select(c => c.Kind));
@@ -124,7 +109,7 @@ public class ChartTabulationTests
         double noon = new DateTime(2026, 9, 12, 12, 0, 0, DateTimeKind.Unspecified).ToOADate();
         var spec = Spec($$"""{"width":400,"height":300,"subPlots":[{"xAxis":{"scale":"date"},"series":[{"type":"line","xData":[{{noon.ToString(System.Globalization.CultureInfo.InvariantCulture)}}],"yData":[7]}]}]}""");
 
-        var table = Assert.Single(_tabulation.Tabulate(spec).Tables);
+        var table = Assert.Single(_tabulation.Tabulate(spec).Values.Tables);
 
         Assert.Equal("date", table.Columns[0].Kind);
         Assert.Equal("2026-09-12T12:00:00.000", table.Rows[0][0]);
@@ -138,7 +123,7 @@ public class ChartTabulationTests
         // rather than throwing away a whole table over one cell.
         var spec = Spec("""{"width":400,"height":300,"subPlots":[{"xAxis":{"scale":"date"},"series":[{"type":"line","xData":[9e9],"yData":[1]}]}]}""");
 
-        var table = Assert.Single(_tabulation.Tabulate(spec).Tables);
+        var table = Assert.Single(_tabulation.Tabulate(spec).Values.Tables);
 
         Assert.Equal("date", table.Columns[0].Kind);
         Assert.Equal(9e9, table.Rows[0][0]);
@@ -149,7 +134,7 @@ public class ChartTabulationTests
     {
         var spec = Spec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"bar","categories":["north","south"],"values":[3,4]}]}]}""");
 
-        var table = Assert.Single(_tabulation.Tabulate(spec).Tables);
+        var table = Assert.Single(_tabulation.Tabulate(spec).Values.Tables);
 
         Assert.Equal("text", table.Columns[0].Kind);
         Assert.Equal("north", table.Rows[0][0]);
@@ -162,7 +147,7 @@ public class ChartTabulationTests
         var result = _tabulation.Tabulate(Spec(
             """{"width":200,"height":200,"subPlots":[{"series":[{"type":"quiverkey","quiverKeyX":0.5,"quiverKeyY":0.9,"quiverKeyU":1,"quiverKeyLabel":"1 m/s"}]}]}"""));
 
-        Assert.Empty(result.Tables);
+        Assert.Empty(result.Values.Tables);
         Assert.Contains("no tabular", result.Markdown, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -172,6 +157,6 @@ public class ChartTabulationTests
         var result = _tabulation.Tabulate(Spec(
             """{"width":400,"height":300,"subPlots":[{"title":"A","series":[{"type":"line","xData":[1],"yData":[2]}]},{"title":"B","series":[{"type":"line","xData":[3],"yData":[4]}]}]}"""));
 
-        Assert.Equal(["A", "B"], result.Tables.Select(t => t.Caption));
+        Assert.Equal(["A", "B"], result.Values.Tables.Select(t => t.Caption));
     }
 }

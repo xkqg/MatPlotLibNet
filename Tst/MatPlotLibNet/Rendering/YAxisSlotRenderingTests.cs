@@ -21,13 +21,6 @@ public class YAxisSlotRenderingTests
     private static double PlotRight => Plot.X + Plot.Width;
     private static readonly double[] X4 = [0.0, 1, 2, 3];
 
-    private static RecordingRenderContext Render(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        new CartesianAxesRenderer(axes, Plot, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     /// <summary>One tick mark: where it stands along the edge and how far it reaches outward past the edge.</summary>
     private readonly record struct Mark(double Y, double Outward);
 
@@ -40,26 +33,19 @@ public class YAxisSlotRenderingTests
     }
 
     /// <summary>One text drawn into the context, upright or turned.</summary>
-    private readonly record struct Drawn(string Kind, string Text, Point At, Font Font, TextAlignment Alignment, double Rotation);
+    private readonly record struct Drawn(bool Plain, string Text, Point At, Font Font, TextAlignment Alignment, double Rotation);
 
     /// <summary>A tick label as compared across slots: its text, its height and its distance from its slot's edge.</summary>
     private readonly record struct Label(string Text, double Y, double Distance, TextAlignment Alignment);
 
     /// <summary>A turned title: its kind (plain or rich text), its anchor's distance from its edge and its font size.</summary>
-    private readonly record struct Title(string Kind, double Distance, double Size);
+    private readonly record struct Title(double Distance, double Size);
 
     private static IEnumerable<Segment> Segments(RecordingRenderContext ctx) =>
-        ctx.OfKind("DrawLine").Select(c => (dynamic)c.Args!).Select(a => new Segment((Point)a.p1, (Point)a.p2));
+        ctx.Of<DrawLineCall>().Select(a => new Segment(a.P1, a.P2));
 
     private static IEnumerable<Drawn> Texts(RecordingRenderContext ctx) =>
-        ctx.Calls.Where(c => c.Kind is "DrawText" or "DrawRichText").Select(ToDrawn);
-
-    private static Drawn ToDrawn(CallRecord call)
-    {
-        dynamic a = call.Args!;
-        return new Drawn(call.Kind, call.Kind == "DrawText" ? (string)a.text : "", (Point)a.position, (Font)a.font,
-            (TextAlignment)a.alignment, (double)a.rotation);
-    }
+        ctx.Calls.OfType<TextCall>().Select(a => new Drawn(a is DrawTextCall, (a as DrawTextCall)?.Text ?? "", a.Position, a.Font, a.Alignment, a.Rotation));
 
     /// <summary>The short horizontal lines whose inner end stands half a spine inside <paramref name="edge"/> on
     /// <paramref name="side"/>: the marks of the slot whose edge that is.</summary>
@@ -86,7 +72,7 @@ public class YAxisSlotRenderingTests
     /// <paramref name="nextEdge"/>, with how far each stands from <paramref name="edge"/> and how it is anchored.</summary>
     private static List<Label> LabelsAt(RecordingRenderContext ctx, double edge, AxisSide side, double nextEdge) =>
         [.. Texts(ctx)
-            .Where(t => t.Kind == "DrawText" && t.Rotation != 90 && t.At.Y <= Plot.Y + Plot.Height + 5)
+            .Where(t => t.Plain && t.Rotation != 90 && t.At.Y <= Plot.Y + Plot.Height + 5)
             .Where(t => side == AxisSide.Right ? t.At.X > edge && t.At.X < nextEdge : t.At.X < edge && t.At.X > nextEdge)
             .Select(t => new Label(t.Text, Math.Round(t.At.Y, 6), Math.Round(Math.Abs(t.At.X - edge), 4), t.Alignment))
             .OrderBy(t => t.Y)];
@@ -95,7 +81,7 @@ public class YAxisSlotRenderingTests
     private static Title TitleAt(RecordingRenderContext ctx, double edge, AxisSide side) =>
         Texts(ctx)
             .Where(t => t.Rotation == 90 && (side == AxisSide.Right ? t.At.X > edge : t.At.X < edge))
-            .Select(t => new Title(t.Kind, Math.Abs(t.At.X - edge), t.Font.Size))
+            .Select(t => new Title(Math.Abs(t.At.X - edge), t.Font.Size))
             .OrderBy(t => t.Distance)
             .First();
 
@@ -107,31 +93,32 @@ public class YAxisSlotRenderingTests
     }
 
     /// <summary>The points of the slot's line: the last line drawn, after the primary's.</summary>
-    private static Point[] SlotLine(RecordingRenderContext ctx) => (Point[])((dynamic)ctx.OfKind("DrawLines")[^1].Args!).points;
+    private static Point[] SlotLine(RecordingRenderContext ctx) => ctx.Of<DrawLinesCall>()[^1].Points;
 
     private static double SpineHalf(Axes axes, AxisSide side) =>
         (side == AxisSide.Left ? axes.Spines.Left : axes.Spines.Right).LineWidth / 2;
 
     // ──────────────────────────────────────────────────────────────────────────
-    // A title with math markup is drawn as rich text on every slot (D8)
+    // A title with math markup is drawn as its layout on every slot (D8)
     // ──────────────────────────────────────────────────────────────────────────
 
     [Theory]
     [InlineData(AxisSide.Right)]
     [InlineData(AxisSide.Left)]
-    public void ASlotTitleWithMathText_DrawsRichText(AxisSide side)
+    public void ASlotTitleWithMathText_DrawsTheRunsOfItsLayout(AxisSide side)
     {
         var axes = new Axes();
         axes.Plot([0.0, 3], [0.0, 1]);
         var slot = AddSlot(axes, side, [1.0, 2, 3, 4]);
         slot.Axis.Label = @"$\alpha$ rate";
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
-        var title = Assert.Single(Texts(ctx), t => t.Kind == "DrawRichText" && t.Rotation == 90);
+        var title = Assert.Single(Texts(ctx), t => t.Text == "\u03B1" && t.Rotation == 90);
+        Assert.Single(Texts(ctx), t => t.Text == " rate" && t.Rotation == 90);
         var at = title.At;
-        Assert.True(side == AxisSide.Right ? at.X > PlotRight : at.X < Plot.X, $"the rich title stands at x={at.X}");
-        Assert.DoesNotContain(ctx.OfKind("DrawText"), c => (string)((dynamic)c.Args!).text == @"$\alpha$ rate");
+        Assert.True(side == AxisSide.Right ? at.X > PlotRight : at.X < Plot.X, $"the math title stands at x={at.X}");
+        Assert.DoesNotContain(ctx.Of<DrawTextCall>(), c => c.Text == @"$\alpha$ rate");
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -152,7 +139,7 @@ public class YAxisSlotRenderingTests
         slot.Axis.Max = 100;
         slot.Axis.MinorTicks = slot.Axis.MinorTicks with { Visible = true };
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         double half = SpineHalf(axes, side);
         double edge = EdgesOn(ctx, side, half)[stackIndex];
@@ -177,7 +164,7 @@ public class YAxisSlotRenderingTests
         slot.Axis.Min = 1;
         slot.Axis.Max = 1000;
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         // The series: one decade is one equal step in pixels.
         var line = SlotLine(ctx);
@@ -204,17 +191,17 @@ public class YAxisSlotRenderingTests
         slot.Axis.Min = -100;
         slot.Axis.Max = 100;
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         var line = SlotLine(ctx);
-        double F(double v) => AxisScale.SymLog.Forward(v, 1);
+        double F(double v) => ScaleRule.SymLog.Forward(v);
         Assert.Equal((F(100) - F(10)) / (F(10) - F(0)), (line[1].Y - line[2].Y) / (line[0].Y - line[1].Y), 6);
         double half = SpineHalf(axes, side);
         double edge = EdgesOn(ctx, side, half)[side == AxisSide.Left ? 1 : 0];
         var labels = LabelsAt(ctx, edge, side, side == AxisSide.Right ? double.MaxValue : double.MinValue).Select(l => l.Text).ToList();
+        // The symlog scale's formatter, LogFormatterSciNotation: −10², −10¹, −10⁰, 0, 10⁰ ...
         var ticks = new SymlogLocator(1).LocateInterval(-100, 100);
-        var format = AxesRenderer.BuildUniformTickFormatter(ticks);
-        Assert.Equal(ticks.Reverse().Select(format), labels);
+        Assert.Equal(ticks.Reverse().Select(new LogTickFormatter().Format), labels);
     }
 
     [Theory]
@@ -229,7 +216,7 @@ public class YAxisSlotRenderingTests
         slot.Axis.Min = 0;
         slot.Axis.Max = 100;
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         double half = SpineHalf(axes, side);
         double edge = EdgesOn(ctx, side, half)[side == AxisSide.Left ? 1 : 0];
@@ -265,7 +252,7 @@ public class YAxisSlotRenderingTests
         right.Axis.Max = left.Axis.Max = 100;
         right.Axis.Label = left.Axis.Label = "Rate";
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         double rightEdge = EdgesOn(ctx, AxisSide.Right, SpineHalf(axes, AxisSide.Right))[0];
         double leftEdge = EdgesOn(ctx, AxisSide.Left, SpineHalf(axes, AxisSide.Left))[0];
@@ -292,28 +279,29 @@ public class YAxisSlotRenderingTests
         Dress(axes.YAxis);
         Dress(outward.Axis);
 
-        var ctx = Render(axes);
+        var ctx = axes.Drawn(Plot);
 
         double half = SpineHalf(axes, AxisSide.Left);
         var edges = EdgesOn(ctx, AxisSide.Left, half);
         Assert.Equal(2, edges.Length);
         Assert.Equal(Plot.X, edges[0], 6);
-        // The same marks (majors and minors), the same labels at the same distance, and the same title, drawn as rich
-        // text at the same distance from its own edge.
+        // The same marks (majors and minors), the same labels at the same distance, and the same title, drawn as the runs of its
+        // layout at the same distance from its own edge.
         Assert.Equal(MarksAt(ctx, edges[0], AxisSide.Left, half), MarksAt(ctx, edges[1], AxisSide.Left, half));
         Assert.Equal(LabelsAt(ctx, edges[0], AxisSide.Left, edges[1]), LabelsAt(ctx, edges[1], AxisSide.Left, double.MinValue));
-        var titles = Texts(ctx).Where(t => t.Rotation == 90).OrderByDescending(t => t.At.X).ToList();
+        var titles = Texts(ctx).Where(t => t.Rotation == 90 && t.Text == "Load ").OrderByDescending(t => t.At.X).ToList();
         Assert.Equal(2, titles.Count);
-        Assert.All(titles, t => Assert.Equal("DrawRichText", t.Kind));
+        Assert.Equal(2, Texts(ctx).Count(t => t.Rotation == 90 && t.Text == "\u03B2"));
         Assert.Equal(edges[0] - titles[0].At.X, edges[1] - titles[1].At.X, 4);
     }
 
     /// <summary>A renderer of another kind than the Cartesian one draws the primary Y title by the same rule: at the fixed
-    /// offset past the left edge when it drew no tick label, as rich text when it carries math markup.</summary>
+    /// offset past the left edge when it drew no tick label, as the runs of its layout when it carries math markup (the first run
+    /// then starts half the title's width down the turned baseline from the centre, so its x is the one the rule puts).</summary>
     [Theory]
-    [InlineData("Load", "DrawText")]
-    [InlineData(@"$\gamma$ load", "DrawRichText")]
-    public void ARendererOfAnotherKind_DrawsThePrimaryYTitleByTheSameRule(string title, string kind)
+    [InlineData("Load", "Load")]
+    [InlineData(@"$\gamma$ load", "\u03B3")]
+    public void ARendererOfAnotherKind_DrawsThePrimaryYTitleByTheSameRule(string title, string first)
     {
         var axes = new Axes();
         axes.YAxis.Label = title;
@@ -321,10 +309,10 @@ public class YAxisSlotRenderingTests
 
         new TitlesOnlyRenderer(axes, Plot, ctx).Render();
 
-        var drawn = Assert.Single(Texts(ctx), t => t.Rotation == 90);
-        Assert.Equal(kind, drawn.Kind);
-        Assert.Equal(Plot.X - YAxisTitleExtensions.YAxisLabelFallback, drawn.At.X, 6);
-        Assert.Equal(Plot.Y + Plot.Height / 2, drawn.At.Y, 6);
+        var drawn = Texts(ctx).First(t => t.Rotation == 90);
+        Assert.Equal(first, drawn.Text);
+        Assert.Equal(Plot.X - EdgeTerms.Left.TitleWithoutTickLabels!.Value, drawn.At.X, 6);
+        Assert.True(drawn.At.Y >= Plot.Y + Plot.Height / 2 - 1e-6, "the title's first run starts at or below the centre, up the turned baseline");
     }
 
     /// <summary>A renderer that draws only the axis titles, the way a renderer outside the library may.</summary>
@@ -363,7 +351,7 @@ public class YAxisSlotRenderingTests
         var right1 = axes.YAxes.Right.Add().AddSeries(new CountingSeries());
         var left1 = axes.YAxes.Left.Add().AddSeries(new CountingSeries());
 
-        Render(axes);
+        axes.Drawn(Plot);
 
         Assert.Equal([1, 1, 1], new[] { right0.RangeCalls, right1.RangeCalls, left1.RangeCalls });
     }

@@ -9,10 +9,10 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// <see cref="MatPlotLibNet.Rendering.SeriesRenderers.ErrorBarSeriesRenderer"/>. Pre-X.9
 /// the renderer was at 80%L / 68%B because the X-error and ErrorEvery branches
 /// were untested. This file pins:
-///   - ELineWidth and CapThick explicit (lines 20-21 ?? false arms)
-///   - X errors set (line 48 true arm — horizontal error caps)
-///   - ErrorEvery > 1 (line 41 modulo skipping)
-///   - Default Y-only error bars (line 41 ErrorEvery=1 path)</summary>
+///   - ELineWidth and CapThick explicit (?? false arms)
+///   - X errors set (true arm — horizontal error caps)
+///   - ErrorEvery > 1 (modulo skipping)
+///   - Default Y-only error bars (ErrorEvery=1 path)</summary>
 public class ErrorBarSeriesRendererTests
 {
     private static string Render(ErrorBarSeries s) =>
@@ -22,45 +22,37 @@ public class ErrorBarSeriesRendererTests
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_BasicYOnly_DrawsCenterDotsAndYBars()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new ErrorBarSeries(
+        // center markers
+        // error bars
+        new DrawnToken("Render_BasicYOnly_DrawsCenterDotsAndYBars", () => Render(new ErrorBarSeries(
             new[] { 1.0, 2, 3 }, new[] { 1.0, 4, 9 },
-            new[] { 0.5, 0.5, 0.5 }, new[] { 0.5, 0.5, 0.5 }));
-        Assert.Contains("<circle", svg);    // center markers
-        Assert.Contains("<line", svg);      // error bars
-    }
-
-    /// <summary>Explicit ELineWidth + CapThick (lines 20-21 ?? false arms — values present).</summary>
-    [Fact]
-    public void Render_ExplicitELineWidth_AndCapThick_AppliesValues()
-    {
-        var svg = Render(new ErrorBarSeries(
+            new[] { 0.5, 0.5, 0.5 }, new[] { 0.5, 0.5, 0.5 })), "<circle", "<line"),
+        // Explicit ELineWidth + CapThick (?? false arms — values present).
+        new DrawnToken("Render_ExplicitELineWidth_AndCapThick_AppliesValues", () => Render(new ErrorBarSeries(
             new[] { 1.0, 2, 3 }, new[] { 1.0, 4, 9 },
             new[] { 0.5, 0.5, 0.5 }, new[] { 0.5, 0.5, 0.5 })
         {
             ELineWidth = 3.0,
             CapThick = 2.0,
-        });
-        Assert.Contains("<line", svg);
-    }
-
-    /// <summary>X errors set (line 48 true arm) — adds horizontal error bars + caps.</summary>
-    [Fact]
-    public void Render_XErrors_DrawsHorizontalErrorBars()
-    {
-        var svg = Render(new ErrorBarSeries(
+        }), "<line"),
+        // X errors set (true arm) — adds horizontal error bars + caps.
+        new DrawnToken("Render_XErrors_DrawsHorizontalErrorBars", () => Render(new ErrorBarSeries(
             new[] { 1.0, 2, 3 }, new[] { 1.0, 4, 9 },
             new[] { 0.5, 0.5, 0.5 }, new[] { 0.5, 0.5, 0.5 })
         {
             XErrorLow = new[] { 0.2, 0.2, 0.2 },
             XErrorHigh = new[] { 0.2, 0.2, 0.2 },
-        });
-        Assert.Contains("<line", svg);
-    }
+        }), "<line"),
+    };
 
-    /// <summary>ErrorEvery=2 (line 41 modulo skip) — only every 2nd point gets bars.
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>ErrorEvery=2 (modulo skip) — only every 2nd point gets bars.
     /// All circles still drawn; line count is reduced.</summary>
     [Fact]
     public void Render_ErrorEvery_SkipsIntermediatePoints()

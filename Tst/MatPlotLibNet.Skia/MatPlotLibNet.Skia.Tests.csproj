@@ -18,7 +18,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one place that finds the repository's root: every suite reads the folder from this file. -->
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryRoot.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests.Packaging" />
+    <Using Include="MatPlotLibNet.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +33,18 @@
     <Compile Include="..\MatPlotLibNet\Rendering\ComposedChartShapes.cs" LinkBase="Shared" />
     <!-- How the core suite reads the markup a figure draws: the start tags of an element and their attributes. -->
     <Compile Include="..\MatPlotLibNet\Rendering\SvgMarkupExtensions.cs" LinkBase="Shared" />
+    <!-- A fact that only draws and looks for tokens is a row of a theory over this one type. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\DrawnToken.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\FiniteAssertions.cs" LinkBase="Shared" />
+    <!-- The doubles the core suite writes once: a text measure and a renderer of the caller's. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\TestFontMetrics.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ChartServicesExtensions.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\RecordingChartRenderer.cs" LinkBase="Shared" />
+    <!-- The package icon's drawing, written by the sample program to icon.png: PackageIconTests holds the committed file to it. -->
+    <Compile Include="..\..\Samples\MatPlotLibNet.Samples.Console\PackageIcon.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\DiagnosticsCapture.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ContourFigures.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ThemeCases.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>

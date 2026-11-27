@@ -10,8 +10,15 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D quiver (vector field) series with arrows at each (X, Y, Z) position
 /// pointing in the (U, V, W) direction.</summary>
-public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
+public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor, ISeriesKind<Quiver3DSeries>
 {
+    /// <inheritdoc />
+    internal override CoordinateSystem? DrawnIn => CoordinateSystem.ThreeD;
+
+    /// <inheritdoc />
+    /// <remarks><c>Axes3D.quiver</c> asks neither cycle.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Mesh;
+
     /// <summary>X coordinates of arrow origins.</summary>
     public Vec X { get; }
 
@@ -30,11 +37,12 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
     /// <summary>Z components of the arrow direction vectors.</summary>
     public Vec W { get; }
 
-    /// <summary>Scale factor applied to arrow direction vectors. Default 1.0.</summary>
-    public double ArrowLength { get; set; } = 1.0;
+    private const double RestingArrowLength = 1.0;
+    /// <summary>Scale factor applied to arrow direction vectors. Default <see cref="RestingArrowLength"/>.</summary>
+    public double ArrowLength { get; set => Change(ref field, value); } = RestingArrowLength;
 
     /// <summary>Arrow color. When <c>null</c> the theme's prop-cycler assigns one automatically.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     // Explicit I3DPointSeries dispatch
     double[] I3DPointSeries.X => X;
@@ -52,7 +60,7 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         DrawableExtent() is { } box
             ? new(box.X.Lo, box.X.Hi, box.Y.Lo, box.Y.Hi, ZMin: box.Z.Lo, ZMax: box.Z.Hi)
-            : new(null, null, null, null);
+            : default;
 
     /// <summary>The extent of the arrows that can be drawn, tail and head: an arrow with a coordinate that is missing
     /// (NaN) or infinite is not drawn, so it is left out on every axis. The range of the series and the projection its
@@ -78,37 +86,30 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
         return x.IsEmpty ? null : new Box3D(x, y, z);
     }
 
+    static string ISeriesKind<Quiver3DSeries>.Kind => "quiver3d";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "quiver3d",
+        Type = this.WireKind(),
         XData = X,
         YData = Y,
         ZData = Z,
         UData = U,
         VData = V,
         WData = W,
-        ArrowLength = ArrowLength != 1.0 ? ArrowLength : null,
+        ArrowLength = ArrowLength.OrNullAtRest(RestingArrowLength),
         Color = Color,
         Label = Label
     };
 
-    /// <summary>Reconstructs a <see cref="Quiver3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="Quiver3DSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static Quiver3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Quiver3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? [],
             dto.UData ?? [], dto.VData ?? [], dto.WData ?? []);
-        if (dto.ArrowLength.HasValue)
-        {
-            s.ArrowLength = dto.ArrowLength.Value;
-        }
-        if (dto.Color.HasValue)
-        {
-            s.Color = dto.Color.Value;
-        }
+        if (dto.ArrowLength is { } arrowLength) s.ArrowLength = arrowLength;
+        if (dto.Color is { } color) s.Color = color;
         return s;
     }
 
@@ -116,9 +117,7 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
     /// <inheritdoc />
     /// <remarks>Where each arrow sits in the scene, and the vector it carries.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns(
-            [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("z"), new("u"), new("v"), new("w")],
-            [X.Data, Y.Data, Z.Data, U.Data, V.Data, W.Data]);
+        ChartDataTable.XYZ(X.Data, Y.Data, Z.Data, "z", new NumberColumn("u", U.Data), new NumberColumn("v", V.Data), new NumberColumn("w", W.Data));
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

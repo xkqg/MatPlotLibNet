@@ -28,7 +28,7 @@ public class GreekLetterTests
     [InlineData("sigma",   "\u03C3")]
     [InlineData("tau",     "\u03C4")]
     [InlineData("upsilon", "\u03C5")]
-    [InlineData("phi",     "\u03C6")]
+    [InlineData("phi",     "\u03D5")] // matplotlib's tex2uni['phi'] = 981, the straight phi (U+03C6 is \varphi)
     [InlineData("chi",     "\u03C7")]
     [InlineData("psi",     "\u03C8")]
     [InlineData("omega",   "\u03C9")]
@@ -66,9 +66,13 @@ public class GreekLetterTests
         Assert.Equal(expected, GreekLetters.TryGet(name));
     }
 
-    [Fact]
-    public void Unknown_ReturnsNull()
+    public static TheoryData<Func<string, string?>, string> TheLookups => new()
     {
-        Assert.Null(GreekLetters.TryGet("notgreek"));
-    }
+        { GreekLetters.TryGet, "notgreek" },
+        { MathSymbols.TryGet, "definitely-not-a-real-math-symbol-xxx" }, // MathSymbols: `Map.TryGetValue(name, out var v) ? v : null` null arm
+    };
+
+    [Theory]
+    [MemberData(nameof(TheLookups))]
+    public void Unknown_ReturnsNull(Func<string, string?> tryGet, string name) => Assert.Null(tryGet(name));
 }

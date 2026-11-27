@@ -76,7 +76,7 @@ public sealed class DomElement
     /// <c>{ capture: true }</c> does the same; anything else (including <c>false</c>,
     /// <c>{ passive: false }</c> with no <c>capture</c> key, or omitted) registers in
     /// bubble phase. Phase T (2026-04-19) honours capture vs bubble so scripts that rely
-    /// on capture-phase ordering (e.g. <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendDragScript"/>'s
+    /// on capture-phase ordering (e.g. <see cref="Transforms.SvgTransform.LegendDragScript"/>'s
     /// click swallower) test deterministically against the harness.</summary>
     public void addEventListener(string type, Action<DomEvent> handler, object? options = null)
     {
@@ -151,8 +151,11 @@ public sealed class DomElement
 
     public void dispatchEvent(DomEvent ev) => Fire(ev);
 
+    /// <summary>Moves <paramref name="child"/> to the end of this element's children, as the DOM's <c>appendChild</c> does: a node
+    /// that already has a parent is taken from it first (an <see cref="XElement"/> added while it has a parent would be copied).</summary>
     public void appendChild(DomElement child)
     {
+        if (child.Xml.Parent is not null) child.Xml.Remove();
         Xml.Add(child.Xml);
     }
 
@@ -164,12 +167,16 @@ public sealed class DomElement
 
     /// <summary>Stub returning identity matrix — coordinate transformation in tests is
     /// asserted by the test directly, not by chasing SVG transform math.</summary>
-    public DomSvgMatrix? getScreenCTM() => new();
+    public DomSvgMatrix? getScreenCTM() => _doc.LaysOut ? new() : null;
 
     /// <summary>Stubs for DOM Pointer Events capture API. The harness does not emulate
     /// pointer ID routing, but scripts call these to clean up drag state; returning
     /// silently keeps them happy.</summary>
-    public void setPointerCapture(int _) { }
+    public void setPointerCapture(int _)
+    {
+        if (_doc.RefusesPointerCapture)
+            throw new Jint.Runtime.JavaScriptException(_doc.Engine!.Intrinsics.Error, "NotFoundError: the pointer is not active");
+    }
     public void releasePointerCapture(int _) { }
 
     /// <summary>Mirrors DOM <c>element.getBoundingClientRect()</c>. Tests don't run a
@@ -189,7 +196,7 @@ public sealed class DomElement
     /// <summary>Mirrors DOM <c>element.isConnected</c>: whether the element is in the document. The synthetic document is an
     /// <c>html</c> element holding the charts, so an element is connected while it has that root above it; one that was
     /// replaced (<see cref="InteractionScriptHarness.Remount"/>) or removed has none.</summary>
-    public bool isConnected => Xml.Ancestors().Any(ancestor => ancestor.Name.LocalName == "html");
+    public bool isConnected => Xml.Ancestors().Any(ancestor => ancestor.Is("html"));
 
     /// <summary>Mirrors <c>SVGGraphicsElement.getBBox()</c> for the shapes a mark is drawn as, from their attributes: a circle
     /// by its centre and radius, a rectangle by its corner and size. Anything else has no box (0, 0, 0, 0). No transform is applied
@@ -246,7 +253,7 @@ public sealed class DomStyle
 
     /// <summary>Mirrors DOM <c>element.style.cssText</c> — assigning a full CSS declaration
     /// block parses it in one shot, replacing any previously-set properties on this element.
-    /// Used by <see cref="MatPlotLibNet.Rendering.Svg.SvgCustomTooltipScript"/> to initialize
+    /// Used by <see cref="Transforms.SvgTransform.CustomTooltipScript"/> to initialize
     /// the floating tooltip <c>div</c>'s visual styles.</summary>
     public string cssText
     {
@@ -311,7 +318,7 @@ public sealed class DomEvent
     /// without calling later handlers in either capture or bubble phase. Mirrors the
     /// DOM contract that capture-phase <c>stopPropagation()</c> prevents bubble-phase
     /// listeners from running, which is what
-    /// <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendDragScript"/>'s click swallower
+    /// <see cref="Transforms.SvgTransform.LegendDragScript"/>'s click swallower
     /// relies on to suppress the toggle handler after a real drag.</summary>
     public bool PropagationStopped { get; private set; }
     public void stopPropagation() => PropagationStopped = true;
@@ -330,7 +337,7 @@ public sealed class DomSvgMatrix
 }
 
 /// <summary>Stub for DOM <c>Element.getBoundingClientRect()</c> return value.
-/// Synthetic positive bounds used by <see cref="MatPlotLibNet.Rendering.Svg.SvgCustomTooltipScript"/>
+/// Synthetic positive bounds used by <see cref="Transforms.SvgTransform.CustomTooltipScript"/>
 /// focus-positioning tests (Phase 12 of v1.7.2 plan + Phase G.4 behavioural pin).</summary>
 public sealed class DomBoundingRect
 {

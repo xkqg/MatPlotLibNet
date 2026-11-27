@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
@@ -14,7 +15,7 @@ namespace MatPlotLibNet.Models.Series;
 /// <para>It fills its plot without axes around it. The table gives each word with its weight and the size the weight gives it,
 /// heaviest first, the order the words are read in the SVG; there the weight is also the title of each word, and each word says
 /// how wide it is to be set, so the browser's own font cannot make it run into the next.</para></summary>
-public sealed class WordCloudSeries : ChartSeries
+public sealed class WordCloudSeries : ChartSeries, ISeriesKind<WordCloudSeries>
 {
     private const double RestingMinSize = 12;
     private const double RestingMaxSize = 60;
@@ -30,20 +31,23 @@ public sealed class WordCloudSeries : ChartSeries
     /// <summary>The weight of each word, a finite number above zero; only the proportions matter.</summary>
     public double[] Weights { get; }
 
-    /// <summary>The size of the lightest and of the heaviest word, in points; 12 and 60 unless said otherwise.</summary>
+    /// <summary>The size of the lightest and of the heaviest word, in pixels (the unit of <see cref="Font.Size"/>); <see cref="RestingMinSize"/> and <see cref="RestingMaxSize"/> unless said otherwise.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The smallest is not above zero, the largest is below the smallest, or one is not a number.</exception>
     public Range1D Sizes
     {
         get => _sizes;
-        set => _sizes = value.Lo > 0 && double.IsFinite(value.Hi) && value.Hi >= value.Lo
-            ? value
-            : throw new ArgumentOutOfRangeException(nameof(Sizes), value, "The sizes of a word cloud are a range above zero, from the smallest to the largest.");
+        set
+        {
+            value.Lo.ThrowIfNotAbove(0, nameof(Sizes), "The smallest size");
+            value.Hi.ThrowIfNotFinite(nameof(Sizes), "The largest size").ThrowIfBelow(value.Lo, nameof(Sizes), "The largest size");
+            Change(ref _sizes, value);
+        }
     }
 
     /// <summary>The colour of each word, by position; <see langword="null"/> (the default) names none. A word past the end of the
     /// array, or every word when it is <see langword="null"/>, wears what the figure's theme hands out at its own position. A
     /// colour that cannot be read against the background at the size of the word is moved toward the text colour until it can.</summary>
-    public Color[]? Colors { get; set; }
+    public Color[]? Colors { get; set => Change(ref field, value); }
 
     /// <summary>Initializes a word cloud. Built through <c>Axes.WordCloud</c>, which refuses words that cannot be laid out.</summary>
     /// <param name="words">The words.</param>
@@ -60,12 +64,14 @@ public sealed class WordCloudSeries : ChartSeries
         [.. Enumerable.Range(0, Math.Min(Words.Length, Weights.Length)).OrderByDescending(i => Weights[i]).ThenBy(i => Words[i], StringComparer.Ordinal)];
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
+
+    static string ISeriesKind<WordCloudSeries>.Kind => "wordcloud";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "wordcloud",
+        Type = this.WireKind(),
         Categories = Words,
         Values = Weights,
         WordMinSize = Sizes.Lo.OrNullAtRest(RestingMinSize),
@@ -73,10 +79,7 @@ public sealed class WordCloudSeries : ChartSeries
         Colors = Colors?.ToList(),
     };
 
-    /// <summary>Reconstructs a <see cref="WordCloudSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="WordCloudSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static WordCloudSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.WordCloud(dto.Categories ?? [], dto.Values ?? []);

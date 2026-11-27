@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -13,21 +14,23 @@ public sealed class StreamingVpin : WindowedStreamingIndicator<OhlcvBar>
     private readonly int _bucketPeriod;
     private readonly int _sigmaPeriod;
 
+    /// <inheritdoc />
+    internal override PaneRange? PinnedRange => Vpin.Pane;
+
     /// <summary>Creates a streaming Vpin.</summary>
     /// <param name="bucketPeriod">How many bars make a volume bucket; above 0.</param>
     /// <param name="sigmaPeriod">How many returns the volatility of the price change is taken over; above 0.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingVpin(int bucketPeriod = 50, int sigmaPeriod = 50, int capacity = 10_000)
-        : base(bucketPeriod + sigmaPeriod, capacity)
+    public StreamingVpin(int bucketPeriod = Vpin.DefaultBucketPeriod, int sigmaPeriod = Vpin.DefaultSigmaPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(bucketPeriod + sigmaPeriod, Vpin.Spec(bucketPeriod, sigmaPeriod), capacity)
     {
         _bucketPeriod = bucketPeriod;
         _sigmaPeriod = sigmaPeriod;
-        Label = $"VPIN({bucketPeriod})";
     }
 
     /// <inheritdoc />
     /// <remarks>The first value comes one bar after the longer of the two periods; it is the full one once both periods have come.</remarks>
-    public override int WarmupPeriod => Math.Max(_bucketPeriod, _sigmaPeriod) + 2;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <inheritdoc />
     protected override void Recompute(ReadOnlySpan<OhlcvBar> window, Span<double> outputs)

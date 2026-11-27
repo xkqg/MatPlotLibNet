@@ -1,10 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet;
 
@@ -13,7 +13,7 @@ namespace MatPlotLibNet;
 /// <para>Each series says its own data (<see cref="ISeries.ToDataTable"/>); this is the composition: series that
 /// share an x become columns of ONE table, series that do not get a table each, and the AXES names the first
 /// column, because a series only knows it is "x" and the axes knows it is "Quarter". The axes also names the
-/// positions it shows names at: a mark on the centre of a named slot reads as that name (<see cref="KeyedByName"/>),
+/// positions it shows names at: a mark on the centre of a named slot reads as that name,
 /// by the rule the picture writes the names with, so a chart built in one call tables its categories, not the
 /// positions of their slots.</para>
 /// <para>What the figure carries itself, outside every subplot, is part of what the picture shows and is tabled after the
@@ -31,14 +31,14 @@ public static class FigureDataTableExtensions
         {
             ArgumentNullException.ThrowIfNull(figure);
             string name = figure.AccessibleName();
-            var candidates = new List<(ChartDataTable Table, bool Unitable)>();
+            var candidates = new List<TableCandidate>();
             foreach (var axes in figure.SubPlots)
             {
                 // A subplot that names itself has a name to lose, so its table is never swallowed into a row.
                 bool unitable = axes.Title is not { Length: > 0 };
                 foreach (var table in axes.ToDataTables(name))
                 {
-                    candidates.Add((table, unitable));
+                    candidates.Add(new TableCandidate(table, unitable));
                 }
             }
 
@@ -47,6 +47,9 @@ public static class FigureDataTableExtensions
             return tables;
         }
     }
+
+    /// <summary>A table of a subplot and whether it may be united with its neighbours into one table with a row each.</summary>
+    private readonly record struct TableCandidate(ChartDataTable Table, bool Unitable);
 
     private static readonly ChartDataColumn[] TextColumns = [new("text", DataColumnKind.Text)];
 
@@ -86,7 +89,7 @@ public static class FigureDataTableExtensions
             int rows = image.Data.GetLength(0), columns = image.Data.GetLength(1);
 
             images.Add([
-                DataCell.FromText(string.Create(CultureInfo.InvariantCulture, $"image {i + 1}")),
+                DataCell.FromText(i.Numbered("image ")),
                 DataCell.FromNumber(columns),
                 DataCell.FromNumber(rows),
                 DataCell.FromNumber(image.XOffset),
@@ -106,7 +109,7 @@ public static class FigureDataTableExtensions
     /// <para>The test is deliberately narrow: identical headers, exactly one row, and a first column of text
     /// that names the row. Anything with an x of its own keeps its own table.</para></summary>
     private static List<ChartDataTable> UniteSingleRowRuns(
-        List<(ChartDataTable Table, bool Unitable)> candidates, string figureName)
+        List<TableCandidate> candidates, string figureName)
     {
         var united = new List<ChartDataTable>(candidates.Count);
         for (int i = 0; i < candidates.Count;)
@@ -240,7 +243,7 @@ public static class FigureDataTableExtensions
 
     /// <summary>A column of names takes the title of the axis it runs along, or "category" when that axis has none.</summary>
     private static string NamedHeader(Axes axes, DataAxis axis) =>
-        (axis == DataAxis.X ? axes.XAxis : axes.YAxis).Label is { Length: > 0 } title ? title : "category";
+        axes.AxisAlong(axis == DataAxis.X).Label is { Length: > 0 } title ? title : "category";
 
     /// <summary>The table with column <paramref name="key"/> read as <paramref name="names"/> under
     /// <paramref name="header"/> and moved in front, the other columns after it in their order; the first column, when it
@@ -371,15 +374,15 @@ public static class FigureDataTableExtensions
             return column;
         }
 
-        string header = column.Header == "x" && axis.Label is { Length: > 0 } label ? label : column.Header;
+        string header = column.Header == ChartDataColumn.Position(DataAxis.X).Header && axis.Label is { Length: > 0 } label ? label : column.Header;
         var kind = column.Kind == DataColumnKind.Number && ReadsAsDates(axis) ? DataColumnKind.Date : column.Kind;
         return new ChartDataColumn(header, kind, column.Axis);
     }
 
-    /// <summary>Whether an axis reads as dates: <see cref="AxisScale.Date"/>, or a date tick formatter set on its
-    /// own (<c>SetXTickFormatter</c> sets the formatter and not the scale).</summary>
+    /// <summary>Whether an axis reads as dates: its scale holds dates (<see cref="AxisScale.Date"/>), or a date tick formatter set on
+    /// its own (<c>SetXTickFormatter</c> sets the formatter and not the scale).</summary>
     private static bool ReadsAsDates(Axis axis) =>
-        axis.Scale == AxisScale.Date || axis.TickFormatter is DateTickFormatter or AutoDateFormatter;
+        axis.Scale.Rule.HoldsDates || axis.TickFormatter is DateTickFormatter or AutoDateFormatter;
 
     /// <summary>The caption: the figure's name, the subplot's title, both joined, or nothing.</summary>
     private static string? Caption(string figureName, string? axesTitle, string? seriesLabel)

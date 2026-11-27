@@ -2,16 +2,17 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>Renders a <see cref="Contour3DSeries"/> as projected contour lines at discrete Z levels.</summary>
-/// <remarks>Uses a simplified horizontal-slice approach: for each contour level, traces contour
-/// segments through the grid using linear interpolation (marching squares), then projects each
-/// segment into 3D at Z = level.</remarks>
-internal sealed class Contour3DSeriesRenderer : SeriesRenderer<Contour3DSeries>
+/// <summary>Renders a <see cref="Contour3DSeries"/> as projected contour lines at discrete Z levels: one mark of the scene at its nearest
+/// point (<see cref="WholeDrawing"/>), its lines drawn level by level.</summary>
+/// <remarks>Each level is traced by the one marching squares of a 2-D contour (<see cref="MarchingSquares"/>, contourpy's decisions:
+/// a corner equal to the level is below it, the saddles paired one way), and each line is projected into 3D at Z = level.</remarks>
+internal sealed class Contour3DSeriesRenderer : SceneSeriesRenderer<Contour3DSeries>
 {
     /// <inheritdoc />
     public Contour3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -31,90 +32,45 @@ internal sealed class Contour3DSeriesRenderer : SeriesRenderer<Contour3DSeries>
 
         var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), z);
 
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var normalizer = LinearNormalizer.Instance;
+        // The levels are coloured linearly over the heights, by the series' map, else the theme's.
+        var scale = series.LinearMappingUnder(Context.Theme).Over(new(zMin, zMax));
 
-        // Generate evenly spaced contour levels
+        // Generate evenly spaced contour levels; the segments are kept in the order traced, with the depth of the nearest crossing,
+        // each level's ending where the next one's begin, drawn in that level's stroke.
+        var segments = new List<PixelSegment>();
+        double nearest = double.NegativeInfinity;
         int levels = Math.Max(2, series.Levels);
+        var strokes = new StrokeStyle[levels];
+        var levelEnds = new int[levels];
         for (int lev = 0; lev < levels; lev++)
         {
             double t = (lev + 0.5) / levels;
             double zLevel = zMin + t * zRange;
 
-            var levelColor = series.Color ?? cmap.ColorOf(zLevel, normalizer, zMin, zMax);
+            strokes[lev] = StrokeStyle.Solid(series.Color ?? scale.ColorOf(zLevel), series.LineWidth);
 
-            // Marching squares: for each grid cell, find segments where the contour crosses edges
-            for (int r = 0; r < rows - 1; r++)
-                for (int c = 0; c < cols - 1; c++)
+            // The lines of the level, as the 2-D contour traces them, each projected at the level's height.
+            foreach (var line in MarchingSquares.Extract(series.X, series.Y, series.Z, [zLevel]))
+            {
+                var points = line.Points;
+                for (int i = 0; i < points.Length; i++)
                 {
-                    if (!series.Z.IsDrawableCell(series.X, series.Y, r, c)) continue; // masked, as matplotlib masks it
-
-                    double z00 = series.Z[r, c];
-                    double z10 = series.Z[r + 1, c];
-                    double z01 = series.Z[r, c + 1];
-                    double z11 = series.Z[r + 1, c + 1];
-
-                    // Classify corners as above (1) or below (0) the level
-                    int code = 0;
-                    if (z00 >= zLevel) code |= 1;
-                    if (z01 >= zLevel) code |= 2;
-                    if (z11 >= zLevel) code |= 4;
-                    if (z10 >= zLevel) code |= 8;
-
-                    if (code == 0 || code == 15) continue; // all above or all below
-
-                    double x0 = series.X[c], x1 = series.X[c + 1];
-                    double y0 = series.Y[r], y1 = series.Y[r + 1];
-
-                    // Interpolate crossing points on cell edges
-                    // Edge 0: bottom (z00-z01), Edge 1: right (z01-z11)
-                    // Edge 2: top (z11-z10), Edge 3: left (z00-z10)
-                    Point? e0 = Interp(z00, z01, x0, y0, x1, y0, zLevel, proj, zLevel);
-                    Point? e1 = Interp(z01, z11, x1, y0, x1, y1, zLevel, proj, zLevel);
-                    Point? e2 = Interp(z11, z10, x1, y1, x0, y1, zLevel, proj, zLevel);
-                    Point? e3 = Interp(z00, z10, x0, y0, x0, y1, zLevel, proj, zLevel);
-
-                    // Draw line segments based on marching squares case
-                    DrawCase(code, e0, e1, e2, e3, levelColor, series.LineWidth);
+                    var point = points[i];
+                    nearest = Math.Max(nearest, proj.Depth(point.X, point.Y, zLevel));
+                    if (i > 0) segments.Add(new(proj.Project(points[i - 1].X, points[i - 1].Y, zLevel), proj.Project(point.X, point.Y, zLevel)));
                 }
+            }
+
+            levelEnds[lev] = segments.Count;
         }
-    }
 
-    /// <summary>Linearly interpolates a crossing point on a cell edge and projects to 2D at the given Z level.</summary>
-    private static Point? Interp(double za, double zb, double xa, double ya, double xb, double yb,
-        double level, Projection3D proj, double zProj)
-    {
-        double dz = zb - za;
-        if (Math.Abs(dz) < 1e-15) return null;
-        double t = (level - za) / dz;
-        if (t < 0 || t > 1) return null;
-        double xi = xa + t * (xb - xa);
-        double yi = ya + t * (yb - ya);
-        return proj.Project(xi, yi, zProj);
-    }
-
-    /// <summary>Draws contour segments for a marching squares case.</summary>
-    private void DrawCase(int code, Point? e0, Point? e1, Point? e2, Point? e3,
-        Color color, double lineWidth)
-    {
-        // Single-segment cases
-        switch (code)
+        if (segments.Count == 0) return;
+        DrawAsOneMark(nearest, () =>
         {
-            case 1 or 14: DrawSeg(e0, e3, color, lineWidth); break;
-            case 2 or 13: DrawSeg(e0, e1, color, lineWidth); break;
-            case 3 or 12: DrawSeg(e1, e3, color, lineWidth); break;
-            case 4 or 11: DrawSeg(e1, e2, color, lineWidth); break;
-            case 6 or 9:  DrawSeg(e0, e2, color, lineWidth); break;
-            case 7 or 8:  DrawSeg(e2, e3, color, lineWidth); break;
-            // Saddle cases — draw both possible segments
-            case 5:  DrawSeg(e0, e1, color, lineWidth); DrawSeg(e2, e3, color, lineWidth); break;
-            case 10: DrawSeg(e0, e3, color, lineWidth); DrawSeg(e1, e2, color, lineWidth); break;
-        }
-    }
-
-    private void DrawSeg(Point? a, Point? b, Color color, double lineWidth)
-    {
-        if (a is not null && b is not null)
-            Ctx.DrawLine(a.Value, b.Value, new StrokeStyle(color, lineWidth, LineStyle.Solid));
+            for (int lev = 0, at = 0; lev < levels; lev++)
+            {
+                for (; at < levelEnds[lev]; at++) Ctx.DrawLine(segments[at].From, segments[at].To, strokes[lev]);
+            }
+        });
     }
 }

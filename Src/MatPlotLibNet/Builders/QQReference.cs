@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet;
 
@@ -47,11 +48,7 @@ public readonly record struct QQReference
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="sigma"/> is not a finite number above 0.</exception>
     public static QQReference LogNormal(double sigma)
     {
-        if (!double.IsFinite(sigma) || sigma <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(sigma), sigma, "The shape of a log-normal distribution is a finite number above 0.");
-        }
-
+        sigma.ThrowIfNotFinite(nameof(sigma)).ThrowIfNotAbove(0, nameof(sigma));
         return new($"log-normal, σ = {Shown(sigma)}", p => Math.Exp(sigma * Numerics.StandardNormal.Quantile(p)));
     }
 
@@ -61,29 +58,21 @@ public readonly record struct QQReference
     /// <param name="sample">The observations, each above 0, with some spread in their logarithms.</param>
     /// <returns>The reference.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="sample"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">An observation is not above 0, or the logarithms of the observations have no spread
-    /// (fewer than two different observations).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">An observation is not above 0, or the logarithms of the observations have no
+    /// spread (fewer than two different observations).</exception>
     public static QQReference FittedLogNormal(double[] sample)
     {
         ArgumentNullException.ThrowIfNull(sample);
         double[] observations = sample.DrawableValues();
         foreach (double value in observations)
         {
-            if (value <= 0)
-            {
-                throw new ArgumentException(
-                    $"The sample has an observation of {value.ToString(CultureInfo.InvariantCulture)} that is not above 0; a log-normal is fitted to the logarithms of the observations.",
-                    nameof(sample));
-            }
+            value.ThrowIfNotAbove(0, nameof(sample), "An observation of the sample, whose logarithm a log-normal is fitted to,");
         }
 
         double[] logs = [.. observations.Select(value => Math.Log(value))];
         double mean = logs.Sum() / logs.Length;
         double sigma = Math.Sqrt(logs.Sum(v => (v - mean) * (v - mean)) / logs.Length);
-        if (!(sigma > 0))
-        {
-            throw new ArgumentException("The sample's logarithms have no spread, so a log-normal cannot be fitted to it.", nameof(sample));
-        }
+        sigma.ThrowIfNotAbove(0, nameof(sample), "The spread of the sample's logarithms, which a log-normal is fitted to,");
 
         return LogNormal(sigma);
     }
@@ -96,11 +85,7 @@ public readonly record struct QQReference
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="degreesOfFreedom"/> is not a finite number above 0.</exception>
     public static QQReference StudentT(double degreesOfFreedom)
     {
-        if (!double.IsFinite(degreesOfFreedom) || degreesOfFreedom <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(degreesOfFreedom), degreesOfFreedom, "The degrees of freedom of a Student t distribution are a finite number above 0.");
-        }
-
+        degreesOfFreedom.ThrowIfNotFinite(nameof(degreesOfFreedom)).ThrowIfNotAbove(0, nameof(degreesOfFreedom));
         return new($"Student t, {Shown(degreesOfFreedom)} df", p => Numerics.StudentT.Quantile(p, degreesOfFreedom));
     }
 
@@ -130,5 +115,5 @@ public readonly record struct QQReference
     /// "Theoretical quantiles" of a Q-Q plot; every other reference adds its name.</summary>
     internal string XAxisTitle => _quantile is null ? TheoreticalQuantiles : $"{TheoreticalQuantiles} ({Name})";
 
-    private static string Shown(double number) => number.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string Shown(double number) => number.InvariantText("0.###");
 }

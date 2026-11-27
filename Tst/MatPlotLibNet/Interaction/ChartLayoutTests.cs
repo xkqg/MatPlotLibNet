@@ -69,18 +69,9 @@ public class ChartLayoutTests
         var views = layout.GetSecondaryDataRanges(0);
 
         Assert.Equal(3, views.Count);
-        Assert.Equal(AxisSide.Right, views[0].Side);
-        Assert.Equal(0, views[0].SlotIndex);
-        Assert.Equal(10, views[0].Range.YMin);
-        Assert.Equal(20, views[0].Range.YMax);
-        Assert.Equal(AxisSide.Right, views[1].Side);
-        Assert.Equal(1, views[1].SlotIndex);
-        Assert.Equal(100, views[1].Range.YMin);
-        Assert.Equal(200, views[1].Range.YMax);
-        Assert.Equal(AxisSide.Left, views[2].Side);
-        Assert.Equal(0, views[2].SlotIndex);
-        Assert.Equal(1, views[2].Range.YMin);
-        Assert.Equal(2, views[2].Range.YMax);
+        Assert.Equivalent(new { Side = AxisSide.Right, SlotIndex = 0, Range = new { YMin = 10.0, YMax = 20.0 } }, views[0]);
+        Assert.Equivalent(new { Side = AxisSide.Right, SlotIndex = 1, Range = new { YMin = 100.0, YMax = 200.0 } }, views[1]);
+        Assert.Equivalent(new { Side = AxisSide.Left, SlotIndex = 0, Range = new { YMin = 1.0, YMax = 2.0 } }, views[2]);
     }
 
     /// <summary>A host that implements nothing but the required members (every other <see cref="IChartLayout"/>
@@ -89,17 +80,8 @@ public class ChartLayoutTests
     [Fact]
     public void GetSecondaryDataRanges_DefaultImplementation_IsEmpty()
     {
-        IChartLayout minimal = new MinimalChartLayoutStub();
+        IChartLayout minimal = new TestChartLayout(new Rect(0, 0, 100, 100), new DataRange(0, 1, 0, 1));
         Assert.Empty(minimal.GetSecondaryDataRanges(0));
-    }
-
-    private sealed class MinimalChartLayoutStub : IChartLayout
-    {
-        public int AxesCount => 1;
-        public Rect GetPlotArea(int axesIndex) => new(0, 0, 100, 100);
-        public DataRange GetDataRange(int axesIndex) => new(0, 1, 0, 1);
-        public int? HitTestAxes(double pixelX, double pixelY) => 0;
-        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
     }
 
     /// <summary>ROADMAP.md row 100: a host OTHER than the library's own <see cref="ChartLayout"/> — "nothing but a
@@ -121,13 +103,8 @@ public class ChartLayoutTests
         Assert.Equal(15.0, mid.Y, 6);
     }
 
-    private sealed class StatedSecondaryChartLayoutStub : IChartLayout
+    private sealed class StatedSecondaryChartLayoutStub() : TestChartLayout(new Rect(0, 0, 100, 100), new DataRange(0, 1, 0, 1)), IChartLayout
     {
-        public int AxesCount => 1;
-        public Rect GetPlotArea(int axesIndex) => new(0, 0, 100, 100);
-        public DataRange GetDataRange(int axesIndex) => new(0, 1, 0, 1);
-        public int? HitTestAxes(double pixelX, double pixelY) => 0;
-        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
         public IReadOnlyList<SecondaryAxisRange> GetSecondaryDataRanges(int axesIndex) =>
             [new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, 10, 20))];
     }
@@ -236,38 +213,20 @@ public class ChartLayoutTests
         Assert.Null(layout.HitTestLegendItem(30, 10, -1));
     }
 
-    [Fact]
-    public void PixelToData_TopLeftOfPlotArea_ReturnsMinXMaxY()
+    /// <summary>The top-left pixel of a plot area is (xMin, yMax), because screen Y increases downward; the bottom-right is (xMax, yMin);
+    /// the centre is the midpoint.</summary>
+    [Theory]
+    [InlineData(5, 50, 0, 0, 0.0, 5.0)]
+    [InlineData(5, 50, 100, 50, 10.0, 0.0)]
+    [InlineData(4, 100, 50, 50, 5.0, 2.0)]
+    public void PixelToData_APixelOfThePlotArea_ReturnsItsDataPoint(double yMax, double plotH, double pixelX, double pixelY, double dataX, double dataY)
     {
-        // top-left pixel = (xMin, yMax) because screen-Y increases downward
-        var (_, layout) = MakeLayout(xMin: 0, xMax: 10, yMin: 0, yMax: 5,
-                                     plotX: 0, plotY: 0, plotW: 100, plotH: 50);
-        var result = layout.PixelToData(0, 0, 0);
+        var (_, layout) = MakeLayout(xMin: 0, xMax: 10, yMin: 0, yMax: yMax,
+                                     plotX: 0, plotY: 0, plotW: 100, plotH: plotH);
+        var result = layout.PixelToData(pixelX, pixelY, 0);
         Assert.NotNull(result);
-        Assert.Equal(0.0, result!.Value.DataX, precision: 6);
-        Assert.Equal(5.0, result.Value.DataY,  precision: 6);
-    }
-
-    [Fact]
-    public void PixelToData_BottomRightOfPlotArea_ReturnsMaxXMinY()
-    {
-        var (_, layout) = MakeLayout(xMin: 0, xMax: 10, yMin: 0, yMax: 5,
-                                     plotX: 0, plotY: 0, plotW: 100, plotH: 50);
-        var result = layout.PixelToData(100, 50, 0);
-        Assert.NotNull(result);
-        Assert.Equal(10.0, result!.Value.DataX, precision: 6);
-        Assert.Equal(0.0,  result.Value.DataY,  precision: 6);
-    }
-
-    [Fact]
-    public void PixelToData_CentreOfPlotArea_ReturnsMidpoint()
-    {
-        var (_, layout) = MakeLayout(xMin: 0, xMax: 10, yMin: 0, yMax: 4,
-                                     plotX: 0, plotY: 0, plotW: 100, plotH: 100);
-        var result = layout.PixelToData(50, 50, 0);
-        Assert.NotNull(result);
-        Assert.Equal(5.0, result!.Value.DataX, precision: 6);
-        Assert.Equal(2.0, result.Value.DataY,  precision: 6);
+        Assert.Equal(dataX, result!.Value.DataX, precision: 6);
+        Assert.Equal(dataY, result.Value.DataY, precision: 6);
     }
 
     [Fact]

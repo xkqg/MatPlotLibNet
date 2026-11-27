@@ -1,10 +1,17 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Models.Streaming;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Interaction;
 
@@ -134,19 +141,9 @@ public class NearestPointFinderTests
     public void ReturnsNull_WhenTheLayoutStatesAZeroSpan(double xMin, double xMax, double yMin, double yMax)
     {
         var figure = Plt.Create().Plot([5.0], [3.0]).Build();
-        var layout = new StatedLayout(new Rect(10, 10, 100, 50), new DataRange(xMin, xMax, yMin, yMax));
+        var layout = new TestChartLayout(new Rect(10, 10, 100, 50), new DataRange(xMin, xMax, yMin, yMax));
 
         Assert.Null(NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout));
-    }
-
-    /// <summary>A host's layout: one plot area and the range it states, nothing else.</summary>
-    private sealed class StatedLayout(Rect area, DataRange range) : IChartLayout
-    {
-        public int AxesCount => 1;
-        public Rect GetPlotArea(int axesIndex) => area;
-        public DataRange GetDataRange(int axesIndex) => range;
-        public int? HitTestAxes(double pixelX, double pixelY) => 0;
-        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
     }
 
     /// <summary>Series that is not an XYSeries (e.g. a PieSeries) is skipped — covers
@@ -210,7 +207,35 @@ public class NearestPointFinderTests
         // finder's own Math.Min stays as the second line of defence for a series assembled by hand.
         var ex = Assert.Throws<ArgumentException>(() => Plt.Create().Plot([2.0, 5.0, 8.0], [1.0, 3.0]).Build());
 
-        Assert.Contains("Array lengths must match", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(LengthRefusals.Opening, ex.Message, StringComparison.Ordinal);
     }
 
+    /// <summary>NearestPointFinder.Find — degenerate Y range arm. The existing
+    /// <c>ReturnsNull_WhenXAxisHasZeroSpan</c> test covers <c>xSpan == 0</c>; this covers
+    /// the <c>ySpan == 0</c> short-circuit (right-hand of the <c>||</c>).</summary>
+    [Fact]
+    public void NearestPointFinder_ReturnsNull_WhenYAxisHasZeroSpan()
+    {
+        var figure = Plt.Create().Plot([0.0, 10.0], [3.0, 3.0]).Build();
+        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
+        figure.SubPlots[0].YAxis.Min = 3; figure.SubPlots[0].YAxis.Max = 3;
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+        Assert.Null(NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout));
+    }
+
+    /// <summary>NearestPointFinder.Find — covers the "best is updated" branch (multiple
+    /// in-range points where the second point becomes the new best). The existing
+    /// multi-series test covers cross-series; this hits intra-series `best` replacement.</summary>
+    [Fact]
+    public void NearestPointFinder_UpdatesBest_WhenSecondPointIsCloser()
+    {
+        var figure = Plt.Create().Plot([1.0, 2.0, 3.0, 4.0, 5.0], [1.0, 2.0, 3.0, 4.0, 5.0]).Build();
+        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 10;
+        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 10;
+        var layout = ChartLayout.Create(figure, [new Rect(0, 0, 1000, 1000)]);
+        var result = NearestPointFinder.Find(figure, 0, 3.05, 3.05, layout, maxPixelDistance: 200);
+        Assert.NotNull(result);
+        Assert.Equal(3.0, result.DataX);
+        Assert.Equal(3.0, result.DataY);
+    }
 }

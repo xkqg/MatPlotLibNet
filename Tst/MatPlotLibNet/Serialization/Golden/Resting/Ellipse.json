@@ -1,0 +1,18 @@
+{
+  "Alpha": "1",
+  "Angle": "0",
+  "Center": "{DataX: 2.6, DataY: 2.4}",
+  "EdgeColor": "#00000000",
+  "EdgeLineStyle": "Solid",
+  "EdgeWidth": "1",
+  "FaceColor": "#1F77B4FF",
+  "Hatch": "None",
+  "HatchColor": "null",
+  "Height": "0.25",
+  "Label": "null",
+  "Visible": "true",
+  "Width": "0.5",
+  "Z": "0",
+  "ZDir": "Z",
+  "ZOrder": "1"
+}

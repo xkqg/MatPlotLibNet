@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="WaffleSeries"/>: a grid of square cells inside the plot area, centred, each cell a box in
 /// the grid's own units (a cell is one unit across) mapped to pixels by the one rule that places a box standing on a foot
-/// (<see cref="PixelBoxExtensions.BoxOnFoot"/>).</summary>
+/// (<see cref="PixelBox.OnFoot"/>).</summary>
 internal sealed class WaffleSeriesRenderer : SeriesRenderer<WaffleSeries>
 {
     /// <inheritdoc />
@@ -52,7 +52,7 @@ internal sealed class WaffleSeriesRenderer : SeriesRenderer<WaffleSeries>
             {
                 int row = cell / series.Columns, column = cell % series.Columns;
                 var slot = new CategorySlot(column + clear, column + 0.5, column + 1 - clear);
-                yield return new WaffleCell(units.BoxOnFoot(slot, row + clear, row + 1 - clear, rising: true, BarOrientation.Vertical).Rect, category);
+                yield return new WaffleCell(PixelBox.OnFoot(units, slot, row + clear, row + 1 - clear, rising: true, BarOrientation.Vertical).Rect, category);
             }
         }
     }
@@ -63,7 +63,7 @@ internal sealed class WaffleSeriesRenderer : SeriesRenderer<WaffleSeries>
         foreach (var cell in Cells(series))
         {
             if (cell.Box.IsDrawable())
-                Ctx.DrawRectangle(cell.Box, new ShapeStyle(PartColor(series.Colors, cell.Category), null, 0));
+                Ctx.DrawRectangle(cell.Box, ShapeStyle.Filled(PartColor(series.Colors, cell.Category)));
         }
     }
 }

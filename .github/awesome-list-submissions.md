@@ -120,7 +120,7 @@ Where it stands now:
 
 - **91 series types** — everything from line/bar/scatter to Sankey diagrams, treemaps, and 12 3D chart types
 - **Native UI controls** — Avalonia 12 (`MplChartControl`) and Uno Platform (`MplChartElement`) render via SkiaSharp with local pan/zoom/brush-select
-- **MathText** — LaTeX-like labels with fractions, square roots, accents, Greek letters (96 symbol mappings)
+- **MathText** — LaTeX-like labels with fractions, square roots, accents, Greek letters and the 634 symbol names of matplotlib's mathtext
 - **Text in any script** — Arabic and Hebrew read the right way round, because the Unicode bidirectional algorithm and HarfBuzz shaping are both in there
 - **SignalR interactivity** — server-authoritative charts with mutation + notification events
 - **148 colormaps**, SIMD numerics, DataFrame integration with 59 technical indicators, Jupyter notebooks

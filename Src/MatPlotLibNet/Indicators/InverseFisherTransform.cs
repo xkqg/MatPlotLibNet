@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -12,23 +13,31 @@ namespace MatPlotLibNet.Indicators;
 /// Ehlers, J. F. (2004), <i>The Inverse Fisher Transform</i>, Stocks &amp; Commodities 22(5).</summary>
 public sealed class InverseFisherTransform : Indicator<SignalResult>
 {
+    /// <summary>The <c>scale</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultScale = 1.0;
+
     private readonly double[] _input;
     private readonly double _scale;
+
+    /// <inheritdoc />
+    private protected override int BarsIn => _input.Length;
 
     /// <summary>Creates a new Inverse Fisher Transform.</summary>
     /// <param name="input">Input series to transform. Typically a pre-normalised oscillator in
     /// roughly <c>[-5, +5]</c>; values outside that range saturate to ±1.</param>
-    /// <param name="scale">Multiplier applied before the tanh squash. Default 1.0. Higher values
+    /// <param name="scale">Multiplier applied before the tanh squash. Default <see cref="DefaultScale"/>. Higher values
     /// steepen the transition. Must be &gt; 0.</param>
-    public InverseFisherTransform(double[] input, double scale = 1.0)
+    public InverseFisherTransform(double[] input, double scale = DefaultScale) : base(Spec(scale))
     {
-        if (input is null || input.Length == 0)
-            throw new ArgumentException("input is required and must be non-empty.", nameof(input));
-        if (scale <= 0)
-            throw new ArgumentException($"scale must be > 0 (got {scale}).", nameof(scale));
-        _input = input;
+        _input = input ?? [];
+        _input.ThrowIfEmpty("input is required and must be non-empty.", nameof(input));
         _scale = scale;
-        Label = $"IFT(scale={scale:0.##})";
+    }
+
+    internal static IndicatorSpec Spec(double scale)
+    {
+        scale.ThrowIfNotAbove(0, nameof(scale));
+        return IndicatorSpec.Of(0, $"IFT(scale={scale.InvariantText("0.##")})");
     }
 
     /// <inheritdoc />
@@ -41,11 +50,13 @@ public sealed class InverseFisherTransform : Indicator<SignalResult>
         return result;
     }
 
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingInverseFisherTransform"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Signed;
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), warmup: 0);
-        axes.YAxis.Min = -1;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

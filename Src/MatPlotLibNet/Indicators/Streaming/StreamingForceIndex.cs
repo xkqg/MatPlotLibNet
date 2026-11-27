@@ -3,10 +3,11 @@
 
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming ForceIndex: the force index: the volume times the change of the close, smoothed by an exponential average. It is the <see cref="ForceIndexStep"/> the batch <see cref="ForceIndex"/> folds over its input, taken
+/// <summary>Streaming ForceIndex: the force index: the volume times the change of the close, smoothed by an exponential average. It is the step the batch <see cref="ForceIndex"/> folds over its input, taken
 /// one bar at a time, so after each one it says what the batch says over everything so far; a value the batch does not have yet
 /// is NaN. O(1) per input.</summary>
 public sealed class StreamingForceIndex : StreamingIndicator<OhlcvBar>
@@ -14,18 +15,15 @@ public sealed class StreamingForceIndex : StreamingIndicator<OhlcvBar>
     private ForceIndexStep _step;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => 2;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming ForceIndex.</summary>
     /// <param name="period">The period of the smoothing; 1 leaves the raw force.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingForceIndex(int period = 13, int capacity = 10_000)
-        : base(capacity)
+    public StreamingForceIndex(int period = ForceIndex.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(ForceIndex.Spec(period), capacity)
     {
-        if (period < 1)
-            throw new ArgumentException($"period must be >= 1 (got {period}).", nameof(period));
         _step = new ForceIndexStep(period);
-        Label = $"Force({period})";
     }
 
     /// <inheritdoc />

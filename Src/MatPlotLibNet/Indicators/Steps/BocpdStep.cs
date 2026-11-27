@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// price is scored under each run by a normal predictive, the mass moves one run longer (or to the longest run) or falls back to
 /// run length 0 by the hazard, and the probabilities are normalised; the output is the probability of run length 0, that is, of a
 /// change at this price. The first price only starts the first run, so the step says NaN for it. The state is as large as the longest run length.</summary>
-internal struct BocpdStep
+internal struct BocpdStep : IPriceStep<double>
 {
     private static readonly double Sqrt2Pi = Math.Sqrt(2 * Math.PI);
 
@@ -42,7 +42,7 @@ internal struct BocpdStep
 
     /// <summary>Takes one price and returns the probability that a change happened at it, NaN for the first price.</summary>
     /// <param name="price">The price.</param>
-    internal double Next(double price)
+    public double Next(double price)
     {
         if (_seen++ == 0)
         {

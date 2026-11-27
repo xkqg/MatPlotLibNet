@@ -26,7 +26,7 @@ internal static class Gamma
     /// <returns>ln Γ(x); NaN for x at or below 0 or NaN.</returns>
     internal static double LogGamma(double x)
     {
-        if (double.IsNaN(x) || x <= 0) return double.NaN;
+        if (x.IsUndefinedShape()) return double.NaN;
         if (x == 1 || x == 2) return 0;
         if (x < 0.5) return Math.Log(Math.PI / Math.Sin(Math.PI * x)) - LogGamma(1 - x);
 
@@ -47,7 +47,7 @@ internal static class Gamma
     /// <returns>ψ(x), or NaN for a <paramref name="x"/> that is not above 0 (or not a number).</returns>
     internal static double Digamma(double x)
     {
-        if (double.IsNaN(x) || x <= 0) return double.NaN;
+        if (x.IsUndefinedShape()) return double.NaN;
         if (double.IsPositiveInfinity(x)) return x;
         if (x <= MaxHarmonic && x == Math.Floor(x))
         {
@@ -79,7 +79,7 @@ internal static class Gamma
     /// <returns>Q(a, x) in [0, 1]; NaN for a at or below 0, or a missing number.</returns>
     internal static double RegularisedUpper(double a, double x)
     {
-        if (double.IsNaN(a) || double.IsNaN(x) || a <= 0) return double.NaN;
+        if (a.IsUndefinedShape() || double.IsNaN(x)) return double.NaN;
         if (x <= 0) return 1;
         if (double.IsPositiveInfinity(x)) return 0;
 

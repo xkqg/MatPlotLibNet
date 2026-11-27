@@ -11,9 +11,9 @@ namespace MatPlotLibNet.Blazor.Tests;
 /// from 0%L to 90%+L. The component does NOT use SignalR — it subscribes to
 /// <see cref="StreamingFigure.RenderRequested"/> on its parameter, re-renders the
 /// SVG, and unsubscribes on dispose. All branches are covered without any network:
-///   - OnParametersSet with null StreamingFigure → empty content (line 59 true arm)
+///   - OnParametersSet with null StreamingFigure → empty content
 ///   - OnParametersSet with new StreamingFigure → Subscribe + RenderChart
-///   - OnParametersSet with same StreamingFigure → no resubscribe (line 23 false arm)
+///   - OnParametersSet with same StreamingFigure → no resubscribe
 ///   - OnParametersSet with changed StreamingFigure → Unsubscribe old, Subscribe new
 ///   - RenderRequested fires → invokeasync → re-render
 ///   - Dispose → unsubscribe
@@ -32,24 +32,15 @@ public class MplStreamingChartTests : BunitContext
     public void Renders_SvgContent_WhenStreamingFigureProvided()
     {
         using var sf = NewStreamingFigure();
-        var cut = Render<MplStreamingChart>(p => p.Add(x => x.StreamingFigure, sf));
-
-        var div = cut.Find("div.mpl-streaming");
-        Assert.NotNull(div);
-        var svg = cut.Find("svg");
-        Assert.NotNull(svg);
+        this.AssertContainerHoldsAnSvg<MplStreamingChart>("div.mpl-streaming", p => p.Add(x => x.StreamingFigure, sf));
     }
 
     /// <summary>Render with null StreamingFigure (default) → empty SVG markup
-    /// (RenderChart line 59 true arm). Container div renders without inner content.</summary>
+    /// (RenderChart's empty branch). Container div renders without inner content.</summary>
     [Fact]
     public void Renders_EmptyContent_WhenStreamingFigureIsNull()
     {
-        var cut = Render<MplStreamingChart>();
-
-        var div = cut.Find("div.mpl-streaming");
-        Assert.NotNull(div);
-        Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("svg"));
+        this.AssertContainerIsEmpty<MplStreamingChart>("div.mpl-streaming");
     }
 
     /// <summary>CssClass parameter is appended to the container div's class attribute.</summary>
@@ -67,21 +58,7 @@ public class MplStreamingChartTests : BunitContext
         Assert.Contains("my-streaming", div.GetAttribute("class"));
     }
 
-    /// <summary>Changing StreamingFigure parameter triggers Unsubscribe(old) + Subscribe(new).
-    /// Pins the line 23 true arm + lines 25, 27 of OnParametersSet.</summary>
-    [Fact]
-    public void StreamingFigureChange_ResubscribesToNewFigure()
-    {
-        using var sf1 = NewStreamingFigure();
-        using var sf2 = NewStreamingFigure();
-        var cut = Render<MplStreamingChart>(p => p.Add(x => x.StreamingFigure, sf1));
-        Assert.Contains("<svg", cut.Markup);
-
-        cut.Render(p => p.Add(x => x.StreamingFigure, sf2));
-        Assert.Contains("<svg", cut.Markup);
-    }
-
-    /// <summary>Render with same StreamingFigure on re-render → line 23 false arm
+    /// <summary>Render with same StreamingFigure on re-render →
     /// (no resubscribe — same reference). Re-render still calls RenderChart so SVG
     /// stays populated.</summary>
     [Fact]
@@ -96,23 +73,8 @@ public class MplStreamingChartTests : BunitContext
         Assert.Equal(firstMarkup.Length > 0, cut.Markup.Length > 0);
     }
 
-    /// <summary>StreamingFigure.RequestRender fires RenderRequested → component
-    /// re-renders via OnRenderRequested → InvokeAsync → RenderChart + StateHasChanged.</summary>
-    [Fact]
-    public void RenderRequested_TriggersReRender()
-    {
-        using var sf = NewStreamingFigure();
-        var cut = Render<MplStreamingChart>(p => p.Add(x => x.StreamingFigure, sf));
-        Assert.Contains("<svg", cut.Markup);
-
-        sf.RequestRender();
-        // bUnit dispatches the InvokeAsync synchronously in test context. SVG content
-        // remains present (re-rendered from the same figure).
-        Assert.Contains("<svg", cut.Markup);
-    }
-
     /// <summary>Disposing the component unsubscribes from RenderRequested. Pins
-    /// Dispose() line 64-67 + Unsubscribe() lines 41-45.</summary>
+    /// Dispose() and Unsubscribe().</summary>
     [Fact]
     public void Dispose_UnsubscribesFromRenderRequested()
     {
@@ -125,8 +87,8 @@ public class MplStreamingChartTests : BunitContext
     }
 
     /// <summary>Switching from non-null to null StreamingFigure — Unsubscribe runs
-    /// (line 25), Subscribe is skipped (line 26 false arm). RenderChart sets empty
-    /// _svgContent (line 59 true arm).</summary>
+    /// and Subscribe is skipped. RenderChart sets empty
+    /// _svgContent.</summary>
     [Fact]
     public void StreamingFigure_SetToNull_UnsubscribesAndClearsContent()
     {

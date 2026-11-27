@@ -6,13 +6,19 @@ using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Tests.Models.Series.Graph;
 
-/// <summary>v1.10 — pure-function tests for the deterministic graph layouts (Manual,
-/// Circular, Hierarchical). ForceDirected (and its seeded-RNG convergence tests) is
-/// covered separately in the v1.10 PR 2 follow-up.</summary>
+/// <summary>Pure-function tests for the deterministic graph layouts (Manual, Circular, Hierarchical). ForceDirected, with its
+/// seeded-random convergence tests, is held by <c>GraphLayoutAlgorithmTests</c> and <c>ForceDirectedLayoutRenderTests</c>.</summary>
 public class NetworkGraphLayoutTests
 {
     private static GraphNode N(string id, double x = 0, double y = 0) => new(id, x, y);
     private static GraphEdge E(string from, string to, bool directed = false) => new(from, to, 1.0, directed);
+
+    private static GraphNode[] SpringEmbedded(IReadOnlyList<GraphNode> nodes, IReadOnlyList<GraphEdge> edges, int seed = 0,
+        int iterations = ForceDirectedGraphLayout.DefaultIterations, double? convergenceThreshold = null) =>
+        new ForceDirectedGraphLayout(seed, iterations, convergenceThreshold).Place(nodes, edges);
+
+    private static GraphNode[] Placed(GraphLayout layout, IReadOnlyList<GraphNode> nodes, IReadOnlyList<GraphEdge> edges) =>
+        GraphLayoutAlgorithm.For(new NetworkGraphSeries(nodes, edges) { Layout = layout }).Place(nodes, edges);
 
     // ── Manual: pass-through ──────────────────────────────────────────────────
 
@@ -20,7 +26,7 @@ public class NetworkGraphLayoutTests
     public void Manual_PassesNodeCoordsThroughVerbatim()
     {
         var nodes = new[] { N("a", 1.5, 2.5), N("b", -3, 4), N("c", 0, 0) };
-        var positioned = NetworkGraphLayouts.ApplyManual(nodes);
+        var positioned = GraphLayoutAlgorithm.Manual.Place(nodes, []);
 
         Assert.Equal(3, positioned.Length);
         Assert.Equal(1.5, positioned[0].X);
@@ -32,7 +38,7 @@ public class NetworkGraphLayoutTests
     [Fact]
     public void Manual_EmptyInput_ReturnsEmpty()
     {
-        var positioned = NetworkGraphLayouts.ApplyManual([]);
+        var positioned = GraphLayoutAlgorithm.Manual.Place([], []);
         Assert.Empty(positioned);
     }
 
@@ -43,7 +49,7 @@ public class NetworkGraphLayoutTests
         {
             new GraphNode("alpha", 1, 1, ColorScalar: 0.5, SizeScalar: 2.0, Label: "A"),
         };
-        var positioned = NetworkGraphLayouts.ApplyManual(nodes);
+        var positioned = GraphLayoutAlgorithm.Manual.Place(nodes, []);
         Assert.Equal("alpha", positioned[0].Id);
         Assert.Equal("A",     positioned[0].Label);
         Assert.Equal(0.5,     positioned[0].ColorScalar);
@@ -55,7 +61,7 @@ public class NetworkGraphLayoutTests
     [Fact]
     public void Circular_SingleNode_AtFirstAngle()
     {
-        var positioned = NetworkGraphLayouts.ApplyCircular([N("a")]);
+        var positioned = GraphLayoutAlgorithm.Circular.Place([N("a")], []);
         Assert.Single(positioned);
         // angle 0 → (1, 0)
         Assert.Equal(1.0, positioned[0].X, precision: 10);
@@ -65,7 +71,7 @@ public class NetworkGraphLayoutTests
     [Fact]
     public void Circular_FourNodes_OnCardinalAngles()
     {
-        var positioned = NetworkGraphLayouts.ApplyCircular([N("a"), N("b"), N("c"), N("d")]);
+        var positioned = GraphLayoutAlgorithm.Circular.Place([N("a"), N("b"), N("c"), N("d")], []);
         // 0°, 90°, 180°, 270°
         Assert.Equal( 1.0, positioned[0].X, precision: 10); Assert.Equal( 0.0, positioned[0].Y, precision: 10);
         Assert.Equal( 0.0, positioned[1].X, precision: 10); Assert.Equal( 1.0, positioned[1].Y, precision: 10);
@@ -77,7 +83,7 @@ public class NetworkGraphLayoutTests
     public void Circular_AnyN_AllPositionsOnUnitCircle()
     {
         var nodes = Enumerable.Range(0, 17).Select(i => N($"n{i}")).ToArray();
-        var positioned = NetworkGraphLayouts.ApplyCircular(nodes);
+        var positioned = GraphLayoutAlgorithm.Circular.Place(nodes, []);
         foreach (var p in positioned)
         {
             double r = Math.Sqrt(p.X * p.X + p.Y * p.Y);
@@ -89,17 +95,21 @@ public class NetworkGraphLayoutTests
     public void Circular_PreservesIdLabelAndScalars()
     {
         var n = new GraphNode("n0", 999, 999, ColorScalar: 0.7, SizeScalar: 3.0, Label: "label");
-        var positioned = NetworkGraphLayouts.ApplyCircular([n]);
+        var positioned = GraphLayoutAlgorithm.Circular.Place([n], []);
         Assert.Equal("n0",    positioned[0].Id);
         Assert.Equal("label", positioned[0].Label);
         Assert.Equal(0.7,     positioned[0].ColorScalar);
         Assert.Equal(3.0,     positioned[0].SizeScalar);
     }
 
-    [Fact]
-    public void Circular_EmptyInput_ReturnsEmpty()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACircularOrHierarchicalLayout_OfNoInput_ReturnsEmpty(bool circular)
     {
-        Assert.Empty(NetworkGraphLayouts.ApplyCircular([]));
+        GraphLayoutAlgorithm layout = circular ? GraphLayoutAlgorithm.Circular : GraphLayoutAlgorithm.Hierarchical;
+
+        Assert.Empty(layout.Place([], []));
     }
 
     // ── Hierarchical: BFS layering top-down from first node ───────────────────
@@ -110,7 +120,7 @@ public class NetworkGraphLayoutTests
         // a → b → c (3 layers, 1 node each)
         var nodes = new[] { N("a"), N("b"), N("c") };
         var edges = new[] { E("a", "b"), E("b", "c") };
-        var positioned = NetworkGraphLayouts.ApplyHierarchical(nodes, edges);
+        var positioned = GraphLayoutAlgorithm.Hierarchical.Place(nodes, edges);
 
         Assert.Equal(3, positioned.Length);
         // Y is depth: a (depth 0) at top, c (depth 2) at bottom.
@@ -125,7 +135,7 @@ public class NetworkGraphLayoutTests
         // a → {b, c, d}: 1 root, 3 leaves
         var nodes = new[] { N("a"), N("b"), N("c"), N("d") };
         var edges = new[] { E("a", "b"), E("a", "c"), E("a", "d") };
-        var positioned = NetworkGraphLayouts.ApplyHierarchical(nodes, edges);
+        var positioned = GraphLayoutAlgorithm.Hierarchical.Place(nodes, edges);
 
         Assert.Equal(4, positioned.Length);
         // Root (a) Y < all leaves' Y.
@@ -145,7 +155,7 @@ public class NetworkGraphLayoutTests
     public void Hierarchical_NoEdges_AllNodesAtDepthZero()
     {
         var nodes = new[] { N("a"), N("b"), N("c") };
-        var positioned = NetworkGraphLayouts.ApplyHierarchical(nodes, []);
+        var positioned = GraphLayoutAlgorithm.Hierarchical.Place(nodes, []);
         // Without edges, every node is at depth 0.
         Assert.Equal(positioned[0].Y, positioned[1].Y, precision: 10);
         Assert.Equal(positioned[1].Y, positioned[2].Y, precision: 10);
@@ -157,7 +167,7 @@ public class NetworkGraphLayoutTests
         // a → b → c → a — cycle. BFS must not infinite-loop.
         var nodes = new[] { N("a"), N("b"), N("c") };
         var edges = new[] { E("a", "b"), E("b", "c"), E("c", "a") };
-        var ex = Record.Exception(() => NetworkGraphLayouts.ApplyHierarchical(nodes, edges));
+        var ex = Record.Exception(() => GraphLayoutAlgorithm.Hierarchical.Place(nodes, edges));
         Assert.Null(ex);
     }
 
@@ -167,16 +177,10 @@ public class NetworkGraphLayoutTests
         // a → b reachable from a; c is disconnected
         var nodes = new[] { N("a"), N("b"), N("c") };
         var edges = new[] { E("a", "b") };
-        var positioned = NetworkGraphLayouts.ApplyHierarchical(nodes, edges);
+        var positioned = GraphLayoutAlgorithm.Hierarchical.Place(nodes, edges);
         Assert.Equal(3, positioned.Length);
         // c (disconnected) defaults to depth 0 like a, not depth 1.
         Assert.Equal(positioned[0].Y, positioned[2].Y, precision: 10);
-    }
-
-    [Fact]
-    public void Hierarchical_EmptyInput_ReturnsEmpty()
-    {
-        Assert.Empty(NetworkGraphLayouts.ApplyHierarchical([], []));
     }
 
     // ── Apply (dispatch) — pre-PR2 ForceDirected falls back to Manual ─────────
@@ -185,14 +189,14 @@ public class NetworkGraphLayoutTests
     public void Apply_Manual_DispatchesToManual()
     {
         var nodes = new[] { N("a", 5, 5) };
-        var positioned = NetworkGraphLayouts.Apply(GraphLayout.Manual, nodes, []);
+        var positioned = Placed(GraphLayout.Manual, nodes, []);
         Assert.Equal(5, positioned[0].X);
     }
 
     [Fact]
     public void Apply_Circular_DispatchesToCircular()
     {
-        var positioned = NetworkGraphLayouts.Apply(GraphLayout.Circular, [N("a", 99, 99)], []);
+        var positioned = Placed(GraphLayout.Circular, [N("a", 99, 99)], []);
         // Circular ignores the input X/Y — so X must NOT be 99.
         Assert.NotEqual(99, positioned[0].X);
     }
@@ -200,7 +204,7 @@ public class NetworkGraphLayoutTests
     [Fact]
     public void Apply_Hierarchical_DispatchesToHierarchical()
     {
-        var positioned = NetworkGraphLayouts.Apply(GraphLayout.Hierarchical,
+        var positioned = Placed(GraphLayout.Hierarchical,
             [N("a"), N("b")], [E("a", "b")]);
         Assert.True(positioned[0].Y < positioned[1].Y);
     }
@@ -217,8 +221,8 @@ public class NetworkGraphLayoutTests
     {
         var nodes = new[] { N("a"), N("b"), N("c"), N("d"), N("e") };
         var edges = new[] { E("a", "b"), E("b", "c"), E("c", "d"), E("d", "e"), E("e", "a") };
-        var p1 = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 42);
-        var p2 = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 42);
+        var p1 = SpringEmbedded(nodes, edges, seed: 42);
+        var p2 = SpringEmbedded(nodes, edges, seed: 42);
         Assert.Equal(p1.Length, p2.Length);
         for (int i = 0; i < p1.Length; i++)
         {
@@ -232,8 +236,8 @@ public class NetworkGraphLayoutTests
     {
         var nodes = new[] { N("a"), N("b"), N("c"), N("d"), N("e") };
         var edges = new[] { E("a", "b"), E("b", "c") };
-        var p1 = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 1);
-        var p2 = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 999);
+        var p1 = SpringEmbedded(nodes, edges, seed: 1);
+        var p2 = SpringEmbedded(nodes, edges, seed: 999);
         // At least one node must land at a different position.
         bool anyDifferent = false;
         for (int i = 0; i < p1.Length; i++)
@@ -247,7 +251,7 @@ public class NetworkGraphLayoutTests
     {
         var nodes = Enumerable.Range(0, 20).Select(i => N($"n{i}")).ToArray();
         var edges = Enumerable.Range(0, 19).Select(i => E($"n{i}", $"n{i + 1}")).ToArray();
-        var positioned = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 7);
+        var positioned = SpringEmbedded(nodes, edges, seed: 7);
         foreach (var p in positioned)
         {
             Assert.True(p.X >= -1.0 - 1e-9 && p.X <= 1.0 + 1e-9, $"X out of [-1,1]: {p.X}");
@@ -263,7 +267,7 @@ public class NetworkGraphLayoutTests
             new GraphNode("alpha", 999, 999, ColorScalar: 0.5, SizeScalar: 2.0, Label: "A"),
             new GraphNode("beta",  0,   0,   ColorScalar: 0.3, SizeScalar: 1.0, Label: "B"),
         };
-        var positioned = NetworkGraphLayouts.ApplyForceDirected(nodes, [E("alpha", "beta")], seed: 0);
+        var positioned = SpringEmbedded(nodes, [E("alpha", "beta")], seed: 0);
         Assert.Equal("alpha", positioned[0].Id);
         Assert.Equal("A",     positioned[0].Label);
         Assert.Equal(0.5,     positioned[0].ColorScalar);
@@ -273,17 +277,16 @@ public class NetworkGraphLayoutTests
     [Fact]
     public void ForceDirected_EmptyInput_ReturnsEmpty()
     {
-        Assert.Empty(NetworkGraphLayouts.ApplyForceDirected([], [], seed: 0));
+        Assert.Empty(SpringEmbedded([], [], seed: 0));
     }
 
     [Fact]
     public void ForceDirected_SingleNode_ReturnsCenterPosition()
     {
-        var positioned = NetworkGraphLayouts.ApplyForceDirected([N("solo")], [], seed: 0);
+        var positioned = SpringEmbedded([N("solo")], [], seed: 0);
         Assert.Single(positioned);
         // Single-node graph has no forces; just confirm it lands somewhere finite.
-        Assert.True(double.IsFinite(positioned[0].X));
-        Assert.True(double.IsFinite(positioned[0].Y));
+        new[] { positioned[0].X, positioned[0].Y }.AssertAllFinite("a node");
     }
 
     [Fact]
@@ -297,7 +300,7 @@ public class NetworkGraphLayoutTests
             E("a", "b"), E("b", "c"), E("c", "a"),
             E("d", "e"), E("e", "f"), E("f", "d"),
         };
-        var ex = Record.Exception(() => NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 0));
+        var ex = Record.Exception(() => SpringEmbedded(nodes, edges, seed: 0));
         Assert.Null(ex);
     }
 
@@ -307,11 +310,10 @@ public class NetworkGraphLayoutTests
         // Self-loops would normally cause d=0 division. Defensive code path.
         var nodes = new[] { N("a"), N("b") };
         var edges = new[] { E("a", "a"), E("b", "b"), E("a", "b") };
-        var positioned = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 0);
+        var positioned = SpringEmbedded(nodes, edges, seed: 0);
         foreach (var p in positioned)
         {
-            Assert.True(double.IsFinite(p.X));
-            Assert.True(double.IsFinite(p.Y));
+            new[] { p.X, p.Y }.AssertAllFinite("a node");
         }
     }
 
@@ -321,12 +323,11 @@ public class NetworkGraphLayoutTests
         // High threshold → loop will likely exit very early, but result must still be valid.
         var nodes = new[] { N("a"), N("b"), N("c"), N("d") };
         var edges = new[] { E("a", "b"), E("b", "c"), E("c", "d") };
-        var positioned = NetworkGraphLayouts.ApplyForceDirected(
+        var positioned = SpringEmbedded(
             nodes, edges, seed: 0, iterations: 100, convergenceThreshold: 1e3);
         foreach (var p in positioned)
         {
-            Assert.True(double.IsFinite(p.X));
-            Assert.True(double.IsFinite(p.Y));
+            new[] { p.X, p.Y }.AssertAllFinite("a node");
         }
     }
 
@@ -336,11 +337,10 @@ public class NetworkGraphLayoutTests
         // Only 5 iterations → coarse layout, but no NaN or out-of-bounds.
         var nodes = new[] { N("a"), N("b"), N("c") };
         var edges = new[] { E("a", "b"), E("b", "c") };
-        var positioned = NetworkGraphLayouts.ApplyForceDirected(nodes, edges, seed: 0, iterations: 5);
+        var positioned = SpringEmbedded(nodes, edges, seed: 0, iterations: 5);
         foreach (var p in positioned)
         {
-            Assert.True(double.IsFinite(p.X));
-            Assert.True(double.IsFinite(p.Y));
+            new[] { p.X, p.Y }.AssertAllFinite("a node");
             Assert.True(p.X >= -1.0 - 1e-9 && p.X <= 1.0 + 1e-9);
             Assert.True(p.Y >= -1.0 - 1e-9 && p.Y <= 1.0 + 1e-9);
         }
@@ -351,7 +351,7 @@ public class NetworkGraphLayoutTests
     {
         // After PR 2 the Apply dispatcher must call the F-R body, not Manual.
         // Verifies by checking that input X/Y is NOT preserved (Manual would pass through).
-        var positioned = NetworkGraphLayouts.Apply(GraphLayout.ForceDirected, [N("a", 9999, 9999), N("b", -9999, -9999)], [E("a", "b")]);
+        var positioned = Placed(GraphLayout.ForceDirected, [N("a", 9999, 9999), N("b", -9999, -9999)], [E("a", "b")]);
         Assert.NotEqual(9999, positioned[0].X);
         Assert.NotEqual(-9999, positioned[1].X);
     }

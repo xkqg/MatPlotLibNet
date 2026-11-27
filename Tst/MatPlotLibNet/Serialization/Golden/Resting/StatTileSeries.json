@@ -1,0 +1,17 @@
+{
+  "AccentColor": "null",
+  "Caption": "null",
+  "Condition": "{Severity: Normal, Visibility: Observed}",
+  "Expanded": "false",
+  "FontSize": "14",
+  "Format": "'0.##'",
+  "Hatch": "None",
+  "HatchColor": "null",
+  "Label": "null",
+  "Target": "null",
+  "Trend": "null",
+  "TrendColor": "null",
+  "Url": "null",
+  "Visible": "true",
+  "ZOrder": "0"
+}

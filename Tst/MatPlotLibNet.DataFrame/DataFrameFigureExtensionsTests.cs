@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Microsoft.Data.Analysis;
+using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -45,11 +46,13 @@ public class DataFrameFigureExtensionsTests
         Assert.Equal(4, s.XData.Length);
     }
 
-    [Fact]
-    public void Line_WithHue_OneSeriesPerGroup()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ALineOrAScatter_WithHue_IsOneSeriesPerGroup(bool line)
     {
         var df = MakeXYDf([1, 2, 3, 4], [1.0, 2.0, 3.0, 4.0], ["A", "A", "B", "B"]);
-        var fig = df.Line("x", "y", hue: "group").Build();
+        var fig = (line ? df.Line("x", "y", hue: "group") : df.Scatter("x", "y", hue: "group")).Build();
         Assert.Equal(2, fig.SubPlots[0].Series.Count);
     }
 
@@ -74,21 +77,46 @@ public class DataFrameFigureExtensionsTests
         Assert.Equal(red, firstSeries.Color);
     }
 
-    [Fact]
-    public void Line_UnknownColumn_ThrowsArgumentException()
+    [Theory]
+    [InlineData("Line")]
+    [InlineData("Clustermap")]
+    [InlineData("PairGrid")]
+    [InlineData("NetworkGraph")]
+    public void AColumnTheFrameDoesNotHold_IsRefusedByName(string verb)
     {
-        var df = MakeXYDf([1, 2], [1.0, 2.0]);
-        var ex = Assert.Throws<ArgumentException>(() => df.Line("x", "missing"));
+        var ex = Assert.Throws<ArgumentException>(() => (verb switch
+        {
+            "Line" => MakeXYDf([1, 2], [1.0, 2.0]).Line("x", "missing"),
+            "Clustermap" => MakeMatrixDf().Clustermap(["A", "missing"]),
+            "PairGrid" => MakePairDf().PairGrid(["petal_l", "missing"]),
+            _ => MakeEdgeListDf().NetworkGraph("source", "missing"),
+        }).Build());
         Assert.Contains("missing", ex.Message);
     }
 
-    [Fact]
-    public void Line_ReturnsChainableFigureBuilder()
+    /// <summary>The four verbs that draw one chart from a frame return the figure builder, so a call chains on.</summary>
+    public static TheoryData<Func<FigureBuilder>> ChartsOfAFrame => new()
     {
-        var df = MakeXYDf([1, 2, 3], [1.0, 2.0, 3.0]);
-        var fig = df.Line("x", "y").WithTitle("My Chart").Build();
-        Assert.Equal("My Chart", fig.Title);
-    }
+        () => MakeXYDf([1, 2, 3], [1.0, 2.0, 3.0]).Line("x", "y"),
+        () => MakeMatrixDf().Clustermap(["A", "B"]),
+        () => MakePairDf().PairGrid(["petal_l", "petal_w"]),
+        () => MakeEdgeListDf().NetworkGraph("source", "target"),
+    };
+
+    [Theory]
+    [MemberData(nameof(ChartsOfAFrame))]
+    public void ReturnsChainableFigureBuilder(Func<FigureBuilder> chart) => Assert.Equal("Chained", chart().WithTitle("Chained").Build().Title);
+
+    /// <summary>The two matrix verbs refuse a list of no columns.</summary>
+    public static TheoryData<Func<FigureBuilder>> ChartsOfNoColumns => new()
+    {
+        () => MakeMatrixDf().Clustermap([]),
+        () => MakePairDf().PairGrid([]),
+    };
+
+    [Theory]
+    [MemberData(nameof(ChartsOfNoColumns))]
+    public void EmptyColumns_ThrowsArgumentException(Func<FigureBuilder> chart) => Assert.Throws<ArgumentException>(() => chart().Build());
 
     // ── Scatter ───────────────────────────────────────────────────────────────
 
@@ -99,14 +127,6 @@ public class DataFrameFigureExtensionsTests
         var fig = df.Scatter("x", "y").Build();
         Assert.Single(fig.SubPlots[0].Series);
         Assert.IsType<ScatterSeries>(fig.SubPlots[0].Series[0]);
-    }
-
-    [Fact]
-    public void Scatter_WithHue_OneSeriesPerGroup()
-    {
-        var df = MakeXYDf([1, 2, 3, 4], [1.0, 2.0, 3.0, 4.0], ["A", "A", "B", "B"]);
-        var fig = df.Scatter("x", "y", hue: "group").Build();
-        Assert.Equal(2, fig.SubPlots[0].Series.Count);
     }
 
     // ── Hist ──────────────────────────────────────────────────────────────────
@@ -122,13 +142,13 @@ public class DataFrameFigureExtensionsTests
     }
 
     [Fact]
-    public void Hist_DefaultBins_Is30()
+    public void Hist_DefaultBins_IsTheHistogramsOwn()
     {
         var df = new Microsoft.Data.Analysis.DataFrame(
             new PrimitiveDataFrameColumn<double>("val", Enumerable.Range(0, 50).Select(i => (double)i).ToArray()));
         var fig = df.Hist("val").Build();
         var s = (HistogramSeries)fig.SubPlots[0].Series[0];
-        Assert.Equal(30, s.Bins);
+        Assert.Equal(HistogramSeries.RestingBins, s.Bins);
     }
 
     [Fact]
@@ -209,28 +229,6 @@ public class DataFrameFigureExtensionsTests
         Assert.True(s.ShowLabels);
     }
 
-    [Fact]
-    public void Clustermap_UnknownColumn_ThrowsArgumentException()
-    {
-        var ex = Assert.Throws<ArgumentException>(
-            () => MakeMatrixDf().Clustermap(["A", "missing"]).Build());
-        Assert.Contains("missing", ex.Message);
-    }
-
-    [Fact]
-    public void Clustermap_EmptyColumns_ThrowsArgumentException()
-    {
-        Assert.Throws<ArgumentException>(
-            () => MakeMatrixDf().Clustermap([]).Build());
-    }
-
-    [Fact]
-    public void Clustermap_ReturnsChainableFigureBuilder()
-    {
-        var fig = MakeMatrixDf().Clustermap(["A", "B"]).WithTitle("Heat").Build();
-        Assert.Equal("Heat", fig.Title);
-    }
-
     // ── PairGrid ──────────────────────────────────────────────────────────────
 
     private static Microsoft.Data.Analysis.DataFrame MakePairDf(string[]? hues = null)
@@ -286,26 +284,17 @@ public class DataFrameFigureExtensionsTests
         Assert.Contains("B", s.HueLabels);
     }
 
+    /// <summary>The groups of a hue are numbered in the order their labels are first seen, as a pair plot of the library and
+    /// seaborn's (a hue of strings, unordered) number them, so the first label seen wears the first colour of the palette.</summary>
     [Fact]
-    public void PairGrid_UnknownColumn_ThrowsArgumentException()
+    public void PairGrid_WithHue_NumbersTheGroupsInTheOrderTheirLabelsAreFirstSeen()
     {
-        var ex = Assert.Throws<ArgumentException>(
-            () => MakePairDf().PairGrid(["petal_l", "missing"]).Build());
-        Assert.Contains("missing", ex.Message);
-    }
+        var df = MakePairDf(["B", "A", "B", "A"]);
+        var fig = df.PairGrid(["petal_l", "petal_w"], hue: "species").Build();
+        var s = (MatPlotLibNet.Models.Series.PairGridSeries)fig.SubPlots[0].Series[0];
 
-    [Fact]
-    public void PairGrid_EmptyColumns_ThrowsArgumentException()
-    {
-        Assert.Throws<ArgumentException>(
-            () => MakePairDf().PairGrid([]).Build());
-    }
-
-    [Fact]
-    public void PairGrid_ReturnsChainableFigureBuilder()
-    {
-        var fig = MakePairDf().PairGrid(["petal_l", "petal_w"]).WithTitle("Pairs").Build();
-        Assert.Equal("Pairs", fig.Title);
+        Assert.Equal(["B", "A"], s.HueLabels!);
+        Assert.Equal([0, 1, 0, 1], s.HueGroups!);
     }
 
     [Fact]
@@ -415,20 +404,6 @@ public class DataFrameFigureExtensionsTests
         Assert.True( s.Edges[0].IsDirected);
         Assert.False(s.Edges[1].IsDirected);
         Assert.True( s.Edges[2].IsDirected);
-    }
-
-    [Fact]
-    public void NetworkGraph_UnknownColumn_ThrowsArgumentException()
-    {
-        Assert.Throws<ArgumentException>(
-            () => MakeEdgeListDf().NetworkGraph("source", "missing").Build());
-    }
-
-    [Fact]
-    public void NetworkGraph_ReturnsChainableFigureBuilder()
-    {
-        var fig = MakeEdgeListDf().NetworkGraph("source", "target").WithTitle("My Graph").Build();
-        Assert.Equal("My Graph", fig.Title);
     }
 
     [Fact]

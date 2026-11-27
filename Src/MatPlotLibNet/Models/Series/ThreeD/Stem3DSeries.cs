@@ -9,13 +9,17 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D stem series — vertical lines from the XY-plane to each (X, Y, Z) data point.</summary>
-public sealed class Stem3DSeries : XYZSeries, IHasColor
+public sealed class Stem3DSeries : XYZSeries, IHasColor, ISeriesKind<Stem3DSeries>
 {
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    /// <remarks><c>Axes3D.stem</c> draws in <c>'C0'</c> and asks neither cycle.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Mesh;
 
-    /// <summary>The size of the marker at the top of each stem, in points. Default 6.</summary>
-    public double MarkerSize { get; set; } = 6;
+    /// <inheritdoc />
+    public Color? Color { get; set => Change(ref field, value); }
+
+    /// <summary>The size of the marker at the top of each stem, in points. Default <see cref="MarkerLook.RestingSize"/>.</summary>
+    public double MarkerSize { get; set => Change(ref field, value); } = MarkerLook.RestingSize;
 
     /// <summary>Colour of the baseline polyline drawn at <c>z = 0</c> through every stem
     /// base point in sequence order. Matches matplotlib's <c>ax.stem(basefmt='C2-')</c>
@@ -23,15 +27,17 @@ public sealed class Stem3DSeries : XYZSeries, IHasColor
     /// vertical stem lines and markers. Set to <see langword="null"/> to suppress the
     /// baseline entirely. Defaults to the same colour as the stem line (<see cref="Color"/>)
     /// so a single-colour theme override works as expected.</summary>
-    public Color? BaseLineColor { get; set; }
+    public Color? BaseLineColor { get; set => Change(ref field, value); }
 
     /// <summary>Initializes a new instance of <see cref="Stem3DSeries"/>.</summary>
     public Stem3DSeries(Vec x, Vec y, Vec z) : base(x, y, z) { }
 
+    static string ISeriesKind<Stem3DSeries>.Kind => "stem3d";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "stem3d",
+        Type = this.WireKind(),
         XData = X,
         YData = Y,
         ZData = Z,
@@ -40,21 +46,12 @@ public sealed class Stem3DSeries : XYZSeries, IHasColor
         BaselineColor = BaseLineColor,
     };
 
-    /// <summary>Reconstructs a <see cref="Stem3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="Stem3DSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static Stem3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Stem3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? []);
-        if (dto.MarkerSize.HasValue)
-        {
-            s.MarkerSize = dto.MarkerSize.Value;
-        }
-        if (dto.Color.HasValue)
-        {
-            s.Color = dto.Color.Value;
-        }
+        if (dto.MarkerSize is { } markerSize) s.MarkerSize = markerSize;
+        if (dto.Color is { } color) s.Color = color;
         s.BaseLineColor = dto.BaselineColor;
         return s;
     }

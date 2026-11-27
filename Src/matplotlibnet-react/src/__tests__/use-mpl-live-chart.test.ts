@@ -11,7 +11,7 @@ const mockUnsubscribe = vi.fn().mockResolvedValue(undefined);
 const mockDispose = vi.fn().mockResolvedValue(undefined);
 const mockOnSvgUpdated = vi.fn();
 
-vi.mock('../lib/chart-subscription.client', () => ({
+vi.mock('@matplotlibnet/client', () => ({
   ChartSubscriptionClient: vi.fn().mockImplementation(() => ({
     connect: mockConnect,
     subscribe: mockSubscribe,

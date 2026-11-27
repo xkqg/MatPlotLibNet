@@ -43,14 +43,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
-    <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
   </ItemGroup>
 
-  <!-- Include only UnoInputAdapter — MplChartElement.cs inherits SKCanvasElement which is
+  <!-- Include only UnoInputAdapter and ClickCounter — MplChartElement.cs inherits SKCanvasElement which is
        a source-generated type provided by Uno's build pipeline; it has no pre-compiled DLL
        for Windows targets so it cannot be included in a simple test project. -->
   <ItemGroup>
     <Compile Include="..\..\Src\MatPlotLibNet.Uno\UnoInputAdapter.cs" LinkBase="UnoSrc" />
+    <Compile Include="..\..\Src\MatPlotLibNet.Uno\ClickCounter.cs" LinkBase="UnoSrc" />
   </ItemGroup>
 
   <ItemGroup>

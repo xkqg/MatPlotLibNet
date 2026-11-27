@@ -15,5 +15,5 @@ public sealed class BarCenterFormatter : ITickFormatter, IJsonDescribed<TickForm
     TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new BarCenterTickFormatterDto();
 
     /// <inheritdoc />
-    public string Format(double value) => ((int)Math.Floor(value)).ToString();
+    public string Format(double value) => ((int)Math.Floor(value)).InvariantText();
 }

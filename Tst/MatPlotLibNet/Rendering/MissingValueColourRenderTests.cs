@@ -109,13 +109,15 @@ public class MissingValueColourRenderTests
         Assert.Null(thrown);
     }
 
-    [Fact]
-    public void AHeatmapUnderABoundaryNormalizer_DrawsAMissingCell_InTheBadColour_NotInTheLastBin()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Svg("heatmap", MapWithBadColour(), new BoundaryNormalizer([0, 0.25, 0.5, 0.75, 1]));
+        new DrawnToken("AHeatmapUnderABoundaryNormalizer_DrawsAMissingCell_InTheBadColour_NotInTheLastBin", () => Svg("heatmap", MapWithBadColour(), new BoundaryNormalizer([0, 0.25, 0.5, 0.75, 1])), $"fill=\"{BadHex}\""),
+    };
 
-        Assert.Contains($"fill=\"{BadHex}\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>A cell label states the cell's value; a missing cell has none, so it gets no label (seaborn's
     /// annotated heatmap leaves a masked cell blank).</summary>
@@ -128,8 +130,8 @@ public class MissingValueColourRenderTests
 
         new HeatmapSeriesRenderer(context).Render(new HeatmapSeries(Cells) { ShowLabels = true });
 
-        var labels = ctx.OfKind("DrawText").Select(c => (string)c.Args!.GetType().GetProperty("text")!.GetValue(c.Args)!).ToList();
+        var labels = ctx.Of<DrawTextCall>().Select(c => c.Text).ToList();
         Assert.Equal(3, labels.Count);
-        Assert.DoesNotContain(labels, l => l.Contains("NaN", StringComparison.Ordinal));
+        labels.AssertNoNonFiniteNumber("a label");
     }
 }

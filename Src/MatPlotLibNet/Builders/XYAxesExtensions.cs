@@ -7,6 +7,7 @@ using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet;
 
@@ -72,18 +73,12 @@ public static class XYAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(x);
             ArgumentNullException.ThrowIfNull(ranks);
-            if (ranks.Count == 0)
-            {
-                throw new ArgumentException("No groups were given; a bump chart draws one line per group.", nameof(ranks));
-            }
+            ranks.ThrowIfEmpty("No groups were given; a bump chart draws one line per group.");
 
             // Everything is checked before the first line is added, so a refused call leaves the axes as it was.
-            foreach (var group in ranks)
-            {
-                group.ThrowIfMisaligned(x.Length, nameof(ranks), "x values");
-            }
+            ranks.ThrowIfNotOneEach(x.Length, nameof(ranks), "x values");
 
-            ThrowIfNotRanks(x, ranks);
+            ranks.ThrowIfAnyNotAmount(nameof(ranks), x, static (of, i) => $"The rank of '{of.Label}' at x = {of.Places[i].InvariantText()}", least: 1);
 
             foreach (var group in ranks)
             {
@@ -226,24 +221,21 @@ public static class XYAxesExtensions
 
             if ((rules & ~ControlRules.All) != 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(rules), rules, "A rule is one of Nelson's eight tests (ControlRules.Nelson1 to Nelson8), alone or combined.");
+                throw rules.NotAMember(nameof(rules), "A rule is one of Nelson's eight tests (ControlRules.Nelson1 to Nelson8), alone or combined.");
             }
 
             // Everything is checked (and estimated) before the first part is added, so a refused call leaves the axes as it was.
             var drawn = limits is { } given ? given.ThrowIfNotOrdered() : data.Estimate();
             int[] flagged = NelsonRules.Flagged(rules, data.Values, drawn);
 
-            // The line first (the theme's first colour), the flagged points after it (the second, drawn over the line's markers).
+            // The line first (the theme's first colour), the flagged points after it (the second, drawn over the line's markers):
+            // matplotlib's plot(x, y, marker='o') and plot(xf, yf, 'o'), both asking the lines cycle under the matplotlib themes.
             var line = new LineSeries([.. data.X], [.. data.Values]) { Marker = MarkerStyle.Circle };
-            var violations = new ScatterSeries([.. flagged.Select(i => data.X[i])], [.. flagged.Select(i => data.Values[i])]);
-            ReferenceLine center = null!, lower = null!, upper = null!;
-            axes.AddSeries(line)
-                .AddSeries(violations)
-                .AxHLine(drawn.Center, r => { center = r; r.LineStyle = LineStyle.Solid; r.Label = CenterLineName; })
-                .AxHLine(drawn.Lower, r => { lower = r; r.Label = LowerLimitName; })
-                .AxHLine(drawn.Upper, r => { upper = r; r.Label = UpperLimitName; });
+            var violations = new ScatterSeries([.. flagged.Select(i => data.X[i])], [.. flagged.Select(i => data.Values[i])]) { AsksAs = CycleCall.Line };
+            axes.AddSeries(line).AddSeries(violations);
+            var lines = drawn.AddLinesTo(axes);
 
-            configure?.Invoke(new ControlChartParts(line, violations, center, lower, upper));
+            configure?.Invoke(new ControlChartParts(line, violations, lines.Center, lines.Lower, lines.Upper));
             return axes;
         }
 
@@ -319,23 +311,14 @@ public static class XYAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(x);
             ArgumentNullException.ThrowIfNull(layers);
-            if (layers.Count == 0)
-            {
-                throw new ArgumentException("No layers were given; a stream graph draws one stream per layer.", nameof(layers));
-            }
+            layers.ThrowIfEmpty("No layers were given; a stream graph draws one stream per layer.");
 
-            if (!Enum.IsDefined(baseline))
-            {
-                throw new ArgumentOutOfRangeException(nameof(baseline), baseline, "The baseline is not one of the StackedBaseline values.");
-            }
+            baseline.ThrowIfNotDefined(nameof(baseline), "The baseline is not one of the StackedBaseline values.");
 
             // Everything is checked before the first area is added, so a refused call leaves the axes as it was.
-            foreach (var layer in layers)
-            {
-                layer.ThrowIfMisaligned(x.Length, nameof(layers), "x values");
-            }
+            layers.ThrowIfNotOneEach(x.Length, nameof(layers), "x values");
 
-            ThrowIfNotThicknesses(x, layers);
+            layers.ThrowIfAnyNotAmount(nameof(layers), x, static (of, i) => $"The value of '{of.Label}' at x = {of.Places[i].InvariantText()}");
 
             // The very edges StackPlot fills its layers between: each layer on the baseline the strategy gives it, up by its value.
             double[][] values = [.. layers.Select(layer => layer.Values)];
@@ -345,11 +328,10 @@ public static class XYAxesExtensions
             for (int k = 0; k < layers.Count; k++)
             {
                 // Each area holds its own x array, so editing one layer's data cannot move another's. A layer with no name has no
-                // legend entry: an entry with no text would name nothing.
-                var stream = new AreaSeries([.. x], upper[k])
-                {
-                    YData2 = lower[k], Alpha = StreamAlpha, Label = string.IsNullOrEmpty(layers[k].Label) ? null : layers[k].Label,
-                };
+                // legend entry: an entry with no text would name nothing. matplotlib's stackplot asks the lines cycle for each layer.
+                var stream = AreaSeries.Band([.. x], upper[k], lower[k], StreamAlpha);
+                stream.Label = string.IsNullOrEmpty(layers[k].Label) ? null : layers[k].Label;
+                stream.AsksAs = CycleCall.Line;
                 axes.AddSeries(stream, configure);
             }
 
@@ -363,7 +345,7 @@ public static class XYAxesExtensions
         /// only where it has been.
         /// <para>The chart is two series in one colour of the theme's cycle: a <see cref="ScatterSeries"/> for the markers and a
         /// <see cref="QuiverSeries"/> for the arrows, whose shaft is the segment between two points and whose head stands on the
-        /// next point. Each arrow is the step to the next point at a scale of one, so its head lands exactly on that point, and
+        /// next point. Each arrow is the step to the next point at a scale of one in data units (never autoscaled, whatever the theme), so its head lands exactly on that point, and
         /// its head is drawn in the pixels of the picture, so it points along the segment as you see it on a plot that is wider
         /// than it is tall, not along the segment of the data. A head is a tenth of its arrow long.</para>
         /// <para>A missing value (NaN) leaves out its marker and the arrows that run into it and out of it; two points on top of
@@ -395,10 +377,7 @@ public static class XYAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(x);
             ArgumentNullException.ThrowIfNull(y);
-            if (x.Length != y.Length)
-            {
-                throw new ArgumentException($"x has {x.Length} values and y has {y.Length}; there must be one y per x.", nameof(y));
-            }
+            x.ThrowIfNotOneYPerX(y);
 
             // The step from each point to the next, in data units; a quiver at a scale of one lands its head on the next point.
             int steps = Math.Max(0, x.Length - 1);
@@ -409,14 +388,10 @@ public static class XYAxesExtensions
                 v[i] = y[i + 1] - y[i];
             }
 
-            int colorGroup = axes.NextColorGroup();
-            var arrows = new QuiverSeries(x[..steps], y[..steps], u, v) { Scale = 1, ArrowHeadSize = 0.1 };
-            arrows.ColorGroup = colorGroup;
-            axes.AddSeries(arrows);
-
+            var arrows = new QuiverSeries(x[..steps], y[..steps], u, v) { Scale = 1, ArrowHeadSize = 0.1, AutoScale = false };
             var points = new ScatterSeries(x, y);
-            points.ColorGroup = colorGroup;
-            axes.AddSeries(points);
+            axes.Axes.InColorGroup(arrows, points);
+            axes.AddSeries(arrows).AddSeries(points);
 
             configure?.Invoke(new ConnectedScatterParts(points, arrows));
             return axes;
@@ -464,54 +439,32 @@ public static class XYAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(x);
             ArgumentNullException.ThrowIfNull(y);
-            if (x.Length != y.Length)
-            {
-                throw new ArgumentException($"x has {x.Length} values and y has {y.Length}; there must be one y per x.", nameof(y));
-            }
+            x.ThrowIfNotOneYPerX(y);
 
-            if (bands < 1)
-            {
-                throw new ArgumentException($"{bands} bands were asked for; a horizon chart needs at least 1.", nameof(bands));
-            }
+            bands.ThrowIfBelow(1, nameof(bands), "The bands of a horizon chart");
 
-            double maxAbs = 0;
-            bool anyFinite = false, anyNegative = false;
-            foreach (double v in y)
-            {
-                if (!double.IsFinite(v)) continue;
-                anyFinite = true;
-                if (v < 0) anyNegative = true;
-                maxAbs = Math.Max(maxAbs, Math.Abs(v));
-            }
-
-            if (!anyFinite)
+            if (y.DrawableRange() is not { } range)
             {
                 throw new ArgumentException("y has no finite value; a horizon chart measures its fold height from the largest one.", nameof(y));
             }
 
+            // The largest magnitude divided by the number of bands is the height of one band (1 for a series of zeros); band k takes
+            // what lies between k bands and k + 1 bands above zero (a negative value is folded the same way below zero), clamped to the
+            // band's height, so the bands drawn one over the other in growing opacity read as the series at a fraction of the height.
+            double maxAbs = Math.Max(Math.Abs(range.Lo), Math.Abs(range.Hi));
             double bandHeight = maxAbs == 0 ? 1 : maxAbs / bands;
 
             List<AreaSeries> Fold(bool negative)
             {
-                int colorGroup = axes.NextColorGroup();
-                var folds = new List<AreaSeries>(bands);
-                for (int k = 0; k < bands; k++)
-                {
-                    double offset = k * bandHeight;
-                    double[] folded = [.. y.Select(v => !double.IsFinite(v) ? double.NaN
-                        : negative ? -Math.Clamp(-v - offset, 0, bandHeight)
-                        : Math.Clamp(v - offset, 0, bandHeight))];
-                    var band = new AreaSeries(x, folded) { Alpha = (k + 1.0) / bands };
-                    band.ColorGroup = colorGroup;
-                    axes.AddSeries(band);
-                    folds.Add(band);
-                }
-
-                return folds;
+                // The folds of one side are one group: one hue, deeper with each band.
+                AreaSeries[] folds = [.. Enumerable.Range(0, bands).Select(k => AreaSeries.Band(x, HorizonBand(y, k * bandHeight, bandHeight, negative), null, (k + 1.0) / bands))];
+                axes.Axes.InColorGroup(folds);
+                foreach (var band in folds) axes.AddSeries(band);
+                return [.. folds];
             }
 
             var positive = Fold(negative: false);
-            var negativeFolds = anyNegative ? Fold(negative: true) : [];
+            var negativeFolds = range.Lo < 0 ? Fold(negative: true) : [];
             configure?.Invoke(new HorizonParts(positive, negativeFolds));
             return axes;
         }
@@ -671,17 +624,32 @@ public static class XYAxesExtensions
         public AxesBuilder Stairs(double[] values, double[] edges, double? baseline = null, Action<StairsParts>? configure = null)
         {
             ArgumentNullException.ThrowIfNull(axes);
-            if (baseline is { } level && !level.IsDrawable())
+            baseline?.ThrowIfNotFinite(nameof(baseline));
+
+            // The staircase is worked out once, here, and the outline and the fill are drawn from the same points: bin i runs from edge
+            // i to edge i + 1 at its value, so it contributes its two ends at one height, and the next bin begins where this one ends,
+            // which is the riser. A bin whose value or either edge cannot be drawn is a gap: both its points are kept at the edges it
+            // was given and made missing in height, so a line or a fill is parted there and never bridged, and a missing edge masks the
+            // two bins that meet at it. It is worked out (and the arguments refused, by their own names) before the series is added,
+            // so a refused call leaves the axes as it was.
+            ArgumentNullException.ThrowIfNull(values);
+            ArgumentNullException.ThrowIfNull(edges);
+            edges.Length.ThrowIfMisaligned(values.Length + 1, nameof(edges));
+            double[] stepX = new double[2 * values.Length];
+            double[] stepY = new double[2 * values.Length];
+            for (int bin = 0; bin < values.Length; bin++)
             {
-                throw new ArgumentException("The baseline is NaN or an infinity; a staircase is filled down to a level that can be drawn.", nameof(baseline));
+                double left = edges[bin], right = edges[bin + 1];
+                double height = left.IsDrawable() && right.IsDrawable() && values[bin].IsDrawable() ? values[bin] : double.NaN;
+                stepX[2 * bin] = left;
+                stepX[2 * bin + 1] = right;
+                stepY[2 * bin] = height;
+                stepY[2 * bin + 1] = height;
             }
 
-            // The staircase is worked out once, here, and the outline and the fill are drawn from the same points. It is worked out
-            // (and the arguments refused, by their own names) before the series is added, so a refused call leaves the axes as it was.
-            var path = StaircasePath.Of(values, edges);
             if (baseline is not { } floor)
             {
-                var outline = new LineSeries(path.X, path.Y);
+                var outline = new LineSeries(stepX, stepY);
                 axes.AddSeries(outline);
                 configure?.Invoke(new StairsParts(outline));
                 return axes;
@@ -689,7 +657,9 @@ public static class XYAxesExtensions
 
             // A fill to zero is the area's own default, which also lets a staircase of positive values begin on the axis; any other
             // baseline is a second curve, the same level at every point.
-            var fill = new AreaSeries(path.X, path.Y) { YData2 = floor == 0 ? null : [.. Enumerable.Repeat(floor, path.X.Length)] };
+            // matplotlib's stairs(fill=True) asks the lines cycle, as the outline does.
+            var fill = AreaSeries.Band(stepX, stepY, floor == 0 ? null : [.. Enumerable.Repeat(floor, stepX.Length)], AreaSeries.RestingAlpha);
+            fill.AsksAs = CycleCall.Line;
             axes.AddSeries(fill);
             configure?.Invoke(new StairsParts(fill));
             return axes;
@@ -745,10 +715,7 @@ public static class XYAxesExtensions
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(x);
             ArgumentNullException.ThrowIfNull(y);
-            if (x.Length != y.Length)
-            {
-                throw new ArgumentException($"x has {x.Length} values and y has {y.Length}; there must be one y per x.", nameof(y));
-            }
+            x.ThrowIfNotOneYPerX(y);
 
             // Everything is checked before the line is added, so a refused call leaves the axes as it was.
             if (triangles is not null)
@@ -758,91 +725,41 @@ public static class XYAxesExtensions
 
             // Fewer than three points make no triangle: the verb adds a line with no points, as the triangle plot draws nothing.
             int[] corners = x.Length < 3 ? [] : Delaunay.TrianglesOf(x, y, triangles);
-            var path = corners.EdgesAmong(x, y);
-            return axes.AddSeries(new LineSeries(path.X, path.Y), configure);
+            return axes.AddSeries(corners.AsLine(x, y), configure);
         }
     }
 
+    /// <summary>The three reference lines of a control chart.</summary>
+    private readonly record struct ControlLines(ReferenceLine Center, ReferenceLine Lower, ReferenceLine Upper);
+
     extension(ControlLimits limits)
     {
-        /// <summary>Refuses limits that are not three finite numbers with Lower &lt;= Center &lt;= Upper: a centre outside its limits,
-        /// or a lower limit above the upper, marks every value or none.</summary>
-        /// <returns>The same limits, for chaining.</returns>
-        /// <exception cref="ArgumentException">The limits are not finite or not in that order; the message names the three.</exception>
-        private ControlLimits ThrowIfNotOrdered()
+        /// <summary>Draws the limits across the plot: the centre line solid and the two control limits in a reference line's default
+        /// style, each named at its right end.</summary>
+        /// <param name="axes">The axes to draw them on.</param>
+        /// <returns>The three lines, which are the ones on the axes.</returns>
+        private ControlLines AddLinesTo(AxesBuilder axes)
         {
-            var (center, lower, upper) = limits;
-            if (!(double.IsFinite(center) && double.IsFinite(lower) && double.IsFinite(upper) && lower <= center && center <= upper))
-            {
-                throw new ArgumentException(
-                    $"Control limits are three finite numbers, Lower <= Center <= Upper; these are Lower {lower.ToString(CultureInfo.InvariantCulture)}, Center {center.ToString(CultureInfo.InvariantCulture)}, Upper {upper.ToString(CultureInfo.InvariantCulture)}.",
-                    nameof(limits));
-            }
-
-            return limits;
+            ReferenceLine center = null!, lower = null!, upper = null!;
+            axes.AxHLine(limits.Center, r => { center = r; r.LineStyle = LineStyle.Solid; r.Label = CenterLineName; })
+                .AxHLine(limits.Lower, r => { lower = r; r.Label = LowerLimitName; })
+                .AxHLine(limits.Upper, r => { upper = r; r.Label = UpperLimitName; });
+            return new ControlLines(center, lower, upper);
         }
     }
 
     extension(int[] triangles)
     {
-        /// <summary>Refuses a list of triangles that is not whole triangles, or that names a point there is not: the corners of a
-        /// triangle are indices into the points, counted from 0.</summary>
-        /// <param name="points">How many points there are.</param>
-        /// <exception cref="ArgumentException">The list does not hold a multiple of three indices (the message names how many it
-        /// holds), or an index is below 0 or not below <paramref name="points"/> (the message names its place in the list).
-        /// </exception>
-        private void ThrowIfNotCornersOf(int points)
-        {
-            if (triangles.Length % CornersPerTriangle != 0)
-            {
-                throw new ArgumentException(
-                    $"triangles holds {triangles.Length} indices; a triangle has three corners, so give a multiple of three.", nameof(triangles));
-            }
-
-            for (int i = 0; i < triangles.Length; i++)
-            {
-                if ((uint)triangles[i] >= (uint)points)
-                {
-                    string valid = points == 0 ? "there are no points to name" : $"a corner is a point from 0 to {points - 1}";
-                    throw new ArgumentException(
-                        $"triangles[{i}] is {triangles[i].ToString(CultureInfo.InvariantCulture)}; {valid}.", nameof(triangles));
-                }
-            }
-        }
-
-        /// <summary>The edges of these triangles as the segments of one path, drawn at the given coordinates: each edge once
-        /// however many triangles share it and whichever way round each runs it, in the order the triangles first meet them
-        /// (a triangle's three sides in the order of its corners), and none for a corner a triangle names twice. An edge to a
-        /// point that cannot be placed is left out by the path.</summary>
+        /// <summary>The edges of these triangles over the points as ONE line series: each edge once, a polyline of its own.</summary>
         /// <param name="x">The x coordinate of each point.</param>
         /// <param name="y">The y coordinate of each point, one per x position.</param>
-        /// <returns>The segments, three points for each edge; empty for no triangles.</returns>
-        private SegmentPath EdgesAmong(double[] x, double[] y)
+        /// <returns>The line.</returns>
+        private LineSeries AsLine(double[] x, double[] y)
         {
-            var met = new HashSet<long>();
-            var starts = new List<int>();
-            var ends = new List<int>();
-            for (int first = 0; first + CornersPerTriangle <= triangles.Length; first += CornersPerTriangle)
-            {
-                for (int side = 0; side < CornersPerTriangle; side++)
-                {
-                    int a = triangles[first + side], b = triangles[first + (side + 1) % CornersPerTriangle];
-                    if (a != b && met.Add(Math.Min(a, b) * (long)x.Length + Math.Max(a, b)))
-                    {
-                        starts.Add(a);
-                        ends.Add(b);
-                    }
-                }
-            }
-
-            return SegmentPath.Of(
-                [.. starts.Select(i => x[i])], [.. starts.Select(i => y[i])],
-                [.. ends.Select(i => x[i])], [.. ends.Select(i => y[i])]);
+            var path = triangles.EdgesAmong(x, y);
+            return new LineSeries(path.X, path.Y);
         }
     }
-
-    /// <summary>The corners of a triangle: the indices three to a triangle in a flat list.</summary>
-    private const int CornersPerTriangle = 3;
 
     /// <summary>The name of a control chart's centre line, at its right end.</summary>
     private const string CenterLineName = "CL";
@@ -853,57 +770,36 @@ public static class XYAxesExtensions
     /// <summary>The name of a control chart's upper control limit, at its right end.</summary>
     private const string UpperLimitName = "UCL";
 
-    /// <summary>Refuses a rank below 1 or infinite: a rank is a place counted from 1, and a mark at 0 would be cut in half by
-    /// the frame while an infinite one cannot be placed at all. NaN is a missing rank, not a bad one.</summary>
-    /// <exception cref="ArgumentException">A rank is below 1 or infinite; the message names the group, the x position and
-    /// the value.</exception>
-    private static void ThrowIfNotRanks(double[] x, IReadOnlyList<BarGroup> ranks)
-    {
-        foreach (var group in ranks)
-        {
-            for (int i = 0; i < x.Length; i++)
-            {
-                double rank = group.Values[i];
-                if (!double.IsNaN(rank) && !(rank >= 1 && double.IsFinite(rank)))
-                {
-                    throw new ArgumentException(
-                        $"The rank of '{group.Label}' at x = {x[i].ToString(CultureInfo.InvariantCulture)} is {rank.ToString(CultureInfo.InvariantCulture)}; a rank counts from 1 and is finite (NaN marks a missing rank).",
-                        nameof(ranks));
-                }
-            }
-        }
-    }
-
-    /// <summary>The width of a bump chart's lines, in points: thick, because the chart is read as ribbons crossing.</summary>
+    /// <summary>The width of a bump chart's lines, in pixels: thick, because the chart is read as ribbons crossing.</summary>
     private const double BumpLineWidth = 3;
 
     /// <summary>The size of the markers a bump chart puts on each rank, in points.</summary>
     private const double BumpMarkerSize = 10;
-
-    /// <summary>Refuses a value that is not a thickness: negative or infinite. A stream of negative thickness is undefined, and
-    /// an infinite one cannot be drawn. NaN is a missing value, not a bad one.</summary>
-    /// <exception cref="ArgumentException">A value is negative or infinite; the message names the layer, the x position and
-    /// the value.</exception>
-    private static void ThrowIfNotThicknesses(double[] x, IReadOnlyList<BarGroup> layers)
-    {
-        foreach (var layer in layers)
-        {
-            for (int i = 0; i < x.Length; i++)
-            {
-                double thickness = layer.Values[i];
-                if (!double.IsNaN(thickness) && !(thickness >= 0 && double.IsFinite(thickness)))
-                {
-                    throw new ArgumentException(
-                        $"The value of '{layer.Label}' at x = {x[i].ToString(CultureInfo.InvariantCulture)} is {thickness.ToString(CultureInfo.InvariantCulture)}; a stream's thickness is finite and 0 or more (NaN marks a missing value).",
-                        nameof(layers));
-                }
-            }
-        }
-    }
 
     /// <summary>The transparency of a stream: opaque, as matplotlib's stackplot draws its layers, so a layer wears exactly the
     /// colour of its legend entry and the grid does not show through it. (An area is faint by default, which suits a fill
     /// under a line and not a stacked stream; the outline an area strokes along its top covers the seam between two
     /// layers.)</summary>
     private const double StreamAlpha = 1;
+
+    /// <summary>The values of one band of a horizon chart: for every value what of it lies between <paramref name="offset"/> and one
+    /// band above it, above zero or (folded the other way) below it; missing where the value cannot be drawn.</summary>
+    /// <param name="y">The series.</param>
+    /// <param name="offset">Where the band begins, in the units of the series: its index times the height of a band.</param>
+    /// <param name="bandHeight">The height of one band.</param>
+    /// <param name="negative">Whether to fold the values below zero (the band is then below zero) or those above it.</param>
+    /// <returns>One value for each value of the series, between 0 and the band height (or its negative).</returns>
+    private static double[] HorizonBand(double[] y, double offset, double bandHeight, bool negative)
+    {
+        var folded = new double[y.Length];
+        for (int i = 0; i < folded.Length; i++)
+        {
+            double v = y[i];
+            folded[i] = !double.IsFinite(v) ? double.NaN
+                : negative ? -Math.Clamp(-v - offset, 0, bandHeight)
+                : Math.Clamp(v - offset, 0, bandHeight);
+        }
+
+        return folded;
+    }
 }

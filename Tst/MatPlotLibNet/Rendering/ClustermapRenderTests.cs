@@ -57,46 +57,50 @@ public class ClustermapRenderTests
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Clustermap(SampleData, configure))
             .ToSvg();
-
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        int count = 0, idx = 0;
-        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            idx += needle.Length;
-        }
-        return count;
-    }
-
     // ── Smoke tests ───────────────────────────────────────────────────────────
 
-    [Fact]
-    public void NoTrees_RendersValidSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = RenderSvg();
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+        // row dendrogram U-segments
+        // A row tree that names one leaf names that row, and no other.
+        new DrawnToken("ARowTreeNamingOneLeaf_NamesThatRow", () => RenderSvg(s => s.RowTree = new TreeNode
+        {
+            Value = 2.0,
+            Children = [new TreeNode { Value = 0.0, Label = "first" }, new TreeNode { Value = 1.0, Children = [new TreeNode { Value = 1.0 }, new TreeNode { Value = 2.0 }] }],
+        }), ">first<"),
+        // A row tree whose dendrogram is hidden still names its rows, in the order of the data.
+        new DrawnToken("ARowTreeWhoseDendrogramIsHidden_StillNamesItsRows", () => RenderSvg(s =>
+        {
+            s.RowTree = new TreeNode
+            {
+                Value = 2.0,
+                Children = [new TreeNode { Value = 0.0, Label = "first" }, new TreeNode { Value = 1.0, Children = [new TreeNode { Value = 1.0 }, new TreeNode { Value = 2.0 }] }],
+            };
+            s.RowDendrogramWidth = 0;
+        }), ">first<"),
+        new DrawnToken("WithRowTree_EmitsHeatmapAndRowDendrogram", () => RenderSvg(s => s.RowTree = RowTree3), "<rect", "<line"),
+        // col dendrogram U-segments
+        new DrawnToken("WithColumnTree_EmitsHeatmapAndColumnDendrogram", () => RenderSvg(s => s.ColumnTree = ColTree3), "<rect", "<line"),
+        new DrawnToken("ShowLabelsTrue_EmitsTextElements", () => RenderSvg(s => s.ShowLabels = true), "<text"),
+        // Viridis colormap produces non-white fills; at least one fill attribute expected
+        new DrawnToken("DefaultColormap_RendersWithFillColors", () => RenderSvg(), "fill=\"#"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void NoTrees_EmitsHeatmapCells()
     {
         string svg = RenderSvg();
         // 3×3 = 9 cells → at least 9 <rect> elements
-        Assert.True(CountOccurrences(svg, "<rect") >= 9,
-            $"Expected ≥9 <rect> for 3×3 heatmap, found {CountOccurrences(svg, "<rect")}.");
+        Assert.True(svg.CountOf("<rect") >= 9,
+            $"Expected ≥9 <rect> for 3×3 heatmap, found {svg.CountOf("<rect")}.");
     }
 
     // ── Row dendrogram ────────────────────────────────────────────────────────
-
-    [Fact]
-    public void WithRowTree_EmitsHeatmapAndRowDendrogram()
-    {
-        string svg = RenderSvg(s => s.RowTree = RowTree3);
-        Assert.Contains("<rect", svg);
-        Assert.Contains("<line", svg); // row dendrogram U-segments
-    }
 
     [Fact]
     public void WithRowTree_RowDendrogramDifferentFromNone()
@@ -104,18 +108,10 @@ public class ClustermapRenderTests
         string noTree = RenderSvg();
         string withRow = RenderSvg(s => s.RowTree = RowTree3);
         // SVG with row dendrogram has line segments the plain heatmap doesn't
-        Assert.True(CountOccurrences(withRow, "<line") > CountOccurrences(noTree, "<line"));
+        Assert.True(withRow.CountOf("<line") > noTree.CountOf("<line"));
     }
 
     // ── Column dendrogram ─────────────────────────────────────────────────────
-
-    [Fact]
-    public void WithColumnTree_EmitsHeatmapAndColumnDendrogram()
-    {
-        string svg = RenderSvg(s => s.ColumnTree = ColTree3);
-        Assert.Contains("<rect", svg);
-        Assert.Contains("<line", svg); // col dendrogram U-segments
-    }
 
     [Fact]
     public void WithBothTrees_EmitsMoreLinesThanEitherAlone()
@@ -130,10 +126,10 @@ public class ClustermapRenderTests
             s.RowTree = RowTree3;
             s.ColumnTree = ColTree3;
         });
-        int baseline = CountOccurrences(none, "<line");
-        int rowExtra  = CountOccurrences(row,  "<line") - baseline;
-        int colExtra  = CountOccurrences(col,  "<line") - baseline;
-        int bothExtra = CountOccurrences(both, "<line") - baseline;
+        int baseline = none.CountOf("<line");
+        int rowExtra  = row.CountOf("<line") - baseline;
+        int colExtra  = col.CountOf("<line") - baseline;
+        int bothExtra = both.CountOf("<line") - baseline;
         Assert.True(bothExtra >= rowExtra + colExtra,
             $"Both-trees render should add at least {rowExtra + colExtra} dendrogram lines over baseline, got {bothExtra}.");
     }
@@ -147,15 +143,8 @@ public class ClustermapRenderTests
         // Verify ShowLabels=true produces MORE text elements than ShowLabels=false.
         string noLabels = RenderSvg(s => s.ShowLabels = false);
         string labels   = RenderSvg(s => s.ShowLabels = true);
-        Assert.True(CountOccurrences(labels, "<text") > CountOccurrences(noLabels, "<text"),
+        Assert.True(labels.CountOf("<text") > noLabels.CountOf("<text"),
             "ShowLabels=true must emit more <text> elements than ShowLabels=false.");
-    }
-
-    [Fact]
-    public void ShowLabelsTrue_EmitsTextElements()
-    {
-        string svg = RenderSvg(s => s.ShowLabels = true);
-        Assert.Contains("<text", svg);
     }
 
     // ── Reordering: heatmap column count unchanged when column tree given ─────
@@ -166,47 +155,35 @@ public class ClustermapRenderTests
         // Reordering reshuffles columns but does not add or remove cells.
         string noTree = RenderSvg();
         string withCol = RenderSvg(s => s.ColumnTree = ColTree3);
-        int rectNoTree = CountOccurrences(noTree, "<rect");
-        int rectWithCol = CountOccurrences(withCol, "<rect");
+        int rectNoTree = noTree.CountOf("<rect");
+        int rectWithCol = withCol.CountOf("<rect");
         Assert.Equal(rectNoTree, rectWithCol);
     }
 
     // ── Panel ratios affect SVG structure ─────────────────────────────────────
 
-    [Fact]
-    public void ZeroRowDendrogramWidth_WithRowTree_SameLineCountAsNoTree()
+    /// <summary>Width=0 suppresses the row dendrogram panel and Height=0 the column one: the line count equals the no-tree baseline.</summary>
+    public static TheoryData<Action<ClustermapSeries>> ZeroSizedDendrograms => new()
     {
-        // Width=0 suppresses the row dendrogram panel: line count equals no-tree baseline.
-        string noTree = RenderSvg();
-        string zeroW  = RenderSvg(s =>
+        s =>
         {
             s.RowTree = RowTree3;
             s.RowDendrogramWidth = 0.0;
-        });
-        Assert.Equal(CountOccurrences(noTree, "<line"), CountOccurrences(zeroW, "<line"));
-    }
-
-    [Fact]
-    public void ZeroColumnDendrogramHeight_WithColumnTree_SameLineCountAsNoTree()
-    {
-        // Height=0 suppresses the column dendrogram panel.
-        string noTree = RenderSvg();
-        string zeroH  = RenderSvg(s =>
+        },
+        s =>
         {
             s.ColumnTree = ColTree3;
             s.ColumnDendrogramHeight = 0.0;
-        });
-        Assert.Equal(CountOccurrences(noTree, "<line"), CountOccurrences(zeroH, "<line"));
-    }
+        },
+    };
 
-    // ── Colormap propagation ──────────────────────────────────────────────────
-
-    [Fact]
-    public void DefaultColormap_RendersWithFillColors()
+    [Theory]
+    [MemberData(nameof(ZeroSizedDendrograms))]
+    public void ZeroDendrogramSize_WithATree_SameLineCountAsNoTree(Action<ClustermapSeries> configure)
     {
-        string svg = RenderSvg();
-        // Viridis colormap produces non-white fills; at least one fill attribute expected
-        Assert.Contains("fill=\"#", svg);
+        string noTree = RenderSvg();
+        string zeroed = RenderSvg(configure);
+        Assert.Equal(noTree.CountOf("<line"), zeroed.CountOf("<line"));
     }
 
     // ── Panel suppression: MinPanelPx gate ───────────────────────────────────
@@ -244,8 +221,8 @@ public class ClustermapRenderTests
         // Without a dendrogram panel, both SVGs should contain the same line count
         // (axes lines) — confirming no extra dendrogram segment lines were emitted.
         Assert.Equal(
-            CountOccurrences(svgNoTree,    "<line "),
-            CountOccurrences(svgSuppressed, "<line "));
+            svgNoTree.CountOf("<line "),
+            svgSuppressed.CountOf("<line "));
     }
 
     [Fact]
@@ -263,7 +240,66 @@ public class ClustermapRenderTests
         });
 
         Assert.Equal(
-            CountOccurrences(svgNoTree,    "<rect "),
-            CountOccurrences(svgSuppressed, "<rect "));
+            svgNoTree.CountOf("<rect "),
+            svgSuppressed.CountOf("<rect "));
+    }
+
+    // ── Row and column names ──────────────────────────────────────────────────
+
+    private static TreeNode Named(TreeNode tree, string prefix) => tree.Children.Count == 0
+        ? tree with { Label = prefix + (int)tree.Value }
+        : tree with { Children = [.. tree.Children.Select(child => Named(child, prefix))] };
+
+    private static (double X, double Y, string Text)[] Names(string svg, string prefix) =>
+    [
+        .. svg.Elements("text").Where(text => text.Text.Length == prefix.Length + 1 && text.Text.StartsWith(prefix, StringComparison.Ordinal) && char.IsAsciiDigit(text.Text[^1]))
+            .Select(text => (text.Number("x"), text.Number("y"), text.Text)),
+    ];
+
+    /// <summary>A clustermap names its rows and columns by the labels of its trees' leaves, as seaborn's clustermap names them by
+    /// its tick labels: each column under the matrix and each row right of it, in the order the trees put them in.</summary>
+    [Fact]
+    public void TheLeafLabelsOfItsTrees_NameTheRowsAndColumnsWhereTheMapDrawsThem()
+    {
+        string svg = RenderSvg(s => { s.RowTree = Named(RowTree3, "row-"); s.ColumnTree = Named(ColTree3, "col-"); });
+
+        var columns = Names(svg, "col-");
+        var rows = Names(svg, "row-");
+        Assert.Equal(["col-2", "col-0", "col-1"], columns.OrderBy(t => t.X).Select(t => t.Text));
+        Assert.Equal(["row-0", "row-1", "row-2"], rows.OrderBy(t => t.Y).Select(t => t.Text));
+        Assert.True(columns.Min(t => t.Y) > rows.Max(t => t.Y), "the column names stand under the matrix");
+        Assert.True(rows.Min(t => t.X) > columns.Max(t => t.X), "the row names stand right of the matrix");
+    }
+
+    /// <summary>The names follow the rows when the dendrogram panel is turned off and the matrix is drawn in the order given; a
+    /// leaf with no label names nothing.</summary>
+    [Fact]
+    public void WithItsPanelsOff_TheNamesFollowTheRowsInTheOrderGiven_AndAnUnnamedLeafNamesNothing()
+    {
+        string svg = RenderSvg(s => { s.RowTree = RowTree3; s.ColumnTree = Named(ColTree3, "col-"); s.RowDendrogramWidth = 0; s.ColumnDendrogramHeight = 0; });
+
+        Assert.Equal(["col-0", "col-1", "col-2"], Names(svg, "col-").OrderBy(t => t.X).Select(t => t.Text));
+        Assert.Empty(Names(svg, "row-"));
+    }
+
+    /// <summary>Only a leaf that stands for a row of the matrix names one: a leaf with no label, or one whose index is past the
+    /// matrix, names nothing, and the rows it leaves go unnamed.</summary>
+    [Fact]
+    public void ALeafWithNoLabelOrPastTheMatrix_NamesNothing()
+    {
+        var tree = new TreeNode
+        {
+            Value = 1.0,
+            Children =
+            [
+                new TreeNode { Value = 0.0, Label = "row-0" },
+                new TreeNode { Value = 1.0 },
+                new TreeNode { Value = 7.0, Label = "row-7" },
+            ],
+        };
+
+        var names = Names(RenderSvg(s => s.RowTree = tree), "row-");
+
+        Assert.Equal(["row-0"], names.Select(t => t.Text));
     }
 }

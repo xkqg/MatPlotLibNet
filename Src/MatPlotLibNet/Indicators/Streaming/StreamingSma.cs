@@ -2,27 +2,25 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Simple Moving Average: the <see cref="RollingMeanStep"/> the batch <see cref="Sma"/> folds over its prices,
+/// <summary>Streaming Simple Moving Average: the step the batch <see cref="Sma"/> folds over its prices,
 /// taken one price at a time. O(1) per append via a running sum.</summary>
-public sealed class StreamingSma : StreamingIndicator
+public sealed class StreamingSma : StreamingIndicator<double>
 {
-    private readonly int _period;
     private RollingMeanStep _step;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => _period;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming SMA indicator.</summary>
-    public StreamingSma(int period, int capacity = 10_000) : base(capacity)
+    public StreamingSma(int period, int capacity = StreamingSeries.RestingCapacity) : base(Sma.Spec(period), capacity)
     {
-        _period = period;
         _step = new RollingMeanStep(period);
-        Label = $"SMA({period})";
     }
 
     /// <inheritdoc />
-    protected override double ComputeNext(double price) => _step.Next(price);
+    protected override void Step(double input, int index, Span<double> outputs) => outputs[0] = _step.Next(input);
 }

@@ -33,7 +33,7 @@ public sealed partial class RoadmapTests
     [Fact]
     public void TheReadme_LeadsToTheRepositorysRoadmap_AndToTheWikisPage()
     {
-        var readme = File.ReadAllText(Path.Join(Repository.Root, "README.md"));
+        var readme = File.ReadAllText(Path.Join(RepositoryRoot.Folder, "README.md"));
 
         Assert.Contains("(ROADMAP.md)", readme, StringComparison.Ordinal);
         Assert.Contains(WikiAddress + "Roadmap", readme, StringComparison.Ordinal);
@@ -42,11 +42,11 @@ public sealed partial class RoadmapTests
     [Fact]
     public void TheRepositorysRoadmap_HoldsTheWikisTable_RowForRow_AndSendsTheReaderThereForTheRest()
     {
-        var path = Path.Join(Repository.Root, "ROADMAP.md");
+        var path = Path.Join(RepositoryRoot.Folder, "ROADMAP.md");
 
         Assert.True(File.Exists(path), "The repository has no ROADMAP.md: the copy of the wiki's roadmap table a reader of the code sees.");
 
-        var here = File.ReadAllText(path).ReplaceLineEndings("\n");
+        var here = SourceFile.ReadFrom(path).LineFeedText;
         string[] expected = [.. Rows(Page()).Select(row => WikiLink().Replace(row, link =>
         {
             var page = link.Groups["page"].Value;
@@ -97,11 +97,11 @@ public sealed partial class RoadmapTests
     public void EveryRow_HasASectionOfItsOwn_UnderWhatIsDoneOrWhatIsStillToCome()
     {
         var page = Page();
-        var done = Part(page, "## What is done");
-        var toCome = Part(page, "## What is still to come");
+        var done = Part(page, "What is done");
+        var toCome = Part(page, "What is still to come");
         var missing = Rows(page)
             .Where(row => !(row.StartsWith(Done, StringComparison.Ordinal) ? done : toCome)
-                .Contains("\n### " + Name(row) + "\n", StringComparison.Ordinal))
+                .Contains("### " + Name(row)))
             .Select(Name)
             .ToArray();
 
@@ -120,7 +120,7 @@ public sealed partial class RoadmapTests
     {
         string[] rows =
         [
-            .. page.Split('\n')
+            .. SourceFile.LinesOf(page)
                 .SkipWhile(line => line.Trim() != Header)
                 .Skip(2)
                 .TakeWhile(line => line.StartsWith('|'))
@@ -133,20 +133,8 @@ public sealed partial class RoadmapTests
     }
 
     // What a row is: its second cell, a wiki link written as the page it names.
-    private static string Name(string row) => WikiLink().Replace(row.Split('|')[2].Trim(), link => link.Groups["page"].Value);
+    private static string Name(string row) => WikiLink().Replace(SourceFile.TableCellsOf(row)[1], link => link.Groups["page"].Value);
 
-    // One part of the page: from its heading to the next heading of the same level, a line feed before the first line.
-    private static string Part(string page, string heading)
-    {
-        var start = page.IndexOf("\n" + heading + "\n", StringComparison.Ordinal);
-
-        if (start < 0)
-        {
-            return string.Empty;
-        }
-
-        var end = page.IndexOf("\n## ", start + heading.Length + 1, StringComparison.Ordinal);
-
-        return end < 0 ? page[start..] + "\n" : page[start..end] + "\n";
-    }
+    // One part of the page: its lines from its heading to the next heading of the same level.
+    private static string[] Part(string page, string heading) => SourceFile.LinesOf(SourceFile.SectionOf(page, heading));
 }

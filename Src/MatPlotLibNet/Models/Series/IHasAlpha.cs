@@ -7,5 +7,6 @@ namespace MatPlotLibNet.Models.Series;
 public interface IHasAlpha
 {
     /// <summary>Fill/body opacity in the range [0, 1] where 0 is fully transparent and 1 is fully opaque.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
     double Alpha { get; set; }
 }

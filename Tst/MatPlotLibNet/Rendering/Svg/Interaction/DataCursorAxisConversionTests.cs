@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using System.Xml.Linq;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
@@ -25,74 +26,19 @@ public class DataCursorAxisConversionTests
                 .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "primary")
                 .WithAddRightYAxis(y2 => y2.Plot(X, [100.0, 250.0, 400.0], s => s.Label = "secondary"))
                 .WithSecondaryXAxis(x2 => x2.PlotXSecondary([1000.0, 2000.0, 3000.0], [3.0, 1.0, 2.0], s => s.Label = "top"))));
-
-    /// <summary>The pixel the renderer drew point <paramref name="index"/> of the series labelled
-    /// <paramref name="label"/> at, read from its polyline, and the polyline itself (the click target).</summary>
-    private static (DomElement Target, double Px, double Py) DrawnPoint(InteractionScriptHarness h, string label, int index)
-    {
-        var group = h.Document.QuerySelectorAllRaw("[data-series-index]")
-            .Single(g => g.getAttribute("aria-label") == label && !g.hasAttribute("data-legend-index"));
-        var polyline = group.Xml.Descendants().Single(e => e.Name.LocalName == "polyline");
-        var pair = polyline.Attribute("points")!.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries)[index].Split(',');
-        return (h.Document.Wrap(polyline),
-                double.Parse(pair[0], CultureInfo.InvariantCulture),
-                double.Parse(pair[1], CultureInfo.InvariantCulture));
-    }
-
-    private static IDictionary<string, object?> ClickAndReadAnnotation(InteractionScriptHarness h, string label, int index)
-    {
-        var mock = h.WireSignalRMock();
-        var (target, px, py) = DrawnPoint(h, label, index);
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
-        // The harness does not bubble, so the click is fired at the svg (where the listener sits) with the line as its
-        // target, which is what a browser's bubbling delivers. Its screen CTM is the identity: client = user units.
-        svg.Fire(new DomEvent("click") { target = target, clientX = px, clientY = py });
-        var call = Assert.Single(mock.Calls, c => c.Method == "OnDataCursor");
-        var payload = Assert.IsAssignableFrom<IDictionary<string, object?>>(call.Payload);
-        return Assert.IsAssignableFrom<IDictionary<string, object?>>(payload["annotation"]);
-    }
-
-    private static void AssertNear(double expected, object? actual, double range, string what)
-    {
-        double value = Convert.ToDouble(actual, CultureInfo.InvariantCulture);
-        Assert.True(Math.Abs(value - expected) <= range * 1e-6,
-            $"{what}: expected {expected.ToString(CultureInfo.InvariantCulture)}, the click reported {value.ToString("R", CultureInfo.InvariantCulture)}");
-    }
-
-    [Fact]
-    public void AClickOnARightYLine_ReportsTheValueOnTheRightYAxis()
+    [Theory]
+    [InlineData("secondary", 2.0, 250.0, 300.0)] // AClickOnARightYLine_ReportsTheValueOnTheRightYAxis
+    [InlineData("primary", 2.0, 2.0, 2.0)] // AClickOnThePrimaryLine_InTheSameFigure_StillReportsThePrimaryValue
+    [InlineData("top", 2000.0, 1.0, 2.0)] // AClickOnASecondaryXLine_ReportsTheValueOnTheSecondaryXAxis
+    public void AClickOnARightYLine_ReportsTheValueOnTheRightYAxis_Rows(string text, double value, double value2, double value3)
     {
         using var h = TwinAxes();
 
-        var annotation = ClickAndReadAnnotation(h, "secondary", 1);
+        var annotation = h.ClickDataCursor(text, 1);
 
-        Assert.Equal("secondary", annotation["seriesLabel"]);
-        AssertNear(2.0, annotation["dataX"], 2.0, "dataX");
-        AssertNear(250.0, annotation["dataY"], 300.0, "dataY");
-    }
-
-    [Fact]
-    public void AClickOnThePrimaryLine_InTheSameFigure_StillReportsThePrimaryValue()
-    {
-        using var h = TwinAxes();
-
-        var annotation = ClickAndReadAnnotation(h, "primary", 1);
-
-        Assert.Equal("primary", annotation["seriesLabel"]);
-        AssertNear(2.0, annotation["dataX"], 2.0, "dataX");
-        AssertNear(2.0, annotation["dataY"], 2.0, "dataY");
-    }
-
-    [Fact]
-    public void AClickOnASecondaryXLine_ReportsTheValueOnTheSecondaryXAxis()
-    {
-        using var h = TwinAxes();
-
-        var annotation = ClickAndReadAnnotation(h, "top", 1);
-
-        Assert.Equal("top", annotation["seriesLabel"]);
-        AssertNear(2000.0, annotation["dataX"], 2000.0, "dataX");
-        AssertNear(1.0, annotation["dataY"], 2.0, "dataY");
+        Assert.Equal(text, annotation["seriesLabel"]);
+        Assert.Equal(value, annotation.Num("dataX"), value * 1e-4);
+        Assert.Equal(value2, annotation.Num("dataY"), value3 * 1e-4);
     }
 
     [Fact]
@@ -103,10 +49,10 @@ public class DataCursorAxisConversionTests
             .WithServerInteraction("c", s => s.EnableDataCursor())
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [10.0, 40.0, 20.0], s => s.Label = "load")));
 
-        var annotation = ClickAndReadAnnotation(h, "load", 2);
+        var annotation = h.ClickDataCursor("load", 2);
 
-        AssertNear(3.0, annotation["dataX"], 2.0, "dataX");
-        AssertNear(20.0, annotation["dataY"], 30.0, "dataY");
+        Assert.Equal(3.0, annotation.Num("dataX"), 2.0 * 1e-4);
+        Assert.Equal(20.0, annotation.Num("dataY"), 30.0 * 1e-4);
     }
 
     [Fact]
@@ -123,7 +69,7 @@ public class DataCursorAxisConversionTests
             .Single(g => g.getAttribute("aria-label") == "orbit" && !g.hasAttribute("data-legend-index"));
         Assert.False(group.hasAttribute("data-plot-w"));
 
-        h.Document.QuerySelectorAllRaw("svg").Single().Fire(new DomEvent("click")
+        h.Chart().Fire(new DomEvent("click")
         {
             target = h.Document.Wrap(group.Xml.Elements().First()), clientX = 55, clientY = 35,
         });
@@ -131,19 +77,19 @@ public class DataCursorAxisConversionTests
         var call = Assert.Single(mock.Calls, c => c.Method == "OnDataCursor");
         var annotation = (IDictionary<string, object?>)((IDictionary<string, object?>)call.Payload!)["annotation"]!;
         // Root limits 0..1 over the harness' synthetic 20 x 10 rect at (50, 30): (55-50)/20 = 0.25, 1 - (35-30)/10 = 0.5.
-        AssertNear(0.25, annotation["dataX"], 1.0, "dataX");
-        AssertNear(0.5, annotation["dataY"], 1.0, "dataY");
+        Assert.Equal(0.25, annotation.Num("dataX"), 1.0 * 1e-4);
+        Assert.Equal(0.5, annotation.Num("dataY"), 1.0 * 1e-4);
     }
 
     [Fact]
     public void WithoutTheDataCursor_ASeriesGroup_CarriesNoMapping()
     {
         // The mapping is weight only the data cursor reads: an interactive figure that did not ask for it keeps its bytes.
-        var doc = XDocument.Parse(Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+        var doc = Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "A")
-            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S"))).ToSvg());
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S"))).ToSvg().Xml();
 
-        var groups = doc.Descendants().Where(e => e.Name.LocalName == "g" && e.Attribute("data-series-index") is not null).ToList();
+        var groups = doc.Each("g").Where(e => e.Attribute("data-series-index") is not null).ToList();
         Assert.NotEmpty(groups);
         Assert.All(groups, g =>
         {

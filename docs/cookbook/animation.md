@@ -7,14 +7,17 @@ description: "Animate a chart in C# and save it as an animated GIF. Write a fram
 
 > **Install:** `dotnet add package MatPlotLibNet` and `dotnet add package MatPlotLibNet.Skia` for the GIF and PDF export
 
-## FuncAnimation — declarative animated GIF
+## AnimationBuilder — an animated GIF from a frame generator
 
 Define a frame generator function and save the result as an animated GIF:
 
 ```csharp
+using MatPlotLibNet.Animation;
+using MatPlotLibNet.Skia;
+
 double[] x = Enumerable.Range(0, 100).Select(i => i * 0.1).ToArray();
 
-var anim = new FuncAnimation(
+var anim = new AnimationBuilder(
     frameCount: 60,
     frameGenerator: i =>
     {
@@ -27,16 +30,18 @@ var anim = new FuncAnimation(
                 .Plot(x, y, s => { s.Color = Colors.Cyan; s.LineWidth = 2; })
                 .SetYLim(-1.5, 1.5))
             .Build();
-    },
-    delayMs: 50);  // 50ms between frames = 20 FPS
+    })
+{
+    Interval = TimeSpan.FromMilliseconds(50),  // 50 ms between frames = 20 FPS
+};
 
-anim.Save("wave.gif");
+anim.SaveGif("wave.gif");
 ```
 
 ## Animation with theme and styling
 
 ```csharp
-var anim = new FuncAnimation(
+var anim = new AnimationBuilder(
     frameCount: 30,
     frameGenerator: i =>
     {
@@ -48,10 +53,12 @@ var anim = new FuncAnimation(
                 .Surface(x, y, z, s => { s.ColorMap = ColorMaps.Plasma; s.Alpha = 0.9; })
                 .WithCamera(elevation: 30, azimuth: -60 + angle))
             .Build();
-    },
-    delayMs: 80);  // 80ms = ~12.5 FPS
+    })
+{
+    Interval = TimeSpan.FromMilliseconds(80),  // 80 ms = about 12.5 FPS
+};
 
-anim.Save("rotating_surface.gif");
+anim.SaveGif("rotating_surface.gif");
 ```
 
 ## Save individual frames as PNG
@@ -72,8 +79,9 @@ var figures = new[]
 {
     Plt.Create()
         .WithTitle("Page 1 — Line Chart")
-        .Plot(x, y1, s => s.Label = "Revenue")
-        .WithLegend()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(x, y1, s => s.Label = "Revenue")
+            .WithLegend())
         .Build(),
 
     Plt.Create()
@@ -100,7 +108,7 @@ new PdfTransform().TransformMultiPage(figures, "report.pdf");
 string[] categories = ["A", "B", "C", "D", "E"];
 double[] finalValues = [42, 28, 65, 31, 53];
 
-var anim = new FuncAnimation(
+var anim = new AnimationBuilder(
     frameCount: 40,
     frameGenerator: i =>
     {
@@ -113,10 +121,12 @@ var anim = new FuncAnimation(
                 .SetYLim(0, 70)
                 .WithBarLabels("F0"))
             .Build();
-    },
-    delayMs: 60);
+    })
+{
+    Interval = TimeSpan.FromMilliseconds(60),
+};
 
-anim.Save("growing_bars.gif");
+anim.SaveGif("growing_bars.gif");
 ```
 
 ## One SVG that steps through its frames
@@ -149,14 +159,17 @@ waveSteps.SaveStepThroughSvg("wave_steps.svg");
 Without its script the file is its first frame, which is what an `<img>`, a README or a viewer that runs nothing shows, and a reader who
 asked their system for reduced motion gets no autoplay. Open the file itself to step: Home and End go to the ends, the space bar plays and
 pauses, and a click on the track goes to that frame. The file is as large as all its frames together: no frame is dropped or shared.
-`FuncAnimation.Save` writes the same file for a `.svg` path.
+The SVG and the GIF are written by one contract, `IAnimationTransform` (`StepThroughSvgTransform`, `GifTransform`), which takes the
+frames, the time between them, whether it loops, and the stream to write to.
 
 ## Fluent API reference
 
 | Class / Method | Parameters | Description |
 |---|---|---|
-| `new FuncAnimation(frameCount, frameGenerator, delayMs)` | count, `Func<int, Figure>`, ms | Create animation |
-| `anim.Save(path)` | `string` (.gif) | Save as animated GIF |
+| `new AnimationBuilder(frameCount, frameGenerator)` | count, `Func<int, Figure>` | Create animation; it is an `IAnimation<int>` (the state is the frame index), so `AnimationController<int>`, `InteractiveFigure.AnimateAsync` and the native controls play it as it is |
+| `anim.Interval`, `anim.Loop` | `TimeSpan`, `bool` | Time between frames (50 ms by default), whether it loops (by default it does) |
+| `anim.SaveGif(path)`, `anim.ToGif()` | `string` | Save as animated GIF, or its bytes |
+| `anim.SaveStepThroughSvg(path)`, `anim.ToStepThroughSvg()` | `string` | Save as an SVG that steps through its frames, or its text |
 | `anim.SaveFrames(dir, prefix?)` | directory, file prefix | Export individual PNG frames |
 | `new PdfTransform().TransformMultiPage(figures, path)` | `Figure[]`, path | Multi-page PDF |
 

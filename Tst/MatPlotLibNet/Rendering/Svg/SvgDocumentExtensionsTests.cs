@@ -3,6 +3,8 @@
 
 using System.Xml.Linq;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Tests.Packaging;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
@@ -17,7 +19,7 @@ public class SvgDocumentExtensionsTests
     private static string RoundedAttribute(string attribute, string value, int decimals)
     {
         string svg = Doc($"<rect {attribute}=\"{value}\"/>").WithSaveOptions(new SaveOptions { SvgDecimalPrecision = decimals });
-        return XDocument.Parse(svg).Descendants().First(e => e.Name.LocalName == "rect").Attribute(attribute)!.Value;
+        return svg.Each("rect").First().Attribute(attribute)!.Value;
     }
 
     // ── nothing asked ────────────────────────────────────────────────────────────────────────────────
@@ -169,7 +171,7 @@ public class SvgDocumentExtensionsTests
     {
         string svg = $"<svg {Ns} viewBox=\"0 0 100.55 50.44\"/>".WithSaveOptions(new SaveOptions { SvgDecimalPrecision = 1 });
 
-        Assert.Equal("0 0 100.6 50.4", XDocument.Parse(svg).Root!.Attribute("viewBox")!.Value);
+        Assert.Equal("0 0 100.6 50.4", svg.Xml().Root!.Attribute("viewBox")!.Value);
     }
 
     [Fact]
@@ -177,7 +179,7 @@ public class SvgDocumentExtensionsTests
     {
         string svg = Doc("<text x=\"1.26\">tick 0.12345</text>").WithSaveOptions(new SaveOptions { SvgDecimalPrecision = 1 });
 
-        var text = XDocument.Parse(svg).Descendants().First(e => e.Name.LocalName == "text");
+        var text = svg.Each("text").First();
         Assert.Equal("tick 0.12345", text.Value);
         Assert.Equal("1.3", text.Attribute("x")!.Value);
     }
@@ -188,7 +190,7 @@ public class SvgDocumentExtensionsTests
         const string script = "var a = 0.123456; if (a < 1 && a > 0) {}";
         string svg = Doc($"<script><![CDATA[{script}]]></script>").WithSaveOptions(new SaveOptions { SvgDecimalPrecision = 0 });
 
-        Assert.Equal(script, XDocument.Parse(svg).Descendants().First(e => e.Name.LocalName == "script").Value);
+        Assert.Equal(script, svg.Each("script").First().Value);
     }
 
     // ── metadata ─────────────────────────────────────────────────────────────────────────────────────
@@ -198,7 +200,7 @@ public class SvgDocumentExtensionsTests
     {
         string svg = $"<svg {Ns}><title>T</title><desc>D</desc><g/></svg>".WithSaveOptions(new SaveOptions { Title = "X" });
 
-        Assert.Equal(new[] { "title", "desc", "metadata", "g" }, XDocument.Parse(svg).Root!.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal(new[] { "title", "desc", "metadata", "g" }, svg.Xml().Root!.Elements().Select(e => e.Name.LocalName));
     }
 
     [Fact]
@@ -206,13 +208,13 @@ public class SvgDocumentExtensionsTests
     {
         string svg = $"<svg {Ns}><g/></svg>".WithSaveOptions(new SaveOptions { Author = "A" });
 
-        Assert.Equal(new[] { "metadata", "g" }, XDocument.Parse(svg).Root!.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal(new[] { "metadata", "g" }, svg.Xml().Root!.Elements().Select(e => e.Name.LocalName));
     }
 
     [Fact]
     public void Metadata_TakesItsOwnLine_WhenTheDocumentNamesNothingAndKeepsItsLines()
     {
-        string svg = $"<svg {Ns}>\n<g/>\n</svg>".WithSaveOptions(new SaveOptions { Author = "A" }).Replace("\r", "");
+        string svg = SourceFile.LineFeedTextOf($"<svg {Ns}>\n<g/>\n</svg>".WithSaveOptions(new SaveOptions { Author = "A" }));
 
         Assert.StartsWith($"<svg {Ns}>\n<metadata", svg);
         Assert.Contains("</metadata>\n<g />", svg);
@@ -223,7 +225,7 @@ public class SvgDocumentExtensionsTests
     {
         string svg = Doc("").WithSaveOptions(new SaveOptions { Title = "X" });
 
-        var metadata = XDocument.Parse(svg).Root!.Elements().First(e => e.Name.LocalName == "metadata");
+        var metadata = svg.Direct("metadata").First();
         Assert.Equal("http://www.w3.org/2000/svg", metadata.Name.NamespaceName);
     }
 
@@ -234,7 +236,7 @@ public class SvgDocumentExtensionsTests
     {
         string svg = Doc("<g><rect x=\"1\"/></g>").WithSaveOptions(new SaveOptions { PrettifySvg = true });
 
-        string[] lines = svg.Replace("\r", "").Split('\n');
+        string[] lines = SourceFile.LinesOf(svg);
         Assert.Equal("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\">", lines[0]);
         Assert.Equal("  <title id=\"chart-title\">T</title>", lines[1]);
         Assert.Equal("  <g>", lines[2]);
@@ -243,24 +245,20 @@ public class SvgDocumentExtensionsTests
         Assert.Equal("</svg>", lines[5]);
     }
 
-    [Fact]
-    public void Indenting_DropsTheWhitespaceBetweenElements_ButKeepsTheTextInside()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = $"<svg {Ns}>\r\n<g>\r\n  <text>a  b</text>\r\n</g>\r\n</svg>".WithSaveOptions(new SaveOptions { PrettifySvg = true });
+        new DrawnToken("Indenting_DropsTheWhitespaceBetweenElements_ButKeepsTheTextInside", () => $"<svg {Ns}>\r\n<g>\r\n  <text>a  b</text>\r\n</g>\r\n</svg>".WithSaveOptions(new SaveOptions { PrettifySvg = true }), "<text>a  b</text>"),
+        new DrawnToken("WithoutIndenting_TheLinesOfTheDocumentStay", () =>
+        {
+            string source = $"<svg {Ns}>\n<title>T</title>\n<g/>\n</svg>";
+            return SourceFile.LineFeedTextOf(source.WithSaveOptions(new SaveOptions { Title = "X" }));
+        }, "<title>T</title>\n<metadata", "</metadata>\n<g />"),
+    };
 
-        Assert.Contains("<text>a  b</text>", svg);
-    }
-
-    [Fact]
-    public void WithoutIndenting_TheLinesOfTheDocumentStay()
-    {
-        string source = $"<svg {Ns}>\n<title>T</title>\n<g/>\n</svg>";
-
-        string svg = source.WithSaveOptions(new SaveOptions { Title = "X" }).Replace("\r", "");
-
-        Assert.Contains("<title>T</title>\n<metadata", svg);
-        Assert.Contains("</metadata>\n<g />", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ADocumentThatIsNotXml_IsRefused()

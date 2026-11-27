@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Linq;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -20,15 +19,15 @@ public class TreemapWallTests
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, configure))
             .ToSvg();
 
-    private static int Rects(string svg) => Regex.Matches(svg, "<rect ").Count;
-
     [Fact]
     public void AChildlessRoot_DrawsNoRect()
     {
         string withChildren = Render(new TreeNode { Label = "Svc", Children = [new() { Label = "a", Value = 1 }] });
         string empty = Render(new TreeNode { Label = "Svc" });
 
-        Assert.Equal(Rects(withChildren) - 2, Rects(empty)); // neither the root frame nor the leaf
+        // The root frame and the leaf are the two nodes of the tree with a child; the tree without one draws neither. (A clip's own rect is
+        // not a node: the matplotlib themes clip the tiles to the axes, as matplotlib clips a bar.)
+        Assert.Equal(2, withChildren.Elements("rect").Count(rect => rect["data-treemap-node"] is not null));
         Assert.DoesNotContain("data-treemap-node", empty);
     }
 
@@ -47,7 +46,7 @@ public class TreemapWallTests
         string svg = Render(root);
 
         Assert.Contains("<pattern", svg);
-        Assert.Single(Regex.Matches(svg, "fill=\"url\\(#"));
+        Assert.Single(svg.AllElements(), element => element["fill"]?.StartsWith("url(#", StringComparison.Ordinal) == true);
     }
 
     [Fact]
@@ -55,8 +54,7 @@ public class TreemapWallTests
     {
         string svg = Render(Twenty(), s => s.ShowLabels = true);
 
-        Assert.Equal(20, Regex.Matches(svg, ">Ldr#").Count); // every label drawn as text, however small its rect
-        Assert.Equal(TreemapLabelFit.Always, new TreemapSeries(Twenty()).LabelFit);
+        Assert.Equal(20, svg.Elements("text").Count(text => text.Text.StartsWith("Ldr#", StringComparison.Ordinal))); // every label drawn as text, however small its rect
     }
 
     [Fact]
@@ -64,9 +62,9 @@ public class TreemapWallTests
     {
         string svg = Render(Twenty(), s => s.LabelFit = TreemapLabelFit.Fit, width: 1400, height: 300); // the wall's size
 
-        int drawn = Regex.Matches(svg, ">Ldr#").Count;
+        int drawn = svg.Elements("text").Count(text => text.Text.StartsWith("Ldr#", StringComparison.Ordinal));
         Assert.InRange(drawn, 1, 19);
-        Assert.Equal(20, Regex.Matches(svg, "data-treemap-label=\"Ldr#").Count); // the rect still carries it
+        Assert.Equal(20, svg.AttributeValues("data-treemap-label").Count(label => label.StartsWith("Ldr#", StringComparison.Ordinal))); // the rect still carries it
     }
 
     [Fact]
@@ -75,8 +73,8 @@ public class TreemapWallTests
         string svg = Render(Twenty(), s => s.LabelFit = TreemapLabelFit.Truncate, width: 1400, height: 300);
 
         Assert.Contains("…", svg);
-        int full = Regex.Matches(svg, ">Ldr#[^<]*[0-9] %<").Count;      // fitted as-is
-        int cut = Regex.Matches(svg, ">[^<]*…<").Count;                 // shortened
+        int full = svg.Elements("text").Count(text => text.Text.StartsWith("Ldr#", StringComparison.Ordinal) && text.Text.EndsWith(" %", StringComparison.Ordinal) && char.IsAsciiDigit(text.Text[^3]));      // fitted as-is
+        int cut = svg.Elements("text").Count(text => text.Text.EndsWith('…'));                 // shortened
         Assert.Equal(20, full + cut);
     }
 

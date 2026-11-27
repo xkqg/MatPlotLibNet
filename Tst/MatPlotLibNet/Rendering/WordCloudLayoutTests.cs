@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Diagnostics;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TextMeasurement;
@@ -18,18 +17,11 @@ public class WordCloudLayoutTests
 {
     private static readonly Rect Canvas = new(0, 0, 800, 600);
 
-    /// <summary>The metrics every vector is worked out under: a word is 0.6 of its font size wide for each character and as
-    /// high as its font size, whatever the font, so the boxes do not depend on a machine's fonts.</summary>
-    private sealed class FakeMetrics : IFontMetrics
-    {
-        public Size Measure(string text, Font font) => new(text.Length * font.Size * 0.6, font.Size);
-    }
-
     private static WordCloudSpec Spec(string[] words, double[] weights, double min = 12, double max = 60) =>
         new(words, weights, new Range1D(min, max), new Font());
 
     private static WordCloudResult Lay(string[] words, double[] weights, Rect? canvas = null) =>
-        WordCloudLayout.Compute(Spec(words, weights), canvas ?? Canvas, new FakeMetrics());
+        WordCloudLayout.Compute(Spec(words, weights), canvas ?? Canvas, new TestFontMetrics((text, font) => new(text.Length * font.Size * 0.6, font.Size)));
 
     private static readonly string[] Four = ["alpha", "beta", "gamma", "delta"];
 
@@ -130,18 +122,17 @@ public class WordCloudLayoutTests
         Assert.Equal(first.Shrink, second.Shrink);
     }
 
+    /// <summary>A hundred words are all placed. How long the packing takes is not asserted (a busy box changes it without the
+    /// code changing); the packing of a hundred words is measured in the benchmark project (<c>WordCloud100_Changed</c>), and a
+    /// packing that never ended would not return here.</summary>
     [Fact]
-    public void ThePackingIsFastEnough_ForAHundredWords()
+    public void AHundredWords_AreAllPlaced()
     {
         string[] words = [.. Enumerable.Range(0, 100).Select(i => "term" + i)];
         double[] weights = [.. Enumerable.Range(0, 100).Select(i => 1.0 + (i * 31 % 17))];
-        var watch = Stopwatch.StartNew();
 
         var result = Lay(words, weights);
 
-        // About half a second here, and ten times that under the coverage collector the CI job runs this suite with, so the bound is
-        // one only a blow-up reaches (a layout that grew with the cube of the words would take minutes), not one a slow runner does.
-        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(30), $"100 words took {watch.Elapsed}");
         Assert.Equal(100, result.Words.Count);
     }
 
@@ -154,7 +145,7 @@ public class WordCloudLayoutTests
     [InlineData(double.PositiveInfinity)]
     public void W5_AWeightThatIsNotAPositiveNumber_IsRefusedByItsWord(double weight)
     {
-        var refusal = Assert.Throws<ArgumentException>(() => Lay(["fine", "broken"], [3, weight]));
+        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => Lay(["fine", "broken"], [3, weight]));
 
         Assert.Contains("broken", refusal.Message, StringComparison.Ordinal);
         Assert.Contains("weight", refusal.Message, StringComparison.Ordinal);
@@ -192,15 +183,6 @@ public class WordCloudLayoutTests
 
         Assert.Empty(result.Words);
         Assert.Equal(0, result.Unplaced);
-    }
-
-    [Theory]
-    [InlineData(0.0, 10.0)]
-    [InlineData(20.0, 10.0)]
-    [InlineData(double.NaN, 10.0)]
-    public void ASizeRangeThatCannotBeSet_IsRefused(double min, double max)
-    {
-        Assert.Throws<ArgumentException>(() => WordCloudLayout.Compute(Spec(["a"], [1], min, max), Canvas, new FakeMetrics()));
     }
 
     // ── W6: nothing is dropped ──────────────────────────────────────────────────

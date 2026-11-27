@@ -3,6 +3,7 @@
 
 using System.Buffers;
 using System.Net;
+using MatPlotLibNet.Blazor.Tests.Infrastructure;
 using MatPlotLibNet.Diagnostics;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR;
@@ -40,28 +41,17 @@ public class ChartSubscriptionClientDiagnosticsTests
     [Fact]
     public async Task DisposeCurrentHub_OnDisposeRace_EmitsDiagnostic()
     {
-        ChartDiagnostic? received = null;
-        void Handler(ChartDiagnostic d) => received = d;
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            var client = new ChartSubscriptionClient(
-                hubUrl => new ThrowingDisposeHubConnection(),
-                ChartSubscriptionClient.RegisterHandler);
+        using var capture = new DiagnosticsCapture();
+        var client = new ChartSubscriptionClient(new RecordingHubConnector(connect: _ => new ThrowingDisposeHubConnection()));
 
-            await client.ConnectAsync("http://localhost/stub", TestContext.Current.CancellationToken);
+        await client.ConnectAsync("http://localhost/stub", TestContext.Current.CancellationToken);
 
-            var ex = await Record.ExceptionAsync(() => client.DisposeAsync().AsTask());
+        var ex = await Record.ExceptionAsync(() => client.DisposeAsync().AsTask());
 
-            Assert.Null(ex);
-            Assert.NotNull(received);
-            Assert.Equal("ChartSubscriptionClient", received!.Value.Source);
-            Assert.NotNull(received.Value.Exception);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Null(ex);
+        Assert.NotNull(capture.Last);
+        Assert.Equal("ChartSubscriptionClient", capture.Last!.Value.Source);
+        Assert.NotNull(capture.Last.Value.Exception);
     }
 
     /// <summary>A test-only <see cref="HubConnection"/> whose <see cref="StartAsync"/> is overridden

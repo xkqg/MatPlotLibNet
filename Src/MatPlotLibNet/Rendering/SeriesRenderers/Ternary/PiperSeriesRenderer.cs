@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -24,7 +25,7 @@ internal sealed class PiperSeriesRenderer : SeriesRenderer<PiperSeries>
     /// box has an area.</summary>
     private DataTransform? FrameView()
     {
-        double room = ThemedFontProvider.LabelFont(Context.Theme).Size * 3;
+        double room = Context.Theme.LabelFont().Size * 3;
         var bounds = Area.PlotBounds;
         var inner = new Rect(bounds.X + room, bounds.Y + room, bounds.Width - 2 * room, bounds.Height - 2 * room);
         if (!(inner.Width > 0) || !(inner.Height > 0)) return null;
@@ -46,11 +47,10 @@ internal sealed class PiperSeriesRenderer : SeriesRenderer<PiperSeries>
             return Pixel(new Point(frame.X + 1 + PiperFrame.Gap, frame.Y));
         }
 
-        var grid = Context.Theme.DefaultGrid;
-        var gridStroke = new StrokeStyle(grid.Color, grid.LineWidth, grid.LineStyle);
-        var outline = new ShapeStyle(null, Context.Theme.ForegroundText, 1);
-        var tickFont = ThemedFontProvider.TickFont(Context.Theme);
-        var labelFont = ThemedFontProvider.LabelFont(Context.Theme);
+        var gridStroke = Context.Theme.DefaultGrid.Stroke;
+        var outline = ShapeStyle.Outlined(Context.Theme.ForegroundText, Slot.LineWidthOf(LineWidthRule.OwnPixel));
+        var tickFont = Context.Theme.TickFont();
+        var labelFont = Context.Theme.LabelFont();
 
         // The two triangles: grid, outline, ticks (percent), the names of the corners.
         // The corners that face each other across the gap are named away from each other: the sodium name ends at its corner and the
@@ -65,8 +65,8 @@ internal sealed class PiperSeriesRenderer : SeriesRenderer<PiperSeries>
             var shares = series.Samples[i].ToShares();
             if (!double.IsFinite(shares.Ca) || !double.IsFinite(shares.Cl)) continue;   // only a series built without its verb
 
-            var style = new ShapeStyle(PartColor(series.Colors, i), null, 0);
-            double radius = series.MarkerSize / 2;
+            var style = ShapeStyle.Filled(PartColor(series.Colors, i));
+            double radius = series.MarkerSize.PointsInPixels / 2;
             Ctx.DrawCircle(Pixel(shares.CationPlace()), radius, style);
             Ctx.DrawCircle(Pixel(shares.AnionPlace()), radius, style);
             Ctx.DrawCircle(Pixel(shares.DiamondPlace()), radius, style);
@@ -80,15 +80,15 @@ internal sealed class PiperSeriesRenderer : SeriesRenderer<PiperSeries>
     {
         Ctx.DrawTernaryGrid(place, grid);
         Ctx.DrawPolygon([place(new(1, 0, 0)), place(new(0, 1, 0)), place(new(0, 0, 1))], outline);
-        Ctx.DrawTernaryTicks(place, tickFont, fraction => (fraction * 100).ToString("0", CultureInfo.InvariantCulture));
+        Ctx.DrawTernaryTicks(place, tickFont, fraction => (fraction * 100).InvariantText("0"));
 
-        double belowBase = tickFont.Size + TernaryDrawingExtensions.TickGap + 4 + labelFont.Size;
+        double belowBase = tickFont.Size + TernaryDrawingExtensions.TickGap + 4;
         var apex = place(new(1, 0, 0));
         var left = place(new(0, 1, 0));
         var right = place(new(0, 0, 1));
-        Ctx.DrawText(names[0], new Point(apex.X, apex.Y - 6), labelFont, TextAlignment.Center);
-        Ctx.DrawText(names[1], new Point(left.X, left.Y + belowBase), labelFont, leftAlignment);
-        Ctx.DrawText(names[2], new Point(right.X, right.Y + belowBase), labelFont, rightAlignment);
+        Ctx.Draw(TextLabel.Of(names[0]), labelFont, new TextPlacement(new Point(apex.X, apex.Y - 6), TextAlignment.Center));
+        Ctx.Draw(TextLabel.Of(names[1]), labelFont, new TextPlacement(new Point(left.X, left.Y + belowBase), leftAlignment) { Vertical = TextVerticalAlignment.Top });
+        Ctx.Draw(TextLabel.Of(names[2]), labelFont, new TextPlacement(new Point(right.X, right.Y + belowBase), rightAlignment) { Vertical = TextVerticalAlignment.Top });
     }
 
     /// <summary>The diamond: its grid (a line at each fifth of A and of B), its outline, and the names of the two upper edges.
@@ -108,7 +108,7 @@ internal sealed class PiperSeriesRenderer : SeriesRenderer<PiperSeries>
         var left = pixel(PiperFrame.DiamondAt(1, 0));
         Ctx.DrawPolygon([bottom, right, top, left], outline);
 
-        Ctx.DrawText("Ca+Mg", new Point((left.X + top.X) / 2 - 8, (left.Y + top.Y) / 2 - 8), labelFont, TextAlignment.Right);
-        Ctx.DrawText("SO4+Cl", new Point((right.X + top.X) / 2 + 8, (right.Y + top.Y) / 2 - 8), labelFont, TextAlignment.Left);
+        Ctx.Draw(TextLabel.Of("Ca+Mg"), labelFont, new TextPlacement(new Point((left.X + top.X) / 2 - 8, (left.Y + top.Y) / 2 - 8), TextAlignment.Right));
+        Ctx.Draw(TextLabel.Of("SO4+Cl"), labelFont, new TextPlacement(new Point((right.X + top.X) / 2 + 8, (right.Y + top.Y) / 2 - 8), TextAlignment.Left));
     }
 }

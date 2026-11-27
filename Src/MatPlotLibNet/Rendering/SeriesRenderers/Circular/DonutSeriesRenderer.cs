@@ -2,12 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders <see cref="DonutSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
-internal sealed class DonutSeriesRenderer : CircularRenderer<DonutSeries>
+internal sealed class DonutSeriesRenderer : SeriesRenderer<DonutSeries>
 {
     /// <inheritdoc />
     public DonutSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -19,26 +20,27 @@ internal sealed class DonutSeriesRenderer : CircularRenderer<DonutSeries>
     public override void Render(DonutSeries series)
     {
         var bounds = Area.PlotBounds;
-        double cx = bounds.X + bounds.Width / 2, cy = bounds.Y + bounds.Height / 2;
-        double outerR = Math.Min(bounds.Width, bounds.Height) / 2 * 0.8;
+        var frame = RoundFrame.In(bounds, RoundFrame.DiscShare);
+        double cx = frame.Centre.X, cy = frame.Centre.Y;
+        double outerR = frame.Radius;
         double innerR = outerR * series.InnerRadius;
-        // A pie's rule: a slice that cannot be drawn (missing, or infinite) counts as 0 in the total and draws no wedge.
-        double total = series.Sizes.DrawableValues().Sum();
-        if (total <= 0) return;
-        double angle = series.StartAngle * Math.PI / 180;
+        // A wedge's edge: matplotlib's patch rule under the matplotlib themes (black 1 pt under classic), none otherwise.
+        var edges = Context.Theme.PatchEdgesOf(series);
+        var edge = edges.Of();
+        // A pie's rule: a slice that cannot be drawn (missing, or infinite) counts as 0 in the total and draws no wedge, and a
+        // total of nothing or less is no whole to share.
+        if (series.Sizes.DrawableTotal() is not { } total) return;
+        double angle = series.StartAngleUnder(Context.Theme).ToRadians();
         for (int i = 0; i < series.Sizes.Length; i++)
         {
             if (!series.Sizes[i].IsDrawable()) continue;
-            double sweep = series.Sizes[i] / total * 2 * Math.PI;
+            double sweep = series.SweepOf(i, total, Context.Theme);
             var color = PartColor(series.Colors, i);
-            // Donut uses screen-Y convention (0° = right, positive sweeps clockwise on screen).
-            // BuildWedgePath uses math-Y (cy + r·sin), so negate angles to preserve visual output.
-            double startDeg = -angle * 180 / Math.PI;
-            double endDeg = -(angle + sweep) * 180 / Math.PI;
-            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, startDeg, endDeg), new ShapeStyle(color, null, 0));
+            // A donut lays its wedges as a pie does (WedgeSeries.SweepOf): as given, else as its theme lays wedges (WedgeLook).
+            Ctx.DrawPath(RingWedge.CounterClockwise(frame.Centre, innerR, outerR, angle, angle + sweep).Path(), edges.StyleOf(color, edge));
             angle += sweep;
         }
         if (series.CenterText is not null)
-            Ctx.DrawText(series.CenterText, new Point(cx, cy + 5), new Font { Size = 14, Weight = FontWeight.Bold }, TextAlignment.Center);
+            Ctx.Draw(TextLabel.Of(series.CenterText), Context.Theme.DataTextFont(series.TextSizeUnder(Context.Theme), weight: FontWeight.Bold), new TextPlacement(new Point(cx, cy), TextAlignment.Center) { Vertical = TextVerticalAlignment.Center });
     }
 }

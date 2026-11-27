@@ -12,63 +12,21 @@ public class RegressionSeriesRenderTests
     private static readonly double[] X = [1.0, 2.0, 3.0, 4.0, 5.0];
     private static readonly double[] Y = [2.1, 3.9, 6.2, 7.8, 10.1];
 
-    /// <summary>RegressionSeries renders to SVG without throwing.</summary>
-    [Fact]
-    public void Regression_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Regression(X, Y))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        // SVG contains a polyline element (the regression line).
+        new DrawnToken("Regression_SvgContainsPolyline", () => TestFigures.OfOneVerb(ax => ax.Regression(X, Y)).ToSvg(), "<polyline"),
+        // ShowConfidence=true produces a polygon (confidence band).
+        new DrawnToken("Regression_ShowConfidence_ContainsPolygon", () => TestFigures.OfOneVerb(ax => ax.Regression(X, Y, s => s.ShowConfidence = true)).ToSvg(), "<polygon"),
+        // ShowConfidence=false omits the confidence polygon.
+        new DrawnToken("Regression_NoConfidence_NoPolygon", () => TestFigures.OfOneVerb(ax => ax.Regression(X, Y, s => s.ShowConfidence = false)).ToSvg()) { Absent = ["<polygon"] },
+        // Degree-2 polynomial fit renders without error.
+        new DrawnToken("Regression_Degree2_RendersWithoutError", () => TestFigures.OfOneVerb(ax => ax.Regression(X, Y, s => s.Degree = 2)).ToSvg(), "<polyline"),
+    };
 
-    /// <summary>SVG contains a polyline element (the regression line).</summary>
-    [Fact]
-    public void Regression_SvgContainsPolyline()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Regression(X, Y))
-            .ToSvg();
-        Assert.Contains("<polyline", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    /// <summary>ShowConfidence=true produces a polygon (confidence band).</summary>
-    [Fact]
-    public void Regression_ShowConfidence_ContainsPolygon()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Regression(X, Y, s => s.ShowConfidence = true))
-            .ToSvg();
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>ShowConfidence=false omits the confidence polygon.</summary>
-    [Fact]
-    public void Regression_NoConfidence_NoPolygon()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Regression(X, Y, s => s.ShowConfidence = false))
-            .ToSvg();
-        Assert.DoesNotContain("<polygon", svg);
-    }
-
-    /// <summary>Degree-2 polynomial fit renders without error.</summary>
-    [Fact]
-    public void Regression_Degree2_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Regression(X, Y, s => s.Degree = 2))
-            .ToSvg();
-        Assert.Contains("<polyline", svg);
-    }
-
-    /// <summary>Single data point renders without throwing (returns empty).</summary>
-    [Fact]
-    public void Regression_SinglePoint_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Regression([1.0], [1.0]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

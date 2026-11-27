@@ -12,4 +12,5 @@ namespace MatPlotLibNet.Skia;
 /// buffer).</summary>
 /// <param name="Typeface">The typeface the family, weight and slant resolved to.</param>
 /// <param name="Shaper">The HarfBuzz shaper over that typeface.</param>
-internal readonly record struct ResolvedTypeface(SKTypeface Typeface, SKShaper Shaper);
+/// <param name="Ink">How the typeface's glyphs stand when matplotlib's Agg backend sets them, read the first time it is asked.</param>
+internal readonly record struct ResolvedTypeface(SKTypeface Typeface, SKShaper Shaper, FaceInk Ink);

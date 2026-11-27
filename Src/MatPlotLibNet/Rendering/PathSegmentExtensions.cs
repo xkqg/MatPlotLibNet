@@ -9,23 +9,71 @@ namespace MatPlotLibNet.Rendering;
 /// pixels by its definition, so no outline holds one.</summary>
 internal static class PathSegmentExtensions
 {
+    /// <summary>How many straight pieces a curve of an outline is cut into where it must be drawn as points
+    /// (<see cref="Flattened"/>): a quarter circle, the longest curve matplotlib's paths hold, is then a chord of 11.25 degrees,
+    /// which stands within a fifth of a pixel of the arc at a radius of 150 pixels.</summary>
+    private const int CurveSteps = 8;
+
     extension(IReadOnlyList<PathSegment> outline)
     {
+        /// <summary>The outline as points in data units, a curve cut into <see cref="CurveSteps"/> straight pieces, and whether it
+        /// closes: what a 3-D axes stands on a plane and projects point by point, so the scene the browser turns can move every
+        /// point. An outline of one subpath, as every patch's is; empty for an outline with no point.</summary>
+        /// <returns>The points and whether the outline closes back to the first.</returns>
+        internal FlatOutline Flattened()
+        {
+            var points = new List<Point>(outline.Count * 2);
+            var current = default(Point);
+            bool closed = false;
+            foreach (var segment in outline)
+            {
+                switch (segment)
+                {
+                    case MoveToSegment move:
+                        current = move.Point;
+                        points.Add(current);
+                        break;
+                    case LineToSegment line:
+                        current = line.Point;
+                        points.Add(current);
+                        break;
+                    case BezierSegment curve:
+                        points.AddCutCurve(current, curve);
+                        current = curve.End;
+                        break;
+                    case CloseSegment:
+                        closed = true;
+                        break;
+                }
+
+            }
+
+            // A closed outline whose last point is its first (a circle's last curve ends where it started) keeps it once.
+            if (closed && points.Count > 1 && points[^1] == points[0]) points.RemoveAt(points.Count - 1);
+            return new FlatOutline([.. points], closed);
+        }
+
         /// <summary>The outline in pixels: every point, a curve's control points included, mapped through
-        /// <paramref name="transform"/>, so on a log axis a curve's control points move as matplotlib moves them and a straight
-        /// edge stays straight. A finite coordinate the axis' scale cannot place (0 or below on a log axis) is pinned to the edge
-        /// where that axis begins (<see cref="DataTransform.DataToPixelClipped"/>). A point the axes cannot place at all (inside an
-        /// axis break) is left out with the segment it ends, and the outline resumes with a move at the next point it can place:
-        /// a subpath of its own, and an outline broken that way is not closed across the gap. A segment no outline in data units
-        /// holds (an arc) is not placed either.</summary>
-        /// <param name="transform">The transform of the axes the outline is drawn on.</param>
+        /// <paramref name="placement"/>, so on a log axis a curve's control points move as matplotlib moves them and a straight
+        /// edge stays straight. A finite coordinate a log axis cannot place (0 or below) stands a thousand decades beyond it, as
+        /// matplotlib's <c>nonpositive='clip'</c> puts it, and the outline is then cut where it leaves the plot through the edge
+        /// that axis begins at (<see cref="IDataPlacement.CutAtTheStart"/>; a curve is flattened into
+        /// <see cref="CurveSteps"/> straight pieces first): what matplotlib's axes clip leaves of it. A point the axes cannot place
+        /// at all (inside an axis break) is left out with the segment it ends, and the outline resumes with a move at the next
+        /// point it can place: a subpath of its own, and an outline broken that way is not closed across the gap. A segment no
+        /// outline in data units holds (an arc) is not placed either.</summary>
+        /// <param name="placement">Where the axes the outline is drawn on places a data point (<see cref="IDataPlacement.PlaceUnclipped"/>):
+        /// its transform, or its polar placement by angle and radius, where a curve's control points move as matplotlib moves the
+        /// vertices of a path of one interpolation step.</param>
+        /// <typeparam name="TPlace">The kind of placement, so a placement that is a value is not boxed.</typeparam>
         /// <returns>The path in pixels; empty when no line and no curve is left between two points that can be placed.</returns>
-        internal IReadOnlyList<PathSegment> ToPixels(DataTransform transform)
+        internal IReadOnlyList<PathSegment> ToPixels<TPlace>(TPlace placement) where TPlace : IDataPlacement
         {
             var path = new List<PathSegment>(outline.Count);
             bool hasPoint = false;   // the path stands at a point the next segment can continue from
             bool broken = false;     // a point of the current subpath was left out
             bool draws = false;      // a line or a curve was placed
+            var beyond = default(AxisPair<bool>);   // the log axes a point stands beyond, where the path is cut
 
             foreach (var segment in outline)
             {
@@ -60,12 +108,89 @@ internal static class PathSegmentExtensions
                 }
             }
 
-            return draws ? path : [];
+            if (!draws) return [];
+            return beyond.Any || placement.HasRooms ? path.CutAtTheStart(placement, beyond) : path;
 
             bool Placed(Point data, out Point pixel)
             {
-                pixel = transform.DataToPixelClipped(data.X, data.Y);
+                pixel = placement.PlaceUnclipped(data.X, data.Y);
+                beyond |= placement.BeyondOf(pixel);
                 return pixel.IsDrawable();
+            }
+        }
+
+        /// <summary>This path in pixels, a point of which stands beyond a log axis, cut where it leaves the plot through the edges of
+        /// <paramref name="beyond"/>: each subpath as points (a curve flattened into <see cref="CurveSteps"/> straight pieces in
+        /// pixels, where matplotlib draws it), cut by <paramref name="placement"/> (a closed subpath runs along the edge between the
+        /// cuts, an open one breaks there with a move), then written as moves, lines and closes again.</summary>
+        /// <returns>The cut path; empty when no line is left.</returns>
+        private IReadOnlyList<PathSegment> CutAtTheStart<TPlace>(TPlace placement, AxisPair<bool> beyond) where TPlace : IDataPlacement
+        {
+            var cut = new List<PathSegment>(outline.Count + 4);
+            var points = new List<Point>(outline.Count + CurveSteps);
+            var current = default(Point);
+            var start = default(Point);
+            bool afterClose = false;   // a close ended the subpath; a line after it starts from the subpath's first point
+            bool draws = false;
+
+            foreach (var segment in outline)
+            {
+                switch (segment)
+                {
+                    case MoveToSegment move:
+                        Flush(closed: false);
+                        current = start = move.Point;
+                        points.Add(current);
+                        afterClose = false;
+                        break;
+                    case LineToSegment line:
+                        Resume();
+                        current = line.Point;
+                        points.Add(current);
+                        break;
+                    case BezierSegment curve:
+                        Resume();
+                        points.AddCutCurve(current, curve);
+                        current = curve.End;
+                        break;
+                    case CloseSegment:
+                        Flush(closed: true);
+                        current = start;
+                        afterClose = true;
+                        break;
+                }
+            }
+
+            Flush(closed: false);
+            return draws ? cut : [];
+
+            void Resume()
+            {
+                if (!afterClose) return;
+                points.Add(start);
+                afterClose = false;
+            }
+
+            void Flush(bool closed)
+            {
+                if (points.Count == 0) return;
+                var kept = placement.CutAtTheStart(points, closed, beyond);
+                bool lifted = true;
+                foreach (var point in kept)
+                {
+                    if (!point.IsDrawable())
+                    {
+                        lifted = true;
+                        continue;
+                    }
+
+                    cut.Add(lifted ? new MoveToSegment(point) : new LineToSegment(point));
+                    draws |= !lifted;
+                    lifted = false;
+                }
+
+                if (closed && kept.Count > 0) cut.Add(new CloseSegment());
+                points.Clear();
             }
         }
 
@@ -110,6 +235,23 @@ internal static class PathSegmentExtensions
         }
     }
 
+    extension(List<Point> points)
+    {
+        /// <summary>Adds the points of <paramref name="curve"/>, which starts at <paramref name="from"/>, cut into <see cref="CurveSteps"/>
+        /// straight pieces: the one cut a curve gets wherever an outline is read as points. The start is not added; the end is the last.</summary>
+        /// <param name="from">The point the curve starts at: where the path stands.</param>
+        /// <param name="curve">The curve.</param>
+        private void AddCutCurve(Point from, BezierSegment curve)
+        {
+            for (int step = 1; step <= CurveSteps; step++)
+            {
+                double t = (double)step / CurveSteps;
+                points.Add(new Point(At(t, from.X, curve.Control1.X, curve.Control2.X, curve.End.X),
+                    At(t, from.Y, curve.Control1.Y, curve.Control2.Y, curve.End.Y)));
+            }
+        }
+    }
+
     /// <summary>Where, strictly between its ends, the cubic through <paramref name="p0"/>..<paramref name="p3"/> along one axis turns
     /// back: the roots in (0, 1) of its derivative, 3·[(1-t)²(p1-p0) + 2(1-t)t(p2-p1) + t²(p3-p2)], a quadratic in t solved in the
     /// form that loses no digits when its two roots differ greatly in size.</summary>
@@ -141,3 +283,8 @@ internal static class PathSegmentExtensions
         return s * s * s * p0 + 3 * s * s * t * p1 + 3 * s * t * t * p2 + t * t * t * p3;
     }
 }
+
+/// <summary>An outline as points in data units (<see cref="PathSegmentExtensions"/>' <c>Flattened</c>).</summary>
+/// <param name="Points">The points in order, the first not repeated at the end.</param>
+/// <param name="Closed">Whether the outline closes back to its first point.</param>
+internal readonly record struct FlatOutline(Point[] Points, bool Closed);

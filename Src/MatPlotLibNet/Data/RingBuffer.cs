@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
+
 namespace MatPlotLibNet.Data;
 
 /// <summary>A fixed-capacity circular SEQUENCE: the newest <see cref="Capacity"/> items, oldest first, with the
@@ -19,7 +21,8 @@ namespace MatPlotLibNet.Data;
 /// bucket is a SET and restoring the order means sorting. Order is free in an array and expensive in every
 /// keyed store — which is exactly why a bucketed ring is right for "is this key in the window" and wrong here.</para>
 ///
-/// <para>Thread-safe for one writer and many readers; it never allocates on <see cref="Append"/>.</para>
+/// <para>Thread-safe for one writer and many readers; it never allocates on <see cref="Append"/>. It is the lock around the
+/// library's one ring, which works out every place an item goes to and is read from.</para>
 ///
 /// <para><b>Arithmetic over the values is NOT in here.</b> A ring of <see cref="DateTime"/> or of a sample
 /// record has no minimum worth the name, so <c>Min</c> and <c>Max</c> live in
@@ -27,19 +30,15 @@ namespace MatPlotLibNet.Data;
 /// <typeparam name="T">What is remembered — a measurement, a state, a record of a moment.</typeparam>
 public sealed class RingBuffer<T>
 {
-    private readonly T[] _buffer;
     private readonly ReaderWriterLockSlim _lock = new();
-    private int _head; // next write position
-    private int _count;
+    private InputWindow<T> _window;
 
     /// <summary>Creates a ring that remembers the newest <paramref name="capacity"/> items.</summary>
     /// <param name="capacity">How many items to retain. Must be greater than zero.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="capacity"/> is not positive.</exception>
     public RingBuffer(int capacity)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(capacity, 0);
-        Capacity = capacity;
-        _buffer = new T[capacity];
+        _window = new InputWindow<T>(capacity.ThrowIfBelow(1, nameof(capacity)));
     }
 
     /// <summary>How many items are currently held — at most <see cref="Capacity"/>.</summary>
@@ -48,13 +47,13 @@ public sealed class RingBuffer<T>
         get
         {
             _lock.EnterReadLock();
-            try { return _count; }
+            try { return _window.Count; }
             finally { _lock.ExitReadLock(); }
         }
     }
 
     /// <summary>How many items the ring can hold. Fixed at construction.</summary>
-    public int Capacity { get; }
+    public int Capacity => _window.Width;
 
     /// <summary>The item at a logical index, where 0 is the OLDEST still held.</summary>
     /// <param name="index">The logical index, from 0 to <see cref="Count"/> - 1.</param>
@@ -66,9 +65,7 @@ public sealed class RingBuffer<T>
             _lock.EnterReadLock();
             try
             {
-                ArgumentOutOfRangeException.ThrowIfNegative(index);
-                ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, _count);
-                return _buffer[(Oldest() + index) % Capacity];
+                return _window[index.ThrowIfNotIndexOf(_window.Count, nameof(index))];
             }
             finally { _lock.ExitReadLock(); }
         }
@@ -79,15 +76,7 @@ public sealed class RingBuffer<T>
     public void Append(T value)
     {
         _lock.EnterWriteLock();
-        try
-        {
-            _buffer[_head] = value;
-            _head = (_head + 1) % Capacity;
-            if (_count < Capacity)
-            {
-                _count++;
-            }
-        }
+        try { _window.Push(value); }
         finally { _lock.ExitWriteLock(); }
     }
 
@@ -98,26 +87,7 @@ public sealed class RingBuffer<T>
     public void AppendRange(ReadOnlySpan<T> values)
     {
         _lock.EnterWriteLock();
-        try
-        {
-            if (values.Length >= Capacity)
-            {
-                values[^Capacity..].CopyTo(_buffer);
-                _head = 0;
-                _count = Capacity;
-                return;
-            }
-
-            foreach (var value in values)
-            {
-                _buffer[_head] = value;
-                _head = (_head + 1) % Capacity;
-                if (_count < Capacity)
-                {
-                    _count++;
-                }
-            }
-        }
+        try { _window.PushRange(values); }
         finally { _lock.ExitWriteLock(); }
     }
 
@@ -134,17 +104,7 @@ public sealed class RingBuffer<T>
     {
         ArgumentNullException.ThrowIfNull(fold);
         _lock.EnterReadLock();
-        try
-        {
-            int start = Oldest();
-            var state = seed;
-            for (int i = 0; i < _count; i++)
-            {
-                state = fold(state, _buffer[(start + i) % Capacity]);
-            }
-
-            return state;
-        }
+        try { return _window.Fold(seed, fold); }
         finally { _lock.ExitReadLock(); }
     }
 
@@ -156,7 +116,7 @@ public sealed class RingBuffer<T>
     {
         ArgumentNullException.ThrowIfNull(destination);
         _lock.EnterReadLock();
-        try { CopyHeld(destination); }
+        try { _window.CopyTo(destination); }
         finally { _lock.ExitReadLock(); }
     }
 
@@ -169,13 +129,13 @@ public sealed class RingBuffer<T>
         _lock.EnterReadLock();
         try
         {
-            if (_count == 0)
+            if (_window.Count == 0)
             {
                 return [];
             }
 
-            var result = new T[_count];
-            CopyHeld(result);
+            var result = new T[_window.Count];
+            _window.CopyTo(result);
             return result;
         }
         finally { _lock.ExitReadLock(); }
@@ -186,36 +146,7 @@ public sealed class RingBuffer<T>
     public void Clear()
     {
         _lock.EnterWriteLock();
-        try
-        {
-            Array.Clear(_buffer);
-            _head = 0;
-            _count = 0;
-        }
+        try { _window.Clear(); }
         finally { _lock.ExitWriteLock(); }
     }
-
-    // Both copy paths, in one place: held items may sit in one run or in two, and getting that wrong twice is
-    // how a wrapped buffer reads back shuffled.
-    private void CopyHeld(T[] destination)
-    {
-        if (_count == 0)
-        {
-            return;
-        }
-
-        int start = Oldest();
-        if (start + _count <= Capacity)
-        {
-            Array.Copy(_buffer, start, destination, 0, _count);
-            return;
-        }
-
-        int firstChunk = Capacity - start;
-        Array.Copy(_buffer, start, destination, 0, firstChunk);
-        Array.Copy(_buffer, 0, destination, firstChunk, _count - firstChunk);
-    }
-
-    // Where the oldest held item sits. Caller holds the lock.
-    private int Oldest() => (_head - _count + Capacity) % Capacity;
 }

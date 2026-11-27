@@ -40,6 +40,8 @@ public class ChartTablesTests
     [InlineData(double.PositiveInfinity)]    // finite is the first thing a date has to be
     [InlineData(-700000.0)]                  // before the earliest date that can be written
     [InlineData(3000000.0)]                  // after the last one
+    [InlineData(-657435.0)]                  // the lower edge itself, which DateTime.FromOADate refuses
+    [InlineData(2958466.0)]                  // the upper edge itself
     public void ANumberNoDateCouldBe_StaysTheNumberItIs(double value)
     {
         var table = Project(DataColumnKind.Date, DataCell.FromNumber(value));

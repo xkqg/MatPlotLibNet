@@ -107,7 +107,7 @@ Plt.Create()
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `Color` | `Color` | auto | Line and cap color |
-| `CapSize` | `double` | `5` | Width of error bar caps in pixels |
+| `CapSize` | `double` | `5` | How far each cap reaches either side of its bar, in pixels. Left alone, a cap is 5 under the library's own themes and matplotlib's `errorbar.capsize` under the matplotlib themes (none under v2, 3 points under classic); 0 draws no cap |
 | `LineWidth` | `double` | `1.5` | Line width of the bars and the caps |
 | `ELineWidth` | `double?` | none | Width of the error bars alone (none: `LineWidth`) |
 | `CapThick` | `double?` | none | Thickness of the caps alone (none: `LineWidth`) |

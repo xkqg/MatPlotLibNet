@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -15,10 +16,10 @@ namespace MatPlotLibNet;
 /// technical indicators take their prices as an <see cref="Indicators.OhlcvBars"/>; these charts need nothing but the closes.)</summary>
 public static class PriceAxesExtensions
 {
-    /// <summary>The width of the thin line of a Kagi chart, in points.</summary>
+    /// <summary>The width of the thin line of a Kagi chart, in pixels.</summary>
     private const double KagiThinWidth = 1;
 
-    /// <summary>The width of the thick line of a Kagi chart, in points.</summary>
+    /// <summary>The width of the thick line of a Kagi chart, in pixels.</summary>
     private const double KagiThickWidth = 3;
 
     extension(AxesBuilder axes)
@@ -58,14 +59,22 @@ public static class PriceAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(prices);
-            if (!(double.IsFinite(brickSize) && brickSize > 0))
+            brickSize.ThrowIfNotFinite(nameof(brickSize)).ThrowIfNotAbove(0, nameof(brickSize));
+
+            // Brick i of the whole chart stands in the slot from i to i + 1 (the bars are a slot wide, so neighbours touch), on the
+            // bottom of its brick, as tall as the brick; each direction is one series, so each is one colour and one legend entry.
+            var bricks = prices.RenkoBricks(brickSize);
+            var risingBricks = new FloatingBars(CategorySlot.Of(0).Width, UpDownColors.Standard.Up);
+            var fallingBricks = new FloatingBars(CategorySlot.Of(0).Width, UpDownColors.Standard.Down);
+            for (int i = 0; i < bricks.Count; i++)
             {
-                throw new ArgumentOutOfRangeException(nameof(brickSize), brickSize, "A brick covers a price above zero.");
+                var brick = bricks[i];
+                (brick.Rising ? risingBricks : fallingBricks).Add(
+                    i.InvariantText(), CategorySlot.Of(i).Centre, brick.Bottom, brick.Top - brick.Bottom);
             }
 
-            var bricks = prices.RenkoBricks(brickSize);
-            var up = BricksOf(bricks, rising: true, Colors.Green, "up");
-            var down = BricksOf(bricks, rising: false, Colors.Red, "down");
+            var up = risingBricks.ToSeries("up");
+            var down = fallingBricks.ToSeries("down");
             // The X axis is only the order of the bricks, so it carries no ticks: a number on it would read "2.5" for no brick.
             axes.AddSeries(up).AddSeries(down).SetXTickLocator(new FixedLocator([]));
             configure?.Invoke(new RenkoParts(up, down));
@@ -112,17 +121,12 @@ public static class PriceAxesExtensions
         {
             ArgumentNullException.ThrowIfNull(axes);
             ArgumentNullException.ThrowIfNull(prices);
-            if (!(double.IsFinite(reversal) && reversal > 0))
-            {
-                throw new ArgumentOutOfRangeException(nameof(reversal), reversal, "A reversal covers a price above zero.");
-            }
+            reversal.ThrowIfNotFinite(nameof(reversal)).ThrowIfNotAbove(0, nameof(reversal));
 
             var lines = prices.KagiLines(reversal);
-            int colorGroup = axes.NextColorGroup();
-            var thin = PathOf(lines, thick: false);
-            var thick = PathOf(lines, thick: true);
-            thin.ColorGroup = colorGroup;
-            thick.ColorGroup = colorGroup;
+            var thin = LineOf(lines, thick: false);
+            var thick = LineOf(lines, thick: true);
+            axes.Axes.InColorGroup(thin, thick);
             // The X axis is only the order of the legs, so it carries no ticks.
             axes.AddSeries(thin).AddSeries(thick).SetXTickLocator(new FixedLocator([]));
             configure?.Invoke(new KagiParts(thick, thin));
@@ -130,96 +134,10 @@ public static class PriceAxesExtensions
         }
     }
 
-    /// <summary>The stretches of the Kagi path drawn in one width, as one line: the pieces in the order of the path, a piece that
-    /// carries on from the one before it (the same width, starting where it ended) joining the same polyline so the corner
-    /// between them is a join, and a missing value between polylines. A leg stands on the centre of its column and a connector
-    /// runs from the centre of one column to the centre of the next.</summary>
-    private static LineSeries PathOf(KagiLines lines, bool thick)
+    /// <summary>The Kagi path in one width as a line of that width.</summary>
+    private static LineSeries LineOf(KagiLines lines, bool thick)
     {
-        var xs = new List<double>();
-        var ys = new List<double>();
-        bool open = false;
-        double endX = 0, endY = 0;
-        foreach (var piece in PiecesOf(lines))
-        {
-            if (piece.Thick != thick)
-            {
-                open = false;
-                continue;
-            }
-
-            if (!open || piece.FromX != endX || piece.FromY != endY)
-            {
-                if (xs.Count > 0)
-                {
-                    xs.Add(double.NaN);
-                    ys.Add(double.NaN);
-                }
-
-                xs.Add(piece.FromX);
-                ys.Add(piece.FromY);
-            }
-
-            xs.Add(piece.ToX);
-            ys.Add(piece.ToY);
-            open = true;
-            endX = piece.ToX;
-            endY = piece.ToY;
-        }
-
-        return new LineSeries([.. xs], [.. ys]) { LineWidth = thick ? KagiThickWidth : KagiThinWidth };
-    }
-
-    /// <summary>One straight piece of the Kagi path in the coordinates of the axes.</summary>
-    private readonly record struct KagiPiece(double FromX, double FromY, double ToX, double ToY, bool Thick);
-
-    /// <summary>Every piece of the path in the order it is walked: the pieces of a leg, then the connector that leaves it.</summary>
-    private static IEnumerable<KagiPiece> PiecesOf(KagiLines lines)
-    {
-        foreach (var column in lines.Segments.GroupBy(segment => segment.Column))
-        {
-            double x = CategorySlot.Of(column.Key).Centre;
-            foreach (var segment in column)
-            {
-                yield return new KagiPiece(x, segment.From, x, segment.To, segment.Thick);
-            }
-
-            foreach (var connector in lines.Connectors.Where(connector => connector.Column == column.Key))
-            {
-                yield return new KagiPiece(x, connector.Price, CategorySlot.Of(column.Key + 1).Centre, connector.Price, connector.Thick);
-            }
-        }
-    }
-
-    /// <summary>The bricks of one direction as floating bars: brick <c>i</c> of the whole chart stands in the slot from
-    /// <c>i</c> to <c>i + 1</c> (the bars are a slot wide, so neighbours touch), on the bottom of its brick, as tall as the
-    /// brick. The bricks of the other direction are not here, so each series is one colour and one legend entry.</summary>
-    private static BarSeries BricksOf(IReadOnlyList<RenkoBrick> bricks, bool rising, Color colour, string label)
-    {
-        var numbers = new List<string>();
-        var centres = new List<double>();
-        var feet = new List<double>();
-        var heights = new List<double>();
-        for (int i = 0; i < bricks.Count; i++)
-        {
-            if (bricks[i].Rising != rising)
-            {
-                continue;
-            }
-
-            numbers.Add(i.ToString(CultureInfo.InvariantCulture));
-            centres.Add(CategorySlot.Of(i).Centre);
-            feet.Add(bricks[i].Bottom);
-            heights.Add(bricks[i].Top - bricks[i].Bottom);
-        }
-
-        return new BarSeries([.. numbers], [.. heights])
-        {
-            XCoordinate = [.. centres],
-            StackBaseline = [.. feet],
-            BarWidth = CategorySlot.Of(0).Right - CategorySlot.Of(0).Left,
-            Color = colour,
-            Label = label,
-        };
+        var path = lines.Path(thick);
+        return new LineSeries(path.X, path.Y) { LineWidth = thick ? KagiThickWidth : KagiThinWidth };
     }
 }

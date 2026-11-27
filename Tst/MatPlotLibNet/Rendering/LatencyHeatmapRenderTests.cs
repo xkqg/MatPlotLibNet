@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -43,15 +41,10 @@ public class LatencyHeatmapRenderTests
     }
 
     private static (double X, double Y, double W, double H)[] Rects(string svg) =>
-        [.. Regex.Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""([0-9.eE+-]+)"" width=""([0-9.eE+-]+)"" height=""([0-9.eE+-]+)""")
-            .Select(m => (
-                double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-                double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
-                double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture),
-                double.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture)))];
+        [.. svg.Elements("rect").Select(rect => (rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height")))];
 
     private static string[] Labels(string svg) =>
-        [.. Regex.Matches(svg, @"<text[^>]*>([^<]+)</text>").Select(m => m.Groups[1].Value)];
+        [.. svg.Elements("text").Where(text => text.Text.Length > 0).Select(text => text.Text)];
 
     [Fact]
     public void EveryBucketAndEveryMinute_GetsItsOwnCell()

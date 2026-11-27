@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Downsampling;
 
 namespace MatPlotLibNet.Numerics;
@@ -36,6 +37,15 @@ internal static class MonotoneCubicSpline
     }
 
     /// <summary>The spline through one run of drawable points.</summary>
+    /// <summary>Where knot <paramref name="knot"/> of <paramref name="count"/> stands in the samples <see cref="Interpolate"/> gives
+    /// at <paramref name="resolution"/>: every knot of a run without a gap is a sample, <paramref name="resolution"/> samples after
+    /// the knot before it, so a range of the knots is a range of the curve.</summary>
+    /// <param name="knot">The index of the knot.</param>
+    /// <param name="count">How many knots the curve goes through.</param>
+    /// <param name="resolution">The samples for each interval.</param>
+    /// <returns>The index of the sample that is the knot.</returns>
+    internal static int SampleOf(int knot, int count, int resolution) => count < 2 || resolution <= 1 ? knot : knot * resolution;
+
     private static XYData InterpolateRun(double[] x, double[] y, int resolution)
     {
         int n = x.Length;
@@ -67,10 +77,11 @@ internal static class MonotoneCubicSpline
             }
             double alpha = m[i] / d[i];
             double beta  = m[i + 1] / d[i];
-            double sq = alpha * alpha + beta * beta;
-            if (sq > 9)
+            // Fritsch-Carlson: the step (alpha, beta) must stay inside the circle of radius 3.
+            var step = new Point(alpha, beta);
+            if (step.SquaredLength > 9)
             {
-                double tau = 3 / Math.Sqrt(sq);
+                double tau = 3 / step.Length;
                 m[i]     = tau * alpha * d[i];
                 m[i + 1] = tau * beta  * d[i];
             }

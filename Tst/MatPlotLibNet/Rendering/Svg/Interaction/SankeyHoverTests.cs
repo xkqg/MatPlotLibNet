@@ -6,7 +6,7 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
 /// <summary>Phase G.7 of the v1.7.2 follow-on plan — behavioural coverage for
-/// <see cref="MatPlotLibNet.Rendering.Svg.SvgSankeyHoverScript"/>. Exercises
+/// <see cref="Transforms.SvgTransform.SankeyHoverScript"/>. Exercises
 /// the BFS-traversal highlight path (mouseenter / focus) and the restore path
 /// (mouseleave / blur).
 ///

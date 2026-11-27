@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"gantt","label":"text 2","color":"#1BC33F","tasks":["A","B","C"],"starts":[0,1,2],"ends":[1,3,4],"barHeight":0.25,"zOrder":6,"visible":false}]}]}

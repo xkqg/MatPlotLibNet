@@ -26,12 +26,19 @@ public class SvgIframeWrapperTests
         Assert.StartsWith("<!DOCTYPE html>", wrapped);
     }
 
-    [Fact]
-    public void WrapForIframe_PreservesOriginalSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string wrapped = SvgIframeWrapper.WrapForIframe(SampleSvg);
-        Assert.Contains(SampleSvg, wrapped);
-    }
+        new DrawnToken("WrapForIframe_PreservesOriginalSvg", () => SvgIframeWrapper.WrapForIframe(SampleSvg), SampleSvg),
+        //  Without explicit CSS, bare pre-Phase-L SVGs with pixel width/height would
+        //  not resize with the iframe — the L.7 regression fix emits its own fill-CSS
+        //  so it works standalone from the L.1–L.2 responsive-SVG default.
+        new DrawnToken("WrapForIframe_EmitsFillStyleSoSvgFillsIframe", () => SvgIframeWrapper.WrapForIframe(SampleSvg), "width:100%", "height:100%"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void WrapForIframe_ContainsScriptInsideBody()
@@ -44,17 +51,6 @@ public class SvgIframeWrapperTests
         Assert.True(bodyEnd   > bodyStart, "wrapped document must contain </body>");
         Assert.True(scriptIdx > bodyStart && scriptIdx < bodyEnd,
             "<script> must live inside <body> so the HTML parser schedules it");
-    }
-
-    [Fact]
-    public void WrapForIframe_EmitsFillStyleSoSvgFillsIframe()
-    {
-        // Without explicit CSS, bare pre-Phase-L SVGs with pixel width/height would
-        // not resize with the iframe — the L.7 regression fix emits its own fill-CSS
-        // so it works standalone from the L.1–L.2 responsive-SVG default.
-        string wrapped = SvgIframeWrapper.WrapForIframe(SampleSvg);
-        Assert.Contains("width:100%", wrapped);
-        Assert.Contains("height:100%", wrapped);
     }
 
     [Fact]

@@ -12,7 +12,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Mcp</PackageId>
-    <Version>1.29.0</Version>
+    <Version>1.30.0</Version>
     <Description>MCP (Model Context Protocol) stdio server for MatPlotLibNet. An AI agent renders the library's chart types to PNG, SVG or PDF from a JSON spec, reads the chart's data back as a markdown table, lists the chart types and reads the spec schema — no browser, no service.</Description>
     <PackageTags>matplotlib;mcp;model-context-protocol;ai;agent;charting;plotting;visualization;stdio;plot</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -32,6 +32,8 @@
   <ItemGroup>
     <ProjectReference Include="..\MatPlotLibNet\MatPlotLibNet.csproj" />
     <ProjectReference Include="..\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+    <!-- Maps: the geo_polygon series and its reader, so a spec may draw a map as the figure JSON of one is written. -->
+    <ProjectReference Include="..\MatPlotLibNet.Geo\MatPlotLibNet.Geo.csproj" />
   </ItemGroup>
 
   <!-- A dotnet tool carries its whole dependency closure, and SkiaSharp's native assets bring a PDB per RID:
@@ -60,6 +62,8 @@
     <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <!-- The licences of the third-party files and libraries this package carries: it is what MIT, BSD-3-Clause, Apache-2.0 and the font licence ask to travel with a copy. -->
+    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- A library can leave the choice of native libraries to the application that hosts it, but this package IS the

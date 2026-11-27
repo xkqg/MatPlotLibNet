@@ -29,7 +29,7 @@ public class StreamingChartSessionTests
         return (sf, registry, publisher);
     }
 
-    /// <summary>Constructor (line 19-25) subscribes to RenderRequested. Triggering
+    /// <summary>The constructor subscribes to RenderRequested. Triggering
     /// RequestRender on the StreamingFigure causes OnRenderRequested → PublishSvgAsync.</summary>
     [Fact]
     public async Task RegisterStreaming_OnRenderRequested_PublishesSvg()
@@ -45,7 +45,7 @@ public class StreamingChartSessionTests
         await publisher.Received(1).PublishSvgAsync("c1", sf.Figure, Arg.Any<CancellationToken>());
     }
 
-    /// <summary>OnRenderRequested calls ApplyAxisScaling (line 30) BEFORE publishing.
+    /// <summary>OnRenderRequested calls ApplyAxisScaling BEFORE publishing.
     /// Verified by appending a streaming sample (which triggers RenderRequested) and
     /// observing the publisher receives the figure with the rescaled axes implicit.</summary>
     [Fact]
@@ -72,11 +72,11 @@ public class StreamingChartSessionTests
     }
 
     /// <summary>Re-registering the same chartId disposes the prior session
-    /// (FigureRegistry line 74-75 invokes existing.DisposeAsync). After re-register,
+    /// (FigureRegistry invokes existing.DisposeAsync). After re-register,
     /// the OLD StreamingFigure's RenderRequested no longer triggers a publish via the
     /// stale session — but it WOULD still trigger via the OLD session's still-attached
     /// handler if dispose hadn't unsubscribed. This pins that the dispose path
-    /// (StreamingChartSession.DisposeAsync line 34-42) actually unsubscribes.</summary>
+    /// (StreamingChartSession.DisposeAsync) actually unsubscribes.</summary>
     [Fact]
     public async Task ReRegisterStreaming_OldSession_StopsPublishing()
     {
@@ -122,13 +122,13 @@ public class StreamingChartSessionTests
 
     // ── Phase J coverage additions ────────────────────────────────────────────
 
-    /// <summary>DisposeAsync FALSE arm (L36 `if (!_disposed)` FALSE) — calling DisposeAsync
+    /// <summary>DisposeAsync is idempotent — calling DisposeAsync
     /// twice on the same session is idempotent; the second call is a no-op.</summary>
     [Fact]
     public async Task DisposeAsync_CalledTwice_IsIdempotent()
     {
         var (sf, _, publisher) = BuildHarness();
-        var session = new StreamingChartSession("c1", sf, publisher);
+        var session = new StreamingChartSession("c1", sf, publisher, NullCallerPublisher.Instance, new ChartSessionOptions());
         await session.DisposeAsync();
         await session.DisposeAsync(); // second call covers the FALSE arm of if (!_disposed)
         // After double-dispose, render should NOT trigger a publish.

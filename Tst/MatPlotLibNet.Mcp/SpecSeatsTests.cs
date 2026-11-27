@@ -5,16 +5,16 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Serialization;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
 /// <summary>A subplot keeps its series and its axes at many seats: the primary pair, the top and right axes, and every Y
-/// axis slot of either side (the frozen lists and their overflow lists). A model-authored document passes the reader's
+/// axis slot of either side (the frozen lists and their overflow lists), and the axis of every X axis below the plot. A model-authored document passes the reader's
 /// checks only if every seat gets them: the chart-type catalog, the text limit and the axis normalisation. The seats are
 /// listed here by hand, as the oracle the reader's own seat walk is held against.</summary>
 public class SpecSeatsTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     private const string Line = """{"type":"line","xData":[1,2,3],"yData":[2,4,3]}""";
 
@@ -47,6 +47,7 @@ public class SpecSeatsTests
         new("leftYAxes", """ "series":[LINE],"leftYAxes":[{},{"axis":HOLE}] """, "leftYAxes[1].axis"),
         new("rightYAxesOverflow", """ "series":[LINE],"secondaryYAxis":{},"extraRightYAxes":[{}],"rightYAxesOverflow":[{},{"axis":HOLE}] """, "rightYAxesOverflow[1].axis"),
         new("leftYAxesOverflow", """ "series":[LINE],"leftYAxes":[{}],"leftYAxesOverflow":[{},{"axis":HOLE}] """, "leftYAxesOverflow[1].axis"),
+        new("bottomXAxes", """ "series":[LINE],"bottomXAxes":[{},{"axis":HOLE}] """, "bottomXAxes[1].axis"),
     ];
 
     /// <summary>The axis each axis seat reads into, by the seat's name: slot <c>n</c> of the right side is the n-th axis out
@@ -63,6 +64,7 @@ public class SpecSeatsTests
         ["leftYAxes"] = axes => axes.YAxes.Left[2].Axis,
         ["rightYAxesOverflow"] = axes => axes.YAxes.Right[3].Axis,
         ["leftYAxesOverflow"] = axes => axes.YAxes.Left[3].Axis,
+        ["bottomXAxes"] = axes => axes.YAxes.Bottom[1].Axis,
     };
 
     public static TheoryData<string> SeriesSeats => [.. SeriesSeatList.Select(seat => seat.Name)];
@@ -72,6 +74,23 @@ public class SpecSeatsTests
     private static Seat SeriesSeat(string name) => SeriesSeatList.Single(seat => seat.Name == name);
 
     private static Seat AxisSeat(string name) => AxisSeatList.Single(seat => seat.Name == name);
+
+    private static ToolRefusalException RefusalAt(Seat seat, string hole) => RefusalOf(Spec(seat, hole));
+
+    private static ToolRefusalException RefusalOf(string spec) => Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(spec)));
+
+    /// <summary>A label one character past the text limit, written into the hole <paramref name="holeOf"/> makes of it, is refused with its
+    /// field, its path on the seat and the limit.</summary>
+    private static void AssertTheTextPastTheLimitIsRefused(Seat seat, Func<string, string> holeOf)
+    {
+        string label = new('A', RenderLimits.Default.MaxTextLength + 1);
+
+        var refusal = RefusalAt(seat, holeOf(label));
+
+        Assert.Contains("'label'", refusal.Message);
+        Assert.Contains($"at $.subPlots[0].{seat.Path} ", refusal.Message);
+        Assert.Contains(RenderLimits.Default.MaxTextLength.ToString(), refusal.Message);
+    }
 
     private static string Spec(Seat seat, string hole, bool withoutPrimarySeries = false)
     {
@@ -92,8 +111,7 @@ public class SpecSeatsTests
     {
         var seat = SeriesSeat(name);
 
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, """{"type":"lien","xData":[1,2],"yData":[1,2]}"""))));
+        var refusal = RefusalAt(seat, """{"type":"lien","xData":[1,2],"yData":[1,2]}""");
 
         Assert.Contains("'lien'", refusal.Message);
         Assert.Contains($"$.subPlots[0].{seat.Path}.type", refusal.Message);
@@ -106,11 +124,10 @@ public class SpecSeatsTests
     {
         var seat = SeriesSeat(name);
 
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, """{"type":"line","xData":[1,2,3]}"""))));
+        var refusal = RefusalAt(seat, """{"type":"line","xData":[1,2,3]}""");
 
         Assert.Contains($"$.subPlots[0].{seat.Path}", refusal.Message);
-        Assert.Contains("Array lengths must match", refusal.Message);
+        Assert.Contains(LengthRefusals.Opening, refusal.Message);
     }
 
     [Theory]
@@ -119,8 +136,7 @@ public class SpecSeatsTests
     {
         var seat = SeriesSeat(name);
 
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, """{"type":"line","xData":[1,2],"yData":[1,2],"labelPlacement":"lineEnnd"}"""))));
+        var refusal = RefusalAt(seat, """{"type":"line","xData":[1,2],"yData":[1,2],"labelPlacement":"lineEnnd"}""");
 
         Assert.Contains("'lineEnnd'", refusal.Message);
         Assert.Contains($"$.subPlots[0].{seat.Path}.labelPlacement", refusal.Message);
@@ -156,30 +172,14 @@ public class SpecSeatsTests
     [MemberData(nameof(SeriesSeats))]
     public void ATextPastTheLimitOnEverySeriesSeat_IsRefused(string name)
     {
-        var seat = SeriesSeat(name);
-        string label = new('A', RenderLimits.Default.MaxTextLength + 1);
-
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, $$"""{"type":"line","xData":[1,2],"yData":[1,2],"label":"{{label}}"}"""))));
-
-        Assert.Contains("'label'", refusal.Message);
-        Assert.Contains($"at $.subPlots[0].{seat.Path} ", refusal.Message);
-        Assert.Contains(RenderLimits.Default.MaxTextLength.ToString(), refusal.Message);
+        AssertTheTextPastTheLimitIsRefused(SeriesSeat(name), label => $$"""{"type":"line","xData":[1,2],"yData":[1,2],"label":"{{label}}"}""");
     }
 
     [Theory]
     [MemberData(nameof(AxisSeats))]
     public void ATextPastTheLimitOnEverySeat_IsRefused(string name)
     {
-        var seat = AxisSeat(name);
-        string label = new('A', RenderLimits.Default.MaxTextLength + 1);
-
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, $$"""{"label":"{{label}}"}"""))));
-
-        Assert.Contains("'label'", refusal.Message);
-        Assert.Contains($"at $.subPlots[0].{seat.Path} ", refusal.Message);
-        Assert.Contains(RenderLimits.Default.MaxTextLength.ToString(), refusal.Message);
+        AssertTheTextPastTheLimitIsRefused(AxisSeat(name), label => $$"""{"label":"{{label}}"}""");
     }
 
     // ---- the axis normalisation: every axis seat -----------------------------------------------------------------
@@ -190,8 +190,7 @@ public class SpecSeatsTests
     {
         var seat = AxisSeat(name);
 
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, """{"scale":"lgo"}"""))));
+        var refusal = RefusalAt(seat, """{"scale":"lgo"}""");
 
         Assert.Contains("'lgo'", refusal.Message);
         Assert.Contains($"$.subPlots[0].{seat.Path}.scale", refusal.Message);
@@ -236,8 +235,7 @@ public class SpecSeatsTests
     {
         var seat = AxisSeat(name);
 
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec(seat, """{"link":{"type":"linnear","scale":2}}"""))));
+        var refusal = RefusalAt(seat, """{"link":{"type":"linnear","scale":2}}""");
 
         Assert.Contains("'linnear'", refusal.Message);
         Assert.Contains($"$.subPlots[0].{seat.Path}.link.type", refusal.Message);
@@ -252,13 +250,44 @@ public class SpecSeatsTests
     [InlineData(""" "series":[{"type":"line","xData":[1],"yData":[1]}],"leftYAxes":[{"series":[null]}] """, "leftYAxes[0].series[0]")]
     [InlineData(""" "series":[{"type":"line","xData":[1],"yData":[1]}],"secondaryYAxis":{},"extraRightYAxes":[{},null] """, "extraRightYAxes[1]")]
     [InlineData(""" "series":[{"type":"line","xData":[1],"yData":[1]}],"leftYAxes":[{}],"leftYAxesOverflow":[null] """, "leftYAxesOverflow[0]")]
+    [InlineData(""" "series":[{"type":"line","xData":[1],"yData":[1]}],"bottomXAxes":[{},null] """, "bottomXAxes[1]")]
     public void ANullEntryOnASeatList_IsRefusedWithItsPath(string subplot, string path)
     {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec($$"""{"width":400,"height":300,"subPlots":[{{{subplot}}}]}""")));
+        var refusal = RefusalOf($$"""{"width":400,"height":300,"subPlots":[{{{subplot}}}]}""");
 
         Assert.Contains($"$.subPlots[0].{path}", refusal.Message);
         Assert.Contains("null", refusal.Message);
+    }
+
+    // ---- an X axis below the plot holds an axis and a location, a Y axis slot an axis and series ------------------
+
+    /// <summary>An X axis below the plot shows the primary X axis' range and holds no series of its own, so the wire record of
+    /// its entry has no series field: a series written there is an unknown field, refused where it stands.</summary>
+    [Fact]
+    public void ASeriesUnderAnXAxisBelowThePlot_IsAnUnknownField_RefusedWhereItStands()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(
+            $$"""{"width":400,"height":300,"subPlots":[{"series":[{{Line}}],"bottomXAxes":[{"axis":{},"series":[{{Line}}]}]}]}""")));
+
+        Assert.Contains("Unknown field 'series'", refusal.Message);
+        Assert.Contains("$.subPlots[0].bottomXAxes[0]", refusal.Message);
+    }
+
+    /// <summary>Only an X axis below the plot stands at a location; a Y axis slot written with one is refused, not read and
+    /// left undrawn.</summary>
+    [Fact]
+    public void ALocationOnAYAxisSlot_IsAnUnknownField_AndOnAnXAxisBelowThePlot_IsRead()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(
+            $$"""{"width":400,"height":300,"subPlots":[{"series":[{{Line}}],"leftYAxes":[{"location":-0.2}]}]}""")));
+        var axes = Reader.Read(new ChartSpec(
+            $$"""{"width":400,"height":300,"subPlots":[{"series":[{{Line}}],"bottomXAxes":[{"axis":{"label":"°F"},"location":-0.2}]}]}""")).SubPlots[0];
+
+        Assert.Contains("Unknown field 'location'", refusal.Message);
+        Assert.Contains("$.subPlots[0].leftYAxes[0]", refusal.Message);
+        var bottom = Assert.Single(axes.YAxes.Bottom);
+        Assert.Equal(-0.2, bottom.Location);
+        Assert.Equal("°F", bottom.Axis.Label);
     }
 
     /// <summary>The same refusal for every OTHER list of objects in a spec (subplots, insets, annotations, reference
@@ -275,8 +304,7 @@ public class SpecSeatsTests
     [InlineData(""" "series":[{"type":"line","xData":[1],"yData":[1]}],"insets":[null] """, "$.subPlots[0].insets[0]")]
     public void ANullEntryOnAnyOtherObjectList_IsRefusedWithItsPath(string subplot, string path)
     {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec($$"""{"width":400,"height":300,"subPlots":[{{{subplot}}}]}""")));
+        var refusal = RefusalOf($$"""{"width":400,"height":300,"subPlots":[{{{subplot}}}]}""");
 
         Assert.Contains(path, refusal.Message);
         Assert.Contains("null", refusal.Message);
@@ -285,8 +313,7 @@ public class SpecSeatsTests
     [Fact]
     public void ANullSubplot_IsRefusedWithItsPath()
     {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec("""{"width":400,"height":300,"subPlots":[null]}""")));
+        var refusal = RefusalOf("""{"width":400,"height":300,"subPlots":[null]}""");
 
         Assert.Contains("$.subPlots[0]", refusal.Message);
         Assert.Contains("null", refusal.Message);

@@ -15,9 +15,7 @@ public class BarLabelFidelityTests : FidelityTest
     private static readonly double[] Values = [3.0, 5.0, -2.0];
 
     private static Figure Build(string themeId, string title, BarOrientation orientation, bool backwards) =>
-        Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
+        FidelityFigure(themeId)
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.WithTitle(title)
@@ -29,34 +27,26 @@ public class BarLabelFidelityTests : FidelityTest
             .Build();
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]   // AA grey text vs matplotlib black
+    [FidelityRows]
+    [FidelityTolerance(Rms = 12, Ssim = 0.98, DeltaE = 3, V2DeltaE = 2)]   // AA grey text vs matplotlib black
     public void BarLabels_PositiveAndNegative_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — positive and negative", BarOrientation.Vertical, false), "bar_label_signs");
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]
+    [FidelityRows]
+    [FidelityTolerance(Rms = 9, Ssim = 0.98, DeltaE = 3, V2Rms = 10)]
     public void BarLabels_OnABackwardsYAxis_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — backwards Y axis", BarOrientation.Vertical, true), "bar_label_inverted");
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]
+    [FidelityRows]
+    [FidelityTolerance(Rms = 11, Ssim = 0.98, DeltaE = 3, V2DeltaE = 2)]
     public void BarLabels_OnHorizontalBars_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — horizontal bars", BarOrientation.Horizontal, false), "bar_label_horizontal");
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]
+    [FidelityRows]
+    [FidelityTolerance(Rms = 12, Ssim = 0.98, DeltaE = 3, V2Rms = 13, V2Ssim = 0.97)]
     public void BarLabels_OnHorizontalBarsOnABackwardsAxis_MatchMatplotlib(string themeId) =>
         AssertFidelity(Build(themeId, "Bar labels — horizontal bars, backwards axis", BarOrientation.Horizontal, true), "bar_label_horizontal_inverted");
 }

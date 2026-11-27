@@ -13,25 +13,17 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 public class TernaryFidelityTests : FidelityTest
 {
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 40, Ssim = 0.74, DeltaE = 105)]   // measured on Windows, ubuntu noble and resolute (RMS 25.9 and 19.1, SSIM 0.84 and 0.92, dE 14 and 60 for classic and v2), plus a margin of 10 percent (dE from the v2 value over 1.7, RMS over 1.5, SSIM less 0.10)
+    [FidelityRows]
+    [FidelityTolerance(Rms = 19, Ssim = 0.91, DeltaE = 4, V2Rms = 20, V2Ssim = 0.92, V2DeltaE = 4)]
     public void TernaryScatter_MatchesMpltern(string themeId)
     {
         double[] top = [0.80, 0.55, 0.30, 0.15, 0.10, 0.40, 0.25, 0.60, 0.35, 0.50];
         double[] left = [0.10, 0.20, 0.50, 0.30, 0.15, 0.20, 0.35, 0.10, 0.45, 0.25];
         double[] right = [.. top.Select((t, i) => 1.0 - t - left[i])];
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("ternary scatter")
-                .SetYLabel("Top")
-                .SetZLabel("Left")
-                .SetXLabel("Right")
-                .TernaryScatter(top, left, right))
-            .Build();
-        AssertFidelity(figure, "ternary_scatter");
+        AssertFidelity(themeId, "ternary_scatter", "ternary scatter", ax => ax
+            .SetYLabel("Top")
+            .SetZLabel("Left")
+            .SetXLabel("Right")
+            .TernaryScatter(top, left, right));
     }
 }

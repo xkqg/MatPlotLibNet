@@ -54,21 +54,13 @@ public class SeriesVerbRefusalTests
 
     [Theory]
     [MemberData(nameof(PointVerbs))]
-    public void ArraysThatDoNotPair_AreRefused_InTheLibrariesOneWording(string verb)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => CallPointVerb(new Axes(), verb, lastOneShort: true));
-
-        Assert.Equal("Array lengths must match. Got 3 and 2.", ex.Message);
-    }
-
-    [Theory]
-    [MemberData(nameof(PointVerbs))]
-    public void ARefusedVerb_LeavesNothingOnTheAxes(string verb)
+    public void ArraysThatDoNotPair_AreRefused_InTheLibrariesOneWording_AndNothingIsAdded(string verb)
     {
         var axes = new Axes();
 
-        Assert.ThrowsAny<ArgumentException>(() => CallPointVerb(axes, verb, lastOneShort: true));
+        var ex = Assert.Throws<ArgumentException>(() => CallPointVerb(axes, verb, lastOneShort: true));
 
+        Assert.Equal(3.RefusalAgainst(2), ex.Message);
         Assert.Empty(axes.Series);
     }
 
@@ -100,7 +92,7 @@ public class SeriesVerbRefusalTests
     {
         var ex = Assert.Throws<ArgumentException>(() => CallGridVerb(new Axes(), verb, rows: 2, columns: 2));
 
-        Assert.Equal("Array lengths must match. The values have 2 rows and 2 columns; the axes give 2 y and 3 x values.", ex.Message);
+        Assert.Equal(LengthRefusals.Grid(2, 2, 2, 3), ex.Message);
     }
 
     [Theory]
@@ -109,7 +101,7 @@ public class SeriesVerbRefusalTests
     {
         var ex = Assert.Throws<ArgumentException>(() => CallGridVerb(new Axes(), verb, rows: 3, columns: 3));
 
-        Assert.Equal("Array lengths must match. The values have 3 rows and 3 columns; the axes give 2 y and 3 x values.", ex.Message);
+        Assert.Equal(LengthRefusals.Grid(3, 3, 2, 3), ex.Message);
     }
 
     [Fact]
@@ -121,7 +113,7 @@ public class SeriesVerbRefusalTests
     {
         var ex = Assert.Throws<ArgumentException>(() => new Axes().Streamplot(Three, Two, Grid(2, 3), Grid(2, 2)));
 
-        Assert.Contains("Array lengths must match", ex.Message);
+        Assert.Contains(LengthRefusals.Opening, ex.Message);
     }
 
     // ---- a stack: every layer has a value at every x -----------------------------------------------------------------------
@@ -137,7 +129,7 @@ public class SeriesVerbRefusalTests
 
         var ex = Assert.Throws<ArgumentException>(() => axes.StackPlot(Three, [[1.0, 2, 3], [3.0, 4]]));
 
-        Assert.Equal("Array lengths must match. Got 3 and 2.", ex.Message);
+        Assert.Equal(3.RefusalAgainst(2), ex.Message);
         Assert.Empty(axes.Series);
     }
 
@@ -161,7 +153,7 @@ public class SeriesVerbRefusalTests
         var ex = Assert.Throws<ArgumentException>(() =>
             new Axes().Pcolormesh(new double[] { 0, 1, 2 }, new double[] { 0, 1, 2 }, Grid(2, 3)));
 
-        Assert.Equal("Array lengths must match. The values have 2 rows and 3 columns; the axes give 2 y and 2 x values.", ex.Message);
+        Assert.Equal(LengthRefusals.Grid(2, 3, 2, 2), ex.Message);
     }
 
     [Fact]
@@ -184,7 +176,7 @@ public class SeriesVerbRefusalTests
         var ex = Assert.ThrowsAny<ArgumentException>(() =>
             new ChartSerializer().FromJson($$"""{"subPlots":[{"series":[{{series}}]}]}"""));
 
-        Assert.StartsWith("Array lengths must match.", ex.Message);
+        Assert.StartsWith(LengthRefusals.Opening, ex.Message);
     }
 
     // ---- a Sankey: the links name nodes that exist -------------------------------------------------------------------------
@@ -196,19 +188,21 @@ public class SeriesVerbRefusalTests
     [Fact]
     public void ALinkToANodeThatDoesNotExist_IsRefused_NamingTheLinkAndTheNode()
     {
-        var ex = Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
             new Axes().Sankey([new SankeyNode("A"), new SankeyNode("B")], [new SankeyLink(0, 1, 5), new SankeyLink(0, 5, 2)]));
 
-        Assert.Equal("Link 1 points at node 5, but there are only 2 nodes.", ex.Message);
+        Assert.Equal("links", ex.ParamName);
+        Assert.StartsWith("The target of link 1 must be from 0 to 1 (got 5).", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ALinkFromANegativeNode_IsRefused()
     {
-        var ex = Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
             new Axes().Sankey([new SankeyNode("A"), new SankeyNode("B")], [new SankeyLink(-1, 1, 5)]));
 
-        Assert.Equal("Link 0 points at node -1, but there are only 2 nodes.", ex.Message);
+        Assert.Equal("links", ex.ParamName);
+        Assert.StartsWith("The source of link 0 must be from 0 to 1 (got -1).", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

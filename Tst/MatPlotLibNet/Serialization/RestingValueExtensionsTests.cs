@@ -52,4 +52,22 @@ public class RestingValueExtensionsTests
         Assert.Null(((string?)null).OrNullAtRest(null));
         Assert.Equal("serif", "serif".OrNullAtRest("sans-serif"));
     }
+
+    [Fact]
+    public void AValueWithAForm_IsDescribedOnlyAwayFromItsRest()
+    {
+        var grid = new GridStyle { Visible = true };
+
+        Assert.Null(grid.DescribedUnlessAtRest(grid, GridDto.From));
+        Assert.True(grid.DescribedUnlessAtRest(new GridStyle(), GridDto.From)!.Visible);
+    }
+
+    [Fact]
+    public void AList_IsLeftOutWhileItHoldsItsRestingItems_AndWrittenAwayFromThem()
+    {
+        Color[] resting = [Colors.Red, Colors.Blue];
+
+        Assert.Null(new[] { Colors.Red, Colors.Blue }.OrNullAtRest(resting));
+        Assert.Equal([Colors.Blue], new[] { Colors.Blue }.OrNullAtRest(resting)!);
+    }
 }

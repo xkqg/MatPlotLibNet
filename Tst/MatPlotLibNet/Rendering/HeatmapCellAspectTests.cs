@@ -18,7 +18,7 @@ public class HeatmapCellAspectTests
         var figure = Plt.Create().WithSize(width, height)
             .AddSubPlot(1, 1, 1, ax => ax.Heatmap(new double[10, 10]))
             .Build();
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         var range = figure.SubPlots[0].ComputeDataRanges(figure.Theme);
 
         return plot.Height / (range.YMax - range.YMin) / (plot.Width / (range.XMax - range.XMin));

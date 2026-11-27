@@ -39,9 +39,9 @@ internal sealed class SparklineSeriesRenderer : SeriesRenderer<SparklineSeries>
     {
         var points = Path(series);
         if (points.Count == 0) return;
-        var color = ResolveColor(series.Color);
+        var color = ColorOf(series);
         // A sparkline has no dash pattern of its own (it is a solid line, as an error bar's bars are), so the slot decides only
         // the width.
-        DrawPolyline(points, new StrokeStyle(color, Slot.LineWidthOf(series.LineWidth), LineStyle.Solid));
+        DrawSeriesLine(points, series, color);
     }
 }

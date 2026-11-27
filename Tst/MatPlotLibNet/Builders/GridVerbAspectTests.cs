@@ -31,7 +31,7 @@ public class GridVerbAspectTests
 
     private static double UnitsPerPixelRatio(Figure figure)
     {
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         var range = figure.SubPlots[0].ComputeDataRanges(figure.Theme);
         return Math.Abs((range.XMax - range.XMin) / plot.Width) / Math.Abs((range.YMax - range.YMin) / plot.Height);
     }

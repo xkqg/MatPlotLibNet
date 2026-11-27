@@ -19,25 +19,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
 
     public SignalRIntegrationTests()
     {
-        _host = new HostBuilder()
-            .ConfigureWebHost(webBuilder =>
-            {
-                webBuilder.UseTestServer();
-                webBuilder.ConfigureServices(services =>
-                {
-                    services.AddMatPlotLibNetSignalR();
-                    services.AddRouting();
-                });
-                webBuilder.Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
-                    {
-                        endpoints.MapChartHub();
-                    });
-                });
-            })
-            .Start();
+        _host = SignalRTestHost.Start();
 
         _httpClient = _host.GetTestClient();
     }
@@ -47,7 +29,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
     public async Task ChartHub_IsReachable()
     {
         var ct = TestContext.Current.CancellationToken;
-        var connection = CreateHubConnection();
+        var connection = _host.ConnectToTheHub();
         await connection.StartAsync(ct);
         Assert.Equal(HubConnectionState.Connected, connection.State);
         await connection.DisposeAsync();
@@ -60,7 +42,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
     {
         var ct = TestContext.Current.CancellationToken;
         var ledger = _host.Services.GetRequiredService<IChartSubscriptions>();
-        var connection = CreateHubConnection();
+        var connection = _host.ConnectToTheHub();
         await connection.StartAsync(ct);
 
         await connection.InvokeAsync("Subscribe", "ledger-chart", cancellationToken: ct);
@@ -72,77 +54,37 @@ public class SignalRIntegrationTests : IAsyncDisposable
 
         await connection.InvokeAsync("Subscribe", "ledger-chart", cancellationToken: ct);
         await connection.DisposeAsync();
-        Assert.True(SpinWait.SpinUntil(() => !ledger.HasSubscribers("ledger-chart"), TimeSpan.FromSeconds(5)),
-            "the disconnect swept the connection out of the chart");
+        await Eventually.HoldsAsync(() => !ledger.HasSubscribers("ledger-chart"));   // the disconnect swept the connection out of the chart
     }
 
-    /// <summary>Verifies that subscribing to a chart group completes without throwing.</summary>
-    [Fact]
-    public async Task Subscribe_DoesNotThrow()
+    /// <summary>Verifies that a subscribed client receives the broadcast of the publisher, as SVG and as JSON, each under its own hub method.</summary>
+    [Theory]
+    [InlineData(true, "UpdateChartSvg", "live-chart", "Live Data", "<svg")]
+    [InlineData(false, "UpdateChart", "json-chart", "JSON Test", "")]
+    public async Task APublishedChart_ReachesItsSubscriber(bool asSvg, string method, string chart, string title, string marker)
     {
         var ct = TestContext.Current.CancellationToken;
-        var connection = CreateHubConnection();
-        await connection.StartAsync(ct);
-        await connection.InvokeAsync("Subscribe", "test-chart", cancellationToken: ct);
-        await connection.DisposeAsync();
-    }
+        var connection = _host.ConnectToTheHub();
+        var tcs = new TaskCompletionSource<(string chartId, string body)>();
 
-    /// <summary>Verifies that a subscribed client receives an SVG broadcast from the publisher.</summary>
-    [Fact]
-    public async Task PublishSvg_ReceivesBroadcast()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var connection = CreateHubConnection();
-        var tcs = new TaskCompletionSource<(string chartId, string svg)>();
-
-        connection.On<string, string>("UpdateChartSvg", (id, svg) =>
+        connection.On<string, string>(method, (id, body) =>
         {
-            tcs.SetResult((id, svg));
+            tcs.SetResult((id, body));
         });
 
         await connection.StartAsync(ct);
-        await connection.InvokeAsync("Subscribe", "live-chart", cancellationToken: ct);
+        await connection.InvokeAsync("Subscribe", chart, cancellationToken: ct);
 
         // Publish from server side
         var publisher = _host.Services.GetRequiredService<IChartPublisher>();
-        var figure = Plt.Create()
-            .WithTitle("Live Data")
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
+        var figure = Plt.Create().WithTitle(title).Plot([1.0, 2.0], [3.0, 4.0]).Build();
 
-        await publisher.PublishSvgAsync("live-chart", figure, ct);
+        await (asSvg ? publisher.PublishSvgAsync(chart, figure, ct) : publisher.PublishAsync(chart, figure, ct));
 
         var result = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-        Assert.Equal("live-chart", result.chartId);
-        Assert.Contains("<svg", result.svg);
-        Assert.Contains("Live Data", result.svg);
-
-        await connection.DisposeAsync();
-    }
-
-    /// <summary>Verifies that a subscribed client receives a JSON broadcast from the publisher.</summary>
-    [Fact]
-    public async Task PublishJson_ReceivesBroadcast()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var connection = CreateHubConnection();
-        var tcs = new TaskCompletionSource<(string chartId, string json)>();
-
-        connection.On<string, string>("UpdateChart", (id, json) =>
-        {
-            tcs.SetResult((id, json));
-        });
-
-        await connection.StartAsync(ct);
-        await connection.InvokeAsync("Subscribe", "json-chart", cancellationToken: ct);
-
-        var publisher = _host.Services.GetRequiredService<IChartPublisher>();
-        var figure = Plt.Create().WithTitle("JSON Test").Build();
-        await publisher.PublishAsync("json-chart", figure, ct);
-
-        var result = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-        Assert.Equal("json-chart", result.chartId);
-        Assert.Contains("JSON Test", result.json);
+        Assert.Equal(chart, result.chartId);
+        Assert.Contains(marker, result.body);
+        Assert.Contains(title, result.body);
 
         await connection.DisposeAsync();
     }
@@ -152,7 +94,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
     public async Task UnsubscribedClient_DoesNotReceive()
     {
         var ct = TestContext.Current.CancellationToken;
-        var connection = CreateHubConnection();
+        var connection = _host.ConnectToTheHub();
         var received = false;
 
         connection.On<string, string>("UpdateChartSvg", (_, _) => received = true);
@@ -169,16 +111,6 @@ public class SignalRIntegrationTests : IAsyncDisposable
         Assert.False(received);
 
         await connection.DisposeAsync();
-    }
-
-    private HubConnection CreateHubConnection()
-    {
-        return new HubConnectionBuilder()
-            .WithUrl("http://localhost/charts-hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _host.GetTestServer().CreateHandler();
-            })
-            .Build();
     }
 
     public async ValueTask DisposeAsync()

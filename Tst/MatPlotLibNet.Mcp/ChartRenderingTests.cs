@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Mcp.Tests;
 public class ChartRenderingTests : IDisposable
 {
     private readonly DirectoryInfo _output = Directory.CreateTempSubdirectory("mcp-render-tests");
-    private readonly ChartRendering _rendering = new(
+    private static readonly ChartRendering _rendering = new(
         new ChartSpecReader(new ChartTypeCatalog(), RenderLimits.Default), new ChartSummarizer());
 
     private static readonly ChartSpec Line = new(
@@ -26,6 +26,20 @@ public class ChartRenderingTests : IDisposable
     }
 
     private OutputPathResolver Resolver => new(_output.FullName);
+
+    /// <summary>The SVG the server saves for <see cref="Line"/>, read back from a folder of its own.</summary>
+    private static string SavedSvg()
+    {
+        var folder = Directory.CreateTempSubdirectory("mcp-render-row");
+        try
+        {
+            return File.ReadAllText(_rendering.Save(Line, ChartFormat.Svg, "glyphs.svg", overwrite: false, new OutputPathResolver(folder.FullName)).Path);
+        }
+        finally
+        {
+            folder.Delete(recursive: true);
+        }
+    }
 
     [Fact]
     public void RenderingAChart_ReturnsPngBytes()
@@ -67,16 +81,17 @@ public class ChartRenderingTests : IDisposable
         Assert.Contains("'lien'", refusal.Message);
     }
 
-    [Fact]
-    public void TheSvgThisServerProduces_CarriesGlyphPaths_NotTextElements()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        // The PNG backend is loaded in this process, and its module initializer installs a glyph-path provider
-        // process-wide. That is a promise the package README makes; it breaks the day the Skia reference goes.
-        string svg = File.ReadAllText(_rendering.Save(Line, ChartFormat.Svg, "glyphs.svg", overwrite: false, Resolver).Path);
+        //  The PNG backend is loaded in this process, and its module initializer installs a glyph-path provider
+        //  process-wide. That is a promise the package README makes; it breaks the day the Skia reference goes.
+        new DrawnToken("TheSvgThisServerProduces_CarriesGlyphPaths_NotTextElements", SavedSvg, "<path") { Absent = ["<text"] },
+    };
 
-        Assert.Contains("<path", svg);
-        Assert.DoesNotContain("<text", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void TheGlyphProvider_IsInstalledBeforeTheFirstRender() =>

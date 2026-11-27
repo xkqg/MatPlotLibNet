@@ -38,7 +38,7 @@ public readonly record struct AlarmPalette(Color Resting, Color Warning, Color C
     /// <summary>The library's alarm colours: a mid-grey resting shade and the Okabe-Ito amber and vermillion for warning and critical. A theme that has not tuned its own uses this.</summary>
     public static AlarmPalette Default { get; } = new(
         Resting: Color.FromHex("#8A8A8A"),
-        Warning: Color.FromHex("#E69F00"),
-        Critical: Color.FromHex("#D55E00"),
+        Warning: ColorMaps.QualitativeColorMaps.OkabeItoAt(0),
+        Critical: ColorMaps.QualitativeColorMaps.OkabeItoAt(5),
         Unknown: Color.FromHex("#8A8A8A"));
 }

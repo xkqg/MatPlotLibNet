@@ -4,8 +4,10 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.SeriesRenderers.Flow;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -52,26 +54,15 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
         if (layout is null) return;
 
         // Draw links, then nodes+labels, using the pre-computed layout.
-        DrawLinks(series, layout.Columns, layout.NodeRects, layout.NodeValues, bounds, layout.Vertical);
+        DrawLinks(series, layout.NodeRects, layout.NodeValues, layout.Vertical);
         DrawNodesAndLabels(series, layout.Columns, layout.NodeRects, layout.MaxCol, layout.Vertical);
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Orientation-agnostic rect accessors
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /// <summary>Cross-axis lower bound: Y (horizontal) / X (vertical).</summary>
-    private static double CrossStart(Rect r, bool vert) => vert ? r.X : r.Y;
-
-    /// <summary>Cross-axis extent: Height (horizontal) / Width (vertical).</summary>
-    private static double CrossSize(Rect r, bool vert) => vert ? r.Width : r.Height;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Link drawing
     // ──────────────────────────────────────────────────────────────────────────
 
-    private void DrawLinks(SankeySeries series, int[] columns, Rect[] nodeRects,
-        double[] nodeValues, Rect bounds, bool vert)
+    private void DrawLinks(SankeySeries series, Rect[] nodeRects, double[] nodeValues, bool crossAlongX)
     {
         int n = series.Nodes.Count;
         // Per-node running offsets tracking how much of the source / target bar has already
@@ -81,43 +72,38 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
         var targetOffsets = new double[n];
 
         var sortedLinks = series.Links
-            .OrderBy(l => CrossStart(nodeRects[l.SourceIndex], vert))
-            .ThenBy(l => CrossStart(nodeRects[l.TargetIndex], vert))
+            .OrderBy(l => nodeRects[l.SourceIndex].StartAlong(crossAlongX))
+            .ThenBy(l => nodeRects[l.TargetIndex].StartAlong(crossAlongX))
             .ToList();
 
-        var culture = System.Globalization.CultureInfo.InvariantCulture;
         foreach (var link in sortedLinks)
         {
             var srcRect = nodeRects[link.SourceIndex];
             var tgtRect = nodeRects[link.TargetIndex];
             if (nodeValues[link.SourceIndex] <= 0 || nodeValues[link.TargetIndex] <= 0) continue;
 
-            double srcBand = CrossSize(srcRect, vert) * (link.Value / nodeValues[link.SourceIndex]);
-            double tgtBand = CrossSize(tgtRect, vert) * (link.Value / nodeValues[link.TargetIndex]);
+            double srcBand = srcRect.LengthAlong(crossAlongX) * (link.Value / nodeValues[link.SourceIndex]);
+            double tgtBand = tgtRect.LengthAlong(crossAlongX) * (link.Value / nodeValues[link.TargetIndex]);
 
-            double srcCrossPos = CrossStart(srcRect, vert) + sourceOffsets[link.SourceIndex];
-            double tgtCrossPos = CrossStart(tgtRect, vert) + targetOffsets[link.TargetIndex];
+            double srcCrossPos = srcRect.StartAlong(crossAlongX) + sourceOffsets[link.SourceIndex];
+            double tgtCrossPos = tgtRect.StartAlong(crossAlongX) + targetOffsets[link.TargetIndex];
 
             // Primary-axis entry / exit positions on each endpoint. For horizontal Sankeys
             // the link exits the source at its right edge (x + NodeWidth) and enters the
             // target at its left edge (x); the bezier control points share the same primary
             // midpoint. For vertical Sankeys, swap: source exit is the bottom edge, target
             // entry is the top edge, and the midpoint is the primary-axis average.
-            double srcPrimary = vert
-                ? srcRect.Y + srcRect.Height            // exit at the bottom of the source row
-                : srcRect.X + srcRect.Width;            // exit at the right of the source column
-            double tgtPrimary = vert
-                ? tgtRect.Y                             // entry at the top of the target row
-                : tgtRect.X;                            // entry at the left of the target column
+            double srcPrimary = srcRect.EndAlong(!crossAlongX);      // exit at the right of the source column (bottom of its row)
+            double tgtPrimary = tgtRect.StartAlong(!crossAlongX);    // entry at the left of the target column (top of its row)
             double midPrimary = (srcPrimary + tgtPrimary) / 2;
 
-            var srcColor = series.Nodes[link.SourceIndex].Color ?? ResolveColor(null);
-            var tgtColor = series.Nodes[link.TargetIndex].Color ?? ResolveColor(null);
+            var srcColor = series.Nodes[link.SourceIndex].Color ?? SeriesColor;
+            var tgtColor = series.Nodes[link.TargetIndex].Color ?? SeriesColor;
 
             // Build the 4-point band polygon in (primary, cross) coordinates, then map back
             // to (X, Y) based on orientation. Using a local helper keeps the bezier control
             // logic orientation-agnostic.
-            Point P(double primary, double cross) => vert ? new Point(cross, primary) : new Point(primary, cross);
+            Point P(double primary, double cross) => Point.Along(!crossAlongX, primary, cross);
 
             var segments = new List<PathSegment>
             {
@@ -129,22 +115,22 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
                 new CloseSegment()
             };
 
-            Ctx.SetNextElementData("sankey-link-source", link.SourceIndex.ToString(culture));
-            Ctx.SetNextElementData("sankey-link-target", link.TargetIndex.ToString(culture));
+            Ctx.SetNextElementData("sankey-link-source", link.SourceIndex.InvariantText());
+            Ctx.SetNextElementData("sankey-link-target", link.TargetIndex.InvariantText());
 
-            var fromAlpha = ApplyAlpha(srcColor, series.LinkAlpha);
+            var fromAlpha = srcColor.WithOpacityGiven(series.LinkAlpha);
             if (series.LinkColorMode == SankeyLinkColorMode.Gradient)
             {
                 // The blend runs from source to target along the flow direction, a property of the fill like a hatch
                 // is, so every backend that can paint a gradient (SVG, PNG, PDF) paints it.
-                var toAlpha = ApplyAlpha(tgtColor, series.LinkAlpha);
+                var toAlpha = tgtColor.WithOpacityGiven(series.LinkAlpha);
                 var blend = new LinearGradient(P(srcPrimary, srcCrossPos), P(tgtPrimary, tgtCrossPos), fromAlpha, toAlpha);
-                Ctx.DrawPath(segments, new ShapeStyle(fromAlpha, null, 0) { Gradient = blend });
+                Ctx.DrawPath(segments, ShapeStyle.Filled(fromAlpha) with { Gradient = blend });
             }
             else
             {
-                var fillColor = series.LinkColorMode == SankeyLinkColorMode.Target ? ApplyAlpha(tgtColor, series.LinkAlpha) : fromAlpha;
-                Ctx.DrawPath(segments, new ShapeStyle(fillColor, null, 0));
+                var fillColor = series.LinkColorMode == SankeyLinkColorMode.Target ? tgtColor.WithOpacityGiven(series.LinkAlpha) : fromAlpha;
+                Ctx.DrawPath(segments, ShapeStyle.Filled(fillColor));
             }
 
             sourceOffsets[link.SourceIndex] += srcBand;
@@ -156,50 +142,42 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
     // Node + label drawing
     // ──────────────────────────────────────────────────────────────────────────
 
-    private void DrawNodesAndLabels(SankeySeries series, int[] columns, Rect[] nodeRects, int maxCol, bool vert)
+    private void DrawNodesAndLabels(SankeySeries series, int[] columns, Rect[] nodeRects, int maxCol, bool crossAlongX)
     {
         int n = series.Nodes.Count;
-        var themeFont = Context.Theme.DefaultFont;
-        var labelFont = new Font { Family = themeFont.Family, Size = Math.Min(10, themeFont.Size), Color = themeFont.Color };
-        var subLabelFontBase = new Font
-        {
-            Family = labelFont.Family,
-            Size = labelFont.Size * 0.8,
-            Color = labelFont.Color
-        };
+        var labelFont = Context.Theme.DataTextFont(series.LabelSizeUnder(Context.Theme));
+        var subLabelFontBase = labelFont with { Size = labelFont.Size * 0.8 };
         var outerCandidates = new List<LabelCandidate>();
         var outerNodeIndex = new List<int>();
 
-        var culture = System.Globalization.CultureInfo.InvariantCulture;
         for (int i = 0; i < n; i++)
         {
-            var color = series.Nodes[i].Color ?? ResolveColor(null);
-            Ctx.SetNextElementData("sankey-node-id", i.ToString(culture));
-            Ctx.DrawRectangle(nodeRects[i], new ShapeStyle(color, null, 0));
+            var color = series.Nodes[i].Color ?? SeriesColor;
+            Ctx.SetNextElementData("sankey-node-id", i.InvariantText());
+            Ctx.DrawRectangle(nodeRects[i], ShapeStyle.Filled(color));
 
             string? label = series.Nodes[i].Label;
             if (string.IsNullOrEmpty(label)) continue;
 
-            var measured = FontMetricsDefault.Current.Measure(label, labelFont);
+            var measured = Ctx.ExtentOf(TextLabel.Of(label), labelFont);
 
             // Inside-labels: draw centred inside the rect if requested AND the rect is wide
             // enough (horizontal) / tall enough (vertical) to host the text.
-            double crossExtent = vert ? nodeRects[i].Width : nodeRects[i].Height;
+            double crossExtent = nodeRects[i].LengthAlong(crossAlongX);
             if (series.InsideLabels && measured.Width + 8 <= crossExtent)
             {
-                double cx = nodeRects[i].X + nodeRects[i].Width / 2;
-                double cy = nodeRects[i].Y + nodeRects[i].Height / 2 + measured.Height * 0.3;
-                var insideFont = new Font { Family = labelFont.Family, Size = labelFont.Size, Color = Colors.White };
-                Ctx.DrawText(label, new Point(cx, cy), insideFont, TextAlignment.Center);
-                DrawSubLabelIfAny(series.Nodes[i], new Point(cx, cy + measured.Height * 0.8),
-                    subLabelFontBase, TextAlignment.Center);
+                // Both texts stand on the node, centred on its middle and the sub-label one line under it: the ink that reads against
+                // its colour, unless the node names one for its sub-label.
+                var middle = new TextPlacement(nodeRects[i].Center, TextAlignment.Center) { Vertical = TextVerticalAlignment.Center };
+                var insideFont = Context.Theme.DataTextFontOn(color, labelFont.Size, GroundInk.Readable);
+                Ctx.Draw(TextLabel.Of(label), insideFont, middle);
+                DrawSubLabelIfAny(series.Nodes[i], middle.LineUnder(measured), subLabelFontBase with { Color = insideFont.Color });
                 continue;
             }
 
             bool onFarEdge = columns[i] == maxCol;
-            var orientation = vert ? SankeyOrientation.Vertical : SankeyOrientation.Horizontal;
-            var (anchor, align) = ComputeNodeLabelAnchor(nodeRects[i], onFarEdge, orientation, measured.Height);
-            outerCandidates.Add(new LabelCandidate(anchor, label, labelFont, align));
+            var at = ComputeNodeLabelAnchor(nodeRects[i], onFarEdge, series.Orient);
+            outerCandidates.Add(new LabelCandidate(at.Anchor, label, labelFont, at.Alignment) { VerticalAlignment = at.Vertical });
             outerNodeIndex.Add(i);
         }
 
@@ -212,49 +190,38 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
                 var p = placements[k];
                 DrawPlacedLabel(p);
 
-                // Draw the sub-label one line below the primary label's final position.
+                // The sub-label one line under the primary label's final position, standing on it as the label does.
                 int nodeIdx = outerNodeIndex[k];
-                var subLabelSize = FontMetricsDefault.Current.Measure(p.Text, p.Font);
-                DrawSubLabelIfAny(series.Nodes[nodeIdx],
-                    new Point(p.FinalPoint.X, p.FinalPoint.Y + subLabelSize.Height * 0.9),
-                    subLabelFontBase, p.Alignment);
+                var placed = new TextPlacement(p.FinalPoint, p.Alignment) { Vertical = p.VerticalAlignment };
+                DrawSubLabelIfAny(series.Nodes[nodeIdx], placed.LineUnder(Ctx.ExtentOf(TextLabel.Of(p.Text), p.Font)), subLabelFontBase);
             }
         }
     }
 
-    /// <summary>Computes the anchor point and text alignment for an outer node label.
-    /// Pure function — no render context required.</summary>
-    internal static LabelAnchor ComputeNodeLabelAnchor(
-        Rect nodeRect,
-        bool onFarEdge,
-        SankeyOrientation orientation,
-        double measuredLabelHeight)
+    /// <summary>Where the outer label of a node stands: beside a node of a flow along X, centred on its middle, 4 pixels off the side
+    /// away from the flow's far edge; under the last node of a flow down the page, hung 2 pixels below it; above any other, on its
+    /// baseline 4 pixels over it. Pure function, no render context required.</summary>
+    internal static TextPlacement ComputeNodeLabelAnchor(Rect nodeRect, bool onFarEdge, SankeyOrientation orientation)
     {
-        if (orientation == SankeyOrientation.Vertical)
+        if (!orientation.FlowsAlongX)
         {
-            double cx = nodeRect.X + nodeRect.Width / 2;
-            double yAnchor = onFarEdge
-                ? nodeRect.Y + nodeRect.Height + measuredLabelHeight + 2
-                : nodeRect.Y - 4;
-            return new(new Point(cx, yAnchor), TextAlignment.Center);
+            double cx = nodeRect.Center.X;
+            return onFarEdge
+                ? new(new Point(cx, nodeRect.Y + nodeRect.Height + 2), TextAlignment.Center) { Vertical = TextVerticalAlignment.Top }
+                : new(new Point(cx, nodeRect.Y - 4), TextAlignment.Center);
         }
         double labelX = onFarEdge
             ? nodeRect.X - 4
             : nodeRect.X + nodeRect.Width + 4;
-        var anchor = new Point(labelX, nodeRect.Y + nodeRect.Height / 2 + measuredLabelHeight * 0.3);
-        return new(anchor, onFarEdge ? TextAlignment.Right : TextAlignment.Left);
+        return new(new Point(labelX, nodeRect.Center.Y), onFarEdge ? TextAlignment.Right : TextAlignment.Left)
+            { Vertical = TextVerticalAlignment.Center };
     }
 
-    private void DrawSubLabelIfAny(SankeyNode node, Point position, Font subLabelFontBase, TextAlignment alignment)
+    /// <summary>Draws the sub-label of <paramref name="node"/>, when it has one, where <paramref name="position"/> puts it.</summary>
+    private void DrawSubLabelIfAny(SankeyNode node, TextPlacement position, Font subLabelFontBase)
     {
         if (string.IsNullOrEmpty(node.SubLabel)) return;
         var color = node.SubLabelColor ?? subLabelFontBase.Color;
-        var subFont = new Font
-        {
-            Family = subLabelFontBase.Family,
-            Size = subLabelFontBase.Size,
-            Color = color,
-        };
-        Ctx.DrawText(node.SubLabel!, position, subFont, alignment);
+        Ctx.Draw(TextLabel.Of(node.SubLabel!), subLabelFontBase with { Color = color }, position);
     }
 }

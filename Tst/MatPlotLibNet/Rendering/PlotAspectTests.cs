@@ -4,8 +4,10 @@
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Frames;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -68,7 +70,7 @@ public class PlotAspectTests
     public void WithoutAnAspect_TheCellIsTheLayoutsAsItWas()
     {
         var plain = PlotArea(Heatmap(900, 500, null));
-        var cell = ChartRenderer.SubPlotRects(Heatmap(900, 500, null), 40, new SubPlotSpacing()).Count;
+        var cell = new MatPlotLibNet.Rendering.Layout.FigureGrid(Heatmap(900, 500, null)).PlotRects(40, new SubPlotSpacing()).Count;
 
         Assert.True(plain.Width > 0 && plain.Height > 0);
         Assert.Equal(1, cell);
@@ -89,20 +91,22 @@ public class PlotAspectTests
         Assert.Equal(plot.Y, clip.Number("y"), 6);
     }
 
+    /// <summary>Under the library's own themes the bar stands beside the plot and is as tall as the rectangle that is drawn; under
+    /// the matplotlib themes it stands in the slot it took from the cell and is as tall as the cell, as matplotlib's is
+    /// (<see cref="ColorBarTakesRoomTests"/>).</summary>
     [Fact]
     public void TheColourBar_IsAsTallAsTheRectangleThatIsDrawn()
     {
         // Taller than wide: the cell is taller than the square the aspect asks for, so a bar as tall as the cell would show.
-        var figure = Plt.Create().WithSize(500, 800)
+        var figure = Plt.Create().WithSize(500, 800).WithTheme(Theme.Default)
             .AddSubPlot(1, 1, 1, ax => ax.Heatmap(new double[10, 10]).WithColorBar().SetAspect(1.0))
             .Build();
-        var plot = PlotArea(figure);
         var recording = new RecordingRenderContext();
 
-        new ChartRenderer().Render(figure, recording);
+        // The plot the draw used: the layout keeps room for the bar's labels as the context the figure is drawn on measures them.
+        var plot = new ChartRenderer().RenderAndLayOut(figure, new DirectFrameTarget(recording)).PlotAreas[0];
 
-        var bar = recording.OfKind("DrawRectangle")
-            .Select(call => (Rect)((dynamic)call.Args!).rect)
+        var bar = recording.Rects()
             .Where(rect => rect.X >= plot.X + plot.Width && rect.Width < plot.Width / 3)
             .ToArray();
         Assert.NotEmpty(bar);
@@ -145,6 +149,20 @@ public class PlotAspectTests
         Assert.Contains(clipRects, r => Math.Abs(r.Number("width") - r.Number("height")) < 1e-6 && r.Number("width") > 50);
         Assert.True(rects >= 0);
         Assert.Equal(1.0, inset.Aspect);
+    }
+
+    /// <summary>matplotlib's <c>Axes3D.apply_aspect</c> shrinks a 3-D axes' position to a square anchored at its centre, whatever
+    /// aspect it was given, so the 3-D box, its background, its title and its legend stand on that square.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData(2.0)]
+    public void A3DAxes_IsTheCentredSquareOfItsCell(double? aspect)
+    {
+        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Scatter3D([0.0, 1.0], [0.0, 1.0], [0.0, 1.0]).SetAspect(aspect))
+            .Build().SubPlots[0];
+
+        Assert.Equal(new Rect(110, 20, 300, 300), axes.FittedTo(new Rect(10, 20, 500, 300), MatPlotLibNet.Styling.Theme.Default));
+        Assert.Equal(new Rect(10, 120, 300, 300), axes.FittedTo(new Rect(10, 20, 300, 500), MatPlotLibNet.Styling.Theme.Default));
     }
 
     [Fact]
@@ -205,28 +223,27 @@ public class PlotAspectTests
         Assert.Equal(PlotArea(Of(null)), PlotArea(Of(1.0)));
     }
 
-    [Fact]
-    public void TheRootOfTheSvg_SaysTheAspectIsLocked_WhenAnyAxesHasOne()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        Assert.Contains("data-aspect-lock=\"true\"", Heatmap(600, 400, 1.0).ToSvg(), StringComparison.Ordinal);
-        Assert.DoesNotContain("data-aspect-lock", Heatmap(600, 400, null).ToSvg(), StringComparison.Ordinal);
-    }
+        new DrawnToken("TheRootOfTheSvg_SaysTheAspectIsLocked_WhenAnyAxesHasOne (#1)", () => Heatmap(600, 400, 1.0).ToSvg(), "data-aspect-lock=\"true\""),
+        new DrawnToken("TheRootOfTheSvg_SaysTheAspectIsLocked_WhenAnyAxesHasOne (#2)", () => Heatmap(600, 400, null).ToSvg()) { Absent = ["data-aspect-lock"] },
+        new DrawnToken("AnAspectAtRest_IsLeftOutOfTheJson", () => Heatmap(600, 400, null).ToJson()) { Absent = ["aspect"], Comparison = StringComparison.OrdinalIgnoreCase },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void TheAspectSurvivesTheJson_AndDrawsTheSamePicture()
     {
         var figure = Heatmap(600, 400, 1.0);
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         Assert.Equal(1.0, back.SubPlots[0].Aspect);
         Assert.Equal(figure.ToSvg(), back.ToSvg());
-    }
-
-    [Fact]
-    public void AnAspectAtRest_IsLeftOutOfTheJson()
-    {
-        Assert.DoesNotContain("aspect", Heatmap(600, 400, null).ToJson(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -271,38 +288,3 @@ public class PlotAspectTests
     }
 }
 
-/// <summary>The one rule that fits a rectangle to a box aspect.</summary>
-public class RectBoxAspectTests
-{
-    [Fact]
-    public void ARectangleTooTallForTheAspect_LosesHeight_AndStaysCentred()
-    {
-        var fitted = new Rect(10, 20, 400, 300).WithBoxAspect(0.5);
-
-        Assert.Equal(new Rect(10, 20 + 50, 400, 200), fitted);
-    }
-
-    [Fact]
-    public void ARectangleTooWideForTheAspect_LosesWidth_AndStaysCentred()
-    {
-        var fitted = new Rect(10, 20, 400, 200).WithBoxAspect(1.0);
-
-        Assert.Equal(new Rect(110, 20, 200, 200), fitted);
-    }
-
-    [Fact]
-    public void ARectangleOfTheShapeAlready_IsUnchanged()
-    {
-        Assert.Equal(new Rect(0, 0, 300, 150), new Rect(0, 0, 300, 150).WithBoxAspect(0.5));
-    }
-
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-2.0)]
-    [InlineData(double.NaN)]
-    [InlineData(double.PositiveInfinity)]
-    public void ABoxAspectThatIsNotPositiveAndFinite_LeavesTheRectangleAlone(double aspect)
-    {
-        Assert.Equal(new Rect(1, 2, 3, 4), new Rect(1, 2, 3, 4).WithBoxAspect(aspect));
-    }
-}

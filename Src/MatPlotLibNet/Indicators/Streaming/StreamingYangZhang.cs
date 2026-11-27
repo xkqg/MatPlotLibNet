@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -15,11 +16,10 @@ public sealed class StreamingYangZhang : WindowedStreamingIndicator<OhlcvBar>
     /// <summary>Creates a streaming YangZhang.</summary>
     /// <param name="period">How many bars the volatility is taken over; at least 2; prices above 0.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingYangZhang(int period = 20, int capacity = 10_000)
-        : base(period + 1, capacity)
+    public StreamingYangZhang(int period = YangZhang.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(YangZhang.Spec(period), capacity)
     {
         _period = period;
-        Label = $"YZ({period})";
     }
 
     /// <inheritdoc />

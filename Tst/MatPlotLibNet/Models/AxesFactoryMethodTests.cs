@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Exercises the <see cref="Axes"/> factory helpers (Sunburst, Sankey, Polar*, *3D, Inset, Text3D).
 /// Each test asserts: (a) the returned series is of the correct type, (b) it was appended to
 /// <c>axes.Series</c>, and (c) for 3D/Polar helpers the CoordinateSystem flips correctly.
-/// Covers the previously-uncovered factory blocks in Axes.cs (lines 149-151, 603-762).</summary>
+/// Covers the previously-uncovered factory blocks in Axes.cs.</summary>
 public class AxesFactoryMethodTests
 {
     [Fact]

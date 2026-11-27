@@ -3,13 +3,14 @@
 
 using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering.Layout;
 
 /// <summary>Regression test for the outside-legend-clipping bug: the legend_outside sample
 /// in the console runner places the legend at x=748 width=164 in a 900-wide figure — the
 /// rect extends to 913, clipping 13 px past the right edge despite ConstrainedLayoutEngine
-/// supposedly reserving margin via LegendMeasurer. v1.1.4 claimed this was fixed; it wasn't.</summary>
+/// supposedly reserving margin via the measured legend box. v1.1.4 claimed this was fixed; it wasn't.</summary>
 public class OutsideLegendClippingTests
 {
     [Fact]
@@ -34,13 +35,12 @@ public class OutsideLegendClippingTests
             })
             .ToSvg();
 
-        // Parse the frame rect under <g class="legend"> — the CCCCCC-stroked one.
-        var m = Regex.Match(svg,
-            @"<rect x=""(?<x>[0-9.]+)"" y=""[0-9.]+"" width=""(?<w>[0-9.]+)"" height=""[0-9.]+""[^>]*stroke=""#CCCCCC""");
-        Assert.True(m.Success, "legend frame rect not found in SVG output");
+        // The frame under <g class="legend">.
+        var m = svg.LegendFrame();
+        Assert.True(m is not null, "legend frame not found in SVG output");
 
-        double rectX     = double.Parse(m.Groups["x"].Value, System.Globalization.CultureInfo.InvariantCulture);
-        double rectWidth = double.Parse(m.Groups["w"].Value, System.Globalization.CultureInfo.InvariantCulture);
+        double rectX     = m!.Value.X;
+        double rectWidth = m.Value.Width;
         double rectRight = rectX + rectWidth;
         const double FigureWidth = 900;
 
@@ -65,10 +65,9 @@ public class OutsideLegendClippingTests
             })
             .ToSvg();
 
-        var m = Regex.Match(svg,
-            @"<rect x=""(?<x>[0-9.]+)"" y=""[0-9.]+"" width=""(?<w>[0-9.]+)"" height=""[0-9.]+""[^>]*stroke=""#CCCCCC""");
-        Assert.True(m.Success);
-        double rectX = double.Parse(m.Groups["x"].Value, System.Globalization.CultureInfo.InvariantCulture);
+        var m = svg.LegendFrame();
+        Assert.True(m is not null);
+        double rectX = m!.Value.X;
 
         Assert.True(rectX >= 0,
             $"Legend rect left edge {rectX:F2} is off-figure (must be ≥ 0). " +

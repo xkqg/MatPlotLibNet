@@ -4,6 +4,7 @@
 using System.Xml.Linq;
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
@@ -165,31 +166,24 @@ public class RowSelectionScriptTests
     }
 
     [Fact]
-    public void TheScript_IsInTheSvgOnlyForAChartWithAGroup()
-    {
-        string linked = Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).LinkSelection("orders").ToSvg();
-        string plain = Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).WithSelection().ToSvg();
-
-        Assert.Contains("mpl:rows", linked, StringComparison.Ordinal);
-        Assert.DoesNotContain("mpl:rows", plain, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void TheSvg_NamesItsGroup_AndItsStartingRows_OnTheRoot()
     {
         string svg = Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).LinkSelection("or\"ders", ["a", "b&c"]).ToSvg();
 
-        var root = XDocument.Parse(svg).Root!;   // well-formed whatever the names hold
+        var root = svg.Xml().Root!;   // well-formed whatever the names hold
         Assert.Equal("or\"ders", root.Attribute("data-selection-group")!.Value);
         Assert.Equal("[\"a\",\"b\\u0026c\"]", root.Attribute("data-selected-rows")!.Value);
     }
 
-    [Fact]
-    public void AFigureWithNoGroup_WritesNeitherAttribute()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).WithSelection().ToSvg();
+        new DrawnToken("AFigureWithNoGroup_WritesNeitherAttribute", () => Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).WithSelection().ToSvg()) { Absent = ["data-selection-group", "data-selected-rows"] },
+        new DrawnToken("TheScript_IsInTheSvgOnlyForAChartWithAGroup (linked)", () => Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).LinkSelection("orders").ToSvg(), "mpl:rows"),
+        new DrawnToken("TheScript_IsInTheSvgOnlyForAChartWithAGroup (plain)", () => Plt.Create().WithSize(400, 300).Scatter(X, Y, s => s.RowKeys = Keys).WithSelection().ToSvg()) { Absent = ["mpl:rows"] },
+    };
 
-        Assert.DoesNotContain("data-selection-group", svg, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-selected-rows", svg, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

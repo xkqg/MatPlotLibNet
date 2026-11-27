@@ -12,28 +12,10 @@ namespace MatPlotLibNet.Tests.Indicators;
 /// NaN until the first window is full. Only the Kraskov estimate is rolled: the binned estimate is biased upward on a window.</summary>
 public sealed class TransferEntropyRollingTests
 {
-    private sealed class Lcg(ulong seed)
-    {
-        private ulong _state = seed;
-
-        public double Uniform()
-        {
-            _state = unchecked(_state * 6364136223846793005UL + 1442695040888963407UL);
-            return (_state >> 11) / (double)(1UL << 53);
-        }
-
-        public double Normal()
-        {
-            double sum = 0;
-            for (int i = 0; i < 12; i++) sum += Uniform();
-            return sum - 6;
-        }
-    }
-
     /// <summary>X standard normal and Y(t+1) = c(t)·X(t) + noise, with c = 0 before the bar <paramref name="switchOn"/> and 1 from it.</summary>
     private static (double[] X, double[] Y) Switching(int n, int switchOn, ulong seed)
     {
-        var rng = new Lcg(seed);
+        var rng = new SeededNormals(seed);
         var x = new double[n];
         var noise = new double[n];
         for (int t = 0; t < n; t++) x[t] = rng.Normal();
@@ -108,40 +90,9 @@ public sealed class TransferEntropyRollingTests
         Assert.Single(new TransferEntropy(x, y, new TransferEntropyOptions()).Compute().Values);
     }
 
-    /// <summary>A window that cannot hold a neighbour for every sample is refused by name: it needs lag + neighbours + 1 bars.</summary>
-    [Theory]
-    [InlineData(4, 1, 5)]
-    [InlineData(4, 1, 2)]
-    [InlineData(1, 1, 1)]
-    [InlineData(3, 2, 5)]
-    public void AWindowTooShortForTheNeighbours_IsRefusedByName(int neighbours, int lag, int window)
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy(new double[100], new double[100], new TransferEntropyOptions(Neighbours: neighbours, Lag: lag, Window: window)));
-
-        Assert.Equal("Window", ex.ParamName);
-    }
-
     [Fact]
     public void TheSmallestWindowThatHoldsTheNeighbours_IsAccepted() =>
         Assert.Equal(20, new TransferEntropy(new double[20], new double[20], new TransferEntropyOptions(Neighbours: 4, Window: 6)).Compute().Values.Length);
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-2)]
-    public void AStrideBelowOne_IsRefusedByName(int stride) =>
-        Assert.Equal("Stride", Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy(new double[50], new double[50], new TransferEntropyOptions(Window: 20, Stride: stride))).ParamName);
-
-    [Fact]
-    public void AWindowWithTheBinnedEstimator_IsRefusedByName() =>
-        Assert.Equal("Window", Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy(new double[50], new double[50], new TransferEntropyOptions(TransferEntropyEstimator.Binned, Window: 20))).ParamName);
-
-    [Fact]
-    public void AStrideWithoutAWindow_IsRefusedByName() =>
-        Assert.Equal("Stride", Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy(new double[50], new double[50], new TransferEntropyOptions(Stride: 5))).ParamName);
 
     [Fact]
     public void TheLabel_NamesTheWindow()
@@ -178,7 +129,7 @@ public sealed class TransferEntropyRollingTests
         var line = Assert.IsType<LineSeries>(Assert.Single(axes.Series));
         double[] ends = [.. Enumerable.Range(0, 21).Select(k => 39.0 + 4 * k)];   // 39, 43, ..., 119
         Assert.Equal(ends, line.XData);
-        Assert.All(line.YData, v => Assert.False(double.IsNaN(v)));
+        line.YData.AssertAllFinite();
     }
 
     /// <summary>The coupling that copies the source into the target one bar later: the binned entropy is ln 2 for (0,0,0,1,0,1,1,1)

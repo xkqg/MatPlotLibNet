@@ -12,36 +12,42 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// behavioural simulation of touch events through Jint stub-DOM is tracked separately.</para></summary>
 public class PointerApiTests
 {
+    /// <summary>The interaction each row switches on, by the name of its verb.</summary>
+    private static readonly Dictionary<string, Func<FigureBuilder, FigureBuilder>> Interactions = new()
+    {
+        ["WithZoomPan"] = fb => fb.WithZoomPan(),
+        ["WithLegendToggle"] = fb => fb.WithLegendToggle(),
+        ["WithSelection"] = fb => fb.WithSelection(),
+        ["With3DRotation"] = fb => fb.With3DRotation(),
+    };
+
     [Theory]
     [InlineData("WithZoomPan",       "pointerdown", "SvgInteractivityScript")]
     [InlineData("WithZoomPan",       "pointermove", "SvgInteractivityScript")]
     [InlineData("WithZoomPan",       "pointerup",   "SvgInteractivityScript")]
-    [InlineData("WithLegendToggle",  "pointerdown", "SvgLegendToggleScript")]
-    [InlineData("WithSelection",     "pointerdown", "SvgSelectionScript")]
-    [InlineData("WithSelection",     "pointermove", "SvgSelectionScript")]
-    [InlineData("WithSelection",     "pointerup",   "SvgSelectionScript")]
+    [InlineData("WithLegendToggle",  "pointerdown", "LegendToggleScript")]
+    [InlineData("WithSelection",     "pointerdown", "SelectionScript")]
+    [InlineData("WithSelection",     "pointermove", "SelectionScript")]
+    [InlineData("WithSelection",     "pointerup",   "SelectionScript")]
     [InlineData("With3DRotation",    "pointerdown", "Svg3DRotationScript")]
     [InlineData("With3DRotation",    "pointermove", "Svg3DRotationScript")]
     [InlineData("With3DRotation",    "pointerup",   "Svg3DRotationScript")]
     public void Script_RegistersPointerEventListener(string method, string eventName, string scriptName)
     {
         _ = scriptName; // for theory display
-        var fb = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]);
-        // Apply the requested builder method via reflection (keeps the test data-driven).
-        typeof(MatPlotLibNet.FigureBuilder)
-            .GetMethod(method, [typeof(bool)])!
-            .Invoke(fb, [true]);
-        var svg = fb.ToSvg();
+        var svg = Interactions[method](Plt.Create().Plot([1.0, 2.0], [3.0, 4.0])).ToSvg();
         Assert.Contains(eventName, svg);
     }
 
-    /// <summary>Pinch-to-zoom in <see cref="MatPlotLibNet.Rendering.Svg.SvgInteractivityScript"/>:
-    /// requires tracking 2 active pointers. Asserts the script captures pointerId
-    /// (the only practical way to track multiple concurrent pointers).</summary>
-    [Fact]
-    public void ZoomPan_TracksPointerIdForPinch()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("pointerId", svg);
-    }
+        // Pinch-to-zoom in SvgInteractivityScript: requires tracking 2 active pointers. Asserts the script captures pointerId (the only
+        // practical way to track multiple concurrent pointers).
+        new DrawnToken("ZoomPan_TracksPointerIdForPinch", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "pointerId"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

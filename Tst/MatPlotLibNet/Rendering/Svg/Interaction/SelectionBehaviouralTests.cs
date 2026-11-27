@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
 /// <summary>Phase G.5 of the v1.7.2 follow-on plan — behavioural coverage for
-/// <see cref="MatPlotLibNet.Rendering.Svg.SvgSelectionScript"/>.
+/// <see cref="Transforms.SvgTransform.SelectionScript"/>.
 ///
 /// <para>Pre-G.5 only static-emission tests existed for the selection script
 /// (does the JS string appear in the SVG?). This file drives the full drag
@@ -49,7 +49,7 @@ public class SelectionBehaviouralTests
 
         // Subscribe on the SVG before firing the drag.
         DomEvent? captured = null;
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
         svg.addEventListener("mpl:selection", ev => captured = ev);
 
         h.Simulate("svg", "pointerdown", e => { e.clientX = 100; e.clientY = 80;  e.shiftKey = true; });
@@ -67,7 +67,7 @@ public class SelectionBehaviouralTests
         using var h = BuildWithSelection();
 
         DomEvent? captured = null;
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
         svg.addEventListener("mpl:selection", ev => captured = ev);
 
         h.Simulate("svg", "pointerdown", e => { e.clientX = 100; e.clientY = 100; e.shiftKey = true; });

@@ -11,7 +11,7 @@ using MatPlotLibNet.Styling;
 // Server builds one figure with .WithServerInteraction(...) and registers it in the
 // FigureRegistry under chartId "live-1". The browser page loads @microsoft/signalr,
 // connects to /charts-hub, subscribes to "live-1", and embeds the initial SVG. When the
-// user wheel-zooms, pans, or presses Home, the embedded SvgSignalRInteractionScript
+// user wheel-zooms, pans, or presses Home, the embedded server-interaction script
 // invokes OnZoom / OnPan / OnReset on the hub. The server's reader task mutates the
 // figure, re-renders, and pushes the updated SVG back via IChartPublisher. The browser
 // receives it via UpdateChartSvg and swaps the DOM.

@@ -31,7 +31,7 @@ public class BarGroupExtensionsTests
         var error = Assert.Throws<ArgumentException>(() => group.ThrowIfMisaligned(3, "from"));
 
         Assert.Equal("from", error.ParamName);
-        Assert.Equal($"Group 'south' carries {values} values; there are 3 categories. (Parameter 'from')", error.Message);
+        Assert.Equal($"Array lengths must match. Got {values} and 3 in group 'south'. (Parameter 'from')", error.Message);
     }
 
     /// <summary>A group whose values are not there at all (<c>new BarGroup("north", null!)</c>, or <c>default</c>) is refused in
@@ -47,22 +47,8 @@ public class BarGroupExtensionsTests
         Assert.Equal("Group 'north' carries no values; there are 3 categories. (Parameter 'to')", error.Message);
     }
 
-    /// <summary>A verb whose values stand over x positions, not over named categories (the bump chart), says so: the message
-    /// keeps its words and takes the caller's name for what the values are drawn over.</summary>
-    [Theory]
-    [InlineData(2)]
-    [InlineData(4)]
-    public void TheCallersNameForThePlaces_ReplacesCategories_WhenTheCountIsWrong(int values)
-    {
-        var group = new BarGroup("south", new double[values]);
-
-        var error = Assert.Throws<ArgumentException>(() => group.ThrowIfMisaligned(3, "ranks", "x values"));
-
-        Assert.Equal("ranks", error.ParamName);
-        Assert.Equal($"Group 'south' carries {values} values; there are 3 x values. (Parameter 'ranks')", error.Message);
-    }
-
-    /// <summary>The same for a group with no values at all.</summary>
+    /// <summary>A verb whose values stand over x positions, not over named categories (the bump chart), names them so when a
+    /// group carries no values.</summary>
     [Fact]
     public void TheCallersNameForThePlaces_ReplacesCategories_WhenTheValuesAreMissing()
     {
@@ -71,5 +57,43 @@ public class BarGroupExtensionsTests
         var error = Assert.Throws<ArgumentException>(() => group.ThrowIfMisaligned(3, "ranks", "x values"));
 
         Assert.Equal("Group 'north' carries no values; there are 3 x values. (Parameter 'ranks')", error.Message);
+    }
+
+    /// <summary>A list of groups that each carry one value per place passes.</summary>
+    [Fact]
+    public void AListOfGroups_EachWithOneValuePerPlace_Passes()
+    {
+        BarGroup[] groups = [new("a", [1.0, 2.0, 3.0]), new("b", [4.0, 5.0, 6.0])];
+
+        Assert.Null(Record.Exception(() => groups.ThrowIfNotOneEach(3, "groups")));
+    }
+
+    /// <summary>The first group of the list that does not fit is refused, by its name and the caller's parameter.</summary>
+    [Fact]
+    public void AListOfGroups_RefusesTheFirstGroupThatDoesNotFit()
+    {
+        BarGroup[] groups = [new("a", [1.0, 2.0, 3.0]), new("b", [4.0, 5.0]), new("c", [1.0])];
+
+        var error = Assert.Throws<ArgumentException>(() => groups.ThrowIfNotOneEach(3, "groups"));
+
+        Assert.Equal("Array lengths must match. Got 2 and 3 in group 'b'. (Parameter 'groups')", error.Message);
+    }
+
+    /// <summary>Every value of every group of a list is an amount, the first one that is not named by the group, the place and its
+    /// number; a missing value passes, and a rank can ask for 1 or more.</summary>
+    [Fact]
+    public void AListOfGroups_RefusesTheFirstValueThatIsNoAmount_ByItsGroupAndPlace()
+    {
+        BarGroup[] groups = [new("a", [1.0, double.NaN]), new("b", [3.0, -1.0])];
+        string[] places = ["north", "south"];
+        static string What(LabelledPlaces<string[]> of, int i) => $"The value of '{of.Label}' in '{of.Places[i]}'";
+
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => groups.ThrowIfAnyNotAmount("groups", places, What));
+
+        Assert.Equal("groups", error.ParamName);
+        Assert.StartsWith("The value of 'b' in 'south' must be >= 0 (got -1).", error.Message, StringComparison.Ordinal);
+        Assert.Null(Record.Exception(() => groups.ThrowIfAnyNotAmount("groups", places, What, least: -1)));
+        var rank = Assert.Throws<ArgumentOutOfRangeException>(() => groups.ThrowIfAnyNotAmount("ranks", places, What, least: 2));
+        Assert.StartsWith("The value of 'a' in 'north' must be >= 2 (got 1).", rank.Message, StringComparison.Ordinal);
     }
 }

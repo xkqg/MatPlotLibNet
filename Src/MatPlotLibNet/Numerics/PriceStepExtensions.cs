@@ -3,10 +3,10 @@
 
 namespace MatPlotLibNet.Numerics;
 
-/// <summary>The one owner of price arithmetic in whole steps, for the charts that cut a price series into bricks, boxes and
-/// reversals of a fixed size (Renko, Point and Figure, Kagi). Such a chart counts whole steps from a fixed origin, never adds
-/// a step to a running level, and compares with a relative tolerance of 1e-9 of a step: a decimal step is not exact in binary
-/// (<c>0.3 / 0.1</c> is <c>2.9999999999999996</c>, <c>0.3 - 0.2</c> is <c>0.09999999999999998</c>), and a plain floor or
+/// <summary>The one owner of price arithmetic in whole steps (counted by <see cref="WholeStepExtensions"/>, with this tolerance),
+/// for the charts that cut a price series into bricks, boxes and reversals of a fixed size (Renko, Point and Figure, Kagi). Such a
+/// chart counts whole steps from a fixed origin, never adds a step to a running level, and compares with a relative tolerance of 1e-9
+/// of a step: a decimal step is not exact in binary (<c>0.3 / 0.1</c> is <c>2.9999999999999996</c>, <c>0.3 - 0.2</c> is <c>0.09999999999999998</c>), and a plain floor or
 /// comparison would then draw one step too few on ordinary prices.</summary>
 internal static class PriceStepExtensions
 {
@@ -21,14 +21,14 @@ internal static class PriceStepExtensions
         /// <param name="origin">The price at step index 0.</param>
         /// <param name="step">The size of one step; positive.</param>
         /// <returns>The index of the boundary at or below the price.</returns>
-        internal int FloorStep(double origin, double step) => (int)Math.Floor((price - origin) / step + Tolerance);
+        internal int FloorStep(double origin, double step) => (int)(price - origin).StepsAtOrBelow(step, Tolerance);
 
         /// <summary>The index of the step boundary at or above this price, counted from <paramref name="origin"/>. A price
         /// within the tolerance of the boundary below it counts as on that boundary.</summary>
         /// <param name="origin">The price at step index 0.</param>
         /// <param name="step">The size of one step; positive.</param>
         /// <returns>The index of the boundary at or above the price.</returns>
-        internal int CeilingStep(double origin, double step) => (int)Math.Ceiling((price - origin) / step - Tolerance);
+        internal int CeilingStep(double origin, double step) => (int)(price - origin).StepsAtOrAbove(step, Tolerance);
     }
 
     extension(double distance)

@@ -101,13 +101,15 @@ public class MissingValueRangeTests
         Assert.Equal(5.0, range.YMax);
     }
 
-    [Fact]
-    public void ABoxPlot_LeavesAMissingValueOutOfItsRange() =>
-        AssertYRange(new BoxSeries([[1, double.NaN, 5]]).ComputeDataRange(Context()), 1, 5);
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ABoxPlotOrAViolin_LeavesAMissingValueOutOfItsRange(bool box)
+    {
+        double[][] samples = [[1, double.NaN, 5]];
 
-    [Fact]
-    public void AViolin_LeavesAMissingValueOutOfItsRange() =>
-        AssertYRange(new ViolinSeries([[1, double.NaN, 5]]).ComputeDataRange(Context()), 1, 5);
+        AssertYRange((box ? new BoxSeries(samples).ComputeDataRange(Context()) : new ViolinSeries(samples).ComputeDataRange(Context())), 1, 5);
+    }
 
     [Fact]
     public void AStripPlot_LeavesAMissingValueOutOfItsRange() =>
@@ -413,7 +415,8 @@ public class MissingValueRangeTests
         ["tripcolor"] = new(() => new TripcolorSeries(new double[] { 0, 1, N, 0.5 }, new double[] { 0, 0, 1, Inf }, new double[] { 1, 2, 3, 4 }),
             () => new TripcolorSeries(new double[] { 0, 1, 0.5, 0.5 }, new double[] { 0, 0, 1, 1 }, new double[] { 1, 2, 3, 4 })),
         ["hexbin"] = new(() => new HexbinSeries([1, N, 3], [1, 2, 3]), () => new HexbinSeries([1, 2, 3], [1, 2, 3])),
-        ["histogram2d"] = new(() => new Histogram2DSeries([1, N, 3], [1, 2, -Inf]), () => new Histogram2DSeries([1, 2, 3], [1, 2, 2])),
+        // A 2-D histogram ranges over the points it counts, a point a pair: here (1, 1) alone, its bins one unit wide each way.
+        ["histogram2d"] = new(() => new Histogram2DSeries([1, N, 3], [1, 2, -Inf]), () => new Histogram2DSeries([1, 1], [1, 1])),
         ["scatter3d"] = new(() => new Scatter3DSeries(new double[] { 1, N, 3 }, new double[] { 1, 2, 3 }, new double[] { 1, 2, Inf }),
             () => new Scatter3DSeries(new double[] { 1, 2, 3 }, new double[] { 1, 2, 3 }, new double[] { 1, 2, 2 })),
         ["line3d"] = new(() => new Line3DSeries(new double[] { 1, N, 3 }, new double[] { 1, 2, 3 }, new double[] { N, 2, 1 }),
@@ -454,7 +457,7 @@ public class MissingValueRangeTests
     public void ASeriesWithAMissingValue_RangesOverItsFinitePart(string kind)
     {
         var expected = FinitePartCases[kind].FiniteTwin().ComputeDataRange(Context());
-        Assert.DoesNotContain(Ends(expected), v => !double.IsFinite(v));   // the twin itself is finite
+        Ends(expected).AssertAllFinite("the twin");
 
         Assert.Equal(expected, FinitePartCases[kind].WithMissing().ComputeDataRange(Context()));
     }
@@ -465,8 +468,9 @@ public class MissingValueRangeTests
 
     private static readonly Dictionary<string, AllMissingCase> AllMissingCases = new()
     {
-        ["eventplot"] = new(() => new EventplotSeries([[N]]), new(null, null, -0.5, 0.5)),
-        ["gantt"] = new(() => new GanttSeries(["a"], [N], [1]), new(null, null, -0.5, 0.5, StickyYMin: -0.5, StickyYMax: 0.5)),
+        ["eventplot"] = new(() => new EventplotSeries([[N]]), new(null, null, -1, 1)),
+        // the task's row keeps its bar's extent in its category slot: 0.6 high around the slot's centre 0.5
+        ["gantt"] = new(() => new GanttSeries(["a"], [N], [1]), new(null, null, 0.2, 0.8)),
         ["rugplot"] = new(() => new RugplotSeries(new double[] { N }), new(null, null, 0, 1)),
         ["barbs"] = new(() => new BarbsSeries(new double[] { N }, new double[] { Inf }, new double[] { 5 }, new double[] { 0 }), new(null, null, null, null)),
         ["streamplot"] = new(() => new StreamplotSeries([N, N], [N, N], new double[2, 2], new double[2, 2]), new(null, null, null, null)),
@@ -489,9 +493,9 @@ public class MissingValueRangeTests
         ["kde"] = new(() => new KdeSeries([N]), new(null, null, null, null)),
         ["quiver"] = new(() => new QuiverSeries([N], [1], [1], [0]), new(null, null, null, null)),
         ["quiver3d"] = new(() => new Quiver3DSeries(new double[] { 1 }, new double[] { N }, new double[] { 1 }, new double[] { 1 }, new double[] { 0 }, new double[] { 0 }), new(null, null, null, null)),
-        ["bar3d"] = new(() => new Bar3DSeries(new double[] { N }, new double[] { N }, new double[] { N }), new(null, null, null, null, StickyZMin: 0)),
-        ["planar-bar3d"] = new(() => new PlanarBar3DSeries(new double[] { N }, new double[] { N }, new double[] { N }), new(null, null, null, null, StickyZMin: 0)),
-        ["broken-bar"] = new(() => new BrokenBarSeries([[new(N, 1)]]), new(null, null, -0.5, 0.5, StickyYMin: -0.5, StickyYMax: 0.5)),
+        ["bar3d"] = new(() => new Bar3DSeries(new double[] { N }, new double[] { N }, new double[] { N }), new(null, null, null, null)),
+        ["planar-bar3d"] = new(() => new PlanarBar3DSeries(new double[] { N }, new double[] { N }, new double[] { N }), new(null, null, null, null)),
+        ["broken-bar"] = new(() => new BrokenBarSeries([[new(N, 1)]]), new(null, null, -0.4, 0.4)),
         ["state-timeline"] = new(() => new StateTimelineSeries([new(N, 1, "a", Colors.Red)]), new(null, null, 0, 1)),
         ["text3d"] = new(() => new Text3DSeries([new(N, N, N, "a")]), new(null, null, null, null)),
         ["streaming-line"] = new(() => StreamingLine(N, N), new(0, 1, null, null)),
@@ -518,7 +522,7 @@ public class MissingValueRangeTests
         var axes = new Axes();
         axes.Plot([1.0, 2, 3, 4], [10, 20, double.NaN, 30]);
 
-        var range = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2).ComputeDataRanges();
+        var range = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2).ComputeDataRanges();
 
         Assert.InRange(range.YMin, 8.0, 10.0);
         Assert.InRange(range.YMax, 30.0, 32.0);

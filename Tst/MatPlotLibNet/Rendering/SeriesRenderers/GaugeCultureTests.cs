@@ -28,8 +28,7 @@ public class GaugeCultureTests
             new GaugeSeriesRenderer(new SeriesRenderContext(new DataTransform(0, 1, 0, 1, bounds), ctx, Colors.Tab10Blue,
                 new RenderArea(bounds, ctx))).Render(new GaugeSeries(12.5));
 
-            var text = Assert.Single(ctx.OfKind("DrawText")).Args!;
-            Assert.Equal("12.5", text.GetType().GetProperty("text")!.GetValue(text));
+            Assert.Equal("12.5", Assert.Single(ctx.Of<DrawTextCall>()).Text);
         }
         finally
         {

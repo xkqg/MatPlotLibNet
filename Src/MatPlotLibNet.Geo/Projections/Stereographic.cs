@@ -5,10 +5,10 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Stereographic projection — conformal azimuthal. Preserves angles and shapes locally.
 /// Used for polar regions and small-area maps.</summary>
-public sealed class Stereographic : IGeoProjection, IProjectionParameters
+public sealed class Stereographic : IGeoProjection, IProjectionParameters, IProjectionOutline
 {
-    private readonly double _phi0, _lam0, _cosPhi0, _sinPhi0;
-    private readonly Dictionary<string, double> _parameters;
+    private readonly ProjectionParameterSet _parameters;
+    private readonly CentredFrame _centre;
 
     /// <inheritdoc />
     public string Name => "Stereographic";
@@ -17,34 +17,41 @@ public sealed class Stereographic : IGeoProjection, IProjectionParameters
     /// <param name="centerLat">Latitude of the centre point in degrees. Default 90.</param>
     /// <param name="centerLon">Longitude of the centre point in degrees. Default 0.</param>
     public Stereographic(double centerLat = 90, double centerLon = 0)
+        : this(ProjectionParameterSet.Centred(centerLat, centerLon))
     {
-        _parameters = new() { ["lat_0"] = centerLat, ["lon_0"] = centerLon };
-        _phi0 = centerLat.ToRadians();
-        _lam0 = centerLon.ToRadians();
-        _cosPhi0 = Math.Cos(_phi0);
-        _sinPhi0 = Math.Sin(_phi0);
     }
 
-    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+    private Stereographic(ProjectionParameterSet parameters)
+    {
+        _parameters = parameters;
+        _centre = CentredFrame.At(parameters.Lat0, parameters.Lon0);
+    }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters.Numbers;
 
     /// <inheritdoc />
-    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
-        new Stereographic(parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]), parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]));
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) => new Stereographic(_parameters.With(parameters));
 
     /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude.ToRadians(), lam = longitude.ToRadians();
-        double cosPhi = Math.Cos(phi), sinPhi = Math.Sin(phi);
-        double k = 2.0 / (1 + _sinPhi0 * sinPhi + _cosPhi0 * cosPhi * Math.Cos(lam - _lam0));
-        if (double.IsInfinity(k)) return new(double.NaN, double.NaN);
-        double x = k * cosPhi * Math.Sin(lam - _lam0);
-        double y = k * (_cosPhi0 * sinPhi - _sinPhi0 * cosPhi * Math.Cos(lam - _lam0));
-        return new(x.ToDegrees(), y.ToDegrees());
+        var place = _centre.Of(latitude, longitude);
+        double k = 2.0 / place.CosDistanceAfter(1);
+        if (double.IsInfinity(k)) return ProjectedPoint.OffDomain;
+        return new(place.EastBy(k).ToDegrees(), place.NorthBy(k).ToDegrees());
     }
 
     /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
+    /// <summary>How far the map reaches from its centre, in degrees of arc: cartopy's square of 5e7 m on the default globe
+    /// (<c>x_axis_offset = 5e7 / WGS84_SEMIMAJOR_AXIS</c>), 5e7 / 6378137 radians of the semimajor axis.</summary>
+    private static readonly double Reach = (5e7 / 6378137.0).ToDegrees();
+
     /// <inheritdoc />
-    public GeoBounds Bounds => new(-360, 360, -360, 360);
+    /// <remarks>The square cartopy's limits of a stereographic map are, wherever the map is centred.</remarks>
+    public GeoBounds Bounds => GeoBounds.Symmetric(Reach, Reach);
+
+    /// <inheritdoc />
+    /// <remarks>The circle its bounds are the square of, 91 points as cartopy draws it.</remarks>
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => Bounds.InscribedCircle(91);
 }

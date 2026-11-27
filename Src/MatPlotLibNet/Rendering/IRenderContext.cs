@@ -4,6 +4,8 @@
 using System.Globalization;
 using System.Text;
 using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -62,6 +64,8 @@ public interface IRenderContext
     void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape);
 
     /// <summary>Pushes a rectangular clipping region onto the clip stack.</summary>
+    /// <remarks>The library's own surfaces (SVG, Skia, MAUI) cut the marks drawn under the clip, never a text: a label, a value or a name
+    /// stands whole past it, as matplotlib draws a text.</remarks>
     void PushClip(Rect clipRect);
 
     /// <summary>Pops the most recent clipping region from the clip stack.</summary>
@@ -72,24 +76,17 @@ public interface IRenderContext
     Size MeasureText(string text, Font font);
 
     /// <summary>
-    /// Measures a <see cref="RichText"/> value by summing per-span widths at their effective font sizes.
-    /// Default implementation measures each span independently and uses the max single-span height.
+    /// Measures a <see cref="RichText"/> value as it is laid out: its fractions stacked, its scripts raised and dropped, each run of
+    /// text measured by <see cref="MeasureText"/> in the label's own face. Default implementation lays the text out once, the way
+    /// every surface draws it.
     /// </summary>
-    Size MeasureRichText(RichText richText, Font font)
-    {
-        double totalWidth = 0;
-        double maxHeight = 0;
-        foreach (var span in richText.Spans)
-        {
-            var spanFont = span.FontSizeScale == 1.0 ? font : font with { Size = font.Size * span.FontSizeScale };
-            var size = MeasureText(span.Text, spanFont);
-            totalWidth += size.Width;
-            if (size.Height > maxHeight) maxHeight = size.Height;
-        }
-        return new Size(totalWidth, maxHeight);
-    }
+    /// <param name="richText">The text, in spans.</param>
+    /// <param name="font">The font of the whole text, which a span's own size and style change.</param>
+    /// <returns>The width of the text, and its height above and below the baseline (at least the line of the font).</returns>
+    Size MeasureRichText(RichText richText, Font font) => this.BoxOf(richText, font);
 
-    /// <summary>Sets the global opacity for subsequent drawing operations.</summary>
+    /// <summary>Sets the global opacity for subsequent drawing operations, from 0 (nothing drawn) to 1 (full): a value outside that range
+    /// is held at the nearest end, by every surface of the library.</summary>
     void SetOpacity(double opacity);
 
     /// <summary>Begins a named group (e.g., emits <c>&lt;g class="..."&gt;</c> in SVG). Default is a no-op.</summary>
@@ -126,58 +123,79 @@ public interface IRenderContext
         => DrawText(text, position, font, TextAlignment.Left);
 
     /// <summary>
-    /// Draws a <see cref="RichText"/> value that may contain superscript, subscript, and Unicode-substituted
-    /// math characters.  The default implementation concatenates all span text and delegates to
-    /// <see cref="DrawText(string, Point, Font, TextAlignment)"/> for backends that do not support rich text.
-    /// Override in <c>SvgRenderContext</c> to emit <c>&lt;tspan&gt;</c> elements.
+    /// Draws a <see cref="RichText"/> value: its scripts, fractions, radicals and matrices laid out once, as every surface lays them
+    /// out, each run of glyphs drawn through <see cref="DrawText(string, Point, Font, TextAlignment)"/> and each rule (a fraction's
+    /// line, a radical's bar) through <see cref="DrawRectangle"/>, so any surface draws math.
     /// </summary>
     void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment)
-    {
-        var sb = new StringBuilder();
-        foreach (var span in richText.Spans) sb.Append(span.Text);
-        DrawText(sb.ToString(), position, font, alignment);
-    }
+        => this.Draw(TextLabel.OfRich(richText), font, new TextPlacement(position, alignment));
 
     /// <summary>
-    /// Draws a rotated <see cref="RichText"/> value. Default implementation ignores rotation.
-    /// Override in <c>SvgRenderContext</c> to emit the rotation transform.
+    /// Draws a <see cref="RichText"/> value turned by <paramref name="rotation"/> degrees counter-clockwise about
+    /// <paramref name="position"/>: laid out as the unturned overload lays it out, each run drawn through the turned
+    /// <see cref="DrawText(string, Point, Font, TextAlignment, double)"/>.
     /// </summary>
     void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment, double rotation)
-        => DrawRichText(richText, position, font, alignment);
+        => this.Draw(TextLabel.OfRich(richText), font, new TextPlacement(position, alignment) { Rotation = rotation });
 }
 
 /// <summary>Base record for path drawing segments used by <see cref="IRenderContext.DrawPath"/>.</summary>
 public abstract record PathSegment
 {
-    private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
-
-    /// <summary>Returns the SVG path data command string for this segment (e.g., "M 10 20 ").</summary>
+    /// <summary>Returns the SVG path data command string for this segment (e.g., "M 10 20 "). The library's own segments
+    /// write their numbers to two decimals, a hundredth of a pixel, as every SVG coordinate is written.</summary>
     public abstract string ToSvgPathData();
 
     /// <summary>Formats a double value for SVG path data using invariant culture.</summary>
-    protected static string F(double value) => value.ToString("G", Inv);
+    protected static string F(double value) => value.InvariantText();
+
+    /// <summary>Writes this segment's path data straight into the document's builder, so a path of thousands of segments
+    /// makes no string per segment. A segment a user derives is written through its <see cref="ToSvgPathData"/>; the
+    /// library's own segments override this with the one number format (<c>AppendSvgNumber</c>)
+    /// and build their <see cref="ToSvgPathData"/> from it, so a segment has one formatting rule.</summary>
+    /// <param name="sb">The builder the path data is appended to.</param>
+    internal virtual void AppendSvgPathData(StringBuilder sb) => sb.Append(ToSvgPathData());
+
+    /// <summary>This segment's path data as a string, made by <see cref="AppendSvgPathData"/>: what a library segment's
+    /// <see cref="ToSvgPathData"/> returns.</summary>
+    internal string FormatSvgPathData()
+    {
+        var sb = new StringBuilder();
+        AppendSvgPathData(sb);
+        return sb.ToString();
+    }
 }
 
 /// <summary>A path segment that moves the current position without drawing.</summary>
 public sealed record MoveToSegment(Point Point) : PathSegment
 {
     /// <inheritdoc />
-    public override string ToSvgPathData() => $"M {F(Point.X)} {F(Point.Y)} ";
+    public override string ToSvgPathData() => FormatSvgPathData();
+
+    internal override void AppendSvgPathData(StringBuilder sb) =>
+        sb.Append("M ").AppendSvgNumber(Point.X).Append(' ').AppendSvgNumber(Point.Y).Append(' ');
 }
 
 /// <summary>A path segment that draws a straight line to the specified point.</summary>
 public sealed record LineToSegment(Point Point) : PathSegment
 {
     /// <inheritdoc />
-    public override string ToSvgPathData() => $"L {F(Point.X)} {F(Point.Y)} ";
+    public override string ToSvgPathData() => FormatSvgPathData();
+
+    internal override void AppendSvgPathData(StringBuilder sb) =>
+        sb.Append("L ").AppendSvgNumber(Point.X).Append(' ').AppendSvgNumber(Point.Y).Append(' ');
 }
 
 /// <summary>A path segment that draws a cubic Bezier curve through two control points to an endpoint.</summary>
 public sealed record BezierSegment(Point Control1, Point Control2, Point End) : PathSegment
 {
     /// <inheritdoc />
-    public override string ToSvgPathData() =>
-        $"C {F(Control1.X)} {F(Control1.Y)} {F(Control2.X)} {F(Control2.Y)} {F(End.X)} {F(End.Y)} ";
+    public override string ToSvgPathData() => FormatSvgPathData();
+
+    internal override void AppendSvgPathData(StringBuilder sb) =>
+        sb.Append("C ").AppendSvgNumber(Control1.X).Append(' ').AppendSvgNumber(Control1.Y).Append(' ')
+          .AppendSvgNumber(Control2.X).Append(' ').AppendSvgNumber(Control2.Y).Append(' ')
+          .AppendSvgNumber(End.X).Append(' ').AppendSvgNumber(End.Y).Append(' ');
 }
 
 /// <summary>
@@ -196,29 +214,52 @@ public sealed record ArcSegment(Point Center, double RadiusX, double RadiusY,
     double StartAngle, double EndAngle) : PathSegment
 {
     /// <inheritdoc />
-    public override string ToSvgPathData()
+    public override string ToSvgPathData() => FormatSvgPathData();
+
+    internal override void AppendSvgPathData(StringBuilder sb)
     {
-        // Compute the actual end point of the arc (on the perimeter at EndAngle). The
-        // earlier implementation emitted (Center.X, Center.Y) which caused the arc to
-        // sweep back to the center, producing petal-shaped wedges in SunburstSeries.
-        double endRad = EndAngle * Math.PI / 180.0;
-        double endX = Center.X + RadiusX * Math.Cos(endRad);
-        double endY = Center.Y + RadiusY * Math.Sin(endRad);
+        // The end point is the actual point of the arc's rim at EndAngle. An earlier version wrote the centre here, which made
+        // the arc sweep back to the centre and drew petal-shaped wedges in SunburstSeries.
+        var end = EndPoint;
 
         // large-arc-flag: 1 if the angular sweep is greater than 180°.
-        int large = Math.Abs(EndAngle - StartAngle) > 180.0 ? 1 : 0;
+        char large = Math.Abs(EndAngle - StartAngle) > 180.0 ? '1' : '0';
         // sweep-flag: 1 = clockwise on screen (positive sweep in screen-Y-down), 0 = CCW.
         // The sunburst renderer uses reverse direction for the inner arc (EndAngle < StartAngle)
         // to close the wedge polygon, so we must respect the sign.
-        int sweep = EndAngle >= StartAngle ? 1 : 0;
+        char sweep = EndAngle >= StartAngle ? '1' : '0';
 
-        return $"A {F(RadiusX)} {F(RadiusY)} 0 {large} {sweep} {F(endX)} {F(endY)} ";
+        sb.Append("A ").AppendSvgNumber(RadiusX).Append(' ').AppendSvgNumber(RadiusY).Append(" 0 ").Append(large).Append(' ')
+          .Append(sweep).Append(' ').AppendSvgNumber(end.X).Append(' ').AppendSvgNumber(end.Y).Append(' ');
     }
+
+    /// <summary>The point of the arc's rim at its start angle: where the arc begins.</summary>
+    internal Point StartPoint => PointAt(StartRadians);
+
+    /// <summary>The point of the arc's rim at its end angle: the one place the end of an arc is computed, for the end point of
+    /// its path data, for the last vertex of its sampled outline and for the end of its last curve, so the three never differ
+    /// in the last bit.</summary>
+    internal Point EndPoint => PointAt(EndRadians);
+
+    /// <summary>The start angle in radians: the one conversion every reader of the arc's start uses.</summary>
+    internal double StartRadians => StartAngle.ToRadians();
+
+    /// <summary>The end angle in radians: the one conversion every reader of the arc's end uses.</summary>
+    internal double EndRadians => EndAngle.ToRadians();
+
+    /// <summary>The point of the arc's ellipse at an angle, in radians from +X and clockwise on a screen whose Y points down:
+    /// the one place the rim of an arc is computed, for its path data, its curves and its sampled outline.</summary>
+    /// <param name="radians">The angle, in radians.</param>
+    /// <returns>The point of the rim.</returns>
+    internal Point PointAt(double radians) =>
+        Center.OnRim(RadiusX, RadiusY, radians);
 }
 
 /// <summary>A path segment that closes the current sub-path by drawing a line back to its start.</summary>
 public sealed record CloseSegment() : PathSegment
 {
     /// <inheritdoc />
-    public override string ToSvgPathData() => "Z ";
+    public override string ToSvgPathData() => FormatSvgPathData();
+
+    internal override void AppendSvgPathData(StringBuilder sb) => sb.Append("Z ");
 }

@@ -29,11 +29,21 @@ the figure and redraws itself when data arrives, so the figure stays the same ob
 <wpf:MplStreamingChartControl StreamingFigure="{Binding LiveChart}" />
 ```
 
+## Server mode
+
+`WithServerInteraction` makes a chart control or a streaming chart control interactive and sends each gesture through the
+delegate you give it (typically `hubConnection.SendAsync`) instead of applying it to the figure; whoever receives it applies it:
+
+```csharp
+chart.WithServerInteraction((method, payload) => hubConnection.SendAsync(method, payload));
+```
+
 ## Interaction
 
 Set `IsInteractive="True"` and the chart control handles all 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click; a series with several legend entries, such as the named layers of a stack plot, toggles whole), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. Pointer positions are converted with the range and scale the chart is drawn with, on log and symlog axes too.
 
-Clicking a data point raises `DataPointClicked` with the point's position in the arrays you plotted; on a
+Clicking a data point raises `DataPointClicked` (on `MplChartControl` and `MplStreamingChartControl` alike) with the
+point's position in the arrays you plotted; on a
 `StateTimelineSeries` it is the segment's position in the list you passed, and hovering a segment shows the event
 and the stretch it covers. A timeline pans and zooms along time only, and stacked timelines that share one time axis
 (`ShareX`) move together. The complete window, with a click that seeks and a marker that follows playback, is

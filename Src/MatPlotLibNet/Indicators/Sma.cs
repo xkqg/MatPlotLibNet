@@ -12,19 +12,19 @@ public sealed class Sma : PriceIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new SMA indicator from a price array.</summary>
-    public Sma(double[] prices, int period) : base(prices)
+    public Sma(double[] prices, int period) : base(prices, Spec(period))
     {
         _period = period;
-        Label = $"SMA({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfWindow("SMA", period, period - 1);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        if (Prices.Length < _period) return Array.Empty<double>();
-        return VectorMath.RollingMean(Prices, _period);
+        return Prices.RollingMean(_period);
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period - 1);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

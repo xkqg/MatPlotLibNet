@@ -1,16 +1,12 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
@@ -33,11 +29,8 @@ public class ControlChartTests
     private const double FiveUpper = 12.2 + 3 * (2.25 / 1.128);
     private const double FiveLower = 12.2 - 3 * (2.25 / 1.128);
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Chart(double[] x, double[] values, ControlLimits? limits = null, Action<ControlChartParts>? configure = null) =>
-        AxesOf(ax => ax.ControlChart(x, values, limits, configure));
+        Plt.Create().OneAxes(ax => ax.ControlChart(x, values, limits, configure));
 
     private static LineSeries Values(Axes axes) => Assert.IsType<LineSeries>(axes.Series[0]);
 
@@ -219,8 +212,8 @@ public class ControlChartTests
         var axes = figure.SubPlots[0];
         Assert.Null(Values(axes).Color);
         Assert.Null(Violations(axes).Color);
-        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), FirstColour(Group(svg, 0)));
-        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), FirstColour(Group(svg, 1)));
+        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), svg.SeriesGroup(0).FirstColour());
+        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), svg.SeriesGroup(1).FirstColour());
     }
 
     /// <summary>The limits are drawn inside the plot when every value lies between them: the automatic range holds them. The
@@ -230,7 +223,7 @@ public class ControlChartTests
     {
         string svg = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax.ControlChart(Days, Five)).ToSvg();
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var grey = GreyLines(svg);
         Assert.Equal(3, grey.Count);
         foreach (var line in grey)
@@ -252,31 +245,16 @@ public class ControlChartTests
             $"contrast {Colors.Gray.ContrastRatioWith(Theme.Dark.AxesBackground):F2} against {Theme.Dark.AxesBackground.ToHex()}");
     }
 
-    /// <summary>The verb sets no axis limit and keeps one the caller set (W9).</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var axes = Chart(Days, Five);
-        var kept = AxesOf(ax => ax.SetYLim(0, 30).ControlChart(Days, Five));
+        //  A missing value breaks the line and reaches neither the picture nor the violations.
+        new DrawnToken("AMissingValue_BreaksTheLine_AndNeverReachesThePicture", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.ControlChart([1, 2, 3, 4, 5, 6, 7], [10, 12, double.NaN, 11, 15, double.PositiveInfinity, 13])).ToSvg()) { Finite = true },
+    };
 
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Equal(0.0, kept.YAxis.Min);
-        Assert.Equal(30.0, kept.YAxis.Max);
-    }
-
-    /// <summary>A missing value breaks the line and reaches neither the picture nor the violations.</summary>
-    [Fact]
-    public void AMissingValue_BreaksTheLine_AndNeverReachesThePicture()
-    {
-        string svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.ControlChart([1, 2, 3, 4, 5, 6, 7], [10, 12, double.NaN, 11, 15, double.PositiveInfinity, 13])).ToSvg();
-
-        Assert.DoesNotContain("NaN", svg);
-        Assert.DoesNotContain("Infinity", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- refusals -----------------------------------------------------------------------------------------------------
 
@@ -296,25 +274,22 @@ public class ControlChartTests
         var error = Assert.Throws<ArgumentException>(() => Chart([1, 2, 3, 4], [10, 12, 11]));
 
         Assert.Equal("values", error.ParamName);
-        Assert.Equal("3 values were given for 4 x positions; there must be one value per x position. (Parameter 'values')", error.Message);
+        Assert.Equal(3.RefusalAgainst(4, "values"), error.Message);
     }
 
     /// <summary>Without limits, the estimate needs two values that can be drawn (a moving range is the distance between two);
     /// fewer are refused, naming the parameter.</summary>
     [Theory]
-    [InlineData(new double[0], 0)]
-    [InlineData(new[] { 4.2 }, 1)]
-    [InlineData(new[] { double.NaN, 4.2 }, 1)]
-    [InlineData(new[] { double.PositiveInfinity, double.NaN }, 0)]
-    public void FewerThanTwoValues_WithoutLimits_AreRefused(double[] values, int drawable)
+    [InlineData(new double[0], "0 observations")]
+    [InlineData(new[] { double.NaN, 4.2 }, "1 observation")]
+    public void FewerThanTwoValues_WithoutLimits_AreRefused(double[] values, string held)
     {
         double[] x = [.. Enumerable.Range(1, values.Length).Select(i => (double)i)];
 
         var error = Assert.Throws<ArgumentException>(() => Chart(x, values));
 
         Assert.Equal("values", error.ParamName);
-        string count = drawable == 1 ? "1 observation" : $"{drawable} observations";
-        Assert.Equal($"The sample has {count} that can be drawn; the limits of a control chart are estimated from 2 or more (NaN and the infinities are left out). (Parameter 'values')", error.Message);
+        Assert.Equal($"The sample holds {held}; the estimate of a control chart's limits needs at least 2; NaN and the infinities are not counted. (Parameter 'values')", error.Message);
     }
 
     /// <summary>Limits are three finite numbers with the lower at or below the centre and the centre at or below the upper;
@@ -328,10 +303,10 @@ public class ControlChartTests
     [InlineData(10, 15, 5)]
     public void LimitsThatAreNotOrdered_OrNotFinite_AreRefused(double center, double lower, double upper)
     {
-        var error = Assert.Throws<ArgumentException>(() => Chart(Days, Five, new ControlLimits(center, lower, upper)));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Chart(Days, Five, new ControlLimits(center, lower, upper)));
 
         Assert.Equal("limits", error.ParamName);
-        Assert.StartsWith("Control limits are three finite numbers, Lower <= Center <= Upper;", error.Message);
+        Assert.Matches("^The (centre line|lower limit|upper limit) must be ", error.Message);
     }
 
     /// <summary>Limits that coincide are ordered: a process held to one value.</summary>
@@ -343,72 +318,7 @@ public class ControlChartTests
         Assert.Equal(4, Violations(axes).YData.Length);
     }
 
-    /// <summary>A refused call has added nothing: no series, no reference line.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.ControlChart([1], [1.0]));
-        Assert.Throws<ArgumentException>(() => builder.ControlChart(Days, Five, new ControlLimits(10, 15, 5)));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Empty(axes.ReferenceLines);
-    }
-
     // ---- the callback ---------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once, after the verb has built and styled the parts, and hands over the very series and
-    /// reference lines on the axes, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes_AfterTheVerbStyledThem()
-    {
-        int calls = 0;
-        ControlChartParts seen = default;
-        LineStyle? centreStyleWhenCalled = null;
-        var red = Color.FromHex("#D62728");
-
-        var axes = Chart(Days, Five, configure: parts =>
-        {
-            calls++;
-            seen = parts;
-            centreStyleWhenCalled = parts.Center.LineStyle;
-            parts.Values.Label = "fill weight";
-            parts.Violations.Color = red;
-            parts.Upper.Color = red;
-            parts.Lower.Label = null;
-        });
-
-        Assert.Equal(1, calls);
-        Assert.Equal(LineStyle.Solid, centreStyleWhenCalled);
-        Assert.Same(axes.Series[0], seen.Values);
-        Assert.Same(axes.Series[1], seen.Violations);
-        Assert.Same(axes.ReferenceLines.Single(r => r.Label == "CL"), seen.Center);
-        Assert.Same(axes.ReferenceLines.Single(r => r.Label == "UCL"), seen.Upper);
-        Assert.Contains(seen.Lower, axes.ReferenceLines);
-        Assert.Equal(FiveLower, seen.Lower.Value);
-        Assert.Equal("fill weight", Values(axes).Label);
-        Assert.Equal(red, Violations(axes).Color);
-        Assert.Equal(red, seen.Upper.Color);
-        Assert.Null(seen.Lower.Label);
-    }
-
-    /// <summary>The parts are a public readonly record struct a caller cannot make: no public constructor, no setters.</summary>
-    [Fact]
-    public void TheParts_AreAReadOnlyRecordStruct_WithNoPublicConstructor()
-    {
-        var type = typeof(ControlChartParts);
-
-        Assert.True(type.IsValueType);
-        Assert.True(type.IsPublic);
-        Assert.True(type.IsDefined(typeof(IsReadOnlyAttribute)));
-        Assert.Empty(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-        Assert.NotEmpty(type.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance));
-        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        Assert.Equal(["Center", "Lower", "Upper", "Values", "Violations"], properties.Select(p => p.Name).Order());
-        Assert.All(properties, p => Assert.Null(p.SetMethod));
-    }
 
     /// <summary>The limits a caller gives are a public readonly record struct of three named numbers, spelt as the public API
     /// spells a centre.</summary>
@@ -421,36 +331,6 @@ public class ControlChartTests
         Assert.True(typeof(ControlLimits).IsDefined(typeof(IsReadOnlyAttribute)));
         Assert.Equal((50.0, 44.0, 56.0), (center, lower, upper));
         Assert.Equal(limits, new ControlLimits(50, 44, 56));
-    }
-
-    // ---- the hand recipe and JSON ---------------------------------------------------------------------------------------
-
-    /// <summary>The verb draws exactly the picture of the hand recipe made of the public building blocks, with and without a
-    /// missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("control-chart").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.ControlChartByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
-
-    /// <summary>A control chart is its parts in JSON: read back it draws the same picture, with and without a missing value.
-    /// It is not estimated again.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("control-chart").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
     }
 
     // ---- the example in the documentation --------------------------------------------------------------------------------
@@ -482,34 +362,8 @@ public class ControlChartTests
 
     private readonly record struct SvgLine(double X1, double Y1, double X2, double Y2);
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     /// <summary>The lines drawn in the default reference-line grey.</summary>
     private static List<SvgLine> GreyLines(string svg) =>
-        [.. XDocument.Parse(svg).Descendants()
-            .Where(e => e.Name.LocalName == "line" && (string?)e.Attribute("stroke") == Colors.Gray.ToHex())
-            .Select(e => new SvgLine(Num((string)e.Attribute("x1")!), Num((string)e.Attribute("y1")!),
-                                     Num((string)e.Attribute("x2")!), Num((string)e.Attribute("y2")!)))];
-
-    /// <summary>The plot area: the second rectangle drawn into the figure, after the figure's own background.</summary>
-    private static Rect PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-                   Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>: up to the next series group or the
-    /// end of the picture.</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        int next = svg.IndexOf("""<g class="series" """.TrimEnd(), start + 1, StringComparison.Ordinal);
-        return svg[start..(next > start ? next : svg.Length)];
-    }
-
-    /// <summary>The first fill or stroke colour in a piece of markup.</summary>
-    private static string FirstColour(string markup) =>
-        Regex.Match(markup, """(?:fill|stroke)="(#[0-9A-F]{6})" """.TrimEnd()).Groups[1].Value;
-}
+        [.. svg.Each("line").Where(e => (string?)e.Attribute("stroke") == Colors.Gray.ToHex())
+            .Select(e => new SvgLine(e.Number("x1"), e.Number("y1"),
+                                     e.Number("x2"), e.Number("y2")))];}

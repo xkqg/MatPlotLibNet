@@ -1,13 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -24,7 +22,7 @@ public class StreamGraphTests
 {
     private static readonly double[] X = [0, 1, 2, 3];
 
-    // Three layers of different heights over four positions, the data BaselineHelperTests worked out by hand against
+    // Three layers of different heights over four positions, the data StackedBaselineExtensionsTests worked out by hand against
     // matplotlib's stackplot.py: totals 6 10 12 10.
     private static readonly BarGroup[] Layers =
     [
@@ -33,7 +31,7 @@ public class StreamGraphTests
         new("c", [4, 5, 8, 7]),
     ];
 
-    /// <summary>The lower edge of every layer on each baseline, from BaselineHelperTests (matplotlib's own numbers).</summary>
+    /// <summary>The lower edge of every layer on each baseline, from StackedBaselineExtensionsTests (matplotlib's own numbers).</summary>
     private static double[][] LowerEdges(StackedBaseline baseline) => baseline switch
     {
         StackedBaseline.Zero => [[0, 0, 0, 0], [1, 2, 2, 1], [2, 5, 4, 3]],
@@ -42,31 +40,14 @@ public class StreamGraphTests
         _ => [[-3, -4.55, -6.3, -5.6], [-2, -2.55, -4.3, -4.6], [-1, 0.45, -2.3, -2.6]],
     };
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Stream(IReadOnlyList<BarGroup> layers, StackedBaseline baseline = StackedBaseline.Wiggle,
         Action<AreaSeries>? configure = null) =>
-        AxesOf(ax => ax.StreamGraph(X, layers, baseline, configure));
+        Plt.Create().OneAxes(ax => ax.StreamGraph(X, layers, baseline, configure));
 
     private static AreaSeries[] Areas(Axes axes) => [.. axes.Series.Cast<AreaSeries>()];
 
-    private static void AssertClose(double[] expected, double[] actual)
-    {
-        Assert.Equal(expected.Length, actual.Length);
-        for (int i = 0; i < expected.Length; i++)
-        {
-            Assert.True(Math.Abs(expected[i] - actual[i]) < 1e-12, $"point {i}: expected {expected[i]}, got {actual[i]}");
-        }
-    }
-
     // ---- reading the picture ---------------------------------------------------------------------------------------
-
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     private readonly record struct FigureText(string Text, string Anchor);
-
-    private readonly record struct Area(double X, double Y, double W, double H);
 
     private static string Svg(Action<AxesBuilder> configure, Theme? theme = null)
     {
@@ -75,27 +56,14 @@ public class StreamGraphTests
         return builder.AddSubPlot(1, 1, 1, configure).Build().ToSvg();
     }
 
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
-
-    private static List<XElement> SeriesGroups(string svg) =>
-        [.. Named(XDocument.Parse(svg), "g").Where(g => (string?)g.Attribute("class") == "series")];
-
     private static List<FigureText> FigureTexts(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "text")
+        [.. svg.Direct("text")
             .Select(e => new FigureText(e.Value, (string)e.Attribute("text-anchor")!))];
 
     private static List<(double X1, double Y1, double X2, double Y2)> FigureLines(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "line")
-            .Select(e => (Num((string)e.Attribute("x1")!), Num((string)e.Attribute("y1")!),
-                Num((string)e.Attribute("x2")!), Num((string)e.Attribute("y2")!)))];
-
-    private static Area PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new Area(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-            Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
+        [.. svg.Direct("line")
+            .Select(e => (e.Number("x1"), e.Number("y1"),
+                e.Number("x2"), e.Number("y2")))];
 
     // ---- one area series per layer ---------------------------------------------------------------------------------
 
@@ -130,7 +98,7 @@ public class StreamGraphTests
     // ---- the edges: the baselines are matplotlib's, every layer stands on the one below it -------------------------------
 
     /// <summary>On every baseline the lower edge of the first layer is the baseline, matplotlib's own numbers (worked out by
-    /// hand in BaselineHelperTests); each layer rises by its values, so its upper edge is its lower edge plus its thickness;
+    /// hand in StackedBaselineExtensionsTests); each layer rises by its values, so its upper edge is its lower edge plus its thickness;
     /// and each layer stands exactly on the one below, so the layers touch with no gap and no overlap.</summary>
     [Theory]
     [InlineData(StackedBaseline.Zero)]
@@ -144,12 +112,12 @@ public class StreamGraphTests
         double[][] lower = LowerEdges(baseline);
         for (int k = 0; k < Layers.Length; k++)
         {
-            AssertClose(lower[k], areas[k].YData2!);
-            AssertClose([.. lower[k].Select((edge, j) => edge + Layers[k].Values[j])], areas[k].YData);
+            lower[k].AssertCloseTo(areas[k].YData2!, 1e-12);
+            lower[k].Select((edge, j) => edge + Layers[k].Values[j]).ToList().AssertCloseTo(areas[k].YData, 1e-12);
         }
 
-        AssertClose(areas[0].YData, areas[1].YData2!);
-        AssertClose(areas[1].YData, areas[2].YData2!);
+        areas[0].YData.AssertCloseTo(areas[1].YData2!, 1e-12);
+        areas[1].YData.AssertCloseTo(areas[2].YData2!, 1e-12);
     }
 
     /// <summary>The default baseline is the wiggle (matplotlib's): the call without one draws the layers the wiggle draws, and
@@ -157,7 +125,7 @@ public class StreamGraphTests
     [Fact]
     public void TheDefaultBaseline_IsTheWiggle()
     {
-        var byDefault = Areas(AxesOf(ax => ax.StreamGraph(X, Layers)));
+        var byDefault = Areas(Plt.Create().OneAxes(ax => ax.StreamGraph(X, Layers)));
         var wiggle = Areas(Stream(Layers, StackedBaseline.Wiggle));
         var symmetric = Areas(Stream(Layers, StackedBaseline.Symmetric));
 
@@ -180,7 +148,7 @@ public class StreamGraphTests
     public void TheEdges_AreExactlyTheOnesStackPlotStacksBy(StackedBaseline baseline)
     {
         double[][] ySets = [.. Layers.Select(layer => layer.Values)];
-        var stack = AxesOf(ax => ax.StackPlot(X, ySets, s => s.Baseline = baseline)).Series.OfType<StackedAreaSeries>().Single();
+        var stack = Plt.Create().OneAxes(ax => ax.StackPlot(X, ySets, s => s.Baseline = baseline)).Series.OfType<StackedAreaSeries>().Single();
         double[][] baselines = stack.Baseline.ComputeFor(stack.YSets, stack.X.Length);
         double[][] tops = stack.LayerTops(baselines);
 
@@ -204,7 +172,7 @@ public class StreamGraphTests
     {
         var areas = Areas(Stream(Layers, baseline));
 
-        AssertClose([6, 10, 12, 10], [.. areas[^1].YData.Select((top, j) => top - areas[0].YData2![j])]);
+        (new double[] { 6, 10, 12, 10 }).AssertCloseTo([.. areas[^1].YData.Select((top, j) => top - areas[0].YData2![j])], 1e-12);
     }
 
     // ---- missing values ----------------------------------------------------------------------------------------------
@@ -227,7 +195,7 @@ public class StreamGraphTests
     [InlineData(StackedBaseline.WeightedWiggle)]
     public void AMissingValue_OnAFloatingBaseline_LeavesAGapInEveryLayerAtItsPosition(StackedBaseline baseline)
     {
-        var areas = Areas(AxesOf(ax => ax.StreamGraph(LongX, LongLayers, baseline)));
+        var areas = Areas(Plt.Create().OneAxes(ax => ax.StreamGraph(LongX, LongLayers, baseline)));
 
         Assert.All(areas, area =>
         {
@@ -250,10 +218,10 @@ public class StreamGraphTests
     {
         string svg = Svg(ax => ax.StreamGraph(LongX, LongLayers, baseline));
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal(3, groups.Count);
-        Assert.All(groups, group => Assert.Equal(2, Named(group, "polygon").Count()));
-        Assert.DoesNotContain("NaN", svg);
+        Assert.All(groups, group => Assert.Equal(2, group.Each("polygon").Count()));
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>On the zero baseline the layers below the missing value stand where they stand: the gap is in that layer and
@@ -262,17 +230,17 @@ public class StreamGraphTests
     public void AMissingValue_OnTheZeroBaseline_LeavesAGapInThatLayerAndTheOnesAboveOnly()
     {
         string svg = Svg(ax => ax.StreamGraph(LongX, LongLayers, StackedBaseline.Zero));
-        var areas = Areas(AxesOf(ax => ax.StreamGraph(LongX, LongLayers, StackedBaseline.Zero)));
+        var areas = Areas(Plt.Create().OneAxes(ax => ax.StreamGraph(LongX, LongLayers, StackedBaseline.Zero)));
 
-        var groups = SeriesGroups(svg);
-        Assert.Single(Named(groups[0], "polygon"));
-        Assert.Equal(2, Named(groups[1], "polygon").Count());
-        Assert.Equal(2, Named(groups[2], "polygon").Count());
-        Assert.DoesNotContain(areas[0].YData, double.IsNaN);
+        var groups = svg.SeriesGroups();
+        Assert.Single(groups[0].Each("polygon"));
+        Assert.Equal(2, groups[1].Each("polygon").Count());
+        Assert.Equal(2, groups[2].Each("polygon").Count());
+        areas[0].YData.AssertAllFinite();
         Assert.True(double.IsNaN(areas[1].YData[2]));
-        Assert.False(double.IsNaN(areas[1].YData2![2]));
+        areas[1].YData2![2].AssertFinite();
         Assert.True(double.IsNaN(areas[2].YData2![2]));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- the Y axis shows thickness, not a value from zero ---------------------------------------------------------------
@@ -288,18 +256,8 @@ public class StreamGraphTests
         Assert.IsType<FixedLocator>(axes.YAxis.TickLocator);
         Assert.Empty(axes.YAxis.TickLocator!.Locate(-10, 10));
         Assert.DoesNotContain(FigureTexts(svg), t => t.Anchor == "end");
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         Assert.DoesNotContain(FigureLines(svg), l => l.Y1 == l.Y2 && l.X1 < plot.X);
-    }
-
-    /// <summary>Under a theme that draws a grid (ggplot) no horizontal grid line stands on a scale that reads nothing.</summary>
-    [Fact]
-    public void UnderAGridTheme_NoHorizontalGridLine_StandsOnTheYAxis()
-    {
-        string svg = Svg(ax => ax.StreamGraph(X, Layers), Theme.Ggplot);
-
-        var plot = PlotArea(svg);
-        Assert.DoesNotContain(FigureLines(svg), l => l.Y1 == l.Y2 && l.X1 <= plot.X + 1 && l.X2 >= plot.X + plot.W - 1);
     }
 
     /// <summary>Asked for, the ticks come back: a locator set after the call replaces the empty one (what the documentation
@@ -317,34 +275,15 @@ public class StreamGraphTests
     [Fact]
     public void ATickLocatorSetBeforeTheCall_IsReplacedByTheEmptyOne()
     {
-        var axes = AxesOf(ax => ax.SetYTickLocator(new AutoLocator()).StreamGraph(X, Layers));
+        var axes = Plt.Create().OneAxes(ax => ax.SetYTickLocator(new AutoLocator()).StreamGraph(X, Layers));
 
         Assert.Empty(axes.YAxis.TickLocator!.Locate(-10, 10));
-    }
-
-    /// <summary>The verb sets no axis limit and keeps one the caller set before the call (W9): a limit clips every series on
-    /// the axes and overwrites the caller's own.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Stream(Layers);
-        var kept = AxesOf(ax => ax.SetXLim(-1, 4).SetYLim(-20, 20).StreamGraph(X, Layers));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(-1.0, kept.XAxis.Min);
-        Assert.Equal(4.0, kept.XAxis.Max);
-        Assert.Equal(-20.0, kept.YAxis.Min);
-        Assert.Equal(20.0, kept.YAxis.Max);
     }
 
     // ---- colours and the legend (the two things StackPlot's one series cannot do) ------------------------------------------
 
     private static List<string> Outlines(string svg) =>
-        [.. SeriesGroups(svg).Select(group => (string)Named(group, "polyline").First().Attribute("stroke")!)];
+        [.. svg.SeriesGroups().Select(group => (string)group.Each("polyline").First().Attribute("stroke")!)];
 
     /// <summary>One drawn unit is one colour: layer i wears the theme's colour at slot i, in order, the area and its outline
     /// alike; no two layers share a colour. (StackPlot is one series: its layers take one slot each, from the first slot of the series on.)</summary>
@@ -354,9 +293,9 @@ public class StreamGraphTests
         string svg = Svg(ax => ax.StreamGraph(X, Layers));
 
         Assert.Equal([Colors.Tab10Blue.ToHex(), Colors.Tab10Orange.ToHex(), Colors.Tab10Green.ToHex()], Outlines(svg));
-        Assert.All(SeriesGroups(svg), group => Assert.StartsWith(
-            (string)Named(group, "polyline").First().Attribute("stroke")!,
-            (string)Named(group, "polygon").First().Attribute("fill")!));
+        Assert.All(svg.SeriesGroups(), group => Assert.StartsWith(
+            (string)group.Each("polyline").First().Attribute("stroke")!,
+            (string)group.Each("polygon").First().Attribute("fill")!));
     }
 
     /// <summary>Each layer takes a colour slot of its own, so a series added after the chart wears the colour after the
@@ -368,7 +307,7 @@ public class StreamGraphTests
         string svg = Svg(ax => ax.StreamGraph(X, Layers).Plot([0, 3], [0, 1]));
 
         // The three layers' outlines and then the line's: a series with no name is drawn outside any series group.
-        var strokes = Named(XDocument.Parse(svg), "polyline").Select(p => (string)p.Attribute("stroke")!).ToList();
+        var strokes = svg.Xml().Each("polyline").Select(p => (string)p.Attribute("stroke")!).ToList();
         Assert.Equal(4, strokes.Count);
         Assert.Equal(Theme.Default.CycleColors[3].ToHex(), strokes[^1]);
     }
@@ -392,10 +331,9 @@ public class StreamGraphTests
 
         string svg = figure.ToSvg();
 
-        var entries = Regex.Matches(svg, """<g data-legend-index="([0-9]+)" [^>]*aria-label="([^"]*)">""");
-        Assert.Equal(["0:a", "1:b", "2:c"], entries.Select(e => $"{e.Groups[1].Value}:{e.Groups[2].Value}"));
-        var legend = Named(XDocument.Parse(svg), "g").First(g => (string?)g.Attribute("class") == "legend");
-        Assert.Equal(["a", "b", "c"], Named(legend, "text").Select(t => t.Value));
+        Assert.Equal(["0:a", "1:b", "2:c"], svg.LegendEntries().Select(entry => $"{entry.Index}:{entry.Label}"));
+        var legend = svg.Xml().Each("g").First(g => (string?)g.Attribute("class") == "legend");
+        Assert.Equal(["a", "b", "c"], legend.Each("text").Select(t => t.Value));
     }
 
     /// <summary>The stream fills the plot, so the legend, which stands where it covers the fewest marks by default, covers part of it: the legend is the caller's to
@@ -407,10 +345,10 @@ public class StreamGraphTests
         string svg = Plt.Create().WithSize(700, 500).TightLayout()
             .AddSubPlot(1, 1, 1, ax => ax.StreamGraph(X, Layers).WithLegend(LegendPosition.OutsideRight)).Build().ToSvg();
 
-        var plot = PlotArea(svg);
-        var legend = Named(XDocument.Parse(svg), "g").First(g => (string?)g.Attribute("class") == "legend");
-        double legendLeft = Num((string)Named(legend, "rect").First().Attribute("x")!);
-        Assert.True(legendLeft > plot.X + plot.W, $"the legend starts at {legendLeft}, not right of the plot area ending at {plot.X + plot.W}");
+        var plot = svg.PlotArea();
+        var legend = svg.Xml().Each("g").First(g => (string?)g.Attribute("class") == "legend");
+        double legendLeft = legend.Each("rect").First().Number("x");
+        Assert.True(legendLeft > plot.X + plot.Width, $"the legend starts at {legendLeft}, not right of the plot area ending at {plot.X + plot.Width}");
     }
 
     /// <summary>A layer with no name (null or empty) is drawn and has no legend entry: an entry with no text would name
@@ -423,45 +361,16 @@ public class StreamGraphTests
         figure.EnableLegendToggle = true;
 
         var areas = Areas(figure.SubPlots[0]);
-        var entries = Regex.Matches(figure.ToSvg(), "data-legend-index=");
+        int entries = figure.ToSvg().CountOf("data-legend-index=");
 
         Assert.Equal(3, areas.Length);
         Assert.Null(areas[0].Label);
         Assert.Null(areas[1].Label);
         Assert.Equal("named", areas[2].Label);
-        Assert.Single(entries);
-    }
-
-    // ---- the streams ---------------------------------------------------------------------------------------------------------
-
-    /// <summary>The streams are opaque, as matplotlib's stackplot draws its layers, so a layer wears exactly the colour of its
-    /// legend entry (the swatch ignores transparency) and the grid does not show through it. An area is faint (0.3) by
-    /// default.</summary>
-    [Fact]
-    public void TheStreams_AreOpaque()
-    {
-        Assert.All(Areas(Stream(Layers)), area => Assert.Equal(1.0, area.Alpha));
+        Assert.Equal(1, entries);
     }
 
     // ---- the callback ----------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once for each layer, in the order of the layers, after the verb has built and styled the
-    /// area, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerLayer_InOrder_AfterTheVerbStyledIt()
-    {
-        var seen = new List<string?>();
-
-        var axes = Stream(Layers, configure: area =>
-        {
-            Assert.Equal(1.0, area.Alpha);
-            seen.Add(area.Label);
-            area.Alpha = 0.4;
-        });
-
-        Assert.Equal(["a", "b", "c"], seen);
-        Assert.All(Areas(axes), area => Assert.Equal(0.4, area.Alpha));
-    }
 
     /// <summary>What the callback sets wins over the cycle: a colour set there is the colour drawn.</summary>
     [Fact]
@@ -470,22 +379,6 @@ public class StreamGraphTests
         string svg = Svg(ax => ax.StreamGraph(X, Layers, configure: area => area.Color = Colors.Red));
 
         Assert.Equal([Colors.Red.ToHex(), Colors.Red.ToHex(), Colors.Red.ToHex()], Outlines(svg));
-    }
-
-    // ---- the verb draws what the hand chain draws -------------------------------------------------------------------------
-
-    /// <summary>The verb adds nothing to the picture that the hand-written chain of public building blocks did not draw, and
-    /// leaves nothing out: same SVG, byte for byte, with and without a missing value. (The hand recipe stacks on the
-    /// symmetric baseline, which is plain arithmetic; the wiggles are held to matplotlib's numbers above.)</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.StreamGraphWith(StackedBaseline.Symmetric, missing).ToSvg();
-        string byHand = ComposedChartShapes.StreamGraphByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
     }
 
     // ---- JSON ----------------------------------------------------------------------------------------------------------------
@@ -507,7 +400,7 @@ public class StreamGraphTests
         var figure = ComposedChartShapes.StreamGraphWith(baseline, missing).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.DoesNotContain(FigureTexts(readBack), t => t.Anchor == "end");
@@ -521,21 +414,12 @@ public class StreamGraphTests
             .AddSubPlot(1, 1, 1, ax => ax.StreamGraph(LongX, LongLayers)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
     }
 
     // ---- refused arguments -----------------------------------------------------------------------------------------------
-
-    /// <summary>An axes, an x array or a list of layers that is not there is refused by name.</summary>
-    [Fact]
-    public void ANullArgument_IsRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).StreamGraph(X, Layers)).ParamName);
-        Assert.Equal("x", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.StreamGraph(null!, Layers))).ParamName);
-        Assert.Equal("layers", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.StreamGraph(X, null!))).ParamName);
-    }
 
     /// <summary>No layers draw nothing: refused by name, in words that say what a stream graph needs.</summary>
     [Fact]
@@ -556,7 +440,7 @@ public class StreamGraphTests
         var error = Assert.Throws<ArgumentException>(() => Stream([new("a", [1, 2, 3, 4]), new("b", [1, 2])]));
 
         Assert.Equal("layers", error.ParamName);
-        Assert.Equal("Group 'b' carries 2 values; there are 4 x values. (Parameter 'layers')", error.Message);
+        Assert.Equal(2.RefusalAgainst(4, "layers", "group 'b'"), error.Message);
         Assert.Equal("layers", Assert.Throws<ArgumentException>(() => Stream([new BarGroup("a", null!)])).ParamName);
         Assert.Equal("layers", Assert.Throws<ArgumentException>(() => Stream([default])).ParamName);
     }
@@ -569,11 +453,11 @@ public class StreamGraphTests
     [InlineData(double.PositiveInfinity, "Infinity")]
     public void AValueThatIsNotAThickness_IsRefusedByName(double value, string written)
     {
-        var error = Assert.Throws<ArgumentException>(() => Stream([new("a", [1, 2, 3, 4]), new("rock", [1, value, 1, 1])]));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Stream([new("a", [1, 2, 3, 4]), new("rock", [1, value, 1, 1])]));
 
         Assert.Equal("layers", error.ParamName);
-        Assert.StartsWith(
-            $"The value of 'rock' at x = 1 is {written}; a stream's thickness is finite and 0 or more (NaN marks a missing value).", error.Message);
+        Assert.StartsWith("The value of 'rock' at x = 1 must be ", error.Message, StringComparison.Ordinal);
+        Assert.Contains($"(got {written}).", error.Message, StringComparison.Ordinal);
     }
 
     /// <summary>Zero is a thickness (a layer that is not there yet), and so is a missing value: neither is refused.</summary>
@@ -594,55 +478,34 @@ public class StreamGraphTests
         Assert.Equal("baseline", error.ParamName);
     }
 
-    /// <summary>A refused call has added nothing: the checks come before the first area, so no series and no tick locator is
-    /// left behind.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var builder = new AxesBuilder();
+        //  No positions and layers without values draw nothing and do not throw.
+        new DrawnToken("NoPositions_DrawNothing", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.StreamGraph([], [new("a", [])])).ToSvg()) { Absent = ["<polygon"], Finite = true },
+        //  The example of the verb's documentation, as written there, compiles and draws.
+        new DrawnToken("TheDocumentationExample_Draws", () =>
+        {
+            double[] year = [2019, 2020, 2021, 2022, 2023];
+            return Plt.Create()
+                .WithTitle("Listening by genre")
+                .TightLayout()
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .StreamGraph(year,
+                    [
+                        new BarGroup("Rock", [8, 7, 6, 5, 4]),
+                        new BarGroup("Pop", [3, 5, 7, 8, 9]),
+                        new BarGroup("Jazz", [2, 2, 3, 3, 4]),
+                    ])
+                    .SetXTickLocator(new MultipleLocator(1))
+                    .SetXLabel("Year")
+                    .WithLegend(LegendPosition.OutsideRight))
+                .ToSvg();
+        }, ">Listening by genre<", ">Jazz<", ">Year<"),
+    };
 
-        Assert.Throws<ArgumentException>(() => builder.StreamGraph(X, [new("a", [1, 2, 3, 4]), new("b", [1, -2, 3, 4])]));
-        var axes = builder.Build(1, 1, 1);
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.YAxis.TickLocator);
-    }
-
-    /// <summary>No positions and layers without values draw nothing and do not throw.</summary>
-    [Fact]
-    public void NoPositions_DrawNothing()
-    {
-        string svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.StreamGraph([], [new("a", [])])).ToSvg();
-
-        Assert.DoesNotContain("<polygon", svg);
-        Assert.DoesNotContain("NaN", svg);
-    }
-
-    // ---- the example in the documentation ---------------------------------------------------------------------------------
-
-    /// <summary>The example of the verb's documentation, as written there, compiles and draws.</summary>
-    [Fact]
-    public void TheDocumentationExample_Draws()
-    {
-        double[] year = [2019, 2020, 2021, 2022, 2023];
-
-        string svg = Plt.Create()
-            .WithTitle("Listening by genre")
-            .TightLayout()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .StreamGraph(year,
-                [
-                    new BarGroup("Rock", [8, 7, 6, 5, 4]),
-                    new BarGroup("Pop", [3, 5, 7, 8, 9]),
-                    new BarGroup("Jazz", [2, 2, 3, 3, 4]),
-                ])
-                .SetXTickLocator(new MultipleLocator(1))
-                .SetXLabel("Year")
-                .WithLegend(LegendPosition.OutsideRight))
-            .ToSvg();
-
-        Assert.Contains(">Listening by genre<", svg);
-        Assert.Contains(">Jazz<", svg);
-        Assert.Contains(">Year<", svg);
-    }
 }

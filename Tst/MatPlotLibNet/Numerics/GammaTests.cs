@@ -9,12 +9,6 @@ namespace MatPlotLibNet.Tests.Numerics;
 /// (<c>gammaln</c>, <c>gammaincc</c>): the pieces the chi-square distribution is built from.</summary>
 public class GammaTests
 {
-    private static void Close(double expected, double actual, double relative)
-    {
-        double scale = Math.Max(1e-300, Math.Abs(expected));
-        Assert.True(Math.Abs(actual - expected) <= relative * scale + 1e-300, $"expected {expected:R}, got {actual:R}");
-    }
-
     [Theory]
     [InlineData(0.5, 0.5723649429247)]
     [InlineData(1.0, 0.0)]
@@ -26,7 +20,7 @@ public class GammaTests
     [InlineData(0.01, 4.599479878042022)]
     [InlineData(1e-05, 11.512919692895826)]
     [InlineData(100000.0, 1051287.7089736569)]
-    public void TheLogGamma_MatchesScipy(double x, double expected) => Close(expected, Gamma.LogGamma(x), 1e-13);
+    public void TheLogGamma_MatchesScipy(double x, double expected) => expected.AssertCloseTo(Gamma.LogGamma(x), relative: 1e-13, floor: 1e-300);
 
     [Theory]
     [InlineData(0.5, 0.1, 0.6547208460185768)]
@@ -46,7 +40,7 @@ public class GammaTests
     [InlineData(10.0, 5.0, 0.9681719426937951)]
     [InlineData(10.0, 30.0, 7.121750862815593e-06)]
     public void TheRegularisedUpperIncomplete_MatchesScipy(double a, double x, double expected) =>
-        Close(expected, Gamma.RegularisedUpper(a, x), 1e-12);
+        expected.AssertCloseTo(Gamma.RegularisedUpper(a, x), relative: 1e-12, floor: 1e-300);
 
     [Fact]
     public void TheUpperIncomplete_RunsFromOneAtZeroToZeroAtInfinity()

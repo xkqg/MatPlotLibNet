@@ -32,7 +32,7 @@ That is all of it. There is nothing to import from the extension and nothing to 
 expression, and it draws inline as SVG.
 
 There is no `.Build()` in that cell either, on purpose. `Plt.Create()` hands back a builder, and a notebook shows
-you whatever the cell ended on, so the builder is what usually arrives. It is drawn like a figure. `Plt.Mosaic()`
+you whatever the cell ended on, so the builder is what usually arrives. It is drawn like a figure. `Plt.Mosaic(pattern)`
 is too, and so is a `Figure` you built earlier and kept in a variable:
 
 ```csharp
@@ -94,7 +94,7 @@ The cell says so in words, with the message from the renderer itself. A mosaic w
 length, for instance:
 
 ```
-MatPlotLibNet could not draw this chart. All rows must have the same length. Row 0 has 2 cells; row 1 has 3. (Parameter 'pattern')
+MatPlotLibNet could not draw this chart. Array lengths must match. Got 3 and 2 in row 1. (Parameter 'pattern')
 ```
 
 Not a stack trace from inside the charting library. If a cell hands over something that is not a chart at all, the

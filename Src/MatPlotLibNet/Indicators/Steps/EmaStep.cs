@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// <see cref="Streaming.StreamingEma"/> takes one price at a time, so the arithmetic exists once. The first value is the plain mean of
 /// the first <c>period</c> prices; after that each value moves toward the price by <c>2 / (period + 1)</c>. Before the first
 /// value the step says NaN.</summary>
-internal struct EmaStep
+internal struct EmaStep : IPriceStep<double>
 {
     private readonly int _period;
     private readonly double _multiplier;
@@ -25,7 +25,7 @@ internal struct EmaStep
 
     /// <summary>Takes one price and returns the average so far, or NaN before the first <c>period</c> prices have come.</summary>
     /// <param name="price">The price.</param>
-    internal double Next(double price)
+    public double Next(double price)
     {
         _count++;
         if (_count < _period)

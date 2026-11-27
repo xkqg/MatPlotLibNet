@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -12,44 +13,35 @@ namespace MatPlotLibNet.Indicators;
 /// are clamped to 0 per Corwin-Schultz §II.D. Output length is <c>n − period</c>.</remarks>
 public sealed class CorwinSchultz : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 20;
+
     private static readonly double Denom = 3.0 - 2.0 * Math.Sqrt(2.0); // 3 − 2√2
 
     private readonly int _period;
 
     /// <summary>Creates a new Corwin-Schultz indicator.</summary>
     /// <param name="bars">High and Low; built via <see cref="OhlcvBars.Hl"/>.</param>
-    /// <param name="period">Rolling window length in bars (default 20).</param>
+    /// <param name="period">Rolling window length in bars (default <see cref="DefaultPeriod"/>).</param>
     /// <exception cref="ArgumentException">Thrown on length mismatch, period &lt; 2,
     /// non-positive H or L, or H &lt; L on any bar.</exception>
-    public CorwinSchultz(OhlcvBars bars, int period = 20)
-        : base(bars)
+    public CorwinSchultz(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
-        for (int i = 0; i < bars.High.Length; i++)
-        {
-            if (bars.High[i] <= 0 || bars.Low[i] <= 0)
-                throw new ArgumentException(
-                    $"CorwinSchultz requires strictly positive H/L; bar {i} has H={bars.High[i]}, L={bars.Low[i]}.");
-            if (bars.High[i] < bars.Low[i])
-                throw new ArgumentException(
-                    $"CorwinSchultz requires H >= L; bar {i} has H={bars.High[i]} < L={bars.Low[i]}.");
-        }
+        bars.High.ThrowIfNotPositivePrices(nameof(CorwinSchultz), "high");
+        bars.Low.ThrowIfNotPositivePrices(nameof(CorwinSchultz), "low");
+        bars.ThrowIfHighBelowLow(nameof(CorwinSchultz));
         _period = period;
-        Label = $"CS({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("CS", period, 2, period);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = BarCount;
-        if (n <= _period) return Array.Empty<double>();
-
         // Per-bar S_t for t = 1..n-1 (length n-1).
-        var perBar = new double[n - 1];
-        for (int i = 0; i < n - 1; i++)
+        return RollingMeanOfPairs(_period, t =>
         {
-            int t = i + 1;
             double h0 = High[t - 1], l0 = Low[t - 1];
             double h1 = High[t],     l1 = Low[t];
 
@@ -67,22 +59,10 @@ public sealed class CorwinSchultz : CandleIndicator<SignalResult>
 
             double eAlpha = Math.Exp(alpha);
             double s = 2 * (eAlpha - 1) / (1 + eAlpha);
-            perBar[i] = s < 0 ? 0 : s;
-        }
-
-        int outLen = n - _period;
-        var result = new double[outLen];
-        double sum = 0;
-        for (int i = 0; i < _period; i++) sum += perBar[i];
-        result[0] = sum / _period;
-        for (int i = 1; i < outLen; i++)
-        {
-            sum += perBar[i + _period - 1] - perBar[i - 1];
-            result[i] = sum / _period;
-        }
-        return result;
+            return s < 0 ? 0 : s;
+        });
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

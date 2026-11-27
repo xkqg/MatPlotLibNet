@@ -25,11 +25,17 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The composed charts the core suite holds to its promises, sent here through the hub and the chart endpoints. -->
     <Compile Include="..\MatPlotLibNet\Rendering\ComposedChartShapes.cs" LinkBase="Shared" />
+    <!-- The doubles and the wait the core suite writes once: a handler that records, and a wait that fails when the condition never holds. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\RecordingChartEventHandler.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\Eventually.cs" LinkBase="Shared" />
+    <!-- The public concrete classes of a root, counted the one way every published count reads them. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ConcreteSubtypesExtensions.cs" LinkBase="Shared" />
   </ItemGroup>
 
 </Project>

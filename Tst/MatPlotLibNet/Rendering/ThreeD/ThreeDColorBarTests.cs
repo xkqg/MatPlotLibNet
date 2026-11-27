@@ -9,41 +9,10 @@ namespace MatPlotLibNet.Tests.Rendering.ThreeD;
 
 public sealed class ThreeDColorBarTests
 {
-    [Fact]
-    public void SurfaceWithColorMap_AndColorBar_ProducesGradientInSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
-            .WithSize(600, 500)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithCamera(elevation: 30, azimuth: -60)
-                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } },
-                    s => s.ColorMap = ColorMaps.Viridis)
-                .WithColorBar())
-            .Build()
-            .ToSvg();
-
-        // Should contain colorbar gradient elements
-        Assert.Contains("colorbar", svg.ToLowerInvariant());
-    }
-
-    [Fact]
-    public void SurfaceWithoutColorBar_NoGradient()
-    {
-        var svg = Plt.Create()
-            .WithSize(600, 500)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithCamera(elevation: 30, azimuth: -60)
-                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } }))
-            .Build()
-            .ToSvg();
-
-        Assert.DoesNotContain("colorbar", svg.ToLowerInvariant());
-    }
-
-    [Fact]
-    public void SurfaceWithColorBar_LabelRendered()
-    {
-        var svg = Plt.Create()
+        new DrawnToken("SurfaceWithColorBar_LabelRendered", () => Plt.Create()
             .WithSize(600, 500)
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithCamera(elevation: 30, azimuth: -60)
@@ -51,8 +20,27 @@ public sealed class ThreeDColorBarTests
                     s => s.ColorMap = ColorMaps.Plasma)
                 .WithColorBar(cb => cb with { Label = "Intensity" }))
             .Build()
-            .ToSvg();
+            .ToSvg(), "Intensity"),
+        // Should contain colorbar gradient elements.
+        new DrawnToken("SurfaceWithColorMap_AndColorBar_ProducesGradientInSvg", () => Plt.Create()
+            .WithSize(600, 500)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 30, azimuth: -60)
+                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } },
+                    s => s.ColorMap = ColorMaps.Viridis)
+                .WithColorBar())
+            .Build()
+            .ToSvg(), "colorbar") { Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("SurfaceWithoutColorBar_NoGradient", () => Plt.Create()
+            .WithSize(600, 500)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 30, azimuth: -60)
+                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } }))
+            .Build()
+            .ToSvg()) { Absent = ["colorbar"], Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.Contains("Intensity", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

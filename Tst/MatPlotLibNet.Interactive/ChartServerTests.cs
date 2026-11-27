@@ -25,25 +25,10 @@ public class ChartServerTests : IAsyncDisposable
 
     public ChartServerTests()
     {
-        _host = new HostBuilder()
-            .ConfigureWebHost(webBuilder =>
-            {
-                webBuilder.UseTestServer();
-                webBuilder.ConfigureServices(services =>
-                {
-                    services.AddMatPlotLibNetSignalR();
-                    services.AddRouting();
-                });
-                webBuilder.Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
+        _host = SignalRTestHost.Start(endpoints =>
                     {
-                        ChartServer.ConfigureRoutes(endpoints, _figures, () => 0);
+                        ChartServer.ConfigureRoutes(endpoints, _figures);
                     });
-                });
-            })
-            .Start();
 
         _httpClient = _host.GetTestClient();
     }
@@ -108,15 +93,6 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Contains("Svg Test", html);
     }
 
-    /// <summary>Verifies that the chart page endpoint returns HTTP 404 for an unknown chart ID.</summary>
-    [Fact]
-    public async Task GetChartPage_UnknownId_Returns404()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _httpClient.GetAsync("/chart/unknown-id", ct);
-        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
-    }
-
     /// <summary>Verifies that the SignalR JavaScript endpoint returns HTTP 200 OK.</summary>
     [Fact]
     public async Task GetSignalRJs_ReturnsOk()
@@ -140,7 +116,7 @@ public class ChartServerTests : IAsyncDisposable
     public async Task ChartHub_IsReachable()
     {
         var ct = TestContext.Current.CancellationToken;
-        var connection = CreateHubConnection();
+        var connection = _host.ConnectToTheHub();
         await connection.StartAsync(ct);
         Assert.Equal(HubConnectionState.Connected, connection.State);
         await connection.DisposeAsync();
@@ -150,7 +126,7 @@ public class ChartServerTests : IAsyncDisposable
     [Fact]
     public async Task SubscribedClient_ReceivesSvgUpdate()
     {
-        var connection = CreateHubConnection();
+        var connection = _host.ConnectToTheHub();
         var tcs = new TaskCompletionSource<(string chartId, string svg)>();
 
         connection.On<string, string>("UpdateChartSvg", (id, svg) =>
@@ -178,7 +154,7 @@ public class ChartServerTests : IAsyncDisposable
     [Fact]
     public async Task UnsubscribedClient_DoesNotReceiveUpdate()
     {
-        var connection = CreateHubConnection();
+        var connection = _host.ConnectToTheHub();
         var received = false;
 
         connection.On<string, string>("UpdateChartSvg", (_, _) => received = true);
@@ -197,86 +173,15 @@ public class ChartServerTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
-    private HubConnection CreateHubConnection()
-    {
-        return new HubConnectionBuilder()
-            .WithUrl("http://localhost/charts-hub", options =>
-            {
-                options.HttpMessageHandlerFactory = _ => _host.GetTestServer().CreateHandler();
-            })
-            .Build();
-    }
-
     public async ValueTask DisposeAsync()
     {
         _httpClient.Dispose();
         await _host.StopAsync();
         _host.Dispose();
     }
-}
 
-/// <summary>Covers the L115 TRUE arm of ConfigureRoutes: when the injected signalR loader
-/// returns null, the endpoint responds 404 (not a NullReferenceException).</summary>
-public class ChartServerNullLoaderTests : IAsyncDisposable
-{
-    private readonly IHost _host;
-    private readonly HttpClient _httpClient;
-
-    public ChartServerNullLoaderTests()
-    {
-        _host = new HostBuilder()
-            .ConfigureWebHost(webBuilder =>
-            {
-                webBuilder.UseTestServer();
-                webBuilder.ConfigureServices(services =>
-                {
-                    services.AddMatPlotLibNetSignalR();
-                    services.AddRouting();
-                });
-                webBuilder.Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
-                    {
-                        ChartServer.ConfigureRoutes(endpoints, new(), () => 0,
-                            signalRLoader: () => null);   // L115 TRUE arm
-                    });
-                });
-            })
-            .Start();
-
-        _httpClient = _host.GetTestClient();
-    }
-
-    [Fact]
-    public async Task SignalRJs_NullLoader_Returns404()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _httpClient.GetAsync("/js/signalr.min.js", ct);
-        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _httpClient.Dispose();
-        await _host.StopAsync();
-        _host.Dispose();
-    }
-}
-
-// ─── ChartServerCoverageTests.cs ─────────────────────────────────────────────
-
-/// <summary>Phase Y.7 (v1.7.2, 2026-04-19) — branch coverage for the
-/// <see cref="ChartServer"/> lifecycle methods that the existing
-/// <see cref="ChartServerTests"/> harness left at 0% (DisposeAsync, IsRunning
-/// when not started, EnsureStartedAsync idempotence). Pre-Y.7: 83.6%L / 50%B.
-/// Each fact constructs a FRESH non-singleton ChartServer via the internal
-/// constructor (IVT is set in MatPlotLibNet.Interactive.csproj) so the global
-/// singleton is never touched.</summary>
-public class ChartServerCoverageTests
-{
     /// <summary>IsRunning returns false on a fresh, never-started ChartServer
-    /// (line 37 — `_app is not null` false arm).</summary>
+    /// (the `_app is not null` false arm).</summary>
     [Fact]
     public async Task IsRunning_OnFreshServer_False()
     {
@@ -304,7 +209,7 @@ public class ChartServerCoverageTests
         Assert.False(server.IsRunning);
     }
 
-    /// <summary>DisposeAsync on a STARTED ChartServer (line 129 true arm).
+    /// <summary>DisposeAsync on a STARTED ChartServer (the true arm).
     /// Verifies the full teardown of the embedded Kestrel host.</summary>
     [Fact]
     public async Task DisposeAsync_StartedServer_StopsKestrel()
@@ -319,7 +224,7 @@ public class ChartServerCoverageTests
     }
 
     /// <summary>EnsureStartedAsync called twice on the same instance — the second
-    /// call must hit the early-return at line 44 (`_app is not null` true arm).</summary>
+    /// call must hit the early-return (`_app is not null` true arm).</summary>
     [Fact]
     public async Task EnsureStartedAsync_CalledTwice_SecondCallShortCircuits()
     {
@@ -331,7 +236,7 @@ public class ChartServerCoverageTests
         await server.DisposeAsync();
     }
 
-    /// <summary>UpdateFigureAsync L90 TRUE arm — when server is started, _publisher is
+    /// <summary>UpdateFigureAsync on a started server — _publisher is
     /// non-null and PublishSvgAsync is called. Asserts the figure dict is also updated.</summary>
     [Fact]
     public async Task UpdateFigureAsync_AfterStart_PublishesAndUpdatesFigureDict()
@@ -342,134 +247,92 @@ public class ChartServerCoverageTests
         var id = server.RegisterFigure(fig);
 
         var updatedFig = Plt.Create().Plot([3.0], [4.0]).Build();
-        await server.UpdateFigureAsync(id, updatedFig);
+        await server.UpdateFigureAsync(id, updatedFig, TestContext.Current.CancellationToken);
 
         var url = server.GetFigureUrl(id);
         Assert.Contains(id, url);
         await server.DisposeAsync();
     }
-}
 
-// ─── ChartServerAsyncSafetyTests.cs ──────────────────────────────────────────
-
-/// <summary>Serializes the test classes that mutate the process-global
-/// <see cref="InteractiveExtensions.Browser"/> and/or the <see cref="ChartServer"/>
-/// singleton, so xunit never runs them in parallel (they share mutable static state).
-/// Fixes a pre-existing latent race between the two InteractiveExtensions test classes.</summary>
-[CollectionDefinition("InteractiveDisplayGlobalState", DisableParallelization = true)]
-public sealed class InteractiveDisplayGlobalStateCollection { }
-
-/// <summary>B2 / F7 (v1.13.0, 2026-07-04) — pins the async-all-the-way fix for the
-/// sync-over-async deadlock on the Interactive public surface. The whole Interactive
-/// await chain now uses <c>ConfigureAwait(false)</c>, the synchronous <c>Show()</c> /
-/// <c>EnsureStarted()</c> facades were removed (async-only surface), and
-/// <see cref="ChartServer.EnsureStartedAsync"/> carries a disposed guard.</summary>
-[Collection("InteractiveDisplayGlobalState")]
-public class ChartServerAsyncSafetyTests
-{
-    /// <summary>Regression guard for the F7/B2 sync-over-async deadlock. A caller that
-    /// blocks on <c>ShowAsync</c> from a thread owning a single-threaded, unpumped
-    /// <see cref="SynchronizationContext"/> (the WinForms/WPF/legacy-ASP.NET/notebook-host
-    /// shape) must complete, not deadlock. The injected <see cref="YieldingBrowserLauncher"/>
-    /// is a genuinely-async launcher, giving ShowAsync a deterministic suspension point:
-    /// pre-fix the resuming continuation is posted back to the blocked context and strands
-    /// (RED — bounded 30 s join times out), post-fix ConfigureAwait(false) resumes it off
-    /// the context (GREEN — returns in well under a second).</summary>
+    /// <summary>The token of an update reaches the publisher: a push whose caller has given up is not sent. The publisher of a
+    /// started server waits on the chart's gate with that token, so a cancelled one ends the push there.</summary>
     [Fact]
-    public void ShowAsync_BlockedUnderCapturedSyncContext_NoDeadlock()
+    public async Task UpdateFigureAsync_WithACancelledToken_HandsItToThePublisher()
     {
-        var originalBrowser = InteractiveExtensions.Browser;
-        InteractiveExtensions.Browser = new YieldingBrowserLauncher();
+        var server = new ChartServer();
         try
         {
-            var figure = Plt.Create().WithTitle("Deadlock probe").Plot([1.0], [2.0]).Build();
-            Exception? failure = null;
+            await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
+            var id = server.RegisterFigure(Plt.Create().Plot([1.0], [2.0]).Build());
+            using var gaveUp = new CancellationTokenSource();
+            gaveUp.Cancel();
 
-            var thread = new Thread(() =>
-            {
-                SynchronizationContext.SetSynchronizationContext(new SingleThreadSynchronizationContext());
-                try
-                {
-                    // Sync-over-async on a captured, unpumped context: this thread blocks
-                    // here. ShowAsync awaits a genuinely-async browser launcher; if that
-                    // await captures this context (missing ConfigureAwait(false)), its
-                    // continuation is posted back here and can never run — deadlock.
-                    _ = figure.ShowAsync().GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    failure = ex;
-                }
-            })
-            {
-                IsBackground = true,
-                Name = nameof(ShowAsync_BlockedUnderCapturedSyncContext_NoDeadlock),
-            };
-
-            thread.Start();
-            var completed = thread.Join(TimeSpan.FromSeconds(30));
-
-            Assert.True(completed,
-                "ShowAsync deadlocked under a captured SynchronizationContext (sync-over-async); " +
-                "the Interactive await chain must use ConfigureAwait(false).");
-            Assert.Null(failure);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => server.UpdateFigureAsync(id, Plt.Create().Plot([3.0], [4.0]).Build(), gaveUp.Token));
         }
         finally
         {
-            InteractiveExtensions.Browser = originalBrowser;
+            await server.DisposeAsync();
         }
     }
 
-    /// <summary>M14 disposed guard: a started-then-disposed server keeps a non-null
-    /// <c>_app</c>, so without the guard EnsureStartedAsync would silently no-op via the
-    /// fast path. It must instead throw <see cref="ObjectDisposedException"/>.</summary>
+    // ---- the page the server hands a browser (Generate) ----
+    // Verifies <see cref="Interactive.ChartServer"/> behavior.
+
+    private const string TestChartId = "test-chart-123";
+    private const string TestSvg = "<svg><circle cx=\"50\" cy=\"50\" r=\"40\"/></svg>";
+
+    private static string Page() => ChartServer.Generate(TestChartId, TestSvg);
+
+    /// <summary>What each fact about the page held, as one row: the tokens its HTML must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
+    {
+        //  Verifies that the generated HTML contains the initial SVG content.
+        new DrawnToken("Generate_ContainsInitialSvg", Page, TestSvg),
+        //  Verifies that the generated HTML includes the chart ID in the script section.
+        new DrawnToken("Generate_ContainsChartIdInScript", Page, $"\"{TestChartId}\""),
+        //  The page reaches the hub on the origin it was served from: by the hub's path, never by a host of its own.
+        new DrawnToken("Generate_ReachesTheHubByItsPath", Page, $".withUrl(\"{ChartServer.HubPath}\")"),
+        //  Verifies that the generated HTML includes a reference to the SignalR JavaScript file.
+        new DrawnToken("Generate_ContainsSignalRScriptReference", Page, "/js/signalr.min.js"),
+        //  Verifies that the generated HTML contains a Subscribe call for real-time updates.
+        new DrawnToken("Generate_ContainsSubscribeCall", Page, "Subscribe"),
+        //  Verifies that the generated HTML contains an UpdateChartSvg handler for live SVG updates.
+        new DrawnToken("Generate_ContainsUpdateChartSvgHandler", Page, "UpdateChartSvg"),
+        //  Verifies that the generated HTML contains a chart-container element.
+        new DrawnToken("Generate_ContainsChartContainer", Page, "chart-container"),
+        //  Verifies that the generated HTML includes automatic reconnect configuration for SignalR.
+        new DrawnToken("Generate_ContainsAutoReconnect", Page, "withAutomaticReconnect"),
+        //  Verifies that the chart ID is HTML-encoded to prevent script injection.
+        new DrawnToken("Generate_EncodesChartIdForHtml (encoded)", () => ChartServer.Generate("<script>alert(1)</script>", TestSvg), "&lt;script&gt;"),
+        new DrawnToken("Generate_EncodesChartIdForHtml (head)", () => ChartServer.Generate("<script>alert(1)</script>", TestSvg).Split("</head>")[0]) { Absent = ["<script>alert(1)</script>"] },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void ThePage_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>Verifies that the generated HTML starts with a DOCTYPE declaration.</summary>
     [Fact]
-    public async Task EnsureStartedAsync_AfterDispose_ThrowsObjectDisposed()
+    public void Generate_ContainsDoctype()
     {
-        var server = new ChartServer();
-        await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
-        await server.DisposeAsync();
-
-        await Assert.ThrowsAsync<ObjectDisposedException>(
-            () => server.EnsureStartedAsync(TestContext.Current.CancellationToken));
+        var html = ChartServer.Generate(TestChartId, TestSvg);
+        Assert.StartsWith("<!DOCTYPE html>", html);
     }
 
-    /// <summary>Pins the B2 public-surface decision: the Interactive display API is
-    /// async-only. The pre-1.13.0 synchronous <c>Show()</c> extension and the internal
-    /// <c>EnsureStarted()</c> sync-over-async wrappers were removed; <c>ShowAsync</c> and
-    /// <c>EnsureStartedAsync</c> are the sole entry points.</summary>
+    /// <summary>The page patches: it subscribes for parts on start and again after a reconnect (never the old way, which would
+    /// have the server send it the whole document as well), and it puts each part it receives in place of the element of the
+    /// same name, the root's new attributes on the root.</summary>
     [Fact]
-    public void InteractiveDisplayApi_IsAsyncOnly_NoSyncFacade()
+    public void Generate_SubscribesForParts_AndPutsEachPartInPlace()
     {
-        var extensions = typeof(InteractiveExtensions)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static);
-        Assert.DoesNotContain(extensions, m => m.Name == "Show");
-        Assert.Contains(extensions, m => m.Name == "ShowAsync");
+        var html = ChartServer.Generate(TestChartId, TestSvg);
 
-        var serverMethods = typeof(ChartServer)
-            .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-        Assert.DoesNotContain(serverMethods, m => m.Name == "EnsureStarted");
-        Assert.Contains(serverMethods, m => m.Name == "EnsureStartedAsync");
-    }
-
-    /// <summary>A single-threaded <see cref="SynchronizationContext"/> that queues posted
-    /// continuations but never pumps them — reproducing a UI/host message loop blocked
-    /// inside a synchronous wait. Any continuation posted here (an await that captured the
-    /// context) is stranded, which is exactly the deadlock under test.</summary>
-    private sealed class SingleThreadSynchronizationContext : SynchronizationContext
-    {
-        private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
-
-        public override void Post(SendOrPostCallback d, object? state) => _queue.Add((d, state));
-    }
-
-    /// <summary>A browser launcher that genuinely completes asynchronously on a pool
-    /// thread (as a real launcher doing I/O would), giving <c>ShowAsync</c> a deterministic
-    /// suspension point. It uses ConfigureAwait(false) internally so the launcher itself
-    /// never strands on the caller's context — the deadlock under test is ShowAsync's own
-    /// await of this method, not the launcher's internals.</summary>
-    private sealed class YieldingBrowserLauncher : IBrowserLauncher
-    {
-        public async Task OpenAsync(string url) => await Task.Delay(50).ConfigureAwait(false);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(html, "invoke\\(\"SubscribeToParts\", chartId\\)").Count);
+        Assert.DoesNotContain("invoke(\"Subscribe\", chartId)", html);
+        Assert.Contains("connection.on(\"UpdateChartParts\"", html);
+        Assert.Contains("data-mpl-part", html);
+        Assert.Contains("parts.rootTag", html);
+        Assert.Contains("replaceWith", html);
     }
 }

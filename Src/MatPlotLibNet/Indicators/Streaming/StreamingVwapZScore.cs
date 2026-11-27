@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -15,16 +16,15 @@ public sealed class StreamingVwapZScore : WindowedStreamingIndicator<OhlcvBar>
     /// <summary>Creates a streaming VwapZScore.</summary>
     /// <param name="window">The window of each VWAP and of the deviations; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingVwapZScore(int window = 20, int capacity = 10_000)
-        : base(2 * window - 1, capacity)
+    public StreamingVwapZScore(int window = VwapZScore.DefaultWindow, int capacity = StreamingSeries.RestingCapacity)
+        : base(2 * window - 1, VwapZScore.Spec(window), capacity)
     {
         _window = window;
-        Label = $"VwapZ({window})";
     }
 
     /// <inheritdoc />
     /// <remarks>The first value comes with the <c>window</c>-th bar, from a deviation window of the bars there are; the value is the full one from the bar after <c>2 * window - 2</c> more.</remarks>
-    public override int WarmupPeriod => _window;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <inheritdoc />
     protected override void Recompute(ReadOnlySpan<OhlcvBar> window, Span<double> outputs)

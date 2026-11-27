@@ -2,46 +2,43 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
-/// <summary>Verifies <see cref="SpineConfig"/> and <see cref="SpinesConfig"/> default values.</summary>
+/// <summary>A spine becomes a line under a theme: its colour, width and dash, and its half width.</summary>
 public class SpineConfigTests
 {
-    /// <summary>
-    /// Verifies that the default spine line width matches matplotlib's axes.linewidth (0.8 pt).
-    /// </summary>
+    /// <summary>A spine's stroke under a theme is its colour (its own, else the theme's text), its width (its own, else the theme's)
+    /// and its dash pattern: the one place a spine becomes a line.</summary>
     [Fact]
-    public void SpineConfig_DefaultLineWidth_MatchesMatplotlib()
+    public void StrokeIn_IsTheColourTheWidthAndTheDashUnderTheTheme()
     {
-        var sc = new SpineConfig();
-        Assert.Equal(0.8, sc.LineWidth);
+        var spine = new SpineConfig { Color = Colors.Red, LineWidth = 2, LineStyle = LineStyle.Dashed };
+
+        Assert.Equal(new StrokeStyle(Colors.Red, 2, LineStyle.Dashed), spine.StrokeIn(Theme.Default));
     }
 
-    /// <summary>Verifies that the default spine is visible.</summary>
+    /// <summary>A spine that names no colour and no width takes both from its theme.</summary>
     [Fact]
-    public void SpineConfig_DefaultVisible_IsTrue()
+    public void StrokeIn_OfASpineThatNamesNothing_FollowsTheTheme()
     {
-        var sc = new SpineConfig();
-        Assert.True(sc.Visible);
+        var spine = new SpineConfig();
+
+        var stroke = spine.StrokeIn(Theme.Dark);
+
+        Assert.Equal(Theme.Dark.ForegroundText, stroke.Color);
+        Assert.Equal(spine.LineWidthIn(Theme.Dark), stroke.Thickness);
+        Assert.Equal(LineStyle.Solid, stroke.Style);
     }
 
-    /// <summary>Verifies that the default spine position is Edge.</summary>
+    /// <summary>Half the spine's width is the margin a tick keeps clear of the spine: one rule for the bottom, the top and the left.</summary>
     [Fact]
-    public void SpineConfig_DefaultPosition_IsEdge()
+    public void HalfWidthIn_IsHalfTheWidthUnderTheTheme()
     {
-        var sc = new SpineConfig();
-        Assert.Equal(SpinePosition.Edge, sc.Position);
-    }
+        var spine = new SpineConfig { LineWidth = 3 };
 
-    /// <summary>Verifies that all four default spines share the same 0.8 pt line width.</summary>
-    [Fact]
-    public void SpinesConfig_AllDefaults_Have08LineWidth()
-    {
-        var spines = new SpinesConfig();
-        Assert.Equal(0.8, spines.Top.LineWidth);
-        Assert.Equal(0.8, spines.Bottom.LineWidth);
-        Assert.Equal(0.8, spines.Left.LineWidth);
-        Assert.Equal(0.8, spines.Right.LineWidth);
+        Assert.Equal(1.5, spine.HalfWidthIn(Theme.Default));
+        Assert.Equal(new SpineConfig().LineWidthIn(Theme.Default) / 2.0, new SpineConfig().HalfWidthIn(Theme.Default));
     }
 }

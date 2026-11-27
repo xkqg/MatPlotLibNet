@@ -6,112 +6,34 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="LineSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="LineSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class LineSeriesTests
 {
-    /// <summary>Verifies that the constructor stores X and Y data.</summary>
-    [Fact]
-    public void Constructor_StoresData()
+    /// <summary>A marker on every N-th point is a step of at least one point: a step of none (matplotlib refuses a slice step of
+    /// zero) or below none is refused where it is given, and the line keeps the step it had.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void MarkEvery_BelowOne_IsRefusedByName(int step)
     {
-        double[] x = [1, 2, 3], y = [4, 5, 6];
-        var series = new LineSeries(x, y);
-        Assert.Equal(x, series.XData);
-        Assert.Equal(y, series.YData);
+        var series = new LineSeries([1.0, 2, 3], [2.0, 4, 3]) { Marker = MarkerStyle.Circle, MarkEvery = 2 };
+
+        var refused = Assert.Throws<ArgumentOutOfRangeException>(() => series.MarkEvery = step);
+
+        Assert.Equal(nameof(LineSeries.MarkEvery), refused.ParamName);
+        Assert.Equal(2, series.MarkEvery);
     }
 
-    /// <summary>Verifies that LineStyle defaults to Solid.</summary>
+    /// <summary>A budget of points given and then taken back draws every point again, as a line never given one does.</summary>
     [Fact]
-    public void DefaultLineStyle_IsSolid()
+    public void ABudgetTakenBack_DrawsEveryPointAgain()
     {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Equal(LineStyle.Solid, series.LineStyle);
-    }
+        double[] x = [.. Enumerable.Range(0, 50).Select(i => (double)i)];
+        double[] y = [.. x.Select(v => v % 7)];
+        static string Drawn(LineSeries line) => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.AddSeries(line)).ToSvg();
+        var takenBack = new LineSeries(x, y) { MaxDisplayPoints = 10 };
+        takenBack.MaxDisplayPoints = null;
 
-    /// <summary>Verifies that LineWidth defaults to 1.5.</summary>
-    [Fact]
-    public void DefaultLineWidth_Is1Point5()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Equal(1.5, series.LineWidth);
-    }
-
-    /// <summary>Verifies that Marker defaults to null.</summary>
-    [Fact]
-    public void DefaultMarker_IsNull()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Null(series.Marker);
-    }
-
-    /// <summary>Verifies that MarkerFaceColor defaults to null.</summary>
-    [Fact]
-    public void DefaultMarkerFaceColor_IsNull()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Null(series.MarkerFaceColor);
-    }
-
-    /// <summary>Verifies that MarkerEdgeColor defaults to null.</summary>
-    [Fact]
-    public void DefaultMarkerEdgeColor_IsNull()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Null(series.MarkerEdgeColor);
-    }
-
-    /// <summary>Verifies that MarkerEdgeWidth defaults to 1.0.</summary>
-    [Fact]
-    public void DefaultMarkerEdgeWidth_Is1()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Equal(1.0, series.MarkerEdgeWidth);
-    }
-
-    /// <summary>Verifies that DrawStyle defaults to null.</summary>
-    [Fact]
-    public void DefaultDrawStyle_IsNull()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Null(series.DrawStyle);
-    }
-
-    /// <summary>Verifies that MarkEvery defaults to null.</summary>
-    [Fact]
-    public void DefaultMarkEvery_IsNull()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Null(series.MarkEvery);
-    }
-
-    /// <summary>Verifies that MarkerFaceColor can be set.</summary>
-    [Fact]
-    public void MarkerFaceColor_CanBeSet()
-    {
-        var series = new LineSeries([1.0], [2.0]) { MarkerFaceColor = Color.FromHex("#FF0000") };
-        Assert.NotNull(series.MarkerFaceColor);
-    }
-
-    /// <summary>Verifies that MarkerEdgeColor can be set.</summary>
-    [Fact]
-    public void MarkerEdgeColor_CanBeSet()
-    {
-        var series = new LineSeries([1.0], [2.0]) { MarkerEdgeColor = Color.FromHex("#00FF00") };
-        Assert.NotNull(series.MarkerEdgeColor);
-    }
-
-    /// <summary>Verifies that DrawStyle can be set.</summary>
-    [Fact]
-    public void DrawStyle_CanBeSet()
-    {
-        var series = new LineSeries([1.0], [2.0]) { DrawStyle = DrawStyle.StepsPre };
-        Assert.Equal(DrawStyle.StepsPre, series.DrawStyle);
-    }
-
-    /// <summary>Verifies that MarkEvery can be set.</summary>
-    [Fact]
-    public void MarkEvery_CanBeSet()
-    {
-        var series = new LineSeries([1.0], [2.0]) { MarkEvery = 3 };
-        Assert.Equal(3, series.MarkEvery);
+        Assert.Equal(Drawn(new LineSeries(x, y)), Drawn(takenBack));
     }
 }

@@ -11,147 +11,93 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// the renderer was at 38.7%L / 28.9%B because only the simplest happy path
 /// (basic X/Y, no smoothing, no filled-between, no Where predicate) was exercised by
 /// upstream tests. This file pins:
-///   - Smoothing path (line 30-34: monotone-cubic spline when Smooth=true and X.Length≥3)
-///   - YData2 fill-between path (line 49-55: explicit lower envelope for filled area)
-///   - Where predicate path (line 37-41 + RenderWithWhere + RenderSegment, lines 70-130)
-///   - YData2 length mismatch arm in RenderSegment (line 117 ternary's false branch)
-///   - Empty-data early return (line 24)
+///   - Smoothing path (monotone-cubic spline when Smooth=true and X.Length≥3)
+///   - YData2 fill-between path (explicit lower envelope for filled area)
+///   - Where predicate path (RegionsKept: a fill per region of the data, cut from the run's top; FillBetweenWhereTests holds the polygons)
+///   - YData2 under a Where predicate (the region's own slice of the lower curve)
+///   - Empty-data early return
 /// All facts run a real Plt.Create() pipeline and assert SVG output is non-empty.</summary>
 public class AreaSeriesRendererTests
 {
+    // Drawn under the library's own theme, whose area draws the line along its top (the matplotlib themes draw a fill as
+    // matplotlib's fill_between does, without one: AreaFillTests).
     private static string Render(AreaSeries s) =>
         Plt.Create()
+            .WithTheme(Theme.Default)
             .WithSize(400, 300)
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(s))
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_BasicArea_ProducesPolygon()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new AreaSeries([0.0, 1, 2, 3], [1.0, 4, 2, 5]));
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Smoothing branch (line 30-34). Smooth=true + ≥3 points triggers
-    /// MonotoneCubicSpline.Interpolate, which expands the top edge to SmoothResolution
-    /// samples per segment. SVG should still render to a valid polygon.</summary>
-    [Fact]
-    public void Render_SmoothEnabled_ExpandsTopEdgeViaSpline()
-    {
-        var svg = Render(new AreaSeries([0.0, 1, 2, 3, 4], [1.0, 4, 2, 5, 3])
+        new DrawnToken("Render_BasicArea_ProducesPolygon", () => Render(new AreaSeries([0.0, 1, 2, 3], [1.0, 4, 2, 5])), "<polygon"),
+        // Smoothing branch. Smooth=true + ≥3 points triggers MonotoneCubicSpline.Interpolate, which expands the top edge to
+        // SmoothResolution samples per segment. SVG should still render to a valid polygon.
+        new DrawnToken("Render_SmoothEnabled_ExpandsTopEdgeViaSpline", () => Render(new AreaSeries([0.0, 1, 2, 3, 4], [1.0, 4, 2, 5, 3])
         {
             Smooth = true,
             SmoothResolution = 10
-        });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Smooth=true with insufficient points (X.Length &lt; 3) — short-circuit
-    /// arm of the `series.Smooth &amp;&amp; top.X.Length &gt;= 3` guard at line 30. The
-    /// smoothing block is skipped; the renderer falls through to the basic polygon path.</summary>
-    [Fact]
-    public void Render_SmoothEnabled_TwoPoints_SkipsSmoothing()
-    {
-        var svg = Render(new AreaSeries([0.0, 1.0], [1.0, 4.0]) { Smooth = true });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>YData2 fill-between branch (line 49-55). When YData2 is supplied,
-    /// the renderer builds the lower envelope from YData2 instead of a y=0 baseline.
-    /// Tests the `series.YData2 is not null` true arm.</summary>
-    [Fact]
-    public void Render_WithYData2_BuildsFillBetweenPolygon()
-    {
-        var svg = Render(new AreaSeries([0.0, 1, 2, 3], [3.0, 4, 5, 6])
+        }), "<polygon"),
+        // Smooth=true with insufficient points (X.Length < 3) — short-circuit arm of the `series.Smooth && top.X.Length >= 3` guard.
+        // The smoothing block is skipped; the renderer falls through to the basic polygon path.
+        new DrawnToken("Render_SmoothEnabled_TwoPoints_SkipsSmoothing", () => Render(new AreaSeries([0.0, 1.0], [1.0, 4.0]) { Smooth = true }), "<polygon"),
+        // YData2 fill-between branch. When YData2 is supplied, the renderer builds the lower envelope from YData2 instead of
+        // a y=0 baseline. Tests the `series.YData2 is not null` true arm.
+        new DrawnToken("Render_WithYData2_BuildsFillBetweenPolygon", () => Render(new AreaSeries([0.0, 1, 2, 3], [3.0, 4, 5, 6])
         {
             YData2 = [1.0, 1.5, 2.0, 2.5]
-        });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Where predicate branch (line 37-41) — splits into contiguous fill
-    /// segments. The predicate `x &gt; 1.5` keeps points 2/3/4 of [1,2,3,4,5] and
-    /// produces ONE contiguous segment polygon plus the unmasked top-edge polyline.</summary>
-    [Fact]
-    public void Render_WithWherePredicate_SplitsIntoSegments()
-    {
-        var s = new AreaSeries([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5])
-        {
-            Where = (x, y) => x > 1.5
-        };
-        var svg = Render(s);
-        Assert.Contains("<polygon", svg);   // RenderSegment polygon
-        Assert.Contains("<polyline", svg);  // unmasked full top edge
-    }
-
-    /// <summary>Where predicate yielding TWO disjoint runs. Predicate `y &lt; 3 || y &gt; 4`
-    /// produces 2 contiguous true-runs (indices 0-1 and 4); RenderSegment fires twice,
-    /// each producing its own polygon.</summary>
-    [Fact]
-    public void Render_WithWhere_TwoDisjointRuns_ProducesTwoSegments()
-    {
-        var s = new AreaSeries([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5])
-        {
-            Where = (x, y) => y < 3 || y > 4
-        };
-        var svg = Render(s);
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>RenderSegment YData2 path (line 117 ternary): when YData2 is set AND
-    /// a Where predicate is also active, the segment uses its slice of YData2 for the
-    /// lower envelope. The `series.YData2.Length &gt; end` true arm of the slice guard
-    /// is hit when YData2 has at least as many entries as the segment.</summary>
-    [Fact]
-    public void Render_WithWhereAndYData2_SegmentUsesY2Slice()
-    {
-        var s = new AreaSeries([1.0, 2, 3, 4, 5], [3.0, 4, 5, 6, 7])
-        {
-            YData2 = [1.0, 1.5, 2.0, 2.5, 3.0],
-            Where = (x, y) => x >= 2 && x <= 4
-        };
-        var svg = Render(s);
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>RenderSegment YData2 length-mismatch arm (line 117 ternary's false branch):
-    /// when YData2 is shorter than the segment's end index, the renderer falls back to
-    /// the full YData2 array.</summary>
-    [Fact]
-    public void Render_WithWhereAndShortY2_SegmentUsesFullY2Fallback()
-    {
-        var s = new AreaSeries([1.0, 2, 3, 4, 5], [3.0, 4, 5, 6, 7])
-        {
-            YData2 = [1.0, 1.5],     // shorter than segment end
-            Where = (x, y) => x >= 4
-        };
-        var svg = Render(s);
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Empty-data early return (line 24). After downsampling, data.X.Length==0
-    /// short-circuits with no SVG output for the area. Asserts no exception + valid SVG envelope.</summary>
-    [Fact]
-    public void Render_EmptyData_EarlyReturns_NoCrash()
-    {
-        var svg = Render(new AreaSeries(Array.Empty<double>(), Array.Empty<double>()));
-        Assert.StartsWith("<svg", svg);
-        Assert.EndsWith("</svg>", svg.TrimEnd());
-    }
-
-    /// <summary>Explicit FillColor arm (line 21 — `series.FillColor ?? ApplyAlpha(...)`)
-    /// bypasses the alpha computation when FillColor is non-null.</summary>
-    [Fact]
-    public void Render_ExplicitFillColor_UsesItDirectly()
-    {
-        var svg = Render(new AreaSeries([0.0, 1, 2], [1.0, 2, 1])
+        }), "<polygon"),
+        // Explicit FillColor arm (`series.FillColor ?? ApplyAlpha(...)`) bypasses the alpha computation when FillColor is
+        // non-null.
+        new DrawnToken("Render_ExplicitFillColor_UsesItDirectly", () => Render(new AreaSeries([0.0, 1, 2], [1.0, 2, 1])
         {
             FillColor = new Color(255, 100, 50, 200),
             Color = Colors.Blue
-        });
-        Assert.Contains("<polygon", svg);
-    }
+        }), "<polygon"),
+        // Explicit EdgeColor arm (`series.EdgeColor ?? color`).
+        new DrawnToken("Render_ExplicitEdgeColor_UsesItForBoundary", () => Render(new AreaSeries([0.0, 1, 2], [1.0, 2, 1])
+        {
+            EdgeColor = new Color(0, 0, 0, 255)
+        }), "<polyline"),
+        // Where predicate branch — splits into contiguous fill segments. The predicate `x > 1.5` keeps points 2/3/4 of
+        // [1,2,3,4,5] and produces ONE contiguous segment polygon plus the unmasked top-edge polyline.
+        // a region's polygon
+        new DrawnToken("Render_WithWherePredicate_SplitsIntoSegments", () =>
+        {
+            var s = new AreaSeries([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5])
+            {
+                Where = (x, y) => x > 1.5
+            };
+            return Render(s);
+        }, "<polygon", "<polyline"),
+        // Where predicate yielding TWO disjoint runs. Predicate `y < 3 || y > 4` produces 2 contiguous true-runs (indices 0-1 and 4); a
+        // fill is drawn for each, each producing its own polygon.
+        new DrawnToken("Render_WithWhere_TwoDisjointRuns_ProducesTwoSegments", () =>
+        {
+            var s = new AreaSeries([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5])
+            {
+                Where = (x, y) => y < 3 || y > 4
+            };
+            return Render(s);
+        }, "<polygon"),
+        // The YData2 path of a region: when YData2 is set AND a Where predicate is also active, the segment uses its slice of YData2 for
+        // the lower envelope.
+        new DrawnToken("Render_WithWhereAndYData2_SegmentUsesY2Slice", () =>
+        {
+            var s = new AreaSeries([1.0, 2, 3, 4, 5], [3.0, 4, 5, 6, 7])
+            {
+                YData2 = [1.0, 1.5, 2.0, 2.5, 3.0],
+                Where = (x, y) => x >= 2 && x <= 4
+            };
+            return Render(s);
+        }, "<polygon"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>What <c>Stairs</c> with a baseline relies on: an area whose top edge is a staircase (two points for each bin, a
     /// missing value for a bin that is missing) is filled once and stroked once for each unbroken run. The fill is not outlined
@@ -161,9 +107,9 @@ public class AreaSeriesRendererTests
     {
         var svg = Render(new AreaSeries([0.0, 1, 1, 2, 2, 3], [5.0, 5, double.NaN, double.NaN, 7, 7]));
 
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polygon").Count);
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
-        Assert.DoesNotContain("NaN", svg);
+        Assert.Equal(2, svg.Elements("polygon").Count);
+        Assert.Equal(2, svg.Elements("polyline").Count);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>The same staircase over a raised baseline (a second curve of the same length): the gap splits the fill there
@@ -176,19 +122,8 @@ public class AreaSeriesRendererTests
             YData2 = [2.0, 2, 2, 2, 2, 2]
         });
 
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polygon").Count);
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
-        Assert.DoesNotContain("NaN", svg);
-    }
-
-    /// <summary>Explicit EdgeColor arm (line 65 — `series.EdgeColor ?? color`).</summary>
-    [Fact]
-    public void Render_ExplicitEdgeColor_UsesItForBoundary()
-    {
-        var svg = Render(new AreaSeries([0.0, 1, 2], [1.0, 2, 1])
-        {
-            EdgeColor = new Color(0, 0, 0, 255)
-        });
-        Assert.Contains("<polyline", svg);
+        Assert.Equal(2, svg.Elements("polygon").Count);
+        Assert.Equal(2, svg.Elements("polyline").Count);
+        svg.AssertNoNonFiniteNumber();
     }
 }

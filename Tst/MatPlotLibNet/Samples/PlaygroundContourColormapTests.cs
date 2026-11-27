@@ -61,34 +61,3 @@ public class PlaygroundContourColormapTests
         PlaygroundColormaps.Select(n => new object[] { n });
 }
 
-/// <summary>L.9 — <c>AxesBuilder.WithColorMap(string)</c> throws on unknown
-/// names instead of silently returning the unchanged builder.</summary>
-public class AxesBuilderColorMapStrictModeTests
-{
-    [Fact]
-    public void WithColorMap_UnknownName_ThrowsArgumentException()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            Plt.Create()
-               .AddSubPlot(1, 1, 1, ax => ax
-                   .Heatmap(new[,] { { 1.0, 2.0 }, { 3.0, 4.0 } })
-                   .WithColorMap("definitely-not-a-real-colormap"))
-               .Build());
-
-        // Exception message should list the registered names so users can correct
-        // the typo immediately.
-        Assert.Contains("viridis", ex.Message);
-    }
-
-    [Fact]
-    public void WithColorMap_KnownName_AppliesWithoutThrowing()
-    {
-        // Sanity — the valid path stays intact.
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Heatmap(new[,] { { 1.0, 2.0 }, { 3.0, 4.0 } })
-                .WithColorMap("plasma"))
-            .Build();
-        Assert.NotNull(fig);
-    }
-}

@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.Interpolation;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -19,28 +18,16 @@ internal sealed class ImageSeriesRenderer : SeriesRenderer<ImageSeries>
         int srcRows = series.Data.GetLength(0), srcCols = series.Data.GetLength(1);
         if (srcRows == 0 || srcCols == 0) return;
 
-        // Resolve interpolation engine
-        var engine = InterpolationRegistry.Get(series.Interpolation ?? "nearest")
-                     ?? NearestInterpolation.Instance;
+        // The image stands on its extent, from the outer corner of cell [0, 0] to that of the last: under the matplotlib themes each
+        // cell centred on its numbers (imshow), the first row at y = -0.5; under the library's own themes on 0..cols and 0..rows,
+        // the first row on top at y = rows.
+        bool imshow = Context.Theme.Looks.Image.LikeImshow;
+        var first = imshow ? Transform.DataToPixel(-ImageSeries.HalfCell, -ImageSeries.HalfCell) : Transform.DataToPixel(0, srcRows);
+        var last = imshow ? Transform.DataToPixel(srcCols - ImageSeries.HalfCell, srcRows - ImageSeries.HalfCell) : Transform.DataToPixel(srcCols, 0);
 
-        // Compute upsampled target resolution
-        int targetRows, targetCols;
-        if (engine is NearestInterpolation)
-        {
-            targetRows = srcRows;
-            targetCols = srcCols;
-        }
-        else
-        {
-            targetRows = Math.Min(srcRows * 4, 256);
-            targetCols = Math.Min(srcCols * 4, 256);
-        }
-
-        var data = engine.Resample(series.Data, targetRows, targetCols);
-
-        // The cells (the colour range of the image's own values, the grid of rectangles) are the ones a figure image draws too.
-        ImageCells
-            .Of(series.Data, series.GetColorMapOrDefault(ColorMaps.Viridis), series.NormalizerOrLinear(), series.VMin, series.VMax, series.Alpha)
-            .Draw(Ctx, data, Area.PlotBounds);
+        // The cells (the colour range of the image's own values, the grid of rectangles) are the ones a figure image draws too, scaled by
+        // the interpolation the series names, else the theme's (ImageCells.DrawScaled: matplotlib's rule).
+        new ImageCells(series.ColorScaleUnder(Context.Theme), series.Alpha)
+            .DrawScaled(Ctx, series.Data, series.Interpolation, Context.Theme.Looks.Image, first, last);
     }
 }

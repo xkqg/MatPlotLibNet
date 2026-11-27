@@ -7,73 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="Cusum"/> behavior. Covers all 11 branches enumerated in
-/// docs/contrib/indicator-tier-1b.md §1.</summary>
+/// <summary>Verifies <see cref="Cusum"/> behavior. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class CusumTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var c = new Cusum([], threshold: 0.01);
-        var r = c.Compute();
-        Assert.Empty(r.Signal);
-        Assert.Empty(r.SPos);
-        Assert.Empty(r.SNeg);
-    }
-
-    // ── Branch 2 — Length == 1 → empty (need prev-close for log-return) ──
-    [Fact]
-    public void Compute_SingleBar_ReturnsEmpty()
-    {
-        var c = new Cusum([100.0], threshold: 0.01);
-        var r = c.Compute();
-        Assert.Empty(r.Signal);
-        Assert.Empty(r.SPos);
-        Assert.Empty(r.SNeg);
-    }
-
-    // ── Branch 3 — Length == 2 boundary (one output) ──
-    [Fact]
-    public void Compute_TwoBars_ReturnsSingleRow()
-    {
-        var c = new Cusum([100.0, 101.0], threshold: 0.05);
-        var r = c.Compute();
-        Assert.Single(r.Signal);
-        Assert.Single(r.SPos);
-        Assert.Single(r.SNeg);
-    }
-
-    // ── Branch 4 — Non-positive price throws ──
-    [Theory]
-    [InlineData(new double[] { 100.0, 0.0, 101.0 })]
-    [InlineData(new double[] { 100.0, -1.0, 101.0 })]
-    [InlineData(new double[] { 0.0, 101.0 })]
-    public void Constructor_NonPositivePrice_Throws(double[] prices)
-    {
-        Assert.Throws<ArgumentException>(() => new Cusum(prices, threshold: 0.01));
-    }
-
-    // ── Branch 5 — Non-positive threshold throws ──
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-0.01)]
-    public void Constructor_NonPositiveThreshold_Throws(double threshold)
-    {
-        Assert.Throws<ArgumentException>(() => new Cusum([100.0, 101.0], threshold));
-    }
-
-    // ── Branch 6 — Flat prices → all zeros, no NaN ──
-    [Fact]
-    public void Compute_FlatPrices_AllZero()
-    {
-        var c = new Cusum([100.0, 100, 100, 100, 100], threshold: 0.01);
-        var r = c.Compute();
-        Assert.All(r.Signal, v => Assert.Equal(0, v));
-        Assert.All(r.SPos, v => { Assert.Equal(0.0, v, precision: 12); Assert.False(double.IsNaN(v)); });
-        Assert.All(r.SNeg, v => { Assert.Equal(0.0, v, precision: 12); Assert.False(double.IsNaN(v)); });
-    }
-
     // ── Branch 7 — Monotonic rise above threshold triggers +1 then resets ──
     [Fact]
     public void Compute_MonotonicRise_TriggersPositiveSignalThenResets()
@@ -134,29 +71,5 @@ public class CusumTests
         Assert.Equal(5, r.Signal.Length);
         Assert.Equal(5, r.SPos.Length);
         Assert.Equal(5, r.SNeg.Length);
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsAtLeastOneSeries()
-    {
-        var axes = new Axes();
-        new Cusum([100.0, 101, 102, 103, 100, 97, 96], threshold: 0.02).Apply(axes);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var c = new Cusum([100.0, 101], threshold: 0.02);
-        Assert.Equal("CUSUM(h=0.02)", c.Label);
-    }
-
-    // ── Type system ──
-    [Fact]
-    public void InheritsPriceIndicator()
-    {
-        Assert.IsAssignableFrom<PriceIndicator<CusumResult>>(new Cusum([100.0, 101], 0.01));
-        Assert.IsAssignableFrom<IIndicator>(new Cusum([100.0, 101], 0.01));
     }
 }

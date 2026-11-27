@@ -3,9 +3,6 @@
 
 namespace MatPlotLibNet.Rendering.Text;
 
-/// <summary>One range of code points that share a bidi class.</summary>
-internal readonly record struct BidiClassRange(int Start, int End, BidiClass Class);
-
 /// <summary>Looks up the Bidi_Class of a code point in the table generated from the Unicode Character Database
 /// (the data half lives in <c>BidiClassTable.g.cs</c>, produced by <c>tools/unicode/generate_bidi_tables.py</c>).
 /// The ranges are sorted and contiguous over U+0000..U+10FFFF, so a lookup is one binary search and allocates
@@ -32,10 +29,4 @@ internal static partial class BidiClassTable
 
         return Classes[index];
     }
-
-    /// <summary>How many ranges the table holds — for the test that regenerates it from the source file.</summary>
-    internal static int RangeCount => Starts.Length;
-
-    /// <summary>The <paramref name="index"/>-th range, in code point order.</summary>
-    internal static BidiClassRange Range(int index) => new(Starts[index], Ends[index], Classes[index]);
 }

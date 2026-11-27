@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>Dimensions of a two-dimensional grid or matrix <c>(Rows × Cols)</c>. Returned by
-/// <see cref="Mat.Shape"/> and <see cref="Builders.SubplotMosaicParser.GetDimensions"/>.</summary>
+/// <see cref="Mat.Shape"/> and by the reading of a mosaic pattern.</summary>
 /// <param name="Rows">Number of rows.</param>
 /// <param name="Cols">Number of columns.</param>
 public readonly record struct MatShape(int Rows, int Cols);

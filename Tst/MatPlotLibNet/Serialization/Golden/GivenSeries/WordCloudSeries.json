@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"wordcloud","label":"text 1","values":[10,4,1],"categories":["data","chart","plot"],"zOrder":6,"visible":false,"colors":["#14C83C","#14AA64","#148C8C"],"wordMinSize":8.03125,"wordMaxSize":40.0625}]}]}

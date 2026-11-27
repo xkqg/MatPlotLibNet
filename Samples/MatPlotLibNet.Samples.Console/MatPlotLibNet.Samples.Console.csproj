@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Numerics.Tensors" Version="10.*" />
+    <PackageReference Include="System.Numerics.Tensors" Version="$(SystemNumericsTensorsVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,5 +16,9 @@
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Geo\MatPlotLibNet.Geo.csproj" />
   </ItemGroup>
+
+  <!-- The sample program renders PNGs through Skia itself, so it is a host: it brings the native libraries of every platform
+       (SkiaNativeAssets.props), or it dies on the first picture where one is missing. -->
+  <Import Project="..\..\SkiaNativeAssets.props" />
 
 </Project>

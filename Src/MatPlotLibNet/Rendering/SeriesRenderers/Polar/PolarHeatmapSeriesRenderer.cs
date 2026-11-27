@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Styling;
@@ -10,19 +11,15 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="PolarHeatmapSeries"/> as wedge/sector cells on a polar grid.</summary>
 internal sealed class PolarHeatmapSeriesRenderer : SeriesRenderer<PolarHeatmapSeries>
 {
-    private const int ArcSegments = 12;
-
     /// <inheritdoc />
     public PolarHeatmapSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
     public override void Render(PolarHeatmapSeries series)
     {
-        var transform = Context.PolarTransformFor(series);
+        var transform = PolarTransform.For(Context, series);
 
-        var (min, max) = series.GetColorBarRange();
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.NormalizerOrLinear();
+        var scale = series.ColorScaleUnder(Context.Theme);
 
         double thetaStep = 2 * Math.PI / series.ThetaBins;
         double rStep = series.RMax / series.RBins;
@@ -40,35 +37,10 @@ internal sealed class PolarHeatmapSeriesRenderer : SeriesRenderer<PolarHeatmapSe
 
                 double innerR = rIdx * rStep;
                 double outerR = innerR + rStep;
-                var fillColor = cmap.ColorOf(val, norm, min, max);
+                var fillColor = scale.ColorOf(val);
 
-                var pts = BuildWedge(transform, startAngle, endAngle, innerR, outerR);
-                Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, fillColor, 0));
+                Ctx.DrawPolygon(transform.WedgeOf(innerR, outerR, startAngle, endAngle).Polygon(), ShapeStyle.Filled(fillColor));
             }
         }
-    }
-
-    private static List<Point> BuildWedge(
-        PolarTransform transform,
-        double startAngle, double endAngle,
-        double innerR, double outerR)
-    {
-        var pts = new List<Point>(ArcSegments * 2 + 4);
-
-        // Outer arc: startAngle → endAngle
-        for (int s = 0; s <= ArcSegments; s++)
-        {
-            double a = startAngle + (endAngle - startAngle) * s / ArcSegments;
-            pts.Add(transform.PolarToPixel(outerR, a));
-        }
-
-        // Inner arc: endAngle → startAngle (reversed)
-        for (int s = ArcSegments; s >= 0; s--)
-        {
-            double a = startAngle + (endAngle - startAngle) * s / ArcSegments;
-            pts.Add(transform.PolarToPixel(innerR, a));
-        }
-
-        return pts;
     }
 }

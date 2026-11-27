@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
@@ -12,7 +10,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>A shaded span (<c>AxHSpan</c>, <c>AxVSpan</c>, and the zone of a <c>Threshold</c>) is clipped to the plot
 /// area, as matplotlib's <c>axhspan</c> is: an edge beyond the drawn range runs to the plot edge, and a span wholly beyond
-/// it draws nothing. Before, a threshold's zone (a span to Â±<see cref="double.MaxValue"/>) put <c>y="-Infinity"
+/// it draws nothing. Before, a threshold's zone (a span to ±<see cref="double.MaxValue"/>) put <c>y="-Infinity"
 /// height="Infinity"</c> into the SVG, which a browser does not draw, and a finite span wider than the range was drawn
 /// over the margins and the title. These tests read the geometry out of the SVG, not pixels.</summary>
 public class SpanClippingTests
@@ -25,30 +23,18 @@ public class SpanClippingTests
 
     private readonly record struct SvgLine(double X1, double Y1, double X2, double Y2, string Stroke, bool Dashed);
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     private static List<SvgRect> Rects(string svg) =>
-        [.. Regex.Matches(svg, "<rect x=\"([^\"]+)\" y=\"([^\"]+)\" width=\"([^\"]+)\" height=\"([^\"]+)\" fill=\"([^\"]+)\"(?: fill-opacity=\"([^\"]+)\")?")
-            .Select(m => new SvgRect(Num(m.Groups[1].Value), Num(m.Groups[2].Value), Num(m.Groups[3].Value),
-                Num(m.Groups[4].Value), m.Groups[5].Value, m.Groups[6].Success ? m.Groups[6].Value : null))];
+        [.. svg.Elements("rect").Where(rect => rect["fill"] is not null)
+            .Select(rect => new SvgRect(rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height"), rect["fill"]!, rect["fill-opacity"]))];
 
     private static List<SvgLine> Lines(string svg) =>
-        [.. Regex.Matches(svg, "<line x1=\"([^\"]+)\" y1=\"([^\"]+)\" x2=\"([^\"]+)\" y2=\"([^\"]+)\" stroke=\"([^\"]+)\" stroke-width=\"[^\"]+\"([^/]*)/>")
-            .Select(m => new SvgLine(Num(m.Groups[1].Value), Num(m.Groups[2].Value), Num(m.Groups[3].Value),
-                Num(m.Groups[4].Value), m.Groups[5].Value, m.Groups[6].Value.Contains("stroke-dasharray")))];
+        [.. svg.Elements("line").Where(line => line["stroke"] is not null && line["stroke-width"] is not null)
+            .Select(line => new SvgLine(line.Number("x1"), line.Number("y1"), line.Number("x2"), line.Number("y2"), line["stroke"]!, line["stroke-dasharray"] is not null))];
 
     private const string Red = "#FF0000";
 
     /// <summary>The rectangle a red span with the default transparency writes.</summary>
     private static List<SvgRect> RedZones(string svg) => [.. Rects(svg).Where(r => r.Fill == Red && r.Opacity == "0.2")];
-
-    /// <summary>The plot area of the (only) axes: the smallest rectangle painted with the theme's axes background (the
-    /// figure's own background may be the same colour, and is larger).</summary>
-    private static SvgRect PlotArea(string svg, Theme theme) =>
-        Rects(svg).Where(r => r.Fill == theme.AxesBackground.ToHex() && r.Opacity is null)
-            .OrderBy(r => r.Width * r.Height).First();
-
-    private static void AssertClose(double expected, double actual) => Assert.InRange(actual, expected - 0.02, expected + 0.02);
 
     private static readonly double[] X = Enumerable.Range(0, 10).Select(i => (double)i).ToArray();
     private static readonly double[] Y = [10, 25, 40, 55, 70, 85, 100, 90, 60, 30];
@@ -72,12 +58,12 @@ public class SpanClippingTests
         string svg = Svg(ax => ax.Threshold(80, Orientation.Horizontal, ThresholdBreach.Above, Colors.Red));
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
+        var plot = svg.PlotArea();
         var line = Assert.Single(Lines(svg), l => l.Stroke == Red && l.Dashed);
-        AssertClose(plot.Y, zone.Y);
-        AssertClose(line.Y1, zone.Bottom);
-        AssertClose(plot.X, zone.X);
-        AssertClose(plot.Width, zone.Width);
+        Assert.Equal(plot.Y, zone.Y, 0.02);
+        Assert.Equal(line.Y1, zone.Bottom, 0.02);
+        Assert.Equal(plot.X, zone.X, 0.02);
+        Assert.Equal(plot.Width, zone.Width, 0.02);
     }
 
     [Fact]
@@ -86,10 +72,10 @@ public class SpanClippingTests
         string svg = Svg(ax => ax.Threshold(30, Orientation.Horizontal, ThresholdBreach.Below, Colors.Red));
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
+        var plot = svg.PlotArea();
         var line = Assert.Single(Lines(svg), l => l.Stroke == Red && l.Dashed);
-        AssertClose(line.Y1, zone.Y);
-        AssertClose(plot.Bottom, zone.Bottom);
+        Assert.Equal(line.Y1, zone.Y, 0.02);
+        Assert.Equal(plot.Bottom, zone.Bottom, 0.02);
     }
 
     [Fact]
@@ -99,16 +85,16 @@ public class SpanClippingTests
         string left = Svg(ax => ax.Threshold(3, Orientation.Vertical, ThresholdBreach.Below, Colors.Red));
 
         var zoneRight = Assert.Single(RedZones(right));
-        var plotRight = PlotArea(right, Theme.Default);
-        AssertClose(Assert.Single(Lines(right), l => l.Stroke == Red && l.Dashed).X1, zoneRight.X);
-        AssertClose(plotRight.Right, zoneRight.Right);
-        AssertClose(plotRight.Y, zoneRight.Y);
-        AssertClose(plotRight.Height, zoneRight.Height);
+        var plotRight = right.PlotArea();
+        Assert.Equal(Assert.Single(Lines(right), l => l.Stroke == Red && l.Dashed).X1, zoneRight.X, 0.02);
+        Assert.Equal(plotRight.Right, zoneRight.Right, 0.02);
+        Assert.Equal(plotRight.Y, zoneRight.Y, 0.02);
+        Assert.Equal(plotRight.Height, zoneRight.Height, 0.02);
 
         var zoneLeft = Assert.Single(RedZones(left));
-        var plotLeft = PlotArea(left, Theme.Default);
-        AssertClose(plotLeft.X, zoneLeft.X);
-        AssertClose(Assert.Single(Lines(left), l => l.Stroke == Red && l.Dashed).X1, zoneLeft.Right);
+        var plotLeft = left.PlotArea();
+        Assert.Equal(plotLeft.X, zoneLeft.X, 0.02);
+        Assert.Equal(Assert.Single(Lines(left), l => l.Stroke == Red && l.Dashed).X1, zoneLeft.Right, 0.02);
     }
 
     /// <summary>The zone of the same threshold under explicit limits: the same geometry, worked out from the limits.</summary>
@@ -118,9 +104,9 @@ public class SpanClippingTests
         string svg = Svg(ax => ax.Threshold(80, Orientation.Horizontal, ThresholdBreach.Above, Colors.Red), ylim: 100);
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
-        AssertClose(plot.Y, zone.Y);
-        AssertClose(plot.Y + plot.Height * 0.2, zone.Bottom);
+        var plot = svg.PlotArea();
+        Assert.Equal(plot.Y, zone.Y, 0.02);
+        Assert.Equal(plot.Y + plot.Height * 0.2, zone.Bottom, 0.02);
     }
 
     /// <summary>A threshold above everything the chart shows has no zone in the plot: nothing is drawn for it (the line
@@ -131,25 +117,25 @@ public class SpanClippingTests
         string svg = Svg(ax => ax.Threshold(5000, Orientation.Horizontal, ThresholdBreach.Above, Colors.Red), ylim: 100);
 
         Assert.Empty(RedZones(svg));
-        Assert.DoesNotContain("Infinity", svg);
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- a finite span ----------------------------------------------------------------------------------------------
 
-    /// <summary>A finite span wider than the range used to be drawn over the margins, the title and the axis labels; it is
-    /// the plot area now.</summary>
+    /// <summary>A finite span wider than the range set on its axis used to be drawn over the margins, the title and the axis labels;
+    /// it is the plot area now. (An axis that scales itself is ranged by the span under the matplotlib themes, as <c>axhspan</c>
+    /// ranges it: <see cref="OverlayAutoscaleTests"/>.)</summary>
     [Fact]
     public void AFiniteSpanWiderThanTheRange_IsTheWholePlot()
     {
-        string svg = Svg(ax => ax.AxHSpan(-1000, 1000, s => s.Color = Colors.Red));
+        string svg = Svg(ax => ax.AxHSpan(-1000, 1000, s => s.Color = Colors.Red), ylim: 100);
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
-        AssertClose(plot.X, zone.X);
-        AssertClose(plot.Y, zone.Y);
-        AssertClose(plot.Width, zone.Width);
-        AssertClose(plot.Height, zone.Height);
+        var plot = svg.PlotArea();
+        Assert.Equal(plot.X, zone.X, 0.02);
+        Assert.Equal(plot.Y, zone.Y, 0.02);
+        Assert.Equal(plot.Width, zone.Width, 0.02);
+        Assert.Equal(plot.Height, zone.Height, 0.02);
     }
 
     [Fact]
@@ -158,15 +144,15 @@ public class SpanClippingTests
         string svg = Svg(ax => ax.AxHSpan(50, 1000, s => s.Color = Colors.Red), ylim: 100);
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
-        AssertClose(plot.Y, zone.Y);
-        AssertClose(plot.Y + plot.Height * 0.5, zone.Bottom);
+        var plot = svg.PlotArea();
+        Assert.Equal(plot.Y, zone.Y, 0.02);
+        Assert.Equal(plot.Y + plot.Height * 0.5, zone.Bottom, 0.02);
     }
 
     [Fact]
     public void AFiniteSpanBeyondTheRange_DrawsNothing()
     {
-        string svg = Svg(ax => ax.AxHSpan(500, 600, s => s.Color = Colors.Red).AxVSpan(-90, -50, s => s.Color = Colors.Red), ylim: 100);
+        string svg = Svg(ax => ax.AxHSpan(500, 600, s => s.Color = Colors.Red).AxVSpan(-90, -50, s => s.Color = Colors.Red).SetXLim(0, 9), ylim: 100);
 
         Assert.Empty(RedZones(svg));
     }
@@ -179,13 +165,13 @@ public class SpanClippingTests
             .AxHLine(20, l => l.Color = Colors.Green).AxHLine(40, l => l.Color = Colors.Blue), ylim: 100);
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
+        var plot = svg.PlotArea();
         double lower = Assert.Single(Lines(svg), l => l.Stroke == Colors.Green.ToHex()).Y1;
         double upper = Assert.Single(Lines(svg), l => l.Stroke == Colors.Blue.ToHex()).Y1;
-        AssertClose(upper, zone.Y);
-        AssertClose(lower, zone.Bottom);
-        AssertClose(plot.X, zone.X);
-        AssertClose(plot.Width, zone.Width);
+        Assert.Equal(upper, zone.Y, 0.02);
+        Assert.Equal(lower, zone.Bottom, 0.02);
+        Assert.Equal(plot.X, zone.X, 0.02);
+        Assert.Equal(plot.Width, zone.Width, 0.02);
     }
 
     /// <summary>On a reversed axis the rectangle is the same area with a positive height (it used to be written with a
@@ -198,10 +184,10 @@ public class SpanClippingTests
             .ToSvg();
 
         var zone = Assert.Single(RedZones(svg));
-        var plot = PlotArea(svg, Theme.Default);
+        var plot = svg.PlotArea();
         Assert.True(zone.Height > 0, $"height {zone.Height}");
-        AssertClose(plot.Y + plot.Height * 0.2, zone.Y);
-        AssertClose(plot.Y + plot.Height * 0.4, zone.Bottom);
+        Assert.Equal(plot.Y + plot.Height * 0.2, zone.Y, 0.02);
+        Assert.Equal(plot.Y + plot.Height * 0.4, zone.Bottom, 0.02);
     }
 
     // ---- the seam every head draws through ---------------------------------------------------------------------------
@@ -219,9 +205,9 @@ public class SpanClippingTests
 
         ChartRendererDefault.Current.Render(figure, ctx);
 
-        var zone = (Rect)((dynamic)Assert.Single(ctx.OfKind("DrawRectangle"),
-            c => Equals((Color?)((dynamic)c.Args!).fill, Colors.Red.WithAlpha(51))).Args!).rect;
-        Assert.True(double.IsFinite(zone.X) && double.IsFinite(zone.Y) && double.IsFinite(zone.Width) && double.IsFinite(zone.Height), $"{zone}");
+        var zone = (Rect)Assert.Single(ctx.Of<DrawRectangleCall>(),
+            c => Equals(c.Fill, Colors.Red.WithAlpha(51))).Rect;
+        zone.AssertFinite("the zone");
         Assert.True(zone.Y >= 0 && zone.Bottom <= 400 && zone.Height > 0, $"{zone}");
     }
 
@@ -263,10 +249,10 @@ public class SpanClippingTests
         var line = Assert.Single(Lines(svg), l => l.Stroke == Red && l.Dashed);
         var plot = Rects(svg).Single(r => r.Fill == Theme.Dark.AxesBackground.ToHex() && r.Opacity is null
                                           && Math.Abs(r.X - zone.X) < 0.02 && r.Y <= zone.Y + 0.02 && r.Bottom >= zone.Bottom - 0.02);
-        AssertClose(plot.Y, zone.Y);
-        AssertClose(line.Y1, zone.Bottom);
-        AssertClose(plot.Width, zone.Width);
+        Assert.Equal(plot.Y, zone.Y, 0.02);
+        Assert.Equal(line.Y1, zone.Bottom, 0.02);
+        Assert.Equal(plot.Width, zone.Width, 0.02);
         Assert.True(zone.Height > 0 && zone.Bottom <= plot.Bottom, $"zone {zone}");
-        Assert.DoesNotContain("Infinity", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 }

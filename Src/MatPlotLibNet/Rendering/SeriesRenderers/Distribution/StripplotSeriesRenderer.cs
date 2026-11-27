@@ -16,13 +16,14 @@ internal sealed class StripplotSeriesRenderer : SeriesRenderer<StripplotSeries>
     internal override void AddMarks(StripplotSeries series, MarkObstacles.Builder marks)
     {
         foreach (var dot in Dots(series))
-            if (dot.IsDrawable()) marks.AddPoint(dot);
+            if (dot.Pixel.IsDrawable()) marks.AddPoint(dot.Pixel);
     }
 
-    /// <summary>The pixel of every observation: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to
-    /// a legend. The jitter is seeded per category, so the output is reproducible.</summary>
-    private IEnumerable<Point> Dots(StripplotSeries series)
+    /// <summary>The pixel of every observation and the group it belongs to: the one geometry <see cref="Render"/> draws and
+    /// <see cref="AddMarks"/> hands to a legend. The jitter is seeded per category, so the output is reproducible.</summary>
+    private IEnumerable<GroupedDot> Dots(StripplotSeries series)
     {
+        double reach = series.JitterUnder(Context.Theme);
         for (int i = 0; i < series.Datasets.Length; i++)
         {
             var data = series.Datasets[i];
@@ -31,8 +32,8 @@ internal sealed class StripplotSeriesRenderer : SeriesRenderer<StripplotSeries>
 
             foreach (double value in data)
             {
-                double jitter = (rng.NextDouble() * 2 - 1) * series.Jitter;
-                yield return Transform.DataToPixel(i + jitter, value);
+                double jitter = (rng.NextDouble() * 2 - 1) * reach;
+                yield return new GroupedDot(Transform.DataToPixel(i + jitter, value), i);
             }
         }
     }
@@ -40,9 +41,15 @@ internal sealed class StripplotSeriesRenderer : SeriesRenderer<StripplotSeries>
     /// <inheritdoc />
     public override void Render(StripplotSeries series)
     {
-        var color = ResolveColor(series.Color);
-        var dotColor = ApplyAlpha(color, series.Alpha);
+        int group = -1;
+        double alpha = series.OpacityUnder(Context.Theme);
+        double radius = series.DiameterUnder(Context.Theme, Slot) / 2.0;
+        var style = default(ShapeStyle);
         foreach (var dot in Dots(series))
-            Ctx.DrawCircle(dot, series.MarkerSize / 2.0, new ShapeStyle(dotColor, null, 0));
+        {
+            // The dots come group by group, so a group's style is made once.
+            if (dot.Group != group) { group = dot.Group; style = ShapeStyle.Filled(GroupColor(series.Color, group).WithOpacityGiven(alpha)); }
+            Ctx.DrawCircle(dot.Pixel, radius, style);
+        }
     }
 }

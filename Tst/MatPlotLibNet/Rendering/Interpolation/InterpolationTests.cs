@@ -49,12 +49,6 @@ public class InterpolationTests
         Assert.Equal(42.0, result[2, 2]);
     }
 
-    [Fact]
-    public void Nearest_Name_IsNearest()
-    {
-        Assert.Equal("nearest", NearestInterpolation.Instance.Name, ignoreCase: true);
-    }
-
     // ── BilinearInterpolation ─────────────────────────────────────────────────
 
     [Fact]
@@ -86,12 +80,6 @@ public class InterpolationTests
         // Output should also be monotonically increasing
         for (int c = 1; c < 9; c++)
             Assert.True(result[0, c] >= result[0, c - 1] - 1e-10);
-    }
-
-    [Fact]
-    public void Bilinear_Name_IsBilinear()
-    {
-        Assert.Equal("bilinear", BilinearInterpolation.Instance.Name, ignoreCase: true);
     }
 
     // ── BicubicInterpolation ──────────────────────────────────────────────────
@@ -137,36 +125,19 @@ public class InterpolationTests
         Assert.True(bicubicHasTransition);
     }
 
-    [Fact]
-    public void Bicubic_Name_IsBicubic()
-    {
-        Assert.Equal("bicubic", BicubicInterpolation.Instance.Name, ignoreCase: true);
-    }
-
     // ── InterpolationRegistry ─────────────────────────────────────────────────
 
-    [Fact]
-    public void Registry_Get_Nearest_ReturnsNearestEngine()
+    /// <summary>Each built-in engine is named as matplotlib names it, and the registry hands back the engine of that kind for the name.</summary>
+    [Theory]
+    [InlineData("nearest", typeof(NearestInterpolation))]
+    [InlineData("bilinear", typeof(BilinearInterpolation))]
+    [InlineData("bicubic", typeof(BicubicInterpolation))]
+    public void Registry_Get_ReturnsTheEngineOfThatName(string name, Type engineType)
     {
-        var engine = InterpolationRegistry.Get("nearest");
-        Assert.NotNull(engine);
-        Assert.Equal("nearest", engine!.Name, ignoreCase: true);
-    }
+        var engine = InterpolationRegistry.Get(name);
 
-    [Fact]
-    public void Registry_Get_Bilinear_ReturnsBilinearEngine()
-    {
-        var engine = InterpolationRegistry.Get("bilinear");
-        Assert.NotNull(engine);
-        Assert.Equal("bilinear", engine!.Name, ignoreCase: true);
-    }
-
-    [Fact]
-    public void Registry_Get_Bicubic_ReturnsBicubicEngine()
-    {
-        var engine = InterpolationRegistry.Get("bicubic");
-        Assert.NotNull(engine);
-        Assert.Equal("bicubic", engine!.Name, ignoreCase: true);
+        Assert.IsType(engineType, engine);
+        Assert.Equal(name, engine!.Name, ignoreCase: true);
     }
 
     [Fact]
@@ -195,15 +166,9 @@ public class InterpolationTests
     [Fact]
     public void Registry_Register_CustomEngine_IsRetrievable()
     {
-        var custom = new TestEngine("test-engine-xyz");
+        var custom = new TestInterpolationEngine("test-engine-xyz");
         InterpolationRegistry.Register("test-engine-xyz", custom);
         var retrieved = InterpolationRegistry.Get("test-engine-xyz");
         Assert.Same(custom, retrieved);
-    }
-
-    private sealed class TestEngine(string name) : IInterpolationEngine
-    {
-        public string Name => name;
-        public double[,] Resample(double[,] data, int targetRows, int targetCols) => data;
     }
 }

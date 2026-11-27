@@ -7,26 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="ForceIndex"/>. Covers all 10 branches in
-/// docs/contrib/indicator-tier-2d.md §1.</summary>
+/// <summary>Verifies <see cref="ForceIndex"/>. Its arithmetic is held here against reference values; what it keeps with every indicator
+/// (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class ForceIndexTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var r = new ForceIndex(OhlcvBars.Cv([], []), period: 1);
-        Assert.Empty(r.Compute().Values);
-    }
-
-    // ── Branch 2 — Length == 1 → empty ──
-    [Fact]
-    public void Compute_SingleBar_ReturnsEmpty()
-    {
-        var r = new ForceIndex(OhlcvBars.Cv([100.0], [1000.0]), period: 1);
-        Assert.Empty(r.Compute().Values);
-    }
-
     // ── Branch 3 — Length == 2 → single output ──
     [Fact]
     public void Compute_TwoBars_ReturnsSingleValue()
@@ -36,24 +20,6 @@ public class ForceIndexTests
         Assert.Single(v);
         // Raw force at bar 1: 800 × (102 - 100) = 1600.
         Assert.Equal(1600.0, v[0], precision: 9);
-    }
-
-    // ── Branch 4 — Length mismatch throws ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new ForceIndex(OhlcvBars.Cv([100.0, 101, 102], [1000.0, 1000]), period: 1));
-    }
-
-    // ── Branch 5 — period < 1 throws ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_NonPositivePeriod_Throws(int p)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new ForceIndex(OhlcvBars.Cv([100.0, 101], [1000.0, 1000]), p));
     }
 
     // ── Branch 6 — period == 1 → no smoothing, raw force only ──
@@ -69,22 +35,6 @@ public class ForceIndexTests
         Assert.Equal(1600.0, r[0], precision: 9);
         Assert.Equal(-400.0, r[1], precision: 9);
         Assert.Equal(1200.0, r[2], precision: 9);
-    }
-
-    // ── Branch 7 — Flat prices → force = 0 ──
-    [Fact]
-    public void Compute_FlatPrices_ReturnsZero()
-    {
-        var r = new ForceIndex(
-            OhlcvBars.Cv(
-                [100.0, 100, 100, 100, 100],
-                [1000.0, 1000, 1000, 1000, 1000]),
-            period: 1).Compute().Values;
-        Assert.All(r, v =>
-        {
-            Assert.Equal(0.0, v, precision: 12);
-            Assert.False(double.IsNaN(v));
-        });
     }
 
     // ── Branch 8 — Zero volume on a bar → that bar's force = 0 ──
@@ -126,38 +76,5 @@ public class ForceIndexTests
         Assert.Equal(1600.0, r[0], precision: 9);
         Assert.Equal(600.0, r[1], precision: 9);
         Assert.Equal(900.0, r[2], precision: 9);
-    }
-
-    // ── Apply / label ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        new ForceIndex(OhlcvBars.Cv([100.0, 101, 102, 103], [1000.0, 1000, 1000, 1000])).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        new ForceIndex(OhlcvBars.Cv([100.0, 101], [1000.0, 1000]), period: 13).Apply(axes);
-        Assert.Equal("Force(13)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultPeriod_IsThirteen()
-    {
-        var r = new ForceIndex(OhlcvBars.Cv([100.0, 101], [1000.0, 1000]));
-        Assert.Equal("Force(13)", r.Label);
-    }
-
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        var r = new ForceIndex(OhlcvBars.Cv([100.0, 101], [1000.0, 1000]));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(r);
-        Assert.IsAssignableFrom<IIndicator>(r);
     }
 }

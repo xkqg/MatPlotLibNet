@@ -104,6 +104,45 @@ public class RowSelectionTests
         Assert.Empty(selection!.Rows);
     }
 
+    // ── the rule that says a brush as rows: one owner, read by the native host and the server session ─────────
+
+    [Fact]
+    public void ABrushOverKeyedRows_IsAlsoTheRowsItCovers_CarryingTheViewerWhoBrushed()
+    {
+        var brush = new BrushSelectEvent("c", 0, 1.5, 5, 3.5, 35).StampedBy("conn-7", "Viewer 3");
+
+        var rows = brush.RowsCoveredOn(Keyed());
+
+        Assert.NotNull(rows);
+        Assert.Equal(["b", "c"], rows!.Rows);
+        Assert.Equal("conn-7", rows.ViewerId);
+        Assert.Equal("Viewer 3", rows.ViewerName);
+    }
+
+    [Fact]
+    public void ABrushMadeWhereNoConnectionIsInvolved_GivesRowsWithoutAViewer()
+    {
+        var rows = new BrushSelectEvent("c", 0, 1.5, 5, 3.5, 35).RowsCoveredOn(Keyed());
+
+        Assert.Null(rows!.ViewerId);
+        Assert.Null(rows.ViewerName);
+    }
+
+    [Fact]
+    public void ABrushOverRowsWithoutKeys_SaysNothingAboutRows()
+    {
+        var figure = new Figure { Width = 500, Height = 400 };
+        figure.AddSubPlot(1, 1, 1).Scatter(X, Y);
+
+        Assert.Null(new BrushSelectEvent("c", 0, 0, 0, 5, 50).RowsCoveredOn(figure));
+    }
+
+    [Fact]
+    public void AnEventThatIsNotABrush_HasNoRows()
+    {
+        Assert.Null(new ResetEvent("c", 0, 0, 1, 0, 1).RowsCoveredOn(Keyed()));
+    }
+
     [Fact]
     public void TheEvent_IsANotificationThatTouchesNoFigure()
     {
@@ -118,19 +157,10 @@ public class RowSelectionTests
 
     // ── the native control ──────────────────────────────────────────────────────
 
-    private sealed class Collect(List<FigureInteractionEvent> into) : IChartEventHandler
-    {
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            into.Add(evt);
-            return default;
-        }
-    }
-
     private static (InteractionHost Host, List<FigureInteractionEvent> Seen, IChartLayout Layout) Attach(Figure figure)
     {
         var seen = new List<FigureInteractionEvent>();
-        var host = new InteractionHost { Handler = new Collect(seen) };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler(seen) };
         var layout = ChartLayout.Create(figure, new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()));
         host.Update(figure, layout);
         return (host, seen, layout);

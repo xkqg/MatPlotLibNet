@@ -1,0 +1,13 @@
+{
+  "BandAlpha": "0.2",
+  "BandColor": "null",
+  "Color": "null",
+  "ConfidenceLevel": "0.95",
+  "Degree": "1",
+  "Label": "null",
+  "LineStyle": "Solid",
+  "LineWidth": "2",
+  "ShowConfidence": "false",
+  "Visible": "true",
+  "ZOrder": "0"
+}

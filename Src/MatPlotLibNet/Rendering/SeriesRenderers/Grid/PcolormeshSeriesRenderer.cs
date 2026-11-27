@@ -20,15 +20,17 @@ internal sealed class PcolormeshSeriesRenderer : SeriesRenderer<PcolormeshSeries
         if (rows == 0 || cols == 0) return;
         if (series.X.Length < 2 || series.Y.Length < 2) return;
 
-        var (cmap, norm, min, max) = ResolveColormapping(series.C, series, series);
+        var scale = series.ColorScaleUnder(Context.Theme);
 
+        // A cell stands on the pixel grid of a raster export under a theme that asks for it, as Agg snaps a quad of matplotlib's
+        // QuadMesh: no seam between two cells.
         for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)
         {
             var cell = Rect.FromCorners(Transform.DataToPixel(series.X[c], series.Y[r + 1]), Transform.DataToPixel(series.X[c + 1], series.Y[r]));
             if (!cell.IsDrawable()) continue;   // a cell with an edge that cannot be placed is skipped
-            var color = cmap.ColorOf(series.C[r, c], norm, min, max);
-            Ctx.DrawRectangle(cell, new ShapeStyle(color, null, 0));
+            var color = scale.ColorOf(series.C[r, c]);
+            Ctx.DrawSnappedRectangle(cell, ShapeStyle.Filled(color));
         }
     }
 }

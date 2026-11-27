@@ -1,13 +1,14 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Geo.Data;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Geo.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -51,8 +52,8 @@ public class GeoPolygonStructureTests
     {
         var geometry = Country("ZAF").Geometry;
 
-        Assert.Equal(2, geometry.Rings.Count);
-        Assert.Equal(geometry.Polygons.Sum(p => 1 + p.Holes.Count), geometry.Rings.Count);
+        Assert.Equal(2, geometry.PositionRings.Count);
+        Assert.Equal(geometry.Polygons.Sum(p => 1 + p.Holes.Count), geometry.PositionRings.Count);
     }
 
     [Fact]
@@ -61,7 +62,7 @@ public class GeoPolygonStructureTests
         var geometry = NaturalEarth110m.Countries().Select(f => f.Geometry).First(g => g.Type == "MultiPolygon");
 
         Assert.True(geometry.Polygons.Count > 1);
-        Assert.Equal(geometry.Polygons.Sum(p => 1 + p.Holes.Count), geometry.Rings.Count);
+        Assert.Equal(geometry.Polygons.Sum(p => 1 + p.Holes.Count), geometry.PositionRings.Count);
     }
 
     [Fact]
@@ -103,7 +104,7 @@ public class GeoPolygonStructureTests
         var geometry = new GeoGeometry
         {
             Type = "Polygon",
-            Rings = [[(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)], [(2, 2), (2, 8), (8, 8), (8, 2), (2, 2)]],
+            PositionRings = [[new(0, 0), new(10, 0), new(10, 10), new(0, 10), new(0, 0)], [new(2, 2), new(2, 8), new(8, 8), new(8, 2), new(2, 2)]],
         };
 
         var polygon = Assert.Single(geometry.Polygons);
@@ -122,7 +123,7 @@ public class GeoPolygonStructureTests
         var geometry = new GeoGeometry
         {
             Type = "MultiPolygon",
-            Rings = [[(0, 0), (1, 0), (1, 1), (0, 0)], [(5, 5), (6, 5), (6, 6), (5, 5)]],
+            PositionRings = [[new(0, 0), new(1, 0), new(1, 1), new(0, 0)], [new(5, 5), new(6, 5), new(6, 6), new(5, 5)]],
         };
 
         Assert.Equal(2, geometry.Polygons.Count);
@@ -134,43 +135,43 @@ public class GeoPolygonStructureTests
     [InlineData("LineString")]
     [InlineData("Point")]
     public void AGeometryBuiltFromNoRings_IsNoPolygon(string type) =>
-        Assert.Empty(new GeoGeometry { Type = type, Rings = [] }.Polygons);
+        Assert.Empty(new GeoGeometry { Type = type, PositionRings = [] }.Polygons);
 
     [Fact]
     public void ALineBuiltFromItsRingsAlone_IsNoPolygon_WhateverItsRings() =>
-        Assert.Empty(new GeoGeometry { Type = "LineString", Rings = [[(0, 0), (1, 1)]] }.Polygons);
+        Assert.Empty(new GeoGeometry { Type = "LineString", PositionRings = [[new(0, 0), new(1, 1)]] }.Polygons);
 
     // ---- what is drawn ------------------------------------------------------------------------------------------------------
 
-    private static readonly Regex PathData = new("<path d=\"(?<d>[^\"]+)\"", RegexOptions.Compiled);
-    private static readonly Regex PathPoint = new(@"[ML] (?<x>[-0-9.eE]+) (?<y>[-0-9.eE]+)", RegexOptions.Compiled);
+    /// <summary>The paths of the picture, in the order drawn.</summary>
+    private static List<SvgElement> Paths(string svg) => [.. svg.Elements("path").Where(path => path["d"] is not null)];
 
-    private static string SouthAfricaOnPlateCarree() =>
+    /// <summary>The SVG without its clip outlines: under the matplotlib themes a map is cut off at its outline, a path in a
+    /// <c>clipPath</c>, which is not drawn; these tests count the paths that are.</summary>
+    private static string Drawn(string svg) => svg.WithoutClipPaths();
+
+    private static string SouthAfricaOnPlateCarree() => Drawn(
         Plt.Create().WithSize(720, 360).AddSubPlot(1, 1, 1, ax => ax
             .WithProjection(GeoProjection.PlateCarree)
             .Ocean(Colors.Blue)
-            .AddSeries(new GeoPolygonSeries([Country("ZAF")], GeoProjection.PlateCarree) { Color = Colors.Green })).ToSvg();
+            .AddSeries(new GeoPolygonSeries([Country("ZAF")], GeoProjection.PlateCarree) { Color = Colors.Green })
+            .WithLegend(LegendPosition.Best, visible: false)).ToSvg());   // a legend's frame is a path too, and these tests count paths
 
     /// <summary>The pixel of a longitude and latitude on a PlateCarree map: the ocean (the first path) is the frame.</summary>
     private static (double X, double Y) Pixel(string svg, double lon, double lat)
     {
-        var frame = PathPoint.Matches(PathData.Match(svg).Groups["d"].Value)
-            .Select(m => (X: double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture), Y: double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture)))
-            .ToArray();
+        var frame = Paths(svg)[0].PathPoints();
         double left = frame.Min(p => p.X), right = frame.Max(p => p.X), top = frame.Min(p => p.Y), bottom = frame.Max(p => p.Y);
         return (left + (lon + 180) / 360 * (right - left), top + (90 - lat) / 180 * (bottom - top));
     }
 
     /// <summary>The non-zero winding number of <paramref name="at"/> over every subpath of the path's data: 0 outside (and in a
     /// hole), anything else where the fill reaches.</summary>
-    private static int Winding(string pathData, (double X, double Y) at)
+    private static int Winding(SvgElement path, (double X, double Y) at)
     {
         int winding = 0;
-        foreach (var subpath in Regex.Split(pathData, "Z").Where(s => s.Trim().Length > 0))
+        foreach (var points in path.Subpaths())
         {
-            var points = Regex.Matches(subpath, @"[ML] (?<x>[-0-9.eE]+) (?<y>[-0-9.eE]+)")
-                .Select(m => (X: double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture), Y: double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture)))
-                .ToArray();
             for (int i = 0; i < points.Length; i++)
             {
                 var a = points[i];
@@ -188,7 +189,7 @@ public class GeoPolygonStructureTests
 
         return winding;
 
-        static double Cross((double X, double Y) a, (double X, double Y) b, (double X, double Y) p) =>
+        static double Cross(Point a, Point b, (double X, double Y) p) =>
             (b.X - a.X) * (p.Y - a.Y) - (p.X - a.X) * (b.Y - a.Y);
     }
 
@@ -198,16 +199,16 @@ public class GeoPolygonStructureTests
         string svg = SouthAfricaOnPlateCarree();
 
         // The ocean is the first path; South Africa the second: its exterior and its one hole are the two subpaths.
-        var country = PathData.Matches(svg)[1].Groups["d"].Value;
-        Assert.Equal(2, PathData.Matches(svg).Count);
-        Assert.Equal(2, Regex.Matches(country, "Z").Count);
+        var paths = Paths(svg);
+        Assert.Equal(2, paths.Count);
+        Assert.Equal(2, paths[1].Subpaths().Length);
     }
 
     [Fact]
     public void WhatTheHoleEncloses_IsNotFilled_AndTheRestOfTheCountryIs()
     {
         string svg = SouthAfricaOnPlateCarree();
-        string path = PathData.Matches(svg)[1].Groups["d"].Value;
+        var path = Paths(svg)[1];
 
         // Lesotho lies at about 28.2 E, 29.6 S; the Northern Cape at about 21 E, 29 S.
         Assert.Equal(0, Winding(path, Pixel(svg, 28.2, -29.6)));
@@ -218,21 +219,24 @@ public class GeoPolygonStructureTests
     public void ACountryWithoutAHole_StillDrawsItsEveryPart()
     {
         var indonesia = NaturalEarth110m.Countries().Single(f => f.Properties["ADM0_A3"] == "IDN");
-        string svg = Plt.Create().WithSize(720, 360).AddSubPlot(1, 1, 1, ax => ax
+        string svg = Drawn(Plt.Create().WithSize(720, 360).AddSubPlot(1, 1, 1, ax => ax
             .WithProjection(GeoProjection.PlateCarree)
-            .AddSeries(new GeoPolygonSeries([indonesia], GeoProjection.PlateCarree) { Color = Colors.Green })).ToSvg();
+            .AddSeries(new GeoPolygonSeries([indonesia], GeoProjection.PlateCarree) { Color = Colors.Green })).ToSvg());
 
-        Assert.Equal(indonesia.Geometry.Polygons.Count, PathData.Matches(svg).Count);   // no ocean here: only its parts
+        Assert.Equal(indonesia.Geometry.Polygons.Count, Paths(svg).Count);   // no ocean here: only its parts
     }
 
-    [Fact]
-    public void ALineFeature_IsStillDrawnAsLines()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create().WithSize(720, 360).AddSubPlot(1, 1, 1, ax => ax
+        //  a legend's frame is a path
+        new DrawnToken("ALineFeature_IsStillDrawnAsLines", () => Drawn(Plt.Create().WithSize(720, 360).AddSubPlot(1, 1, 1, ax => ax
             .WithProjection(GeoProjection.PlateCarree)
-            .Coastlines(Colors.Black)).ToSvg();
+            .Coastlines(Colors.Black)
+            .WithLegend(LegendPosition.Best, visible: false)).ToSvg()), "<polyline") { Absent = ["<path d="] },
+    };
 
-        Assert.Contains("<polyline", svg);
-        Assert.DoesNotContain("<path d=", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

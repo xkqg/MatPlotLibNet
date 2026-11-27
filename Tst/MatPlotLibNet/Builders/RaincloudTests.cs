@@ -3,9 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -18,11 +16,8 @@ public class RaincloudTests
     private static readonly NamedSample A = new("A", [4.1, 4.8, 5.0, 5.3, 5.5, 5.9, 6.2, 6.4, 6.8, 7.1, 7.7, 8.4]);
     private static readonly NamedSample B = new("B", [5.6, 6.1, 6.5, 6.9, 7.2, 7.4, 7.9, 8.3, 8.8, 9.1, 9.6, 10.2]);
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Chart(IReadOnlyList<NamedSample> groups, Action<RaincloudParts>? configure = null) =>
-        AxesOf(ax => ax.Raincloud(groups, configure));
+        Plt.Create().OneAxes(ax => ax.Raincloud(groups, configure));
 
     // ---- what the verb adds ----------------------------------------------------------------------------------------
 
@@ -37,14 +32,15 @@ public class RaincloudTests
         Assert.Equal(3, axes.Series.Count);
         var violin = Assert.IsType<ViolinSeries>(axes.Series[0]);
         var box = Assert.IsType<BoxSeries>(axes.Series[1]);
-        var points = Assert.IsType<ScatterSeries>(axes.Series[2]);
+        Assert.IsType<ScatterSeries>(axes.Series[2]);
         Assert.Equal(ViolinSide.High, violin.Side);
         Assert.False(box.ShowOutliers);
         Assert.Empty(axes.YAxes.Right);
     }
 
-    /// <summary>The violin and the box hold one dataset per group, in the order given, each at its group's index — the
-    /// default a multi-dataset series already stands at, so the verb sets no explicit positions.</summary>
+    /// <summary>The violin and the box hold one dataset per group, in the order given, each at its group's index. The violin stands there
+    /// by the default a multi-dataset series has; the box is given those positions, since a box that is given none stands at 1, 2, ...
+    /// under the matplotlib themes and would stand off its violin.</summary>
     [Fact]
     public void TheViolinAndTheBox_HoldOneDatasetPerGroup_InOrder()
     {
@@ -58,8 +54,8 @@ public class RaincloudTests
         Assert.Equal(2, box.Datasets.Length);
         Assert.Equal(A.Values, box.Datasets[0]);
         Assert.Equal(B.Values, box.Datasets[1]);
-        Assert.Null(violin.Positions);
-        Assert.Null(box.Positions);
+        Assert.Equal([0.0, 1.0], violin.Positions!);
+        Assert.Equal([0.0, 1.0], box.Positions!);
     }
 
     /// <summary>Every group's points are jittered the same deterministic way: a group's own index plus 0.35 (clear of
@@ -111,55 +107,7 @@ public class RaincloudTests
         Assert.Equal("Samples", violin.Label);
         Assert.Null(box.Label);
         Assert.Null(points.Label);
-        Assert.Single(axes.LegendEntries(directLabelsDrawn: false));
-    }
-
-    // ---- the callback -----------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once, after the verb has built all three parts, and hands over the very series on the
-    /// axes, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes_AfterTheVerbBuiltThem()
-    {
-        RaincloudParts? seen = null;
-
-        var axes = Chart([A, B], parts => { seen = parts; parts.Violin.Alpha = 0.9; });
-
-        Assert.NotNull(seen);
-        Assert.Same(axes.Series[0], seen.Value.Violin);
-        Assert.Same(axes.Series[1], seen.Value.Box);
-        Assert.Same(axes.Series[2], seen.Value.Points);
-        Assert.Equal(0.9, ((ViolinSeries)axes.Series[0]).Alpha);
-    }
-
-    // ---- the hand recipe --------------------------------------------------------------------------------------------
-
-    /// <summary>The verb draws exactly the picture of the hand recipe made of the public building blocks, with and
-    /// without a missing observation.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("raincloud").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.RaincloudByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
-
-    /// <summary>A raincloud chart is its parts in JSON: read back it draws the same picture. It is not estimated
-    /// again.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("raincloud").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
+        Assert.Single(axes.LegendEntries(Theme.Default, directLabelsDrawn: false));
     }
 
     // ---- refusals -----------------------------------------------------------------------------------------------

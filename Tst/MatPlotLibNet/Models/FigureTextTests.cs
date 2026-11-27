@@ -7,25 +7,11 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
-/// <summary>A text placed on the figure itself (matplotlib's <c>figtext</c>): its defaults, the rule that reads its position
-/// as fractions of the figure counted from the bottom-left corner, the texts that have no place, and the builder verb.</summary>
+/// <summary>A text placed on the figure itself (matplotlib's <c>figtext</c>): the rule that reads its position as fractions of the
+/// figure counted from the bottom-left corner, the texts that have no place, and the builder verb. What a new text starts from is
+/// pinned by the resting-value corpus, and its words, place and look travel through the figure overlay round trips.</summary>
 public class FigureTextTests
 {
-    [Fact]
-    public void ANewText_StartsAtItsPoint_OnItsBaseline_Unturned_InTheThemesFont()
-    {
-        var text = new FigureText("Note", 0.25, 0.75);
-
-        Assert.Equal("Note", text.Text);
-        Assert.Equal(0.25, text.X);
-        Assert.Equal(0.75, text.Y);
-        Assert.Null(text.Font);
-        Assert.Null(text.Color);
-        Assert.Equal(TextAlignment.Left, text.Alignment);
-        Assert.Equal(TextVerticalAlignment.Baseline, text.VerticalAlignment);
-        Assert.Equal(0, text.Rotation);
-    }
-
     [Fact]
     public void ATextWithNoWords_IsRefused() =>
         Assert.Throws<ArgumentNullException>("text", () => new FigureText(null!, 0.5, 0.5));
@@ -71,9 +57,6 @@ public class FigureTextTests
     [InlineData("A", 0.5, double.PositiveInfinity, false)]
     public void ATextShows_WhenItHasAPlaceAndSomethingToRead(string words, double x, double y, bool shows) =>
         Assert.Equal(shows, new FigureText(words, x, y).IsShownOn(800, 600));
-
-    [Fact]
-    public void AFigure_HasNoTexts_UntilOneIsAdded() => Assert.Empty(new Figure().Texts);
 
     [Fact]
     public void AddText_AddsTheTextsInOrder_AndReturnsEach()

@@ -27,79 +27,91 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
         bool indexTied = series.C is not null || series.Colors is not null || series.Sizes is not null
                       || series.EdgeColors is not null || series.LineWidths is not null || series.RowKeys is not null;
         XYData data = !indexTied && series.MaxDisplayPoints.HasValue
-            // The unscaled range: the culler compares against raw sample values, and on a log or symlog axis the
-            // transform's range is in scaled space.
-            ? ViewportCuller.Cull(series.XData, series.YData, Transform.UnscaledXMin, Transform.UnscaledXMax)
+            ? CulledToView(series.XData, series.YData)
             : new XYData(series.XData, series.YData);
         return new ScatterPixels(data, Transform.TransformBatch(data.X, data.Y));
     }
 
-    /// <summary>The marker's radius in pixels. matplotlib scatter: s is marker AREA in points².  radius = sqrt(s/π) × (dpi/72).
-    /// At 100 DPI, (100/72) ≈ 1.389 — converts pt to px at the standard render DPI.</summary>
-    private static double RadiusOf(ScatterSeries series, int i) =>
-        Math.Sqrt((series.Sizes is not null ? series.Sizes[i] : series.MarkerSize) / Math.PI) * (100.0 / 72.0);
+    /// <summary>The marker's size across, in pixels: its area in points squared (matplotlib's <c>s</c>) is sqrt(s) points across,
+    /// and a point is a fixed number of pixels. A size of its own for each point is as named; the one size of the series is the
+    /// size it was given, or the theme's when it was given none (<paramref name="uniform"/>, <see cref="SeriesSlot.ScatterSizeOf"/>). Not a number
+    /// for an area that is not one, which the point is not drawn for.</summary>
+    private static double SizeOf(ScatterSeries series, int i, double uniform) =>
+        series.Sizes is not null ? series.Sizes[i].AreaAcrossInPoints.PointsInPixels : uniform;
+
+    /// <summary>The size across, in pixels, of every marker whose series names no size of its own for each.</summary>
+    private double UniformSize(ScatterSeries series) => Slot.ScatterSizeOf(series.GivenMarkerSize?.AreaAcrossInPoints).PointsInPixels;
 
     /// <inheritdoc />
     internal override void AddMarks(ScatterSeries series, MarkObstacles.Builder marks)
     {
         var centres = Pixels(series).Centres;
+        double uniform = UniformSize(series);
         for (int i = 0; i < centres.Length; i++)
         {
             // A point the axes cannot place, or a size that is not a number, is not drawn: matplotlib masks x, y and s together.
-            if (centres[i].IsDrawable() && RadiusOf(series, i).IsDrawable()) marks.AddPoint(centres[i]);
+            if (centres[i].IsDrawable() && SizeOf(series, i, uniform).IsDrawable()) marks.AddPoint(centres[i]);
         }
     }
 
     /// <inheritdoc />
     public override void Render(ScatterSeries series)
     {
-        var defaultColor = ResolveColor(series.Color);
+        // What the series is to matplotlib, read once: it says how each of its shapes is joined.
+        var artist = series.Artist;
+        var slot = Slot;
+        var defaultColor = ColorOf(series);
         var (data, pts) = Pixels(series);
 
-        // Pre-compute C normalization bounds once, over the drawable values: a missing value is coloured on its own.
-        double cMin = 0, cMax = 1;
-        if (series.C is not null)
-        {
-            var c = series.C.DrawableRange() ?? new Range1D(0, 1);
-            cMin = series.VMin ?? c.Lo;
-            cMax = series.VMax ?? c.Hi;
-        }
-        var normalizer = series.NormalizerOrLinear();
+        // The values of C colour the markers through the series' colour scale (its map, else the theme's, as matplotlib's scatter(c=...)
+        // takes image.cmap), worked out once; a missing value is coloured on its own.
+        ColormapContext? scale = series.C is null ? null : series.ColorScaleUnder(Context.Theme);
 
-        var marker = Slot.ScatterMarkerOf(series.Marker);
+        // The shape is resolved once for the series and every point is drawn through it.
+        var marker = MarkerShape.Of(slot.ScatterMarkerOf(series.GivenMarker), Context.Theme);
+        // A filled marker is edged as the theme says where the series names no edge (matplotlib's scatter.edgecolors and
+        // patch.linewidth); a cross or a plus is strokes alone.
+        bool themedEdge = marker.TakesAnEdge;
+        double uniform = UniformSize(series);
+        var theme = Context.Theme;
         for (int i = 0; i < pts.Length; i++)
         {
-            double radius = RadiusOf(series, i);
+            double size = SizeOf(series, i, uniform);
             // A point the axes cannot place, or a size that is not a number, is not drawn, and has no tooltip:
             // matplotlib's scatter masks x, y and s together (delete_masked_points).
-            if (!pts[i].IsDrawable() || !radius.IsDrawable()) continue;
-            BeginTooltip($"x={data.X[i].ToString("G5", System.Globalization.CultureInfo.InvariantCulture)}, y={data.Y[i].ToString("G5", System.Globalization.CultureInfo.InvariantCulture)}");
-            var c = ResolvePointColor(series, i, defaultColor, normalizer, cMin, cMax);
-            var edgeColor = series.EdgeColors is not null && i < series.EdgeColors.Length ? series.EdgeColors[i] : (Color?)null;
-            var edgeWidth = series.LineWidths is not null && i < series.LineWidths.Length ? series.LineWidths[i] : 0.0;
+            if (!pts[i].IsDrawable() || !size.IsDrawable()) continue;
+            BeginTooltip($"x={data.X[i].InvariantText("G5")}, y={data.Y[i].InvariantText("G5")}");
+            var c = ResolvePointColor(series, i, defaultColor, scale);
+            var edgeColor = series.EdgeColors.ElementOrNull(i);
+            var edgeWidth = series.LineWidths.ElementOrNull(i);
+            var fill = FillOf(c, series.Alpha);
+            if (themedEdge && slot.ScatterEdgeOf(fill) is { } themed)
+            {
+                edgeColor ??= FillOf(themed.Color, series.Alpha);
+                edgeWidth ??= themed.Width;
+            }
             // The mark is one row of the data: say which, so a script can find the same row in another chart.
             if (series.RowKeys is { } keys) Ctx.SetNextElementData("row", keys[i]);
-            Ctx.DrawMarker(marker, pts[i], 2 * radius, new ShapeStyle(FillOf(c, series.Alpha), edgeColor, edgeWidth));
+            marker.Draw(Ctx, pts[i], size, theme.JoinedAs(artist, ShapeStyle.Edged(fill, edgeColor, edgeWidth ?? 0.0)));
             EndTooltip();
         }
     }
 
     /// <summary>The fill a marker is drawn with: the opacity of the series, the way every other filled mark applies it
-    /// (<see cref="SeriesRenderer.ApplyAlpha"/>, replacing the colour's own alpha as matplotlib's <c>alpha</c> does). The resting
+    /// (<c>WithOpacity</c>, replacing the colour's own alpha as matplotlib's <c>alpha</c> does). The resting
     /// opacity 1 leaves the colour exactly as it is, so a colour with an alpha of its own keeps it; a fully transparent colour
     /// (the bad colour of a colour map, for a value it cannot colour) stays transparent, as matplotlib ignores
     /// <c>alpha</c> for a bad colour of all zeros.</summary>
     private Color FillOf(Color color, double alpha) =>
-        alpha < 1.0 && color.A > 0 ? ApplyAlpha(color, alpha) : color;
+        color.WithOpacityBelowFull(alpha);
 
-    private static Color ResolvePointColor(ScatterSeries series, int i, Color defaultColor,
-        INormalizer normalizer, double cMin, double cMax)
+    private static Color ResolvePointColor(ScatterSeries series, int i, Color defaultColor, ColormapContext? scale)
     {
-        // Priority: Colors[] > C+ColorMap > uniform Color
+        // Priority: Colors[] > C through the colour scale > uniform Color
         if (series.Colors is not null && i < series.Colors.Length)
             return series.Colors[i];
-        if (series.C is not null && i < series.C.Length && series.ColorMap is not null)
-            return series.ColorMap.ColorOf(series.C[i], normalizer, cMin, cMax);
+        if (scale is { } values && i < series.C!.Length)
+            return values.ColorOf(series.C[i]);
         return defaultColor;
     }
 }

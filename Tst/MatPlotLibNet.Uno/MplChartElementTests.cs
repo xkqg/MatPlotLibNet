@@ -20,28 +20,14 @@ public class MplChartElementTests
         Assert.False(type.IsPublic);
     }
 
-    [Fact]
-    public void ModifierKeys_ShiftValue_IsOne()
+    [Theory]
+    [InlineData(ModifierKeys.Shift, 1)]
+    [InlineData(ModifierKeys.Ctrl, 2)]
+    [InlineData(ModifierKeys.Alt, 4)]
+    [InlineData(PointerButton.Left, 1)]
+    public void TheKeysAndButtonsTheAdapterTranslatesTo_HaveTheirNumbers(Enum member, int value)
     {
-        Assert.Equal(1, (int)ModifierKeys.Shift);
-    }
-
-    [Fact]
-    public void ModifierKeys_CtrlValue_IsTwo()
-    {
-        Assert.Equal(2, (int)ModifierKeys.Ctrl);
-    }
-
-    [Fact]
-    public void ModifierKeys_AltValue_IsFour()
-    {
-        Assert.Equal(4, (int)ModifierKeys.Alt);
-    }
-
-    [Fact]
-    public void PointerButton_LeftValue_IsOne()
-    {
-        Assert.Equal(1, (int)PointerButton.Left);
+        Assert.Equal(value, Convert.ToInt32(member));
     }
 
     [Fact]

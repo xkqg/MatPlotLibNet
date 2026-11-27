@@ -13,15 +13,10 @@ namespace MatPlotLibNet.Interaction;
 /// <param name="host">The host the translated input is given to.</param>
 public sealed class TouchGestureTranslator(InteractionHost host)
 {
-    /// <summary>What one notch of the mouse wheel zooms by (the zoom modifier's 15 % of the range).</summary>
-    private const double NotchFraction = 0.15;
-
-    /// <summary>A pinch is the wheel: it adds up in the logarithm of its scale until it is a whole notch, so many small steps
-    /// zoom as much as one big one and a step too small to be a notch is not lost. A notch in shrinks the range to 85 %, a
-    /// notch out widens it to 115 %.</summary>
-    private static readonly double LogNotchIn = -Math.Log(1.0 - NotchFraction);
-
-    private static readonly double LogNotchOut = Math.Log(1.0 + NotchFraction);
+    /// <summary>A pinch is the wheel: it adds up in the logarithm of its scale until it is a whole notch (<see cref="ZoomNotch"/>),
+    /// so many small steps zoom as much as one big one and a step too small to be a notch is not lost. A notch out undoes a notch
+    /// in, so the fingers apart and together by the same ratio are a notch each way.</summary>
+    private static readonly double LogNotch = Math.Log(ZoomNotch.Out);
 
     private DragGestureAction _action;
     private bool _dragging;
@@ -90,19 +85,19 @@ public sealed class TouchGestureTranslator(InteractionHost host)
     /// <param name="originY">The point between the fingers.</param>
     public void Pinched(double scale, double originX, double originY)
     {
-        if (!double.IsFinite(scale) || scale <= 0) return;
+        if (!scale.IsPositiveFinite()) return;
 
         _pinched += Math.Log(scale);
-        while (_pinched >= LogNotchIn)
+        while (_pinched >= LogNotch)
         {
             host.HandleScroll(new ScrollInputArgs(originX, originY, 0, -1));
-            _pinched -= LogNotchIn;
+            _pinched -= LogNotch;
         }
 
-        while (_pinched <= -LogNotchOut)
+        while (_pinched <= -LogNotch)
         {
             host.HandleScroll(new ScrollInputArgs(originX, originY, 0, 1));
-            _pinched += LogNotchOut;
+            _pinched += LogNotch;
         }
     }
 

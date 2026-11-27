@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Collections.Concurrent;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -27,50 +26,12 @@ public class ChartSessionTests
         public override void ApplyTo(Figure figure) => TargetAxes(figure).XAxis.Min = -1;
     }
 
-    /// <summary>A session on a one-line figure, with a recording publisher and a way to wait until the reader has dealt with
-    /// everything written so far: a data-cursor event with a handler that signals. It goes down the notification path, so it
-    /// neither changes the figure nor causes a publish, and events are taken in order, so everything before it is done once
-    /// it is reached.</summary>
-    private sealed class Rig
-    {
-        private TaskCompletionSource _reached = new();
-
-        public Rig(Action<ChartSessionOptions>? configure = null)
-        {
-            var options = new ChartSessionOptions().OnDataCursor(async _ =>
-            {
-                await Task.Yield();
-                _reached.TrySetResult();
-            });
-            configure?.Invoke(options);
-            Figure = Plt.Create().Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]).Build();
-            Session = new ChartSession("c1", Figure, Publisher, new NullCallerPublisher(), options);
-        }
-
-        public Figure Figure { get; }
-
-        public Axes Axes => Figure.SubPlots[0];
-
-        public RecordingPublisher Publisher { get; } = new();
-
-        public ChartSession Session { get; }
-
-        public void Send(FigureInteractionEvent evt) => Assert.True(Session.Events.Writer.TryWrite(evt));
-
-        public async Task DrainedAsync()
-        {
-            _reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            Send(new DataCursorEvent("c1", 0, new PinnedAnnotation("marker", 0, 0, 0, 0, 0)));
-            await _reached.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        }
-    }
-
     /// <summary>One event that throws — a user-defined event, a subclass naming a subplot the figure lacks — must not end the
     /// reader: the events behind it are applied and published, and the session shuts down cleanly afterwards.</summary>
     [Fact]
     public async Task AMalformedEvent_DoesNotEndTheDrain()
     {
-        var rig = new Rig();
+        var rig = new SessionRig();
 
         rig.Send(new ThrowingEvent("c1", 0, new InvalidOperationException("a failing event")));
         rig.Send(new SubclassEvent("c1", 9));
@@ -97,7 +58,7 @@ public class ChartSessionTests
     [Fact]
     public async Task AnEventThatThrows_IsCounted()
     {
-        var rig = new Rig();
+        var rig = new SessionRig();
 
         rig.Send(new ThrowingEvent("c1", 0, new InvalidOperationException("a failing event")));
         rig.Send(new SubclassEvent("c1", 9));
@@ -117,7 +78,7 @@ public class ChartSessionTests
     [Fact]
     public async Task AnEventForAMissingSubplot_IsCountedAsDropped_AndEveryOtherEventIsApplied()
     {
-        var rig = new Rig();
+        var rig = new SessionRig();
 
         rig.Send(new ZoomEvent("c1", 7, 100, 200, 100, 200));
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
@@ -149,7 +110,7 @@ public class ChartSessionTests
     [Fact]
     public async Task ABurstOfDroppedEvents_PublishesNothing()
     {
-        var rig = new Rig();
+        var rig = new SessionRig();
 
         rig.Send(new ZoomEvent("c1", 3, 100, 200, 100, 200));
         rig.Send(new PanEvent("c1", -4, 5, 5));
@@ -166,7 +127,7 @@ public class ChartSessionTests
     [Fact]
     public async Task AHandlerThatThrows_DoesNotEndTheDrain()
     {
-        var rig = new Rig(options => options.OnBrushSelect(_ => throw new InvalidOperationException("a failing handler")));
+        var rig = new SessionRig(configure: options => options.OnBrushSelect(_ => throw new InvalidOperationException("a failing handler")));
 
         rig.Send(new BrushSelectEvent("c1", 0, 0, 0, 1, 1));
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
@@ -178,20 +139,38 @@ public class ChartSessionTests
         await rig.Session.DisposeAsync();
     }
 
-    /// <summary>A cancellation is not a failure of an event: it is how a session shuts down, and it still ends the drain. It is
-    /// not counted as a fault, nothing behind it is applied, and the session disposes cleanly.</summary>
-    [Fact]
-    public async Task ACancellation_StillEndsTheDrain_AndIsNotCounted()
+    /// <summary>A cancellation is not a failure of an event: it is how a session shuts down, and it still ends the drain. A closed
+    /// channel is the other way a session shuts down, and it ends the drain just as a cancellation does. Neither is counted as a fault,
+    /// nothing behind it is applied, and the session disposes cleanly.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ACancellationOrAClosedChannel_StillEndsTheDrain_AndIsNotCounted(bool cancellation)
     {
-        var rig = new Rig();
+        var rig = new SessionRig();
 
-        rig.Send(new ThrowingEvent("c1", 0, new OperationCanceledException()));
+        rig.Send(new ThrowingEvent("c1", 0, cancellation ? new OperationCanceledException() : new System.Threading.Channels.ChannelClosedException()));
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
         await Task.Delay(150, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, rig.Session.FaultedEventCount);
         Assert.Null(rig.Axes.XAxis.Min);
         Assert.Empty(rig.Publisher.Calls);
+
+        await rig.Session.DisposeAsync();
+    }
+
+    /// <summary>The zoom queued behind a slow handler has not been applied after a moment, and is applied once the handler is released,
+    /// without a fault; the session is then disposed.</summary>
+    private static async Task AssertZoomWaitsUntil(SessionRig rig, TaskCompletionSource release)
+    {
+        await Task.Delay(150, TestContext.Current.CancellationToken);
+        Assert.Null(rig.Axes.XAxis.Min);
+
+        release.SetResult();
+        await rig.DrainedAsync();
+        Assert.Equal(0.5, rig.Axes.XAxis.Min);
+        Assert.Equal(0, rig.Session.FaultedEventCount);
 
         await rig.Session.DisposeAsync();
     }
@@ -202,19 +181,11 @@ public class ChartSessionTests
     public async Task ASlowBrushHandler_IsAwaited_BeforeTheNextEventIsTaken()
     {
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var rig = new Rig(options => options.OnBrushSelect(async _ => await release.Task));
+        var rig = new SessionRig(configure: options => options.OnBrushSelect(async _ => await release.Task));
 
         rig.Send(new BrushSelectEvent("c1", 0, 0, 0, 1, 1));
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
-        await Task.Delay(150, TestContext.Current.CancellationToken);
-        Assert.Null(rig.Axes.XAxis.Min);
-
-        release.SetResult();
-        await rig.DrainedAsync();
-        Assert.Equal(0.5, rig.Axes.XAxis.Min);
-        Assert.Equal(0, rig.Session.FaultedEventCount);
-
-        await rig.Session.DisposeAsync();
+        await AssertZoomWaitsUntil(rig, release);
     }
 
     /// <summary>The same for the hover handler: its tooltip is awaited before the next event is taken.</summary>
@@ -222,7 +193,7 @@ public class ChartSessionTests
     public async Task ASlowHoverHandler_IsAwaited_BeforeTheNextEventIsTaken()
     {
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var rig = new Rig(options => options.OnHover(async _ =>
+        var rig = new SessionRig(configure: options => options.OnHover(async _ =>
         {
             await release.Task;
             return (string?)null;
@@ -230,58 +201,6 @@ public class ChartSessionTests
 
         rig.Send(new HoverEvent("c1", 0, 1, 4));
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
-        await Task.Delay(150, TestContext.Current.CancellationToken);
-        Assert.Null(rig.Axes.XAxis.Min);
-
-        release.SetResult();
-        await rig.DrainedAsync();
-        Assert.Equal(0.5, rig.Axes.XAxis.Min);
-        Assert.Equal(0, rig.Session.FaultedEventCount);
-
-        await rig.Session.DisposeAsync();
-    }
-
-    /// <summary>A closed channel is the other way a session shuts down, and it ends the drain just as a cancellation does: it is
-    /// not counted as a fault, nothing behind it is applied, and the session disposes cleanly.</summary>
-    [Fact]
-    public async Task AClosedChannel_StillEndsTheDrain_AndIsNotCounted()
-    {
-        var rig = new Rig();
-
-        rig.Send(new ThrowingEvent("c1", 0, new System.Threading.Channels.ChannelClosedException()));
-        rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
-        await Task.Delay(150, TestContext.Current.CancellationToken);
-
-        Assert.Equal(0, rig.Session.FaultedEventCount);
-        Assert.Null(rig.Axes.XAxis.Min);
-        Assert.Empty(rig.Publisher.Calls);
-
-        await rig.Session.DisposeAsync();
-    }
-
-    private sealed class NullCallerPublisher : ICallerPublisher
-    {
-        public Task SendTooltipAsync(string connectionId, string chartId, string html, CancellationToken ct = default) =>
-            Task.CompletedTask;
-    }
-
-    private sealed class RecordingPublisher : IChartPublisher
-    {
-        public ConcurrentQueue<string> Calls { get; } = new();
-
-        public Task PublishAsync(string chartId, Figure figure, CancellationToken ct = default) => Task.CompletedTask;
-
-        public Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default)
-        {
-            Calls.Enqueue(chartId);
-            return Task.CompletedTask;
-        }
-
-        public async Task WaitForAtLeastAsync(int n)
-        {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-            while (Calls.Count < n && DateTime.UtcNow < deadline)
-                await Task.Delay(10);
-        }
+        await AssertZoomWaitsUntil(rig, release);
     }
 }

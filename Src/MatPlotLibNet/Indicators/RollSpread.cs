@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -12,34 +13,32 @@ namespace MatPlotLibNet.Indicators;
 /// <c>S = 2·√(−cov)</c> when <c>cov &lt; 0</c>, else 0 (spread unidentifiable).</remarks>
 public sealed class RollSpread : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 20;
+
     private readonly int _period;
 
     /// <summary>Creates a new Roll spread indicator.</summary>
     /// <param name="prices">Price series (typically close).</param>
-    /// <param name="period">Number of lagged pairs in the covariance window (default 20, must be ≥ 2).</param>
+    /// <param name="period">Number of lagged pairs in the covariance window (default <see cref="DefaultPeriod"/>, must be ≥ 2).</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="period"/> &lt; 2.</exception>
-    public RollSpread(double[] prices, int period = 20) : base(prices)
+    public RollSpread(double[] prices, int period = DefaultPeriod) : base(prices, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _period = period;
-        Label = $"Roll({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("Roll", period, 2, period + 1);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
-        if (n <= _period + 1) return Array.Empty<double>();
-
-        int dLen = n - 1;
-        var dp = new double[dLen];
-        for (int i = 0; i < dLen; i++)
+        var dp = new double[PairsIn];
+        for (int i = 0; i < dp.Length; i++)
             dp[i] = Prices[i + 1] - Prices[i];
 
         // N lagged pairs over a window spanning N+1 Δp values.
         int windowLen = _period + 1;
-        int outLen = n - _period - 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
         for (int w = 0; w < outLen; w++)
         {
@@ -63,5 +62,5 @@ public sealed class RollSpread : PriceIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period + 1);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

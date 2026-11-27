@@ -14,13 +14,9 @@ namespace MatPlotLibNet.Tests.Models;
 public class LinkedSelectionTests
 {
     [Fact]
-    public void AFigure_IsLinkedToNothing_AndStartsWithNothingSelected()
+    public void AFigureLinkedToNothing_IsNotInteractive()
     {
-        var figure = new Figure();
-
-        Assert.Null(figure.SelectionGroup);
-        Assert.Null(figure.SelectedRows);
-        Assert.False(figure.HasInteractivity);
+        Assert.False(new Figure().HasInteractivity);
     }
 
     [Fact]
@@ -73,20 +69,21 @@ public class LinkedSelectionTests
     {
         var figure = new Figure { SelectionGroup = "orders", SelectedRows = ["a", "c"], EnableSelection = true };
 
-        var read = new ChartSerializer().FromJson(figure.ToJson());
+        var read = figure.RoundTripped();
 
         Assert.Equal("orders", read.SelectionGroup);
         Assert.Equal(["a", "c"], read.SelectedRows);
     }
 
-    [Fact]
-    public void WithoutAGroup_TheJsonSaysNothingOfIt()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = new Figure().ToJson();
+        new DrawnToken("WithoutAGroup_TheJsonSaysNothingOfIt", () => new Figure().ToJson()) { Absent = ["selectionGroup", "selectedRows"] },
+    };
 
-        Assert.DoesNotContain("selectionGroup", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("selectedRows", json, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ADocumentWithABlankGroup_IsRefusedWhenItIsRead()

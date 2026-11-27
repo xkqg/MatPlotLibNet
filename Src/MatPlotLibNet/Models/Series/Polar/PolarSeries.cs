@@ -7,6 +7,9 @@ namespace MatPlotLibNet.Models.Series;
 public abstract class PolarSeries : ChartSeries, IPolarSeries
 {
     /// <inheritdoc />
+    internal override CoordinateSystem? DrawnIn => CoordinateSystem.Polar;
+
+    /// <inheritdoc />
     public double[] R { get; }
 
     /// <inheritdoc />
@@ -21,20 +24,11 @@ public abstract class PolarSeries : ChartSeries, IPolarSeries
         ChartDataTable.FromNumberColumns([new("theta"), new(Label ?? "r")], [Theta, R]);
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
 
     /// <inheritdoc />
-    /// <remarks>The largest radius that can be placed and reaches out from the centre: a missing, infinite or negative radius
-    /// is left out, as it is not drawn.</remarks>
-    internal override RadialExtent? RadialExtent
-    {
-        get
-        {
-            double max = 0;
-            foreach (double radius in R)
-                if (double.IsFinite(radius) && radius > max) max = radius;
-            return max > 0 ? new RadialExtent(max, Sticky: false) : null;
-        }
-    }
+    /// <remarks>The smallest and the largest radius that can be placed, below zero too (a scale that reaches them draws them, as
+    /// matplotlib's polar axes does); a missing or infinite radius is left out, as it is not drawn. None when no radius can be
+    /// placed.</remarks>
+    internal override RadialExtent? RadialExtent => R.DrawableRange() is { } reach ? new RadialExtent(reach.Lo, reach.Hi, Sticky: false) : null;
 }

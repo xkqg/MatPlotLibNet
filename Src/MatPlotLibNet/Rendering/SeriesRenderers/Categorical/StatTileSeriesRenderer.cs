@@ -3,6 +3,8 @@
 
 using System.Text;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -21,8 +23,12 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// lands at the same height in every tile of a row however many caption lines its neighbours carry.</summary>
     private const double TopPadShare = 0.10;
 
-    /// <summary>Baseline step between two caption lines, at the caption's own 11 pt.</summary>
+    /// <summary>Baseline step between two caption lines, at the caption's own size (<see cref="CaptionSize"/>).</summary>
     private const double CaptionLineHeight = 14;
+
+    /// <summary>The size of the caption at the label's resting size (the tile's anatomy scales with the label,
+    /// <see cref="StatTileSeries.AnatomyScaleUnder"/>).</summary>
+    private const double CaptionSize = 11;
 
     /// <summary>The headline's font size on a tile with room for it.</summary>
     private const double HeadlineSize = 44;
@@ -39,9 +45,6 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// <summary>Breathing room left either side of a caption line, so a wrapped line never touches the tile edge.</summary>
     private const double CaptionMargin = 6;
 
-    /// <summary>What separates two caption lines — both platforms' newlines, so a caption composed on either
-    /// one stacks the same way.</summary>
-    private static readonly string[] CaptionLineBreaks = [Environment.NewLine, "\n"];
     /// <inheritdoc />
     public StatTileSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -86,7 +89,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     private void RenderHitArea(Rect bounds)
     {
         Ctx.BeginGroup("mpl-tile-hit");
-        Ctx.DrawRectangle(bounds, new ShapeStyle(Context.Theme.AxesBackground with { A = 0 }, null, 0));
+        Ctx.DrawRectangle(bounds, ShapeStyle.Filled(Context.Theme.AxesBackground with { A = 0 }));
         Ctx.EndGroup();
     }
 
@@ -103,7 +106,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             : [new(right - ChevronSize, top), new(right, top + half), new(right - ChevronSize, top + ChevronSize)];
 
         Ctx.BeginGroup("mpl-tile-chevron");
-        Ctx.DrawPolygon(points, new ShapeStyle(Context.Theme.ForegroundText, null, 0));
+        Ctx.DrawPolygon(points, ShapeStyle.Filled(Context.Theme.ForegroundText));
         Ctx.EndGroup();
     }
 
@@ -126,21 +129,19 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // wears the other diagonal — muted is not the same fact as unseen.
         if (hatch != HatchPattern.None)
         {
-            Ctx.DrawRectangle(bounds, new ShapeStyle(Context.Theme.AxesBackground, null, 0)
-            {
-                Hatch = hatch,
-                HatchColor = series.HatchColor
-            });
+            Ctx.DrawRectangle(bounds, ShapeStyle.Filled(Context.Theme.AxesBackground).WithHatch(series.Hatching with { Pattern = hatch }));
         }
 
         bool hasTrend = series.Trend is { Count: >= 2 };
-        double cx = bounds.X + bounds.Width / 2;
+        double cx = bounds.Center.X;
 
         // The whole STACK is centred — headline, label and every caption line — so a tile that carries more
         // lines takes the free room ABOVE its headline instead of growing down into the sparkline strip
         // (reported from an ops wall, 2026-08-30: "there is plenty of room at the top of the tile"). One line
         // of each renders exactly where it always did; each extra line lifts the block by half its height.
-        var captionFont = new Font { Size = 11, Color = color };
+        // The anatomy below is drawn at the label's resting size; a tile whose label is drawn larger or smaller keeps its proportions.
+        double k = series.AnatomyScaleUnder(Context.Theme);
+        var captionFont = Context.Theme.DataTextFont(CaptionSize * k, color);
         string[] captionLines = WrapCaption(series.Caption, captionFont, bounds.Width - 2 * CaptionMargin);
         // ALWAYS reserved, trend or no trend: a ROW of tiles has ONE anatomy, and a stack that drops by the
         // strip's height the moment a tile has no sparkline breaks the line of numbers the eye reads across the
@@ -152,14 +153,14 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // sparkline leaves, and when they do not fit the HEADLINE shrinks — down to ShortestHeadline — rather
         // than the caption spilling over the sparkline or out of the tile (seen on an ops wall: a two-line
         // caption on a 110 px tile printed straight through the trend line and past the tile's own edge).
-        double labelDrop = string.IsNullOrEmpty(series.Label) ? 0 : LabelLineHeight;
-        double belowHeadline = labelDrop + (captionLines.Length * CaptionLineHeight);
+        double labelDrop = string.IsNullOrEmpty(series.Label) ? 0 : LabelLineHeight * k;
+        double belowHeadline = labelDrop + (captionLines.Length * (CaptionLineHeight * k));
         double scale = 1;
-        if (HeadlineDrop + belowHeadline > bodyHeight)
+        if (HeadlineDrop * k + belowHeadline > bodyHeight)
         {
-            scale = Math.Clamp((bodyHeight - belowHeadline) / HeadlineDrop, ShortestHeadline / HeadlineSize, 1);
+            scale = Math.Clamp((bodyHeight - belowHeadline) / (HeadlineDrop * k), ShortestHeadline / HeadlineSize, 1);
         }
-        double headlineDrop = HeadlineDrop * scale;
+        double headlineDrop = HeadlineDrop * k * scale;
         double stackHeight = headlineDrop + belowHeadline;
         // ANCHORED AT THE TOP, not centred. A row is read as ONE LINE of numbers, and a centred stack moves the
         // number by half of whatever each tile happens to carry under it: measured on an operations wall the
@@ -167,10 +168,11 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // every number and every label at one height and lets the captions grow down into the room that is left.
         double cy = bounds.Y + (bodyHeight * TopPadShare) + headlineDrop;
         // Where the stack actually ENDS — the sparkline starts under it, never through it.
-        double stackBottom = cy + stackHeight - headlineDrop + CaptionLineHeight / 2;
+        double stackBottom = cy + stackHeight - headlineDrop + CaptionLineHeight * k / 2;
 
-        Ctx.DrawText(series.FormattedValue, new Point(cx, cy),
-            new Font { Size = HeadlineSize * scale, Weight = FontWeight.Bold, Color = color }, TextAlignment.Center);
+        // A reading that cannot be placed (missing, or infinite) has no number; the label and the caption still say what it is.
+        if (series.Value.IsDrawable())
+            Ctx.Draw(TextLabel.Of(series.FormattedValue), Context.Theme.DataTextFont(HeadlineSize * k * scale, color, FontWeight.Bold), new TextPlacement(new Point(cx, cy), TextAlignment.Center));
 
         double below = cy + headlineDrop;
         if (!string.IsNullOrEmpty(series.Label))
@@ -178,9 +180,8 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             // The theme's ink, like the value above and the caption below. Without a Color the SVG text
             // carries no fill at all and inherits BLACK — invisible on any operator ground, which is
             // exactly where a tile lives (reported from an operations console: unreadable tile names).
-            Ctx.DrawText(series.Label, new Point(cx, below),
-                new Font { Size = 14, Color = Context.Theme.ForegroundText }, TextAlignment.Center);
-            below += LabelLineHeight;
+            Ctx.Draw(TextLabel.Of(series.Label), Context.Theme.DataTextFont(series.TextSizeUnder(Context.Theme), Context.Theme.ForegroundText), new TextPlacement(new Point(cx, below), TextAlignment.Center));
+            below += LabelLineHeight * k;
         }
 
         // The gap line — the element that answers "is this good or bad" without anyone doing arithmetic.
@@ -189,8 +190,8 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // 2026-08-30). Newline-separated lines are drawn stacked, centred, in the caption's own ink.
         foreach (var line in captionLines)
         {
-            Ctx.DrawText(line, new Point(cx, below), captionFont, TextAlignment.Center);
-            below += CaptionLineHeight;
+            Ctx.Draw(TextLabel.Of(line), captionFont, new TextPlacement(new Point(cx, below), TextAlignment.Center));
+            below += CaptionLineHeight * k;
         }
 
         if (hasTrend)
@@ -211,9 +212,9 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             return [];
         }
         var lines = new List<string>();
-        foreach (var declared in caption.Split(CaptionLineBreaks, StringSplitOptions.None))
+        foreach (var declared in caption.Split(LineEndExtensions.LineBreaks, StringSplitOptions.None))
         {
-            if (width <= 0 || Ctx.MeasureText(declared, font).Width <= width)
+            if (width <= 0 || Ctx.ExtentOf(TextLabel.Of(declared), font).Width <= width)
             {
                 lines.Add(declared);
                 continue;
@@ -222,7 +223,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             foreach (var word in declared.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             {
                 var candidate = line.Length == 0 ? word : $"{line} {word}";
-                if (line.Length > 0 && Ctx.MeasureText(candidate, font).Width > width)
+                if (line.Length > 0 && Ctx.ExtentOf(TextLabel.Of(candidate), font).Width > width)
                 {
                     lines.Add(line.ToString());
                     line.Clear().Append(word);

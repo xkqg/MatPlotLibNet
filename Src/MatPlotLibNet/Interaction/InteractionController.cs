@@ -15,7 +15,7 @@ namespace MatPlotLibNet.Interaction;
 ///   <c>Action&lt;FigureInteractionEvent&gt;</c> (e.g. publish to SignalR).</item>
 /// </list>
 /// </summary>
-public sealed class InteractionController : IInteractionController
+public sealed class InteractionController : IInteractionController, IHostedInteractionController
 {
     private readonly IReadOnlyList<IInteractionModifier> _modifiers;
     private IInteractionModifier? _activeModifier;
@@ -33,15 +33,12 @@ public sealed class InteractionController : IInteractionController
     /// <inheritdoc />
     public event Action? InvalidateRequested;
 
-    /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
-    /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, follow a link or
-    /// select a row beside the chart.
-    /// <para>It is raised in both hosting modes — the one that keeps the figure in the control and the one that
-    /// publishes to a server — because a click is a question about the data, not a change to it. Nothing else
-    /// receives it: applying the event to the figure does nothing by design, and a server sink has no arm for it.
-    /// The sink is told first, so a handler that throws cannot stop the event reaching it.</para>
-    /// <para>This sits on the controller itself rather than on <see cref="IInteractionController"/>: every control
-    /// in this repository holds the concrete type, and the interface is what a custom host implements.</para></summary>
+    /// <inheritdoc cref="InteractionHost.DataPointClicked"/>
+    /// <remarks>It is raised in both hosting modes because a click is a question about the data, not a change to it. Nothing
+    /// else receives it: applying the event to the figure does nothing by design, and a server sink has no arm for it. The sink
+    /// is told first, so a handler that throws cannot stop the event reaching it. It sits on the controller itself rather than
+    /// on <see cref="IInteractionController"/>, so that public interface is unchanged; the <see cref="InteractionHost"/> hears it
+    /// through an internal interface beside it.</remarks>
     public event Action<PinnedAnnotation>? DataPointClicked;
 
     /// <summary>Raised for every event this controller produced, after the sink has applied it or sent it and after
@@ -101,6 +98,14 @@ public sealed class InteractionController : IInteractionController
         ctrl = new InteractionController(figure, layout, localSink);
         return ctrl;
     }
+
+    /// <summary>The controller an <see cref="InteractionHost"/> builds for a figure it is shown: one that sends the gestures
+    /// through <paramref name="serverEventSink"/> when there is one, else one that applies them to the figure in place.</summary>
+    /// <param name="figure">The figure that was painted.</param>
+    /// <param name="layout">The layout of that paint.</param>
+    /// <param name="serverEventSink">Where the gestures are sent, or <see langword="null"/>.</param>
+    internal static InteractionController For(Figure figure, IChartLayout layout, Action<FigureInteractionEvent>? serverEventSink) =>
+        serverEventSink is not null ? Create(figure, layout, serverEventSink) : CreateLocal(figure, layout);
 
     /// <summary>Creates a controller with a custom event sink.
     /// The sink is responsible for applying or publishing the event.</summary>
@@ -173,7 +178,7 @@ public sealed class InteractionController : IInteractionController
                         ? new HoverTooltipContent(
                             nearest.Detail is { } detail
                                 ? $"{nearest.SeriesLabel}: {detail}"
-                                : $"{nearest.SeriesLabel}: ({nearest.DataX:G5}, {nearest.DataY:G5})",
+                                : string.Invariant($"{nearest.SeriesLabel}: ({nearest.DataX:G5}, {nearest.DataY:G5})"),
                             args.X, args.Y)
                         {
                             // Hover resolves its point through the same search the click uses; a host that
@@ -258,10 +263,10 @@ public sealed class InteractionController : IInteractionController
             new RectangleZoomModifier(chartId, layout, sink),
             new BrushSelectModifier(chartId, layout, sink),
             new SpanSelectModifier(chartId, layout, sink),
-            new TrendlineDrawingModifier(chartId, layout, figure, sink, toolbar),
-            new LevelDrawingModifier(chartId, layout, figure, sink, toolbar),
-            new FibonacciDrawingModifier(chartId, layout, figure, sink, toolbar),
-            new DrawingToolSelectionModifier(chartId, layout, figure, sink, toolbar),
+            new TrendlineDrawingModifier(chartId, layout, sink, toolbar),
+            new LevelDrawingModifier(chartId, layout, sink, toolbar),
+            new FibonacciDrawingModifier(chartId, layout, sink, toolbar),
+            new DrawingToolSelectionModifier(chartId, layout, sink),
             // DataCursor claims plain left-click only when the cursor is within 10 px
             // of an actual data point (via NearestPointFinder). Placed before PanModifier
             // so hit-test wins; when the click misses, HandlesPointerPressed returns false

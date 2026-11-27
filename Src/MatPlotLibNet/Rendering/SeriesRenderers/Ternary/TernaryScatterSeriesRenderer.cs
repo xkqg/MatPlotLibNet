@@ -19,12 +19,15 @@ internal sealed class TernaryScatterSeriesRenderer : SeriesRenderer<TernaryScatt
     /// <inheritdoc />
     public override void Render(TernaryScatterSeries series)
     {
-        var color = ResolveColor(series.Color);
+        var slot = Slot;
+        var color = ColorOf(series);
+        double radius = slot.ScatterSizeOf(series.GivenMarkerSize).PointsInPixels / 2;
+        var style = slot.ScatterStyleOf(color);
 
         foreach (var pixel in Context.PixelsOf(series))
         {
             if (!pixel.IsDrawable()) continue;
-            Ctx.DrawCircle(pixel, series.MarkerSize / 2, new ShapeStyle(color, null, 0));
+            Ctx.DrawCircle(pixel, radius, style);
         }
     }
 }

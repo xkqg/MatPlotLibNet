@@ -1,31 +1,16 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators.Streaming;
 
 namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
 /// <summary>Coverage uplift Batch D — full coverage for <see cref="StreamingVwap"/> (was 0%).
 /// Asserts the cumulative price-volume formula, the no-volume fallback (returns the spot
-/// price when cumulative volume is zero), and ring-buffer wraparound on capacity overflow.</summary>
+/// price when cumulative volume is zero).</summary>
 public sealed class StreamingVwapTests
 {
-    [Fact]
-    public void Construction_DefaultsAreCorrect()
-    {
-        var vwap = new StreamingVwap();
-        Assert.Equal(1, vwap.WarmupPeriod);
-        Assert.Equal("VWAP", vwap.Label);
-        Assert.Single(vwap.OutputSeries);
-    }
-
-    [Fact]
-    public void Construction_CustomCapacity_PropagatesToOutputSeries()
-    {
-        var vwap = new StreamingVwap(capacity: 64);
-        Assert.Equal(64, vwap.OutputSeries[0].Capacity);
-    }
-
     [Fact]
     public void FirstBar_VwapEqualsPrice()
     {
@@ -72,11 +57,10 @@ public sealed class StreamingVwapTests
     }
 
     [Fact]
-    public void Append_WithZeroVolume_FallsBackToPrice()
+    public void APriceWithoutAVolume_ReadsThePrice()
     {
-        // The Append(price) path skips _cumulativeVolume updates, so the divisor stays zero and
-        // ComputeNext returns `price` (see StreamingVwap.cs branch).
-        var vwap = new StreamingVwap();
+        // A price is a bar of that price without a volume: the sums are not a number, so the average reads the price.
+        IStreamingIndicator vwap = new StreamingVwap();
         vwap.Append(42);
         vwap.Append(99);
         var snap = vwap.OutputSeries[0].CreateSnapshot();
@@ -85,32 +69,23 @@ public sealed class StreamingVwapTests
     }
 
     [Fact]
-    public void RingBuffer_OldestEvicted_OnCapacityOverflow()
-    {
-        var vwap = new StreamingVwap(capacity: 2);
-        vwap.AppendWithVolume(100, 10); // 100
-        vwap.AppendWithVolume(120, 10); // (1000+1200)/20 = 110
-        vwap.AppendWithVolume(140, 10); // (2200+1400)/30 = 120
-        vwap.AppendWithVolume(160, 10); // (3600+1600)/40 = 130
-
-        var snap = vwap.OutputSeries[0].CreateSnapshot();
-        Assert.Equal(2, snap.YData.Length);
-        Assert.Equal(120.0, snap.YData[0], 1e-9);
-        Assert.Equal(130.0, snap.YData[1], 1e-9);
-    }
-
-    [Fact]
-    public void GetLatest_BeforeAnyAppend_ReturnsNaN()
-    {
-        var vwap = new StreamingVwap();
-        Assert.True(double.IsNaN(vwap.GetLatest()));
-    }
-
-    [Fact]
     public void ProcessedCount_IncrementsPerAppend()
     {
         var vwap = new StreamingVwap();
         for (int i = 0; i < 4; i++) vwap.AppendWithVolume(100 + i, 10);
         Assert.Equal(4, vwap.ProcessedCount);
+    }
+
+    [Fact]
+    public void ACandleGivenToTheVwap_IsABarWithoutAVolume()
+    {
+        var withCandle = new StreamingVwap();
+        var withBar = new StreamingVwap();
+
+        withCandle.AppendCandle(new OhlcBar(10, 12, 9, 11));
+        withBar.AppendBar(OhlcvBar.From(new OhlcBar(10, 12, 9, 11)));
+
+        Assert.Equal(withBar.GetLatest(), withCandle.GetLatest());
+        Assert.Equal(1, withCandle.ProcessedCount);
     }
 }

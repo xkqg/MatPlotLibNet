@@ -1,0 +1,14 @@
+{
+  "FontSize": "10",
+  "InsideLabels": "false",
+  "Iterations": "6",
+  "Label": "null",
+  "LinkAlpha": "0.4",
+  "LinkColorMode": "Gradient",
+  "NodeAlignment": "Justify",
+  "NodePadding": "10",
+  "NodeWidth": "20",
+  "Orient": "Horizontal",
+  "Visible": "true",
+  "ZOrder": "0"
+}

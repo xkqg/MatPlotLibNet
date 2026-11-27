@@ -20,9 +20,8 @@ public static class LeastSquares
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="degree"/> is outside [0, 10].</exception>
     public static double[] PolyFit(double[] x, double[] y, int degree)
     {
-        if (x.Length == 0) throw new ArgumentException("Data must not be empty.", nameof(x));
-        if (degree < 0 || degree > 10)
-            throw new ArgumentOutOfRangeException(nameof(degree), "Degree must be between 0 and 10.");
+        x.ThrowIfEmpty("Data must not be empty.");
+        degree.ThrowIfNotIn(0, 10, nameof(degree));
 
         int n = x.Length;
         int m = degree + 1;
@@ -45,7 +44,7 @@ public static class LeastSquares
             }
         }
 
-        return SolveLinear(ata, aty);
+        return Linalg.Solve(new Mat(ata), new Vec(aty)).Data;
     }
 
     /// <summary>Evaluates a polynomial at an array of X values.</summary>
@@ -69,18 +68,18 @@ public static class LeastSquares
     /// <summary>
     /// Computes confidence bands around the fitted polynomial at the given evaluation X points.
     /// Uses the t-distribution with <c>n − (degree+1)</c> degrees of freedom, at its exact quantile
-    /// (<see cref="StudentT.Quantile"/>) for any level.
+    /// for any level.
     /// </summary>
     /// <param name="x">Original X data.</param>
     /// <param name="y">Original Y data.</param>
     /// <param name="coefficients">Fitted polynomial coefficients from <see cref="PolyFit"/>.</param>
     /// <param name="evalX">X values at which to compute the band.</param>
-    /// <param name="level">Confidence level (default 0.95).</param>
+    /// <param name="level">Confidence level (default <see cref="Numerics.ConfidenceBand.DefaultLevel"/>).</param>
     /// <returns>A <see cref="ConfidenceBand"/> containing upper and lower bound arrays.</returns>
     /// <remarks>Confidence intervals assume normally distributed residuals; accuracy degrades
     /// for heavy-tailed or heteroscedastic data.</remarks>
     public static ConfidenceBand ConfidenceBand(
-        double[] x, double[] y, double[] coefficients, double[] evalX, double level = 0.95)
+        double[] x, double[] y, double[] coefficients, double[] evalX, double level = Numerics.ConfidenceBand.DefaultLevel)
     {
         int n = x.Length;
         int m = coefficients.Length; // degree + 1
@@ -107,7 +106,7 @@ public static class LeastSquares
                 for (int c = 0; c < p; c++)
                     ata[r, c] += xi[r] * xi[c];
         }
-        double[,] ataInv = InvertSymmetric(ata);
+        double[,] ataInv = Linalg.Inv(new Mat(ata)).Data;
 
         double[] upper = new double[evalX.Length];
         double[] lower = new double[evalX.Length];
@@ -128,78 +127,5 @@ public static class LeastSquares
             lower[j] = yEval[j] - margin;
         }
         return new(upper, lower);
-    }
-
-    // --- Internal helpers ---
-
-    /// <summary>Solves Ax = b via Gaussian elimination with partial pivoting.</summary>
-    private static double[] SolveLinear(double[,] a, double[] b)
-    {
-        int n = b.Length;
-        // Augmented matrix
-        double[,] aug = new double[n, n + 1];
-        for (int r = 0; r < n; r++)
-        {
-            for (int c = 0; c < n; c++) aug[r, c] = a[r, c];
-            aug[r, n] = b[r];
-        }
-        // Forward elimination with partial pivoting
-        for (int col = 0; col < n; col++)
-        {
-            int pivot = col;
-            for (int row = col + 1; row < n; row++)
-                if (Math.Abs(aug[row, col]) > Math.Abs(aug[pivot, col])) pivot = row;
-            for (int k = 0; k <= n; k++) (aug[col, k], aug[pivot, k]) = (aug[pivot, k], aug[col, k]);
-            double diag = aug[col, col];
-            if (Math.Abs(diag) < 1e-14) continue;
-            for (int row = col + 1; row < n; row++)
-            {
-                double factor = aug[row, col] / diag;
-                for (int k = col; k <= n; k++) aug[row, k] -= factor * aug[col, k];
-            }
-        }
-        // Back substitution
-        double[] result = new double[n];
-        for (int row = n - 1; row >= 0; row--)
-        {
-            double sum = aug[row, n];
-            for (int col = row + 1; col < n; col++) sum -= aug[row, col] * result[col];
-            double d = aug[row, row];
-            result[row] = Math.Abs(d) > 1e-14 ? sum / d : 0;
-        }
-        return result;
-    }
-
-    /// <summary>Inverts a symmetric matrix using the same Gaussian elimination augmented with identity.</summary>
-    private static double[,] InvertSymmetric(double[,] a)
-    {
-        int n = a.GetLength(0);
-        double[,] aug = new double[n, 2 * n];
-        for (int r = 0; r < n; r++)
-        {
-            for (int c = 0; c < n; c++) aug[r, c] = a[r, c];
-            aug[r, n + r] = 1.0;
-        }
-        for (int col = 0; col < n; col++)
-        {
-            int pivot = col;
-            for (int row = col + 1; row < n; row++)
-                if (Math.Abs(aug[row, col]) > Math.Abs(aug[pivot, col])) pivot = row;
-            for (int k = 0; k < 2 * n; k++) (aug[col, k], aug[pivot, k]) = (aug[pivot, k], aug[col, k]);
-            double diag = aug[col, col];
-            if (Math.Abs(diag) < 1e-14) continue;
-            for (int k = 0; k < 2 * n; k++) aug[col, k] /= diag;
-            for (int row = 0; row < n; row++)
-            {
-                if (row == col) continue;
-                double factor = aug[row, col];
-                for (int k = 0; k < 2 * n; k++) aug[row, k] -= factor * aug[col, k];
-            }
-        }
-        double[,] inv = new double[n, n];
-        for (int r = 0; r < n; r++)
-            for (int c = 0; c < n; c++)
-                inv[r, c] = aug[r, n + c];
-        return inv;
     }
 }

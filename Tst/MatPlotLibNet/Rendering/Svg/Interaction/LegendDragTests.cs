@@ -3,7 +3,7 @@
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
-/// <summary>Behavioural coverage for <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendDragScript"/>.
+/// <summary>Behavioural coverage for <see cref="Transforms.SvgTransform.LegendDragScript"/>.
 ///
 /// <para>Phase S (2026-04-19) — press-and-hold any legend item and drag to translate the entire
 /// <c>&lt;g class="legend"&gt;</c> group; release to drop. Coexists with the legend-toggle script:

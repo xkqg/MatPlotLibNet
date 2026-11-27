@@ -10,35 +10,24 @@ namespace MatPlotLibNet.Interaction;
 /// the layout when the key is pressed, and the figure remembers the view the reader started from
 /// (see <see cref="ResetEvent"/>). This class is for a host that builds its own modifiers and wants the range of a
 /// moment it chose.</para></summary>
-public sealed class ResetModifier : IInteractionModifier
+public sealed class ResetModifier : InteractionModifier
 {
     private readonly HomeModifier _home;
 
     /// <summary>Creates a reset modifier. The original axis limits are snapshotted at construction time.</summary>
-    public ResetModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink) =>
-        _home = new HomeModifier(chartId, new SnapshotLayout(layout), sink);
+    public ResetModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
+        : base(chartId, new SnapshotLayout(layout), sink) =>
+        _home = new HomeModifier(chartId, Layout, sink);
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args) => _home.HandlesPointerPressed(args);
+    public override bool HandlesPointerPressed(PointerInputArgs args) => _home.HandlesPointerPressed(args);
 
     /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args) => _home.OnPointerPressed(args);
+    public override void OnPointerPressed(PointerInputArgs args) => _home.OnPointerPressed(args);
 
     /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args) => _home.OnPointerMoved(args);
+    public override bool HandlesKeyDown(KeyInputArgs args) => _home.HandlesKeyDown(args);
 
     /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args) => _home.OnPointerReleased(args);
-
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => _home.HandlesScroll(args);
-
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) => _home.OnScroll(args);
-
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) => _home.HandlesKeyDown(args);
-
-    /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args) => _home.OnKeyDown(args);
+    public override void OnKeyDown(KeyInputArgs args) => _home.OnKeyDown(args);
 }

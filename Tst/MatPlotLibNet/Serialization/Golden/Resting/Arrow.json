@@ -1,0 +1,23 @@
+{
+  "Alpha": "1",
+  "Dx": "0.5",
+  "Dy": "0.2",
+  "EdgeColor": "#000000FF",
+  "EdgeLineStyle": "Solid",
+  "EdgeWidth": "1",
+  "FaceColor": "#1F77B4FF",
+  "Hatch": "None",
+  "HatchColor": "null",
+  "HeadLength": "null",
+  "HeadWidth": "null",
+  "Label": "null",
+  "LengthIncludesHead": "false",
+  "Overhang": "0",
+  "Shape": "Full",
+  "Start": "{DataX: 1.2, DataY: 3.5}",
+  "Visible": "true",
+  "Width": "0.001",
+  "Z": "0",
+  "ZDir": "Z",
+  "ZOrder": "1"
+}

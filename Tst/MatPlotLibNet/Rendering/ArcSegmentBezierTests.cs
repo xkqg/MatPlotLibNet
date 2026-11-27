@@ -48,6 +48,22 @@ public class ArcSegmentBezierTests
         Assert.Equal(-3 + 8 * Math.Sin(end), curves[^1].End.Y, 9);
     }
 
+    /// <summary>The curves and the SVG <c>A</c> command must say the same about where the arc ends: the last curve ends on the
+    /// point the arc is written with, to the last bit, for angles that adding the step up piece by piece does not land on.</summary>
+    [Theory]
+    [InlineData(-39.97, -393.43)]
+    [InlineData(-39.97, -397.33)]
+    [InlineData(10.1, 80.7)]
+    [InlineData(0, 90)]
+    public void TheLastCurve_EndsOnTheExactPointTheArcIsDrawnTo(double start, double end)
+    {
+        var arc = new ArcSegment(new Point(100, 100), 50, 30, start, end);
+
+        var curves = arc.ToBeziers();
+
+        Assert.Equal(arc.EndPoint, curves[^1].End);
+    }
+
     [Fact]
     public void EveryCurve_StartsWhereTheOneBeforeEnded_AndStaysOnTheEllipse()
     {

@@ -3,6 +3,8 @@
 
 using System.Globalization;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -10,6 +12,12 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders <see cref="GaugeSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class GaugeSeriesRenderer : SeriesRenderer<GaugeSeries>
 {
+    /// <summary>How far in from the dial's rim a band reaches, as a share of the radius.</summary>
+    private const double BandInnerShare = 0.7;
+
+    /// <summary>How far below the hub the baseline of the value stands, in pixels.</summary>
+    private const double ValueBelowHub = 20;
+
     /// <inheritdoc />
     public GaugeSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -17,28 +25,30 @@ internal sealed class GaugeSeriesRenderer : SeriesRenderer<GaugeSeries>
     public override void Render(GaugeSeries series)
     {
         var bounds = Area.PlotBounds;
-        double cx = bounds.X + bounds.Width / 2, cy = bounds.Y + bounds.Height * 0.75;
-        double radius = Math.Min(bounds.Width, bounds.Height) * 0.4;
+        var frame = RoundFrame.In(bounds, RoundFrame.DiscShare, 0, RoundFrame.DialCentreDown);
+        double cx = frame.Centre.X, cy = frame.Centre.Y;
+        double radius = frame.Radius;
         double range = series.Max - series.Min;
-        if (range <= 0) return;
+        // A scale that cannot be laid out (a missing or infinite end, or no span) has nothing to draw on.
+        if (!range.IsPositiveFinite()) return;
         var ranges = series.Ranges ?? [new(60, Colors.Green), new(80, Colors.Amber), new(100, Colors.Red)];
 
         double prevAngle = Math.PI;
         foreach (var (threshold, color) in ranges)
         {
-            double frac = Math.Clamp((threshold - series.Min) / range, 0, 1);
+            // A band whose upper end is missing has no place on the dial: it is skipped, as a pie's missing slice is.
+            if (threshold.IsMissing()) continue;
+            double frac = LinearNormalizer.Instance.Normalize(threshold, series.Min, series.Max);
             double endAngle = Math.PI - frac * Math.PI;
-            int steps = 20;
-            var points = new List<Point>();
-            for (int i = 0; i <= steps; i++) { double a = prevAngle + (endAngle - prevAngle) * i / steps; points.Add(new Point(cx + radius * Math.Cos(a), cy - radius * Math.Sin(a))); }
-            for (int i = steps; i >= 0; i--) { double a = prevAngle + (endAngle - prevAngle) * i / steps; points.Add(new Point(cx + radius * 0.7 * Math.Cos(a), cy - radius * 0.7 * Math.Sin(a))); }
-            Ctx.DrawPolygon(points, new ShapeStyle(color, null, 0));
+            Ctx.DrawPolygon(RingWedge.CounterClockwise(frame.Centre, radius * BandInnerShare, radius, prevAngle, endAngle).Polygon(), ShapeStyle.Filled(color));
             prevAngle = endAngle;
         }
-        double valFrac = Math.Clamp((series.Value - series.Min) / range, 0, 1);
+        // A value that cannot be placed (missing, or infinite) has no needle, hub or number: the bands alone are drawn.
+        if (!series.Value.IsDrawable()) return;
+        double valFrac = LinearNormalizer.Instance.Normalize(series.Value, series.Min, series.Max);
         double needleAngle = Math.PI - valFrac * Math.PI;
-        Ctx.DrawLine(new Point(cx, cy), new Point(cx + radius * 0.85 * Math.Cos(needleAngle), cy - radius * 0.85 * Math.Sin(needleAngle)), new StrokeStyle(series.NeedleColor, 2.5, LineStyle.Solid));
-        Ctx.DrawCircle(new Point(cx, cy), 4, new ShapeStyle(series.NeedleColor, null, 0));
-        Ctx.DrawText(series.Value.ToString("G5", CultureInfo.InvariantCulture),new Point(cx, cy + 20), new Font { Size = 12, Weight = FontWeight.Bold }, TextAlignment.Center);
+        Ctx.DrawLine(new Point(cx, cy), new Point(cx, cy).AtAngleCounterClockwise(radius * 0.85, needleAngle), Slot.StrokeOf(series.NeedleColor, LineWidthRule.OwnMark));
+        Ctx.DrawCircle(new Point(cx, cy), 4, ShapeStyle.Filled(series.NeedleColor));
+        Ctx.Draw(TextLabel.Of(series.Value.InvariantText("G5")), Context.Theme.DataTextFont(series.TextSizeUnder(Context.Theme), weight: FontWeight.Bold), new TextPlacement(new Point(cx, cy + ValueBelowHub), TextAlignment.Center));
     }
 }

@@ -81,8 +81,7 @@ public class MplChartAnimationTests : BunitContext
     [Fact]
     public void FrameReady_Invokes_OnAnimationFrameReady_UpdatesMarkup()
     {
-        // Drives MplChart.razor's OnAnimationFrameReady handler — previously
-        // 0% line coverage because no test fired the FrameReady event.
+        // Drives the frame the component shows when its animation source says one is ready.
         var initial = Plt.Create().WithTitle("InitialTitle").Plot([1.0], [1.0]).Build();
         var next = Plt.Create().WithTitle("FrameTwoTitle").Plot([2.0], [2.0]).Build();
         var fake = new FakeAnimationSource();
@@ -99,10 +98,20 @@ public class MplChartAnimationTests : BunitContext
         Assert.Contains("FrameTwoTitle", cut.Markup);
     }
 
-    private sealed class FakeAnimationSource : IAnimationSource
+    [Fact]
+    public async Task FrameReady_FromAnotherThread_IsShownOnTheComponentsOwnThread()
     {
-        public event EventHandler<Figure>? FrameReady;
-        public int SubscriberCount => FrameReady?.GetInvocationList().Length ?? 0;
-        public void Raise(Figure figure) => FrameReady?.Invoke(this, figure);
+        var initial = Plt.Create().WithTitle("InitialTitle").Plot([1.0], [1.0]).Build();
+        var next = Plt.Create().WithTitle("FrameThreeTitle").Plot([2.0], [2.0]).Build();
+        var fake = new FakeAnimationSource();
+        var cut = Render<MplChart>(p =>
+        {
+            p.Add(x => x.Figure, initial);
+            p.Add(x => x.AnimationSource, fake);
+        });
+
+        await Task.Run(() => fake.Raise(next), Xunit.TestContext.Current.CancellationToken);
+
+        cut.WaitForAssertion(() => Assert.Contains("FrameThreeTitle", cut.Markup));
     }
 }

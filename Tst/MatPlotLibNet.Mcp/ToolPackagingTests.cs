@@ -13,14 +13,7 @@ public class ToolPackagingTests
 {
     private static DirectoryInfo ServerOutput()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        var bin = new DirectoryInfo(Path.Combine(dir!.FullName, "Src", "MatPlotLibNet.Mcp", "bin"));
+        var bin = new DirectoryInfo(Path.Combine(RepositoryRoot.Folder, "Src", "MatPlotLibNet.Mcp", "bin"));
         Assert.True(bin.Exists, $"The server project has not been built: {bin.FullName}");
         return bin;
     }

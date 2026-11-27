@@ -25,8 +25,6 @@ public class ColorMapSerializationTests
 
     private static readonly Color Red = Color.FromHex("#FF0000"), Green = Color.FromHex("#00A000"), Blue = Color.FromHex("#0000FF");
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     /// <summary>A heatmap with a missing cell, a negative and values on both sides of the middle, drawn through
     /// <paramref name="map"/>.</summary>
     private static Figure HeatmapWith(IColorMap? map) =>
@@ -76,36 +74,29 @@ public class ColorMapSerializationTests
     {
         var figure = HeatmapWith(BuiltInCode[kind]());
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.True(DrawnSeriesFixtures.SameValue(MapOfTheOnlySeries(figure), MapOfTheOnlySeries(read)),
             $"{kind}: drawn with {DrawnSeriesFixtures.Show(MapOfTheOnlySeries(figure))}, read back as {DrawnSeriesFixtures.Show(MapOfTheOnlySeries(read))}.");
         Assert.Equal(figure.ToSvg(), read.ToSvg());
     }
 
-    /// <summary>A map built in code is written as what it is made of, even when a map the library ships has its name:
-    /// the name alone would bring back the shipped map.</summary>
-    [Fact]
-    public void AMapBuiltInCode_IsWrittenAsItsColours_NotByItsName()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Serializer.ToJson(HeatmapWith(new LinearColorMap("viridis", [Red, Blue]) { BadColor = Color.FromHex("#DDDDDD") }));
-
-        Assert.DoesNotContain("\"colorMapName\"", json);
-        Assert.Contains("""
+        //  A map made with FromList is registered in this process only: a reader in another process (the MCP server, a transport's client)
+        // does not know its name, so it travels as data too.
+        new DrawnToken("AMapMadeWithFromList_IsWrittenAsItsColours", () => Serializer.ToJson(HeatmapWith(LinearColorMap.FromList("from list s1h written", [new(0, Green), new(10, Red)]))), "\"colorMap\":{\"type\":\"linear\",\"name\":\"from list s1h written\",\"colors\":[\"#00A000\",\"#FF0000\"],\"positions\":[0,1]}") { Absent = ["\"colorMapName\""] },
+        //  A map built in code is written as what it is made of, even when a map the library ships has its name: the name alone would bring
+        // back the shipped map.
+        new DrawnToken("AMapBuiltInCode_IsWrittenAsItsColours_NotByItsName", () => Serializer.ToJson(HeatmapWith(new LinearColorMap("viridis", [Red, Blue]) { BadColor = Color.FromHex("#DDDDDD") })), """
             "colorMap":{"type":"linear","name":"viridis","colors":["#FF0000","#0000FF"],"badColor":"#DDDDDD"}
-            """.Trim(), json);
-    }
+            """.Trim()) { Absent = ["\"colorMapName\""] },
+    };
 
-    /// <summary>A map made with <see cref="LinearColorMap.FromList"/> is registered in this process only: a reader in
-    /// another process (the MCP server, a transport's client) does not know its name, so it travels as data too.</summary>
-    [Fact]
-    public void AMapMadeWithFromList_IsWrittenAsItsColours()
-    {
-        string json = Serializer.ToJson(HeatmapWith(LinearColorMap.FromList("from list s1h written", [new(0, Green), new(10, Red)])));
-
-        Assert.DoesNotContain("\"colorMapName\"", json);
-        Assert.Contains("\"colorMap\":{\"type\":\"linear\",\"name\":\"from list s1h written\",\"colors\":[\"#00A000\",\"#FF0000\"],\"positions\":[0,1]}", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- a map the library ships goes by its name, as it always did ------------------------------------------------
 
@@ -135,7 +126,7 @@ public class ColorMapSerializationTests
     [Fact]
     public void AColourMapOfYourOwnType_IsLeftOutOfTheJson_AndTheSeriesReadsBackWithoutOne()
     {
-        string json = Serializer.ToJson(HeatmapWith(new StripedColorMap("striped s1h")));
+        string json = Serializer.ToJson(HeatmapWith(Striped("striped s1h")));
 
         Assert.DoesNotContain("\"colorMapName\"", json);
         Assert.DoesNotContain("\"colorMap\"", json);
@@ -146,7 +137,7 @@ public class ColorMapSerializationTests
     [Fact]
     public void TheReverseOfAColourMapOfYourOwnType_IsLeftOutOfTheJson()
     {
-        string json = Serializer.ToJson(HeatmapWith(new ReversedColorMap(new StripedColorMap("striped s1h reversed"))));
+        string json = Serializer.ToJson(HeatmapWith(new ReversedColorMap(Striped("striped s1h reversed"))));
 
         Assert.DoesNotContain("\"colorMap", json);
         Assert.Null(MapOfTheOnlySeries(Serializer.FromJson(json)));
@@ -157,7 +148,7 @@ public class ColorMapSerializationTests
     [Fact]
     public void AColourMapOfYourOwnType_RegisteredUnderItsName_TravelsByThatName()
     {
-        var mine = new StripedColorMap("striped s1h registered");
+        var mine = Striped("striped s1h registered");
         ColorMapRegistry.Register(mine.Name, mine);
 
         string json = Serializer.ToJson(HeatmapWith(mine));
@@ -170,7 +161,7 @@ public class ColorMapSerializationTests
     [Fact]
     public void TheReverseOfARegisteredColourMapOfYourOwnType_IsWrittenAsTheReverseOfItsName()
     {
-        var mine = new StripedColorMap("striped s1h registered reversed");
+        var mine = Striped("striped s1h registered reversed");
         ColorMapRegistry.Register(mine.Name, mine);
         var figure = HeatmapWith(new ReversedColorMap(mine));
 
@@ -183,12 +174,8 @@ public class ColorMapSerializationTests
     }
 
     /// <summary>Every tenth value is red, the rest blue: a map no description can hold.</summary>
-    private sealed class StripedColorMap(string name) : IColorMap
-    {
-        public string Name { get; } = name;
-
-        public Color GetColor(double value) => (int)(value * 10) % 2 == 0 ? Color.FromHex("#FF0000") : Color.FromHex("#0000FF");
-    }
+    private static TestColorMap Striped(string name) =>
+        new(name, value => (int)(value * 10) % 2 == 0 ? Color.FromHex("#FF0000") : Color.FromHex("#0000FF"));
 
     // ---- the calendar that needs it ---------------------------------------------------------------------------------
 
@@ -203,7 +190,7 @@ public class ColorMapSerializationTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarHeatmap(days, values, configure: s => s.ColorMap = greens)).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Contains("#DDDDDD", drawn);
         Assert.Equal(drawn, readBack);
@@ -219,7 +206,7 @@ public class ColorMapSerializationTests
             .Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })
             .WithColorBar(cb => cb with { ColorMap = map, Extend = ColorBarExtend.Max })).Build();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.True(DrawnSeriesFixtures.SameValue(map, read.SubPlots[0].ColorBar!.ColorMap), DrawnSeriesFixtures.Show(read.SubPlots[0].ColorBar!.ColorMap));
         Assert.Equal(figure.ToSvg(), read.ToSvg());
@@ -231,7 +218,7 @@ public class ColorMapSerializationTests
         var map = new LinearColorMap("density", [Color.FromHex("#FFFFFF"), Blue]) { BadColor = Red };
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PairGridSeries([[1.0, 2, 3], [2.0, 1, 3]]) { OffDiagonalColorMap = map })).Build();
 
-        var read = Assert.IsType<PairGridSeries>(RoundTrip(figure).SubPlots[0].Series.Single());
+        var read = Assert.IsType<PairGridSeries>(figure.RoundTripped().SubPlots[0].Series.Single());
 
         Assert.True(DrawnSeriesFixtures.SameValue(map, read.OffDiagonalColorMap), DrawnSeriesFixtures.Show(read.OffDiagonalColorMap));
     }

@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.TestFixtures;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -11,36 +13,30 @@ public class CountSeriesRenderTests
 {
     private static readonly string[] Values = ["a", "b", "a", "c", "a", "b"];
 
-    [Fact]
-    public void Countplot_SvgContainsRectangles()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values))
-            .ToSvg();
-        Assert.Contains("<rect", svg);
-    }
+    /// <summary>The cycle's first blue, given, so the bars are found by it under any theme (a count plot's own colour is desaturated
+    /// under the matplotlib themes, <c>SeabornVerbLookTests</c>).</summary>
+    private static readonly MatPlotLibNet.Styling.Color Blue = MatPlotLibNet.Styling.Color.FromHex("#1F77B4");
 
-    [Fact]
-    public void Countplot_FluentShortcut_ProducesSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
-            .Countplot(Values)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        new DrawnToken("Countplot_SvgContainsRectangles", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values))
+            .ToSvg(), "<rect"),
+        // CountSeriesRenderer.Render: else-branch (Horizontal orientation)
+        new DrawnToken("Countplot_HorizontalOrientation_RendersRects", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values, s =>
+            {
+                s.Orientation = BarOrientation.Horizontal;
+            }))
+            .ToSvg(), "<rect"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── Branch coverage ──────────────────────────────────────────────────────
-
-    [Fact]
-    public void Countplot_EmptyValues_ReturnsDefaultDataRange()
-    {
-        // CountSeries.ComputeDataRange: Values.Length == 0 branch
-        // CountSeriesRenderer.Render: Values.Length == 0 early-return branch
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot([]))
-            .ToSvg();
-        Assert.StartsWith("<svg", svg);
-    }
 
     /// <summary>A count plot writes each category's name under the centre of its bar: the bars stand in their categories'
     /// slots (CategorySlot), where the axis writes the names. Measured before the fix in a 400 px figure: bars centred at
@@ -49,21 +45,16 @@ public class CountSeriesRenderTests
     public void Countplot_NamesEachCategoryUnderTheCentreOfItsBar()
     {
         string svg = Plt.Create().WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot(["cat", "dog", "dog", "eel", "eel", "eel"]))
+            .AddSubPlot(1, 1, 1, ax => ax.Countplot(["cat", "dog", "dog", "eel", "eel", "eel"], s => s.Color = Blue))
             .ToSvg();
 
-        var barCentres = System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""[0-9.eE+-]+"" width=""([0-9.eE+-]+)"" height=""[0-9.eE+-]+"" fill=""#1F77B4""")
-            .Select(m => Number(m.Groups[1].Value) + Number(m.Groups[2].Value) / 2)
-            .ToArray();
-        var nameXs = new[] { "cat", "dog", "eel" }
-            .Select(name => Number(System.Text.RegularExpressions.Regex.Match(svg, $@"<text[^>]*?x=""([-0-9.]+)""[^>]*>{name}</text>").Groups[1].Value))
-            .ToArray();
+        var barCentres = svg.RectsFilled("#1F77B4").Select(rect => rect.X + rect.Width / 2).ToArray();
+        var nameXs = new[] { "cat", "dog", "eel" }.Select(name => svg.TextReading(name).Number("x")).ToArray();
 
         Assert.Equal(3, barCentres.Length);
         for (int i = 0; i < 3; i++)
         {
-            Assert.Equal(nameXs[i], barCentres[i], 6);
+            Assert.Equal(nameXs[i], barCentres[i], SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -72,7 +63,7 @@ public class CountSeriesRenderTests
     [Fact]
     public void Countplot_RangesOverTheSlotsOfItsCategories()
     {
-        var range = new CountSeries(["cat", "dog", "dog", "eel", "eel", "eel"]).ComputeDataRange(new NoLimits());
+        var range = new CountSeries(["cat", "dog", "dog", "eel", "eel", "eel"]).ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(CategorySlot.Of(0).Left, range.XMin);
         Assert.Equal(CategorySlot.Of(2).Right, range.XMax);
@@ -80,18 +71,7 @@ public class CountSeriesRenderTests
         Assert.Equal(range.XMax, range.StickyXMax);
         Assert.Equal(0, range.YMin);
         Assert.Equal(3, range.YMax);
-    }
-
-    private static double Number(string text) => double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
-
-    private sealed class NoLimits : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
+        Assert.Equal(0, range.StickyYMin);   // the bars stand on 0, as every bar does
     }
 
     /// <summary>A horizontal count plot ranges its categories' slots along Y and its counts along X, the range a vertical
@@ -100,7 +80,7 @@ public class CountSeriesRenderTests
     public void AHorizontalCountplot_RangesItsCategoriesAlongY_AndItsCountsAlongX()
     {
         var range = new CountSeries(["cat", "dog", "dog", "eel", "eel", "eel"]) { Orientation = BarOrientation.Horizontal }
-            .ComputeDataRange(new NoLimits());
+            .ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(CategorySlot.Of(0).Left, range.YMin);
         Assert.Equal(CategorySlot.Of(2).Right, range.YMax);
@@ -108,7 +88,7 @@ public class CountSeriesRenderTests
         Assert.Equal(range.YMax, range.StickyYMax);
         Assert.Equal(0, range.XMin);
         Assert.Equal(3, range.XMax);
-        Assert.Null(range.StickyXMin);
+        Assert.Equal(0, range.StickyXMin);   // the bars' foot, lying down
     }
 
     /// <summary>A horizontal count plot draws each count as a bar along X and names its category on the Y axis, level with
@@ -118,34 +98,22 @@ public class CountSeriesRenderTests
     {
         string[] names = ["cat", "dog", "eel"];
         string svg = Plt.Create().WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot(["cat", "dog", "dog", "eel", "eel", "eel"], s => s.Orientation = BarOrientation.Horizontal))
+            .AddSubPlot(1, 1, 1, ax => ax.Countplot(["cat", "dog", "dog", "eel", "eel", "eel"], s => { s.Orientation = BarOrientation.Horizontal; s.Color = Blue; }))
             .ToSvg();
 
         var bars = SeriesRenderers.BarSeriesRendererTests.Bars(svg);
-        var plot = SeriesRenderers.BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.Equal(3, bars.Length);
-        Assert.Equal(2 * bars[0].W, bars[1].W, 6);
-        Assert.Equal(3 * bars[0].W, bars[2].W, 6);
-        Assert.All(bars, b => Assert.InRange(b.X + b.W, plot.X, plot.X + plot.W + 1e-6));
+        // Each width is written to the hundredth (half a step off at most), so k times the first is k + 1 half steps off at most.
+        Assert.Equal(2 * bars[0].W, bars[1].W, 1.5 * SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(3 * bars[0].W, bars[2].W, 2 * SvgMarkupExtensions.WrittenPrecision);
+        Assert.All(bars, b => Assert.InRange(b.X + b.W, plot.X, plot.X + plot.Width + 1e-6));
         for (int i = 0; i < 3; i++)
         {
             var name = Assert.Single(SeriesRenderers.BarSeriesRendererTests.Texts(svg, names[i]));
-            Assert.Equal(bars[i].Y + bars[i].H / 2 + 4, name.Y, 6);
+            Assert.Equal(bars[i].Y + bars[i].H / 2 + 0.35 * MatPlotLibNet.Styling.Theme.MatplotlibV2.TickFont().Size, name.Y, SvgMarkupExtensions.WrittenPrecision);   // centred on the bar
             Assert.True(name.X < plot.X, $"{names[i]} stands left of the Y spine");
         }
-    }
-
-    [Fact]
-    public void Countplot_HorizontalOrientation_RendersRects()
-    {
-        // CountSeriesRenderer.Render: else-branch (Horizontal orientation)
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values, s =>
-            {
-                s.Orientation = BarOrientation.Horizontal;
-            }))
-            .ToSvg();
-        Assert.Contains("<rect", svg);
     }
 }

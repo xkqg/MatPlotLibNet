@@ -20,7 +20,7 @@ public class InsetAxesOriginTests
     {
         var ctx = new RecordingRenderContext();
         new ChartRenderer().RenderAxes(figure, figure.SubPlots[0], new RenderPass(ParentArea, ctx, figure.Theme));
-        return [.. ctx.OfKind("DrawRectangle").Select(c => (Rect)((dynamic)c.Args!).rect)];
+        return [.. ctx.Rects()];
     }
 
     private static Figure WithInset(double x, double y, double width, double height)
@@ -48,16 +48,18 @@ public class InsetAxesOriginTests
         Assert.Contains(new Rect(200, 250, 200, 50), rectangles);
     }
 
-    /// <summary>The documentation of Y on each way to add an inset by four numbers says it counts down from the top.</summary>
+    /// <summary>The documentation of Y on each way to add an inset by four numbers says it counts down from the top: written once, on
+    /// <c>AddInset</c>, which the alias inherits it from.</summary>
     [Theory]
     [InlineData("M:MatPlotLibNet.Models.Axes.InsetAxes(System.Double,System.Double,System.Double,System.Double)")]
     [InlineData("M:MatPlotLibNet.Models.Axes.AddInset(System.Double,System.Double,System.Double,System.Double)")]
     public void TheDocumentedY_IsTheTopEdge_CountedDownFromTheParentsTop(string member)
     {
         var documentation = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "MatPlotLibNet.xml"));
-        var y = documentation.Descendants("member")
-            .Single(m => (string?)m.Attribute("name") == member)
-            .Elements("param").Single(p => (string?)p.Attribute("name") == "y").Value;
+        XElement Documented(string name) => documentation.Descendants("member").Single(m => (string?)m.Attribute("name") == name);
+        var documented = Documented(member);
+        if (documented.Element("inheritdoc")?.Attribute("cref") is { } inherited) documented = Documented(inherited.Value);
+        var y = documented.Elements("param").Single(p => (string?)p.Attribute("name") == "y").Value;
 
         Assert.Contains("top edge", y, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("down", y, StringComparison.OrdinalIgnoreCase);

@@ -54,8 +54,8 @@ Plt.Create()
 
 All SVG exports automatically include:
 - `role="img"` on the root `<svg>` element — or `role="group"` when the figure contains a hyperlink
-- `<title>` from `.WithAltText()`, else `.WithTitle()`, else the tile row's own labels, and `<desc>` from
-  `.WithDescription()`, referenced by `aria-labelledby` / `aria-describedby`
+- `<title>` from `.WithAltText(text)`, else `.WithTitle(title)`, else the tile row's own labels, and `<desc>` from
+  `.WithDescription(description)`, referenced by `aria-labelledby` / `aria-describedby`
 - `aria-label` on the structural groups (axes, legend, series, selection rectangle)
 - Keyboard-navigable interactive features (pan, zoom, reset, brush-select, legend toggle)
 
@@ -63,8 +63,8 @@ All SVG exports automatically include:
 labels do. With `role="img"`, a screen reader treats the whole SVG as one node. The WAI-ARIA
 children-presentational rule removes every descendant, so the `aria-label` on a series group is never
 announced. Those labels serve tooling, a hyperlinked figure (where the role is `group` and the labels *are*
-reachable) and a future in which the figure is navigable. They do not serve today's screen-reader user. That
-user hears only the `<title>` and the `<desc>`: one sentence about a picture that may hold four hundred
+reachable) and any viewer that makes the figure navigable. They do not serve a screen-reader user of a figure with
+`role="img"`. That user hears only the `<title>` and the `<desc>`: one sentence about a picture that may hold four hundred
 numbers.
 
 That is why the next section exists. WCAG 1.1.1 calls a one-sentence summary a short text alternative. For a
@@ -147,8 +147,8 @@ table, the legend and the SVG groups hold those series, and nothing more:
   padding cell keeps the date it stands for with no value. A Marimekko chart's table has a row for each column, with its
   name, the edge it begins at, the edge it ends at and the share of the cell in it, and names its segments.
 - **A line of many segments tables what it holds.** `VLines`, `HLines`, `Triplot` and the stems of `Acorr` and `Xcorr`
-  are one line each, with a missing point after each segment, and the table says what the series holds, as it does for any
-  line with a gap: a row for each end of each segment and, after them, a row that reads `NaN` in every column. A spectrum
+  are one line each, with a missing point between one segment and the next, and the table says what the series holds, as it does
+  for any line with a gap: a row for each end of each segment and, between two segments, a row that reads `NaN` in every column. A spectrum
   is one table of the frequencies and the values drawn, a gap as `NaN`.
 
 The tick labels themselves are inside the picture, which a screen reader announces by its alt text. Say what the

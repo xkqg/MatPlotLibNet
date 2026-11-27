@@ -24,46 +24,24 @@ public class TextStyleTests
         var style = new TextStyle();
         var result = style.ApplyTo(BaseFont);
 
-        Assert.Equal(BaseFont.Family, result.Family);
-        Assert.Equal(BaseFont.Size, result.Size);
-        Assert.Equal(BaseFont.Weight, result.Weight);
-        Assert.Equal(BaseFont.Slant, result.Slant);
+        Assert.Equivalent(new { BaseFont.Family, BaseFont.Size, BaseFont.Weight, BaseFont.Slant }, result);
         Assert.Null(result.Color);
     }
 
-    /// <summary>FontSize override replaces the base font size.</summary>
-    [Fact]
-    public void TextStyle_FontSizeOverride_AppliedToBaseFont()
+    /// <summary>An override replaces the one member of the base font it names (size, weight, colour, family, slant) and leaves the rest.</summary>
+    public static TheoryData<TextStyle, Font> Overrides { get; } = new()
     {
-        var style = new TextStyle { FontSize = 20 };
-        var result = style.ApplyTo(BaseFont);
+        { new TextStyle { FontSize = 20 }, BaseFont with { Size = 20 } },
+        { new TextStyle { FontWeight = FontWeight.Bold }, BaseFont with { Weight = FontWeight.Bold } },
+        { new TextStyle { Color = Colors.Red }, BaseFont with { Color = Colors.Red } },
+        { new TextStyle { FontFamily = "serif" }, BaseFont with { Family = "serif" } },
+        { new TextStyle { FontSlant = FontSlant.Italic }, BaseFont with { Slant = FontSlant.Italic } },
+    };
 
-        Assert.Equal(20, result.Size);
-        Assert.Equal(BaseFont.Family, result.Family);
-        Assert.Equal(BaseFont.Weight, result.Weight);
-    }
-
-    /// <summary>FontWeight override replaces the base font weight.</summary>
-    [Fact]
-    public void TextStyle_WeightOverride_AppliedToBaseFont()
-    {
-        var style = new TextStyle { FontWeight = FontWeight.Bold };
-        var result = style.ApplyTo(BaseFont);
-
-        Assert.Equal(FontWeight.Bold, result.Weight);
-        Assert.Equal(BaseFont.Size, result.Size);
-    }
-
-    /// <summary>Color override replaces the base font color.</summary>
-    [Fact]
-    public void TextStyle_ColorOverride_AppliedToBaseFont()
-    {
-        var style = new TextStyle { Color = Colors.Red };
-        var result = style.ApplyTo(BaseFont);
-
-        Assert.Equal(Colors.Red, result.Color);
-        Assert.Equal(BaseFont.Size, result.Size);
-    }
+    [Theory]
+    [MemberData(nameof(Overrides))]
+    public void TextStyle_AnOverride_IsAppliedToBaseFont(TextStyle style, Font expected) =>
+        Assert.Equal(expected, style.ApplyTo(BaseFont));
 
     /// <summary>Multiple overrides are all applied simultaneously.</summary>
     [Fact]
@@ -84,25 +62,6 @@ public class TextStyleTests
         Assert.Equal(Colors.Blue, result.Color);
     }
 
-    /// <summary>Pad defaults to null (no override).</summary>
-    [Fact]
-    public void TextStyle_Pad_DefaultsToNull()
-    {
-        var style = new TextStyle();
-        Assert.Null(style.Pad);
-    }
-
-    /// <summary>FontFamily override replaces the base font family.</summary>
-    [Fact]
-    public void TextStyle_FontFamilyOverride_AppliedToBaseFont()
-    {
-        var style = new TextStyle { FontFamily = "serif" };
-        var result = style.ApplyTo(BaseFont);
-
-        Assert.Equal("serif", result.Family);
-        Assert.Equal(BaseFont.Size, result.Size);
-    }
-
     /// <summary>ApplyTo returns a new Font — the base Font is not mutated.</summary>
     [Fact]
     public void TextStyle_ApplyTo_DoesNotMutateBase()
@@ -112,16 +71,5 @@ public class TextStyleTests
         _ = style.ApplyTo(original);
 
         Assert.Equal(13, original.Size);
-    }
-
-    /// <summary>FontSlant override replaces the base font slant.</summary>
-    [Fact]
-    public void TextStyle_FontSlantOverride_AppliedToBaseFont()
-    {
-        var style = new TextStyle { FontSlant = FontSlant.Italic };
-        var result = style.ApplyTo(BaseFont);
-
-        Assert.Equal(FontSlant.Italic, result.Slant);
-        Assert.Equal(BaseFont.Size, result.Size);
     }
 }

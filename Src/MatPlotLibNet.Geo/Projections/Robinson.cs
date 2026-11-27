@@ -6,7 +6,7 @@ namespace MatPlotLibNet.Geo.Projections;
 /// <summary>Robinson projection — a compromise pseudo-cylindrical projection designed for
 /// world maps. Neither conformal nor equal-area but minimises overall distortion.
 /// Uses polynomial interpolation of Robinson's tabulated values.</summary>
-public sealed class Robinson : IGeoProjection
+public sealed class Robinson : IGeoProjection, IProjectionOutline
 {
     // Robinson's tabulated values at 5° intervals (latitude 0° to 90°)
     private static readonly double[] _plen = // parallel length
@@ -30,7 +30,7 @@ public sealed class Robinson : IGeoProjection
     {
         // Math.Sign(NaN) THROWS; explicit guard so NaN inputs propagate cleanly
         // (matches matplotlib semantics — series with NaN render gaps, not crashes).
-        if (double.IsNaN(latitude) || double.IsNaN(longitude)) return new(double.NaN, double.NaN);
+        if (double.IsNaN(latitude) || double.IsNaN(longitude)) return ProjectedPoint.OffDomain;
 
         double absLat = Math.Min(Math.Abs(latitude), 90);
         int index = (int)(absLat / 5);
@@ -40,8 +40,10 @@ public sealed class Robinson : IGeoProjection
         double plen = _plen[index] + frac * (_plen[index + 1] - _plen[index]);
         double pdfe = _pdfe[index] + frac * (_pdfe[index + 1] - _pdfe[index]);
 
+        // Robinson's x = 0.8487 * PLEN * longitude and y = 1.3523 * PDFE on a sphere of radius 1, both in degrees of arc: the
+        // longitude in degrees, the distance from the equator times the degrees in a radian.
         double x = 0.8487 * plen * longitude;
-        double y = Math.Sign(latitude) * 1.3523 * pdfe * 90;
+        double y = (Math.Sign(latitude) * 1.3523 * pdfe).ToDegrees();
 
         return new(x, y);
     }
@@ -50,13 +52,8 @@ public sealed class Robinson : IGeoProjection
     public GeoCoordinate? Inverse(double x, double y) => null; // not invertible analytically
 
     /// <inheritdoc />
-    public GeoBounds Bounds
-    {
-        get
-        {
-            var (xMax, _) = Forward(0, 180);
-            var (_, yMax) = Forward(90, 0);
-            return new(-xMax, xMax, -yMax, yMax);
-        }
-    }
+    /// <remarks>The box round the edge of the world.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
+
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => this.MeridianOutline();
 }

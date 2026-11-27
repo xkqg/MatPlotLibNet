@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -13,42 +14,32 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Twiggs Money Flow</i>, Incredible Charts documentation.</summary>
 public sealed class TwiggsMoneyFlow : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 21;
+
     private readonly int _period;
 
     /// <summary>Creates a new Twiggs Money Flow indicator.</summary>
     /// <param name="bars">High, Low, Close and Volume; built via <see cref="OhlcvBars.Hlcv"/>.</param>
-    /// <param name="period">Wilder smoothing period. Default 21. Must be ≥ 2.</param>
-    public TwiggsMoneyFlow(OhlcvBars bars, int period = 21)
-        : base(bars)
+    /// <param name="period">Wilder smoothing period. Default <see cref="DefaultPeriod"/>. Must be ≥ 2.</param>
+    public TwiggsMoneyFlow(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _period = period;
-        Label = $"TMF({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("TMF", period, 2, 1);
 
     /// <inheritdoc />
-    public override SignalResult Compute()
-    {
-        int n = BarCount;
-        if (n < 2) return Array.Empty<double>();
+    public override SignalResult Compute() => FoldHlcv(new TwiggsMoneyFlowStep(_period));
 
-        var result = new double[n - 1];
-        var step = new TwiggsMoneyFlowStep(_period);
-        for (int i = 0; i < n; i++)
-        {
-            double value = step.Next(High[i], Low[i], Close[i], Volume[i]);
-            if (i >= 1) result[i - 1] = value;
-        }
-
-        return result;
-    }
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingTwiggsMoneyFlow"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Signed;
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), warmup: 1);
-        axes.YAxis.Min = -1;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

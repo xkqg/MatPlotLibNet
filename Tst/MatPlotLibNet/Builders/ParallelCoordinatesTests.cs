@@ -1,15 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
+using MatPlotLibNet.Rendering;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
@@ -31,11 +29,8 @@ public class ParallelCoordinatesTests
         new("dog", [3, 20, 50]),
     ];
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Chart(string[] dimensions, IReadOnlyList<BarGroup> rows, Action<LineSeries>? configure = null) =>
-        AxesOf(ax => ax.ParallelCoordinates(dimensions, rows, configure));
+        Plt.Create().OneAxes(ax => ax.ParallelCoordinates(dimensions, rows, configure));
 
     private static Axes Chart(IReadOnlyList<BarGroup> rows) => Chart(Dimensions, rows);
 
@@ -47,16 +42,12 @@ public class ParallelCoordinatesTests
     private readonly record struct Pt(double X, double Y);
 
     /// <summary>The plot area in pixels.</summary>
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     /// <summary>A text drawn straight into the figure: what it says, where its anchor stands, and which side of the text the
     /// anchor is on (<c>start</c>, <c>middle</c> or <c>end</c>).</summary>
     private readonly record struct FigureText(string Text, double X, string Anchor);
 
     /// <summary>A straight line drawn into the figure: its two ends and its stroke.</summary>
     private readonly record struct Stroke(double X1, double Y1, double X2, double Y2, string Colour, string Width);
-
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
 
     private static string Svg(Action<AxesBuilder> configure, Theme? theme = null)
     {
@@ -65,43 +56,29 @@ public class ParallelCoordinatesTests
         return builder.AddSubPlot(1, 1, 1, configure).Build().ToSvg();
     }
 
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
-
-    private static List<XElement> SeriesGroups(string svg) =>
-        [.. Named(XDocument.Parse(svg), "g").Where(g => (string?)g.Attribute("class") == "series")];
-
     /// <summary>The polylines of one series group, each as its points: one for every stretch of the line that is drawn.</summary>
     private static List<Pt[]> Polylines(XElement series) =>
-        [.. Named(series, "polyline").Select(p => ((string)p.Attribute("points")!)
+        [.. series.Each("polyline").Select(p => ((string)p.Attribute("points")!)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(pair => pair.Split(','))
-            .Select(xy => new Pt(Num(xy[0]), Num(xy[1])))
+            .Select(xy => new Pt(xy[0].Number(), xy[1].Number()))
             .ToArray())];
 
     /// <summary>The lines the figure draws directly (not inside a series, a legend or a spine group).</summary>
     private static List<Stroke> FigureLines(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "line")
-            .Select(e => new Stroke(Num((string)e.Attribute("x1")!), Num((string)e.Attribute("y1")!),
-                Num((string)e.Attribute("x2")!), Num((string)e.Attribute("y2")!),
+        [.. svg.Direct("line")
+            .Select(e => new Stroke(e.Number("x1"), e.Number("y1"),
+                e.Number("x2"), e.Number("y2"),
                 (string)e.Attribute("stroke")!, (string)e.Attribute("stroke-width")!))];
 
     /// <summary>The axis lines: the vertical lines the figure draws in the reference line's grey, the full height of the plot.</summary>
     private static List<Stroke> AxisLines(string svg) =>
         [.. FigureLines(svg).Where(l => l.Colour == Colors.Gray.ToHex() && l.X1 == l.X2)];
 
-    /// <summary>The plot area: the second rectangle drawn into the figure, after the figure's own background.</summary>
-    private static Area PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new Area(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-                Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
-
     /// <summary>The texts drawn straight into the figure, not inside a series, a legend or a spine group.</summary>
     private static List<FigureText> FigureTexts(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "text")
-            .Select(e => new FigureText(e.Value, Num((string)e.Attribute("x")!), (string)e.Attribute("text-anchor")!))];
+        [.. svg.Direct("text")
+            .Select(e => new FigureText(e.Value, e.Number("x"), (string)e.Attribute("text-anchor")!))];
 
     // ---- one line series per class -------------------------------------------------------------------------------------
 
@@ -204,7 +181,7 @@ public class ParallelCoordinatesTests
 
         string svg = Svg(ax => ax.ParallelCoordinates(FourDimensions, rows));
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         var axisX = AxisLines(svg).Select(l => l.X1).OrderBy(x => x).ToArray();
         var classX = Polylines(groups[0]);
         Assert.Equal(2, classX.Count);
@@ -226,7 +203,7 @@ public class ParallelCoordinatesTests
 
         string svg = Svg(ax => ax.ParallelCoordinates(FourDimensions, rows));
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         var axisX = AxisLines(svg).Select(l => l.X1).OrderBy(x => x).ToArray();
         var classX = Polylines(groups[0]);
         Assert.Equal(2, classX.Count);
@@ -237,7 +214,7 @@ public class ParallelCoordinatesTests
         var whole = Polylines(groups[1]);
         Assert.Single(whole);
         Assert.Equal(4, whole[0].Length);
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>Compares pixel coordinates the way the SVG writes them (a coordinate can come out a hair apart between the
@@ -274,6 +251,8 @@ public class ParallelCoordinatesTests
         {
             Assert.Equal(Orientation.Vertical, line.Orientation);
             Assert.Equal(LineStyle.Solid, line.LineStyle);
+            // given 1 px, as pandas' parallel_coordinates gives its axvline linewidth=1 (pandas 3.1.1: axvlines_kwds {"linewidth": 1})
+            Assert.Equal(1.0, line.GivenLineWidth);
             Assert.Null(line.Color);
             Assert.Null(line.Label);
         });
@@ -286,7 +265,7 @@ public class ParallelCoordinatesTests
     {
         string svg = Svg(ax => ax.ParallelCoordinates(Dimensions, Rows));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var axisLines = AxisLines(svg);
         var names = FigureTexts(svg).Where(t => t.Anchor == "middle").ToList();
         Assert.Equal(Dimensions.Length, axisLines.Count);
@@ -294,7 +273,7 @@ public class ParallelCoordinatesTests
         for (int k = 0; k < Dimensions.Length; k++)
         {
             Assert.Equal(plot.Y, axisLines[k].Y1, 6);
-            Assert.Equal(plot.Y + plot.H, axisLines[k].Y2, 6);
+            Assert.Equal(plot.Y + plot.Height, axisLines[k].Y2, 6);
             Assert.Equal(names[k].X, axisLines[k].X1, 6);
         }
         int lastAxisLine = svg.LastIndexOf($"stroke=\"{Colors.Gray.ToHex()}\" stroke-width=\"1\"", StringComparison.Ordinal);
@@ -313,7 +292,7 @@ public class ParallelCoordinatesTests
     [InlineData("Ggplot")]
     public void TheAxisLines_AreVisibleOnTheTheme_WhateverIsSetAfterTheVerb(string themeName)
     {
-        var theme = themeName switch { "Dark" => Theme.Dark, "Ggplot" => Theme.Ggplot, _ => Theme.Default };
+        var theme = themeName.AsTheme();
 
         // The theme is set AFTER the verb has run, so nothing the verb fixed could follow it.
         string svg = Plt.Create().WithSize(700, 500)
@@ -360,41 +339,9 @@ public class ParallelCoordinatesTests
 
         Assert.IsType<FixedLocator>(axes.YAxis.TickLocator);
         Assert.Empty(axes.YAxis.TickLocator!.Locate(-10, 10));
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         Assert.DoesNotContain(FigureTexts(svg), t => t.Anchor == "end" && t.X < plot.X);
         Assert.DoesNotContain(FigureLines(svg), l => l.Y1 == l.Y2 && l.X1 < plot.X);
-    }
-
-    /// <summary>The Y axis keeps its grid off the scale too: under a theme that draws one (ggplot), no horizontal line stands on a
-    /// value that reads nothing.</summary>
-    [Fact]
-    public void UnderAGridTheme_NoHorizontalGridLine_StandsOnAScaleThatReadsNothing()
-    {
-        string svg = Svg(ax => ax.ParallelCoordinates(Dimensions, Rows), Theme.Ggplot);
-
-        var plot = PlotArea(svg);
-        Assert.DoesNotContain(FigureLines(svg), l => l.Y1 == l.Y2 && l.X1 <= plot.X + 1 && l.X2 >= plot.X + plot.W - 1);
-    }
-
-    // ---- limits ------------------------------------------------------------------------------------------------------------
-
-    /// <summary>The verb sets no axis limit and keeps one the caller set before the call (W9): a limit clips every series on
-    /// the axes and overwrites the caller's own.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Chart(Rows);
-        var kept = AxesOf(ax => ax.SetXLim(0, 3).SetYLim(-0.5, 1.5).ParallelCoordinates(Dimensions, Rows));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(0.0, kept.XAxis.Min);
-        Assert.Equal(3.0, kept.XAxis.Max);
-        Assert.Equal(-0.5, kept.YAxis.Min);
-        Assert.Equal(1.5, kept.YAxis.Max);
     }
 
     // ---- colours and the legend --------------------------------------------------------------------------------------------
@@ -406,9 +353,9 @@ public class ParallelCoordinatesTests
     {
         string svg = Svg(ax => ax.ParallelCoordinates(Dimensions, Rows));
 
-        var groups = SeriesGroups(svg);
-        var dog = Named(groups[0], "polyline").Select(p => (string)p.Attribute("stroke")!).ToList();
-        var cat = Named(groups[1], "polyline").Select(p => (string)p.Attribute("stroke")!).ToList();
+        var groups = svg.SeriesGroups();
+        var dog = groups[0].Each("polyline").Select(p => (string)p.Attribute("stroke")!).ToList();
+        var cat = groups[1].Each("polyline").Select(p => (string)p.Attribute("stroke")!).ToList();
         Assert.Equal(2, dog.Count);
         Assert.Single(dog.Distinct());
         Assert.Equal(Colors.Tab10Blue.ToHex(), dog[0]);
@@ -425,8 +372,7 @@ public class ParallelCoordinatesTests
 
         string svg = figure.ToSvg();
 
-        var entries = Regex.Matches(svg, """<g data-legend-index="([0-9]+)" [^>]*aria-label="([^"]*)">""");
-        Assert.Equal(["0:dog", "1:cat"], entries.Select(e => $"{e.Groups[1].Value}:{e.Groups[2].Value}"));
+        Assert.Equal(["0:dog", "1:cat"], svg.LegendEntries().Select(entry => $"{entry.Index}:{entry.Label}"));
     }
 
     /// <summary>The lines fill the plot, so no corner is empty: the legend is the caller's to move, and a legend set outside the
@@ -437,10 +383,9 @@ public class ParallelCoordinatesTests
         string svg = Plt.Create().WithSize(700, 500).TightLayout()
             .AddSubPlot(1, 1, 1, ax => ax.ParallelCoordinates(Dimensions, Rows).WithLegend(LegendPosition.OutsideRight)).Build().ToSvg();
 
-        var plot = PlotArea(svg);
-        var legend = Named(XDocument.Parse(svg), "g").First(g => (string?)g.Attribute("class") == "legend");
-        double legendLeft = Num((string)Named(legend, "rect").First().Attribute("x")!);
-        Assert.True(legendLeft > plot.X + plot.W, $"the legend starts at {legendLeft}, not right of the plot area ending at {plot.X + plot.W}");
+        var plot = svg.PlotArea();
+        double legendLeft = svg.LegendFrame()!.Value.X;
+        Assert.True(legendLeft > plot.X + plot.Width, $"the legend starts at {legendLeft}, not right of the plot area ending at {plot.X + plot.Width}");
     }
 
     /// <summary>Rows that carry no name are one class of their own, drawn in one colour and left out of the legend (an entry
@@ -453,35 +398,16 @@ public class ParallelCoordinatesTests
         figure.EnableLegendToggle = true;
 
         var lines = Lines(figure.SubPlots[0]);
-        var entries = Regex.Matches(figure.ToSvg(), "data-legend-index=");
+        int entries = figure.ToSvg().CountOf("data-legend-index=");
 
         Assert.Equal(2, lines.Length);
         Assert.Null(lines[0].Label);
         Assert.Equal([0.0, 1.0, 1.0, double.NaN, 1.0, 1.0, 0.0], lines[0].YData);
         Assert.Equal("named", lines[1].Label);
-        Assert.Single(entries);
+        Assert.Equal(1, entries);
     }
 
     // ---- the callback ----------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once for each class, in the order the classes first appear, after the verb has built and
-    /// styled the series, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerClass_InOrder_AfterTheVerbStyledIt()
-    {
-        var seen = new List<string?>();
-
-        var axes = Chart(Dimensions, Rows, line =>
-        {
-            Assert.NotNull(line.Label);
-            Assert.Equal(1.2, line.LineWidth);
-            seen.Add(line.Label);
-            line.LineWidth = 3;
-        });
-
-        Assert.Equal(["dog", "cat"], seen);
-        Assert.All(Lines(axes), line => Assert.Equal(3, line.LineWidth));
-    }
 
     /// <summary>What the callback sets wins over the cycle: a colour set there is the colour drawn.</summary>
     [Fact]
@@ -489,23 +415,10 @@ public class ParallelCoordinatesTests
     {
         string svg = Svg(ax => ax.ParallelCoordinates(Dimensions, Rows, line => line.Color = Colors.Red));
 
-        Assert.All(SeriesGroups(svg), g => Assert.All(Named(g, "polyline"), p => Assert.Equal(Colors.Red.ToHex(), (string)p.Attribute("stroke")!)));
+        Assert.All(svg.SeriesGroups(), g => Assert.All(g.Each("polyline"), p => Assert.Equal(Colors.Red.ToHex(), (string)p.Attribute("stroke")!)));
     }
 
     // ---- the verb draws what the hand chain draws ---------------------------------------------------------------------
-
-    /// <summary>The verb adds nothing to the picture that the hand-written chain of public building blocks did not draw, and
-    /// leaves nothing out: same SVG, byte for byte, with and without a missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("parallel-coordinates").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.ParallelCoordinatesByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
 
     /// <summary>Written to JSON and read back, the chart draws the same picture, a missing value included, under the default
     /// theme and a dark one: the class lines with their missing separators, the axis lines, the names and the Y axis without
@@ -521,7 +434,7 @@ public class ParallelCoordinatesTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.ParallelCoordinates(FourDimensions, rows)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.Equal(FourDimensions, FigureTexts(readBack).Where(t => t.Anchor == "middle").Select(t => t.Text));
@@ -530,15 +443,6 @@ public class ParallelCoordinatesTests
     }
 
     // ---- refused arguments -----------------------------------------------------------------------------------------------
-
-    /// <summary>An axes, a list of dimensions or a list of rows that is not there is refused by name.</summary>
-    [Fact]
-    public void ANullArgument_IsRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).ParallelCoordinates(Dimensions, Rows)).ParamName);
-        Assert.Equal("dimensions", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.ParallelCoordinates(null!, Rows))).ParamName);
-        Assert.Equal("rows", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.ParallelCoordinates(Dimensions, null!))).ParamName);
-    }
 
     /// <summary>No dimensions and no rows draw nothing: both are refused by name, in words that say what a chart needs.</summary>
     [Fact]
@@ -564,7 +468,7 @@ public class ParallelCoordinatesTests
         var error = Assert.Throws<ArgumentException>(() => Chart(ragged));
 
         Assert.Equal("rows", error.ParamName);
-        Assert.Equal("Group 'cat' carries 2 values; there are 3 dimensions. (Parameter 'rows')", error.Message);
+        Assert.Equal(2.RefusalAgainst(3, "rows", "group 'cat'"), error.Message);
         Assert.Equal("rows", Assert.Throws<ArgumentException>(() => Chart([new BarGroup("dog", null!)])).ParamName);
         Assert.Equal("rows", Assert.Throws<ArgumentException>(() => Chart([default])).ParamName);
     }
@@ -579,47 +483,33 @@ public class ParallelCoordinatesTests
         var error = Assert.Throws<ArgumentException>(() => Chart(["fine", "huge"], rows));
 
         Assert.Equal("rows", error.ParamName);
-        Assert.StartsWith("The values of 'huge' span more than a double can hold", error.Message);
-    }
-
-    /// <summary>A refused call has added nothing: the checks come before the first series, so no series, no axis line, no
-    /// ticks are left behind.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.ParallelCoordinates(Dimensions, [new("dog", [1, 2, 3]), new("cat", [1])]));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Empty(axes.ReferenceLines);
-        Assert.Null(axes.XAxis.TickLocator);
-        Assert.Null(axes.YAxis.TickLocator);
+        Assert.StartsWith("The span of 'huge' is beyond what a double holds (got Infinity).", error.Message, StringComparison.Ordinal);
     }
 
     // ---- the example in the documentation --------------------------------------------------------------------------------
 
-    /// <summary>The example of the verb's documentation, as written there, compiles and draws.</summary>
-    [Fact]
-    public void TheDocumentationExample_Draws()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string[] measures = ["Sepal length", "Sepal width", "Petal length", "Petal width"];
+        //  The example of the verb's documentation, as written there, compiles and draws.
+        new DrawnToken("TheDocumentationExample_Draws", () =>
+        {
+            string[] measures = ["Sepal length", "Sepal width", "Petal length", "Petal width"];
+            return Plt.Create()
+                .WithTitle("Three species of iris")
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .ParallelCoordinates(measures,
+                    [
+                        new BarGroup("setosa", [5.1, 3.5, 1.4, 0.2]),
+                        new BarGroup("setosa", [4.9, 3.0, 1.4, 0.2]),
+                        new BarGroup("versicolor", [7.0, 3.2, 4.7, 1.4]),
+                        new BarGroup("virginica", [6.3, 3.3, 6.0, 2.5]),
+                    ]))
+                .ToSvg();
+        }, ">Petal width<", ">virginica<", ">Three species of iris<"),
+    };
 
-        string svg = Plt.Create()
-            .WithTitle("Three species of iris")
-            .AddSubPlot(1, 1, 1, ax => ax
-                .ParallelCoordinates(measures,
-                [
-                    new BarGroup("setosa", [5.1, 3.5, 1.4, 0.2]),
-                    new BarGroup("setosa", [4.9, 3.0, 1.4, 0.2]),
-                    new BarGroup("versicolor", [7.0, 3.2, 4.7, 1.4]),
-                    new BarGroup("virginica", [6.3, 3.3, 6.0, 2.5]),
-                ]))
-            .ToSvg();
-
-        Assert.Contains(">Petal width<", svg);
-        Assert.Contains(">virginica<", svg);
-        Assert.Contains(">Three species of iris<", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

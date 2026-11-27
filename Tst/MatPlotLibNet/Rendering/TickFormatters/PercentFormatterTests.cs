@@ -16,12 +16,14 @@ public class PercentFormatterTests
         Assert.NotNull(formatter);
     }
 
-    /// <summary>Verifies 0..1 scale: half = 50%.</summary>
-    [Fact]
-    public void Format_HalfOfOne_Returns50Percent()
+    [Theory]
+    [InlineData(1.0, "50%", 0.5)] // Format_HalfOfOne_Returns50Percent
+    [InlineData(100.0, "0%", 0)] // Format_Zero_ReturnsZeroPercent
+    [InlineData(100.0, "25%", 25)] // Format_25Of100_Returns25Percent
+    public void Format_WritesTheFractionOfTheMaximumAsAPercent(double maximum, string expected, double value)
     {
-        var formatter = new PercentFormatter(1.0);
-        Assert.Equal("50%", formatter.Format(0.5));
+        var formatter = new PercentFormatter(maximum);
+        Assert.Equal(expected, formatter.Format(value));
     }
 
     /// <summary>Verifies that the maximum value formats as 100%.</summary>
@@ -35,22 +37,6 @@ public class PercentFormatterTests
         Assert.Equal("100%", formatter.Format(max));
     }
 
-    /// <summary>Verifies that zero always formats as 0%.</summary>
-    [Fact]
-    public void Format_Zero_ReturnsZeroPercent()
-    {
-        var formatter = new PercentFormatter(100.0);
-        Assert.Equal("0%", formatter.Format(0));
-    }
-
-    /// <summary>Verifies 0..100 scale: 25 = 25%.</summary>
-    [Fact]
-    public void Format_25Of100_Returns25Percent()
-    {
-        var formatter = new PercentFormatter(100.0);
-        Assert.Equal("25%", formatter.Format(25));
-    }
-
     /// <summary>Verifies that the result always ends with %.</summary>
     [Theory]
     [InlineData(0)]
@@ -61,5 +47,31 @@ public class PercentFormatterTests
     {
         var formatter = new PercentFormatter(100.0);
         Assert.EndsWith("%", formatter.Format(value));
+    }
+
+    [Fact]
+    public void Format_MaxIsZero_ReturnsZeroPercent()
+    {
+        // Hits the `_max == 0 → 0` branch: 5/0 would be NaN but the guard returns 0.
+        var f = new PercentFormatter(0.0);
+        Assert.Equal("0%", f.Format(5));
+        Assert.Equal("0%", f.Format(-5));
+        Assert.Equal("0%", f.Format(0));
+    }
+
+    [Theory]
+    [InlineData(33.333, 100, "33.33%")]   // non-integer → G4 branch (4 sig figs)
+    [InlineData(12.5,   100, "12.5%")]
+    [InlineData(0.1,    1.0, "10%")]      // 0.1/1 *100 = 10 → integer → floor branch
+    [InlineData(0.125,  1.0, "12.5%")]    // 12.5 → G4 branch
+    public void Format_FloorVsG4_Branches(double value, double max, string expected)
+        => Assert.Equal(expected, new PercentFormatter(max).Format(value));
+
+    [Fact]
+    public void Format_NegativePercent_KeepsSign()
+    {
+        // -25/100*100 = -25 → integer → floor cast handles long with sign
+        var f = new PercentFormatter(100.0);
+        Assert.Equal("-25%", f.Format(-25));
     }
 }

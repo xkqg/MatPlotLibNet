@@ -70,10 +70,6 @@ public class SpectralDetrendTests
         Assert.Equal([1.0, 2.0], halved.Removed([2, 4]));
     }
 
-    [Fact]
-    public void Of_NullFunction_Refuses()
-        => Assert.Throws<ArgumentNullException>(() => SpectralDetrend.Of(null!));
-
     [Theory]
     [InlineData(1)]
     [InlineData(3)]

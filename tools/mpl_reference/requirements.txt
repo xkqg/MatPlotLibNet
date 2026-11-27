@@ -1,9 +1,22 @@
-matplotlib==3.10.*
-# The references patches_linear, patches_log, linked_yaxis_fahrenheit and linked_xaxis_period were drawn with matplotlib 3.11.2 (the json
-# beside each picture names its version). Drawn again with 3.10.9 the shapes and the ticks come out where they did: only the pixels of the text move.
+matplotlib==3.11.*
+# Every reference is drawn with matplotlib 3.11.2 (the json beside each picture names its version).
+# The indicator references are pandas-ta 0.4.71b0's own functions (generate.py turns its TA-Lib path off); numba only speeds them up.
 numpy==2.*
 seaborn==0.13.*
 squarify==0.4.*
 pandas==3.*
 pandas-ta>=0.3.14b
+# The ind_psar reference is TA-Lib's SAR (its wheels carry the C library): the library's ParabolicSar computes Wilder's SAR as TA-Lib does.
+TA-Lib==0.8.*
 mpltern==1.0.*
+# The geo_robinson reference is drawn by cartopy 0.26.0, whose wheels carry GEOS and PROJ (no system library to install). It reads
+# its own Natural Earth 110m shapes, which it downloads on first use.
+cartopy==0.26.*
+# The table of calls the documents are held to (generate_signatures.py) holds the packages a comparison of the documents names beside
+# matplotlib. lifelines is left out: it holds pandas below 3, which the indicator references need.
+pywaffle==1.2.*
+mplfinance==0.12.10b0
+joypy==0.2.*
+calplot==0.1.*
+july==0.1.*
+plotly==7.*

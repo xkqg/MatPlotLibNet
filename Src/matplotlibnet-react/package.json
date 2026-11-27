@@ -11,6 +11,9 @@
     "react-dom": "^19.0.0",
     "@microsoft/signalr": "^8.0.0"
   },
+  "dependencies": {
+    "@matplotlibnet/client": "^0.3.2"
+  },
   "devDependencies": {
     "typescript": "^5.7.0",
     "vitest": "^3.0.0",

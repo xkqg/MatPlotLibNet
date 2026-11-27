@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Linq;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -15,8 +14,6 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// matplotlib pads in scaled space and MASKS non-positive values (<c>nonpositive='mask'</c>); so does this.</summary>
 public class LogAxisRangeTests
 {
-    private static readonly Regex Polyline = new("<polyline points=\"([^\"]*)\"", RegexOptions.Compiled);
-
     private static string Render(double[] y, Action<AxesBuilder>? configure = null)
     {
         double[] x = [.. Enumerable.Range(0, y.Length).Select(i => (double)i)];
@@ -32,9 +29,9 @@ public class LogAxisRangeTests
 
     private static string Points(string svg)
     {
-        var m = Polyline.Match(svg);
-        Assert.True(m.Success, "the line is drawn");
-        return m.Groups[1].Value;
+        var lines = svg.Elements("polyline");
+        Assert.True(lines.Count > 0, "the line is drawn");
+        return lines[0]["points"]!;
     }
 
     [Fact]
@@ -42,11 +39,13 @@ public class LogAxisRangeTests
     {
         string svg = Render([2, 5, 20, 80, 250]);
 
-        Assert.DoesNotContain("NaN", Points(svg));
+        Points(svg).AssertNoNonFiniteNumber();
     }
 
+    /// <summary>The decades are what the log scale brings: the drawing shows them, labelled 10¹ and 10², and the axis is left
+    /// with no locator or formatter of its own, as the caller built it.</summary>
     [Fact]
-    public void AnAutoRangedLogAxis_GetsDecadeTicks()
+    public void AnAutoRangedLogAxis_DrawsDecadeTicks_AndKeepsNoLocatorOfItsOwn()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax =>
         {
@@ -54,10 +53,12 @@ public class LogAxisRangeTests
             ax.SetYScale(AxisScale.Log);
         }).Build();
 
-        _ = figure.ToSvg();
+        string svg = figure.ToSvg();
 
-        Assert.IsType<LogLocator>(figure.SubPlots[0].YAxis.TickLocator);
-        Assert.IsType<LogTickFormatter>(figure.SubPlots[0].YAxis.TickFormatter);
+        Assert.Contains(">10¹<", svg);
+        Assert.Contains(">10²<", svg);
+        Assert.Null(figure.SubPlots[0].YAxis.TickLocator);
+        Assert.Null(figure.SubPlots[0].YAxis.TickFormatter);
     }
 
     [Fact]
@@ -76,18 +77,19 @@ public class LogAxisRangeTests
         Assert.Same(locator, figure.SubPlots[0].YAxis.TickLocator);
     }
 
-    /// <summary>A window that priced 0 µs is a point the axis cannot place; it is MASKED — dropped from the
-    /// range and from the line — never allowed to blank the panel. A masked point breaks the line there, as in
-    /// matplotlib: the 2 before it has no neighbour left to join, so the one line drawn is 20, 80, 250.</summary>
+    /// <summary>A window that priced 0 µs is a point the axis cannot place: it is dropped from the range and never allowed to
+    /// blank the panel. matplotlib's log scale puts it a thousand decades below the axis (<c>nonpositive='clip'</c>), so the
+    /// line dives from 2 to the bottom edge and climbs from it to 20: two lines, 2 and its dive, then the climb, 20, 80, 250.</summary>
     [Fact]
-    public void AZeroValue_IsMasked_AndBreaksTheLine()
+    public void AZeroValue_IsLeftOutOfTheRange_AndTheLineDivesToTheEdgeThere()
     {
         string svg = Render([2, 0, 20, 80, 250]);
 
-        var lines = Polyline.Matches(svg).Select(m => m.Groups[1].Value).ToList();
-        string points = Assert.Single(lines);
-        Assert.DoesNotContain("NaN", points);
-        Assert.Equal(3, points.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
+        var lines = svg.Elements("polyline").Select(polyline => polyline["points"]!).ToList();
+        Assert.Equal(2, lines.Count);
+        lines.AssertNoNonFiniteNumber("a polyline");
+        Assert.Equal(2, lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
+        Assert.Equal(4, lines[1].Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
     }
 
     [Fact]
@@ -95,7 +97,7 @@ public class LogAxisRangeTests
     {
         string svg = Render([2, 0, 20, 80, 250], ax => ax.SetYLim(1, 1000));
 
-        Assert.DoesNotContain("NaN", Points(svg));
+        Points(svg).AssertNoNonFiniteNumber();
     }
 
     /// <summary>The floor of a log axis is the smallest POSITIVE contribution, padded in log space — never a
@@ -115,12 +117,13 @@ public class LogAxisRangeTests
         Assert.True(lowest < 300, $"the y=2 point is drawn above the figure's bottom edge, was {lowest}");
     }
 
-    [Fact]
-    public void AnAllNonPositiveSeries_RendersAnEmptyLine_NotAnError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Render([0, 0, 0]);
+        new DrawnToken("AnAllNonPositiveSeries_RendersAnEmptyLine_NotAnError", () => Render([0, 0, 0]), "<svg") { Finite = true },
+    };
 
-        Assert.Contains("<svg", svg);
-        Assert.DoesNotContain("NaN", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

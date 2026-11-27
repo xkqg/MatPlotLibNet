@@ -2,51 +2,25 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="BrokenBarSeries"/> default properties, construction, and serialization.</summary>
+/// <summary>Verifies <see cref="BrokenBarSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class BrokenBarSeriesTests
 {
+    /// <summary>A row is a slot the caller gave (one label a row, the rows of a Gantt chart share the extent), so a row with no segment
+    /// keeps its place along Y under every theme, the matplotlib themes included: matplotlib's <c>broken_barh</c> draws one row a call and
+    /// has no row to leave out. Only a series whose rows hold no segment at all holds no data.</summary>
     [Fact]
-    public void Constructor_StoresRanges()
+    public void ARowWithNoSegment_KeepsItsSlotUnderEveryTheme()
     {
-        var ranges = new BarRange[][] { [new(1.0, 2.0), new(4.0, 1.0)] };
-        var series = new BrokenBarSeries(ranges);
-        Assert.Equal(ranges, series.Ranges);
-    }
+        var series = new BrokenBarSeries([[new BarRange(1, 2)], []]) { BarHeight = 0.5 };
+        var expected = new DataRangeContribution(1, 3, -0.25, 1.25);
 
-    [Fact]
-    public void BarHeight_DefaultsTo0p8()
-    {
-        var series = new BrokenBarSeries([]);
-        Assert.Equal(0.8, series.BarHeight);
+        Assert.False(series.HoldsNoData);
+        Assert.Equal(expected, series.ComputeDataRange(null!));
+        Assert.Equal(expected, series.DataRangeUnder(null!, MatPlotLibNet.Styling.Theme.MatplotlibV2));
+        Assert.Equal(expected, series.DataRangeUnder(null!, MatPlotLibNet.Styling.Theme.MatplotlibClassic));
     }
-
-    [Fact]
-    public void Labels_DefaultsToNull()
-    {
-        var series = new BrokenBarSeries([]);
-        Assert.Null(series.Labels);
-    }
-
-    [Fact]
-    public void ToSeriesDto_ReturnsTypeBrokenbar()
-    {
-        var series = new BrokenBarSeries([[new(1.0, 2.0)]]);
-        Assert.Equal("brokenbar", series.ToSeriesDto().Type);
-    }
-
-    [Fact]
-    public void ToSeriesDto_IncludesRangeStartsAndWidths()
-    {
-        var ranges = new BarRange[][] { [new(1.0, 2.0), new(5.0, 3.0)] };
-        var series = new BrokenBarSeries(ranges);
-        var dto = series.ToSeriesDto();
-        Assert.NotNull(dto.RangeStarts);
-        Assert.NotNull(dto.RangeWidths);
-        Assert.Equal([1.0, 5.0], dto.RangeStarts![0]);
-        Assert.Equal([2.0, 3.0], dto.RangeWidths![0]);
-    }
-
 }

@@ -52,8 +52,11 @@ public class PatchRasterParityTests
         public double MiddleY => (Top + Bottom) / 2;
     }
 
+    /// <summary>The limits are given: an axes of patches alone keeps matplotlib's 0..1 under the matplotlib themes (add_patch asks
+    /// for no autoscale), which would leave the patches outside the frame.</summary>
     private static Figure ThreePatches() => Plt.Create().WithSize(500, 300).AddSubPlot(1, 1, 1, ax => ax
         .ShowGrid(false)
+        .SetXLim(0, 10).SetYLim(0, 4)
         .AddPatch(new Rectangle(new(1, 1), 2, 2) { FaceColor = Colors.Red, Alpha = 0.5 })
         .AddPatch(new Rectangle(new(4, 1), 2, 2) { FaceColor = Colors.Transparent, EdgeColor = Colors.Blue, EdgeWidth = 8, Alpha = 0.5 })
         .AddPatch(new Rectangle(new(7, 1), 2, 2) { FaceColor = Colors.Green, Hatch = HatchPattern.Horizontal, HatchColor = Colors.Black, Alpha = 0.5 }))
@@ -112,5 +115,19 @@ public class PatchRasterParityTests
 
         Assert.Equal(0.5, painted.Opacity, 2);
         AssertPixel(picture, figure, box.MiddleX, y, painted.OnWhite(), "the hatched face between two lines");
+    }
+
+    /// <summary>Under the matplotlib themes an axes of patches alone keeps matplotlib's 0..1 range, so a patch can reach past the
+    /// frame; matplotlib clips every patch to the axes, so the margin beside the frame stays white in the PNG, as it does in the SVG
+    /// (which clips the patch with the same rectangle).</summary>
+    [Fact]
+    public void APatchPastTheFrame_IsClippedToTheFrame_InThePng()
+    {
+        var figure = Plt.Create().WithSize(500, 300).AddSubPlot(1, 1, 1, ax => ax
+            .AddPatch(new Rectangle(new(0.5, 0.5), 2, 2) { FaceColor = Colors.Red }))
+            .Build();
+        using var picture = SKBitmap.Decode(figure.ToPng());
+
+        AssertPixel(picture, figure, figure.Width * 0.96, figure.Height * 0.5, SKColors.White, "the margin beside the frame");
     }
 }

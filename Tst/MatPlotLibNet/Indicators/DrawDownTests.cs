@@ -1,0 +1,62 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
+
+namespace MatPlotLibNet.Tests.Indicators;
+
+/// <summary>Verifies <see cref="DrawDown"/> behavior.</summary>
+public class DrawDownTests
+{
+    /// <summary>Verifies that Compute returns correct percentage drawdown values from peak equity.</summary>
+    [Fact]
+    public void Compute_ReturnsCorrectDrawdown()
+    {
+        double[] dd = new DrawDown([100, 110, 105, 120, 100]).Compute();
+        Assert.Equal(0, dd[0]);     // first point = no drawdown
+        Assert.Equal(0, dd[1]);     // new high
+        Assert.InRange(dd[2], 4, 5); // ~4.5% drawdown from 110
+        Assert.Equal(0, dd[3]);     // new high at 120
+        Assert.InRange(dd[4], 16, 17); // ~16.7% drawdown from 120
+    }
+
+    /// <summary>An equity curve of no values has no drawdown. It used to throw an IndexOutOfRangeException (the first value was read
+    /// before the loop), which a streaming form compared against the batch indicator over every prefix would have met at its start.</summary>
+    [Fact]
+    public void Compute_OverNoEquity_HasNoValues_InsteadOfThrowing()
+    {
+        Assert.Empty(new DrawDown([]).Compute().Values);
+    }
+
+    /// <summary>Verifies that all drawdown values are non-negative.</summary>
+    [Fact]
+    public void Compute_AllValuesNonNegative()
+    {
+        double[] dd = new DrawDown([100, 90, 80, 95, 70, 110]).Compute();
+        foreach (var v in dd)
+            Assert.True(v >= 0, $"Drawdown should be non-negative, got {v}");
+    }
+
+    /// <summary>Covers the peak &lt;= 0 branch — when equity starts non-positive the
+    /// drawdown formula must short-circuit to 0 rather than divide by zero or produce
+    /// a non-finite value.</summary>
+    [Fact]
+    public void Compute_NonPositivePeak_ReturnsZero()
+    {
+        // Equity starts at 0, drops to -10, never goes positive → peak stays 0
+        double[] dd = new DrawDown([0, -5, -10, -3]).Compute();
+        Assert.All(dd, v => Assert.Equal(0, v));
+    }
+
+    /// <summary>Covers the explicit-color branch in <see cref="DrawDown.Apply"/>.</summary>
+    [Fact]
+    public void Apply_CustomColor_AppliedToAreaSeries()
+    {
+        var axes = new Axes();
+        new DrawDown([100, 110, 105]) { Color = MatPlotLibNet.Styling.Colors.Cyan }.Apply(axes);
+        var series = (AreaSeries)axes.Series[0];
+        Assert.Equal(MatPlotLibNet.Styling.Colors.Cyan, series.Color);
+    }
+}

@@ -22,9 +22,10 @@ internal sealed class CartesianSpansPart : CartesianAxesPart
 
     /// <summary>Constructs a Spans part. Requires the computed data range for
     /// positioning span rectangles within the plot area.</summary>
-    public CartesianSpansPart(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme,
-                               DataTransform transform, DataRange range)
-        : base(axes, plotArea, ctx, theme, transform)
+    /// <param name="context">What the render draws with: the axes, the plot area, the surface, the theme and the primary transform.</param>
+    /// <param name="range">The range the axes shows.</param>
+    internal CartesianSpansPart(in CartesianPartContext context, DataRange range)
+        : base(context)
     {
         _range = range;
     }
@@ -41,48 +42,31 @@ internal sealed class CartesianSpansPart : CartesianAxesPart
     /// <inheritdoc />
     public override void Render()
     {
-        var spanLabelFont = TickFont();
         foreach (var span in Axes.Spans)
         {
-            var spanColor = (span.Color ?? Colors.Tab10Blue).WithAlpha((byte)(span.Alpha * 255));
-            var borderColor = span.EdgeColor ?? (span.Color ?? Colors.Tab10Blue);
-            var border = new StrokeStyle(borderColor, span.LineWidth, span.LineStyle);
-            if (span.Orientation == Orientation.Horizontal)
+            var spanColor = span.FillUnder(Theme).WithOpacityGiven(span.Alpha);
+            // The border is the span's line (IStrokedTool): its edge colour, else its fill; the label wears it too.
+            var border = span.StrokeUnder(Theme);
+            // A span runs along X (horizontal) or along Y over the whole plot; its edges stand across it, on the other axis.
+            bool alongX = span.Orientation.RunsAlongX;
+            if (ExtentOf(span, _range.Along(!alongX), value => Transform.PixelAlong(value, !alongX)) is not { } extent) continue;
+            var (near, far) = extent;
+            double start = PlotArea.StartAlong(alongX), end = PlotArea.EndAlong(alongX);
+            Ctx.DrawRectangle(Rect.Along(alongX, start, PlotArea.LengthAlong(alongX), near.Pixel, far.Pixel - near.Pixel), ShapeStyle.Filled(spanColor));
+            if (span.LineStyle != LineStyle.None)
             {
-                if (ExtentOf(span, new Range1D(_range.YMin, _range.YMax), y => Transform.DataToPixel(_range.XMin, y).Y) is not { } extent) continue;
-                var (top, bottom) = extent;
-                Ctx.DrawRectangle(new Rect(PlotArea.X, top.Pixel, PlotArea.Width, bottom.Pixel - top.Pixel), new ShapeStyle(spanColor, null, 0));
-                if (span.LineStyle != LineStyle.None)
-                {
-                    if (top.IsOwn) Ctx.DrawLine(new Point(PlotArea.X, top.Pixel), new Point(PlotArea.X + PlotArea.Width, top.Pixel), border);
-                    if (bottom.IsOwn) Ctx.DrawLine(new Point(PlotArea.X, bottom.Pixel), new Point(PlotArea.X + PlotArea.Width, bottom.Pixel), border);
-                    Ctx.DrawLine(new Point(PlotArea.X, top.Pixel), new Point(PlotArea.X, bottom.Pixel), border);
-                    Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, top.Pixel), new Point(PlotArea.X + PlotArea.Width, bottom.Pixel), border);
-                }
-                if (span.Label is not null)
-                {
-                    var labelFont = spanLabelFont with { Color = borderColor };
-                    Ctx.DrawText(span.Label, new Point(PlotArea.X + 2, top.Pixel + spanLabelFont.Size + 2), labelFont, TextAlignment.Left);
-                }
+                if (near.IsOwn) Ctx.DrawLine(Point.Along(alongX, start, near.Pixel), Point.Along(alongX, end, near.Pixel), border);
+                if (far.IsOwn) Ctx.DrawLine(Point.Along(alongX, start, far.Pixel), Point.Along(alongX, end, far.Pixel), border);
+                Ctx.DrawLine(Point.Along(alongX, start, near.Pixel), Point.Along(alongX, start, far.Pixel), border);
+                Ctx.DrawLine(Point.Along(alongX, end, near.Pixel), Point.Along(alongX, end, far.Pixel), border);
             }
+            if (span.Label is null) continue;
+            // The label of a span that runs along X stands at its top left, that of one along Y centred over its top.
+            if (alongX)
+                Ctx.DrawLineLabel(span.Label, LineLabelPlacement.InsideTopLeft(PlotArea.X, near.Pixel), Theme, border.Color);
             else
-            {
-                if (ExtentOf(span, new Range1D(_range.XMin, _range.XMax), x => Transform.DataToPixel(x, _range.YMax).X) is not { } extent) continue;
-                var (left, right) = extent;
-                Ctx.DrawRectangle(new Rect(left.Pixel, PlotArea.Y, right.Pixel - left.Pixel, PlotArea.Height), new ShapeStyle(spanColor, null, 0));
-                if (span.LineStyle != LineStyle.None)
-                {
-                    if (left.IsOwn) Ctx.DrawLine(new Point(left.Pixel, PlotArea.Y), new Point(left.Pixel, PlotArea.Y + PlotArea.Height), border);
-                    if (right.IsOwn) Ctx.DrawLine(new Point(right.Pixel, PlotArea.Y), new Point(right.Pixel, PlotArea.Y + PlotArea.Height), border);
-                    Ctx.DrawLine(new Point(left.Pixel, PlotArea.Y), new Point(right.Pixel, PlotArea.Y), border);
-                    Ctx.DrawLine(new Point(left.Pixel, PlotArea.Y + PlotArea.Height), new Point(right.Pixel, PlotArea.Y + PlotArea.Height), border);
-                }
-                if (span.Label is not null)
-                {
-                    var labelFont = spanLabelFont with { Color = borderColor };
-                    Ctx.DrawText(span.Label, new Point((left.Pixel + right.Pixel) / 2, PlotArea.Y + spanLabelFont.Size + 2), labelFont, TextAlignment.Center);
-                }
-            }
+                Ctx.DrawLineLabel(span.Label, LineLabelPlacement.InsideTopCentre((near.Pixel + far.Pixel) / 2, PlotArea.Y),
+                    Theme, border.Color);
         }
     }
 

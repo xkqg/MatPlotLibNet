@@ -1,70 +1,55 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Styling;
 
 /// <summary>Verifies <see cref="Font"/> behavior.</summary>
 public class FontTests
 {
-    /// <summary>Verifies that the default font family is sans-serif.</summary>
-    [Fact]
-    public void DefaultFont_HasSansSerif()
+    // ---- the unit of a font size: pixels ---------------------------------------------------------------------------------
+    // Font.Size, TextStyle.FontSize and the FontSize of a series' text are documented in pixels, the unit a figure is laid out in:
+    // an SVG writes the number as it stands (font-size is a length in the picture's user units), and a size in points is 100 / 72 of
+    // it, which is how the matplotlib themes store theirs.
+
+    private static double SizeOfText(string svg, string text)
     {
-        var font = new Font();
-        Assert.Equal("sans-serif", font.Family);
+        return svg.TextReading(text).Number("font-size");
     }
 
-    /// <summary>Verifies that the default font size matches matplotlib's 10pt at 96 dpi (~13px).</summary>
     [Fact]
-    public void DefaultFont_Size13()
+    public void AThemeFontOfSize20_DrawsItsTextTwentyPixelsHigh()
     {
-        var font = new Font();
-        Assert.Equal(13, font.Size);
+        var theme = new ThemeBuilder(Theme.Default).WithFont(f => f with { Size = 20 }).Build();
+        var svg = Plt.Create().WithTheme(theme).AddSubPlot(1, 1, 1, ax => ax.SetXLabel("the label")).Build().ToSvg();
+
+        Assert.Equal(20, SizeOfText(svg, "the label"));
     }
 
-    /// <summary>Verifies that the default font weight is Normal.</summary>
     [Fact]
-    public void DefaultFont_NormalWeight()
+    public void ATextStyleOfSize17_DrawsItsTextSeventeenPixelsHigh()
     {
-        var font = new Font();
-        Assert.Equal(FontWeight.Normal, font.Weight);
+        var svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetXLabel("the label", style => style with { FontSize = 17 })).Build().ToSvg();
+
+        Assert.Equal(17, SizeOfText(svg, "the label"));
     }
 
-    /// <summary>Verifies that the default font slant is Normal.</summary>
     [Fact]
-    public void DefaultFont_NormalSlant()
+    public void TenPointsAreStoredAsPixels_ByTheMatplotlibThemes()
     {
-        var font = new Font();
-        Assert.Equal(FontSlant.Normal, font.Slant);
+        var svg = Plt.Create().WithTheme(Theme.MatplotlibV2).AddSubPlot(1, 1, 1, ax => ax.SetXLabel("the label")).Build().ToSvg();
+
+        Assert.Equal(Math.Round(10 * 100.0 / 72, 2), SizeOfText(svg, "the label"));
     }
 
-    /// <summary>Verifies that the default font color is null.</summary>
     [Fact]
-    public void DefaultFont_NullColor()
+    public void ATableOfFontSize15_DrawsItsCellsFifteenPixelsHigh()
     {
-        var font = new Font();
-        Assert.Null(font.Color);
-    }
+        var svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Table([["cellular"]], t => t.FontSize = 15)).Build().ToSvg();
 
-    /// <summary>Verifies that all font properties can be set and retrieved correctly.</summary>
-    [Fact]
-    public void Properties_CanBeSet()
-    {
-        var font = new Font
-        {
-            Family = "monospace",
-            Size = 16,
-            Weight = FontWeight.Bold,
-            Slant = FontSlant.Italic,
-            Color = Colors.Red
-        };
-
-        Assert.Equal("monospace", font.Family);
-        Assert.Equal(16, font.Size);
-        Assert.Equal(FontWeight.Bold, font.Weight);
-        Assert.Equal(FontSlant.Italic, font.Slant);
-        Assert.Equal(Colors.Red, font.Color);
+        Assert.Equal(15, SizeOfText(svg, "cellular"));
     }
 }

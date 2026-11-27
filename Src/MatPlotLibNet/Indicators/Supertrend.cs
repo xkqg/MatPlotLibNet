@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -14,52 +15,57 @@ namespace MatPlotLibNet.Indicators;
 /// <i>La méthode magique des turtles modernes</i>; popularised as TradingView <c>ta.supertrend()</c>.</summary>
 public sealed class Supertrend : CandleIndicator<SupertrendResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 10;
+
+    /// <summary>The <c>multiplier</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultMultiplier = 3.0;
+
     private readonly int _period;
     private readonly double _multiplier;
 
     /// <summary>Creates a new Supertrend indicator.</summary>
     /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
-    /// <param name="period">ATR lookback. Default 10. Must be ≥ 1.</param>
-    /// <param name="multiplier">ATR band multiplier. Default 3.0. Must be &gt; 0.</param>
-    public Supertrend(OhlcvBars bars, int period = 10, double multiplier = 3.0)
-        : base(bars)
+    /// <param name="period">ATR lookback. Default <see cref="DefaultPeriod"/>. Must be ≥ 1.</param>
+    /// <param name="multiplier">ATR band multiplier. Default <see cref="DefaultMultiplier"/>. Must be &gt; 0.</param>
+    public Supertrend(OhlcvBars bars, int period = DefaultPeriod, double multiplier = DefaultMultiplier)
+        : base(bars, Spec(period, multiplier))
     {
-        if (period < 1)
-            throw new ArgumentException($"period must be >= 1 (got {period}).", nameof(period));
-        if (multiplier <= 0)
-            throw new ArgumentException($"multiplier must be > 0 (got {multiplier}).", nameof(multiplier));
         _period = period;
         _multiplier = multiplier;
-        Label = $"ST({period},{multiplier:0.#})";
+    }
+
+    internal static IndicatorSpec Spec(int period, double multiplier)
+    {
+        period.ThrowIfBelow(1, nameof(period));
+        multiplier.ThrowIfNotAbove(0, nameof(multiplier));
+        string label = string.Invariant($"ST({period},{multiplier.InvariantText("0.#")})");
+        return IndicatorSpec.Of(period, label, label, $"{label} Direction", $"{label} Flip");
     }
 
     /// <inheritdoc />
-    public override SupertrendResult Compute()
+    /// <remarks>The first value comes with bar <c>period</c>, the first bar the average true range has a value for.</remarks>
+    public override SupertrendResult Compute() =>
+        FoldHlc<SupertrendStep, SupertrendPoint, Lines>(new(_period, _multiplier), new(ValueCount)).Result;
+
+    /// <summary>The line, its direction and its flips, one entry per bar from the first value on.</summary>
+    private readonly struct Lines(int count) : IOutputLines<SupertrendPoint>
     {
-        int n = BarCount;
-        if (n <= _period)
-            return new SupertrendResult(
-                Array.Empty<double>(), Array.Empty<int>(), Array.Empty<bool>());
+        private readonly double[] _line = new double[count];
+        private readonly int[] _direction = new int[count];
+        private readonly bool[] _flipped = new bool[count];
 
-        // The first value comes with bar `period`, the first bar the average true range has a value for.
-        int outLen = n - _period;
-        var line = new double[outLen];
-        var direction = new int[outLen];
-        var flipped = new bool[outLen];
-        var step = new SupertrendStep(_period, _multiplier);
-        for (int t = 0; t < n; t++)
+        internal SupertrendResult Result => new(_line, _direction, _flipped);
+
+        public void Set(int index, SupertrendPoint output)
         {
-            var point = step.Next(High[t], Low[t], Close[t]);
-            if (t < _period) continue;
-            line[t - _period] = point.Line;
-            direction[t - _period] = point.Direction;
-            flipped[t - _period] = point.Flipped;
+            _line[index] = output.Line;
+            _direction[index] = output.Direction;
+            _flipped[index] = output.Flipped;
         }
-
-        return new SupertrendResult(line, direction, flipped);
     }
 
     /// <inheritdoc />
     public override void Apply(Axes axes) =>
-        PlotSignal(axes, Compute().Line, warmup: _period);
+        PlotLine(axes, Compute().Line);
 }

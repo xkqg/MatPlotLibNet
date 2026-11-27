@@ -52,15 +52,14 @@ public sealed record ChartTables(IReadOnlyList<ChartTableData> Tables)
     {
         DataCellKind.Text => cell.Text,
         DataCellKind.Number when kind == DataColumnKind.Date && IsWritableAsADate(cell.Number)
-            => DateTime.FromOADate(cell.Number).ToString(DateFormat, CultureInfo.InvariantCulture),
+            => DateTime.FromOADate(cell.Number).InvariantText(DateFormat),
         DataCellKind.Number => cell.Number,
         _ => null,
     };
 
-    // The range a date can be written in is finite; outside it the number is reported as the number it is, rather
-    // than throwing away a whole table over one cell. Same bounds the markdown uses.
-    private static bool IsWritableAsADate(double value) =>
-        double.IsFinite(value) && value >= -657435 && value < 2958466;
+    // DateTime.FromOADate makes a date only of a value strictly between its two edges; outside them the number is reported as
+    // the number it is, rather than throwing away a whole table over one cell. The rule of the core's data table.
+    private static bool IsWritableAsADate(double value) => value > -657435.0 && value < 2958466.0;
 
     private static string Name(DataColumnKind kind) => kind switch
     {

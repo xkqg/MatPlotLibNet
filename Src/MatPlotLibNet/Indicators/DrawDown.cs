@@ -3,8 +3,10 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
+using System.Numerics.Tensors;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -15,16 +17,21 @@ public sealed class DrawDown : Indicator<SignalResult>
 {
     private readonly double[] _equity;
 
+    /// <inheritdoc />
+    private protected override int BarsIn => _equity.Length;
+
     /// <summary>The opacity of the filled drawdown area, from 0 (invisible) to 1 (solid). Default 0.4.</summary>
-    public double Alpha { get; set; } = 0.4;
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double Alpha { get; set => field = value.ThrowIfNotOpacity(nameof(Alpha)); } = 0.4;
 
     /// <summary>Creates a new drawdown indicator from an equity curve.</summary>
     /// <param name="equity">The equity values over time (e.g., from <see cref="EquityCurve.Compute"/>).</param>
-    public DrawDown(double[] equity)
+    public DrawDown(double[] equity) : base(Spec())
     {
         _equity = equity;
-        Label = "Drawdown";
     }
+
+    internal static IndicatorSpec Spec() => IndicatorSpec.Of(0, "Drawdown");
 
     /// <inheritdoc />
     public override SignalResult Compute()
@@ -36,20 +43,23 @@ public sealed class DrawDown : Indicator<SignalResult>
         return dd;
     }
 
+    /// <summary>The range a drawdown is drawn in: below zero, its depth left to the data. Its streaming form draws the drawdown itself,
+    /// above zero, and pins nothing.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.AtMost(0);
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
         double[] dd = Compute();
-        var x = MakeX(dd.Length, 0);
+        var x = Positions(dd.Length);
         // Negate for visual (drawdown plots below zero)
         var negDd = new double[dd.Length];
-        VectorMath.Negate(dd, negDd);
+        TensorPrimitives.Negate(dd, negDd);
 
-        var series = axes.FillBetween(x, negDd);
+        var series = axes.AddSeries(AreaSeries.Band(x, negDd, null, Alpha));
         series.Label = Label;
-        series.Color = Color ?? Colors.Red;
-        series.Alpha = Alpha;
+        WearColor(series, Color, IndicatorLook.Library.Moves.Down);
 
-        axes.YAxis.Max = 0;
+        Pane.Pin(axes);
     }
 }

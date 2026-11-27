@@ -1,0 +1,20 @@
+{
+  "Color": "null",
+  "DrawStyle": "null",
+  "Label": "null",
+  "LabelPlacement": "Legend",
+  "LineStyle": "Solid",
+  "LineWidth": "1.5",
+  "MarkEvery": "null",
+  "Marker": "null",
+  "MarkerEdgeColor": "null",
+  "MarkerEdgeWidth": "1",
+  "MarkerFaceColor": "null",
+  "MarkerSize": "6",
+  "MaxDisplayPoints": "null",
+  "RowKeys": "null",
+  "Smooth": "false",
+  "SmoothResolution": "10",
+  "Visible": "true",
+  "ZOrder": "0"
+}

@@ -92,7 +92,7 @@ Plt.Create()
 ![Volume by price and a VWAP anchored at bar 30](../images/volume_profile.png)
 
 The streaming form is `StreamingVwap`, whose `AnchorHere()` forgets the sums so the average restarts at the next bar, and
-`df.Vwap(highCol, lowCol, closeCol, volumeCol, anchor)` is the DataFrame bridge. `Vwap(prices, volumes)` refuses arrays of
+`new Vwap(df.Hlcv(highCol, lowCol, closeCol, volumeCol), anchor)` reads the bars from a data frame. `Vwap(prices, volumes)` refuses arrays of
 different lengths, and the profile skips a bar whose close or volume is missing.
 
 ## Relative Rotation Graph (RRG)

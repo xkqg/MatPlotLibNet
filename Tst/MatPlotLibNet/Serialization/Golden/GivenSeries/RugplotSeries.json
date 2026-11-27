@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"rugplot","label":"text 3","data":[2,4,3],"color":"#1BC33F","lineWidth":0.3125,"alpha":0.25,"rugHeight":0.28125,"zOrder":8,"visible":false}]}]}

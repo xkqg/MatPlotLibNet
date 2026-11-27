@@ -16,11 +16,8 @@ public sealed class StreamingRelativeVigorIndex : WindowedStreamingIndicator<Ohl
     /// <summary>Creates a streaming RelativeVigorIndex.</summary>
     /// <param name="period">How many bars the index is averaged over; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingRelativeVigorIndex(int period = 10, int capacity = 10_000)
-        : base(period + 6, [
-            new StreamingLineSeries(capacity) { Label = $"RVI({period})" },
-            new StreamingLineSeries(capacity) { Label = $"RVI({period}) Signal" },
-        ])
+    public StreamingRelativeVigorIndex(int period = RelativeVigorIndex.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(RelativeVigorIndex.Spec(period), capacity)
     {
         _period = period;
     }

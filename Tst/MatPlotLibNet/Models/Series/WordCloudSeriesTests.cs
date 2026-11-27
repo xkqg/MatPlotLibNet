@@ -31,7 +31,6 @@ public class WordCloudSeriesTests
         Assert.Equal(1, series.ColorSlotSpan);
         Assert.Equal(Words, series.Words);
         Assert.Equal(Weights, series.Weights);
-        Assert.Equal(new Range1D(12, 60), series.Sizes);
     }
 
     [Theory]
@@ -41,7 +40,7 @@ public class WordCloudSeriesTests
     [InlineData(double.PositiveInfinity)]
     public void AWeightThatIsNotAPositiveNumber_IsRefusedByItsWord(double weight)
     {
-        var refusal = Assert.Throws<ArgumentException>(() => new Axes().WordCloud(["fine", "broken"], [2, weight]));
+        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => new Axes().WordCloud(["fine", "broken"], [2, weight]));
 
         Assert.Contains("broken", refusal.Message, StringComparison.Ordinal);
     }
@@ -81,19 +80,9 @@ public class WordCloudSeriesTests
     [Fact]
     public void ARangeIsContributedToNoAxis()
     {
-        var contribution = new Axes().WordCloud(Words, Weights).ComputeDataRange(new NoLimits());
+        var contribution = new Axes().WordCloud(Words, Weights).ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(new DataRangeContribution(null, null, null, null), contribution);
-    }
-
-    private sealed class NoLimits : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => default;
-        public IReadOnlyList<ISeries> AllSeries => [];
     }
 
     // ── what can be set ─────────────────────────────────────────────────────────
@@ -111,41 +100,4 @@ public class WordCloudSeriesTests
         Assert.Throws<ArgumentOutOfRangeException>(() => series.Sizes = new Range1D(double.NaN, 20));
         Assert.Equal(new Range1D(10, 40), series.Sizes);   // a refused range changes nothing
     }
-
-    // ── the JSON ────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void TheSeries_RoundTripsThroughTheJson_WithWhatItDraws()
-    {
-        var figure = new Figure { Width = 600, Height = 400 };
-        var series = figure.AddSubPlot(1, 1, 1).WordCloud(Words, Weights);
-        series.Sizes = new Range1D(14, 48);
-        series.Colors = [Color.FromHex("#202020"), Color.FromHex("#C03030")];
-        series.Label = "terms";
-
-        var read = new ChartSerializer().FromJson(figure.ToJson());
-
-        var back = Assert.IsType<WordCloudSeries>(Assert.Single(read.SubPlots[0].Series));
-        Assert.Equal(Words, back.Words);
-        Assert.Equal(Weights, back.Weights);
-        Assert.Equal(new Range1D(14, 48), back.Sizes);
-        Assert.Equal(series.Colors, back.Colors);
-        Assert.Equal("terms", back.Label);
-    }
-
-    [Fact]
-    public void WhatIsAtRest_IsLeftOutOfTheJson()
-    {
-        var dto = new Axes().WordCloud(Words, Weights).ToSeriesDto();
-
-        Assert.Equal("wordcloud", dto.Type);
-        Assert.Null(dto.WordMinSize);
-        Assert.Null(dto.WordMaxSize);
-        Assert.Null(dto.Colors);
-        Assert.Equal(Words, dto.Categories);
-        Assert.Equal(Weights, dto.Values);
-    }
-
-    [Fact]
-    public void TheWordCloudKind_IsInTheRegistry() => Assert.Contains("wordcloud", SeriesRegistry.Discriminators);
 }

@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// <see cref="Streaming.StreamingLaguerreRsi"/> takes one price at a time. The four Laguerre stages all start at the first price;
 /// from the second price each stage follows the one before it, and the value is the share of the stage-to-stage rises in all the
 /// stage-to-stage moves (0 when nothing moved). Before the second price the step says NaN.</summary>
-internal struct LaguerreRsiStep
+internal struct LaguerreRsiStep : IPriceStep<double>
 {
     private readonly double _alpha;
     private readonly double _oneMinusAlpha;
@@ -24,7 +24,7 @@ internal struct LaguerreRsiStep
 
     /// <summary>Takes one price and returns the index in [0, 1], or NaN for the first price.</summary>
     /// <param name="price">The price.</param>
-    internal double Next(double price)
+    public double Next(double price)
     {
         if (_count++ == 0)
         {

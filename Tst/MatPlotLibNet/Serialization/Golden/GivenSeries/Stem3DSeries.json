@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"stem3d","label":"text 2","xData":[1,2,3],"yData":[2,4,3],"color":"#1BC33F","markerSize":0.296875,"zData":[0.5,0.5,0.5],"zOrder":7,"visible":false,"baselineColor":"#14C83C"}],"coordinateSystem":"threed"}]}

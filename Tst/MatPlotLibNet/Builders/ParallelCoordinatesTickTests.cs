@@ -1,19 +1,20 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Builders;
 
 /// <summary>Every dimension of a parallel-coordinates chart reads in its own units, so its axis line carries ticks: the
 /// values the locator picks over the column's own range, each a short mark on the column line with its number to the left,
-/// at the height that value is drawn at. The Y axis itself stays tickless, since each column is scaled on its own.</summary>
+/// at the height that value is drawn at, written in one number format for the whole column as an axis writes its own ticks.
+/// The Y axis itself stays tickless, since each column is scaled on its own.</summary>
 public class ParallelCoordinatesTickTests
 {
     private static readonly string[] Dimensions = ["length", "width", "height"];
@@ -33,10 +34,10 @@ public class ParallelCoordinatesTickTests
 
     private static double Centre(int column) => column + 0.5;
 
-    private static string Text(double value) => value.ToString("G6", CultureInfo.InvariantCulture);
-
     private static double[] Expected(double low, double high) =>
         [.. new AutoLocator().Locate(low, high).Where(v => v >= low - 1e-9 * (high - low) && v <= high + 1e-9 * (high - low))];
+
+    private static string[] Labels(double low, double high) => TickLabelLook.Library.Labelled(Expected(low, high));
 
     [Fact]
     public void TheHeightColumn_IsTickedAtTheNiceNumbersOfItsOwnRange()
@@ -45,6 +46,16 @@ public class ParallelCoordinatesTickTests
 
         Assert.Equal(["0", "20", "40", "60", "80", "100"], ticks.Select(a => a.Text));
         Assert.Equal([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], ticks.Select(a => a.Y).Select(y => Math.Round(y, 9)));
+    }
+
+    [Fact]
+    public void ThePointFiveSteppedColumn_IsLabelledWithOneDecimalOnEveryTick_NotWithTheShortestFormOfEach()
+    {
+        // The length column runs 1..3 in steps of a half: every label has the one decimal the step needs ("2.0", not "2"),
+        // as the ticks of an axis do, so the numbers line up.
+        var ticks = Ticks(Of(Dimensions, Rows)).Where(a => a.X == Centre(0)).ToArray();
+
+        Assert.Equal(["1.0", "1.5", "2.0", "2.5", "3.0"], ticks.Select(a => a.Text));
     }
 
     [Theory]
@@ -56,7 +67,7 @@ public class ParallelCoordinatesTickTests
         var ticks = Ticks(Of(Dimensions, Rows)).Where(a => a.X == Centre(column)).ToArray();
 
         double[] values = Expected(low, high);
-        Assert.Equal(values.Select(Text), ticks.Select(a => a.Text));
+        Assert.Equal(Labels(low, high), ticks.Select(a => a.Text));
         Assert.Equal(values.Select(v => Math.Round((v - low) / (high - low), 9)), ticks.Select(a => Math.Round(a.Y, 9)));
     }
 
@@ -77,7 +88,7 @@ public class ParallelCoordinatesTickTests
     public void ATickMark_EndsAtThePixelItsValueIsDrawnAt()
     {
         var figure = Of(Dimensions, Rows);
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         var range = figure.SubPlots[0].ComputeDataRanges(figure.Theme);
         var recording = new RecordingRenderContext();
 
@@ -87,10 +98,9 @@ public class ParallelCoordinatesTickTests
         double columnX = plot.X + (Centre(2) - range.XMin) / (range.XMax - range.XMin) * plot.Width;
         double tickY = plot.Y + plot.Height * (1 - (0.6 - range.YMin) / (range.YMax - range.YMin));
         var ends = new List<Point>();
-        foreach (var call in recording.OfKind("DrawPath"))
+        foreach (var call in recording.Of<DrawPathCall>())
         {
-            dynamic args = call.Args!;
-            var segments = (PathSegment[])args.segments;
+            var segments = call.Segments;
             if (segments.Length > 0 && segments[^1] is LineToSegment line) ends.Add(line.Point);
         }
 
@@ -124,7 +134,7 @@ public class ParallelCoordinatesTickTests
 
         var ticks = Ticks(Of(Dimensions, rows)).Where(a => a.X == Centre(2)).ToArray();
 
-        Assert.Equal(Expected(0, 50).Select(Text), ticks.Select(a => a.Text));
+        Assert.Equal(Labels(0, 50), ticks.Select(a => a.Text));
     }
 
     [Fact]

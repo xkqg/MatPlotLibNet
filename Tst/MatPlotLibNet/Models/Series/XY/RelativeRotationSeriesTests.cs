@@ -25,13 +25,13 @@ public class RelativeRotationSeriesTests
 
     // ── Construction ─────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Constructor_StoresAllInputs()
+    /// <summary>One asset against a flat benchmark, under a formula whose lookback is the one it reads: the z-score's momentum
+    /// lookback, the log return's long period.</summary>
+    private static RelativeRotationSeries WithLookback(RrgFormula formula, double[] asset, int shortPeriod, int lookback)
     {
-        var s = Sample(30);
-        Assert.Equal(2, s.AssetCloses.Count);
-        Assert.Equal(30, s.BenchmarkCloses.Count);
-        Assert.Equal(2, s.AssetLabels.Count);
+        var series = new RelativeRotationSeries([asset], Flat(asset.Length), ["A"]) { Formula = formula, ShortPeriod = shortPeriod };
+        if (formula == RrgFormula.ZScore) series.MomentumLookback = lookback; else series.LongPeriod = lookback;
+        return series;
     }
 
     [Fact]
@@ -57,106 +57,62 @@ public class RelativeRotationSeriesTests
         Assert.IsType<ArgumentException>(ex);
     }
 
-    // ── Default properties ────────────────────────────────────────────────────
+    // ── Input that cannot be drawn is refused where it is given ──────────────
 
-    [Fact]
-    public void Formula_DefaultsDualEma()
-    {
-        Assert.Equal(RrgFormula.DualEma, Sample().Formula);
-    }
-
-    [Fact]
-    public void ShortPeriod_Defaults10()
-    {
-        Assert.Equal(10, Sample().ShortPeriod);
-    }
-
-    [Fact]
-    public void LongPeriod_Defaults26()
-    {
-        Assert.Equal(26, Sample().LongPeriod);
-    }
-
-    [Fact]
-    public void MomentumLookback_Defaults10()
-    {
-        Assert.Equal(10, Sample().MomentumLookback);
-    }
-
-    [Fact]
-    public void TailLength_Defaults8()
-    {
-        Assert.Equal(8, Sample().TailLength);
-    }
-
-    [Fact]
-    public void ShowQuadrantGrid_DefaultsTrue()
-    {
-        Assert.True(Sample().ShowQuadrantGrid);
-    }
-
-    [Fact]
-    public void ColorMap_DefaultsNull()
-    {
-        Assert.Null(Sample().ColorMap);
-    }
-
-    // ── Mutation ──────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Formula_CanBeSetToZScore()
+    /// <summary>A period, a lookback and a tail are a count of bars, at least one: a window of no bars has no average and a tail
+    /// of none no head. Each formula reads another of them, so the setter refuses, whatever the formula is.</summary>
+    [Theory]
+    [InlineData(nameof(RelativeRotationSeries.ShortPeriod), 0)]
+    [InlineData(nameof(RelativeRotationSeries.ShortPeriod), -1)]
+    [InlineData(nameof(RelativeRotationSeries.LongPeriod), 0)]
+    [InlineData(nameof(RelativeRotationSeries.LongPeriod), -1)]
+    [InlineData(nameof(RelativeRotationSeries.MomentumLookback), 0)]
+    [InlineData(nameof(RelativeRotationSeries.MomentumLookback), -1)]
+    [InlineData(nameof(RelativeRotationSeries.TailLength), 0)]
+    [InlineData(nameof(RelativeRotationSeries.TailLength), -1)]
+    public void ACountOfBarsBelowOne_IsRefusedByName(string property, int bars)
     {
         var s = Sample();
-        s.Formula = RrgFormula.ZScore;
-        Assert.Equal(RrgFormula.ZScore, s.Formula);
+        var setter = typeof(RelativeRotationSeries).GetProperty(property)!;
+        object before = setter.GetValue(s)!;
+
+        var refused = Assert.Throws<System.Reflection.TargetInvocationException>(() => setter.SetValue(s, bars));
+
+        Assert.Equal(property, Assert.IsType<ArgumentOutOfRangeException>(refused.InnerException).ParamName);
+        Assert.Equal(before, setter.GetValue(s));
     }
 
-    [Fact]
-    public void ColorMap_CanBeSet()
+    [Theory]
+    [InlineData(nameof(RelativeRotationSeries.AbsorptionRatioPerBar), 29)]
+    [InlineData(nameof(RelativeRotationSeries.AbsorptionRatioPerBar), 0)]
+    [InlineData(nameof(RelativeRotationSeries.EnbPerBar), 29)]
+    [InlineData(nameof(RelativeRotationSeries.EnbPerBar), 0)]
+    public void AValuePerBarThatIsNotOneForEachClose_IsRefusedByName(string property, int length)
     {
-        var s = Sample();
-        s.ColorMap = ColorMaps.Plasma;
-        Assert.NotNull(s.ColorMap);
+        var s = Sample(30);
+        var setter = typeof(RelativeRotationSeries).GetProperty(property)!;
+
+        var refused = Assert.Throws<System.Reflection.TargetInvocationException>(() => setter.SetValue(s, Flat(length, 0.5)));
+
+        Assert.Equal(property, Assert.IsType<ArgumentException>(refused.InnerException).ParamName);
+        Assert.Null(setter.GetValue(s));
     }
 
-    // ── ToSeriesDto ───────────────────────────────────────────────────────────
-
+    /// <summary>The log-return momentum is the log of the long return less that of the short one, at each bar where both have a
+    /// value: from the later of the two lookbacks on, whichever of the two periods is the longer.</summary>
     [Fact]
-    public void ToSeriesDto_TypeIsRelativeRotation()
+    public void ALogReturnRotationWhoseShortPeriodIsTheLonger_DrawsItsMomentumFromTheLaterLookback()
     {
-        Assert.Equal("relativerotation", Sample().ToSeriesDto().Type);
-    }
+        var s = new RelativeRotationSeries([Rising(40, 100, 0.7)], Rising(40, 100, 0.3), ["A"])
+        {
+            Formula = RrgFormula.LogReturn, ShortPeriod = 12, LongPeriod = 4,
+        };
 
-    [Fact]
-    public void ToSeriesDto_DefaultProperties_NotEmitted()
-    {
-        var dto = Sample().ToSeriesDto();
-        Assert.Null(dto.RrgFormula);                // DualEma = default → null
-        Assert.Null(dto.RrgShortPeriod);            // 10 = default → null
-        Assert.Null(dto.RrgLongPeriod);             // 26 = default → null
-        Assert.Null(dto.RrgMomentumLookback);       // 10 = default → null
-        Assert.Null(dto.RrgTailLength);             // 8  = default → null
-        Assert.Null(dto.RrgShowQuadrantGrid);       // true = default → null
-        Assert.Null(dto.ColorMapName);
-    }
+        var momentum = s.ComputeRsData()[0].RsMomentum;
+        _ = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.AddSeries(s)).Build().ToSvg();
 
-    [Fact]
-    public void ToSeriesDto_NonDefaultFormula_Emitted()
-    {
-        var s = Sample();
-        s.Formula = RrgFormula.ZScore;
-        Assert.Equal("ZScore", s.ToSeriesDto().RrgFormula);
-    }
-
-    [Fact]
-    public void ToSeriesDto_EmitsAssetData()
-    {
-        var dto = Sample(10).ToSeriesDto();
-        Assert.NotNull(dto.RrgAssetCloses);
-        Assert.NotNull(dto.RrgBenchmarkCloses);
-        Assert.NotNull(dto.RrgAssetLabels);
-        Assert.Equal(2, dto.RrgAssetCloses!.Count);
-        Assert.Equal(10, dto.RrgBenchmarkCloses!.Count);
+        Assert.All(momentum[..12], value => Assert.True(double.IsNaN(value)));
+        Assert.Contains(momentum[12..], double.IsFinite);
     }
 
     // ── ComputeRsData — DualEma ───────────────────────────────────────────────
@@ -262,55 +218,29 @@ public class RelativeRotationSeriesTests
             Assert.Equal(100.0, v, precision: 8);
     }
 
-    [Fact]
-    public void ComputeRsData_ZScore_OutputLength_MatchesInput()
+    /// <summary>A formula that reads a lookback (the z-score its momentum lookback, the log return its long period) is run for as many bars
+    /// as it was given: the ratio and the momentum are as long as the asset.</summary>
+    [Theory]
+    [InlineData(RrgFormula.ZScore, 30, 3)]
+    [InlineData(RrgFormula.LogReturn, 40, 10)]
+    public void ComputeRsData_OutputLength_MatchesInput(RrgFormula formula, int bars, int lookback)
     {
-        var s = new RelativeRotationSeries([Rising(30)], Flat(30), ["A"])
-        {
-            Formula = RrgFormula.ZScore, ShortPeriod = 5, MomentumLookback = 3,
-        };
-        var (rsRatio, rsMom) = s.ComputeRsData()[0];
-        Assert.Equal(30, rsRatio.Length);
-        Assert.Equal(30, rsMom.Length);
+        var (rsRatio, rsMom) = WithLookback(formula, Rising(bars), 5, lookback).ComputeRsData()[0];
+        Assert.Equal(bars, rsRatio.Length);
+        Assert.Equal(bars, rsMom.Length);
     }
 
-    [Fact]
-    public void ComputeRsData_ZScore_ShortData_ReturnsNaNMomentum()
+    /// <summary>Fewer bars than the lookback leave the momentum all NaN: the rate of change over the lookback comes back empty.</summary>
+    [Theory]
+    [InlineData(RrgFormula.ZScore)]
+    [InlineData(RrgFormula.LogReturn)]
+    public void ComputeRsData_ShortData_ReturnsNaNMomentum(RrgFormula formula)
     {
-        // n (5) <= MomentumLookback (10) → Roc returns empty → rsMomentum all NaN.
-        var s = new RelativeRotationSeries([Flat(5)], Flat(5), ["A"])
-        {
-            Formula = RrgFormula.ZScore, ShortPeriod = 3, MomentumLookback = 10,
-        };
-        var (_, rsMom) = s.ComputeRsData()[0];
+        var (_, rsMom) = WithLookback(formula, Flat(5), 3, 10).ComputeRsData()[0];
         Assert.All(rsMom, v => Assert.True(double.IsNaN(v)));
     }
 
     // ── ComputeRsData — LogReturn ─────────────────────────────────────────────
-
-    [Fact]
-    public void ComputeRsData_LogReturn_OutputLength_MatchesInput()
-    {
-        var s = new RelativeRotationSeries([Rising(40)], Flat(40), ["A"])
-        {
-            Formula = RrgFormula.LogReturn, ShortPeriod = 5, LongPeriod = 10,
-        };
-        var (rsRatio, rsMom) = s.ComputeRsData()[0];
-        Assert.Equal(40, rsRatio.Length);
-        Assert.Equal(40, rsMom.Length);
-    }
-
-    [Fact]
-    public void ComputeRsData_LogReturn_ShortData_ReturnsNaNMomentum()
-    {
-        // n (5) <= LongPeriod (10) → Roc(longP) returns empty → rsMomentum all NaN.
-        var s = new RelativeRotationSeries([Flat(5)], Flat(5), ["A"])
-        {
-            Formula = RrgFormula.LogReturn, ShortPeriod = 3, LongPeriod = 10,
-        };
-        var (_, rsMom) = s.ComputeRsData()[0];
-        Assert.All(rsMom, v => Assert.True(double.IsNaN(v)));
-    }
 
     // ── ComputeRsData — return type ───────────────────────────────────────────
 
@@ -337,48 +267,85 @@ public class RelativeRotationSeriesTests
         Assert.Equal(40, result[1].RsMomentum.Length);
     }
 
-    // ── Overlay properties ────────────────────────────────────────────────────
+    // ── the rotation the range and the drawing read ──────────────────────────
 
+    /// <summary>The range of the axes and the renderer both read the rotation, so a draw asks for it at least twice: the series
+    /// computes it once and keeps it.</summary>
     [Fact]
-    public void AbsorptionRatioPerBar_DefaultsToNull()
+    public void TheRotation_AskedTwice_IsComputedOnce()
     {
-        Assert.Null(Sample().AbsorptionRatioPerBar);
+        var series = Sample(40);
+
+        Assert.Same(series.Rotation(), series.Rotation());
     }
 
+    /// <summary>A figure drawn again with its series unchanged (here its title changed, so the subplot is drawn) reads the
+    /// rotation the draw before computed: one computation per change of the series, not two or three per draw.</summary>
     [Fact]
-    public void EnbPerBar_DefaultsToNull()
+    public void TheRotation_ADrawUsed_IsTheOneTheNextDrawUses()
     {
-        Assert.Null(Sample().EnbPerBar);
+        RelativeRotationSeries series = null!;
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.RelativeRotation([Rising(40), Flat(40)], Flat(40), ["ETH", "BNB"],
+            s => series = s)).Build();
+        string first = figure.ToSvg();
+        var drawn = series.Rotation();
+
+        figure.SubPlots[0].Title = "drawn again";
+        string second = figure.ToSvg();
+
+        Assert.Same(drawn, series.Rotation());
+        Assert.NotEqual(first, second);
     }
 
+    /// <summary>A close changed in place passes no setter; the rotation is computed again all the same, as a fresh series
+    /// computes it, because the copy of the data it was computed from no longer matches.</summary>
     [Fact]
-    public void ToSeriesDto_NullOverlays_NotEmitted()
+    public void TheRotation_AfterACloseChangedInPlace_IsComputedAgain()
     {
-        var dto = Sample().ToSeriesDto();
-        Assert.Null(dto.RrgAbsorptionPerBar);
-        Assert.Null(dto.RrgEnbPerBar);
+        double[] asset = Rising(40);
+        var series = new RelativeRotationSeries([asset], Flat(40), ["A"]) { ShortPeriod = 3, LongPeriod = 5 };
+        var before = series.Rotation();
+
+        asset[^1] = 180;
+        var after = series.Rotation();
+
+        Assert.NotSame(before, after);
+        var fresh = new RelativeRotationSeries([[.. asset]], Flat(40), ["A"]) { ShortPeriod = 3, LongPeriod = 5 }.Rotation();
+        Assert.Equal(fresh[0].RsRatio, after[0].RsRatio);
+        Assert.Equal(fresh[0].RsMomentum, after[0].RsMomentum);
     }
 
+    /// <summary>A setting the formulas read moves the series' change mark, and the rotation is computed again with it.</summary>
     [Fact]
-    public void ToSeriesDto_AbsorptionRatioPerBar_Emitted()
+    public void TheRotation_AfterTheFormulaChanged_IsComputedAgain()
     {
-        var s = Sample(10);
-        s.AbsorptionRatioPerBar = [0.3, 0.4, 0.5, 0.6, 0.7, 0.3, 0.4, 0.5, 0.6, 0.7];
-        var dto = s.ToSeriesDto();
-        Assert.NotNull(dto.RrgAbsorptionPerBar);
-        Assert.Equal(10, dto.RrgAbsorptionPerBar!.Count);
-        Assert.Equal(0.3, dto.RrgAbsorptionPerBar[0], precision: 10);
+        var series = Sample(40);
+        var before = series.Rotation();
+
+        series.Formula = RrgFormula.ZScore;
+        var after = series.Rotation();
+
+        Assert.NotSame(before, after);
+        var fresh = new RelativeRotationSeries([Rising(40), Flat(40)], Flat(40), ["ETH", "BNB"]) { Formula = RrgFormula.ZScore }.Rotation();
+        Assert.Equal(fresh[0].RsRatio, after[0].RsRatio);
+        Assert.Equal(fresh[0].RsMomentum, after[0].RsMomentum);
     }
 
+    /// <summary>What <see cref="RelativeRotationSeries.ComputeRsData"/> hands out is the caller's own: a fresh copy of the
+    /// values the series keeps, so writing into it leaves the drawing alone.</summary>
     [Fact]
-    public void ToSeriesDto_EnbPerBar_Emitted()
+    public void ComputeRsData_HandsOutAFreshCopy_ThatAWriteLeavesTheKeptRotationAlone()
     {
-        var s = Sample(10);
-        s.EnbPerBar = [4.0, 3.8, 3.5, 3.0, 2.5, 2.0, 1.8, 1.5, 1.2, 1.0];
-        var dto = s.ToSeriesDto();
-        Assert.NotNull(dto.RrgEnbPerBar);
-        Assert.Equal(10, dto.RrgEnbPerBar!.Count);
-        Assert.Equal(4.0, dto.RrgEnbPerBar[0], precision: 10);
+        var series = Sample(40);
+        var kept = series.Rotation();
+
+        var handedOut = series.ComputeRsData();
+        handedOut[0].RsRatio[^1] = -1;
+
+        Assert.NotSame(kept, handedOut);
+        Assert.NotSame(kept[0].RsRatio, handedOut[0].RsRatio);
+        Assert.Same(kept, series.Rotation());
+        Assert.NotEqual(-1, series.Rotation()[0].RsRatio[^1]);
     }
 
     // ── ComputeDataRange ──────────────────────────────────────────────────────
@@ -479,5 +446,85 @@ public class RelativeRotationSeriesTests
         Assert.NotNull(r.XMax);
         Assert.NotNull(r.YMin);
         Assert.NotNull(r.YMax);
+    }
+
+    // ── The formulas: an asset's RS-Ratio and RS-Momentum against its benchmark, held to the values the series computed when the
+    // formulas were first written, taken at the first bar each formula can give and at two bars after it. ──
+
+    private static readonly double[] Asset = [.. Enumerable.Range(0, 60).Select(i => 100 + 10 * Math.Sin(i * 0.3) + i * 0.5)];
+    private static readonly double[] Benchmark = [.. Enumerable.Range(0, 60).Select(i => 100 + i * 0.2)];
+
+    /// <summary>The rotation of <paramref name="assets"/> against <paramref name="benchmark"/> under <paramref name="formula"/>, with a
+    /// short period of 5, a long period of 12 and a momentum lookback of 4.</summary>
+    private static RrsPoint[] RotationOf(RrgFormula formula, double[][] assets, double[] benchmark) =>
+        new RelativeRotationSeries(assets, benchmark, [.. assets.Select((_, i) => $"a{i}")])
+        {
+            Formula = formula, ShortPeriod = 5, LongPeriod = 12, MomentumLookback = 4,
+        }.ComputeRsData();
+
+    [Theory]
+    [InlineData(RrgFormula.DualEma, 11, 22, 102.2104396689337, 101.02156013272759, 97.73470754893067, 98.7520757402458)]
+    [InlineData(RrgFormula.ZScore, 4, 8, 98.2800571989275, 98.61409082561009, 100.53619837278032, 101.61693500679046)]
+    [InlineData(RrgFormula.LogReturn, 4, 16, 98.2800571989275, 100.75100153234206, 100.53619837278032, 98.69379341269237)]
+    public void EachFormula_GivesTheValuesTheSeriesGaveBefore(RrgFormula formula, int firstRatio, int firstMomentum,
+        double ratioAt30, double momentumAt30, double ratioAt59, double momentumAt59)
+    {
+        var point = RotationOf(formula, [Asset], Benchmark)[0];
+
+        Assert.Equal(firstRatio, Array.FindIndex(point.RsRatio, v => !double.IsNaN(v)));
+        Assert.Equal(firstMomentum, Array.FindIndex(point.RsMomentum, v => !double.IsNaN(v)));
+        Assert.Equal(ratioAt30, point.RsRatio[30], 1e-9);
+        Assert.Equal(momentumAt30, point.RsMomentum[30], 1e-9);
+        Assert.Equal(ratioAt59, point.RsRatio[59], 1e-9);
+        Assert.Equal(momentumAt59, point.RsMomentum[59], 1e-9);
+    }
+
+    [Fact]
+    public void NoAsset_GivesNoPoint() => Assert.Empty(RotationOf(RrgFormula.DualEma, [], Benchmark));
+
+    /// <summary>A benchmark of zero has no ratio to it: every bar of both coordinates is missing.</summary>
+    [Theory]
+    [InlineData(RrgFormula.DualEma)]
+    [InlineData(RrgFormula.ZScore)]
+    [InlineData(RrgFormula.LogReturn)]
+    public void AZeroBenchmark_GivesNoValue(RrgFormula formula)
+    {
+        var point = RotationOf(formula, [Asset], new double[Asset.Length])[0];
+
+        Assert.All(point.RsRatio, v => Assert.True(double.IsNaN(v)));
+        Assert.All(point.RsMomentum, v => Assert.True(double.IsNaN(v)));
+    }
+
+    /// <summary>An asset worth nothing gives a long average of zero, which no ratio is taken over.</summary>
+    [Fact]
+    public void AnAssetWorthNothing_GivesNoDualEmaValue()
+    {
+        var point = RotationOf(RrgFormula.DualEma, [new double[Asset.Length]], Benchmark)[0];
+
+        Assert.All(point.RsRatio, v => Assert.True(double.IsNaN(v)));
+        Assert.All(point.RsMomentum, v => Assert.True(double.IsNaN(v)));
+    }
+
+    /// <summary>Fourteen bars give the dual-EMA ratio from the twelfth on, three ratios: too few for its long average, so the
+    /// momentum has no value yet.</summary>
+    [Fact]
+    public void BarsEnoughForTheRatio_ButNotForItsMomentum_GiveTheRatioAlone()
+    {
+        var point = RotationOf(RrgFormula.DualEma, [Asset[..14]], Benchmark[..14])[0];
+
+        point.RsRatio[13].AssertFinite();
+        Assert.All(point.RsMomentum, v => Assert.True(double.IsNaN(v)));
+    }
+
+    /// <summary>Fewer bars than the window of the z-score give no ratio at all.</summary>
+    [Theory]
+    [InlineData(RrgFormula.ZScore)]
+    [InlineData(RrgFormula.LogReturn)]
+    public void FewerBarsThanTheWindow_GiveNoZScore(RrgFormula formula)
+    {
+        var point = RotationOf(formula, [Asset[..3]], Benchmark[..3])[0];
+
+        Assert.All(point.RsRatio, v => Assert.True(double.IsNaN(v)));
+        Assert.All(point.RsMomentum, v => Assert.True(double.IsNaN(v)));
     }
 }

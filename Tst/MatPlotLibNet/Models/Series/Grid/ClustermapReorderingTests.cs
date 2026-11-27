@@ -38,36 +38,26 @@ public class ClustermapReorderingTests
 
     // ── Two-leaf tree ─────────────────────────────────────────────────────────
 
-    [Fact]
-    public void TwoLeafTree_ValuesInOrder_ReturnsOrder()
+    /// <summary>The leaf values are the data indices, read in depth-first order: in order, swapped; and a leaf index out of range for the count
+    /// (99 for a count of 2) or a duplicate one (0 twice) falls back to the identity order.</summary>
+    [Theory]
+    [InlineData(0.0, 1.0, new[] { 0, 1 })]
+    [InlineData(1.0, 0.0, new[] { 1, 0 })]
+    [InlineData(99.0, 0.0, new[] { 0, 1 })]
+    [InlineData(0.0, 0.0, new[] { 0, 1 })]
+    public void TwoLeafTree_ReturnsItsLeafValuesInOrder_OrTheIdentityWhenTheyAreNoIndices(double first, double second, int[] expected)
     {
         var root = new TreeNode
         {
             Value = 1.0,
             Children =
             [
-                new TreeNode { Value = 0.0 }, // index 0
-                new TreeNode { Value = 1.0 }, // index 1
+                new TreeNode { Value = first },
+                new TreeNode { Value = second },
             ]
         };
         var order = ClustermapSeries.ResolveLeafOrder(root, 2);
-        Assert.Equal([0, 1], order);
-    }
-
-    [Fact]
-    public void TwoLeafTree_ValuesSwapped_ReturnsSwappedOrder()
-    {
-        var root = new TreeNode
-        {
-            Value = 1.0,
-            Children =
-            [
-                new TreeNode { Value = 1.0 }, // index 1
-                new TreeNode { Value = 0.0 }, // index 0
-            ]
-        };
-        var order = ClustermapSeries.ResolveLeafOrder(root, 2);
-        Assert.Equal([1, 0], order);
+        Assert.Equal(expected, order);
     }
 
     // ── Three-leaf balanced tree ───────────────────────────────────────────────
@@ -99,22 +89,6 @@ public class ClustermapReorderingTests
 
     // ── Out-of-range leaf index: defensive fallback ───────────────────────────
 
-    [Fact]
-    public void OutOfRangeLeafIndex_FallsBackToIdentity()
-    {
-        var root = new TreeNode
-        {
-            Value = 1.0,
-            Children =
-            [
-                new TreeNode { Value = 99.0 }, // index 99 — out of range for count=2
-                new TreeNode { Value = 0.0 },
-            ]
-        };
-        var order = ClustermapSeries.ResolveLeafOrder(root, 2);
-        Assert.Equal([0, 1], order); // identity fallback
-    }
-
     // ── Count mismatch: tree has fewer leaves than count ─────────────────────
 
     [Fact]
@@ -135,22 +109,6 @@ public class ClustermapReorderingTests
     }
 
     // ── Duplicate leaf indices: defensive fallback ────────────────────────────
-
-    [Fact]
-    public void DuplicateLeafIndex_FallsBackToIdentity()
-    {
-        var root = new TreeNode
-        {
-            Value = 1.0,
-            Children =
-            [
-                new TreeNode { Value = 0.0 }, // index 0 appears twice
-                new TreeNode { Value = 0.0 },
-            ]
-        };
-        var order = ClustermapSeries.ResolveLeafOrder(root, 2);
-        Assert.Equal([0, 1], order); // identity fallback
-    }
 
     // ── Count mismatch: tree has MORE leaves than count ──────────────────────
 

@@ -2,8 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 import { Component, ElementRef, Input, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { ChartSubscriptionClient } from './chart-subscription.client';
-import { mountSvg, type MplHub } from './mount-svg';
+import { ChartSubscriptionClient, mountSvg, type MplHub } from '@matplotlibnet/client';
 
 /**
  * Live chart component that receives real-time updates via SignalR.

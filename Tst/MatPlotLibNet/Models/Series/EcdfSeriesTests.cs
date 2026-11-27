@@ -3,22 +3,12 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
 /// <summary>Verifies <see cref="EcdfSeries"/> construction, computation, serialization, and rendering.</summary>
 public class EcdfSeriesTests
 {
-    /// <summary>Verifies that the constructor stores the raw data.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        double[] data = [3.0, 1.0, 2.0];
-        var series = new EcdfSeries(data);
-        Assert.Equal(data, series.Data);
-    }
-
     /// <summary>Verifies that SortedX contains values in ascending order.</summary>
     [Fact]
     public void SortedX_IsSorted()
@@ -53,40 +43,16 @@ public class EcdfSeriesTests
         Assert.Equal(1.0, range.YMax);
     }
 
-    /// <summary>Verifies that the DTO type is "ecdf".</summary>
-    [Fact]
-    public void ToSeriesDto_TypeIsEcdf()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var series = new EcdfSeries([1.0, 2.0]);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("ecdf", dto.Type);
-    }
-
-    /// <summary>Verifies that JSON round-trip preserves the data.</summary>
-    [Fact]
-    public void RoundTrip_PreservesData()
-    {
-        double[] data = [3.0, 1.0, 4.0, 1.0, 5.0];
-        var fig = new Figure();
-        var axes = fig.AddSubPlot();
-        axes.Ecdf(data);
-
-        var serializer = new ChartSerializer();
-        var json = serializer.ToJson(fig);
-        var restored = serializer.FromJson(json);
-
-        var restoredSeries = restored.SubPlots[0].Series.OfType<EcdfSeries>().Single();
-        Assert.Equal(data, restoredSeries.Data);
-    }
-
-    /// <summary>Verifies that rendering produces SVG output containing a polyline.</summary>
-    [Fact]
-    public void Render_ProducesSvg()
-    {
-        var svg = Plt.Create()
+        //  Verifies that rendering produces SVG output containing a polyline.
+        new DrawnToken("Render_ProducesSvg", () => Plt.Create()
             .Ecdf([1.0, 2.0, 3.0, 4.0, 5.0])
-            .ToSvg();
+            .ToSvg(), "polyline"),
+    };
 
-        Assert.Contains("polyline", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

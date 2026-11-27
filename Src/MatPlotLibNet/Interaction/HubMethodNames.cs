@@ -3,53 +3,86 @@
 
 namespace MatPlotLibNet.Interaction;
 
-/// <summary>The name of the hub method that carries each interaction event, written once. The sink a native control sends
-/// through, the hub of the server that receives and the script of a page that invokes all read their names from here, or
-/// are held to it by a test, so an event cannot be added to one of them and be dropped by the others.</summary>
-internal static class HubMethodNames
+/// <summary>The name of every method of the chart hub, written once: the events a page or a native control sends (the
+/// <c>On</c> names), the messages the server sends a viewer and the calls a viewer joins and leaves a chart with. The sink a
+/// native control sends through, the hub of the server, the script a figure carries, the Interactive page and the Blazor client
+/// all read their names from here, or are held to it by a test, so a method cannot be renamed or added on one side and be
+/// missed by the others. A page of your own that talks to the hub reads the same names.</summary>
+public static class HubMethodNames
 {
     /// <summary>The method that carries a <see cref="ZoomEvent"/>.</summary>
-    internal const string Zoom = "OnZoom";
+    public const string Zoom = "OnZoom";
 
     /// <summary>The method that carries a <see cref="PanEvent"/>.</summary>
-    internal const string Pan = "OnPan";
+    public const string Pan = "OnPan";
 
     /// <summary>The method that carries a <see cref="ResetEvent"/>.</summary>
-    internal const string Reset = "OnReset";
+    public const string Reset = "OnReset";
 
     /// <summary>The method that carries a <see cref="LegendToggleEvent"/>.</summary>
-    internal const string LegendToggle = "OnLegendToggle";
+    public const string LegendToggle = "OnLegendToggle";
 
     /// <summary>The method that carries a <see cref="BrushSelectEvent"/>.</summary>
-    internal const string BrushSelect = "OnBrushSelect";
+    public const string BrushSelect = "OnBrushSelect";
 
     /// <summary>The method that carries a <see cref="HoverEvent"/>.</summary>
-    internal const string Hover = "OnHover";
+    public const string Hover = "OnHover";
 
     /// <summary>The method that carries a <see cref="DataCursorEvent"/>.</summary>
-    internal const string DataCursor = "OnDataCursor";
+    public const string DataCursor = "OnDataCursor";
 
     /// <summary>The method that carries a <see cref="RectangleZoomEvent"/>.</summary>
-    internal const string RectangleZoom = "OnRectangleZoom";
+    public const string RectangleZoom = "OnRectangleZoom";
 
     /// <summary>The method that carries a <see cref="SpanSelectEvent"/>.</summary>
-    internal const string SpanSelect = "OnSpanSelect";
+    public const string SpanSelect = "OnSpanSelect";
 
     /// <summary>The method that carries a <see cref="Rotate3DEvent"/>.</summary>
-    internal const string Rotate3D = "OnRotate3D";
+    public const string Rotate3D = "OnRotate3D";
 
     /// <summary>The method that carries an <see cref="AddTrendlineEvent"/>.</summary>
-    internal const string AddTrendline = "OnAddTrendline";
+    public const string AddTrendline = "OnAddTrendline";
 
     /// <summary>The method that carries an <see cref="AddHorizontalLevelEvent"/>.</summary>
-    internal const string AddHorizontalLevel = "OnAddHorizontalLevel";
+    public const string AddHorizontalLevel = "OnAddHorizontalLevel";
 
     /// <summary>The method that carries an <see cref="AddFibonacciRetracementEvent"/>.</summary>
-    internal const string AddFibonacciRetracement = "OnAddFibonacciRetracement";
+    public const string AddFibonacciRetracement = "OnAddFibonacciRetracement";
 
     /// <summary>The method that carries where a viewer's pointer is (<c>CursorEventPayload</c>); not an event of the figure,
-    /// so <see cref="For"/> has no arm for it.</summary>
-    internal const string Cursor = "OnCursor";
+    /// so no event of the figure maps to it.</summary>
+    public const string Cursor = "OnCursor";
+
+    /// <summary>The message that carries a chart's figure as JSON to its viewers.</summary>
+    public const string UpdateChart = "UpdateChart";
+
+    /// <summary>The message that carries a chart's whole SVG to its viewers.</summary>
+    public const string UpdateChartSvg = "UpdateChartSvg";
+
+    /// <summary>The message that carries only the parts of a chart's SVG that changed to the viewers that patch.</summary>
+    public const string UpdateChartParts = "UpdateChartParts";
+
+    /// <summary>The message that carries the tooltip the server worked out for a viewer's hover.</summary>
+    public const string ReceiveTooltipContent = "ReceiveTooltipContent";
+
+    /// <summary>The message that tells a viewer where another viewer's pointer is.</summary>
+    public const string ReceiveCursor = "ReceiveCursor";
+
+    /// <summary>The message that tells a viewer another viewer moved the view.</summary>
+    public const string ViewChanged = "ViewChanged";
+
+    /// <summary>The message that tells a viewer another viewer left the chart.</summary>
+    public const string ViewerLeft = "ViewerLeft";
+
+    /// <summary>The call a viewer joins a chart with, to receive its whole SVG on every change.</summary>
+    public const string Subscribe = "Subscribe";
+
+    /// <summary>The call a viewer that patches joins a chart with, to receive the whole SVG once and then only the parts that
+    /// change.</summary>
+    public const string SubscribeToParts = "SubscribeToParts";
+
+    /// <summary>The call a viewer leaves a chart with.</summary>
+    public const string Unsubscribe = "Unsubscribe";
 
     /// <summary>The events that are not sent over a wire, each with why.</summary>
     internal static IReadOnlyDictionary<Type, string> NotRouted { get; } = new Dictionary<Type, string>

@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -12,35 +13,29 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Cybernetic Analysis for Stocks and Futures</i> (2004) Ch. 6.</summary>
 public sealed class CyberCycle : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>alpha</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultAlpha = 0.07;
+
     private readonly double _alpha;
 
     /// <summary>Creates a new Cyber Cycle indicator.</summary>
     /// <param name="prices">Price series (typically close).</param>
-    /// <param name="alpha">Smoothing constant in (0, 1). Default 0.07 (≈15-bar cycles).</param>
+    /// <param name="alpha">Smoothing constant in (0, 1). Default <see cref="DefaultAlpha"/> (≈15-bar cycles).</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="alpha"/> ∉ (0, 1).</exception>
-    public CyberCycle(double[] prices, double alpha = 0.07) : base(prices)
+    public CyberCycle(double[] prices, double alpha = DefaultAlpha) : base(prices, Spec(alpha))
     {
-        if (alpha <= 0 || alpha >= 1)
-            throw new ArgumentException($"alpha must be in (0, 1) (got {alpha}).", nameof(alpha));
         _alpha = alpha;
-        Label = $"CC({alpha.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
-    /// <inheritdoc />
-    public override SignalResult Compute()
+    internal static IndicatorSpec Spec(double alpha)
     {
-        int n = Prices.Length;
-        if (n < 4) return Array.Empty<double>();
-        var result = new double[n - 3];
-        var step = new CyberCycleStep(_alpha);
-        for (int i = 0; i < n; i++)
-        {
-            double cycle = step.Next(Prices[i]);
-            if (i >= 3) result[i - 3] = cycle;
-        }
-        return result;
+        alpha.ThrowIfNotBetween(0, 1, nameof(alpha));
+        return IndicatorSpec.Of(3, $"CC({alpha.InvariantText("0.00")})");
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: 3);
+    public override SignalResult Compute() => FoldPrices(new CyberCycleStep(_alpha));
+
+    /// <inheritdoc />
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

@@ -24,7 +24,7 @@ internal sealed record SignalMarkerDto
     /// <summary>The colour of the triangle; absent for green for a buy and red for a sell.</summary>
     public Color? Color { get; init; }
 
-    /// <summary>The size of the triangle in pixels; absent for 12.</summary>
+    /// <summary>The size of the triangle in pixels; absent for what a new <see cref="SignalMarker"/> holds.</summary>
     public double? Size { get; init; }
 
     /// <summary>A name for the signal, which the chart does not draw; absent for none.</summary>
@@ -50,7 +50,7 @@ internal sealed record SignalMarkerDto
     {
         var signal = axes.AddSignal(X, Y, Direction);
         signal.Color = Color;
-        signal.Size = Size ?? Rest.Size;
+        if (Size is { } size) signal.Size = size;
         signal.Label = Label;
     }
 }

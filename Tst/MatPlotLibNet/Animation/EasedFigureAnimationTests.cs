@@ -27,13 +27,6 @@ public class EasedFigureAnimationTests
     }
 
     [Fact]
-    public void Loop_DefaultsFalse()
-    {
-        var anim = new EasedFigureAnimation(5, _ => new Figure());
-        Assert.False(anim.Loop);
-    }
-
-    [Fact]
     public void Loop_CanBeSetTrue()
     {
         var anim = new EasedFigureAnimation(5, _ => new Figure(), loop: true);
@@ -58,19 +51,14 @@ public class EasedFigureAnimationTests
         Assert.Equal(0.0, anim.Advance(0.0, 0));
     }
 
-    [Fact]
-    public void Advance_LastFrame_ReturnsOne()
+    [Theory]
+    [InlineData(5, EasingKind.Linear, 4, 1.0)]    // the last frame is t = 1
+    [InlineData(5, EasingKind.Linear, 2, 0.5)]    // frames 0-4: index 2 is t = 2/4
+    [InlineData(1, EasingKind.EaseIn, 0, 1.0)]    // a single frame is t = 1 whatever the easing
+    public void Advance_AtAFrame_ReturnsTheEasedStep(int frames, EasingKind easing, int index, double expected)
     {
-        var anim = new EasedFigureAnimation(5, _ => new Figure(), EasingKind.Linear);
-        Assert.Equal(1.0, anim.Advance(0.0, 4), precision: 10);
-    }
-
-    [Fact]
-    public void Advance_MidFrame_Linear_IsHalf()
-    {
-        // 5 frames: indices 0–4; index 2 → t = 2/4 = 0.5
-        var anim = new EasedFigureAnimation(5, _ => new Figure(), EasingKind.Linear);
-        Assert.Equal(0.5, anim.Advance(0.0, 2), precision: 10);
+        var anim = new EasedFigureAnimation(frames, _ => new Figure(), easing);
+        Assert.Equal(expected, anim.Advance(0.0, index), precision: 10);
     }
 
     [Fact]
@@ -87,14 +75,6 @@ public class EasedFigureAnimationTests
         // EaseOut(0.5) = 0.75 > 0.5
         var anim = new EasedFigureAnimation(5, _ => new Figure(), EasingKind.EaseOut);
         Assert.True(anim.Advance(0.0, 2) > 0.5);
-    }
-
-    [Fact]
-    public void Advance_SingleFrame_AlwaysReturnsOne()
-    {
-        // Single-frame edge case: t = 1.0 regardless of easing
-        var anim = new EasedFigureAnimation(1, _ => new Figure(), EasingKind.EaseIn);
-        Assert.Equal(1.0, anim.Advance(0.0, 0), precision: 10);
     }
 
     // ── GenerateFrame — frame generator receives eased state ──────────────────

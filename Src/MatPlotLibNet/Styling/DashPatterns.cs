@@ -3,24 +3,23 @@
 
 namespace MatPlotLibNet.Styling;
 
-/// <summary>Provides canonical dash-gap ratio patterns for each <see cref="LineStyle"/>.</summary>
+/// <summary>Provides the dash-gap ratio patterns of each <see cref="LineStyle"/> and, for a backend, the lengths a line is stroked
+/// with under a theme's look.</summary>
 public static class DashPatterns
 {
-    // Patterns calibrated to match matplotlib's default dash styles at ~96 dpi.
-    // matplotlib '--': 3.7pt on / 1.6pt off ≈ 5px/2px at 96 dpi.
-    // matplotlib ':' : 1pt   on / 3pt   off ≈ 1px/4px.
-    // matplotlib '-.': 5pt on / 2pt off / 1pt on / 2pt off ≈ 5/2/1/2.
-    private static readonly double[] DashedPattern  = [5, 2];
-    private static readonly double[] DottedPattern  = [1, 3];
-    private static readonly double[] DashDotPattern = [5, 2, 1, 2];
-    private static readonly double[] EmptyPattern = [];
+    /// <summary>Returns the dash-gap ratio array of the library's own look for the given line style.</summary>
+    /// <param name="style">The line style.</param>
+    /// <returns>The lengths of the dashes and the gaps of the library's own look, as shares of the line's width; empty for a
+    /// solid line.</returns>
+    public static ReadOnlySpan<double> GetPattern(LineStyle style) => DashLook.Library.RatiosOf(style);
 
-    /// <summary>Returns the dash-gap ratio array for the given line style.</summary>
-    public static ReadOnlySpan<double> GetPattern(LineStyle style) => style switch
-    {
-        LineStyle.Dashed => DashedPattern,
-        LineStyle.Dotted => DottedPattern,
-        LineStyle.DashDot => DashDotPattern,
-        _ => EmptyPattern
-    };
+    /// <summary>The dashes and gaps a line of <paramref name="style"/> and <paramref name="thickness"/> is stroked with under
+    /// <paramref name="look"/>: each ratio of the look's pattern times how many pixels a unit is, and times the width when the look's
+    /// dashes grow with it. The one conversion the SVG writer, Skia and MAUI share.</summary>
+    /// <param name="style">The line style.</param>
+    /// <param name="thickness">The width of the line, in pixels.</param>
+    /// <param name="look">The dash look of the theme the line is drawn under.</param>
+    /// <returns>The lengths in order; empty for a solid line and for no line.</returns>
+    internal static ScaledDashPattern Lengths(LineStyle style, double thickness, DashLook look) =>
+        new(look.RatiosOf(style), (look.ScalesWithWidth ? thickness : 1) * look.Unit);
 }

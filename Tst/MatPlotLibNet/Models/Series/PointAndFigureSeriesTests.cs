@@ -31,31 +31,20 @@ public class PointAndFigureSeriesTests
         .AddSubPlot(1, 1, 1, ax => ax.PointAndFigure(prices, box, reversal, s => { s.UpColor = Up; s.DownColor = Down; configure?.Invoke(s); }))
         .Build();
 
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
-
     /// <summary>The lines that make the Xs, in the order drawn, two to an X.</summary>
-    private static List<(Point From, Point To)> Strokes(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawLine")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => (Color)args.color == Up)
-        .Select(args => ((Point)args.p1, (Point)args.p2))];
+    private static List<(Point From, Point To)> Strokes(RecordingRenderContext drawn) => [.. drawn.Of<DrawLineCall>()
+        .Where(args => args.Color == Up)
+        .Select(args => (args.P1, args.P2))];
 
     /// <summary>The boxes the Os are inscribed in, in the order drawn.</summary>
-    private static List<Rect> Rings(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawEllipse")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => (Color?)args.stroke == Down)
-        .Select(args => (Rect)args.bounds)];
-
-    private static Rect Plot(Figure figure) => new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+    private static List<Rect> Rings(RecordingRenderContext drawn) => [.. drawn.Of<DrawEllipseCall>()
+        .Where(args => args.Stroke == Down)
+        .Select(args => args.Bounds)];
 
     [Fact]
     public void ARisingColumnIsDrawnWithXs_AFallingOneWithOs_OneForEachBox()
     {
-        var drawn = Drawn(Of(Fifteen, 1));
+        var drawn = Of(Fifteen, 1).Drawn();
 
         Assert.Equal(11 * 2, Strokes(drawn).Count);
         Assert.Equal(14, Rings(drawn).Count);
@@ -64,7 +53,7 @@ public class PointAndFigureSeriesTests
     [Fact]
     public void AnX_IsTwoLinesCrossingInTheCornersOfItsCell()
     {
-        var strokes = Strokes(Drawn(Of(Fifteen, 1)));
+        var strokes = Strokes(Of(Fifteen, 1).Drawn());
 
         for (int x = 0; x < strokes.Count; x += 2)
         {
@@ -80,8 +69,8 @@ public class PointAndFigureSeriesTests
     [Fact]
     public void TheCellsTile_TheColumnsOneSlotApart_TheBoxesOneBoxApart()
     {
-        var plot = Plot(Of(Fifteen, 1));
-        var rings = Rings(Drawn(Of(Fifteen, 1)));
+        var plot = Of(Fifteen, 1).FirstPlotArea();
+        var rings = Rings(Of(Fifteen, 1).Drawn());
         double slot = plot.Width / 4, box = plot.Height / 10;     // 4 columns; the prices 16 to 26 are 10 boxes
         double inset = PointAndFigureSeries.MarkInset;
 
@@ -104,8 +93,8 @@ public class PointAndFigureSeriesTests
     public void TheAxes_EndOnTheFirstAndLastColumn_AndTheLowestAndHighestBox()
     {
         var figure = Of(Fifteen, 1);
-        var plot = Plot(figure);
-        var drawn = Drawn(figure);
+        var plot = figure.FirstPlotArea();
+        var drawn = figure.Drawn();
         var corners = Strokes(drawn).SelectMany(s => new[] { s.From, s.To }).Concat(Rings(drawn).SelectMany(r => new[] { new Point(r.X, r.Y), new Point(r.X + r.Width, r.Y + r.Height) })).ToList();
         double slot = plot.Width / 4, box = plot.Height / 10, inset = PointAndFigureSeries.MarkInset;
 
@@ -120,8 +109,8 @@ public class PointAndFigureSeriesTests
     [InlineData(10)]
     public void TheBoxSize_ChangesNoPixel_OfTheSamePrices(double box)
     {
-        var reference = Drawn(Of(Fifteen, 1));
-        var scaled = Drawn(Of([.. Fifteen.Select(price => price * box)], box));
+        var reference = Of(Fifteen, 1).Drawn();
+        var scaled = Of([.. Fifteen.Select(price => price * box)], box).Drawn();
 
         var expectedRings = Rings(reference);
         var rings = Rings(scaled);
@@ -149,7 +138,7 @@ public class PointAndFigureSeriesTests
     [Fact]
     public void ThePricesThatNeverLeaveTheirBox_DrawNothing_AndDoNotBreakTheFigure()
     {
-        var drawn = Drawn(Of([20.4, 20.9, 20.5], 1));
+        var drawn = Of([20.4, 20.9, 20.5], 1).Drawn();
 
         Assert.Empty(Strokes(drawn));
         Assert.Empty(Rings(drawn));
@@ -158,20 +147,16 @@ public class PointAndFigureSeriesTests
     [Fact]
     public void TheLineWidth_IsTheStrokeOfEveryXAndO()
     {
-        var drawn = Drawn(Of(Fifteen, 1, s => s.LineWidth = 3));
+        var drawn = Of(Fifteen, 1, s => s.LineWidth = 3).Drawn();
 
-        Assert.All(drawn.OfKind("DrawLine").Where(call => (Color)((dynamic)call.Args!).color == Up), call => Assert.Equal(3.0, (double)((dynamic)call.Args!).thickness));
-        Assert.All(drawn.OfKind("DrawEllipse").Where(call => (Color?)((dynamic)call.Args!).stroke == Down), call => Assert.Equal(3.0, (double)((dynamic)call.Args!).strokeThickness));
+        Assert.All(drawn.Of<DrawLineCall>().Where(call => call.Color == Up), call => Assert.Equal(3.0, call.Thickness));
+        Assert.All(drawn.Of<DrawEllipseCall>().Where(call => call.Stroke == Down), call => Assert.Equal(3.0, call.StrokeThickness));
     }
 
     [Fact]
-    public void TheXsAreGreenAndTheOsRed_UnlessSaidOtherwise()
+    public void TheReversal_IsThreeBoxes_UnlessSaidOtherwise()
     {
-        var series = new PointAndFigureSeries(Fifteen, 1);
-
-        Assert.Equal(Colors.Green, series.UpColor);
-        Assert.Equal(Colors.Red, series.DownColor);
-        Assert.Equal(3, series.Reversal);
+        Assert.Equal(3, new PointAndFigureSeries(Fifteen, 1).Reversal);
     }
 
     [Fact]
@@ -203,23 +188,13 @@ public class PointAndFigureSeriesTests
     {
         var figure = Of(Fifteen, 0.5, s => s.LineWidth = 2, reversal: 2);
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         var series = Assert.IsType<PointAndFigureSeries>(Assert.Single(back.SubPlots[0].Series));
         Assert.Equal(Fifteen, series.Prices);
         Assert.Equal((0.5, 2, 2.0), (series.BoxSize, series.Reversal, series.LineWidth));
         Assert.Equal((Up, Down), (series.UpColor, series.DownColor));
         Assert.Equal(figure.ToSvg(), back.ToSvg());
-    }
-
-    [Fact]
-    public void TheDefaultReversalAndLineWidth_AreLeftOutOfTheJson()
-    {
-        string json = Of(Fifteen, 1).ToJson();
-
-        Assert.DoesNotContain("reversal", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("lineWidth", json, StringComparison.Ordinal);
-        Assert.Contains("boxSize", json, StringComparison.Ordinal);
     }
 
     [Theory]

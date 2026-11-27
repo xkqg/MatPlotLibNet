@@ -41,4 +41,16 @@ public interface IChartSubscriptionClient : IAsyncDisposable
     /// <summary><see langword="true"/> while the connection to the hub is open; <see langword="false"/> before
     /// <see cref="ConnectAsync"/> and after the client is disposed.</summary>
     bool IsConnected { get; }
+
+    /// <summary>The token of a registration that cannot be taken back: disposing it does nothing.</summary>
+    private sealed class NullSubscription : IDisposable
+    {
+        /// <summary>The one instance; it holds no state.</summary>
+        internal static readonly NullSubscription Instance = new();
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+        }
+    }
 }

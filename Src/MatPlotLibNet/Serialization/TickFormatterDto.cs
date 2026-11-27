@@ -72,10 +72,7 @@ internal sealed record DateTickFormatterDto(string? DateFormat) : TickFormatterD
     internal override ITickFormatter Restore(ITickLocator? axisLocator)
     {
         var formatter = new DateTickFormatter();
-        if (DateFormat is not null)
-        {
-            formatter.DateFormat = DateFormat;
-        }
+        if (DateFormat is { } dateFormat) formatter.DateFormat = dateFormat;
 
         return formatter;
     }
@@ -101,10 +98,7 @@ internal sealed record EngTickFormatterDto(string? Sep) : TickFormatterDto
     internal override ITickFormatter Restore(ITickLocator? axisLocator)
     {
         var formatter = new EngFormatter();
-        if (Sep is not null)
-        {
-            formatter.Sep = Sep;
-        }
+        if (Sep is { } sep) formatter.Sep = sep;
 
         return formatter;
     }
@@ -117,10 +111,10 @@ internal sealed record PercentTickFormatterDto(double Max) : TickFormatterDto
     internal override ITickFormatter Restore(ITickLocator? axisLocator) => new PercentFormatter(Max);
 }
 
-/// <summary>Describes an <see cref="AutoDateFormatter"/>. It writes what the axis's <see cref="AutoDateLocator"/> chose,
-/// so it is paired with the locator the axis was read back with; on an axis without one it gets a locator of its own.</summary>
+/// <summary>Describes an <see cref="AutoDateFormatter"/>. It is read back over the locator the axis was read back with, as a date
+/// axis keeps it over any locator (<see cref="AutoDateFormatter.Over"/>: the interval an <see cref="AutoDateLocator"/> chose, else the
+/// day); on an axis without one it gets an <see cref="AutoDateLocator"/> of its own.</summary>
 internal sealed record AutoDateTickFormatterDto : TickFormatterDto
 {
-    internal override ITickFormatter Restore(ITickLocator? axisLocator) =>
-        new AutoDateFormatter(axisLocator as AutoDateLocator ?? new AutoDateLocator());
+    internal override ITickFormatter Restore(ITickLocator? axisLocator) => AutoDateFormatter.Over(axisLocator ?? new AutoDateLocator());
 }

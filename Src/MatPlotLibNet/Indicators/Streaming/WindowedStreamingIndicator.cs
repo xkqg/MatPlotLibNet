@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
 using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
@@ -16,10 +17,8 @@ namespace MatPlotLibNet.Indicators.Streaming;
 /// <typeparam name="TInput">What one step reads.</typeparam>
 public abstract class WindowedStreamingIndicator<TInput> : StreamingIndicator<TInput>
 {
-    private readonly TInput[] _ring;
+    private InputWindow<TInput> _inputs;
     private readonly TInput[] _window;
-    private int _count;
-    private int _slot;
 
     /// <summary>How many inputs the value depends on.</summary>
     public int Width { get; }
@@ -30,10 +29,10 @@ public abstract class WindowedStreamingIndicator<TInput> : StreamingIndicator<TI
     /// <summary>An indicator with one output line.</summary>
     /// <param name="width">How many inputs the value depends on; at least 1.</param>
     /// <param name="capacity">How many points the line keeps.</param>
-    protected WindowedStreamingIndicator(int width, int capacity = 10_000) : base(capacity)
+    protected WindowedStreamingIndicator(int width, int capacity = StreamingSeries.RestingCapacity) : base(capacity)
     {
         Width = width;
-        _ring = new TInput[width];
+        _inputs = new InputWindow<TInput>(width);
         _window = new TInput[width];
     }
 
@@ -43,22 +42,34 @@ public abstract class WindowedStreamingIndicator<TInput> : StreamingIndicator<TI
     protected WindowedStreamingIndicator(int width, StreamingLineSeries[] outputs) : base(outputs)
     {
         Width = width;
-        _ring = new TInput[width];
+        _inputs = new InputWindow<TInput>(width);
+        _window = new TInput[width];
+    }
+
+    /// <summary>An indicator of the library whose value depends on as many inputs as it takes to warm up: the lines and the width
+    /// are the ones its batch indicator's spec says.</summary>
+    /// <param name="spec">What the batch indicator's <c>Spec</c> factory says of the parameters.</param>
+    /// <param name="capacity">How many points each line keeps.</param>
+    private protected WindowedStreamingIndicator(IndicatorSpec spec, int capacity) : this(spec.Warmup, spec, capacity) { }
+
+    /// <summary>An indicator of the library whose value depends on more inputs than it takes to warm up (a second window over the
+    /// values of a first): the lines are the ones its batch indicator's spec says.</summary>
+    /// <param name="width">How many inputs the value depends on; at least 1.</param>
+    /// <param name="spec">What the batch indicator's <c>Spec</c> factory says of the parameters.</param>
+    /// <param name="capacity">How many points each line keeps.</param>
+    private protected WindowedStreamingIndicator(int width, IndicatorSpec spec, int capacity) : base(spec, capacity)
+    {
+        Width = width;
+        _inputs = new InputWindow<TInput>(width);
         _window = new TInput[width];
     }
 
     /// <inheritdoc />
     protected sealed override void Step(TInput input, int index, Span<double> outputs)
     {
-        _ring[_slot] = input;
-        _slot = (_slot + 1) % Width;
-        if (_count < Width) _count++;
-
-        // The window in the order the inputs came: the oldest is where the next one will go once the ring is full.
-        int oldest = _count < Width ? 0 : _slot;
-        for (int i = 0; i < _count; i++) _window[i] = _ring[(oldest + i) % Width];
-
-        Recompute(_window.AsSpan(0, _count), outputs);
+        _inputs.Push(input);
+        _inputs.CopyTo(_window);
+        Recompute(_window.AsSpan(0, _inputs.Count), outputs);
     }
 
     /// <summary>Says what the batch indicator gives over a window: builds it from the inputs and writes the last value of each of

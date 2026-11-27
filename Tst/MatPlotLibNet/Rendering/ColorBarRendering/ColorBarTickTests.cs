@@ -17,6 +17,10 @@ public class ColorBarTickTests
 {
     private static readonly IColorMap Map = ColorMaps.Viridis;
     private static readonly Theme DefaultTheme = Theme.Default;
+
+    /// <summary>How far below its mark a vertical bar's tick label's baseline stands: the label is centred on the mark (TextBox's centre rule,
+    /// 0.35 of the ascent, the tick font's size).</summary>
+    private static readonly double Drop = 0.35 * DefaultTheme.TickFont().Size;
     private static readonly Rect Plot = new(100, 50, 400, 300);
 
     private static RecordingRenderContext Draw(ColorBar cb, double min, double max, Rect? plot = null)
@@ -28,8 +32,8 @@ public class ColorBarTickTests
 
     /// <summary>The tick labels in drawing order: the text and where it stands, the bar's own label left out.</summary>
     private static List<(string Text, Point At)> Ticks(RecordingRenderContext ctx, string? barLabel = null) =>
-        [.. ctx.OfKind("DrawText")
-            .Select(c => (Text: (string)((dynamic)c.Args!).text, At: (Point)((dynamic)c.Args!).position))
+        [.. ctx.Of<DrawTextCall>()
+            .Select(c => (Text: c.Text, At: c.Position))
             .Where(t => t.Text != barLabel)];
 
     // ---- the ticks of 0..11 and 0..10 ----------------------------------------------------------------------------------
@@ -71,9 +75,9 @@ public class ColorBarTickTests
     {
         var ticks = Ticks(Draw(new ColorBar { Orientation = ColorBarOrientation.Vertical }, 0, 11));
 
-        // The bar runs from y = 50 over 300 px with the largest value on top; a label's baseline is 4 px below its mark.
+        // The bar runs from y = 50 over 300 px with the largest value on top; a label is centred on its mark, its baseline 0.35 of its ascent below it.
         foreach (var (text, at) in ticks)
-            Assert.Equal(50 + 300 * (1 - double.Parse(text) / 11) + 4, at.Y, 9);
+            Assert.Equal(50 + 300 * (1 - double.Parse(text) / 11) + Drop, at.Y, 9);
     }
 
     [Theory]
@@ -88,8 +92,8 @@ public class ColorBarTickTests
         double gradientTop = 50 + (extend is ColorBarExtend.Max or ColorBarExtend.Both ? 30 : 0);
         double gradientHeight = 300 - (extend is ColorBarExtend.Min or ColorBarExtend.Both ? 30 : 0) - (extend is ColorBarExtend.Max or ColorBarExtend.Both ? 30 : 0);
         foreach (var (text, at) in ticks)
-            Assert.Equal(gradientTop + gradientHeight * (1 - double.Parse(text) / 11) + 4, at.Y, 9);
-        Assert.Equal(gradientTop + gradientHeight + 4, ticks.Single(t => t.Text == "0").At.Y, 9);
+            Assert.Equal(gradientTop + gradientHeight * (1 - double.Parse(text) / 11) + Drop, at.Y, 9);
+        Assert.Equal(gradientTop + gradientHeight + Drop, ticks.Single(t => t.Text == "0").At.Y, 9);
     }
 
     [Theory]
@@ -114,8 +118,8 @@ public class ColorBarTickTests
         var ticks = Ticks(Draw(new ColorBar { Orientation = ColorBarOrientation.Vertical }, 11, 0));
 
         Assert.Equal(["0", "2", "4", "6", "8", "10"], ticks.Select(t => t.Text).OrderBy(double.Parse).ToArray());
-        Assert.Equal(50 + 4, ticks.Single(t => t.Text == "0").At.Y, 9);            // 0 is the Max, on top
-        Assert.Equal(50 + 300 * (1 - 1.0 / 11) + 4, ticks.Single(t => t.Text == "10").At.Y, 9);
+        Assert.Equal(50 + Drop, ticks.Single(t => t.Text == "0").At.Y, 9);            // 0 is the Max, on top
+        Assert.Equal(50 + 300 * (1 - 1.0 / 11) + Drop, ticks.Single(t => t.Text == "10").At.Y, 9);
     }
 
     // ---- a short bar and a range with no ticks -------------------------------------------------------------------------
@@ -150,9 +154,9 @@ public class ColorBarTickTests
     {
         var ctx = Draw(new ColorBar { Orientation = ColorBarOrientation.Vertical, Label = "Intensity" }, 0, 11);
 
-        var all = ctx.OfKind("DrawText").Select(c => (Text: (string)((dynamic)c.Args!).text, At: (Point)((dynamic)c.Args!).position)).ToList();
+        var all = ctx.Of<DrawTextCall>().Select(c => (Text: c.Text, At: c.Position)).ToList();
         var label = all.Single(t => t.Text == "Intensity");
-        double widest = all.Where(t => t.Text != "Intensity").Max(t => ctx.MeasureText(t.Text, ThemedFontProvider.TickFont(DefaultTheme)).Width);
+        double widest = all.Where(t => t.Text != "Intensity").Max(t => ctx.MeasureText(t.Text, DefaultTheme.TickFont()).Width);
         Assert.Equal(100 + 400 + 10 + 20 + 4 + widest + 8, label.At.X, 9);
     }
 
@@ -170,7 +174,7 @@ public class ColorBarTickTests
         new ChartRenderer().RenderFigureColorBar(figure, [new Rect(80, 40, 600, 400)],
             new ColorBar { Visible = true, Orientation = orientation }, ctx);
 
-        var texts = ctx.OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text).ToArray();
+        var texts = ctx.Of<DrawTextCall>().Select(c => c.Text).ToArray();
         Assert.Equal(["0", "2", "4", "6", "8", "10"], texts.OrderBy(double.Parse).ToArray());
     }
 }

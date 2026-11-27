@@ -61,18 +61,56 @@ public static partial class SvgDiffEngine
         return 1.0 - (double)patchSize / fullSvgLength;
     }
 
+    /// <summary>The content of every series group by its index: what stands between the end of the group's opening tag and the
+    /// <c>&lt;/g&gt;</c> that closes it, found by counting the groups opened inside it, so a group of its own (an alpha group, a
+    /// 3-D run) is part of the content rather than its end. A group written self-closed has no content; one never closed runs
+    /// to the end of the document.</summary>
     private static Dictionary<int, string> ExtractSeriesGroups(string svg)
     {
         var groups = new Dictionary<int, string>();
-        var matches = SeriesGroupRegex().Matches(svg);
-        foreach (Match match in matches)
+        int from = 0;
+        while (SeriesGroupRegex().Match(svg, from) is { Success: true } open)
         {
-            if (int.TryParse(match.Groups[1].Value, out int index))
-                groups[index] = match.Groups[2].Value;
+            int start = open.Index + open.Length;
+            bool selfClosed = svg[start - 2] == '/';
+            int end = selfClosed ? start : ClosingTagOf(svg, start);
+            if (int.TryParse(open.Groups[1].Value, out int index))
+                groups[index] = svg[start..end];
+            from = selfClosed ? start : Math.Min(svg.Length, end + GroupClose.Length);
         }
         return groups;
     }
 
-    [GeneratedRegex(@"data-series-index=""(\d+)""[^>]*>(.*?)</g>", RegexOptions.Singleline)]
+    private const string GroupClose = "</g>";
+
+    /// <summary>Where the <c>&lt;/g&gt;</c> closing a group whose content starts at <paramref name="start"/> stands: each group
+    /// opened inside it (not written self-closed) must close first. The document's length when it never closes.</summary>
+    private static int ClosingTagOf(string svg, int start)
+    {
+        int depth = 0;
+        for (int at = svg.IndexOf('<', start); at >= 0; at = svg.IndexOf('<', at + 1))
+        {
+            if (string.CompareOrdinal(svg, at, GroupClose, 0, GroupClose.Length) == 0)
+            {
+                if (depth == 0) return at;
+                depth--;
+            }
+            else if (OpensGroup(svg, at))
+            {
+                int tagEnd = svg.IndexOf('>', at);
+                if (tagEnd < 0) break;
+                if (svg[tagEnd - 1] != '/') depth++;
+                at = tagEnd;
+            }
+        }
+        return svg.Length;
+    }
+
+    /// <summary>Whether the tag at <paramref name="at"/> opens a group: <c>&lt;g</c> followed by the end of the tag or a space,
+    /// never another element whose name starts with g.</summary>
+    private static bool OpensGroup(string svg, int at) =>
+        at + 2 < svg.Length && svg[at + 1] == 'g' && (svg[at + 2] is '>' or '/' || char.IsWhiteSpace(svg[at + 2]));
+
+    [GeneratedRegex(SvgAttributes.SeriesIndex + @"=""(\d+)""[^>]*>", RegexOptions.Singleline)]
     private static partial Regex SeriesGroupRegex();
 }

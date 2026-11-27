@@ -54,6 +54,10 @@ Plt.Create()
     .Save("contourf.svg");
 ```
 
+Under the matplotlib themes, which every figure without a theme wears, a filled contour draws its bands and no line along
+the levels, as matplotlib's `contourf` does. Under the library's own themes it draws a thin line in the colours of the bands
+there, and `ShowLines` asks for the lines (`true`) or refuses them (`false`) under any theme.
+
 ## Custom contour levels
 
 ```csharp
@@ -82,6 +86,28 @@ A filled contour (`Contourf`, and a `Contour` with `Filled` set) fills the bands
 the level lines as the edges of the bands. The fill follows the axes' range and the limits you set, so a grid cut to a window
 by `SetXLim` and `SetYLim` shows the same bands over that window, and a cell with a value that cannot be drawn is left empty.
 
+## The colour bar of a filled contour
+
+Under the matplotlib themes the colour bar of a filled contour is one block per band, as tall as each other, with a tick on the
+levels (every other one when there are more than ten), and each block in the colour of its band on the plot, as matplotlib's
+`fig.colorbar(contourf)`. Under the library's own themes it stays a gradient with the ticks of a locator.
+
+## The colour bar of a contour of lines
+
+A contour of lines backs a colour bar too, as matplotlib's `fig.colorbar(contour)`: the bar is not filled, it draws one line
+across itself at each level, in the colour and the width of that level's line on the plot, and runs from the first level to
+the last. Under the matplotlib themes the levels stand evenly along the bar with a tick on each (every other one when there are
+more than ten); under the library's own themes, whose lines are grey when no colour map is named, the bar draws the same grey
+lines. A `Tricontour` backs one the same way, and a `Contour` with `Filled` set has the bar of a filled contour.
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Contour(x, y, z)
+        .WithColorBar(cb => cb with { Label = "height" }))
+    .Save("contour_colorbar.svg");
+```
+
 ## Contour with level count
 
 ```csharp
@@ -97,7 +123,23 @@ Plt.Create()
     .Save("contour_dense.svg");
 ```
 
+A contour that names no `LevelValues` takes round levels for its `Levels`, as matplotlib's `contour(..., levels=N)` does:
+`Levels = 10` over values from -0.685 to 1.056 draws lines at -0.8, -0.6, ..., 1.2, and the colours run over those levels. A
+level the grid never reaches adds no line. They are the levels a `Contourf` of the same count bands at, so a contour laid over
+a filled contour draws its lines on the edges of its bands.
+
+A filled or triangle contour whose `Normalizer` is a `LogNormalizer` takes powers of ten for its levels, as matplotlib's
+`norm=LogNorm()` does: values from 1 to 1000 asked for 10 levels have the levels 0.1, 1, 10, 100, 1000 and 10000, laid over the
+values above 0. Under the matplotlib themes the colour of a band is taken at the geometric mean of its two levels, over the
+levels (matplotlib's `contourf` with `LogNorm`), and a grid value of 0 or below is masked: the cells it is a corner of are
+left empty.
+
 ## Contour + filled contour overlay
+
+A filled contour that names no `LevelValues` takes round levels for its `Levels`, as matplotlib's `contourf(..., levels=N)`
+does: `Levels = 10` over values from -0.685 to 1.056 gives the eleven levels -0.8, -0.6, ..., 1.2, and the colours and the
+colour bar run over those levels. Each band is filled out to the edges of the grid. The line contour over it takes the same
+levels for the same count, so its lines stand on the edges of the bands.
 
 ```csharp
 Plt.Create()
@@ -116,7 +158,8 @@ Plt.Create()
 
 ## Triangulated contour
 
-Use a triangulated contour for irregularly spaced data. The points are connected by Delaunay triangulation:
+Use a triangulated contour for irregularly spaced data. The points are connected by Delaunay triangulation, and its `Levels`
+asks for the same round levels a contour of a grid takes. The axes end at the extent of the points:
 
 ```csharp
 Plt.Create()
@@ -157,10 +200,10 @@ whole; a list that is not whole triangles, or an index that names no point, is r
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `Levels` | `int` | `10` | Number of contour levels |
+| `Levels` | `int` | `10` | The number of levels to aim for: round levels spanning the values, as matplotlib's `levels=N` |
 | `LevelValues` | `double[]` | none | The levels to draw, ascending, each once; `Levels` is ignored when set |
 | `Filled` | `bool` | `false` | Filled areas (contourf) instead of lines only |
 | `ShowLabels` | `bool` | `false` | Show level values on contour lines |
 | `LabelFormat` | `string` | `"G4"` | .NET format string for labels |
-| `LabelFontSize` | `double` | `10` | Label font size |
+| `LabelFontSize` | `double` | `10` | Label font size in pixels. Left alone, the labels are the size of the theme's text under the matplotlib themes, as `clabel` draws them |
 | `ColorMap` | `IColorMap` | auto | Colormap for level colors |

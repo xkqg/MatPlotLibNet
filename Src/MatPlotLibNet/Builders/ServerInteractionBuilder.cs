@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Builders;
 
 /// <summary>Fluent selector for which server-authoritative interaction events a figure opts
 /// into. Each <c>Enable*</c> method flips an internal flag consumed by
-/// <see cref="FigureBuilder.WithServerInteraction"/> at <c>Build()</c> time to route the matching
+/// <see cref="FigureBuilderInteractionVerbs.extension(FigureBuilder).WithServerInteraction"/> at <c>Build()</c> time to route the matching
 /// existing <c>Figure.Enable*</c> flag on the resulting figure. Method names mirror the existing
 /// <c>Enable*</c> convention — no new vocabulary for users to learn.</summary>
 public sealed class ServerInteractionBuilder

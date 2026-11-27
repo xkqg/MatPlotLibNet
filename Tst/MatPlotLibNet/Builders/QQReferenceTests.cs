@@ -134,10 +134,10 @@ public class QQReferenceTests
     [InlineData(-2.5)]
     public void FittedLogNormal_RefusesAnObservationThatIsNotAbove0_NamingTheParameter(double bad)
     {
-        var error = Assert.Throws<ArgumentException>(() => QQReference.FittedLogNormal([3.1, bad, 4.8]));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => QQReference.FittedLogNormal([3.1, bad, 4.8]));
 
         Assert.Equal("sample", error.ParamName);
-        Assert.StartsWith($"The sample has an observation of {bad.ToString(System.Globalization.CultureInfo.InvariantCulture)} that is not above 0;", error.Message, StringComparison.Ordinal);
+        Assert.Contains($"must be > 0 (got {bad.ToString(System.Globalization.CultureInfo.InvariantCulture)}).", error.Message, StringComparison.Ordinal);
     }
 
     /// <summary>With no spread in the logarithms (one observation, or every value the same) there is no log-normal to fit.</summary>
@@ -147,10 +147,10 @@ public class QQReferenceTests
     [InlineData(new double[0])]
     public void FittedLogNormal_RefusesASampleWithoutASpread(double[] sample)
     {
-        var error = Assert.Throws<ArgumentException>(() => QQReference.FittedLogNormal(sample));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => QQReference.FittedLogNormal(sample));
 
         Assert.Equal("sample", error.ParamName);
-        Assert.StartsWith("The sample's logarithms have no spread", error.Message, StringComparison.Ordinal);
+        Assert.StartsWith("The spread of the sample's logarithms", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

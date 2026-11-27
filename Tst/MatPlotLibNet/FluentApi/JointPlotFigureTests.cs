@@ -21,28 +21,15 @@ public class JointPlotFigureTests
         Assert.Equal(3, fig.SubPlots.Count);
     }
 
-    [Fact]
-    public void Build_NoHue_CenterPanelHasOneScatterSeries()
+    [Theory]
+    [InlineData(1, typeof(ScatterSeries))]
+    [InlineData(0, typeof(HistogramSeries))]
+    [InlineData(2, typeof(HistogramSeries))]
+    public void Build_NoHue_EveryPanelHasOneSeriesOfItsKind(int panel, Type kind)
     {
         var fig = new JointPlotFigure(X, Y).Build().Build();
-        Assert.Single(fig.SubPlots[1].Series);
-        Assert.IsType<ScatterSeries>(fig.SubPlots[1].Series[0]);
-    }
-
-    [Fact]
-    public void Build_NoHue_TopPanelHasOneHistSeries()
-    {
-        var fig = new JointPlotFigure(X, Y).Build().Build();
-        Assert.Single(fig.SubPlots[0].Series);
-        Assert.IsType<HistogramSeries>(fig.SubPlots[0].Series[0]);
-    }
-
-    [Fact]
-    public void Build_NoHue_RightPanelHasOneHistSeries()
-    {
-        var fig = new JointPlotFigure(X, Y).Build().Build();
-        Assert.Single(fig.SubPlots[2].Series);
-        Assert.IsType<HistogramSeries>(fig.SubPlots[2].Series[0]);
+        Assert.Single(fig.SubPlots[panel].Series);
+        Assert.IsType(kind, fig.SubPlots[panel].Series[0]);
     }
 
     [Fact]
@@ -62,20 +49,14 @@ public class JointPlotFigureTests
         Assert.Equal(15, rightHist.Bins);
     }
 
-    [Fact]
-    public void Build_WithHue_CenterScatterHasOneSeriesPerHueGroup()
+    [Theory]
+    [InlineData(1)] // the centre scatter
+    [InlineData(0)] // the top histogram
+    public void Build_WithHue_EachPanelHasOneSeriesPerHueGroup(int panel)
     {
         int groups = Hue.Distinct().Count();
         var fig = new JointPlotFigure(X, Y) { Hue = Hue }.Build().Build();
-        Assert.Equal(groups, fig.SubPlots[1].Series.Count);
-    }
-
-    [Fact]
-    public void Build_WithHue_TopHistHasOneSeriesPerHueGroup()
-    {
-        int groups = Hue.Distinct().Count();
-        var fig = new JointPlotFigure(X, Y) { Hue = Hue }.Build().Build();
-        Assert.Equal(groups, fig.SubPlots[0].Series.Count);
+        Assert.Equal(groups, fig.SubPlots[panel].Series.Count);
     }
 
     [Fact]

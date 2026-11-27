@@ -4,13 +4,16 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.29.0</Version>
+    <Version>1.30.0</Version>
     <PackageId>MatPlotLibNet.Skia</PackageId>
     <Description>PNG and PDF export for MatPlotLibNet charts using SkiaSharp.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;png;pdf;export;skiasharp</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Reads internals of the packages it references (InternalsVisibleTo), so it depends on each at exactly this
+         version (Directory.Build.targets). -->
+    <DependsOnInternals>true</DependsOnInternals>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,6 +42,8 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+    <!-- The licences of the third-party files and libraries this package carries: it is what MIT, BSD-3-Clause, Apache-2.0 and the font licence ask to travel with a copy. -->
+    <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- Bundle DejaVu Sans TTF files (copied from matplotlib's mpl-data/fonts/ttf/) so
@@ -50,5 +55,37 @@
     <EmbeddedResource Include="Fonts\DejaVuSans-Bold.ttf" />
     <EmbeddedResource Include="Fonts\DejaVuSans-Oblique.ttf" />
     <EmbeddedResource Include="Fonts\DejaVuSans-BoldOblique.ttf" />
+    <!-- matplotlib's math font set 'dejavusans' (the default style) sets its large operators in this face. -->
+    <EmbeddedResource Include="Fonts\DejaVuSansDisplay.ttf" />
+  </ItemGroup>
+
+  <!-- The Computer Modern faces of matplotlib's math font set 'cm' (mathtext.fontset under the classic style), the BaKoMa TrueType
+       fonts as matplotlib ships them in mpl-data/fonts/ttf: the faces MathFontSet.ComputerModern sets math in. A face no set reads
+       (cmss10: there is no \mathsf) is not packed. Their licence travels in THIRD-PARTY-NOTICES.md. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\cmr10.ttf" />
+    <EmbeddedResource Include="Fonts\cmmi10.ttf" />
+    <EmbeddedResource Include="Fonts\cmti10.ttf" />
+    <EmbeddedResource Include="Fonts\cmb10.ttf" />
+    <EmbeddedResource Include="Fonts\cmsy10.ttf" />
+    <EmbeddedResource Include="Fonts\cmex10.ttf" />
+    <EmbeddedResource Include="Fonts\cmtt10.ttf" />
+  </ItemGroup>
+
+  <!-- The STIX faces matplotlib's math font sets 'cm' and 'dejavusans' take what they have no glyph for from (StixFonts, StixSansFonts),
+       as matplotlib ships them in mpl-data/fonts/ttf (SIL Open Font License; the licence travels in THIRD-PARTY-NOTICES.md): the faces
+       StixFallback sets those characters in, and the four sizes of delimiter and radical sign it takes from them. The bold and
+       bold-italic non-Unicode faces, the bold-italic general face and the fifth size are not packed: no character of the library's
+       grammar is set in them. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\STIXGeneral.ttf" />
+    <EmbeddedResource Include="Fonts\STIXGeneralItalic.ttf" />
+    <EmbeddedResource Include="Fonts\STIXGeneralBol.ttf" />
+    <EmbeddedResource Include="Fonts\STIXNonUni.ttf" />
+    <EmbeddedResource Include="Fonts\STIXNonUniIta.ttf" />
+    <EmbeddedResource Include="Fonts\STIXSizOneSymReg.ttf" />
+    <EmbeddedResource Include="Fonts\STIXSizTwoSymReg.ttf" />
+    <EmbeddedResource Include="Fonts\STIXSizThreeSymReg.ttf" />
+    <EmbeddedResource Include="Fonts\STIXSizFourSymReg.ttf" />
   </ItemGroup>
 </Project>

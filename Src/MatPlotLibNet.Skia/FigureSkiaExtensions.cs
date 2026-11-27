@@ -13,14 +13,24 @@ public static class FigureSkiaExtensions
     private static readonly PngTransform Png = new();
     private static readonly PdfTransform Pdf = new();
 
+    /// <summary>The text measurement the package installs: the shaped width of the kept shapings, so the layout of an SVG and
+    /// of a PNG is the same.</summary>
+    private static readonly SkiaFontMetrics Metrics = new(ShapedTextStore.Shared);
+
+    /// <summary>The glyph outlines the package installs, made from the same kept shapings: the SVG writer draws text as
+    /// <c>&lt;path&gt;</c> outlines of the face Skia paints, as matplotlib's default <c>svg.fonttype='path'</c> does, so the
+    /// picture does not depend on the fonts the viewer has.</summary>
+    private static readonly SkiaGlyphPathProvider Outlines = new(ShapedTextStore.Shared);
+
     /// <summary>
     /// Module initializer — runs once on assembly load. Registers `.png` and `.pdf` with the
     /// global `FigureExtensions.TransformRegistry` (over the refusals core seeds there) so that
     /// <c>figure.Save("chart.png")</c> routes through the Skia backend once this assembly is loaded. `.gif` is not
     /// registered: an animation is saved from its builder with <c>SaveGif</c>.
-    /// Also loads the bundled DejaVu Sans faces into <see cref="SkiaFonts"/> and installs the Skia-backed
-    /// text measurement and glyph outlines on <see cref="MatPlotLibNet.FontMetricsDefault"/> and
-    /// <see cref="MatPlotLibNet.GlyphPathProviderDefault"/>.
+    /// Also installs the Skia-backed text measurement and glyph outlines on <see cref="MatPlotLibNet.FontMetricsDefault"/> and
+    /// <see cref="MatPlotLibNet.GlyphPathProviderDefault"/>; both read one store of shapings, so a text is shaped once.
+    /// Calling it again installs the same exporters, metrics and outlines over the same shapings, and keeps every font
+    /// registered with <see cref="SkiaFonts"/>.
     /// This is the advertised entry point for the library package — CA2255 (the intended
     /// use of <c>ModuleInitializer</c> is app code only) is suppressed deliberately.
     /// </summary>
@@ -29,17 +39,9 @@ public static class FigureSkiaExtensions
     public static void Initialize()
     {
         global::MatPlotLibNet.FigureExtensions.RegisterTransform(ExportExtension.Png, Png);
-        global::MatPlotLibNet.FigureExtensions.RegisterTransform(ExportExtension.Pdf, Pdf);        SkiaFonts.LoadBundled();
-
-        // Install Skia-backed font metrics — the same shaped glyph advances as the PNG pipeline, so layout
-        // (margins, tick positions, legend sizing) is identical across SVG and PNG outputs.
-        global::MatPlotLibNet.FontMetricsDefault.Current = new SkiaFontMetrics();
-
-        // Install Skia-backed glyph path provider — when the SVG backend writes text, it emits a <path> element
-        // with vector glyph outlines generated from the SAME font Skia uses for PNG rendering. The SVG becomes
-        // self-contained: it renders identically regardless of whether the viewer has DejaVu Sans installed.
-        // Matches matplotlib's default svg.fonttype='path' behaviour.
-        global::MatPlotLibNet.GlyphPathProviderDefault.Current = new SkiaGlyphPathProvider();
+        global::MatPlotLibNet.FigureExtensions.RegisterTransform(ExportExtension.Pdf, Pdf);
+        global::MatPlotLibNet.FontMetricsDefault.Current = Metrics;
+        global::MatPlotLibNet.GlyphPathProviderDefault.Current = Outlines;
     }
 #pragma warning restore CA2255
 

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming RollSpread: Roll's estimate of the effective spread over the last <c>period</c> price changes. It keeps the inputs the value depends on (<see cref="WindowedStreamingIndicator{TInput}.Width"/>)
@@ -13,11 +15,10 @@ public sealed class StreamingRollSpread : WindowedStreamingIndicator<double>
     /// <summary>Creates a streaming RollSpread.</summary>
     /// <param name="period">How many price changes the spread is estimated over; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingRollSpread(int period = 20, int capacity = 10_000)
-        : base(period + 2, capacity)
+    public StreamingRollSpread(int period = RollSpread.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(RollSpread.Spec(period), capacity)
     {
         _period = period;
-        Label = $"Roll({period})";
     }
 
     /// <inheritdoc />

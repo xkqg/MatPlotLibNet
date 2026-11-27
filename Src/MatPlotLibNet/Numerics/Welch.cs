@@ -1,19 +1,18 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Numerics;
 
 namespace MatPlotLibNet.Numerics;
 
-/// <summary>A one-sided power spectrum: the power at each frequency.</summary>
-/// <param name="Frequencies">The frequency of each bin, k · SampleRate / M + CenterFrequency for k = 0 .. M / 2, where M is
-/// the length of the transform.</param>
+/// <summary>A power spectrum: the power at each frequency.</summary>
+/// <param name="Frequencies">The frequency of each bin, k · SampleRate / M + CenterFrequency, for k = 0 .. M / 2 one-sided and for
+/// k = -M / 2 .. M / 2 - 1 (an even M) two-sided, where M is the length of the transform.</param>
 /// <param name="Power">The averaged power (or the coherence) at each frequency; every value is NaN when no segment could be
 /// used.</param>
 internal readonly record struct SpectralDensity(double[] Frequencies, double[] Power);
 
-/// <summary>A one-sided cross spectrum: the complex cross power of two signals at each frequency.</summary>
+/// <summary>A cross spectrum: the complex cross power of two signals at each frequency.</summary>
 /// <param name="Frequencies">The frequency of each bin, as in <see cref="SpectralDensity.Frequencies"/>.</param>
 /// <param name="Power">The averaged conj(X)·Y at each frequency; every value is NaN when no segment could be used.</param>
 internal readonly record struct CrossSpectralDensity(double[] Frequencies, Complex[] Power);
@@ -23,7 +22,9 @@ internal readonly record struct CrossSpectralDensity(double[] Frequencies, Compl
 /// samples, O = <see cref="SpectralOptions.Overlap"/> of them shared by neighbours (what is left at the end is not used).
 /// Each segment is detrended, multiplied by the window, padded with zeros to M = <see cref="SpectralOptions.PadTo"/> (or L)
 /// and transformed at exactly that length; conj(X)·Y is averaged over the segments, divided by SampleRate · Σw² (a density)
-/// or (Σw)² (a spectrum), and folded to one side: every bin but DC, and but the Nyquist bin of an even M, is doubled.
+/// or (Σw)² (a spectrum). One-sided (<see cref="SpectralSides"/>) it is folded: every bin but DC, and but the Nyquist bin of an
+/// even M, is doubled. Two-sided nothing is doubled and the bins stand from the most negative frequency up, the negative ones the
+/// conjugates of the positive (<see cref="SpectralSidesExtensions"/>).
 /// <para>A missing sample (NaN or an infinity) makes its segment missing, and a missing segment is left out of the average;
 /// for two signals a segment is left out when either signal is missing there. When no segment is left every value of the
 /// result is NaN, and the frequencies are still given.</para></summary>
@@ -63,7 +64,8 @@ internal static class Welch
         return new(averages.Frequencies, coherence);
     }
 
-    /// <summary>conj(X)·Y, |X|² and |Y|² averaged over the segments both signals hold whole, scaled and folded to one side.</summary>
+    /// <summary>conj(X)·Y, |X|² and |Y|² averaged over the segments both signals hold whole, scaled, and placed one-sided or
+    /// two-sided as the options say.</summary>
     private static Averages Average(double[] x, double[] y, SpectralOptions options)
     {
         Refuse(x, y, options);
@@ -94,31 +96,21 @@ internal static class Welch
             used++;
         }
 
-        double scale = used == 0 ? double.NaN : 1.0 / (used * Normalisation(window, options));
+        double scale = used == 0 ? double.NaN : 1.0 / (used * options.Scaling.DivisorOf(window, options.SampleRate));
         for (int k = 0; k < bins; k++)
         {
-            double factor = scale * (k == 0 || (m % 2 == 0 && k == m / 2) ? 1 : 2);
+            double factor = scale * options.Sides.FoldOf(k, m);
             cross[k] *= factor;
             left[k] *= factor;
             right[k] *= factor;
         }
 
-        var frequencies = new double[bins];
-        for (int k = 0; k < bins; k++) frequencies[k] = k * options.SampleRate / m + options.CenterFrequency;
-
-        return new(frequencies, cross, left, right);
-    }
-
-    /// <summary>What the averaged power is divided by: SampleRate · Σw² for a density, (Σw)² for a spectrum.</summary>
-    private static double Normalisation(double[] window, SpectralOptions options)
-    {
-        if (options.Scaling == SpectralScaling.Spectrum)
-        {
-            double sum = window.Sum();
-            return sum * sum;
-        }
-
-        return options.SampleRate * window.Sum(w => w * w);
+        SpectralSides sides = options.Sides;
+        return new(
+            sides.FrequenciesOf(m, options.SampleRate, options.CenterFrequency),
+            sides.Arranged(cross, m),
+            sides.Arranged(left, m),
+            sides.Arranged(right, m));
     }
 
     /// <summary>The transform of the segment at <paramref name="start"/>: detrended, weighted, padded to <paramref name="m"/>.</summary>
@@ -147,37 +139,15 @@ internal static class Welch
     {
         ArgumentNullException.ThrowIfNull(x);
         ArgumentNullException.ThrowIfNull(y);
-        if (x.Length == 0) throw new ArgumentException("The signal holds no samples.", nameof(x));
-        if (y.Length != x.Length)
-        {
-            throw new ArgumentException(
-                $"The two signals differ in length: {Shown(x.Length)} and {Shown(y.Length)} samples.", nameof(y));
-        }
+        x.ThrowIfEmpty("The signal holds no samples.");
+        y.Length.ThrowIfMisaligned(x.Length, nameof(y));
 
-        if (options.SegmentLength > x.Length)
-        {
-            throw new ArgumentException(
-                $"A segment of {Shown(options.SegmentLength)} samples is longer than the signal of {Shown(x.Length)}; set a shorter SegmentLength.",
-                nameof(options));
-        }
-
-        if (options.Overlap >= options.SegmentLength)
-        {
-            throw new ArgumentException(
-                $"An overlap of {Shown(options.Overlap)} samples is not below the segment of {Shown(options.SegmentLength)}.",
-                nameof(options));
-        }
-
-        if (options.PadTo != 0 && options.PadTo < options.SegmentLength)
-        {
-            throw new ArgumentException(
-                $"A segment of {Shown(options.SegmentLength)} samples cannot be padded to {Shown(options.PadTo)}.",
-                nameof(options));
-        }
+        x.Length.ThrowIfFewerThan(options.SegmentLength, nameof(options), new("The signal", "sample", "a segment of SegmentLength", "set a shorter SegmentLength"));
+        options.SegmentLength.ThrowIfFewerThan(options.Overlap + 1L, nameof(options), new("The segment", "sample", "an overlap of Overlap samples", "set a smaller Overlap"));
+        if (options.PadTo != 0)
+            options.SegmentLength.ThrowIfMoreThan(options.PadTo, nameof(options), new("The segment", "sample", "a padding to PadTo", "set PadTo to 0 or to at least SegmentLength"));
     }
 
-    private static string Shown(int count) => count.ToString(CultureInfo.InvariantCulture);
-
-    /// <summary>The scaled one-sided averages of one pass over the segments.</summary>
+    /// <summary>The scaled averages of one pass over the segments, in the order of the result.</summary>
     private readonly record struct Averages(double[] Frequencies, Complex[] Cross, double[] Left, double[] Right);
 }

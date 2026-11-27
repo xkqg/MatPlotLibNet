@@ -24,7 +24,7 @@ namespace MatPlotLibNet.Styling;
 /// </remarks>
 public sealed record TextStyle
 {
-    /// <summary>Font size in points, or <see langword="null"/> to keep the base font's size.</summary>
+    /// <summary>Font size in pixels, the unit of <see cref="Font.Size"/>, or <see langword="null"/> to keep the base font's size.</summary>
     public double? FontSize { get; init; }
 
     /// <summary>Font weight, or <see langword="null"/> to keep the base font's weight.</summary>

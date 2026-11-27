@@ -7,49 +7,12 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="EhlersSuperSmoother"/>. Covers all 4 branches in
-/// docs/contrib/indicator-tier-3c.md §3 (the underlying helper is separately tested from
-/// Tier 2c — this wrapper only exposes it as a first-class indicator).</summary>
+/// <summary>Verifies <see cref="EhlersSuperSmoother"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class EhlersSuperSmootherTests
 {
-    // ── Branch 1 — Null input → throw ──
-    [Fact]
-    public void Constructor_NullInput_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new EhlersSuperSmoother(null!));
-    }
-
-    // ── Branch 2 — Empty input → empty output ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var ss = new EhlersSuperSmoother([]);
-        Assert.Empty(ss.Compute().Values);
-    }
-
-    // ── Branch 3 — period < 2 → throw ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    public void Constructor_PeriodBelowTwo_Throws(int period)
-    {
-        Assert.Throws<ArgumentException>(() => new EhlersSuperSmoother([1.0, 2, 3], period));
-    }
-
     // ── Branch 4 — Delegate call — wrapper output matches the public recurrence ──
     // First two bars equal the input; subsequent bars follow the 2-pole Butterworth recurrence.
-    [Fact]
-    public void Compute_FlatInput_ConvergesToConstant()
-    {
-        var flat = Enumerable.Repeat(100.0, 50).ToArray();
-        var ss = new EhlersSuperSmoother(flat, period: 10).Compute().Values;
-        Assert.Equal(50, ss.Length);
-        // First 2 bars are seeded with the input.
-        Assert.Equal(100.0, ss[0], precision: 10);
-        Assert.Equal(100.0, ss[1], precision: 10);
-        // Recurrence preserves the constant.
-        Assert.All(ss, v => Assert.Equal(100.0, v, precision: 8));
-    }
 
     [Fact]
     public void Compute_RampInput_AllFinite()
@@ -57,38 +20,85 @@ public class EhlersSuperSmootherTests
         var prices = Enumerable.Range(0, 40).Select(i => 100.0 + i).ToArray();
         var ss = new EhlersSuperSmoother(prices, period: 10).Compute().Values;
         Assert.Equal(40, ss.Length);
-        Assert.All(ss, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.False(double.IsInfinity(v));
-        });
+        ss.AssertAllFinite();
         // SuperSmoother trails a ramp with a small lag — tail should be close to tail input.
         Assert.True(Math.Abs(ss[^1] - prices[^1]) < 5.0);
     }
 
-    // ── Apply / label / styling ──
+    // ---- the two-pole smoothing the Ehlers indicators share (SuperSmooth) ----
+    // Verifies <see cref="Indicators.EhlersSuperSmoother"/>. Two-pole Butterworth low-pass. First 2 bars equal the input; third
+    // bar onward follows the recurrence.
+
     [Fact]
-    public void Apply_AddsLineSeries()
+    public void Apply_EmptyInput_ReturnsEmpty()
     {
-        var axes = new Axes();
-        var prices = Enumerable.Repeat(100.0, 20).ToArray();
-        new EhlersSuperSmoother(prices, period: 10).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
+        var result = EhlersSuperSmoother.SuperSmooth(ReadOnlySpan<double>.Empty, period: 10);
+        Assert.Empty(result);
     }
 
     [Fact]
-    public void DefaultLabel_HasPeriod()
+    public void Apply_PeriodBelowTwo_Throws()
     {
-        var ss = new EhlersSuperSmoother([1.0, 2, 3]);
-        Assert.Equal("SS(10)", ss.Label);
+        double[] signal = [1, 2, 3, 4];
+        Assert.Throws<ArgumentOutOfRangeException>(() => EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 0));
     }
 
     [Fact]
-    public void InheritsIndicator()
+    public void Apply_SingleBar_EqualsInput()
     {
-        var ss = new EhlersSuperSmoother([1.0, 2, 3]);
-        Assert.IsAssignableFrom<Indicator<SignalResult>>(ss);
-        Assert.IsAssignableFrom<IIndicator>(ss);
+        double[] signal = [42.0];
+        var r = EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 5);
+        Assert.Single(r);
+        Assert.Equal(42.0, r[0], precision: 12);
+    }
+
+    [Fact]
+    public void Apply_TwoBars_EqualInput()
+    {
+        double[] signal = [10.0, 20.0];
+        var r = EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 5);
+        Assert.Equal(10.0, r[0], precision: 12);
+        Assert.Equal(20.0, r[1], precision: 12);
+    }
+
+    [Fact]
+    public void Apply_ConstantSignal_SmoothedEqualsConstant()
+    {
+        double[] signal = Enumerable.Repeat(50.0, 100).ToArray();
+        var r = EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 10);
+        Assert.All(r, v => Assert.Equal(50.0, v, precision: 10));
+    }
+
+    [Fact]
+    public void Apply_StepInput_ConvergesToNewLevel()
+    {
+        // Step input: first 50 bars at 0, next 50 at 100. Settled tail should approach 100.
+        var signal = new double[100];
+        for (int i = 50; i < 100; i++) signal[i] = 100;
+        var r = EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 10);
+        Assert.True(Math.Abs(r[^1] - 100) < 0.1, $"tail = {r[^1]}, expected ~100");
+    }
+
+    [Fact]
+    public void Apply_HighFrequencyNoise_AttenuatedAtLongPeriod()
+    {
+        // Alternating ±1 at the Nyquist is dramatically attenuated by a period=20 LP.
+        var signal = new double[200];
+        for (int i = 0; i < 200; i++) signal[i] = (i % 2 == 0) ? 1 : -1;
+        var r = EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 20);
+        // Settled tail amplitude should be much less than input amplitude (1.0).
+        double tailMax = 0;
+        for (int i = 100; i < 200; i++) tailMax = Math.Max(tailMax, Math.Abs(r[i]));
+        Assert.True(tailMax < 0.3, $"expected strong attenuation, got tail amplitude {tailMax}");
+    }
+
+    [Fact]
+    public void Apply_OutputLengthMatchesInput()
+    {
+        var signal = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        var r = EhlersSuperSmoother.SuperSmooth(signal.AsSpan(), period: 10);
+        Assert.Equal(30, r.Length);
+        r.AssertAllFinite();
     }
 }

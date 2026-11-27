@@ -240,4 +240,62 @@ public class YAxisStackTests
 
         Assert.True(axes.HasExplicitLimit);
     }
+
+    /// <summary>The clip of every Cartesian series asks this once per series per draw, so the answer walks the slots of both
+    /// sides and the top axis without allocating anything.</summary>
+    [Fact]
+    public void HasExplicitLimit_AsksEverySlotAndTheTopAxis_WithoutAllocating()
+    {
+        var axes = new Axes();
+        axes.YAxes.Right.Add();
+        axes.YAxes.Left.Add();
+        axes.TwinY();
+        _ = axes.HasExplicitLimit;
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool limited = axes.HasExplicitLimit;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.False(limited);
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
+    public void HasExplicitLimit_SeesALimitOnARightSlot_ButNotOnALinkedOne()
+    {
+        var axes = new Axes();
+        var right = axes.YAxes.Right.Add();
+        right.Axis.Max = 5;
+        right.Axis.Link = AxisTransform.Linear(2, 0);
+        Assert.False(axes.HasExplicitLimit);
+
+        right.Axis.Link = null;
+
+        Assert.True(axes.HasExplicitLimit);
+    }
+
+    [Fact]
+    public void HasExplicitLimit_SeesALimitOnTheTopAxis_ButNotOnALinkedOne()
+    {
+        var axes = new Axes().TwinY();
+        axes.SecondaryXAxis!.Min = 1;
+        axes.SecondaryXAxis.Link = AxisTransform.Linear(2, 0);
+        Assert.False(axes.HasExplicitLimit);
+
+        axes.SecondaryXAxis.Link = null;
+
+        Assert.True(axes.HasExplicitLimit);
+    }
+
+    [Fact]
+    public void HasExplicitLimit_SeesALimitOnThePrimaryAxes()
+    {
+        var onX = new Axes();
+        onX.XAxis.Min = 0;
+        var onY = new Axes();
+        onY.YAxis.Max = 1;
+
+        Assert.True(onX.HasExplicitLimit);
+        Assert.True(onY.HasExplicitLimit);
+    }
 }

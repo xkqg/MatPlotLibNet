@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming CgOscillator: the centre-of-gravity oscillator over the last <c>period</c> prices. It keeps the inputs the value depends on (<see cref="WindowedStreamingIndicator{TInput}.Width"/>)
@@ -13,11 +15,10 @@ public sealed class StreamingCgOscillator : WindowedStreamingIndicator<double>
     /// <summary>Creates a streaming CgOscillator.</summary>
     /// <param name="period">How many prices the centre of gravity is taken over; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingCgOscillator(int period = 10, int capacity = 10_000)
-        : base(period, capacity)
+    public StreamingCgOscillator(int period = CgOscillator.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(CgOscillator.Spec(period), capacity)
     {
         _period = period;
-        Label = $"CG({period})";
     }
 
     /// <inheritdoc />

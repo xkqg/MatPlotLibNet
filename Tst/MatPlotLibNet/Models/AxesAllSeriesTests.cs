@@ -13,12 +13,6 @@ namespace MatPlotLibNet.Tests.Models;
 public class AxesAllSeriesTests
 {
     [Fact]
-    public void AllSeries_EmptyInput_IsEmpty()
-    {
-        Assert.Empty(new Axes().AllSeries);
-    }
-
-    [Fact]
     public void AllSeries_WalksPrimaryThenSecondaryYThenSecondaryX()
     {
         var axes = new Axes();

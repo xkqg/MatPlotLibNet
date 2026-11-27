@@ -20,7 +20,7 @@ public class StateTimelineConditionRoundTripTests
     private static StateTimelineSeries RoundTrip(params StateSegment[] segments)
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.StateTimeline(segments)).Build();
-        var restored = Serializer.FromJson(Serializer.ToJson(figure));
+        var restored = figure.RoundTripped();
         return restored.SubPlots[0].Series.OfType<StateTimelineSeries>().Single();
     }
 
@@ -66,40 +66,25 @@ public class StateTimelineConditionRoundTripTests
         Assert.Equal(OpsVisibility.Unknown, Assert.Single(restored.Segments).Condition.Visibility);
     }
 
-    [Fact]
-    public void ATimelineWithoutConditions_WritesNeitherList()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Json(
+        new DrawnToken("ATimelineWithoutConditions_WritesNeitherList", () => Json(
             new StateSegment(0, 5, "Up", Colors.Tab10Green),
-            new StateSegment(5, 10, "Up", Colors.Tab10Green));
-
-        Assert.DoesNotContain("Severities", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Visibilities", json, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ATimelineWithASeverityButNoVisibility_WritesOnlyTheOneItUses()
-    {
-        string json = Json(new StateSegment(0, 5, "Straining", Colors.Tab10Orange)
+            new StateSegment(5, 10, "Up", Colors.Tab10Green))) { Absent = ["Severities", "Visibilities"], Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("ATimelineWithASeverityButNoVisibility_WritesOnlyTheOneItUses", () => Json(new StateSegment(0, 5, "Straining", Colors.Tab10Orange)
         {
             Condition = new OpsCondition(OpsSeverity.Warning)
-        });
-
-        Assert.Contains("Severities", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Visibilities", json, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ATimelineWithAVisibilityButNoSeverity_WritesOnlyTheOneItUses()
-    {
-        string json = Json(new StateSegment(0, 5, "No contact", Colors.Gray)
+        }), "Severities") { Absent = ["Visibilities"], Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("ATimelineWithAVisibilityButNoSeverity_WritesOnlyTheOneItUses", () => Json(new StateSegment(0, 5, "No contact", Colors.Gray)
         {
             Condition = OpsCondition.Unknown
-        });
+        }), "Visibilities") { Absent = ["Severities"], Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.Contains("Visibilities", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Severities", json, StringComparison.OrdinalIgnoreCase);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ABandBeyondAShortConditionList_ComesBackResting()

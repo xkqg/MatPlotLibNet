@@ -292,7 +292,7 @@ Plt.Create()
 | `Align` | `BarAlignment` | `Center` | Center or Edge |
 | `Alpha` | `double` | `1.0` | Transparency (0–1) |
 | `Hatch` | `HatchPattern` | `None` | Slash, Backslash, Dash, Pipe, CrossHash, ... |
-| `HatchColor` | `Color` | auto | Hatch pattern color |
+| `HatchColor` | `Color` | auto | Hatch pattern color. Left alone, the matplotlib themes draw it as matplotlib's `hatch.color` does (the bar's edge colour, black when it has none, under v2; black under classic) and the library's own themes in a colour that contrasts with the fill |
 | `ShowLabels` | `bool` | `false` | Display value labels |
 | `LabelFormat` | `string` | none | .NET format string for labels; without one a value shows up to six significant digits, as matplotlib's `%g` (12500 reads `12500`) |
 | `Label` | `string` | none | Legend label |
@@ -507,7 +507,8 @@ Rows that share a name are one class: one line series in one colour, named once 
 entry hides every row of the class. Each column is scaled to 0..1 by its own smallest and largest value over all
 the rows, so dimensions in different units share one picture; that is why the Y axis has no shared ticks, since a number
 on it would read none of the columns. Each column's line carries ticks of its own instead, over that column's own range: a short mark
-with its number to the left, at the height that value is drawn at, so a value can be read and not only compared. A column whose values are all equal is drawn at the middle. Each dimension's
+with its number to the left, at the height that value is drawn at, so a value can be read and not only compared. The numbers of
+a column are written in one number format, as the ticks of an axis are ("1.0", "1.5", "2.0", not "1", "1.5", "2"). A column whose values are all equal is drawn at the middle. Each dimension's
 axis is a vertical line at its name, in the grey of a reference line. The lines fill the plot, so the legend
 covers some of them wherever it stands inside; `WithLegend(LegendPosition.OutsideRight)` under `TightLayout()` puts
 it beside the plot, as above. A missing value leaves a gap in its own row and nothing else.
@@ -616,8 +617,8 @@ Plt.Create()
 ![Bars and an area that fade](../images/gradient_fills.png)
 
 The blend is a property of the fill, so the SVG, the PNG and the PDF all paint it (the PDF as a vector shading), and a hatch is
-laid over it. A gradient colour with an alpha of its own, such as `Colors.Tab10Orange.WithAlpha(0)`, fades to clear. The MAUI view,
-which paints no gradient, draws the flat colour.
+laid over it. A gradient colour with an alpha of its own, such as `Colors.Tab10Orange.WithAlpha(0)`, fades to clear. The MAUI view
+paints it with its canvas' gradient paint.
 
 ## A waterfall with targets
 

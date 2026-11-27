@@ -20,8 +20,8 @@ namespace MatPlotLibNet.Rendering.TextMeasurement;
 ///
 /// <para>Registered via <see cref="GlyphPathProviderDefault.Current"/>. When
 /// <c>MatPlotLibNet.Skia</c> is loaded its module initializer installs
-/// <c>SkiaGlyphPathProvider</c> which uses <c>SKFont.GetGlyphPath</c> and
-/// <c>SKPath.ToSvgPathData</c>. Pure-managed consumers (no Skia) leave the provider
+/// <c>SkiaGlyphPathProvider</c> which takes each glyph's outline from <c>SKFont.GetGlyphPath</c> and writes it as
+/// path data to two decimals. Pure-managed consumers (no Skia) leave the provider
 /// null and <see cref="Svg.SvgRenderContext"/> falls back to emitting
 /// <c>&lt;text&gt;</c> elements with a <c>font-family</c> stack.</para>
 /// </remarks>

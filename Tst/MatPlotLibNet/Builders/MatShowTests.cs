@@ -4,8 +4,6 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Rendering.Svg;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
@@ -35,10 +33,9 @@ public class MatShowTests
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
         var labels = new List<(string, Point)>();
-        foreach (var call in recording.OfKind("DrawText"))
+        foreach (var call in recording.Of<DrawTextCall>())
         {
-            dynamic args = call.Args!;
-            labels.Add(((string)args.text, (Point)args.position));
+            labels.Add((call.Text, call.Position));
         }
 
         return labels;
@@ -51,7 +48,7 @@ public class MatShowTests
     public void TheCells_AreSquare_AtAnyFigureSize(int width, int height, int rows, int columns)
     {
         var figure = Of(width, height, rows, columns);
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         var range = figure.SubPlots[0].ComputeDataRanges(figure.Theme);
 
         Assert.Equal((range.XMax - range.XMin) / plot.Width, (range.YMax - range.YMin) / plot.Height, 9);
@@ -90,7 +87,7 @@ public class MatShowTests
     public void TheFirstRow_IsOnTop_AndTheRowsAreNumberedDownTheLeft()
     {
         var figure = Of(500, 400, 3, 4);
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
 
         var leftOfThePlot = Labels(figure).Where(label => label.At.X < plot.X && label.At.Y > plot.Y - 2 && label.At.Y < plot.Y + plot.Height + 8
                                                         && int.TryParse(label.Text, out int n) && n <= 2).ToList();
@@ -104,12 +101,27 @@ public class MatShowTests
     public void TheColumns_AreNumberedAlongTheTop()
     {
         var figure = Of(500, 400, 3, 4);
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
 
         var above = Labels(figure).Where(label => label.At.Y < plot.Y && int.TryParse(label.Text, out _)).Select(label => label.Text).ToArray();
 
         Assert.Contains("3", above);
         Assert.Contains("0", above);
+    }
+
+    // matplotlib 3.11.2, read with python: after ax.matshow(...) a major X tick has label1 (bottom) not visible, label2 (top) visible, and
+    // both marks visible (Axes.matshow: xaxis.tick_top(), then set_ticks_position('both')).
+    [Fact]
+    public void TheColumns_AreNotNumberedAlongTheBottom_WhereOnlyTheMarksStand()
+    {
+        var figure = Of(500, 400, 3, 4);
+        var plot = figure.FirstPlotArea();
+
+        var below = Labels(figure).Where(label => label.At.Y > plot.Y + plot.Height && int.TryParse(label.Text, out _)
+                                                && label.At.X > plot.X && label.At.X < plot.X + plot.Width).ToArray();
+
+        Assert.Empty(below);
+        Assert.True(figure.SubPlots[0].XAxis.MajorTicks is { Mirror: true, LabelsOnOwnSide: false });
     }
 
     [Fact]
@@ -124,26 +136,6 @@ public class MatShowTests
         var figure = Of(500, 400, 3, 4, heatmap => heatmap.ShowLabels = true);
 
         Assert.True(figure.SubPlots[0].Series.OfType<HeatmapSeries>().Single().ShowLabels);
-    }
-
-    [Fact]
-    public void ATwoWayMatrix_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Of(500, 400, 3, 4);
-
-        string svg = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(figure.ToSvg(), svg);
-    }
-
-    /// <summary>The verb draws exactly the picture of the hand chain of public building blocks it replaces, with and without a
-    /// missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        Assert.Equal(ComposedChartShapes.MatShowByHand(missing).ToSvg(), ComposedChartShapes.Named("matshow").Build(missing).ToSvg());
     }
 
     [Fact]

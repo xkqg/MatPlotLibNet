@@ -62,71 +62,43 @@ public sealed class StreamingSeriesExtensionsTests
         Assert.Equal(1, series.Count);
     }
 
-    [Fact]
-    public void OnError_DoesNotThrow()
+    /// <summary>Each observer a series subscribes with takes an error or a completion as no work: it does not throw, and nothing is
+    /// appended. A row subscribes a series of one kind to a subject, ends the subject (with an error when told to, else by completing it)
+    /// and says how many points the series holds.</summary>
+    public static TheoryData<Func<bool, int>> EndedSubscriptions => new()
     {
-        var series = new StreamingLineSeries(100);
-        var subject = new TestSubject<StreamingPoint>();
-        using var sub = series.SubscribeTo(subject);
+        failed =>
+        {
+            var series = new StreamingLineSeries(100);
+            var subject = new TestSubject<StreamingPoint>();
+            using var sub = series.SubscribeTo(subject);
+            if (failed) subject.OnError(new InvalidOperationException("test")); else subject.OnCompleted();
+            return series.Count;
+        },
+        failed =>
+        {
+            var series = new StreamingCandlestickSeries(100);
+            var subject = new TestSubject<OhlcBar>();
+            using var sub = series.SubscribeTo(subject);
+            if (failed) subject.OnError(new InvalidOperationException("test")); else subject.OnCompleted();
+            return series.Count;
+        },
+        failed =>
+        {
+            var series = new StreamingSignalSeries(100);
+            var subject = new TestSubject<double>();
+            using var sub = series.SubscribeTo(subject);
+            if (failed) subject.OnError(new InvalidOperationException("test")); else subject.OnCompleted();
+            return series.Count;
+        },
+    };
 
-        subject.OnError(new Exception("test")); // should not throw
-        Assert.Equal(0, series.Count);
-    }
-
-    [Fact]
-    public void OnCompleted_DoesNotThrow()
+    [Theory]
+    [MemberData(nameof(EndedSubscriptions))]
+    public void AnObserver_TakesAnErrorAndACompletion_AsNoWork(Func<bool, int> end)
     {
-        var series = new StreamingLineSeries(100);
-        var subject = new TestSubject<StreamingPoint>();
-        using var sub = series.SubscribeTo(subject);
-
-        subject.OnCompleted(); // should not throw
-    }
-
-    /// <summary>Covers <c>OhlcObserver.OnError</c> — the no-op error handler must not throw.</summary>
-    [Fact]
-    public void OhlcObserver_OnError_DoesNotThrow()
-    {
-        var series = new StreamingCandlestickSeries(100);
-        var subject = new TestSubject<OhlcBar>();
-        using var sub = series.SubscribeTo(subject);
-
-        subject.OnError(new InvalidOperationException("test"));
-        Assert.Equal(0, series.Count);
-    }
-
-    /// <summary>Covers <c>OhlcObserver.OnCompleted</c> — the no-op completion handler must not throw.</summary>
-    [Fact]
-    public void OhlcObserver_OnCompleted_DoesNotThrow()
-    {
-        var series = new StreamingCandlestickSeries(100);
-        var subject = new TestSubject<OhlcBar>();
-        using var sub = series.SubscribeTo(subject);
-
-        subject.OnCompleted();
-    }
-
-    /// <summary>Covers <c>SignalObserver.OnError</c> — the no-op error handler must not throw.</summary>
-    [Fact]
-    public void SignalObserver_OnError_DoesNotThrow()
-    {
-        var series = new StreamingSignalSeries(100);
-        var subject = new TestSubject<double>();
-        using var sub = series.SubscribeTo(subject);
-
-        subject.OnError(new InvalidOperationException("test"));
-        Assert.Equal(0, series.Count);
-    }
-
-    /// <summary>Covers <c>SignalObserver.OnCompleted</c> — the no-op completion handler must not throw.</summary>
-    [Fact]
-    public void SignalObserver_OnCompleted_DoesNotThrow()
-    {
-        var series = new StreamingSignalSeries(100);
-        var subject = new TestSubject<double>();
-        using var sub = series.SubscribeTo(subject);
-
-        subject.OnCompleted();
+        Assert.Equal(0, end(true));
+        Assert.Equal(0, end(false));
     }
 
     /// <summary>Minimal IObservable implementation for testing without System.Reactive.</summary>

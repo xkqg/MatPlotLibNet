@@ -9,18 +9,6 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Verifies <see cref="Figure"/> behavior.</summary>
 public class FigureTests
 {
-    /// <summary>Verifies that a default figure has expected width, height, DPI, and empty subplots.</summary>
-    [Fact]
-    public void DefaultFigure_HasReasonableDefaults()
-    {
-        var fig = new Figure();
-        Assert.Equal(800, fig.Width);
-        Assert.Equal(600, fig.Height);
-        Assert.Equal(96, fig.Dpi);
-        Assert.Null(fig.Title);
-        Assert.Empty(fig.SubPlots);
-    }
-
     /// <summary>Verifies that AddSubPlot returns a new Axes and adds it to SubPlots.</summary>
     [Fact]
     public void AddSubPlot_ReturnsNewAxes()
@@ -56,51 +44,13 @@ public class FigureTests
 
     /// <summary>Verifies that the Theme defaults to Theme.MatplotlibV2 (changed from Theme.Default in v1.1.4).</summary>
     [Fact]
-    public void Theme_DefaultsToMatplotlibV2()
+    public void ANewFigure_WearsTheMatplotlibV2Theme()
     {
         var fig = new Figure();
         Assert.Same(Theme.MatplotlibV2, fig.Theme);
     }
 
-    /// <summary>Verifies that all figure properties can be set and retrieved.</summary>
-    [Fact]
-    public void Properties_CanBeSet()
-    {
-        var fig = new Figure
-        {
-            Title = "Test",
-            Width = 1024,
-            Height = 768,
-            Dpi = 150,
-            BackgroundColor = Colors.Black,
-            Theme = Theme.Dark
-        };
-
-        Assert.Equal("Test", fig.Title);
-        Assert.Equal(1024, fig.Width);
-        Assert.Equal(768, fig.Height);
-        Assert.Equal(150, fig.Dpi);
-        Assert.Equal(Colors.Black, fig.BackgroundColor);
-        Assert.Same(Theme.Dark, fig.Theme);
-    }
-
-    /// <summary>Verifies that the SubPlots collection is read-only.</summary>
-    [Fact]
-    public void SubPlots_IsReadOnly()
-    {
-        var fig = new Figure();
-        Assert.IsAssignableFrom<IReadOnlyList<Axes>>(fig.SubPlots);
-    }
-
     // --- GridSpec integration ---
-
-    /// <summary>Verifies that GridSpec defaults to null.</summary>
-    [Fact]
-    public void GridSpec_DefaultIsNull()
-    {
-        var fig = new Figure();
-        Assert.Null(fig.GridSpec);
-    }
 
     /// <summary>Verifies that AddSubPlot with GridSpec and GridPosition stores position on the Axes.</summary>
     [Fact]

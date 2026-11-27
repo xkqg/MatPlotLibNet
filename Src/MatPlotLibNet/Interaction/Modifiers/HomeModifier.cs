@@ -7,62 +7,43 @@ namespace MatPlotLibNet.Interaction;
 /// <c>Escape</c> key. The event takes the axes back to the view the figure remembers from before the reader first moved
 /// it; the range the event carries is read from the layout when the key is pressed, and is used only for an axes the
 /// figure remembers nothing for.</summary>
-internal sealed class HomeModifier : IInteractionModifier
+internal sealed class HomeModifier : InteractionModifier
 {
-    private readonly string _chartId;
-    private readonly IChartLayout _layout;
-    private readonly Action<FigureInteractionEvent> _sink;
-
     /// <summary>Creates the modifier for the given chart.</summary>
     internal HomeModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
+        : base(chartId, layout, sink)
     {
-        _chartId = chartId;
-        _layout  = layout;
-        _sink    = sink;
     }
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args) =>
-        args.ClickCount >= 2 && _layout.HitTestAxes(args.X, args.Y) is not null;
+    public override bool HandlesPointerPressed(PointerInputArgs args) =>
+        args.ClickCount >= 2 && Layout.IsOnAxes(args.X, args.Y);
 
     /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args)
+    public override void OnPointerPressed(PointerInputArgs args)
     {
-        int axesIndex = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        EmitReset(axesIndex);
+        EmitReset(Layout.AxesOrFirstAt(args.X, args.Y));
     }
 
     /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args) { }
-
-    /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args) { }
-
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) =>
+    public override bool HandlesKeyDown(KeyInputArgs args) =>
         args.Key is "Home" or "Escape";
 
     /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args)
+    public override void OnKeyDown(KeyInputArgs args)
     {
-        for (int i = 0; i < _layout.AxesCount; i++)
+        for (int i = 0; i < Layout.AxesCount; i++)
             EmitReset(i);
     }
 
     private void EmitReset(int axesIndex)
     {
-        if ((uint)axesIndex >= (uint)_layout.AxesCount) return;
+        if ((uint)axesIndex >= (uint)Layout.AxesCount) return;
 
-        var range = _layout.GetDataRange(axesIndex);
-        _sink(new ResetEvent(_chartId, axesIndex, range.XMin, range.XMax, range.YMin, range.YMax)
+        var range = Layout.GetDataRange(axesIndex);
+        Emit(new ResetEvent(ChartId, axesIndex, range.XMin, range.XMax, range.YMin, range.YMax)
         {
-            SecondaryRanges = _layout.GetSecondaryDataRanges(axesIndex),
+            SecondaryRanges = Layout.GetSecondaryDataRanges(axesIndex),
         });
     }
 }

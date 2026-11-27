@@ -20,50 +20,52 @@ public class StatTileLinkTests
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(42, configure))
             .ToSvg();
 
-    [Fact]
-    public void ATileWithoutALink_CarriesNoAnchorAndNoChevron()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Render(t => t.Label = "Processes");
-
-        Assert.DoesNotContain("<a ", svg);
-        Assert.DoesNotContain("mpl-tile-chevron", svg);
-        Assert.DoesNotContain("cursor:pointer", svg);
-    }
-
-    [Fact]
-    public void ALinkedTile_IsAnAnchorWithAPointerAndALabel()
-    {
-        string svg = Render(t =>
+        new DrawnToken("ATileWithoutALink_CarriesNoAnchorAndNoChevron", () => Render(t => t.Label = "Processes")) { Absent = ["<a ", "mpl-tile-chevron", "cursor:pointer"] },
+        new DrawnToken("ALinkedTile_IsAnAnchorWithAPointerAndALabel", () => Render(t =>
         {
             t.Label = "Processes";
             t.Url = "/?panel=processes";
-        });
+        }), "<a href=\"/?panel=processes\"", "aria-label=\"Processes", "cursor:pointer", "</a>"),
+        new DrawnToken("TheUrl_IsEscapedForXml", () => Render(t => t.Url = "/?panel=a&b=<c>"), "href=\"/?panel=a&amp;b=&lt;c&gt;\""),
+        // The disclosure pattern's one indispensable ARIA attribute (W3C APG, disclosure card): a decorative chevron does not announce
+        // open/closed to a screen reader; aria-expanded does.
+        new DrawnToken("ALinkedTile_AnnouncesItsOpenState (closed)", () => Render(t => t.Url = "/?panel=processes"), "aria-expanded=\"false\""),
+        new DrawnToken("ALinkedTile_AnnouncesItsOpenState (open)", () => Render(t => { t.Url = "/?panel=processes"; t.Expanded = true; }), "aria-expanded=\"true\""),
+        // An unlinked tile has nothing to hit — the invisible rect exists only to carry the link.
+        new DrawnToken("AnUnlinkedTile_CarriesNoHitRect", () => Render(t => t.Label = "Processes")) { Absent = ["mpl-tile-hit"] },
+        // The WHOLE CARD is the target, not just the ink on it. An anchor around drawn text and a polyline is only hittable where
+        // something is actually painted, so a reader had to land the pointer on a glyph — reported from an ops wall (2026-09-02: "moeilijk
+        // de mouse te plaatsen om te kunnen klikken"). A transparent hit rect over the tile's own bounds makes every pixel of the card
+        // clickable, and paints nothing: fill-opacity 0 still takes pointer events, where fill="none" would not.
+        new DrawnToken("ALinkedTile_MakesItsWholeCardClickable_NotOnlyItsInk (inside the anchor)", () =>
+        {
+            string svg = Render(t =>
+            {
+                t.Label = "Processes";
+                t.Url = "/?panel=processes";
+            });
+            int open = svg.IndexOf("<a href", StringComparison.Ordinal);
+            int close = svg.IndexOf("</a>", StringComparison.Ordinal);
+            return svg[open..close];
+        }, "mpl-tile-hit", "fill-opacity=\"0\""),
+        new DrawnToken("ALinkedTile_MakesItsWholeCardClickable_NotOnlyItsInk (before the anchor)", () =>
+        {
+            string svg = Render(t =>
+            {
+                t.Label = "Processes";
+                t.Url = "/?panel=processes";
+            });
+            int open = svg.IndexOf("<a href", StringComparison.Ordinal);
+            return svg[..open];
+        }) { Absent = ["mpl-tile-hit"] },
+    };
 
-        Assert.Contains("<a href=\"/?panel=processes\"", svg);
-        Assert.Contains("aria-label=\"Processes", svg);
-        Assert.Contains("cursor:pointer", svg);
-        Assert.Contains("</a>", svg);
-    }
-
-    /// <summary>The disclosure pattern's one indispensable ARIA attribute (W3C APG, disclosure card): a decorative
-    /// chevron does not announce open/closed to a screen reader; <c>aria-expanded</c> does.</summary>
-    [Fact]
-    public void ALinkedTile_AnnouncesItsOpenState()
-    {
-        string closed = Render(t => t.Url = "/?panel=processes");
-        string open = Render(t => { t.Url = "/?panel=processes"; t.Expanded = true; });
-
-        Assert.Contains("aria-expanded=\"false\"", closed);
-        Assert.Contains("aria-expanded=\"true\"", open);
-    }
-
-    [Fact]
-    public void TheUrl_IsEscapedForXml()
-    {
-        string svg = Render(t => t.Url = "/?panel=a&b=<c>");
-
-        Assert.Contains("href=\"/?panel=a&amp;b=&lt;c&gt;\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void TheChevron_PointsRightWhenClosedAndDownWhenOpen()
@@ -93,35 +95,6 @@ public class StatTileLinkTests
         Assert.Contains(">42<", inside);
         Assert.Contains("Processes", inside);
         Assert.Contains("<polyline", inside);
-    }
-
-    /// <summary>The WHOLE CARD is the target, not just the ink on it. An anchor around drawn text and a
-    /// polyline is only hittable where something is actually painted, so a reader had to land the pointer on a
-    /// glyph — reported from an ops wall (2026-09-02: "moeilijk de mouse te plaatsen om te kunnen klikken").
-    /// A transparent hit rect over the tile's own bounds makes every pixel of the card clickable, and paints
-    /// nothing: fill-opacity 0 still takes pointer events, where fill="none" would not.</summary>
-    [Fact]
-    public void ALinkedTile_MakesItsWholeCardClickable_NotOnlyItsInk()
-    {
-        string svg = Render(t =>
-        {
-            t.Label = "Processes";
-            t.Url = "/?panel=processes";
-        });
-
-        int open = svg.IndexOf("<a href", StringComparison.Ordinal);
-        int close = svg.IndexOf("</a>", StringComparison.Ordinal);
-        string inside = svg[open..close];
-        Assert.Contains("mpl-tile-hit", inside);
-        Assert.Contains("fill-opacity=\"0\"", inside);
-        Assert.DoesNotContain("mpl-tile-hit", svg[..open]);
-    }
-
-    /// <summary>An unlinked tile has nothing to hit — the invisible rect exists only to carry the link.</summary>
-    [Fact]
-    public void AnUnlinkedTile_CarriesNoHitRect()
-    {
-        Assert.DoesNotContain("mpl-tile-hit", Render(t => t.Label = "Processes"));
     }
 
     /// <summary>The chevron is a POINTING DEVICE TARGET, and 8 px is under every guideline for one (WCAG 2.5.8

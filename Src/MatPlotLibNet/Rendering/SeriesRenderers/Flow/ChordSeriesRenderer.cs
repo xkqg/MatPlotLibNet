@@ -2,13 +2,17 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="ChordSeries"/>: a ring of arcs with the ribbons inside it, centred in the plot area, and the
-/// names of the groups outside the ring. Each arc is one closed path on the ring; each ribbon is one closed path that leaves the
-/// ring, bends through the centre and arrives at the other group (two quadratic curves through the centre, raised exactly to
+/// names of the groups outside the ring. Each arc is one closed path, the ring wedge between its two bearings
+/// (<see cref="RingWedge"/>); each ribbon is one closed path that leaves the ring, bends through the centre and arrives at the other group (two quadratic curves through the centre, raised exactly to
 /// the cubics a path carries), filled in the colour of the group that sends more of the two, a little transparent so that the
 /// ones behind it show, with a darker thin edge. The geometry is <see cref="ChordLayout"/>'s.</summary>
 internal sealed class ChordSeriesRenderer : SeriesRenderer<ChordSeries>
@@ -28,14 +32,15 @@ internal sealed class ChordSeriesRenderer : SeriesRenderer<ChordSeries>
     /// <inheritdoc />
     public override void Render(ChordSeries series)
     {
-        var labelFont = ThemedFontProvider.LabelFont(Context.Theme);
+        var labelFont = Context.Theme.LabelFont();
         var bounds = Area.PlotBounds;
-        var centre = new Point(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
 
         // The names stand outside the ring, so the ring leaves the widest of them (and a line of text above and below) room.
-        double room = Math.Max(series.Names.Where(name => !string.IsNullOrEmpty(name)).Select(name => Ctx.MeasureText(name, labelFont).Width).DefaultIfEmpty(0).Max() + NameGap + 2,
+        double room = Math.Max(series.Names.Where(name => !string.IsNullOrEmpty(name)).Select(name => Ctx.ExtentOf(TextLabel.Of(name), labelFont).Width).DefaultIfEmpty(0).Max() + NameGap + 2,
             labelFont.Size * 2);
-        double outer = Math.Min(bounds.Width, bounds.Height) / 2 - room;
+        var frame = RoundFrame.In(bounds, RoundFrame.FullShare, room);
+        var centre = frame.Centre;
+        double outer = frame.Radius;
         if (!(outer > labelFont.Size)) return;
 
         double inner = outer * (1 - RingThickness);
@@ -44,14 +49,14 @@ internal sealed class ChordSeriesRenderer : SeriesRenderer<ChordSeries>
         foreach (var arc in layout.Arcs)
         {
             if (arc.End > arc.Start)
-                Ctx.DrawPath(ArcPath(centre, outer, inner, arc), new ShapeStyle(PartColor(series.Colors, arc.Group), null, 0));
+                Ctx.DrawPath(ArcPath(centre, outer, inner, arc), ShapeStyle.Filled(PartColor(series.Colors, arc.Group)));
         }
 
         foreach (var ribbon in layout.Ribbons)
         {
             var colour = PartColor(series.Colors, ribbon.Source);
-            var fill = ApplyAlpha(colour, series.RibbonAlpha);
-            Ctx.DrawPath(RibbonPath(centre, inner, ribbon), new ShapeStyle(fill, Darker(colour), 0.5));
+            var fill = colour.WithOpacityGiven(series.RibbonAlpha);
+            Ctx.DrawPath(RibbonPath(centre, inner, ribbon), ShapeStyle.Edged(fill, Darker(colour), Slot.LineWidthOf(LineWidthRule.OwnHairline)));
         }
 
         foreach (var arc in layout.Arcs)
@@ -59,27 +64,18 @@ internal sealed class ChordSeriesRenderer : SeriesRenderer<ChordSeries>
             string name = series.Names[arc.Group];
             if (string.IsNullOrEmpty(name)) continue;
 
-            var label = arc.Label();
-            Ctx.DrawText(name, At(centre, outer + NameGap, label.Angle), labelFont, label.Alignment, label.Rotation);
+            var label = Label(arc);
+            Ctx.Draw(TextLabel.Of(name), labelFont, new TextPlacement(At(centre, outer + NameGap, label.Angle), label.Alignment) { Rotation = label.Rotation });
         }
     }
 
     /// <summary>The point at <paramref name="radius"/> from the centre at an angle counted clockwise from twelve o'clock.</summary>
     private static Point At(Point centre, double radius, double angle) =>
-        new(centre.X + radius * Math.Sin(angle), centre.Y - radius * Math.Cos(angle));
+        centre.AtBearing(radius, angle);
 
-    /// <summary>An angle in the convention of <see cref="ArcSegment"/>: degrees from the +X axis, clockwise on a screen whose Y
-    /// points down, so twelve o'clock is -90.</summary>
-    private static double Degrees(double angle) => angle * 180 / Math.PI - 90;
-
+    /// <summary>The outline of one group's arc: the ring wedge between its two bearings.</summary>
     private static IReadOnlyList<PathSegment> ArcPath(Point centre, double outer, double inner, ChordArc arc) =>
-    [
-        new MoveToSegment(At(centre, outer, arc.Start)),
-        new ArcSegment(centre, outer, outer, Degrees(arc.Start), Degrees(arc.End)),
-        new LineToSegment(At(centre, inner, arc.End)),
-        new ArcSegment(centre, inner, inner, Degrees(arc.End), Degrees(arc.Start)),
-        new CloseSegment(),
-    ];
+        RingWedge.FromBearings(centre, inner, outer, arc.Start, arc.End).Path();
 
     private static IReadOnlyList<PathSegment> RibbonPath(Point centre, double radius, ChordRibbon ribbon)
     {
@@ -106,7 +102,7 @@ internal sealed class ChordSeriesRenderer : SeriesRenderer<ChordSeries>
     private static void AddEnd(List<PathSegment> segments, Point centre, double radius, ChordSpan span)
     {
         if (span.End > span.Start)
-            segments.Add(new ArcSegment(centre, radius, radius, Degrees(span.Start), Degrees(span.End)));
+            segments.Add(RingWedge.FromBearings(centre, 0, radius, span.Start, span.End).OuterArc());
     }
 
     /// <summary>The quadratic curve from <paramref name="from"/> to <paramref name="to"/> with its control point at the centre,
@@ -116,7 +112,28 @@ internal sealed class ChordSeriesRenderer : SeriesRenderer<ChordSeries>
         new Point(to.X + 2.0 / 3 * (centre.X - to.X), to.Y + 2.0 / 3 * (centre.Y - to.Y)),
         to);
 
-    /// <summary>The edge of a ribbon: its colour, a third darker.</summary>
+    /// <summary>The edge of a ribbon: its colour, a third darker, and opaque whatever the ribbon's own opacity is.</summary>
     private static Color Darker(Color colour) =>
-        new((byte)(colour.R * 0.67), (byte)(colour.G * 0.67), (byte)(colour.B * 0.67));
+        colour.Modulate(0.67).WithAlpha(byte.MaxValue);
+
+    /// <summary>Where the label of this arc stands and how it is turned: aligned to start at the rim on the right half of the
+    /// circle and to end there on the left half, turned by the angle less a quarter turn (and a half turn more on the left
+    /// half), so that it reads outward and no label is ever upside down.</summary>
+    /// <returns>The angle of the middle of the arc, the alignment and the turn in degrees.</returns>
+    /// <param name="arc">The <see cref="ChordArc"/> it works on.</param>
+    internal static ChordLabel Label(ChordArc arc)
+    {
+        double mid = arc.Mid;
+        bool onTheLeft = mid > Math.PI;
+        double rotation = mid.ToDegrees() - 90 + (onTheLeft ? 180 : 0);
+        rotation = ((rotation + 180) % 360 + 360) % 360 - 180;
+        return new ChordLabel(mid, onTheLeft ? TextAlignment.Right : TextAlignment.Left, rotation);
+    }
+
+    /// <summary>Where the label of an arc stands: the angle of its middle, how it is aligned at that point, and how far it is turned
+    /// so that it reads outward from the rim and is never upside down.</summary>
+    /// <param name="Angle">The middle of the arc, in radians clockwise from twelve o'clock.</param>
+    /// <param name="Alignment">Left on the right half of the circle (the text starts at the rim), right on the left half (it ends there).</param>
+    /// <param name="Rotation">The turn in degrees, within -90 and 90.</param>
+    internal readonly record struct ChordLabel(double Angle, TextAlignment Alignment, double Rotation);
 }

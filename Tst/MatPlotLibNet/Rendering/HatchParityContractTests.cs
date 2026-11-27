@@ -82,15 +82,17 @@ public class HatchParityContractTests
         }
     };
 
-    /// <summary>No hatch, no pattern — the contract is symmetric. An unhatched figure must not gain a single
-    /// byte of pattern machinery, which is what keeps the golden corpus byte-identical.</summary>
-    [Fact]
-    public void WithoutAHatch_NoBackendEmitsAPattern()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // No hatch, no pattern — the contract is symmetric. An unhatched figure must not gain a single byte of pattern machinery, which is
+        // what keeps the golden corpus byte-identical.
+        new DrawnToken("WithoutAHatch_NoBackendEmitsAPattern", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Bar(["A"], [1.0]))
-            .ToSvg();
+            .ToSvg()) { Absent = ["<pattern"] },
+    };
 
-        Assert.DoesNotContain("<pattern", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

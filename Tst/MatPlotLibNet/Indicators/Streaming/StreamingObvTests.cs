@@ -7,26 +7,10 @@ using MatPlotLibNet.Indicators.Streaming;
 namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
 /// <summary>The cumulative OBV formula across <c>AppendWithVolume</c> and the volume-less <c>AppendCandle</c> path,
-/// including the equal-close branch and ring-buffer eviction on capacity overflow. The sum is the batch <see cref="Obv"/>:
+/// including the equal-close branch. The sum is the batch <see cref="Obv"/>:
 /// the first bar opens it with its own volume, and a bar without a volume makes it NaN.</summary>
 public sealed class StreamingObvTests
 {
-    [Fact]
-    public void Construction_DefaultsAreCorrect()
-    {
-        var obv = new StreamingObv();
-        Assert.Equal(1, obv.WarmupPeriod);
-        Assert.Equal("OBV", obv.Label);
-        Assert.Single(obv.OutputSeries);
-    }
-
-    [Fact]
-    public void Construction_RespectsCapacity()
-    {
-        var obv = new StreamingObv(capacity: 32);
-        Assert.Equal(32, obv.OutputSeries[0].Capacity);
-    }
-
     [Fact]
     public void FirstBar_OpensTheSumWithItsVolume_AndWarmupSatisfied()
     {
@@ -120,26 +104,6 @@ public sealed class StreamingObvTests
         obv.AppendBar(new OhlcvBar(1, 9, 0, 102, 30));
 
         Assert.Equal([50.0, 80.0], obv.OutputSeries[0].CreateSnapshot().YData);
-    }
-
-    [Fact]
-    public void RingBuffer_OldestEvicted_OnCapacityOverflow()
-    {
-        var obv = new StreamingObv(capacity: 3);
-        // Push 5 rising bars — buffer should hold the last 3 only.
-        for (int i = 0; i < 5; i++) obv.AppendWithVolume(100 + i, 10);
-
-        var snap = obv.OutputSeries[0].CreateSnapshot();
-        Assert.Equal(3, snap.YData.Length);
-        // OBV after 5 rising bars: 10, 20, 30, 40, 50 → buffer keeps {30, 40, 50}
-        Assert.Equal(new[] { 30.0, 40.0, 50.0 }, snap.YData);
-    }
-
-    [Fact]
-    public void GetLatest_BeforeAnyAppend_ReturnsNaN()
-    {
-        var obv = new StreamingObv();
-        Assert.True(double.IsNaN(obv.GetLatest()));
     }
 
     [Fact]

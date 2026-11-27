@@ -20,34 +20,18 @@ public class DateTimeOverloadTests
 
     // --- AxesBuilder ---
 
+    /// <summary>Dates, given to the line or the scatter verb, put the X axis on the date scale with the automatic date locator,
+    /// once: a second dated series finds it there.</summary>
     [Fact]
-    public void AxesBuilder_Plot_DateTime_SetsDateScale()
+    public void Dates_PutTheXAxisOnTheDateScale_WithTheAutomaticLocator_Once()
     {
-        var figure = new FigureBuilder()
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(MakeDates(10), MakeValues(10)))
-            .Build();
+        var axes = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(MakeDates(10), MakeValues(10)).Scatter(MakeDates(10), MakeValues(10)))
+            .Build().SubPlots[0];
 
-        Assert.Equal(AxisScale.Date, figure.SubPlots[0].XAxis.Scale);
-    }
-
-    [Fact]
-    public void AxesBuilder_Scatter_DateTime_SetsDateScale()
-    {
-        var figure = new FigureBuilder()
-            .AddSubPlot(1, 1, 1, ax => ax.Scatter(MakeDates(10), MakeValues(10)))
-            .Build();
-
-        Assert.Equal(AxisScale.Date, figure.SubPlots[0].XAxis.Scale);
-    }
-
-    [Fact]
-    public void AxesBuilder_Plot_DateTime_SetsAutoDateLocator()
-    {
-        var figure = new FigureBuilder()
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(MakeDates(10), MakeValues(10)))
-            .Build();
-
-        Assert.IsType<AutoDateLocator>(figure.SubPlots[0].XAxis.TickLocator);
+        Assert.Equal(2, axes.Series.Count);
+        Assert.Equal(AxisScale.Date, axes.XAxis.Scale);
+        Assert.IsType<AutoDateLocator>(axes.XAxis.TickLocator);
     }
 
     [Fact]
@@ -75,28 +59,6 @@ public class DateTimeOverloadTests
         Assert.NotNull(captured);
         Assert.Equal(dates[0].ToOADate(), captured!.XData[0], precision: 6);
         Assert.Equal(dates[^1].ToOADate(), captured.XData[^1], precision: 6);
-    }
-
-    // --- FigureBuilder ---
-
-    [Fact]
-    public void FigureBuilder_Plot_DateTime_SetsDateScale()
-    {
-        var figure = new FigureBuilder()
-            .Plot(MakeDates(10), MakeValues(10))
-            .Build();
-
-        Assert.Equal(AxisScale.Date, figure.SubPlots[0].XAxis.Scale);
-    }
-
-    [Fact]
-    public void FigureBuilder_Scatter_DateTime_SetsDateScale()
-    {
-        var figure = new FigureBuilder()
-            .Scatter(MakeDates(10), MakeValues(10))
-            .Build();
-
-        Assert.Equal(AxisScale.Date, figure.SubPlots[0].XAxis.Scale);
     }
 
     [Fact]

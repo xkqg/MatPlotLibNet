@@ -19,23 +19,6 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
 
     public ChartSubscriptionClientLiveTests(StreamingHostFixture fixture) => _fixture = fixture;
 
-    private sealed class Recorder : IChartEventHandler
-    {
-        public ConcurrentQueue<FigureInteractionEvent> Seen { get; } = new();
-
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            Seen.Enqueue(evt);
-            return default;
-        }
-    }
-
-    private static async Task WaitAsync(Func<bool> condition)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (!condition() && DateTime.UtcNow < deadline) await Task.Delay(10);
-    }
-
     [Fact]
     public async Task TwoSubscribers_BothReceiveTheSvg_AndDisposingOneStopsIt()
     {
@@ -50,10 +33,12 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
         var figure = Plt.Create().Plot([1.0], [2.0]).Build();
 
         await _fixture.Publisher.PublishSvgAsync("live-1", figure, ct);
-        await WaitAsync(() => !first.IsEmpty && !second.IsEmpty);
+        await Eventually.HoldsAsync(() => !first.IsEmpty && !second.IsEmpty);
         secondToken.Dispose();
+        // A figure published again unchanged is sent to nobody, so the second publish changes it.
+        figure.Title = "changed";
         await _fixture.Publisher.PublishSvgAsync("live-1", figure, ct);
-        await WaitAsync(() => first.Count >= 2);
+        await Eventually.HoldsAsync(() => first.Count >= 2);
         await Task.Delay(100, ct);
 
         Assert.Equal(2, first.Count);
@@ -73,7 +58,7 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
         await client.SubscribeAsync("live-2", ct);
 
         await _fixture.Publisher.PublishSvgAsync("live-2", Plt.Create().Plot([1.0], [2.0]).Build(), ct);
-        await WaitAsync(() => !setter.IsEmpty && !subscriber.IsEmpty);
+        await Eventually.HoldsAsync(() => !setter.IsEmpty && !subscriber.IsEmpty);
 
         Assert.Single(setter);
         Assert.Single(subscriber);
@@ -83,7 +68,7 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
     public async Task AGestureTheClientSends_ReachesTheChartsSession()
     {
         var ct = TestContext.Current.CancellationToken;
-        var recorder = new Recorder();
+        var recorder = new RecordingChartEventHandler();
         _fixture.Registry.Register("live-3", Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build(), o => o.Handle(recorder));
         await using var client = new ChartSubscriptionClient();
         await client.ConnectAsync(_fixture.HubUrl, ct);
@@ -91,9 +76,9 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
 
         using var doc = JsonDocument.Parse("{\"chartId\":\"live-3\",\"axesIndex\":0,\"xMin\":1,\"xMax\":2,\"yMin\":3,\"yMax\":4}");
         await ((IChartGestureSender)client).SendGestureAsync("OnZoom", doc.RootElement.Clone(), ct);
-        await WaitAsync(() => !recorder.Seen.IsEmpty);
+        await recorder.WaitForAsync(1);
 
-        var zoom = Assert.IsType<ZoomEvent>(Assert.Single(recorder.Seen));
+        var zoom = Assert.IsType<ZoomEvent>(Assert.Single(recorder.Events));
         Assert.Equal(2.0, zoom.XMax);
         Assert.NotNull(zoom.ViewerId);   // the server stamped who sent it
         await _fixture.Registry.UnregisterAsync("live-3");
@@ -121,9 +106,9 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
         Assert.Equal(1, _fixture.Subscriptions.Count("live-4"));
 
         // A reconnect is a new connection to the server: its groups and its place in the ledger are gone.
-        var lost = _fixture.Subscriptions.ChartsOf(await ConnectionIdOf(client, ct));
+        var lost = _fixture.Subscriptions.ChartsOf(ConnectionIdOf(client));
         Assert.Contains("live-4", lost);
-        _fixture.Subscriptions.Disconnected(await ConnectionIdOf(client, ct));
+        _fixture.Subscriptions.Disconnected(ConnectionIdOf(client));
         Assert.Equal(0, _fixture.Subscriptions.Count("live-4"));
 
         await client.HandleReconnectedAsync();
@@ -131,8 +116,8 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
         Assert.Equal(1, _fixture.Subscriptions.Count("live-4"));
     }
 
-    private static Task<string> ConnectionIdOf(ChartSubscriptionClient client, CancellationToken ct) =>
-        Task.FromResult(client.ConnectionId ?? throw new InvalidOperationException("not connected"));
+    private static string ConnectionIdOf(ChartSubscriptionClient client) =>
+        client.ConnectionId ?? throw new InvalidOperationException("not connected");
 
     [Fact]
     public async Task TheServersMessagesAboutOtherViewers_AreHandedToTheMessageSubscribers()
@@ -154,7 +139,7 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
 
         using var doc = JsonDocument.Parse("{\"chartId\":\"live-5\",\"axesIndex\":0,\"xMin\":1,\"xMax\":2,\"yMin\":3,\"yMax\":4}");
         await ((IChartGestureSender)author).SendGestureAsync("OnZoom", doc.RootElement.Clone(), ct);
-        await WaitAsync(() => messages.Any(m => m.Method == "ViewChanged"));
+        await Eventually.HoldsAsync(() => messages.Any(m => m.Method == "ViewChanged"));
 
         var changed = messages.First(m => m.Method == "ViewChanged");
         Assert.Contains("\"live-5\"", changed.Args);
@@ -191,7 +176,7 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
         using var cursor = JsonDocument.Parse("{\"chartId\":\"live-6\",\"axesIndex\":0,\"x\":1.5,\"y\":3.5}");
         await ((IChartGestureSender)author).SendGestureAsync("OnHover", hover.RootElement.Clone(), ct);
         await ((IChartGestureSender)author).SendGestureAsync("OnCursor", cursor.RootElement.Clone(), ct);
-        await WaitAsync(() => seenByAuthor.Contains("ReceiveTooltipContent") && seenByWatcher.Contains("ReceiveCursor"));
+        await Eventually.HoldsAsync(() => seenByAuthor.Contains("ReceiveTooltipContent") && seenByWatcher.Contains("ReceiveCursor"));
 
         Assert.Contains("ReceiveTooltipContent", seenByAuthor);   // the tooltip goes to the viewer who hovered
         Assert.Contains("ReceiveCursor", seenByWatcher);          // the pointer goes to the others
@@ -219,7 +204,7 @@ public class ChartSubscriptionClientLiveTests : IClassFixture<StreamingHostFixtu
 
         // Wait on the fact, not on a delay: the message arrives when the server has told the group.
         await leaver.UnsubscribeAsync("live-7", ct);
-        await WaitAsync(() => messages.Any(m => m.Method == "ViewerLeft"));
+        await Eventually.HoldsAsync(() => messages.Any(m => m.Method == "ViewerLeft"));
 
         var left = Assert.Single(messages, m => m.Method == "ViewerLeft");
         Assert.Contains("\"live-7\"", left.Args);

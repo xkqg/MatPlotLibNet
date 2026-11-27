@@ -23,17 +23,12 @@ internal static class KraskovEstimator
     internal static double ConditionalMutualInformation(
         IReadOnlyList<double[]> x, IReadOnlyList<double[]> y, IReadOnlyList<double[]> z, int neighbours)
     {
-        if (x.Count == 0) throw new ArgumentException("A variable needs at least one column.", nameof(x));
-        if (y.Count == 0) throw new ArgumentException("A variable needs at least one column.", nameof(y));
+        x.ThrowIfEmpty("A variable needs at least one column.");
+        y.ThrowIfEmpty("A variable needs at least one column.");
         int n = x[0].Length;
-        foreach (var column in x.Concat(y).Concat(z))
-        {
-            if (column.Length != n)
-                throw new ArgumentException($"All columns must have the same length ({n}); one has {column.Length}.");
-        }
+        x.Concat(y).Concat(z).Select(column => column.Length).ThrowIfNotAllEqual(item: "column");
 
-        if (neighbours < 1 || neighbours >= n)
-            throw new ArgumentOutOfRangeException(nameof(neighbours), neighbours, $"The neighbours are from 1 to {n - 1}, one less than the samples.");
+        neighbours.ThrowIfNotIn(1, n - 1, nameof(neighbours), "The neighbours of a sample");
 
         // ψ at the whole numbers the counts can take: 1 to n.
         var psi = new double[n + 1];

@@ -1,12 +1,12 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Reflection;
 using System.Text.Json.Serialization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -15,9 +15,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// as it does for every other kind and enum of the document, and the schema tells the agent what to write.</summary>
 public class SpecPatchesTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
-    private static readonly ChartSchemaDescription Description = new(new ChartTypeCatalog());
-
     /// <summary>One kind of patch as an agent writes it (colours by name, enum words in the case it likes) and the same patch made in
     /// code.</summary>
     /// <param name="Json">The entry of the <c>patches</c> list.</param>
@@ -27,10 +24,10 @@ public class SpecPatchesTests
     private static readonly IReadOnlyDictionary<string, KindCase> Cases = new Dictionary<string, KindCase>(StringComparer.Ordinal)
     {
         ["rectangle"] = new(
-            """{"type":"rectangle","anchor":{"dataX":1,"dataY":1},"width":2,"height":1.5,"angle":20,"faceColor":"steelblue","edgeColor":"navy","edgeWidth":2,"edgeLineStyle":"DASHED","alpha":0.6,"label":"box","hatch":"forwarddiagonal","hatchColor":"white"}""",
+            """{"type":"rectangle","anchor":{"dataX":1,"dataY":1},"width":2,"height":1.5,"angle":20,"rotationPoint":{"dataX":2,"dataY":0.5},"faceColor":"steelblue","edgeColor":"navy","edgeWidth":2,"edgeLineStyle":"DASHED","alpha":0.6,"label":"box","hatch":"forwarddiagonal","hatchColor":"white"}""",
             () => new Rectangle(new(1, 1), 2, 1.5)
             {
-                Angle = 20, FaceColor = Color.FromName("steelblue"), EdgeColor = Color.FromName("navy"), EdgeWidth = 2,
+                Angle = 20, RotationPoint = RotationPoint.At(new(2, 0.5)), FaceColor = Color.FromName("steelblue"), EdgeColor = Color.FromName("navy"), EdgeWidth = 2,
                 EdgeLineStyle = LineStyle.Dashed, Alpha = 0.6, Label = "box", Hatch = HatchPattern.ForwardDiagonal, HatchColor = Color.FromName("white"),
             }),
         ["polygon"] = new(
@@ -63,6 +60,9 @@ public class SpecPatchesTests
     /// <summary>The seven kinds, by the name a spec writes them with.</summary>
     public static TheoryData<string> Kinds { get; } = new(Cases.Keys);
 
+    /// <summary>The kinds the cases stand for.</summary>
+    internal static IEnumerable<string> CaseKinds => Cases.Keys;
+
     private static string Spec(string patch) => $$"""{"width":400,"height":300,"subPlots":[{"patches":[{{patch}}]}]}""";
 
     private static Figure Read(string patch) => Reader.Read(new ChartSpec(Spec(patch)));
@@ -71,19 +71,10 @@ public class SpecPatchesTests
     private static Figure Library(Patch patch) =>
         Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax.AddPatch(patch)).Build();
 
-    private static Type PatchRecord() =>
+    internal static Type PatchRecord() =>
         typeof(SeriesDto).Assembly.GetType("MatPlotLibNet.Serialization.PatchDto") ?? throw new InvalidOperationException("The serializer no longer declares PatchDto.");
 
     // ---- the seven kinds, read from a spec ---------------------------------------------------------------------
-
-    /// <summary>The cases are a case for every kind the wire family names: an eighth kind turns this red until a case stands for it.</summary>
-    [Fact]
-    public void TheCases_StandForEveryKindThePatchFamilyDeclares()
-    {
-        var declared = PatchRecord().GetCustomAttributes<JsonDerivedTypeAttribute>().Select(derived => (string)derived.TypeDiscriminator!);
-
-        Assert.Equal(declared.Order(StringComparer.Ordinal), Cases.Keys.Order(StringComparer.Ordinal));
-    }
 
     [Theory]
     [MemberData(nameof(Kinds))]
@@ -137,6 +128,8 @@ public class SpecPatchesTests
     [InlineData("""{"type":"rectangle","edgeLineStyle":"dashy",""" + Anchor + "}", "'dashy'", "$.subPlots[0].patches[0].edgeLineStyle", "DashDot")]
     [InlineData("""{"type":"rectangle","hatch":"stripes",""" + Anchor + "}", "'stripes'", "$.subPlots[0].patches[0].hatch", "ForwardDiagonal")]
     [InlineData("""{"type":"arrow","start":{"dataX":0,"dataY":0},"dx":1,"dy":1,"shape":"both"}""", "'both'", "$.subPlots[0].patches[0].shape", "Full, Left, Right")]
+    // The vocabulary held a row for zDir that the reader never asked about: the field lists were typed twice and had drifted.
+    [InlineData("""{"type":"rectangle","zDir":"w",""" + Anchor + "}", "'w'", "$.subPlots[0].patches[0].zDir", "Z, X, Y")]
     [InlineData("""{"type":"rectangle","faceColor":"nosuchcolour",""" + Anchor + "}", "'nosuchcolour'", "$.subPlots[0].patches[0].faceColor", "CSS4")]
     [InlineData("""{"type":"rectangle","hatchColor":"#12345",""" + Anchor + "}", "'#12345'", "$.subPlots[0].patches[0].hatchColor", "#RRGGBB")]
     public void AMisspelledKindOrValueOfAPatch_IsRefusedByValueAndPlace_WithWhatIsAccepted(string patch, string wrong, string where, string accepted)
@@ -208,27 +201,8 @@ public class SpecPatchesTests
 
     // ---- what the schema tells an agent -------------------------------------------------------------------------
 
-    private static string[] SectionLines(string heading)
-    {
-        string schema = Description.Describe(null);
-        int at = schema.IndexOf(heading, StringComparison.Ordinal);
-        Assert.True(at >= 0, $"'{heading}' is not in the schema.");
-        return schema[at..].Split(Environment.NewLine).Skip(1).TakeWhile(line => line.Trim().Length > 0).ToArray();
-    }
-
-    private static string FieldName(string line) => line.Trim().Split(':')[0];
-
-    /// <summary>The fields of one kind as the schema lists them under the kind: the lines indented under the kind's own line.</summary>
-    private static string[] FieldsListedUnder(string kind)
-    {
-        var lines = SectionLines("Patch kinds");
-        int at = Array.FindIndex(lines, line => line.StartsWith($"  {kind} ", StringComparison.Ordinal));
-        Assert.True(at >= 0, $"The schema lists no patch kind '{kind}'.");
-        return [.. lines.Skip(at + 1).TakeWhile(line => line.StartsWith("    ", StringComparison.Ordinal)).Select(FieldName)];
-    }
-
     [Theory]
-    [InlineData("rectangle", "anchor,width,height,angle")]
+    [InlineData("rectangle", "anchor,width,height,angle,rotationCenter,rotationPoint")]
     [InlineData("polygon", "vertices,closed")]
     [InlineData("arrow", "start,dx,dy,width,headWidth,headLength,lengthIncludesHead,shape,overhang")]
     [InlineData("circle", "center,radius")]
@@ -236,27 +210,17 @@ public class SpecPatchesTests
     [InlineData("wedge", "center,radius,theta1,theta2,width")]
     [InlineData("arc", "center,width,height,angle,theta1,theta2")]
     public void TheSchema_NamesEveryKindOfPatch_WithTheFieldsThatKindTakes(string kind, string fields) =>
-        Assert.Equal(fields.Split(','), FieldsListedUnder(kind));
+        Assert.Equal(fields.Split(','), Description.FieldsListedUnder("Patch kinds", kind));
 
-    [Fact]
-    public void TheSchema_ListsNoKindThePatchFamilyDoesNotDeclare()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var kinds = SectionLines("Patch kinds").Where(line => !line.StartsWith("    ", StringComparison.Ordinal)).Select(line => line.Trim().Split(' ')[0]);
+        new DrawnToken("TheSchema_SaysHowAPointAnAngleAndASizeAreWritten", () => Description.Describe(null).HeadingLine("Patch kinds"), "subPlots[].patches", "dataX", "dataY", "data units", "counter-clockwise"),
+    };
 
-        Assert.Equal(Cases.Keys.Order(StringComparer.Ordinal), kinds.Order(StringComparer.Ordinal));
-    }
-
-    [Fact]
-    public void TheSchema_SaysHowAPointAnAngleAndASizeAreWritten()
-    {
-        string heading = Description.Describe(null).Split(Environment.NewLine).Single(line => line.StartsWith("Patch kinds", StringComparison.Ordinal));
-
-        Assert.Contains("subPlots[].patches", heading);
-        Assert.Contains("dataX", heading);
-        Assert.Contains("dataY", heading);
-        Assert.Contains("data units", heading);
-        Assert.Contains("counter-clockwise", heading);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Theory]
     [InlineData("edgeColor", "outline")]
@@ -269,7 +233,7 @@ public class SpecPatchesTests
     [InlineData("faceColor", "arc")]
     public void TheSchema_ListsTheStyleEveryPatchTakes_AndExplainsIt(string field, string explanation)
     {
-        var line = Assert.Single(SectionLines("Patch style fields"), l => FieldName(l) == field);
+        var line = Assert.Single(Description.SectionLines("Patch style fields"), l => l.FieldName() == field);
 
         Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
     }
@@ -278,7 +242,7 @@ public class SpecPatchesTests
     [Fact]
     public void TheLabelOfAPatch_IsNotExplainedAsTheLabelOfASeries()
     {
-        var line = Assert.Single(SectionLines("Patch style fields"), l => FieldName(l) == "label");
+        var line = Assert.Single(Description.SectionLines("Patch style fields"), l => l.FieldName() == "label");
 
         Assert.DoesNotContain("series", line, StringComparison.OrdinalIgnoreCase);
     }
@@ -286,7 +250,7 @@ public class SpecPatchesTests
     [Fact]
     public void TheSubplotFields_ListThePatches_AndSayWhatTheyAre()
     {
-        var line = Assert.Single(SectionLines("Subplot fields"), l => l.TrimStart().StartsWith("patches: object[]", StringComparison.Ordinal));
+        var line = Assert.Single(Description.SectionLines("Subplot fields"), l => l.TrimStart().StartsWith("patches: object[]", StringComparison.Ordinal));
 
         Assert.Contains("shape", line, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("matplotlib", line, StringComparison.OrdinalIgnoreCase);

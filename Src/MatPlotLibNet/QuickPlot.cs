@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series;
+
 namespace MatPlotLibNet;
 
 /// <summary>
@@ -27,15 +29,15 @@ public static class QuickPlot
         ApplyTitle(Plt.Create().Scatter(x, y), title);
 
     /// <summary>Plots the distribution of <paramref name="data"/> as a histogram.</summary>
-    public static FigureBuilder Hist(double[] data, int bins = 10, string? title = null) =>
+    public static FigureBuilder Hist(double[] data, int bins = HistogramSeries.RestingBins, string? title = null) =>
         ApplyTitle(Plt.Create().Hist(data, bins), title);
 
     /// <summary>
     /// Plots <paramref name="y"/> as a uniform-rate signal series.
     /// Uses O(1) index arithmetic for viewport slicing — efficient at 1 M + points.
     /// </summary>
-    public static FigureBuilder Signal(double[] y, double sampleRate = 1.0,
-                                       double xStart = 0.0, string? title = null) =>
+    public static FigureBuilder Signal(double[] y, double sampleRate = SignalSeries.RestingSampleRate,
+                                       double xStart = SignalSeries.RestingXStart, string? title = null) =>
         ApplyTitle(Plt.Create().Signal(y, sampleRate, xStart), title);
 
     /// <summary>

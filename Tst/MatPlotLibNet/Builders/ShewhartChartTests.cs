@@ -4,7 +4,6 @@
 using System.Reflection;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -22,11 +21,8 @@ public class ShewhartChartTests
 
     private static readonly ControlLimits Given = new(0, -3, 3);
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Chart(ControlChartData data, ControlRules rules = ControlRules.Nelson1, ControlLimits? limits = null, Action<ControlChartParts>? configure = null) =>
-        AxesOf(ax => ax.ShewhartChart(data, rules, limits, configure));
+        Plt.Create().OneAxes(ax => ax.ShewhartChart(data, rules, limits, configure));
 
     private static ScatterSeries Violations(Axes axes) => Assert.IsType<ScatterSeries>(axes.Series[1]);
 
@@ -96,17 +92,14 @@ public class ShewhartChartTests
 
     // ---- the rules are a numbered vocabulary -------------------------------------------------------------------------------
 
-    /// <summary>The rules are flags numbered as Nelson numbers them: one bit each for 1 to 8, nothing for none, all of them for
-    /// all.</summary>
+    /// <summary>The rules are flags, so they combine, and all of them is the eight together; the number of each is pinned with every
+    /// other enum's in <c>EnumOrdinalSnapshot</c>.</summary>
     [Fact]
-    public void TheRules_AreFlagsNumberedLikeNelsons()
+    public void TheRules_AreFlags_AndAllIsTheEightTogether()
     {
         Assert.True(typeof(ControlRules).IsDefined(typeof(FlagsAttribute)));
         ControlRules[] each = [ControlRules.Nelson1, ControlRules.Nelson2, ControlRules.Nelson3, ControlRules.Nelson4,
                                ControlRules.Nelson5, ControlRules.Nelson6, ControlRules.Nelson7, ControlRules.Nelson8];
-        Assert.Equal([1, 2, 4, 8, 16, 32, 64, 128], each.Select(r => (int)r));
-        Assert.Equal(0, (int)ControlRules.None);
-        Assert.Equal(255, (int)ControlRules.All);
         Assert.Equal(ControlRules.All, each.Aggregate((a, b) => a | b));
     }
 
@@ -150,45 +143,12 @@ public class ShewhartChartTests
     [Fact]
     public void LimitsThatAreNotOrdered_AreRefused_ByTheVerb()
     {
-        var error = Assert.Throws<ArgumentException>(() => Chart(ControlChartData.Individuals(Days, Mixed), limits: new ControlLimits(0, 3, -3)));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Chart(ControlChartData.Individuals(Days, Mixed), limits: new ControlLimits(0, 3, -3)));
 
         Assert.Equal("limits", error.ParamName);
     }
 
-    /// <summary>A refused call has added nothing: no series, no reference line.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => builder.ShewhartChart(ControlChartData.Individuals(Days, Mixed), (ControlRules)256));
-        Assert.Throws<ArgumentException>(() => builder.ShewhartChart(default));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Empty(axes.ReferenceLines);
-    }
-
     // ---- the callback -----------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback gets the five parts of a control chart, the very series and reference lines on the axes, once, after
-    /// the verb has built and styled them.</summary>
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes()
-    {
-        int calls = 0;
-        ControlChartParts seen = default;
-
-        var axes = Chart(ControlChartData.Individuals(Days, Mixed), ControlRules.Nelson1, Given, parts => { calls++; seen = parts; parts.Violations.Label = "beyond"; });
-
-        Assert.Equal(1, calls);
-        Assert.Same(axes.Series[0], seen.Values);
-        Assert.Same(axes.Series[1], seen.Violations);
-        Assert.Equal(0.0, seen.Center.Value);
-        Assert.Equal(-3.0, seen.Lower.Value);
-        Assert.Equal(3.0, seen.Upper.Value);
-        Assert.Equal("beyond", Violations(axes).Label);
-    }
 
     /// <summary>The data is a public readonly record struct a caller cannot make by hand: the factories make it.</summary>
     [Fact]

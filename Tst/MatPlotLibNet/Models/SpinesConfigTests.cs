@@ -10,53 +10,6 @@ namespace MatPlotLibNet.Tests.Models;
 public class SpinesConfigTests
 {
     [Fact]
-    public void SpineConfig_Default_IsVisible()
-    {
-        var spine = new SpineConfig();
-        Assert.True(spine.Visible);
-    }
-
-    [Fact]
-    public void SpineConfig_Default_PositionIsEdge()
-    {
-        var spine = new SpineConfig();
-        Assert.Equal(SpinePosition.Edge, spine.Position);
-    }
-
-    /// <summary>Verifies that the default spine line width is 0.8 — matching matplotlib's axes.linewidth.</summary>
-    [Fact]
-    public void SpineConfig_Default_LineWidthIsPointEight()
-    {
-        var spine = new SpineConfig();
-        Assert.Equal(0.8, spine.LineWidth);
-    }
-
-    [Fact]
-    public void SpineConfig_WithRecord_CreatesModifiedCopy()
-    {
-        var spine = new SpineConfig() with { Visible = false };
-        Assert.False(spine.Visible);
-    }
-
-    [Fact]
-    public void SpinesConfig_Default_AllVisible()
-    {
-        var spines = new SpinesConfig();
-        Assert.True(spines.Top.Visible);
-        Assert.True(spines.Bottom.Visible);
-        Assert.True(spines.Left.Visible);
-        Assert.True(spines.Right.Visible);
-    }
-
-    [Fact]
-    public void SpinesConfig_HideTop_TopNotVisible()
-    {
-        var spines = new SpinesConfig() with { Top = new SpineConfig() with { Visible = false } };
-        Assert.False(spines.Top.Visible);
-        Assert.True(spines.Bottom.Visible);
-    }
-
-    [Fact]
     public void SpinesConfig_RecordEquality_Works()
     {
         var a = new SpinesConfig();
@@ -64,73 +17,51 @@ public class SpinesConfigTests
         Assert.Equal(a, b);
     }
 
+    /// <summary>One spine of an axes is changed through its edge, and no other spine is touched.</summary>
     [Fact]
-    public void Axes_Spines_DefaultAllVisible()
+    public void AnEdgeChanged_ChangesTheSpineOnThatEdgeOnly()
     {
-        var axes = new Axes();
-        Assert.True(axes.Spines.Top.Visible);
-        Assert.True(axes.Spines.Bottom.Visible);
-        Assert.True(axes.Spines.Left.Visible);
-        Assert.True(axes.Spines.Right.Visible);
-    }
+        var spines = new SpinesConfig();
 
-    [Fact]
-    public void SpineConfig_DataPosition_StoresValue()
-    {
-        var spine = new SpineConfig() with { Position = SpinePosition.Data, PositionValue = 0.0 };
-        Assert.Equal(SpinePosition.Data, spine.Position);
-        Assert.Equal(0.0, spine.PositionValue);
-    }
-
-    [Fact]
-    public void SpineConfig_AxesPosition_StoresValue()
-    {
-        var spine = new SpineConfig() with { Position = SpinePosition.Axes, PositionValue = 0.5 };
-        Assert.Equal(SpinePosition.Axes, spine.Position);
-        Assert.Equal(0.5, spine.PositionValue);
-    }
-
-    // --- 2G: Spine Enrichment ---
-
-    [Fact]
-    public void SpineConfig_Color_DefaultsToNull()
-    {
-        var spine = new SpineConfig();
-        Assert.Null(spine.Color);
-    }
-
-    [Fact]
-    public void SpineConfig_LineStyle_DefaultsToSolid()
-    {
-        var spine = new SpineConfig();
-        Assert.Equal(LineStyle.Solid, spine.LineStyle);
-    }
-
-    [Fact]
-    public void SpineConfig_Color_CanBeSet()
-    {
-        var spine = new SpineConfig() with { Color = Colors.Red };
-        Assert.Equal(Colors.Red, spine.Color);
-    }
-
-    [Fact]
-    public void SpineConfig_LineStyle_CanBeSet()
-    {
-        var spine = new SpineConfig() with { LineStyle = LineStyle.Dashed };
-        Assert.Equal(LineStyle.Dashed, spine.LineStyle);
-    }
-
-    [Fact]
-    public void SpinesConfig_PerSpineColor_Independent()
-    {
-        var spines = new SpinesConfig() with
+        foreach (var edge in Enum.GetValues<SpineEdge>())
         {
-            Top    = new SpineConfig() with { Color = Colors.Red },
-            Bottom = new SpineConfig() with { Color = Colors.Blue }
-        };
-        Assert.Equal(Colors.Red, spines.Top.Color);
-        Assert.Equal(Colors.Blue, spines.Bottom.Color);
-        Assert.Null(spines.Left.Color);
-        Assert.Null(spines.Right.Color);
+            var changed = spines.WithEdge(edge, spine => spine with { LineWidth = 3 });
+
+            foreach (var other in Enum.GetValues<SpineEdge>())
+                Assert.Equal(other == edge ? 3 : spines.On(other).LineWidth, changed.On(other).LineWidth);
+        }
+    }
+
+    /// <summary>Spines hidden are hidden edge by edge, whichever are named, and the others stay as they were.</summary>
+    [Fact]
+    public void SpinesHidden_AreTheOnesNamed_AndNoOther()
+    {
+        var spines = new SpinesConfig().Hiding(SpineEdge.Top, SpineEdge.Left);
+
+        Assert.Equal([false, true, false, true], [spines.Top.Visible, spines.Bottom.Visible, spines.Left.Visible, spines.Right.Visible]);
+        Assert.Equal(new SpinesConfig(), new SpinesConfig().Hiding());
+    }
+
+    /// <summary>Spines hidden on several edges are one copy of the spines, whatever the number of edges named: a row of stat tiles
+    /// hides all four spines of every tile, and a copy for each edge made its build slower than it was.</summary>
+    [Fact]
+    public void SpinesHiddenOnEveryEdge_AreOneCopyOfTheSpines()
+    {
+        var spines = new SpinesConfig();
+        _ = spines.Hiding(SpineEdge.Top);
+        _ = spines.Hiding(SpineEdge.Top, SpineEdge.Bottom, SpineEdge.Left, SpineEdge.Right);
+        _ = spines.Top with { Visible = false };
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        _ = spines.Hiding(SpineEdge.Top);
+        long oneEdge = GC.GetAllocatedBytesForCurrentThread() - before;
+        before = GC.GetAllocatedBytesForCurrentThread();
+        _ = spines.Top with { Visible = false };
+        long oneSpine = GC.GetAllocatedBytesForCurrentThread() - before;
+        before = GC.GetAllocatedBytesForCurrentThread();
+        _ = spines.Hiding(SpineEdge.Top, SpineEdge.Bottom, SpineEdge.Left, SpineEdge.Right);
+        long everyEdge = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(oneEdge + (3 * oneSpine), everyEdge);
     }
 }

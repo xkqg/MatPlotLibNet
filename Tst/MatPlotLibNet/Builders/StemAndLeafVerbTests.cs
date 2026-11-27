@@ -2,9 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
-using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -29,14 +27,7 @@ public class StemAndLeafVerbTests
     {
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
-        return [.. recording.OfKind("DrawText").Select(call => (dynamic)call.Args!).Select(args => ((string)args.text, (Point)args.position, (TextAlignment)args.alignment))];
-    }
-
-    [Fact]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws()
-    {
-        Assert.Equal(ComposedChartShapes.StemAndLeafByHand(false).ToSvg(), ComposedChartShapes.Named("stem-and-leaf").Build(false).ToSvg());
-        Assert.Equal(ComposedChartShapes.StemAndLeafByHand(true).ToSvg(), ComposedChartShapes.Named("stem-and-leaf").Build(true).ToSvg());
+        return [.. recording.Of<DrawTextCall>().Select(args => (args.Text, args.Position, args.Alignment))];
     }
 
     [Fact]
@@ -97,26 +88,6 @@ public class StemAndLeafVerbTests
         Assert.Equal(Colors.Transparent, parts.Table.BorderColor);
         Assert.Same(parts.Table, Assert.Single(axes.Series));
         Assert.Contains(parts.Key, axes.Annotations);
-    }
-
-    [Fact]
-    public void WhatTheCallbackSets_WinsOverWhatTheVerbDid()
-    {
-        StemAndLeafParts parts = default;
-        Plt.Create().AddSubPlot(1, 1, 1, ax => ax.StemAndLeaf(Ages, null, p => { p.Table.FontSize = 16; p.Key.Color = Colors.Red; parts = p; })).Build();
-
-        Assert.Equal(16.0, parts.Table.FontSize);
-        Assert.Equal(Colors.Red, parts.Key.Color);
-    }
-
-    [Fact]
-    public void TheChart_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax.StemAndLeaf(Ages)).Build();
-
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
     }
 
     [Fact]

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
+using MatPlotLibNet.Rendering.Frames;
 using SkiaSharp;
 
 namespace MatPlotLibNet.Skia;
@@ -13,23 +14,10 @@ public static class BrushSelectOverlayExtensions
     extension(SKCanvas canvas)
     {
         /// <summary>Draws the band between where the drag began and where the pointer is: a translucent fill and a firmer
-        /// outline, whichever corner the drag began at.</summary>
+        /// outline, whichever corner the drag began at, by the one rule every native head draws it with (the native controls
+        /// draw it through their painter).</summary>
         /// <param name="state">The drag in progress, in the control's pixels.</param>
-        public void DrawBrushSelect(BrushSelectState state)
-        {
-            var rect = new SKRect(
-                (float)Math.Min(state.StartPixelX, state.CurrentPixelX),
-                (float)Math.Min(state.StartPixelY, state.CurrentPixelY),
-                (float)Math.Max(state.StartPixelX, state.CurrentPixelX),
-                (float)Math.Max(state.StartPixelY, state.CurrentPixelY));
-
-            using var paint = new SKPaint { Color = new SKColor(30, 144, 255, 50), Style = SKPaintStyle.Fill };
-            canvas.DrawRect(rect, paint);
-
-            paint.Color = new SKColor(30, 144, 255, 180);
-            paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 1.5f;
-            canvas.DrawRect(rect, paint);
-        }
+        public void DrawBrushSelect(BrushSelectState state) =>
+            ((MatPlotLibNet.Rendering.IRenderContext)new SkiaRenderContext(canvas)).DrawBrushSelect(state);
     }
 }

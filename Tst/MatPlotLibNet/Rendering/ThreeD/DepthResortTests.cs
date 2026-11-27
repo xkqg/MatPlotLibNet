@@ -8,10 +8,10 @@ namespace MatPlotLibNet.Tests.Rendering.ThreeD;
 
 public sealed class DepthResortTests
 {
-    [Fact]
-    public void RotationScript_ContainsResortDepth()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
+        new DrawnToken("RotationScript_ContainsResortDepth", () => Plt.Create()
             .WithSize(600, 500)
             .With3DRotation()
             .AddSubPlot(1, 1, 1, ax => ax
@@ -19,42 +19,31 @@ public sealed class DepthResortTests
                 .Bar3D([0.0, 1.0], [0.0, 1.0], [3.0, 5.0],
                     s => s.Color = Colors.Tomato))
             .Build()
-            .ToSvg();
-
-        Assert.Contains("resortDepth", svg);
-    }
-
-    [Fact]
-    public void RotationScript_ContainsAvgViewZ()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "resortDepth"),
+        new DrawnToken("RotationScript_ContainsAvgViewZ", () => Plt.Create()
             .WithSize(600, 500)
             .With3DRotation()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithCamera(elevation: 30, azimuth: -60)
                 .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } }))
             .Build()
-            .ToSvg();
-
-        Assert.Contains("avgViewZ", svg);
-    }
-
-    [Fact]
-    public void RotationScript_CallsResortAfterReproject()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "avgViewZ"),
+        // resortDepth(b) is called inside reprojectAll() body — the basis arg `b` was
+        // added in Phase B.4 of v1.7.2 follow-on (full matplotlib projection port; viewZ
+        // now needs the camera basis to compute depth).
+        // the call inside reprojectAll
+        // the function definition
+        new DrawnToken("RotationScript_CallsResortAfterReproject", () => Plt.Create()
             .WithSize(600, 500)
             .With3DRotation()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithCamera(elevation: 30, azimuth: -60)
                 .Scatter3D([0.0], [0.0], [0.0]))
             .Build()
-            .ToSvg();
+            .ToSvg(), "resortDepth(b);", "function resortDepth(b)"),
+    };
 
-        // resortDepth(b) is called inside reprojectAll() body — the basis arg `b` was
-        // added in Phase B.4 of v1.7.2 follow-on (full matplotlib projection port; viewZ
-        // now needs the camera basis to compute depth).
-        Assert.Contains("resortDepth(b);", svg); // the call inside reprojectAll
-        Assert.Contains("function resortDepth(b)", svg); // the function definition
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

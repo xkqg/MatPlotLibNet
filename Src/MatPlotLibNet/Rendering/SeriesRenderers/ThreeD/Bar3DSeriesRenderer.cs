@@ -2,16 +2,14 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>Renders a <see cref="Bar3DSeries"/> as depth-sorted rectangular prisms projected from 3D to 2D.</summary>
-internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
+/// <summary>Renders a <see cref="Bar3DSeries"/> as boxes (<see cref="Cuboid"/>) projected from 3D to 2D, their faces drawn back to
+/// front with the scene.</summary>
+internal sealed class Bar3DSeriesRenderer : SceneSeriesRenderer<Bar3DSeries>
 {
-    private enum FaceKind { Top, Bottom, FrontY, BackY, LeftX, RightX }
-
     /// <inheritdoc />
     public Bar3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -23,118 +21,31 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
     {
         if (series.X.Length == 0) return;
 
-        var baseColor = ResolveColor(series.Color);
-
         // Fitted to the values that are there (a missing value, NaN, and an infinity are left out), from the floor at 0.
         var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(),
             new Range1D(0, series.Z.Data.DrawableRange()?.Hi ?? 1));
-        double hw = series.BarWidth / 2.0;
 
-        // matplotlib draws 3-D bar edges in solid black so prism geometry pops against the
-        // fill colour. Match that.
-        var strokeColor = Colors.Black;
+        // Every face of a bar is shaded by the light it is lit by, on its own outward normal, as matplotlib's bar3d shades it
+        // (art3d._shade_colors maps the signed dot product to a band of intensities rather than clamping it at zero).
+        var fills = Cuboid.ShadesOf(ColorOf(series), Context.LightSource);
 
-        // Per-face fill colours. A lit bar is shaded face by face by the light it is lit by, the same question a surface
-        // asks of it: matplotlib's bar3d shading (art3d._shade_colors) for a directional light, which maps the raw signed
-        // dot product to a band of intensities rather than clamping it at zero. Each of the six faces has its own outward
-        // normal; an unlit bar keeps the fixed per-face opacities below.
-        Color topColor, bottomColor;
-        Color frontColor, backColor;
-        Color leftColor, rightColor;
-        if (Context.LightSource is { } light)
-        {
-            topColor    = light.Shade(baseColor,  0,  0,  1);
-            bottomColor = light.Shade(baseColor,  0,  0, -1);
-            frontColor  = light.Shade(baseColor,  0, -1,  0);
-            backColor   = light.Shade(baseColor,  0,  1,  0);
-            leftColor   = light.Shade(baseColor, -1,  0,  0);
-            rightColor  = light.Shade(baseColor,  1,  0,  0);
-        }
-        else
-        {
-            topColor    = baseColor;
-            bottomColor = baseColor.WithAlpha((byte)(baseColor.A * 0.60));
-            frontColor  = baseColor.WithAlpha((byte)(baseColor.A * 0.85));
-            backColor   = frontColor;
-            leftColor   = baseColor.WithAlpha((byte)(baseColor.A * 0.70));
-            rightColor  = leftColor;
-        }
-
-        // Build every face of every bar and sort them individually by centroid depth.
-        // Drawing all 6 faces per prism and letting per-face depth sorting handle occlusion
-        // is robust to any camera angle — we don't have to hard-code which 3 faces are
-        // front-facing for the current rotation.
-        var faces = new List<DepthFace>(series.X.Length * 6);
-
+        // All six faces of every bar, each sorted by its own centre's depth with the scene: robust to any camera angle, with no
+        // need to know which three faces face the camera. A bar is one mark: one with a corner that cannot be placed is skipped
+        // whole, every face with it.
+        var faces = new List<FilledFace>(series.X.Length * Cuboid.FaceCount);
         for (int i = 0; i < series.X.Length; i++)
         {
-            // matplotlib bar3d convention: X[i] / Y[i] are the LEFT-FRONT corner of the
-            // bar, not the centre. Bar spans [X, X+BarWidth] × [Y, Y+BarWidth] × [0, Z].
-            // This makes X/Y tick labels line up with the bar edges instead of centres.
-            double cx = series.X.Data[i];
-            double cy = series.Y.Data[i];
-            double h  = series.Z.Data[i];
-
-            double x0 = cx, x1 = cx + series.BarWidth;
-            double y0 = cy, y1 = cy + series.BarWidth;
-
-            var prism = new List<DepthFace>(6);
-            AddFace(prism, proj, topColor,
-                new(x0, y0, h), new(x1, y0, h), new(x1, y1, h), new(x0, y1, h));
-            AddFace(prism, proj, bottomColor,
-                new(x0, y0, 0d), new(x0, y1, 0d), new(x1, y1, 0d), new(x1, y0, 0d));
-            AddFace(prism, proj, frontColor,
-                new(x0, y0, 0d), new(x1, y0, 0d), new(x1, y0, h), new(x0, y0, h));
-            AddFace(prism, proj, backColor,
-                new(x1, y1, 0d), new(x0, y1, 0d), new(x0, y1, h), new(x1, y1, h));
-            AddFace(prism, proj, leftColor,
-                new(x0, y1, 0d), new(x0, y0, 0d), new(x0, y0, h), new(x0, y1, h));
-            AddFace(prism, proj, rightColor,
-                new(x1, y0, 0d), new(x1, y1, 0d), new(x1, y1, h), new(x1, y0, h));
-
-            // A bar is one mark: one with a corner that cannot be placed is skipped whole, every face with it.
-            if (prism.TrueForAll(face => face.Vertices.IsDrawable()))
-                faces.AddRange(prism);
+            // matplotlib bar3d convention: X[i] / Y[i] are the LEFT-FRONT corner of the bar, not the centre, so the bar spans
+            // [X, X + BarWidth] x [Y, Y + BarWidth] x [0, Z] and the tick labels line up with the bar edges.
+            double x = series.X.Data[i], y = series.Y.Data[i];
+            new Cuboid(x, x + series.BarWidth, y, y + series.BarWidth, 0, series.Z.Data[i]).AddFacesTo(faces, proj, fills);
         }
 
-        // If a shared cross-series depth queue is available on the context, push each
-        // face as a deferred draw so the axes renderer can sort across ALL 3-D series
-        // (including other Bar3D rows) before painting. Otherwise fall back to the
-        // local back-to-front sort — correct for a single-series render.
-        if (Context.DepthQueue is { } queue)
-        {
-            foreach (var face in faces)
-            {
-                // Capture-by-value — avoid foreach-variable aliasing in the closure.
-                var vLocal = face.Vertices; var fLocal = face.Fill; var sLocal = strokeColor;
-                queue.Add(face.Depth, () => Ctx.DrawPolygon(vLocal, new ShapeStyle(fLocal, sLocal, 0.5)));
-            }
-        }
-        else
-        {
-            faces.Sort((a, b) => a.Depth.CompareTo(b.Depth));
-            foreach (var face in faces)
-                Ctx.DrawPolygon(face.Vertices, new ShapeStyle(face.Fill, strokeColor, 0.5));
-        }
+        // Every face edged as the theme decides for a patch (black at 1 pt under classic, none under v2), the bar's own black hairline
+        // under the library's themes.
+        var theme = Context.Theme;
+        var edges = theme.PatchEdgesOf(series);
+        var edge = edges.Of();
+        DrawBackToFront(faces, face => Ctx.DrawPolygon(face.Vertices, edges.StyleOf(face.Fill, edge)));
     }
-
-    private static void AddFace(
-        List<DepthFace> sink,
-        Projection3D proj, Color fill,
-        Lighting.Vec3 c0, Lighting.Vec3 c1, Lighting.Vec3 c2, Lighting.Vec3 c3)
-    {
-        var pts = new[]
-        {
-            proj.Project(c0.X, c0.Y, c0.Z),
-            proj.Project(c1.X, c1.Y, c1.Z),
-            proj.Project(c2.X, c2.Y, c2.Z),
-            proj.Project(c3.X, c3.Y, c3.Z),
-        };
-        double cx = (c0.X + c1.X + c2.X + c3.X) / 4.0;
-        double cy = (c0.Y + c1.Y + c2.Y + c3.Y) / 4.0;
-        double cz = (c0.Z + c1.Z + c2.Z + c3.Z) / 4.0;
-        sink.Add(new(proj.Depth(cx, cy, cz), pts, fill));
-    }
-
-    private readonly record struct DepthFace(double Depth, Point[] Vertices, Color Fill);
 }

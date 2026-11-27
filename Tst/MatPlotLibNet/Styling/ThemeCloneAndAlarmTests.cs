@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
@@ -24,24 +25,38 @@ public class ThemeCloneAndAlarmTests
             .Build();
 
         Assert.Equal(Colors.Black, derived.Background);            // the one thing that was changed
-        Assert.Equal(baseTheme.DefaultSpacing, derived.DefaultSpacing);
-        Assert.Equal(baseTheme.PatchEdgeColor, derived.PatchEdgeColor);
-        Assert.Equal(baseTheme.ViolinBodyColor, derived.ViolinBodyColor);
-        Assert.Equal(baseTheme.ViolinStatsColor, derived.ViolinStatsColor);
-        Assert.Equal(baseTheme.AxisXMargin, derived.AxisXMargin);
-        Assert.Equal(baseTheme.AxisYMargin, derived.AxisYMargin);
-        Assert.Equal(baseTheme.Pane3DColor, derived.Pane3DColor);
-        Assert.Equal(baseTheme.Alarm, derived.Alarm);
+        Assert.Equivalent(new
+        {
+            baseTheme.DefaultSpacing, baseTheme.PatchEdgeColor, baseTheme.ViolinBodyColor, baseTheme.ViolinStatsColor,
+            baseTheme.AxisXMargin, baseTheme.AxisYMargin, baseTheme.Pane3DColor, baseTheme.Alarm,
+        }, derived);
     }
 
-    /// <summary>A theme can be named — four sibling presets that all answer to "custom-dark" are indistinguishable
-    /// in a style sheet.</summary>
-    [Fact]
-    public void ADerivedTheme_CanBeNamed()
+    public static TheoryData<Func<Theme>, Func<Theme, object?>, object> WhatADerivedThemeHolds => new()
     {
-        var named = Theme.CreateFrom(Theme.Dark).WithName("ops-night").Build();
+        { () => Theme.CreateFrom(Theme.Dark).WithName("ops-night").Build(), theme => theme.Name, "ops-night" },
+        { () => Theme.CreateFrom(Theme.MatplotlibClassic).WithBackground(Colors.Black).Build(), theme => theme.DefaultLegendPosition, LegendPosition.UpperRight },
+    };
 
-        Assert.Equal("ops-night", named.Name);
+    [Theory]
+    [MemberData(nameof(WhatADerivedThemeHolds))]
+    public void ADerivedTheme_CanBeNamed_AndKeepsTheLegendPositionOfItsBase(Func<Theme> derive, Func<Theme, object?> read, object expected) =>
+        Assert.Equal(expected, read(derive()));
+
+    /// <summary>Every theme the library hands out by a property has a name of its own: the sixteen community presets were built by
+    /// <c>CreateFrom</c> and answered to "custom-dark" or "custom-default", so a style sheet or a figure's JSON could not tell
+    /// Nord from Dracula.</summary>
+    [Fact]
+    public void EveryThemeTheLibraryHandsOut_HasANameOfItsOwn()
+    {
+        var themes = typeof(Theme).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(property => property.PropertyType == typeof(Theme))
+            .Select(property => (Property: property.Name, Name: ((Theme)property.GetValue(null)!).Name))
+            .ToArray();
+
+        Assert.True(themes.Length >= 30, $"only {themes.Length} themes found");
+        Assert.Empty(themes.Where(theme => theme.Name.StartsWith("custom-", StringComparison.Ordinal)).Select(theme => $"{theme.Property} = {theme.Name}"));
+        Assert.Empty(themes.GroupBy(theme => theme.Name).Where(group => group.Count() > 1).Select(group => $"{group.Key}: {string.Join(", ", group.Select(theme => theme.Property))}"));
     }
 
     /// <summary>Every theme carries an alarm palette, and no theme paints the resting state in an alarm colour.

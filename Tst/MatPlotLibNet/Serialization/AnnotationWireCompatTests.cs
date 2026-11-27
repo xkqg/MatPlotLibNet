@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Serialization;
 
@@ -21,9 +22,13 @@ public class AnnotationWireCompatTests
     private const string WrittenBeforeTheOffset =
         """{"width":400,"height":300,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"line","xData":[0,10],"yData":[0,10],"lineStyle":"solid","lineWidth":1.5}],"annotations":[{"text":"peak","x":5,"y":5}]}]}""";
 
+    /// <summary>The figure of <see cref="WrittenBeforeTheOffset"/>: its line names the width and the dash the writer of that time
+    /// wrote for every line, so they are given here, and the annotation is what the tests vary.</summary>
     private static Figure Figure(Action<Annotation>? configure = null) =>
         Plt.Create().WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 10.0], [0.0, 10.0]).Annotate("peak", 5, 5, configure))
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10.0], [0.0, 10.0], s => { s.LineStyle = LineStyle.Solid; s.LineWidth = 1.5; })
+                .Annotate("peak", 5, 5, configure))
             .Build();
 
     [Fact]

@@ -53,8 +53,11 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
             _                      => DateInterval.Seconds
         };
 
-        var dtMin = DateTime.FromOADate(min);
-        var dtMax = DateTime.FromOADate(max);
+        // A window that runs past the calendar has ticks only where there are dates; one wholly past it has none.
+        // (NaN fails the first comparison.)
+        if (!(min <= max) || max < min.ClampedToOleDates || min > max.ClampedToOleDates) return [];
+        var dtMin = DateTime.FromOADate(min.ClampedToOleDates);
+        var dtMax = DateTime.FromOADate(max.ClampedToOleDates);
 
         return ChosenInterval switch
         {
@@ -64,8 +67,7 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
             DateInterval.Days    => LocateDays(dtMin, dtMax),
             DateInterval.Hours   => LocateHours(dtMin, dtMax),
             DateInterval.Minutes => LocateMinutes(dtMin, dtMax),
-            DateInterval.Seconds => LocateSeconds(dtMin, dtMax),
-            _                    => LocateDays(dtMin, dtMax)
+            _                    => LocateSeconds(dtMin, dtMax) // Seconds: the finest, what no coarser member claims
         };
     }
 
@@ -85,11 +87,11 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
     {
         var ticks = new List<double>();
         var current = new DateTime(min.Year, min.Month, 1);
-        if (current < min.Date) current = current.AddMonths(1);
-        while (current <= max)
+        DateTime? next = current < min.Date ? current.NextMonth : current;
+        while (next is { } month && month <= max)
         {
-            ticks.Add(current.ToOADate());
-            current = current.AddMonths(1);
+            ticks.Add(month.ToOADate());
+            next = month.NextMonth;
         }
         return Thin(ticks, 12, min, max, 0);
     }
@@ -100,12 +102,7 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
         var current = min.Date;
         // Advance to next Monday (or stay if already Monday)
         int daysToMonday = ((int)DayOfWeek.Monday - (int)current.DayOfWeek + 7) % 7;
-        current = current.AddDays(daysToMonday);
-        while (current <= max)
-        {
-            ticks.Add(current.ToOADate());
-            current = current.AddDays(7);
-        }
+        Step(ticks, current.Plus(TimeSpan.FromDays(daysToMonday)), max, TimeSpan.FromDays(7));
         return Thin(ticks, 10, min, max, TimeSpan.TicksPerDay * 7);
     }
 
@@ -113,12 +110,7 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
     {
         var ticks = new List<double>();
         var current = min.Date;
-        if (min.TimeOfDay != TimeSpan.Zero) current = current.AddDays(1);
-        while (current <= max)
-        {
-            ticks.Add(current.ToOADate());
-            current = current.AddDays(1);
-        }
+        Step(ticks, min.TimeOfDay != TimeSpan.Zero ? current.Plus(TimeSpan.FromDays(1)) : current, max, TimeSpan.FromDays(1));
         return Thin(ticks, 10, min, max, TimeSpan.TicksPerDay);
     }
 
@@ -126,12 +118,7 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
     {
         var ticks = new List<double>();
         var current = new DateTime(min.Year, min.Month, min.Day, min.Hour, 0, 0);
-        if (min.Minute != 0 || min.Second != 0) current = current.AddHours(1);
-        while (current <= max)
-        {
-            ticks.Add(current.ToOADate());
-            current = current.AddHours(1);
-        }
+        Step(ticks, min.Minute != 0 || min.Second != 0 ? current.Plus(TimeSpan.FromHours(1)) : current, max, TimeSpan.FromHours(1));
         return Thin(ticks, 8, min, max, TimeSpan.TicksPerHour);
     }
 
@@ -139,12 +126,7 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
     {
         var ticks = new List<double>();
         var current = new DateTime(min.Year, min.Month, min.Day, min.Hour, min.Minute, 0);
-        if (min.Second != 0) current = current.AddMinutes(1);
-        while (current <= max)
-        {
-            ticks.Add(current.ToOADate());
-            current = current.AddMinutes(1);
-        }
+        Step(ticks, min.Second != 0 ? current.Plus(TimeSpan.FromMinutes(1)) : current, max, TimeSpan.FromMinutes(1));
         return Thin(ticks, 6, min, max, TimeSpan.TicksPerMinute);
     }
 
@@ -153,13 +135,16 @@ public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDt
         var ticks = new List<double>();
         var current = new DateTime(min.Year, min.Month, min.Day,
             min.Hour, min.Minute, min.Second);
-        if (current < min) current = current.AddSeconds(1);
-        while (current <= max)
-        {
-            ticks.Add(current.ToOADate());
-            current = current.AddSeconds(1);
-        }
+        Step(ticks, current < min ? current.Plus(TimeSpan.FromSeconds(1)) : current, max, TimeSpan.FromSeconds(1));
         return Thin(ticks, 6, min, max, TimeSpan.TicksPerSecond);
+    }
+
+    /// <summary>Adds a tick at <paramref name="first"/> and every <paramref name="step"/> after it up to <paramref name="max"/>,
+    /// stopping at the last date a <see cref="DateTime"/> holds.</summary>
+    private static void Step(List<double> ticks, DateTime? first, DateTime max, TimeSpan step)
+    {
+        for (DateTime? next = first; next is { } tick && tick <= max; next = tick.Plus(step))
+            ticks.Add(tick.ToOADate());
     }
 
     /// <summary>Thins a tick list to at most <paramref name="maxCount"/> entries, anchored on ABSOLUTE time.

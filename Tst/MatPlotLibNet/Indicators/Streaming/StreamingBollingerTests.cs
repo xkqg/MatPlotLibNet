@@ -8,21 +8,6 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 public sealed class StreamingBollingerTests
 {
     [Fact]
-    public void OutputSeries_HasThree()
-    {
-        var bb = new StreamingBollinger(20, 2.0);
-        Assert.Equal(3, bb.OutputSeries.Count);
-    }
-
-    [Fact]
-    public void BeforeWarmup_ReturnsNaN()
-    {
-        var bb = new StreamingBollinger(5);
-        for (int i = 0; i < 3; i++) bb.Append(100);
-        Assert.True(double.IsNaN(bb.GetLatest()));
-    }
-
-    [Fact]
     public void ConstantInput_BandsEqualMiddle()
     {
         var bb = new StreamingBollinger(5, 2.0);
@@ -51,10 +36,6 @@ public sealed class StreamingBollingerTests
         Assert.True(upper > mid);
         Assert.True(mid > lower);
     }
-
-    [Fact]
-    public void WarmupPeriod_EqualsPeriod() =>
-        Assert.Equal(20, new StreamingBollinger(20).WarmupPeriod);
 
     [Fact]
     public void Labels_SetCorrectly()

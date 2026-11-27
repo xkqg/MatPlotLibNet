@@ -14,7 +14,7 @@ internal static class ChiSquare
     /// <param name="degreesOfFreedom">The degrees of freedom, above 0.</param>
     /// <returns>P(X &gt; x) in [0, 1]; 1 for a statistic at or below 0; NaN for a missing number or degrees of freedom at or below 0.</returns>
     internal static double Survival(double x, double degreesOfFreedom) =>
-        double.IsNaN(x) || double.IsNaN(degreesOfFreedom) || degreesOfFreedom <= 0
+        double.IsNaN(x) || degreesOfFreedom.IsUndefinedShape()
             ? double.NaN
             : Gamma.RegularisedUpper(degreesOfFreedom / 2, x / 2);
 }

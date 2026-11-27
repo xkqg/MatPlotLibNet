@@ -8,15 +8,18 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// to a hard-coded 1.0, which clobbered any explicit opacity on the series.</summary>
 public class OpacityPreservationTests
 {
-    [Fact]
-    public void HighlightScript_CapturesOriginalOpacityViaDataAttribute()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
-            .WithHighlight()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
         // The script source must reference data-mpl-opacity-base — that's the attribute
         // it writes on first hover and reads on restore.
-        Assert.Contains("data-mpl-opacity-base", svg);
-    }
+        new DrawnToken("HighlightScript_CapturesOriginalOpacityViaDataAttribute", () => Plt.Create()
+            .WithHighlight()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .ToSvg(), "data-mpl-opacity-base"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

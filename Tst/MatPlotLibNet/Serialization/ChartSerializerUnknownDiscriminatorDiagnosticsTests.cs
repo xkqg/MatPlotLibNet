@@ -29,26 +29,17 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
         }
         """;
 
-        ChartDiagnostic? received = null;
-        void Handler(ChartDiagnostic d) => received = d;
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            var fig = S.FromJson(json);
+        using var capture = new DiagnosticsCapture();
+        var fig = S.FromJson(json);
 
-            // Lenient default is pinned: the figure still loads, the unknown series is just skipped.
-            Assert.Empty(fig.SubPlots[0].Series);
+        // Lenient default is pinned: the figure still loads, the unknown series is just skipped.
+        Assert.Empty(fig.SubPlots[0].Series);
 
-            // But the drop is no longer silent.
-            Assert.NotNull(received);
-            Assert.Equal("ChartSerializer", received!.Value.Source);
-            Assert.Contains("__bogus_kind__", received.Value.Message);
-            Assert.Null(received.Value.Exception);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        // But the drop is no longer silent.
+        Assert.NotNull(capture.Last);
+        Assert.Equal("ChartSerializer", capture.Last!.Value.Source);
+        Assert.Contains("__bogus_kind__", capture.Last.Value.Message);
+        Assert.Null(capture.Last.Value.Exception);
     }
 
     /// <summary>A secondary-axis series with no "type" field at all (dto.Type is null, not merely unrecognised) —
@@ -67,21 +58,12 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
         }
         """;
 
-        ChartDiagnostic? received = null;
-        void Handler(ChartDiagnostic d) => received = d;
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            var fig = S.FromJson(json);
+        using var capture = new DiagnosticsCapture();
+        var fig = S.FromJson(json);
 
-            Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
-            Assert.NotNull(received);
-            Assert.Contains("'unknown'", received!.Value.Message);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
+        Assert.NotNull(capture.Last);
+        Assert.Contains("'unknown'", capture.Last!.Value.Message);
     }
 
     /// <summary>The same signal on the secondary-axis restore path (ROADMAP.md row 99): before the fix this switch
@@ -99,22 +81,13 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
         }
         """;
 
-        ChartDiagnostic? received = null;
-        void Handler(ChartDiagnostic d) => received = d;
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            var fig = S.FromJson(json);
+        using var capture = new DiagnosticsCapture();
+        var fig = S.FromJson(json);
 
-            Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
-            Assert.NotNull(received);
-            Assert.Equal("ChartSerializer", received!.Value.Source);
-            Assert.Contains("__bogus_kind__", received.Value.Message);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
+        Assert.NotNull(capture.Last);
+        Assert.Equal("ChartSerializer", capture.Last!.Value.Source);
+        Assert.Contains("__bogus_kind__", capture.Last.Value.Message);
     }
 
     /// <summary>A tick locator, tick formatter, normaliser or colour map of a kind this build does not know (JSON from a
@@ -129,22 +102,13 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
     public void FromJson_AnUnknownLocatorFormatterOrNormaliserKind_IsSkippedWithADiagnostic(string subPlot, string what)
     {
         string json = $$"""{"width":400,"height":300,"subPlots":[{{subPlot}}]}""";
-        var received = new List<ChartDiagnostic>();
-        void Handler(ChartDiagnostic d) => received.Add(d);
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            var axes = S.FromJson(json).SubPlots[0];
+        using var capture = new DiagnosticsCapture();
+        var axes = S.FromJson(json).SubPlots[0];
 
-            Assert.Null(axes.XAxis.TickLocator);
-            Assert.Null(axes.XAxis.TickFormatter);
-            Assert.Null((axes.Series[0] as MatPlotLibNet.Models.Series.HeatmapSeries)?.Normalizer);
-            Assert.Null((axes.Series[0] as MatPlotLibNet.Models.Series.HeatmapSeries)?.ColorMap);
-            Assert.Contains(received, d => d.Source == "ChartSerializer" && d.Message.Contains(what, StringComparison.Ordinal));
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.Null(axes.XAxis.TickLocator);
+        Assert.Null(axes.XAxis.TickFormatter);
+        Assert.Null((axes.Series[0] as MatPlotLibNet.Models.Series.HeatmapSeries)?.Normalizer);
+        Assert.Null((axes.Series[0] as MatPlotLibNet.Models.Series.HeatmapSeries)?.ColorMap);
+        Assert.Contains(capture.Seen, d => d.Source == "ChartSerializer" && d.Message.Contains(what, StringComparison.Ordinal));
     }
 }

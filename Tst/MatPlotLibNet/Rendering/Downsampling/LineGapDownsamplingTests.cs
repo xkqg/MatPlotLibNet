@@ -32,7 +32,7 @@ public class LineGapDownsamplingTests
         var ctx = new RecordingRenderContext();
         var context = new SeriesRenderContext(Transform, ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx));
         new LineSeriesRenderer(context).Render(series);
-        return [.. ctx.OfKind("DrawLines").Select(c => (Point[])c.Args!.GetType().GetProperty("points")!.GetValue(c.Args)!)];
+        return [.. ctx.Polylines()];
     }
 
     /// <summary>Every polyline lies wholly on one side of the gap at x = 50.</summary>

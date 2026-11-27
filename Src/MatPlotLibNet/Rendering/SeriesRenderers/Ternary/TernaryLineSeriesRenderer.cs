@@ -17,7 +17,6 @@ internal sealed class TernaryLineSeriesRenderer : SeriesRenderer<TernaryLineSeri
     /// <inheritdoc />
     public override void Render(TernaryLineSeries series)
     {
-        var color = ResolveColor(series.Color);
-        DrawPolyline(Context.PixelsOf(series), Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
+        DrawSeriesLine(Context.PixelsOf(series), series);
     }
 }

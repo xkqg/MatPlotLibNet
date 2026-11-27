@@ -90,39 +90,21 @@ public class VecTests
 
     // --- Reductions (SIMD-accelerated) ---
 
-    [Fact]
-    public void Sum_ReturnsTotalSum()
+    public static TheoryData<string, Func<Vec, double>, double[], double> Reductions => new()
     {
-        Vec a = new double[] { 1.0, 2.0, 3.0, 4.0 };
-        Assert.Equal(10.0, a.Sum());
-    }
+        { "sum", v => v.Sum(), [1.0, 2.0, 3.0, 4.0], 10.0 },
+        { "minimum", v => v.Min(), [3.0, 1.0, 4.0, 1.5], 1.0 },
+        { "maximum", v => v.Max(), [3.0, 1.0, 4.0, 1.5], 4.0 },
+        { "arithmetic mean", v => v.Mean(), [1.0, 2.0, 3.0, 4.0], 2.5 },
+        { "population standard deviation", v => v.Std(), [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0], 2.0 },
+    };
 
-    [Fact]
-    public void Min_ReturnsMinimum()
+    /// <summary>A reduction gives the one number its name says.</summary>
+    [Theory]
+    [MemberData(nameof(Reductions))]
+    public void AReduction_GivesTheNumberItsNameSays(string reduction, Func<Vec, double> reduce, double[] values, double expected)
     {
-        Vec a = new double[] { 3.0, 1.0, 4.0, 1.5 };
-        Assert.Equal(1.0, a.Min());
-    }
-
-    [Fact]
-    public void Max_ReturnsMaximum()
-    {
-        Vec a = new double[] { 3.0, 1.0, 4.0, 1.5 };
-        Assert.Equal(4.0, a.Max());
-    }
-
-    [Fact]
-    public void Mean_ReturnsArithmeticAverage()
-    {
-        Vec a = new double[] { 1.0, 2.0, 3.0, 4.0 };
-        Assert.Equal(2.5, a.Mean());
-    }
-
-    [Fact]
-    public void Std_ReturnsPopulationStdDev()
-    {
-        Vec a = new double[] { 2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0 };
-        Assert.Equal(2.0, a.Std(), 1e-10);
+        Assert.True(Math.Abs(expected - reduce(values)) <= 1e-10, $"the {reduction} of the values is {reduce(values)}, not {expected}");
     }
 
     [Fact]

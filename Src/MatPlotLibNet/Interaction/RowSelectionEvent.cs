@@ -53,4 +53,20 @@ public static class RowSelectionExtensions
             return new RowSelectionEvent(brush.ChartId, brush.AxesIndex, rows);
         }
     }
+
+    extension(FigureInteractionEvent evt)
+    {
+        /// <summary>The rows this event covers, as the event an <see cref="IChartEventHandler"/> is told of right after the
+        /// event itself: for a <see cref="BrushSelectEvent"/> over rows with keys, the rows the brush covers, made by the one
+        /// rule (<see cref="RowSelectionOf"/>) and carrying the viewer who brushed, so the handler of a server session knows
+        /// whose selection it is. The one rule both the local host and the server session ask, so a brush is said as rows the
+        /// same way wherever it was made.</summary>
+        /// <param name="figure">The figure the event was made on.</param>
+        /// <returns>The rows event, or <see langword="null"/> when this is not a brush or the brush says nothing about rows
+        /// (no such subplot, no series with keys).</returns>
+        internal RowSelectionEvent? RowsCoveredOn(Figure figure) =>
+            evt is BrushSelectEvent brush && figure.RowSelectionOf(brush) is { } rows
+                ? rows with { ViewerId = brush.ViewerId, ViewerName = brush.ViewerName }
+                : null;
+    }
 }

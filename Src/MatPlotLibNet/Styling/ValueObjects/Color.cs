@@ -12,7 +12,9 @@ namespace MatPlotLibNet.Styling;
 public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
 {
     /// <summary>Creates a <see cref="Color"/> from a hexadecimal string.</summary>
-    /// <param name="hex">A 6- or 8-digit hex string, optionally prefixed with '#'.</param>
+    /// <param name="hex">3, 4, 6 or 8 hex digits, optionally prefixed with '#': <c>RGB</c> and <c>RGBA</c> read each digit doubled
+    /// (<c>#abc</c> is <c>#AABBCC</c>), as matplotlib's <c>to_rgba</c> does; <c>RRGGBB</c> and <c>RRGGBBAA</c> read two digits a
+    /// channel.</param>
     /// <returns>The parsed color.</returns>
     /// <exception cref="FormatException">Thrown when the hex string is not a valid format.</exception>
     public static Color FromHex(string hex)
@@ -27,7 +29,13 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
         if (span.Length == 8)
             return new Color(ParseHexByte(span[0..2]), ParseHexByte(span[2..4]), ParseHexByte(span[4..6]), ParseHexByte(span[6..8]));
 
-        throw new FormatException($"Invalid hex color format: '{hex}'. Expected 6 or 8 hex digits, optionally prefixed with '#'.");
+        if (span.Length == 3)
+            return new Color(ParseHexDigit(span[0]), ParseHexDigit(span[1]), ParseHexDigit(span[2]));
+
+        if (span.Length == 4)
+            return new Color(ParseHexDigit(span[0]), ParseHexDigit(span[1]), ParseHexDigit(span[2]), ParseHexDigit(span[3]));
+
+        throw new FormatException($"Invalid hex color format: '{hex}'. Expected 3, 4, 6 or 8 hex digits, optionally prefixed with '#'.");
     }
 
     /// <summary>Creates a <see cref="Color"/> from normalized RGBA values in the range [0, 1].</summary>
@@ -37,11 +45,16 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
     /// <param name="a">Alpha component (0.0 to 1.0); defaults to 1.0 (fully opaque).</param>
     /// <returns>The constructed color.</returns>
     public static Color FromRgba(double r, double g, double b, double a = 1.0) =>
-        new(
-            (byte)Math.Round(Math.Clamp(r, 0, 1) * 255),
-            (byte)Math.Round(Math.Clamp(g, 0, 1) * 255),
-            (byte)Math.Round(Math.Clamp(b, 0, 1) * 255),
-            (byte)Math.Round(Math.Clamp(a, 0, 1) * 255));
+        new(byte.MaxValue.Scaled(r), byte.MaxValue.Scaled(g), byte.MaxValue.Scaled(b), byte.MaxValue.Scaled(a));
+
+    /// <summary>The colour <paramref name="t"/> of the way from <paramref name="from"/> to <paramref name="to"/>: every channel,
+    /// the opacity too, blended linearly and rounded to the nearest step. The one blend of two colours; a colour map's lookup and a
+    /// label's move toward the text colour both read it.</summary>
+    /// <param name="from">The colour at 0.</param>
+    /// <param name="to">The colour at 1.</param>
+    /// <param name="t">How far from <paramref name="from"/> to <paramref name="to"/>, from 0 to 1.</param>
+    internal static Color Lerp(Color from, Color to, double t) =>
+        new(from.R.Toward(to.R, t), from.G.Toward(to.G, t), from.B.Toward(to.B, t), from.A.Toward(to.A, t));
 
     /// <summary>Returns a new color with the same RGB values and the specified alpha.</summary>
     /// <param name="alpha">The alpha byte value.</param>
@@ -50,11 +63,11 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
 
     /// <summary>Converts the color to a hexadecimal string in the format #RRGGBB.</summary>
     /// <returns>The hex representation of the color.</returns>
-    public string ToHex() => $"#{R:X2}{G:X2}{B:X2}";
+    public string ToHex() => string.Invariant($"#{R:X2}{G:X2}{B:X2}");
 
     /// <summary>Converts the color to an RGBA CSS string in the format rgba(R,G,B,A).</summary>
     /// <returns>The RGBA string representation.</returns>
-    public string ToRgbaString() => $"rgba({R},{G},{B},{A / 255.0:F2})";
+    public string ToRgbaString() => string.Invariant($"rgba({R},{G},{B},{A.Share:F2})");
 
     /// <summary>Returns the CSS4 named color matching <paramref name="name"/> (case-insensitive).</summary>
     /// <param name="name">A CSS4 color name such as "cornflowerblue" or "RebeccaPurple".</param>
@@ -74,5 +87,9 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
         Css4Colors.All.TryGetValue(name, out color);
 
     private static byte ParseHexByte(ReadOnlySpan<char> hex) =>
-        byte.Parse(hex, System.Globalization.NumberStyles.HexNumber);
+        hex.ReadInvariant<byte>(System.Globalization.NumberStyles.HexNumber);
+
+    /// <summary>One digit written once reads as that digit twice: <c>a</c> is <c>0xAA</c>.</summary>
+    private static byte ParseHexDigit(char digit) =>
+        (byte)(new ReadOnlySpan<char>(in digit).ReadInvariant<byte>(System.Globalization.NumberStyles.HexNumber) * 17);
 }

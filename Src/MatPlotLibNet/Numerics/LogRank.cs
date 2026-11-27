@@ -25,8 +25,8 @@ public readonly record struct LogRankResult(double Statistic, int DegreesOfFreed
     {
         if (double.IsNaN(Statistic)) return "Log-rank test: no events to compare";
 
-        string p = PValue < PrintedInFullFrom ? "p < 0.0001" : $"p = {PValue.ToString("0.0000", CultureInfo.InvariantCulture)}";
-        return $"Log-rank χ²({DegreesOfFreedom}) = {Statistic.ToString("0.00", CultureInfo.InvariantCulture)}, {p}";
+        string p = PValue < PrintedInFullFrom ? "p < 0.0001" : $"p = {PValue.InvariantText("0.0000")}";
+        return string.Invariant($"Log-rank χ²({DegreesOfFreedom}) = {Statistic.InvariantText("0.00")}, {p}");
     }
 }
 

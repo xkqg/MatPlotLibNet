@@ -5,47 +5,16 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="VoxelSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="VoxelSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class VoxelSeriesTests
 {
-    private static readonly bool[,,] Filled = new bool[2, 3, 4];
-
-    /// <summary>Verifies that the constructor stores the Filled array.</summary>
-    [Fact]
-    public void Constructor_StoresData()
+    /// <summary>A grid with no cell along one of its three sides fills nothing and adds no range.</summary>
+    [Theory]
+    [InlineData(0, 1, 1)]
+    [InlineData(1, 0, 1)]
+    [InlineData(1, 1, 0)]
+    public void AGridWithNoCellAlongASide_AddsNoRange(int x, int y, int z)
     {
-        var series = new VoxelSeries(Filled);
-        Assert.Same(Filled, series.Filled);
-    }
-
-    /// <summary>Verifies that Alpha defaults to 0.8.</summary>
-    [Fact]
-    public void DefaultAlpha_Is0Point8()
-    {
-        var series = new VoxelSeries(Filled);
-        Assert.Equal(0.8, series.Alpha);
-    }
-
-    /// <summary>Verifies that ComputeDataRange returns 0..dim for each axis.</summary>
-    [Fact]
-    public void ComputeDataRange_Returns0ToDim()
-    {
-        var series = new VoxelSeries(Filled);
-        var range = series.ComputeDataRange(null!);
-        Assert.Equal(0, range.XMin);
-        Assert.Equal(2, range.XMax);
-        Assert.Equal(0, range.YMin);
-        Assert.Equal(3, range.YMax);
-        Assert.Equal(0, range.ZMin);
-        Assert.Equal(4, range.ZMax);
-    }
-
-    /// <summary>Verifies that ToSeriesDto sets type to "voxels".</summary>
-    [Fact]
-    public void ToSeriesDto_TypeIsVoxels()
-    {
-        var series = new VoxelSeries(Filled);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("voxels", dto.Type);
+        Assert.Equal(default, new VoxelSeries(new bool[x, y, z]).ComputeDataRange(new TestAxesContext()));
     }
 }

@@ -2,31 +2,69 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Ichimoku Cloud (Ichimoku Kinko Hyo) indicator. Shows support/resistance, trend direction, and momentum.</summary>
-/// <remarks>Produces five lines: Tenkan-sen (conversion), Kijun-sen (base), Senkou Span A and B (cloud),
-/// and Chikou Span (lagging). The cloud is filled between Span A and B.</remarks>
+/// <remarks><see cref="Compute"/> gives five lines: Tenkan-sen (conversion), Kijun-sen (base), Senkou Span A and B, and Chikou Span
+/// (lagging). <see cref="Apply"/> draws all five, as pandas-ta's <c>ichimoku</c> returns them, and the cloud filled between Span A and B.
+/// The Tenkan line is <see cref="Indicator.Color"/>, the Kijun line <see cref="KijunColor"/>, the cloud and the two spans that bound it
+/// <see cref="CloudColor"/> and the lagging close <see cref="ChikouColor"/>; a part given no colour is drawn
+/// <c>#0496ff</c> (Tenkan), <c>#991515</c> (Kijun), green (Span A and the cloud), red (Span B) and purple (Chikou) under the library's own themes, and
+/// in the colours of the cycle under the matplotlib themes, as matplotlib draws a line and a fill that name no colour. The width and
+/// the dash pattern the indicator was given reach every line.</remarks>
 public sealed class Ichimoku : CandleIndicator<IchimokuResult>
 {
+    /// <summary>The <c>tenkanPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultTenkanPeriod = 9;
+
+    /// <summary>The <c>kijunPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultKijunPeriod = 26;
+
+    /// <summary>The <c>senkouBPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultSenkouBPeriod = 52;
+
+    /// <summary>The <c>displacement</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultDisplacement = 26;
+
     private readonly int _tenkanPeriod, _kijunPeriod, _senkouBPeriod, _displacement;
+
+    /// <summary>The opacity of the cloud between the two spans.</summary>
+    private const double CloudAlpha = 0.2;
+
+    /// <summary>The colour of the Kijun (base) line. <see langword="null"/> (the default) draws it <c>#991515</c> under the library's own
+    /// themes and in the next colour of the cycle under the matplotlib themes.</summary>
+    public Color? KijunColor { get; set; }
+
+    /// <summary>The colour of the cloud and of the two spans that bound it, which are one colour group. <see langword="null"/> (the default)
+    /// draws them green under the library's own themes and in the next colour of the cycle under the matplotlib themes.</summary>
+    public Color? CloudColor { get; set; }
+
+    /// <summary>The colour of the Chikou (lagging close) line. <see langword="null"/> (the default) draws it purple under the library's own
+    /// themes and in the next colour of the cycle under the matplotlib themes.</summary>
+    public Color? ChikouColor { get; set; }
 
     /// <summary>Creates a new Ichimoku Cloud indicator with standard parameters.</summary>
     /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
-    /// <param name="tenkanPeriod">Tenkan-Sen period (default 9).</param>
-    /// <param name="kijunPeriod">Kijun-Sen period (default 26).</param>
-    /// <param name="senkouBPeriod">Senkou Span B period (default 52).</param>
-    /// <param name="displacement">Cloud displacement in bars (default 26).</param>
+    /// <param name="tenkanPeriod">Tenkan-Sen period (default <see cref="DefaultTenkanPeriod"/>).</param>
+    /// <param name="kijunPeriod">Kijun-Sen period (default <see cref="DefaultKijunPeriod"/>).</param>
+    /// <param name="senkouBPeriod">Senkou Span B period (default <see cref="DefaultSenkouBPeriod"/>).</param>
+    /// <param name="displacement">Cloud displacement in bars (default <see cref="DefaultDisplacement"/>).</param>
     public Ichimoku(OhlcvBars bars,
-        int tenkanPeriod = 9, int kijunPeriod = 26, int senkouBPeriod = 52, int displacement = 26)
-        : base(bars)
+        int tenkanPeriod = DefaultTenkanPeriod, int kijunPeriod = DefaultKijunPeriod, int senkouBPeriod = DefaultSenkouBPeriod, int displacement = DefaultDisplacement)
+        : base(bars, Spec(tenkanPeriod, kijunPeriod, senkouBPeriod))
     {
         _tenkanPeriod = tenkanPeriod; _kijunPeriod = kijunPeriod;
         _senkouBPeriod = senkouBPeriod; _displacement = displacement;
-        Label = "Ichimoku";
+    }
+
+    internal static IndicatorSpec Spec(int tenkanPeriod, int kijunPeriod, int senkouBPeriod)
+    {
+        string label = "Ichimoku";
+        return IndicatorSpec.Of(Math.Max(Math.Max(tenkanPeriod, kijunPeriod), senkouBPeriod) - 1, label, "Tenkan", "Kijun", "Span A", "Span B", "Chikou");
     }
 
     /// <inheritdoc />
@@ -36,9 +74,8 @@ public sealed class Ichimoku : CandleIndicator<IchimokuResult>
         var kijun = ComputeDonchianMid(_kijunPeriod);
 
         // Senkou Span A = (Tenkan + Kijun) / 2
-        int spanLen = Math.Min(tenkan.Length, kijun.Length);
         int kijunOffset = _kijunPeriod - _tenkanPeriod;
-        var spanA = new double[Math.Max(0, spanLen - kijunOffset)];
+        var spanA = new double[Math.Max(0, Math.Min(kijun.Length, tenkan.Length - kijunOffset))];   // a value for every bar the base line has one
         for (int i = 0; i < spanA.Length; i++)
             spanA[i] = (tenkan[i + kijunOffset] + kijun[i]) / 2;
 
@@ -58,25 +95,22 @@ public sealed class Ichimoku : CandleIndicator<IchimokuResult>
 
         var result = Compute();
 
-        // Tenkan-sen
-        var tenkanX = MakeX(result.TenkanSen.Length, _tenkanPeriod - 1);
-        var ts = axes.Plot(tenkanX, result.TenkanSen);
-        ts.Label = "Tenkan"; ts.Color = Styling.Color.FromHex("#0496ff"); ts.LineWidth = 1;
+        // The lines in the order pandas-ta's ichimoku returns and matplotlib draws them (Span A, Span B, Tenkan, Kijun, Chikou), so that the
+        // cycle gives each the colour matplotlib gives it, then the cloud filled between the two spans. The spans stand the displacement
+        // ahead of the bar each value is worked out at, the lagging line the displacement behind.
+        PlotLine(axes, result.SenkouSpanA, LineLabel(2), CloudColor, IndicatorLook.Library.Ichimoku.SpanA, _displacement);
+        PlotLine(axes, result.SenkouSpanB, LineLabel(3), CloudColor, IndicatorLook.Library.Ichimoku.SpanB, _displacement);
+        PlotLine(axes, result.TenkanSen, LineLabel(0), Color, IndicatorLook.Library.Ichimoku.Tenkan);
+        PlotLine(axes, result.KijunSen, LineLabel(1), KijunColor, IndicatorLook.Library.Ichimoku.Kijun);
+        if (Close.Length > _displacement)
+            PlotLine(axes, Close[_displacement..], LineLabel(4), ChikouColor, IndicatorLook.Library.Ichimoku.Chikou, -_displacement);
 
-        // Kijun-sen
-        var kijunX = MakeX(result.KijunSen.Length, _kijunPeriod - 1);
-        var ks = axes.Plot(kijunX, result.KijunSen);
-        ks.Label = "Kijun"; ks.Color = Styling.Color.FromHex("#991515"); ks.LineWidth = 1;
-
-        // Cloud (Senkou Span A & B)
+        // The cloud lies between the spans where both have a value: their last values, as many as the shorter has.
         int cloudLen = Math.Min(result.SenkouSpanA.Length, result.SenkouSpanB.Length);
-        var cloudSpanA = result.SenkouSpanA[..cloudLen];
-        var cloudSpanB = result.SenkouSpanB[..cloudLen];
+        if (cloudLen <= 0) return;
 
-        var cloudX = MakeX(cloudLen, _kijunPeriod - 1 + _displacement);
-        var cloud = axes.FillBetween(cloudX, cloudSpanA, cloudSpanB);
-        cloud.Alpha = 0.2;
-        cloud.Color = Colors.Tab10Green;
+        var cloud = axes.AddSeries(AreaSeries.Band(Positions(cloudLen, _displacement), result.SenkouSpanA[^cloudLen..], result.SenkouSpanB[^cloudLen..], CloudAlpha));
+        WearColor(cloud, CloudColor, IndicatorLook.Library.Ichimoku.SpanA);
         cloud.Label = "Cloud";
     }
 

@@ -12,67 +12,39 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies that the unified Projection3D is threaded through to all 3D series renderers.</summary>
 public class UnifiedProjectionTests
 {
-    private static string RenderAxes(Axes axes)
+    /// <summary>A different elevation or azimuth on the axes draws different polygon coordinates.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ThreeDAxes_UsesAxesElevationAndAzimuth(bool elevation)
     {
-        var ctx = new SvgRenderContext();
-        var renderer = AxesRenderer.Create(axes, new Rect(10, 10, 380, 280), ctx, Theme.Default);
-        renderer.Render();
-        var sb = new System.Text.StringBuilder();
-        ctx.WriteTo(sb);
-        return sb.ToString();
-    }
-
-    [Fact]
-    public void ThreeDAxes_UsesAxesElevation()
-    {
-        double[] x = [0, 5, 10];
-        double[] y = [0, 5, 10];
-        double[,] z = { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } };
+        var (x, y, z) = SampleSurface.ThreeByThree();
 
         var axesDefault = new Axes();
         axesDefault.Surface(x, y, z);
 
-        var axesCustom = new Axes { Elevation = 60 };
+        var axesCustom = elevation ? new Axes { Elevation = 60 } : new Axes { Azimuth = 0 };
         axesCustom.Surface(x, y, z);
 
-        string svgDefault = RenderAxes(axesDefault);
-        string svgCustom = RenderAxes(axesCustom);
-
-        // Different elevation should produce different SVG polygon coordinates
-        Assert.NotEqual(svgDefault, svgCustom);
-    }
-
-    [Fact]
-    public void ThreeDAxes_UsesAxesAzimuth()
-    {
-        double[] x = [0, 5, 10];
-        double[] y = [0, 5, 10];
-        double[,] z = { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } };
-
-        var axesDefault = new Axes();
-        axesDefault.Surface(x, y, z);
-
-        var axesCustom = new Axes { Azimuth = 0 };
-        axesCustom.Surface(x, y, z);
-
-        string svgDefault = RenderAxes(axesDefault);
-        string svgCustom = RenderAxes(axesCustom);
+        string svgDefault = axesDefault.RenderedSvg(new Rect(10, 10, 380, 280));
+        string svgCustom = axesCustom.RenderedSvg(new Rect(10, 10, 380, 280));
 
         Assert.NotEqual(svgDefault, svgCustom);
     }
 
-    [Fact]
-    public void ThreeD_PerspectiveProjection_RendersSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        double[] x = [0, 5, 10];
-        double[] y = [0, 5, 10];
-        double[,] z = { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } };
+        new DrawnToken("ThreeD_PerspectiveProjection_RendersSvg", () =>
+        {
+            var (x, y, z) = SampleSurface.ThreeByThree();
+            var axes = new Axes { CameraDistance = 5.0 };
+            axes.Surface(x, y, z);
+            return axes.RenderedSvg(new Rect(10, 10, 380, 280));
+        }, "<polygon"),
+    };
 
-        var axes = new Axes { CameraDistance = 5.0 };
-        axes.Surface(x, y, z);
-
-        string svg = RenderAxes(axes);
-
-        Assert.Contains("<polygon", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

@@ -8,124 +8,50 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// <summary>Verifies SVG semantic-structure accessibility (role, title, desc, aria-label).</summary>
 public class SvgAccessibilityTests
 {
-    [Fact]
-    public void SvgRoot_HasRoleImgAttribute()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
-        Assert.Contains("role=\"img\"", svg);
-    }
-
-    [Fact]
-    public void WithAltText_EmitsTitleElement()
-    {
-        var svg = Plt.Create()
+        new DrawnToken("SvgRoot_HasRoleImgAttribute", () => Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "role=\"img\""),
+        new DrawnToken("WithAltText_EmitsTitleElement", () => Plt.Create()
             .WithAltText("Sales over time")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("<title", svg);
-        Assert.Contains("Sales over time", svg);
-    }
-
-    [Fact]
-    public void WithDescription_EmitsDescElement()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "<title", "Sales over time"),
+        new DrawnToken("WithDescription_EmitsDescElement", () => Plt.Create()
             .WithDescription("Monthly revenue 2025")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("<desc", svg);
-        Assert.Contains("Monthly revenue 2025", svg);
-    }
-
-    [Fact]
-    public void WithoutAltText_UsesFigureTitleAsFallback()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "<desc", "Monthly revenue 2025"),
+        new DrawnToken("WithoutAltText_UsesFigureTitleAsFallback", () => Plt.Create()
             .WithTitle("My Chart")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("<title", svg);
-        Assert.Contains("My Chart", svg);
-    }
-
-    [Fact]
-    public void WithoutAnyTitle_StillHasRoleImg()
-    {
-        var svg = Plt.Create()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("role=\"img\"", svg);
-    }
-
-    [Fact]
-    public void AltText_SpecialChars_AreXmlEscaped()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "<title", "My Chart"),
+        new DrawnToken("AltText_SpecialChars_AreXmlEscaped", () => Plt.Create()
             .WithAltText("Revenue <Q1> & profit")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("&lt;Q1&gt;", svg);
-        Assert.Contains("&amp;", svg);
-    }
-
-    [Fact]
-    public void SvgRoot_HasAriaLabelledby_WhenAltTextSet()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "&lt;Q1&gt;", "&amp;"),
+        new DrawnToken("SvgRoot_HasAriaLabelledby_WhenAltTextSet", () => Plt.Create()
             .WithAltText("Test chart")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("aria-labelledby=", svg);
-    }
-
-    [Fact]
-    public void SvgRoot_HasAriaDescribedby_WhenDescriptionSet()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "aria-labelledby="),
+        new DrawnToken("SvgRoot_HasAriaDescribedby_WhenDescriptionSet", () => Plt.Create()
             .WithDescription("Detailed description")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("aria-describedby=", svg);
-    }
-
-    [Fact]
-    public void LegendGroup_HasAriaLabel()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "aria-describedby="),
+        new DrawnToken("LegendGroup_HasAriaLabel", () => Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Revenue")
-            .ToSvg();
-
-        Assert.Contains("aria-label=\"Chart legend\"", svg);
-    }
-
-    [Fact]
-    public void SeriesGroup_HasAriaLabel_WhenLabeled()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "aria-label=\"Chart legend\""),
+        new DrawnToken("SeriesGroup_HasAriaLabel_WhenLabeled", () => Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Revenue")
-            .ToSvg();
-
-        Assert.Contains("aria-label=\"Revenue\"", svg);
-    }
-
-    [Fact]
-    public void LegendItemGroup_HasAriaLabel()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "aria-label=\"Revenue\""),
+        // Legend item group should carry aria-label from series label
+        new DrawnToken("LegendItemGroup_HasAriaLabel", () => Plt.Create()
             .WithLegendToggle()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Revenue")
-            .ToSvg();
+            .ToSvg(), "aria-label=\"Revenue\""),
+    };
 
-        // Legend item group should carry aria-label from series label
-        Assert.Contains("aria-label=\"Revenue\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void EscapeForXml_Helper_MatchesOriginal()

@@ -1,54 +1,50 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MatPlotLibNet.Indicators;
 
 namespace MatPlotLibNet.Tests.DataFrame;
 
-/// <summary>
-/// The package description is the text nuget.org prints on the package page, and it counts the indicators this
-/// package exposes. Nothing read that number: the core's indicator count is pinned against the core assembly,
-/// and this package has a surface of its own over it, so the core's pin can never catch a stale number here.
-/// It was stale — the description said 52 where the class carries 51 methods.
-/// </summary>
+/// <summary>What the package adds to the library's indicators is the reading of named columns, one call per shape of bars: an
+/// indicator is made from its own class (<c>new Atr(df.Hlc("high", "low", "close"))</c>), so its parameters, its defaults, the shape
+/// it reads and its documentation are stated once, in that class. The package description, the text nuget.org prints, names the
+/// shapes the package exposes.</summary>
 public class IndicatorSurfaceContractTests
 {
-    /// <summary>An indicator here is one thing a caller can CALL: a public extension method on a DataFrame.
-    /// Counting methods rather than concepts is what can be measured without judgment — <c>Adx</c> and
-    /// <c>AdxFull</c> compute the same indicator and are two calls, and the number claims calls.</summary>
-    private static string[] IndicatorMethods() =>
-        [.. typeof(DataFrameIndicatorExtensions)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
-            .Select(m => m.Name)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(name => name, StringComparer.Ordinal)];
+    private static MethodInfo[] Shapes() =>
+        typeof(DataFrameIndicatorExtensions).GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName)
+            .ToArray();
 
     private static string ProjectDescription()
     {
-        string root = AppContext.BaseDirectory;
-        while (!File.Exists(Path.Combine(root, "MatPlotLibNet.slnx")))
-        {
-            root = Path.GetDirectoryName(root) ?? throw new InvalidOperationException("no repository root above " + AppContext.BaseDirectory);
-        }
-
-        var csproj = XDocument.Load(Path.Combine(root, "Src", "MatPlotLibNet.DataFrame", "MatPlotLibNet.DataFrame.csproj"));
+        var csproj = XDocument.Load(Path.Combine(RepositoryRoot.Folder, "Src", "MatPlotLibNet.DataFrame", "MatPlotLibNet.DataFrame.csproj"));
         return csproj.Descendants("Description").FirstOrDefault()?.Value
             ?? throw new InvalidOperationException("MatPlotLibNet.DataFrame.csproj carries no <Description>");
     }
 
     [Fact]
-    public void ThePackageDescription_CountsTheIndicatorsThisPackageActuallyExposes()
+    public void ThePackage_StatesNothingPerIndicator_OnlyTheBarsOfEachShape()
     {
-        var counted = Regex.Match(ProjectDescription(), @"(\d+) financial / signal-processing indicators");
+        var perIndicator = Shapes().Where(m => m.ReturnType != typeof(OhlcvBars)).Select(m => m.Name).Distinct().ToList();
 
-        Assert.True(counted.Success,
-            "the description no longer counts the indicators in the phrasing this test pins; update both together");
+        Assert.True(perIndicator.Count == 0,
+            "a call of the DataFrame package that is an indicator of its own; make the indicator from its class over the bars of its "
+            + "shape: " + string.Join(", ", perIndicator));
+        Assert.Equal(["Cv", "Hl", "Hlc", "Hlcv", "Hlv", "Ohlc"], Shapes().Select(m => m.Name).Distinct().Order(StringComparer.Ordinal));
+    }
 
-        Assert.True(int.Parse(counted.Groups[1].Value, CultureInfo.InvariantCulture) == IndicatorMethods().Length,
-            $"the description says \"{counted.Value}\"; the package exposes {IndicatorMethods().Length}: "
-            + string.Join(", ", IndicatorMethods()));
+    [Fact]
+    public void ThePackageDescription_NamesEveryShapeThePackageExposes()
+    {
+        string description = ProjectDescription();
+        var missing = Shapes().Select(m => m.Name).Distinct()
+            .Where(name => !Regex.IsMatch(description, $@"\b{name}\b"))
+            .ToList();
+
+        Assert.True(missing.Count == 0, $"the description does not name: {string.Join(", ", missing)}");
     }
 }

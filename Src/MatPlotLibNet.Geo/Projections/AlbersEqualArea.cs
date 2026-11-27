@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
+
 namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Albers Equal Area Conic projection — preserves area. Standard for US maps
@@ -8,7 +10,8 @@ namespace MatPlotLibNet.Geo.Projections;
 public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
 {
     private readonly double _n, _c, _rho0, _lon0;
-    private readonly Dictionary<string, double> _parameters;
+    private readonly ProjectionParameterSet _parameters;
+    private readonly GeoBounds _bounds;
 
     /// <inheritdoc />
     public string Name => "AlbersEqualArea";
@@ -19,21 +22,41 @@ public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
     /// <param name="centerLon">Central meridian in degrees. Default -96.</param>
     /// <param name="centerLat">Latitude of origin in degrees. Default 37.5.</param>
     public AlbersEqualArea(double sp1 = 29.5, double sp2 = 45.5, double centerLon = -96, double centerLat = 37.5)
+        : this(ProjectionParameterSet.Conic(sp1, sp2, centerLon, centerLat))
     {
-        _parameters = new() { ["lat_1"] = sp1, ["lat_2"] = sp2, ["lon_0"] = centerLon, ["lat_0"] = centerLat };
-        double phi1 = sp1.ToRadians(), phi2 = sp2.ToRadians(), phi0 = centerLat.ToRadians();
-        _lon0 = centerLon.ToRadians();
+    }
+
+    private AlbersEqualArea(ProjectionParameterSet parameters)
+    {
+        _parameters = parameters;
+        double phi1 = parameters.Lat1.ToRadians(), phi2 = parameters.Lat2.ToRadians(), phi0 = parameters.Lat0.ToRadians();
+        _lon0 = parameters.Lon0.ToRadians();
         _n = (Math.Sin(phi1) + Math.Sin(phi2)) / 2;
         _c = Math.Cos(phi1) * Math.Cos(phi1) + 2 * _n * Math.Sin(phi1);
         _rho0 = Math.Sqrt(_c - 2 * _n * Math.Sin(phi0)) / _n;
+        _bounds = this.BoxRound(ConeEdge(parameters.Lon0));
     }
 
-    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+    /// <summary>cartopy's boundary of an Albers map: 103 longitudes from the central meridian less 180 to it plus 180, 1e-10 in from the
+    /// side the meridian is off zero (<c>_determine_longitude_bounds</c>), along the north pole and along the south pole.</summary>
+    /// <param name="centralMeridian">The central meridian, in degrees.</param>
+    private static IEnumerable<GeoCoordinate> ConeEdge(double centralMeridian)
+    {
+        double from = -180 + centralMeridian, to = 180 + centralMeridian;
+        if (centralMeridian > 0) to -= 1e-10;
+        else if (centralMeridian < 0) from += 1e-10;
+
+        foreach (double longitude in new EqualWidthBins(from, to, 102).Edges())
+        {
+            yield return new(90, longitude);
+            yield return new(-90, longitude);
+        }
+    }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters.Numbers;
 
     /// <inheritdoc />
-    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
-        new AlbersEqualArea(parameters.GetValueOrDefault("lat_1", _parameters["lat_1"]), parameters.GetValueOrDefault("lat_2", _parameters["lat_2"]),
-            parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]), parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]));
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) => new AlbersEqualArea(_parameters.With(parameters));
 
     /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)
@@ -48,5 +71,6 @@ public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
     /// <inheritdoc />
     public GeoCoordinate? Inverse(double x, double y) => null;
     /// <inheritdoc />
-    public GeoBounds Bounds => new(-200, 200, -200, 200);
+    /// <remarks>The box round cartopy's boundary of the map, worked out once.</remarks>
+    public GeoBounds Bounds => _bounds;
 }

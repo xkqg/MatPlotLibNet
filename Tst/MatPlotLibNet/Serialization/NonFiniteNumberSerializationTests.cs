@@ -19,7 +19,7 @@ public class NonFiniteNumberSerializationTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1, 2], [1.0, double.NaN, 3])).Build();
 
-        var readBack = Serializer.FromJson(Serializer.ToJson(figure));
+        var readBack = figure.RoundTripped();
 
         var line = Assert.IsType<LineSeries>(Assert.Single(readBack.SubPlots[0].Series));
         Assert.Equal(1.0, line.YData[0]);
@@ -32,7 +32,7 @@ public class NonFiniteNumberSerializationTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Heatmap(new[,] { { 1.0, double.NaN }, { 3.0, 4.0 } })).Build();
 
-        var readBack = Serializer.FromJson(Serializer.ToJson(figure));
+        var readBack = figure.RoundTripped();
 
         var heatmap = Assert.IsType<HeatmapSeries>(Assert.Single(readBack.SubPlots[0].Series));
         Assert.True(double.IsNaN(heatmap.Data[0, 1]));
@@ -44,20 +44,24 @@ public class NonFiniteNumberSerializationTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1, 2], [double.PositiveInfinity, 2, double.NegativeInfinity])).Build();
 
-        var line = (LineSeries)Serializer.FromJson(Serializer.ToJson(figure)).SubPlots[0].Series[0];
+        var line = (LineSeries)figure.RoundTripped().SubPlots[0].Series[0];
 
         Assert.Equal(double.PositiveInfinity, line.YData[0]);
         Assert.Equal(double.NegativeInfinity, line.YData[2]);
     }
 
-    /// <summary>The written form, pinned: the string that names the number, quoted, where a number would stand.</summary>
-    [Fact]
-    public void ANonFiniteNumber_IsWrittenAsTheQuotedNameOfThatNumber()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1, 2], [double.NaN, double.PositiveInfinity, double.NegativeInfinity])).Build();
+        //  The written form, pinned: the string that names the number, quoted, where a number would stand.
+        new DrawnToken("ANonFiniteNumber_IsWrittenAsTheQuotedNameOfThatNumber", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1, 2], [double.NaN, double.PositiveInfinity, double.NegativeInfinity])).Build();
+            return Serializer.ToJson(figure);
+        }, "\"yData\":[\"NaN\",\"Infinity\",\"-Infinity\"]"),
+    };
 
-        string json = Serializer.ToJson(figure);
-
-        Assert.Contains("\"yData\":[\"NaN\",\"Infinity\",\"-Infinity\"]", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

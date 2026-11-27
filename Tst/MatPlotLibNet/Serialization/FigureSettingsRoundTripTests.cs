@@ -19,8 +19,6 @@ public class FigureSettingsRoundTripTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     /// <summary>A small chart that shows what a theme changes: two series (the cycle), a title, labels and ticks (the
     /// fonts and the text colour), a grid, a legend.</summary>
     private static Figure Chart(Theme theme) => Plt.Create()
@@ -34,21 +32,13 @@ public class FigureSettingsRoundTripTests
             .WithLegend())
         .Build();
 
-    /// <summary>Every theme the library ships, by name.</summary>
-    public static TheoryData<string> BuiltInThemes { get; } =
-        new(typeof(Theme).GetProperties(BindingFlags.Public | BindingFlags.Static)
-            .Where(p => p.PropertyType == typeof(Theme))
-            .Select(p => p.Name));
-
-    private static Theme BuiltIn(string name) => (Theme)typeof(Theme).GetProperty(name, BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
-
     [Theory]
-    [MemberData(nameof(BuiltInThemes))]
+    [MemberData(nameof(ThemeCases.BuiltIn), MemberType = typeof(ThemeCases))]
     public void AFigureDrawnUnderABuiltInTheme_ReadBackFromJson_DrawsTheSameSvg(string theme)
     {
-        var figure = Chart(BuiltIn(theme));
+        var figure = Chart(theme.AsTheme());
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     /// <summary>A theme built from parts (a cycle of colours, line styles and markers, a font, a grid, a 3-D pane colour,
@@ -74,7 +64,7 @@ public class FigureSettingsRoundTripTests
             .Build();
         var figure = Chart(theme);
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.Equal("night-shift", read.Theme.Name);
         Assert.Equal(figure.ToSvg(), read.ToSvg());
@@ -90,7 +80,7 @@ public class FigureSettingsRoundTripTests
             .WithGrid(g => g with { Visible = false })).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
     }
@@ -136,8 +126,8 @@ public class FigureSettingsRoundTripTests
     [MemberData(nameof(ThemesAndGridChanges))]
     public void AGridChangedUnderOneTheme_ReadBackFromJson_FollowsTheThemeItIsDrawnUnder(string theme, string change)
     {
-        var figure = GridChart(BuiltIn(theme), GridChangeNamed(change));
-        var readBack = RoundTrip(figure);
+        var figure = GridChart(theme.AsTheme(), GridChangeNamed(change));
+        var readBack = figure.RoundTripped();
         var other = theme == nameof(Theme.Dark) ? Theme.Ggplot : Theme.Dark;
 
         figure.Theme = other;
@@ -152,7 +142,7 @@ public class FigureSettingsRoundTripTests
     public void AFieldSetEqualToTheThemesValue_StillFollowsTheAuthorsChoice()
     {
         var figure = GridChart(Theme.Ggplot, g => g with { Visible = true });
-        var readBack = RoundTrip(figure);
+        var readBack = figure.RoundTripped();
 
         figure.Theme = Theme.MatplotlibV2;
         readBack.Theme = Theme.MatplotlibV2;
@@ -168,7 +158,7 @@ public class FigureSettingsRoundTripTests
     public void ASecondWithGrid_KeepsTheFirstChange()
     {
         var figure = GridChart(Theme.Ggplot, g => g with { Color = Colors.Red }, g => g with { Alpha = 0.3 });
-        var readBack = RoundTrip(figure);
+        var readBack = figure.RoundTripped();
 
         foreach (var axes in new[] { figure.SubPlots[0], readBack.SubPlots[0] })
         {
@@ -192,7 +182,7 @@ public class FigureSettingsRoundTripTests
         Assert.False(hidden.SubPlots[0].GridUnder(Theme.Ggplot).Visible);
         Assert.NotEqual(shown.ToSvg(), hidden.ToSvg());
         Assert.Equal(viaWithGrid.ToSvg(), hidden.ToSvg());
-        Assert.Equal(hidden.ToSvg(), RoundTrip(hidden).ToSvg());
+        Assert.Equal(hidden.ToSvg(), hidden.RoundTripped().ToSvg());
     }
 
     /// <summary>The same verb the other way: <c>ShowGrid()</c> is the theme's grid switched on, as <c>WithGrid</c> says it.</summary>
@@ -234,7 +224,7 @@ public class FigureSettingsRoundTripTests
             .AddSubPlot(1, 2, 2, ax => ax.Plot([1.0, 2], [2.0, 1]))
             .Build();
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     /// <summary>The browser interactions are part of the SVG (the scripts it embeds, the tokens they read, whether it
@@ -252,7 +242,7 @@ public class FigureSettingsRoundTripTests
         string drawn = figure.ToSvg();
 
         Assert.Contains("data-mpl-highlight-opacity", drawn);
-        Assert.Equal(drawn, RoundTrip(figure).ToSvg());
+        Assert.Equal(drawn, figure.RoundTripped().ToSvg());
     }
 
     /// <summary>A figure that routes its interaction through a server names its chart in the SVG and embeds the
@@ -268,7 +258,7 @@ public class FigureSettingsRoundTripTests
         string drawn = figure.ToSvg();
 
         Assert.Contains("data-chart-id=\"live-1\"", drawn);
-        Assert.Equal(drawn, RoundTrip(figure).ToSvg());
+        Assert.Equal(drawn, figure.RoundTripped().ToSvg());
     }
 
     /// <summary>A figure that sets none of the figure settings writes the bytes it wrote before they reached the JSON.</summary>

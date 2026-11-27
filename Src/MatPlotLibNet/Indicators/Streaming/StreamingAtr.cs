@@ -3,36 +3,27 @@
 
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Average True Range (Wilder's smoothing): the <see cref="AtrStep"/> the batch <see cref="Atr"/> folds over its
-/// bars, taken one candle at a time. O(1) per candle. The first candle has no true range, so the first value comes with the
-/// candle after <c>period</c> more.</summary>
-public sealed class StreamingAtr : StreamingIndicator
+/// <summary>Streaming Average True Range (Wilder's smoothing): the step the batch <see cref="Atr"/> folds over its
+/// bars, taken one bar at a time. O(1) per bar. The first bar has no true range, so the first value comes with the bar after
+/// <c>period</c> more.</summary>
+public sealed class StreamingAtr : StreamingIndicator<OhlcvBar>
 {
-    private readonly int _period;
     private AtrStep _step;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => _period + 1;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming ATR indicator.</summary>
-    public StreamingAtr(int period = 14, int capacity = 10_000) : base(capacity)
+    public StreamingAtr(int period = Atr.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity) : base(Atr.Spec(period), capacity)
     {
-        _period = period;
         _step = new AtrStep(period);
-        Label = $"ATR({period})";
     }
 
     /// <inheritdoc />
-    public override void AppendCandle(OhlcBar bar)
-    {
-        ProcessedCount++;
-        double value = _step.Next(bar.High, bar.Low, bar.Close);
-        OutputSeries[0].AppendPoint(ProcessedCount - 1, value);
-    }
-
-    /// <inheritdoc />
-    protected override double ComputeNext(double price) => double.NaN; // use AppendCandle
+    protected override void Step(OhlcvBar input, int index, Span<double> outputs) =>
+        outputs[0] = _step.Next(input.High, input.Low, input.Close);
 }

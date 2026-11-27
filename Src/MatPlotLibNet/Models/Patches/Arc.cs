@@ -15,7 +15,7 @@ namespace MatPlotLibNet.Models.Patches;
 /// <see cref="Angle"/>), and each names the direction from the centre in which the arc starts or ends, as on a circle: on an ellipse
 /// that is not a circle they are stretched to the angles of the unit circle that land in those directions before the arc is built
 /// (matplotlib's <c>_theta_stretch</c>). A first angle past the second sweeps through 0, and two angles a whole turn apart are the whole
-/// ellipse, open. A width or a height of 0 or less, or a number that is not finite, draws nothing.</para>
+/// ellipse, open. A width or a height of 0, or a number that is not finite, draws nothing; a negative one mirrors the arc, as matplotlib's scale does.</para>
 /// <para>The outline is matplotlib's arc of the unit circle (<c>Path.arc</c>) as cubic Bézier curves, placed on the ellipse, every
 /// control point in data units, and not closed. The edge is black by default. A <see cref="Patch.Hatch"/> is drawn as matplotlib draws
 /// it on an arc: over the region the arc and the chord between its ends enclose, though the arc fills nothing there.</para>
@@ -40,27 +40,27 @@ public sealed class Arc : Patch
     }
 
     /// <summary>The centre of the ellipse, in data units (matplotlib's <c>xy</c>).</summary>
-    public DataPoint Center { get; set; }
+    public DataPoint Center { get; set => Change(ref field, value); }
 
-    /// <summary>The full width of the ellipse along X before it is turned, in data units; 0 or less draws nothing.</summary>
-    public double Width { get; set; }
+    /// <summary>The full width of the ellipse along X before it is turned, in data units; 0 draws nothing, and a negative width mirrors the arc across its height axis.</summary>
+    public double Width { get; set => Change(ref field, value); }
 
-    /// <summary>The full height of the ellipse along Y before it is turned, in data units; 0 or less draws nothing.</summary>
-    public double Height { get; set; }
+    /// <summary>The full height of the ellipse along Y before it is turned, in data units; 0 draws nothing, and a negative height mirrors the arc across its width axis.</summary>
+    public double Height { get; set => Change(ref field, value); }
 
     /// <summary>The angle the ellipse is turned through about its <see cref="Center"/>, in degrees, counter-clockwise in data space.
     /// 0 (the default) keeps its width along X. <see cref="Theta1"/> and <see cref="Theta2"/> turn with it.</summary>
-    public double Angle { get; set; }
+    public double Angle { get; set => Change(ref field, value); }
 
     /// <summary>The direction the arc starts in, in degrees counter-clockwise from the ellipse's width. 0 by default.</summary>
-    public double Theta1 { get; set; }
+    public double Theta1 { get; set => Change(ref field, value); }
 
     /// <summary>The direction the arc ends in, in degrees counter-clockwise from the ellipse's width; the arc runs counter-clockwise to
     /// it from <see cref="Theta1"/>. 360 by default: the whole ellipse.</summary>
-    public double Theta2 { get; set; } = 360;
+    public double Theta2 { get; set => Change(ref field, value); } = 360;
 
     /// <summary>None: an arc has no face.</summary>
-    internal override Color DrawnFaceColor => Colors.Transparent;
+    internal override Color DrawnFaceColorUnder(Theme theme) => Colors.Transparent;
 
     /// <inheritdoc />
     internal override IReadOnlyList<PathSegment> Outline()
@@ -82,8 +82,8 @@ public sealed class Arc : Patch
     /// degrees from 0 to 360.</summary>
     private double Stretched(double theta)
     {
-        double radians = theta * (Math.PI / 180.0);
-        return (Math.Atan2(Width / Height * Math.Sin(radians), Math.Cos(radians)) * (180.0 / Math.PI) + 360) % 360;
+        double radians = theta.ToRadians();
+        return (Math.Atan2(Width / Height * Math.Sin(radians), Math.Cos(radians)).ToDegrees() + 360) % 360;
     }
 
     /// <summary>An angle as the part of a turn from 0 to 360 degrees, as Python's <c>%</c> takes it (a negative angle counts back from

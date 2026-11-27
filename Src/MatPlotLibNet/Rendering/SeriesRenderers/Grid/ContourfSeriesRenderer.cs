@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.Algorithms;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -26,32 +26,28 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
         int cols = series.ZData.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
-        // The levels the user named bound the bands, or else the count's evenly spaced levels over the grid's range.
-        int nLevels = Math.Max(2, series.Levels);
-        double[]? named = series.LevelValues.ExplicitLevels();
-        var bands = named is null
-            ? MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, nLevels)
-            : MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, named);
+        // The levels the user named bound the bands, or else matplotlib's round levels for the count (ContourfSeries.LevelsUnder).
+        if (series.LevelsUnder(Context.Theme) is not { } levels) return;
+
+        var mapping = series.ColorMappingUnder(Context.Theme);
+
+        // A value matplotlib's log norm masks (0 and below) is a value the grid does not have: the cells it is a corner of are left empty.
+        var z = series.ZData.MaskedBy(mapping.Normalizer, levels.Length > 0 ? levels[0] : 0);
+        var bands = MarchingSquares.ExtractBands(series.XData, series.YData, z, levels);
         if (bands.Length == 0) return;
 
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.NormalizerOrLinear();
-
-        double zMin = bands[0].LevelLow;
-        double zMax = bands[^1].LevelHigh;
-        double zRange = zMax - zMin;
-        if (zRange < 1e-12) return;
+        var lines = mapping.Over(new(bands[0].LevelLow, bands[^1].LevelHigh));
+        if (lines.Max - lines.Min < 1e-12) return;
 
         // The fill, by the one code a filled contour fills through, at the opacity of the whole layer.
-        Context.FillContourBands(series.XData, series.YData, series.ZData, bands, cmap, norm, series.Alpha, series.Hatches);
+        Context.FillContourBands(series.XData, series.YData, z, bands, mapping, Context.Theme.PatchEdgesOf(series), series.Alpha, series.Hatches);
 
-        // Overlay iso-lines if requested
-        if (!series.ShowLines) return;
+        // Overlay iso-lines if requested: matplotlib's contourf draws its bands with no edge line, so under the matplotlib themes
+        // (PatchLook.LikeCollections) a filled contour that was not asked for lines draws none; a value given is drawn as given.
+        if (!Context.Theme.Looks.Patch.ContourLinesOver(series.GivenShowLines)) return;
 
-        // The lines stand on the bands' edges: the levels named, or the count's levels over the span the bands cover.
-        double[] levels = named ?? ContourLevels.Spanning(zMin, zMax, nLevels);
-
-        var contours = MarchingSquares.Extract(series.XData, series.YData, series.ZData, levels);
+        // The lines stand on the bands' edges, the same levels.
+        var contours = MarchingSquares.Extract(series.XData, series.YData, z, levels);
         foreach (var contour in contours)
         {
             if (contour.Points.Length < 2) continue;
@@ -59,8 +55,8 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
             foreach (var pt in contour.Points)
                 pixels.Add(Transform.DataToPixel(pt.X, pt.Y));
 
-            var lineColor = cmap.ColorOf(contour.Level, norm, zMin, zMax);
-            Ctx.DrawLines(pixels, new StrokeStyle(lineColor, series.LineWidth, LineStyle.Solid));
+            var lineColor = lines.ColorOf(contour.Level);
+            Ctx.DrawLines(pixels, StrokeStyle.Solid(lineColor, series.LineWidth));
         }
     }
 }

@@ -22,12 +22,10 @@ public static class AnimationStepThroughExtensions
             return Encoding.UTF8.GetString(stream.ToArray());
         }
 
-        /// <summary>Saves the animation as a step-through SVG, replacing a file that is there.</summary>
+        /// <summary>Saves the animation as a step-through SVG, replacing a file that is there once the whole document is made, so
+        /// a frame that fails leaves that file as it was.</summary>
         /// <param name="path">Destination file path (e.g. <c>"animation.svg"</c>).</param>
-        public void SaveStepThroughSvg(string path)
-        {
-            using var file = File.Create(path);
-            new StepThroughSvgTransform().Transform(builder.GenerateFrames(), builder.Interval, builder.Loop, file);
-        }
+        public void SaveStepThroughSvg(string path) =>
+            path.ReplaceFileWith(file => new StepThroughSvgTransform().Transform(builder.GenerateFrames(), builder.Interval, builder.Loop, file));
     }
 }

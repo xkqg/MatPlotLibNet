@@ -46,3 +46,4 @@ public class DateTickFormatterTests
         Assert.NotNull(formatter);
     }
 }
+

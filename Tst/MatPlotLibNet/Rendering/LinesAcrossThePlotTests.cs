@@ -31,7 +31,7 @@ public class LinesAcrossThePlotTests
         axes.YAxis.Scale = yScale;
         axes.Plot(X, Y);
         add(axes);
-        return new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2)
+        return new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2)
             .ComputeDataRanges();
     }
 
@@ -124,7 +124,7 @@ public class LinesAcrossThePlotTests
             .AddLevel(25, l => l.Color = Teal)
             .AddFibonacci(30, -10, f => f.Color = Navy));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var lines = Lines(svg);
         foreach (var colour in new[] { Magenta, Cyan, Teal })
         {
@@ -156,7 +156,7 @@ public class LinesAcrossThePlotTests
             .AddLevel(25, l => { l.Color = Navy; l.Label = "resistance"; })
             .AddFibonacci(30, -10, f => f.Color = Color.FromHex("#800000")));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var lines = Lines(svg);
         Assert.DoesNotContain(lines, l => l.Stroke == Magenta.ToHex() || l.Stroke == Cyan.ToHex() || l.Stroke == Olive.ToHex() || l.Stroke == Navy.ToHex());
         Assert.DoesNotContain(">high<", svg);
@@ -171,27 +171,17 @@ public class LinesAcrossThePlotTests
         var fibonacci = lines.Where(l => l.Stroke == "#800000").ToList();
         Assert.Equal(2, fibonacci.Count);
         Assert.All(fibonacci, l => AssertInside(plot, l));
-        Assert.Equal(2, XDocument.Parse(svg).Descendants().Count(e => e.Name.LocalName == "text" && (string?)e.Attribute("fill") == "#800000"));
+        Assert.Equal(2, svg.Each("text").Count(e => (string?)e.Attribute("fill") == "#800000"));
     }
 
     // ---- reading the picture --------------------------------------------------------------------------------------------
 
     private readonly record struct SvgLine(double X1, double Y1, double X2, double Y2, string Stroke);
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     private static List<SvgLine> Lines(string svg) =>
-        [.. XDocument.Parse(svg).Descendants().Where(e => e.Name.LocalName == "line").Select(e => new SvgLine(
-            Num((string)e.Attribute("x1")!), Num((string)e.Attribute("y1")!), Num((string)e.Attribute("x2")!), Num((string)e.Attribute("y2")!),
+        [.. svg.Each("line").Select(e => new SvgLine(
+            e.Number("x1"), e.Number("y1"), e.Number("x2"), e.Number("y2"),
             (string?)e.Attribute("stroke") ?? ""))];
-
-    /// <summary>The plot area: the second rectangle drawn into the figure, after the figure's own background.</summary>
-    private static Rect PlotArea(string svg)
-    {
-        var rect = XDocument.Parse(svg).Root!.Elements().Where(e => e.Name.LocalName == "rect").Skip(1).First();
-        return new(Num((string)rect.Attribute("x")!), Num((string)rect.Attribute("y")!),
-                   Num((string)rect.Attribute("width")!), Num((string)rect.Attribute("height")!));
-    }
 
     private static void AssertInside(Rect plot, SvgLine line)
     {

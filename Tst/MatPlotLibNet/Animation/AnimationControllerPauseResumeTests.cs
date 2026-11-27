@@ -16,7 +16,7 @@ public class AnimationControllerPauseResumeTests
         int intervalMs = 5,
         Action<Figure>? onFrame = null)
     {
-        var anim = new CountingAnimation(frameCount) { IntervalMs = intervalMs, Loop = loop };
+        var anim = new TestAnimation(frameCount) { Interval = TimeSpan.FromMilliseconds(intervalMs), Loop = loop };
         Action<Figure, CancellationToken> noop = (_, _) => { };
         var ctrl = new AnimationController<int>(anim,
             async (fig, ct) =>
@@ -104,53 +104,97 @@ public class AnimationControllerPauseResumeTests
         await playTask;
     }
 
-    [Fact]
-    public void Pause_WhenStopped_NoThrow()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void PauseAndResume_WhenStopped_NoThrow(bool pause)
     {
         var ctrl = MakeController();
-        var ex = Record.Exception(() => ctrl.Pause());
+        var ex = Record.Exception(() => { if (pause) ctrl.Pause(); else ctrl.Resume(); });
         Assert.Null(ex);
     }
 
-    [Fact]
-    public void Resume_WhenStopped_NoThrow()
-    {
-        var ctrl = MakeController();
-        var ex = Record.Exception(() => ctrl.Resume());
-        Assert.Null(ex);
-    }
-
+    /// <summary>The pause is taken from inside the handler of the first frame, so no later frame can be anywhere between its
+    /// generation and its delivery: the frames that follow wait for the resume whatever the box is doing, and the test
+    /// reads nothing from a clock to say which frame the pause landed on.</summary>
     [Fact]
     public async Task PauseResume_FramesDeliveredBeforeAndAfter()
     {
-        int total = 0;
-        var ctrl = MakeController(frameCount: 6, intervalMs: 20);
-        ctrl.FrameReady += (_, _) => Interlocked.Increment(ref total);
+        var delivered = new List<string>();
+        var paused = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ctrl = MakeController(frameCount: 6, intervalMs: 1);
+        ctrl.FrameReady += (_, fig) =>
+        {
+            lock (delivered) delivered.Add(fig.Title!);
+            if (paused.Task.IsCompleted) return;
+            ctrl.Pause();
+            paused.SetResult();
+        };
 
         var playTask = ctrl.PlayAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(35, TestContext.Current.CancellationToken); // ~1 frame at 20ms
-        ctrl.Pause();
-        int atPause = total;
-        await Task.Delay(80, TestContext.Current.CancellationToken); // paused, no new frames
-        Assert.Equal(atPause, total);
+        await paused.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(40, TestContext.Current.CancellationToken); // only a regression is caught by this wait; a slow box cannot fail it
+        lock (delivered) Assert.Equal(["F0"], delivered);
 
         ctrl.Resume();
         await playTask;
-        Assert.True(total >= 6);
+        lock (delivered) Assert.Equal(["F0", "F1", "F2", "F3", "F4", "F5"], delivered);
+    }
+
+    /// <summary>A pause that lands while a frame is being published holds that frame back: once <c>Pause</c> has returned no
+    /// <c>FrameReady</c> is raised, and the frame is delivered when the playback resumes. The publish is held on a gate the
+    /// test opens after the pause, and the gate is a source whose continuation runs on the opening thread, so a handler that
+    /// ran on opening it would have run before the next line of the test.</summary>
+    [Fact]
+    public async Task Pause_WhileAFrameIsBeingPublished_RaisesNoFrameReadyUntilTheResume()
+    {
+        var gate = new TaskCompletionSource();
+        var publishing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var anim = new TestAnimation(2) { Interval = TimeSpan.FromMilliseconds(1) };
+        var ctrl = new AnimationController<int>(anim, async (_, _) =>
+        {
+            publishing.TrySetResult();
+            await gate.Task;
+        });
+        var delivered = new List<string>();
+        ctrl.FrameReady += (_, fig) => { lock (delivered) delivered.Add(fig.Title!); };
+
+        var playTask = ctrl.PlayAsync(TestContext.Current.CancellationToken);
+        await publishing.Task.WaitAsync(TestContext.Current.CancellationToken);
+        ctrl.Pause();
+        gate.SetResult();
+
+        lock (delivered) Assert.Empty(delivered);
+        Assert.Equal(AnimationPlaybackState.Paused, ctrl.State);
+
+        ctrl.Resume();
+        await playTask;
+        lock (delivered) Assert.Equal(["F0", "F1"], delivered);
+    }
+
+    /// <summary>A stop that lands while a frame is being published ends the run without raising the frame it held.</summary>
+    [Fact]
+    public async Task Stop_WhileAFrameIsBeingPublishedAndPaused_RaisesNoFrameReady()
+    {
+        var gate = new TaskCompletionSource();
+        var publishing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ctrl = new AnimationController<int>(new TestAnimation(2) { Interval = TimeSpan.FromMilliseconds(1) }, async (_, _) =>
+        {
+            publishing.TrySetResult();
+            await gate.Task;
+        });
+        int delivered = 0;
+        ctrl.FrameReady += (_, _) => Interlocked.Increment(ref delivered);
+
+        var playTask = ctrl.PlayAsync(TestContext.Current.CancellationToken);
+        await publishing.Task.WaitAsync(TestContext.Current.CancellationToken);
+        ctrl.Pause();
+        gate.SetResult();
+        ctrl.Stop();
+        await playTask;
+
+        Assert.Equal(0, delivered);
     }
 
     // ── Helper animation ──────────────────────────────────────────────────────
-
-    private sealed class CountingAnimation : IAnimation<int>
-    {
-        public CountingAnimation(int frameCount) => FrameCount = frameCount;
-        public int FrameCount { get; }
-        public TimeSpan Interval => TimeSpan.FromMilliseconds(IntervalMs);
-        TimeSpan IAnimation<int>.Interval { get => Interval; set { } }
-        public int IntervalMs { get; set; } = 5;
-        public bool Loop { get; set; }
-        public int CreateInitialState() => 0;
-        public int Advance(int s, int i) => i;
-        public Figure GenerateFrame(int s, int i) => new() { Title = $"F{i}" };
-    }
 }

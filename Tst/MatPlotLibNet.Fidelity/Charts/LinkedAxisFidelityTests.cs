@@ -15,44 +15,32 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 public class LinkedAxisFidelityTests : FidelityTest
 {
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 35, Ssim = 0.75, DeltaE = 28)]   // measured on Windows (classic 30, v2 22 over 1.5; the dominant colours 5 and 42 over 1.7), plus a margin of 10 percent, SSIM less 0.04
+    [FidelityRows]
+    [FidelityTolerance(Rms = 15, Ssim = 0.97, DeltaE = 3, V2Rms = 18, V2DeltaE = 4)]
     public void LinkedYAxis_FahrenheitBesideCelsius_MatchesMatplotlib(string themeId)
     {
         double[] hours = [0, 3, 6, 9, 12, 15, 18, 21, 24];
         double[] celsius = [8.0, 6.5, 7.5, 13.0, 19.5, 22.0, 18.0, 12.5, 9.0];
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("Celsius and Fahrenheit")
-                .Plot(hours, celsius)
-                .SetXLim(0, 24)
-                .SetYLim(5, 25)
-                .SetXLabel("hour")
-                .SetYLabel("temperature (°C)")
-                .WithAddRightYAxis(right => right
-                    .SetYLabel("temperature (°F)")
-                    .Link(AxisTransform.Linear(1.8, 32))))
-            .Build();
-        AssertFidelity(figure, "linked_yaxis_fahrenheit");
+        AssertFidelity(themeId, "linked_yaxis_fahrenheit", "Celsius and Fahrenheit", ax => ax
+            .Plot(hours, celsius)
+            .SetXLim(0, 24)
+            .SetYLim(5, 25)
+            .SetXLabel("hour")
+            .SetYLabel("temperature (°C)")
+            .WithAddRightYAxis(right => right
+                .SetYLabel("temperature (°F)")
+                .Link(AxisTransform.Linear(1.8, 32))));
     }
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 30, Ssim = 0.80, DeltaE = 26)]   // measured on Windows (classic 26, v2 19 over 1.5; the dominant colours 5 and 15 over 1.7), plus a margin of 10 percent, SSIM less 0.04. The fifth and seventh of v2 are 10 pixels apart: a platform that swaps them reads 40 over 1.7
+    [FidelityRows]
+    [FidelityTolerance(Rms = 13, Ssim = 0.97, DeltaE = 3, V2Rms = 14, V2DeltaE = 6)]
     public void LinkedXAxis_PeriodAboveALogFrequency_MatchesMatplotlib(string themeId)
     {
         // No title: matplotlib stands a title where the top axes' own labels already are, as it does for any secondary axis.
         double[] frequency = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
         double[] power = [0.8, 1.6, 3.0, 4.2, 3.1, 1.9, 1.1, 0.6, 0.25, 0.1];
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
+        var figure = FidelityFigure(themeId)
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot(frequency, power)
                 .SetXScale(AxisScale.Log)

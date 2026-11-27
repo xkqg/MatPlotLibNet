@@ -22,7 +22,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The one place that finds the repository's root: every suite reads the folder from this file. -->
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryRoot.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\SourceFile.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ThemeCases.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\SampleSurface.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests.Packaging" />
   </ItemGroup>
 
   <!-- Copy fixture images (recursive: classic/ and v2/ subdirs) to output directory so tests can find them at runtime -->

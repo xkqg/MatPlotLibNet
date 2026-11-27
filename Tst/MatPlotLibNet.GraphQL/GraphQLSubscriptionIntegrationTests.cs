@@ -31,56 +31,21 @@ public class GraphQLSubscriptionIntegrationTests
         return services.BuildServiceProvider();
     }
 
-    [Fact]
-    public async Task SvgSubscription_DeliversPayloadToSubscriber()
-    {
-        var sp = BuildProvider();
-        var receiver = sp.GetRequiredService<ITopicEventReceiver>();
-        var sender   = sp.GetRequiredService<IChartEventSender>();
-
-        // Subscribe directly to the topic (matches what ChartSubscriptionType does internally).
-        var ct = TestContext.Current.CancellationToken;
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-1", ct);
-
-        // Publish on a background task so ReadEventsAsync doesn't hang before send.
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(50, ct);
-            await sender.SendSvgAsync("chart-1", "<svg><rect/></svg>", ct);
-        }, ct);
-
-        await foreach (var msg in stream.ReadEventsAsync())
-        {
-            Assert.Equal("chart-1", msg.ChartId);
-            Assert.Equal("<svg><rect/></svg>", msg.Payload);
-            return;   // one event is enough
-        }
-        Assert.Fail("Subscription stream ended without delivering any event");
-    }
-
-    [Fact]
-    public async Task JsonSubscription_DeliversPayloadToSubscriber()
+    [Theory]
+    [InlineData(true, "chart-1", "<svg><rect/></svg>")]
+    [InlineData(false, "chart-2", "{\"x\":1}")]
+    public async Task ASubscription_DeliversPayloadToSubscriber(bool svg, string chartId, string payload)
     {
         var sp = BuildProvider();
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
         var sender   = sp.GetRequiredService<IChartEventSender>();
 
         var ct = TestContext.Current.CancellationToken;
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-2", ct);
+        var msg = await receiver.FirstEventAsync((svg ? "ChartSvg:" : "ChartJson:") + chartId,
+            async () => await (svg ? sender.SendSvgAsync(chartId, payload, ct) : sender.SendJsonAsync(chartId, payload, ct)), ct);
 
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(50, ct);
-            await sender.SendJsonAsync("chart-2", "{\"x\":1}", ct);
-        }, ct);
-
-        await foreach (var msg in stream.ReadEventsAsync())
-        {
-            Assert.Equal("chart-2", msg.ChartId);
-            Assert.Equal("{\"x\":1}", msg.Payload);
-            return;
-        }
-        Assert.Fail("Subscription stream ended without delivering any event");
+        Assert.Equal(chartId, msg.ChartId);
+        Assert.Equal(payload, msg.Payload);
     }
 
     [Fact]

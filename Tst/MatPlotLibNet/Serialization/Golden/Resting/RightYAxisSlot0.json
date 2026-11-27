@@ -1,0 +1,16 @@
+{
+  "Inverted": "false",
+  "Label": "null",
+  "LabelRotation": "0",
+  "LabelStyle": "null",
+  "Link": "null",
+  "MajorTicks": "{Color: null, Direction: Out, Format: null, LabelColor: null, LabelRotation: 0, LabelSize: null, LabelsOnOwnSide: true, Length: 4.861111111111111, Mirror: false, Pad: 4.861111111111111, Spacing: null, Visible: true, Width: 1.1111111111111112}",
+  "Margin": "null",
+  "Max": "null",
+  "Min": "null",
+  "MinorTicks": "{Color: null, Direction: Out, Format: null, LabelColor: null, LabelRotation: 0, LabelSize: null, LabelsOnOwnSide: true, Length: 2.7777777777777777, Mirror: false, Pad: 4.861111111111111, Spacing: null, Visible: false, Width: 0.8333333333333333}",
+  "Scale": "Linear",
+  "SymLogLinThresh": "1",
+  "TickFormatter": "null",
+  "TickLocator": "null"
+}

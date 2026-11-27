@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -10,19 +11,26 @@ namespace MatPlotLibNet.Indicators;
 /// crossovers mark momentum shifts. Reference: Ehlers (2002), S&amp;C 20(1).</summary>
 public sealed class RelativeVigorIndex : CandleIndicator<RviResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 10;
+
     private readonly int _period;
 
     /// <summary>Creates a new Relative Vigor Index indicator.</summary>
     /// <param name="bars">Open, High, Low and Close; built via <see cref="OhlcvBars.Ohlc"/>.</param>
     /// <param name="period">Rolling SMA period on the weighted-smoothed value/range.
-    /// Default 10. Must be ≥ 2.</param>
-    public RelativeVigorIndex(OhlcvBars bars, int period = 10)
-        : base(bars)
+    /// Default <see cref="DefaultPeriod"/>. Must be ≥ 2.</param>
+    public RelativeVigorIndex(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _period = period;
-        Label = $"RVI({period})";
+    }
+
+    internal static IndicatorSpec Spec(int period)
+    {
+        period.ThrowIfBelow(2, nameof(period));
+        string label = IndicatorSpec.Labelled("RVI", period);
+        return IndicatorSpec.Of(period + 5, label, label, "Signal");
     }
 
     /// <inheritdoc />
@@ -93,7 +101,7 @@ public sealed class RelativeVigorIndex : CandleIndicator<RviResult>
     public override void Apply(Axes axes)
     {
         var result = Compute();
-        PlotSignal(axes, result.Rvi, warmup: _period + 2, label: "RVI");
-        PlotSignal(axes, result.Signal, warmup: _period + 5, label: "Signal");
+        PlotLine(axes, result.Rvi);
+        PlotLine(axes, result.Signal, label: LineLabel(1));
     }
 }

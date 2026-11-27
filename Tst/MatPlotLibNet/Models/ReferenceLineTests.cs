@@ -9,56 +9,21 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Verifies <see cref="ReferenceLine"/> behavior.</summary>
 public class ReferenceLineTests
 {
-    /// <summary>Verifies that a reference line stores its value and orientation.</summary>
-    [Fact]
-    public void ReferenceLine_StoresValueAndOrientation()
+    /// <summary>Verifies that AxHLine adds a horizontal reference line and AxVLine a vertical one.</summary>
+    public static TheoryData<Func<Axes, ReferenceLine>, Orientation> TheLineVerbs => new()
     {
-        var line = new ReferenceLine(5.0, Orientation.Horizontal);
-        Assert.Equal(5.0, line.Value);
-        Assert.Equal(Orientation.Horizontal, line.Orientation);
-    }
+        { axes => axes.AxHLine(5.0), Orientation.Horizontal },
+        { axes => axes.AxVLine(3.0), Orientation.Vertical },
+    };
 
-    /// <summary>Verifies that the default line style is dashed.</summary>
-    [Fact]
-    public void DefaultLineStyle_IsDashed()
-    {
-        var line = new ReferenceLine(1.0, Orientation.Vertical);
-        Assert.Equal(LineStyle.Dashed, line.LineStyle);
-    }
-
-    /// <summary>Verifies that the default line width is 1.</summary>
-    [Fact]
-    public void DefaultLineWidth_Is1()
-    {
-        var line = new ReferenceLine(1.0, Orientation.Horizontal);
-        Assert.Equal(1.0, line.LineWidth);
-    }
-
-    /// <summary>Verifies that the default label is null.</summary>
-    [Fact]
-    public void DefaultLabel_IsNull()
-    {
-        var line = new ReferenceLine(1.0, Orientation.Horizontal);
-        Assert.Null(line.Label);
-    }
-
-    /// <summary>Verifies that AxHLine adds a horizontal reference line.</summary>
-    [Fact]
-    public void Axes_AxHLine_AddsReferenceLine()
+    [Theory]
+    [MemberData(nameof(TheLineVerbs))]
+    public void Axes_AnAxLineVerb_AddsReferenceLine(Func<Axes, ReferenceLine> verb, Orientation orientation)
     {
         var axes = new Axes();
-        var line = axes.AxHLine(5.0);
+        var line = verb(axes);
         Assert.Single(axes.ReferenceLines);
-        Assert.Equal(Orientation.Horizontal, line.Orientation);
+        Assert.Equal(orientation, line.Orientation);
     }
 
-    /// <summary>Verifies that AxVLine adds a vertical reference line.</summary>
-    [Fact]
-    public void Axes_AxVLine_AddsReferenceLine()
-    {
-        var axes = new Axes();
-        var line = axes.AxVLine(3.0);
-        Assert.Single(axes.ReferenceLines);
-        Assert.Equal(Orientation.Vertical, line.Orientation);
-    }
 }

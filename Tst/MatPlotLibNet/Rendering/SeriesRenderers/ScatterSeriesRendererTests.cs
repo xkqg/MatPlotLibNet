@@ -6,6 +6,7 @@ using System.Xml.Linq;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -13,15 +14,15 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// <see cref="MatPlotLibNet.Rendering.SeriesRenderers.ScatterSeriesRenderer"/>. Pre-X.9
 /// the renderer was at 80%L / 41%B because only the simplest path (no C, no Sizes,
 /// no per-point Colors, no edges) was exercised. This file pins:
-///   - C set → skips ViewportCuller (line 24-25)
-///   - C set with VMin/VMax explicit (lines 35-36)
-///   - C set without VMin/VMax → falls back to Min/Max (lines 35-36 false arms)
-///   - Sizes per-point (line 46 ternary's true arm)
-///   - Colors[] per-point (ResolvePointColor line 60-61)
-///   - C+ColorMap (ResolvePointColor line 62-63)
-///   - EdgeColors per-point (line 49 ternary's true arm)
-///   - LineWidths per-point (line 50 ternary's true arm)
-///   - MaxDisplayPoints set without C → ViewportCuller (line 27-28)</summary>
+///   - C set → skips ViewportCuller
+///   - C set with VMin/VMax explicit
+///   - C set without VMin/VMax → falls back to Min/Max (false arms)
+///   - Sizes per-point (ternary's true arm)
+///   - Colors[] per-point (ResolvePointColor)
+///   - C+ColorMap (ResolvePointColor)
+///   - EdgeColors per-point (ternary's true arm)
+///   - LineWidths per-point (ternary's true arm)
+///   - MaxDisplayPoints set without C → ViewportCuller</summary>
 public class ScatterSeriesRendererTests
 {
     private static string Render(ScatterSeries s) =>
@@ -31,99 +32,55 @@ public class ScatterSeriesRendererTests
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_BasicScatter_DrawsMarkers()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6]));
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>C set + VMin/VMax explicit → ColorMap path (lines 33-37 explicit
-    /// bounds, ResolvePointColor line 62-63).</summary>
-    [Fact]
-    public void Render_C_With_ExplicitVMinVMax_AndColorMap_PerPointColor()
-    {
-        var svg = Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
+        new DrawnToken("Render_BasicScatter_DrawsMarkers", () => Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])), "<circle"),
+        // C set + VMin/VMax explicit → ColorMap path (explicit bounds, ResolvePointColor).
+        new DrawnToken("Render_C_With_ExplicitVMinVMax_AndColorMap_PerPointColor", () => Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
         {
             C = new[] { 0.0, 0.5, 1.0 },
             VMin = 0,
             VMax = 1,
             ColorMap = ColorMaps.Viridis,
-        });
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>C set without VMin/VMax → falls back to C.Min()/C.Max() (lines 35-36
-    /// false arms of `?? series.C.Min()`).</summary>
-    [Fact]
-    public void Render_C_Without_VMinVMax_FallsBackToCMinMax()
-    {
-        var svg = Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
+        }), "<circle"),
+        // C set without VMin/VMax → falls back to C.Min()/C.Max() (false arms of `?? series.C.Min()`).
+        new DrawnToken("Render_C_Without_VMinVMax_FallsBackToCMinMax", () => Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
         {
             C = new[] { 10.0, 50.0, 100.0 },
             ColorMap = ColorMaps.Viridis,
-        });
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>Sizes per-point (line 46 ternary's true arm). Each marker has its
-    /// own area; radius = sqrt(s/π) × DPI scaling.</summary>
-    [Fact]
-    public void Render_Sizes_PerPoint_AppliesPerPointRadius()
-    {
-        var svg = Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
+        }), "<circle"),
+        // Sizes per-point (ternary's true arm). Each marker has its own area; radius = sqrt(s/π) × DPI scaling.
+        new DrawnToken("Render_Sizes_PerPoint_AppliesPerPointRadius", () => Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
         {
             Sizes = new[] { 10.0, 50.0, 200.0 },
-        });
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>Colors[] per-point (ResolvePointColor line 60-61 hits priority arm 1).
-    /// Even with a ColorMap+C set, Colors wins.</summary>
-    [Fact]
-    public void Render_Colors_PerPoint_PrioritizedOverColorMap()
-    {
-        var svg = Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
+        }), "<circle"),
+        // Colors[] per-point (ResolvePointColor priority arm 1). Even with a ColorMap+C set, Colors wins.
+        new DrawnToken("Render_Colors_PerPoint_PrioritizedOverColorMap", () => Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
         {
             Colors = new[] { Colors.Red, Colors.Green, Colors.Blue },
             C = new[] { 0.0, 0.5, 1.0 },
             ColorMap = ColorMaps.Viridis,
-        });
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>EdgeColors per-point (line 49 ternary's true arm) + LineWidths per-point
-    /// (line 50 ternary's true arm). Both arrays index-tied to data.</summary>
-    [Fact]
-    public void Render_EdgeColors_AndLineWidths_PerPoint()
-    {
-        var svg = Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
+        }), "<circle"),
+        // EdgeColors per-point (ternary's true arm) + LineWidths per-point (ternary's true arm). Both arrays index-tied to
+        // data.
+        new DrawnToken("Render_EdgeColors_AndLineWidths_PerPoint", () => Render(new ScatterSeries([1.0, 2, 3], [4.0, 5, 6])
         {
             EdgeColors = new[] { Colors.Black, Colors.Black, Colors.Black },
             LineWidths = new[] { 1.0, 2.0, 3.0 },
-        });
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>MaxDisplayPoints set + no C → ViewportCuller path (line 27-28).</summary>
-    [Fact]
-    public void Render_MaxDisplayPoints_TriggersViewportCuller()
-    {
-        var svg = Render(new ScatterSeries([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5])
+        }), "<circle"),
+        // MaxDisplayPoints set + no C → ViewportCuller path.
+        new DrawnToken("Render_MaxDisplayPoints_TriggersViewportCuller", () => Render(new ScatterSeries([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5])
         {
             MaxDisplayPoints = 3,
-        });
-        Assert.Contains("<circle", svg);
-    }
+        }), "<circle"),
+        // Empty data — no markers drawn (early-return-style path through the for-loop with pts.Length == 0).
+        new DrawnToken("Render_EmptyData_NoMarkers", () => Render(new ScatterSeries([], []))) { Absent = ["<circle"] },
+    };
 
-    /// <summary>Empty data — no markers drawn (early-return-style path through the for-loop
-    /// at line 41 with pts.Length == 0).</summary>
-    [Fact]
-    public void Render_EmptyData_NoMarkers()
-    {
-        var svg = Render(new ScatterSeries([], []));
-        Assert.DoesNotContain("<circle", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- Alpha: the opacity of the markers' fill, by the rule every other filled mark follows ------------------------
 
@@ -133,8 +90,7 @@ public class ScatterSeriesRendererTests
     /// <summary>The markers of the given shape element whose fill is <paramref name="fillHex"/> (or any fill when null),
     /// in drawing order. The figure's and the plot area's backgrounds are rectangles too, so a fill filter keeps them out.</summary>
     private static DrawnMarker[] Markers(string svg, string element = "circle", string? fillHex = null) =>
-        [.. XDocument.Parse(svg).Descendants()
-            .Where(e => e.Name.LocalName == element && (string?)e.Attribute("fill") is { } fill
+        [.. svg.Each(element).Where(e => (string?)e.Attribute("fill") is { } fill
                         && (fillHex is null || fill == fillHex))
             .Select(e => new DrawnMarker((string)e.Attribute("fill")!,
                 (string?)e.Attribute("fill-opacity") is { } o ? double.Parse(o, CultureInfo.InvariantCulture) : 1.0,
@@ -296,7 +252,7 @@ public class ScatterSeriesRendererTests
             .AddSubPlot(1, 1, 1, ax => ax.Scatter(Xs, Ys, s => { s.Color = Colors.Red; s.Alpha = 0.5; }))
             .Build();
 
-        string back = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string back = figure.RoundTripped().ToSvg();
 
         Assert.Equal(figure.ToSvg(), back);
         Assert.All(Markers(back, fillHex: Colors.Red.ToHex()), marker => AssertOpacity(0.5, marker.Opacity));

@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"count","label":"text 2","categories":["a","b","a"],"color":"#1BC33F","barWidth":0.25,"orientation":"horizontal","zOrder":7,"visible":false}]}]}

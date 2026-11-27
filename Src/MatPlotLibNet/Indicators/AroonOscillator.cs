@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -10,33 +11,27 @@ namespace MatPlotLibNet.Indicators;
 /// <c>Up − Down</c> in [−100, +100]. Reference: Chande (1995), S&amp;C 13(9).</summary>
 public sealed class AroonOscillator : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 25;
+
     private readonly int _period;
 
     /// <summary>Creates a new Aroon Oscillator.</summary>
     /// <param name="bars">High and Low (must satisfy <c>L ≤ H</c>); built via <see cref="OhlcvBars.Hl"/>.</param>
-    /// <param name="period">Lookback window. Default 25. Must be ≥ 2.</param>
-    public AroonOscillator(OhlcvBars bars, int period = 25)
-        : base(bars)
+    /// <param name="period">Lookback window. Default <see cref="DefaultPeriod"/>. Must be ≥ 2.</param>
+    public AroonOscillator(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
-        for (int i = 0; i < bars.High.Length; i++)
-        {
-            if (bars.High[i] < bars.Low[i])
-                throw new ArgumentException(
-                    $"AroonOscillator requires H >= L; bar {i} has H={bars.High[i]} < L={bars.Low[i]}.");
-        }
+        bars.ThrowIfHighBelowLow(nameof(AroonOscillator));
         _period = period;
-        Label = $"Aroon({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("Aroon", period, 2, period);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = BarCount;
-        if (n <= _period) return Array.Empty<double>();
-
-        int outLen = n - _period;
+        int outLen = ValueCount;
         var result = new double[outLen];
 
         for (int w = 0; w < outLen; w++)
@@ -66,11 +61,13 @@ public sealed class AroonOscillator : CandleIndicator<SignalResult>
         return result;
     }
 
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingAroonOscillator"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = new(-100, 100);
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), warmup: _period);
-        axes.YAxis.Min = -100;
-        axes.YAxis.Max = 100;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

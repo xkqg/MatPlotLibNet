@@ -67,7 +67,7 @@ public class GeoDrawnPropertiesRoundTripTests
     {
         var figure = new Figure();
         figure.AddSubPlot().AddSeries(series);
-        return Assert.IsType<GeoPolygonSeries>(Serializer.FromJson(Serializer.ToJson(figure)).SubPlots[0].Series[0]);
+        return Assert.IsType<GeoPolygonSeries>(figure.RoundTripped().SubPlots[0].Series[0]);
     }
 
     private static object? ValueOf(GeoPolygonSeries series, string property) =>
@@ -117,12 +117,18 @@ public class GeoDrawnPropertiesRoundTripTests
         Assert.False(Back(Series()).IsRawProjected);
     }
 
-    [Fact]
-    public void ADefaultStrokeWidth_IsLeftOutOfTheJson()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure();
-        figure.AddSubPlot().AddSeries(Series());
+        new DrawnToken("ADefaultStrokeWidth_IsLeftOutOfTheJson", () =>
+        {
+            var figure = new Figure();
+            figure.AddSubPlot().AddSeries(Series());
+            return Serializer.ToJson(figure);
+        }) { Absent = ["lineWidth"] },
+    };
 
-        Assert.DoesNotContain("lineWidth", Serializer.ToJson(figure), StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

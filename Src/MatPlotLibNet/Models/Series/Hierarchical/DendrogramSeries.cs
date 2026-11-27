@@ -11,28 +11,34 @@ namespace MatPlotLibNet.Models.Series;
 /// segments. Each leaf is an input observation; each internal node is a merge whose
 /// merge-axis coordinate equals <see cref="TreeNode.Value"/> (the merge distance produced
 /// by the clustering algorithm).</summary>
-public sealed class DendrogramSeries : HierarchicalSeries
+public sealed class DendrogramSeries : HierarchicalSeries, ISeriesKind<DendrogramSeries>
 {
+    /// <inheritdoc />
+    /// <remarks>2: scipy's <c>dendrogram</c> draws its links as lines.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    private const DendrogramOrientation RestingOrientation = DendrogramOrientation.Top;
     /// <summary>Tree orientation. <see cref="DendrogramOrientation.Top"/> places the root at
     /// the top of the plot with leaves along the bottom; <see cref="DendrogramOrientation.Left"/>
     /// places the root at the left with leaves on the right (essential for the row dendrogram
     /// in <c>ClustermapSeries</c>).</summary>
-    public DendrogramOrientation Orientation { get; set; } = DendrogramOrientation.Top;
+    public DendrogramOrientation Orientation { get; set => Change(ref field, value); } = RestingOrientation;
 
     /// <summary>Optional cut height. When set, a reference line is drawn at this merge
     /// distance and the leaves below the cut are coloured by cluster membership when
     /// <see cref="ColorByCluster"/> is <see langword="true"/>.</summary>
-    public double? CutHeight { get; set; }
+    public double? CutHeight { get; set => Change(ref field, value); }
 
     /// <summary>Colour of the cut reference line. Falls back to a theme-neutral default when
     /// <see langword="null"/>.</summary>
-    public Color? CutLineColor { get; set; }
+    public Color? CutLineColor { get; set => Change(ref field, value); }
 
-    /// <summary>If <see langword="true"/> (default) and <see cref="CutHeight"/> is set, each
+    private const bool RestingColorByCluster = true;
+    /// <summary>If <see langword="true"/> (the default, <see cref="RestingColorByCluster"/>) and <see cref="CutHeight"/> is set, each
     /// connected component below the cut is coloured by sampling the assigned
     /// <see cref="HierarchicalSeries.ColorMap"/>; if <see langword="false"/>, the entire tree
     /// is rendered in the cycled series colour.</summary>
-    public bool ColorByCluster { get; set; } = true;
+    public bool ColorByCluster { get; set => Change(ref field, value); } = RestingColorByCluster;
 
     /// <summary>Initializes a new instance of <see cref="DendrogramSeries"/> with the
     /// specified root node.</summary>
@@ -40,41 +46,27 @@ public sealed class DendrogramSeries : HierarchicalSeries
     /// merge distance in <see cref="TreeNode.Value"/>.</param>
     public DendrogramSeries(TreeNode root) : base(root) { }
 
+    static string ISeriesKind<DendrogramSeries>.Kind => "dendrogram";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => this.DescribeSharedSettings(new()
     {
-        Type = "dendrogram",
-        DendrogramOrientation = Orientation != Models.Series.DendrogramOrientation.Top
-            ? Orientation : null,
+        Type = this.WireKind(),
+        DendrogramOrientation = Orientation.OrNullAtRest(RestingOrientation),
         CutHeight = CutHeight,
         CutLineColor = CutLineColor,
-        ColorByCluster = ColorByCluster ? null : false,
+        ColorByCluster = ColorByCluster.OrNullAtRest(RestingColorByCluster),
     });
 
-    /// <summary>Reconstructs a <see cref="DendrogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="DendrogramSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static DendrogramSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var root = dto.TreeRoot is { } treeRoot ? treeRoot.DtoToTreeNode() : new TreeNode { Label = "Root" };
+        var root = dto.TreeRoot.TreeOrBareRoot();
         var s = axes.Dendrogram(root);
-        if (dto.DendrogramOrientation.HasValue)
-        {
-            s.Orientation = dto.DendrogramOrientation.Value;
-        }
-        if (dto.CutHeight.HasValue)
-        {
-            s.CutHeight = dto.CutHeight.Value;
-        }
-        if (dto.CutLineColor.HasValue)
-        {
-            s.CutLineColor = dto.CutLineColor.Value;
-        }
-        if (dto.ColorByCluster.HasValue)
-        {
-            s.ColorByCluster = dto.ColorByCluster.Value;
-        }
+        if (dto.DendrogramOrientation is { } dendrogramOrientation) s.Orientation = dendrogramOrientation;
+        if (dto.CutHeight is { } cutHeight) s.CutHeight = cutHeight;
+        if (dto.CutLineColor is { } cutLineColor) s.CutLineColor = cutLineColor;
+        if (dto.ColorByCluster is { } colorByCluster) s.ColorByCluster = colorByCluster;
         s.RestoreSharedSettings(dto);
         return s;
     }

@@ -23,8 +23,12 @@ public sealed class JointPlotFigure : FacetedFigure
     /// <summary>Initializes a new joint plot with the given X and Y data.</summary>
     public JointPlotFigure(double[] x, double[] y) { _x = x; _y = y; }
 
-    /// <summary>Number of histogram bins for the marginal distributions (default 30).</summary>
-    public int Bins { get; init; } = 30;
+    /// <summary>How many bins the marginal histograms have when told no number: the default of <see cref="Bins"/> and of the
+    /// <c>bins</c> argument of <c>FigureTemplates.JointPlot</c>.</summary>
+    internal const int RestingBins = 30;
+
+    /// <summary>Number of histogram bins for the marginal distributions (default <see cref="RestingBins"/>).</summary>
+    public int Bins { get; init; } = RestingBins;
 
     /// <summary>
     /// Optional hue label per observation. When set, the center scatter and both marginals

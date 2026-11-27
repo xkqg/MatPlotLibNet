@@ -7,11 +7,12 @@ using MatPlotLibNet.Rendering;
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>A client-initiated pan that translates the target axes by a delta in the space each axis is drawn in: data
-/// units on a linear axis, decades (log10) on a log axis, symlog units on a symlog axis. A pan is a shift on screen, and
-/// only in that space is a shift the same for both ends of the range; on a linear axis it is the plain data delta it
-/// always was. Shape differs from <see cref="AxisRangeEvent"/> (delta vs absolute), so <see cref="PanEvent"/>
-/// inherits directly from <see cref="FigureInteractionEvent"/> and supplies its own <see cref="ApplyTo"/>. An axis with
-/// no limits and no <see cref="InView"/> is left alone: there is no range to translate.</summary>
+/// units on a linear axis, decades (log10) on a log axis, symlog units on a symlog axis, with the axis' breaks cut out of
+/// that space. A pan is a shift on screen, and only in that space is a shift the same for both ends of the range; on a
+/// linear axis without breaks it is the plain data delta it always was. Shape differs from <see cref="AxisRangeEvent"/>
+/// (delta vs absolute), so <see cref="PanEvent"/> inherits directly from <see cref="FigureInteractionEvent"/> and supplies its
+/// own <see cref="ApplyTo"/>. An axis with no limits and no <see cref="InView"/> is left alone: there is no range to
+/// translate.</summary>
 public sealed record PanEvent(
     string ChartId,
     int AxesIndex,
@@ -28,10 +29,10 @@ public sealed record PanEvent(
     public DataRange? InView { get; init; }
 
     /// <summary>The new range of every Y axis stacked past the primary, already computed by
-    /// <see cref="PanModifier"/> from the SAME pixel delta this event shifts the primary by — each in
-    /// that axis' own data units, not the primary's (<see cref="Shifted"/>, read against
-    /// <see cref="IChartLayout.GetSecondaryDataRanges"/>'s current value for that slot). <see langword="init"/>-only
-    /// so every existing construction site keeps working; absent/empty leaves every such axis where it was.</summary>
+    /// <see cref="PanModifier"/> from the SAME pixel delta this event shifts the primary by, each in that axis' own data
+    /// units, not the primary's (the plot's edges moved by that delta, read back through the axis' own transform).
+    /// <see langword="init"/>-only so every existing construction site keeps working; absent/empty leaves every such axis
+    /// where it was.</summary>
     public IReadOnlyList<SecondaryAxisRange>? SecondaryRanges { get; init; }
 
     /// <inheritdoc />
@@ -41,44 +42,29 @@ public sealed record PanEvent(
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
-    internal override bool TryApplyTo(Figure figure)
+    internal override bool TryApplyTo(Figure figure) => OnMovableAxes(figure, axes =>
     {
-        if (!TryTargetMovableAxes(figure, out var axes)) return false;
-
         foreach (var linked in XLinkedAxes(figure))
         {
             figure.Home.Remember(linked);
             if ((linked.XAxis.Min ?? InView?.XMin) is double xMin && (linked.XAxis.Max ?? InView?.XMax) is double xMax)
-                Shift(linked.XAxis, xMin, xMax, DxData);
+                Shift(linked.XAxis, linked.XBreaks, xMin, xMax, DxData, figure.Theme, isX: true);
         }
 
         if (!axes.HasFixedYRange && (axes.YAxis.Min ?? InView?.YMin) is double yMin && (axes.YAxis.Max ?? InView?.YMax) is double yMax)
-            Shift(axes.YAxis, yMin, yMax, DyData);
+            Shift(axes.YAxis, axes.YBreaks, yMin, yMax, DyData, figure.Theme, isX: false);
 
         axes.ApplySecondaryRanges(SecondaryRanges);
-        return true;
-    }
+    });
 
     /// <summary>Sets <paramref name="axis"/>' limits to <paramref name="min"/>..<paramref name="max"/> moved by
-    /// <paramref name="delta"/> in the space the axis is drawn in (<see cref="AxisScaleExtensions"/>).</summary>
-    private static void Shift(Axis axis, double min, double max, double delta)
+    /// <paramref name="delta"/> in the space the axis is drawn in: through its scale, with its <paramref name="breaks"/> cut out
+    /// over the whole axis (<see cref="AxisMapping.OverTheWholeAxis"/>, <see cref="AxisBreakMap.Shifted"/>), the space the
+    /// pointer measured its move in. An end the pan carries across a break lands past it.</summary>
+    private static void Shift(Axis axis, IReadOnlyList<AxisBreak> breaks, double min, double max, double delta, Styling.Theme theme, bool isX)
     {
-        var moved = Shifted(new DataSpan(min, max), delta, axis.Scale, axis.SymLogLinThresh);
-        axis.Min = moved.Min;
-        axis.Max = moved.Max;
+        var whole = AxisMapping.Of(axis, breaks, theme, isX).OverTheWholeAxis();
+        axis.Min = whole.Shifted(min, delta);
+        axis.Max = whole.Shifted(max, delta);
     }
-
-    /// <summary>The <paramref name="span"/> moved by <paramref name="delta"/> in the space <paramref name="scale"/>
-    /// draws in — the computation <see cref="Shift"/> applies to the primary axis, exposed so
-    /// <see cref="PanModifier"/> can apply the SAME rule to a secondary axis' own scale without going through an
-    /// <see cref="Axis"/> object (a modifier only ever sees a range and a transform).</summary>
-    /// <param name="span">The range on screen before the pan, in data units.</param>
-    /// <param name="delta">The shift, in the space the axis is drawn in: data units linear, decades log, symlog units
-    /// on a symlog axis.</param>
-    /// <param name="scale">The scale the axis is drawn with.</param>
-    /// <param name="linThresh">The symlog linear threshold; ignored by the other scales.</param>
-    /// <returns>The same span with both ends moved by <paramref name="delta"/> in that space.</returns>
-    internal static DataSpan Shifted(DataSpan span, double delta, AxisScale scale, double linThresh) =>
-        new(scale.Inverse(scale.Forward(span.Min, linThresh) + delta, linThresh),
-            scale.Inverse(scale.Forward(span.Max, linThresh) + delta, linThresh));
 }

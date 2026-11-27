@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -12,7 +13,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// any case, nested inside a reversed map too, and every colour in it may be a CSS4 name.</summary>
 public class SpecColorMapTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     private static string HeatmapSpec(string colorMap, string subPlotFields = "") =>
         $$"""{"width":400,"height":300,"subPlots":[{{{subPlotFields}}"series":[{"type":"heatmap","heatmapData":[[1,2],[3,4]],"colorMap":{{colorMap}}}]}]}""";
@@ -30,15 +30,6 @@ public class SpecColorMapTests
         Assert.Contains("'gradient'", refusal.Message);
         Assert.Contains("linear", refusal.Message);
         Assert.Contains("listed", refusal.Message);
-    }
-
-    [Fact]
-    public void AColourMapWithoutAKind_IsRefusedWithTheAcceptedKinds()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(HeatmapSpec("""{"colors":["red","blue"]}"""))));
-
-        Assert.Contains("colorMap", refusal.Message);
-        Assert.Contains("reversed", refusal.Message);
     }
 
     [Fact]

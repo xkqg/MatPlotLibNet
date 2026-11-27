@@ -22,22 +22,6 @@ public class CorrelationTests
 
     private static CorrelationOptions Lags(int maxLags) => new() { MaxLags = maxLags };
 
-    private static void AssertClose(IReadOnlyList<double> expected, IReadOnlyList<double> actual, double tolerance = Tolerance)
-    {
-        Assert.Equal(expected.Count, actual.Count);
-        for (int i = 0; i < expected.Count; i++)
-        {
-            if (double.IsNaN(expected[i]))
-            {
-                Assert.True(double.IsNaN(actual[i]), $"[{i}]: expected NaN, got {actual[i]:R}");
-            }
-            else
-            {
-                Assert.True(Math.Abs(expected[i] - actual[i]) <= tolerance, $"[{i}]: expected {expected[i]:R}, got {actual[i]:R}");
-            }
-        }
-    }
-
     // ---- matplotlib's vectors ----------------------------------------------------------------------------------------------
 
     [Fact]
@@ -46,8 +30,8 @@ public class CorrelationTests
         // matplotlib: acorr([1, 2, 3], maxlags=1) = [0.571429, 1, 0.571429]; the full sums are [3, 8, 14, 8, 3].
         Correlogram correlogram = Correlation.Auto([1, 2, 3], Lags(1));
 
-        AssertClose([-1, 0, 1], correlogram.Lags);
-        AssertClose([8 / 14.0, 1, 8 / 14.0], correlogram.Values);
+        (new double[] { -1, 0, 1 }).AssertCloseTo(correlogram.Lags, Tolerance);
+        (new double[] { 8 / 14.0, 1, 8 / 14.0 }).AssertCloseTo(correlogram.Values, Tolerance);
     }
 
     [Fact]
@@ -56,8 +40,8 @@ public class CorrelationTests
         // matplotlib: xcorr([0, 1], [1, 0], maxlags=1) = [0, 0, 1] at the lags -1, 0, 1: x is y one sample later, so the peak is at +1.
         Correlogram correlogram = Correlation.Cross([0, 1], [1, 0], Lags(1));
 
-        AssertClose([-1, 0, 1], correlogram.Lags);
-        AssertClose([0, 0, 1], correlogram.Values);
+        (new double[] { -1, 0, 1 }).AssertCloseTo(correlogram.Lags, Tolerance);
+        (new double[] { 0, 0, 1 }).AssertCloseTo(correlogram.Values, Tolerance);
     }
 
     [Fact]
@@ -67,8 +51,8 @@ public class CorrelationTests
         double[] x = [0, 0, 1, 3, 2, 0, 0, 0];
         double[] y = [0, 0, 0, 0, 1, 3, 2, 0];
 
-        AssertClose([9 / 14.0, 1, 9 / 14.0, 2 / 14.0, 0, 0, 0], Correlation.Cross(x, y, Lags(3)).Values);
-        AssertClose([0, 0, 0, 2 / 14.0, 9 / 14.0, 1, 9 / 14.0], Correlation.Cross(y, x, Lags(3)).Values);
+        (new double[] { 9 / 14.0, 1, 9 / 14.0, 2 / 14.0, 0, 0, 0 }).AssertCloseTo(Correlation.Cross(x, y, Lags(3)).Values, Tolerance);
+        (new double[] { 0, 0, 0, 2 / 14.0, 9 / 14.0, 1, 9 / 14.0 }).AssertCloseTo(Correlation.Cross(y, x, Lags(3)).Values, Tolerance);
     }
 
     [Fact]
@@ -76,10 +60,8 @@ public class CorrelationTests
     {
         Correlogram correlogram = Correlation.Cross(X, Y, Lags(3));
 
-        AssertClose([-3, -2, -1, 0, 1, 2, 3], correlogram.Lags);
-        AssertClose(
-            [0.22554746258196273, -0.2399441091297476, -0.2735362844079122, 0.5134803935376598, 0.4558938073465204, -0.5086815113550649, -0.24954187349493748],
-            correlogram.Values);
+        (new double[] { -3, -2, -1, 0, 1, 2, 3 }).AssertCloseTo(correlogram.Lags, Tolerance);
+        (new double[] { 0.22554746258196273, -0.2399441091297476, -0.2735362844079122, 0.5134803935376598, 0.4558938073465204, -0.5086815113550649, -0.24954187349493748 }).AssertCloseTo(correlogram.Values, Tolerance);
     }
 
     [Fact]
@@ -89,12 +71,9 @@ public class CorrelationTests
         Correlogram correlogram = Correlation.Cross(X, Y, Lags(7));
 
         Assert.Equal(15, correlogram.Lags.Length);
-        AssertClose(
-        [
-            -0.11517317238227884, 0.05278770400854447, -0.04318993964335457, -0.02879329309556971, 0.22554746258196273,
+        (new double[] { -0.11517317238227884, 0.05278770400854447, -0.04318993964335457, -0.02879329309556971, 0.22554746258196273,
             -0.2399441091297476, -0.2735362844079122, 0.5134803935376598, 0.4558938073465204, -0.5086815113550649,
-            -0.24954187349493748, 0.49428486480728, 0.12477093674746874, -0.18235752293860816, -0.05758658619113942,
-        ], correlogram.Values);
+            -0.24954187349493748, 0.49428486480728, 0.12477093674746874, -0.18235752293860816, -0.05758658619113942, }).AssertCloseTo(correlogram.Values, Tolerance);
     }
 
     [Fact]
@@ -102,7 +81,7 @@ public class CorrelationTests
     {
         Correlogram correlogram = Correlation.Auto(X, Lags(3));
 
-        AssertClose([0.4393063583815029, -0.3699421965317919, -0.27167630057803466, 1, -0.27167630057803466, -0.3699421965317919, 0.4393063583815029], correlogram.Values);
+        (new double[] { 0.4393063583815029, -0.3699421965317919, -0.27167630057803466, 1, -0.27167630057803466, -0.3699421965317919, 0.4393063583815029 }).AssertCloseTo(correlogram.Values, Tolerance);
         Assert.Equal(1.0, correlogram.Values[3], 12);
     }
 
@@ -110,7 +89,7 @@ public class CorrelationTests
     public void TheShortestSignalThatCanBeCorrelated_IsTwoSamples_WithOneLag()
     {
         // matplotlib: acorr([1, 2], maxlags=1) = [0.4, 1, 0.4].
-        AssertClose([0.4, 1, 0.4], Correlation.Auto([1, 2], Lags(1)).Values);
+        (new double[] { 0.4, 1, 0.4 }).AssertCloseTo(Correlation.Auto([1, 2], Lags(1)).Values, Tolerance);
     }
 
     // ---- the raw sums ------------------------------------------------------------------------------------------------------
@@ -120,9 +99,9 @@ public class CorrelationTests
     {
         var options = new CorrelationOptions { MaxLags = 3, Unnormalised = true };
 
-        AssertClose([47, -50, -57, 107, 95, -106, -52], Correlation.Cross(X, Y, options).Values);
-        AssertClose([8, 14, 8], Correlation.Auto([1, 2, 3], new CorrelationOptions { MaxLags = 1, Unnormalised = true }).Values);
-        AssertClose([11, 20, 30, 20, 11], Correlation.Auto([1, 2, 3, 4], new CorrelationOptions { MaxLags = 2, Unnormalised = true }).Values);
+        (new double[] { 47, -50, -57, 107, 95, -106, -52 }).AssertCloseTo(Correlation.Cross(X, Y, options).Values, Tolerance);
+        (new double[] { 8, 14, 8 }).AssertCloseTo(Correlation.Auto([1, 2, 3], new CorrelationOptions { MaxLags = 1, Unnormalised = true }).Values, Tolerance);
+        (new double[] { 11, 20, 30, 20, 11 }).AssertCloseTo(Correlation.Auto([1, 2, 3, 4], new CorrelationOptions { MaxLags = 2, Unnormalised = true }).Values, Tolerance);
     }
 
     [Fact]
@@ -130,7 +109,7 @@ public class CorrelationTests
     {
         var options = new CorrelationOptions { MaxLags = 1, Unnormalised = true };
 
-        AssertClose([0, 0, 0], Correlation.Cross([0, 0, 0], [1, 2, 3], options).Values);
+        (new double[] { 0, 0, 0 }).AssertCloseTo(Correlation.Cross([0, 0, 0], [1, 2, 3], options).Values, Tolerance);
     }
 
     // ---- the detrend -------------------------------------------------------------------------------------------------------
@@ -141,11 +120,9 @@ public class CorrelationTests
         // matplotlib: xcorr(x, y, detrend=mlab.detrend_mean, maxlags=3).
         var options = new CorrelationOptions { MaxLags = 3, Detrend = SpectralDetrend.Mean };
 
-        AssertClose(
-            [0.25990223898537623, -0.246304043212272, -0.31429502207779314, 0.5045929369364325, 0.4177027707252411, -0.572046134048215, -0.2625143217892494],
-            Correlation.Cross(X, Y, options).Values);
+        (new double[] { 0.25990223898537623, -0.246304043212272, -0.31429502207779314, 0.5045929369364325, 0.4177027707252411, -0.572046134048215, -0.2625143217892494 }).AssertCloseTo(Correlation.Cross(X, Y, options).Values, Tolerance);
         // [1, 2, 3] less its mean is [-1, 0, 1]: matplotlib gives [-0.5, 0, 1, 0, -0.5].
-        AssertClose([-0.5, 0, 1, 0, -0.5], Correlation.Auto([1, 2, 3], new CorrelationOptions { MaxLags = 2, Detrend = SpectralDetrend.Mean }).Values);
+        (new double[] { -0.5, 0, 1, 0, -0.5 }).AssertCloseTo(Correlation.Auto([1, 2, 3], new CorrelationOptions { MaxLags = 2, Detrend = SpectralDetrend.Mean }).Values, Tolerance);
     }
 
     [Fact]
@@ -154,9 +131,7 @@ public class CorrelationTests
         // matplotlib: xcorr(x, y, detrend=mlab.detrend_linear, maxlags=3).
         var options = new CorrelationOptions { MaxLags = 3, Detrend = SpectralDetrend.Linear };
 
-        AssertClose(
-            [0.23181971048069597, -0.18272162518379417, -0.3097736279039415, 0.46528401837538447, 0.4770840048207807, -0.6451275980846917, -0.33208533282044],
-            Correlation.Cross(X, Y, options).Values);
+        (new double[] { 0.23181971048069597, -0.18272162518379417, -0.3097736279039415, 0.46528401837538447, 0.4770840048207807, -0.6451275980846917, -0.33208533282044 }).AssertCloseTo(Correlation.Cross(X, Y, options).Values, Tolerance);
     }
 
     [Fact]
@@ -170,7 +145,7 @@ public class CorrelationTests
             Detrend = SpectralDetrend.Of(signal => [.. signal.Select(value => value - signal[0])]),
         };
 
-        AssertClose([2, 5, 2], Correlation.Auto([1, 2, 3], options).Values);
+        (new double[] { 2, 5, 2 }).AssertCloseTo(Correlation.Auto([1, 2, 3], options).Values, Tolerance);
     }
 
     [Fact]
@@ -180,8 +155,8 @@ public class CorrelationTests
         var linear = new CorrelationOptions { MaxLags = 1, Detrend = SpectralDetrend.Linear };
         var mean = new CorrelationOptions { MaxLags = 1, Detrend = SpectralDetrend.Mean };
 
-        AssertClose([Gap, Gap, Gap], Correlation.Auto([1, 2, 3], linear).Values);
-        AssertClose([Gap, Gap, Gap], Correlation.Auto([2, 2, 2], mean).Values);
+        (new double[] { Gap, Gap, Gap }).AssertCloseTo(Correlation.Auto([1, 2, 3], linear).Values, Tolerance);
+        (new double[] { Gap, Gap, Gap }).AssertCloseTo(Correlation.Auto([2, 2, 2], mean).Values, Tolerance);
     }
 
     [Fact]
@@ -204,8 +179,8 @@ public class CorrelationTests
         // matplotlib: xcorr([0, 0, 0], [1, 2, 3], maxlags=1) = [nan, nan, nan].
         Correlogram correlogram = Correlation.Cross([0, 0, 0], [1, 2, 3], Lags(1));
 
-        AssertClose([-1, 0, 1], correlogram.Lags);
-        AssertClose([Gap, Gap, Gap], correlogram.Values);
+        (new double[] { -1, 0, 1 }).AssertCloseTo(correlogram.Lags, Tolerance);
+        (new double[] { Gap, Gap, Gap }).AssertCloseTo(correlogram.Values, Tolerance);
     }
 
     [Fact]
@@ -214,7 +189,7 @@ public class CorrelationTests
         // Each energy is 1.4e-199, a double; the product of the two, 2e-398, is below the smallest one and would be 0.
         double[] tiny = [1e-100, 2e-100, 3e-100];
 
-        AssertClose([8 / 14.0, 1, 8 / 14.0], Correlation.Auto(tiny, Lags(1)).Values);
+        (new double[] { 8 / 14.0, 1, 8 / 14.0 }).AssertCloseTo(Correlation.Auto(tiny, Lags(1)).Values, Tolerance);
     }
 
     [Theory]
@@ -225,7 +200,7 @@ public class CorrelationTests
     {
         Correlogram correlogram = Correlation.Cross([1, sample, 3, 4], [4, 3, 2, 1], Lags(2));
 
-        AssertClose([-2, -1, 0, 1, 2], correlogram.Lags);
+        (new double[] { -2, -1, 0, 1, 2 }).AssertCloseTo(correlogram.Lags, Tolerance);
         Assert.All(correlogram.Values, value => Assert.True(double.IsNaN(value)));
     }
 

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
@@ -10,7 +11,7 @@ namespace MatPlotLibNet.Rendering;
 /// font they are set in (whose size is replaced by each word's own).</summary>
 /// <param name="Words">The words, none empty and none twice.</param>
 /// <param name="Weights">The weight of each word, a finite number above zero; only the proportions matter.</param>
-/// <param name="Sizes">The size of the lightest and of the heaviest word, in points.</param>
+/// <param name="Sizes">The size of the lightest and of the heaviest word, in pixels.</param>
 /// <param name="Font">The font of the words.</param>
 internal readonly record struct WordCloudSpec(IReadOnlyList<string> Words, IReadOnlyList<double> Weights, Range1D Sizes, Font Font);
 
@@ -56,8 +57,9 @@ internal static class WordCloudLayout
     /// <param name="canvas">The room the words are set in.</param>
     /// <param name="metrics">The source of the width and height of each word, the one every other text of the library is measured with.</param>
     /// <returns>One placement for each word, in the order given.</returns>
-    /// <exception cref="ArgumentException">The words and weights differ in length, a weight is not a finite number above zero, a
-    /// word is empty or appears twice, or the size range is not a positive range (the message names the word or the place).</exception>
+    /// <exception cref="ArgumentException">The words and weights differ in length, or a word is empty or appears twice (the message
+    /// names the word or the place).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A weight is not a finite number above zero; the message names its word.</exception>
     public static WordCloudResult Compute(WordCloudSpec spec, Rect canvas, IFontMetrics metrics)
     {
         Refuse(spec);
@@ -91,11 +93,11 @@ internal static class WordCloudLayout
         var blocked = new List<Rect>(order.Length);   // each box set, with the padding round it, so a probe compares two rectangles and makes none
         var words = new WordPlacement[order.Length];
         double free = canvas.Width * canvas.Height;   // the boxes set never overlap, so what they leave is exactly this much
-        double centreX = canvas.X + canvas.Width / 2, centreY = canvas.Y + canvas.Height / 2;
+        double centreX = canvas.Center.X, centreY = canvas.Center.Y;
 
         foreach (int i in order)
         {
-            var measured = metrics.Measure(spec.Words[i], spec.Font with { Size = sizes[i] });
+            var measured = metrics.ExtentOf(spec.Words[i], spec.Font with { Size = sizes[i] }).Box;
             var box = measured.Width * measured.Height > free ? null : Find(measured, centreX, centreY, canvas, blocked);
             if (box is { } found)
             {
@@ -109,7 +111,9 @@ internal static class WordCloudLayout
     }
 
     /// <summary>The first place for a box of this size on the spiral round the centre: inside the canvas and clear of the boxes
-    /// set. <see langword="null"/> when there is none, which is when the spiral has left every place the box could stand in.</summary>
+    /// set. <see langword="null"/> when there is none, which is when the spiral has left every place the box could stand in. The spiral
+    /// is rectangular, on the integer grid of <see cref="GridStep"/>: the origin, then right one, up one, left two, down two, right
+    /// three, up three, and so on, out to the ring the room round the box allows.</summary>
     /// <param name="size">The size of the box to set.</param>
     /// <param name="centreX">The X of the centre of the canvas, where the spiral begins.</param>
     /// <param name="centreY">The Y of the centre of the canvas, where the spiral begins.</param>
@@ -120,21 +124,42 @@ internal static class WordCloudLayout
         // The box can only be moved as far from the centre as the room round it allows.
         double reachX = (canvas.Width - size.Width) / 2 / GridStep, reachY = (canvas.Height - size.Height) / 2 / GridStep;
         if (reachX < 0 || reachY < 0) return null;
+        double radius = Math.Max(reachX, reachY);
 
-        foreach (var (x, y) in Spiral(Math.Max(reachX, reachY)))
+        int x = 0, y = 0;
+        if (At(x, y) is { } origin) return origin;
+        for (int leg = 1, direction = 0; Math.Max(Math.Abs(x), Math.Abs(y)) <= radius + 1; leg++)
         {
-            if (Math.Abs(x) > reachX || Math.Abs(y) > reachY) continue;
+            for (int pass = 0; pass < 2; pass++, direction++)
+            {
+                for (int step = 0; step < leg; step++)
+                {
+                    switch (direction % 4)
+                    {
+                        case 0: x++; break;
+                        case 1: y--; break;
+                        case 2: x--; break;
+                        default: y++; break;
+                    }
 
-            var box = new Rect(centreX - size.Width / 2 + x * GridStep, centreY - size.Height / 2 + y * GridStep, size.Width, size.Height);
-            if (box.X < canvas.X || box.Y < canvas.Y || box.X + box.Width > canvas.X + canvas.Width || box.Y + box.Height > canvas.Y + canvas.Height)
-                continue;
-
-            var padded = box.Inflate(Padding / 2, Padding / 2);
-            if (!Touches(padded, blocked))
-                return box;
+                    if (At(x, y) is { } box) return box;
+                }
+            }
         }
 
         return null;
+
+        // The box a step (stepX, stepY) from the centre, when it is within reach, inside the canvas and clear of the boxes set.
+        Rect? At(int stepX, int stepY)
+        {
+            if (Math.Abs(stepX) > reachX || Math.Abs(stepY) > reachY) return null;
+
+            var box = new Rect(Range1D.Around(centreX, size.Width).Lo + stepX * GridStep, Range1D.Around(centreY, size.Height).Lo + stepY * GridStep, size.Width, size.Height);
+            if (box.X < canvas.X || box.Y < canvas.Y || box.X + box.Width > canvas.X + canvas.Width || box.Y + box.Height > canvas.Y + canvas.Height)
+                return null;
+
+            return Touches(box.Inflate(Padding / 2, Padding / 2), blocked) ? null : box;
+        }
     }
 
     /// <summary>Whether a box touches any of the boxes already set.</summary>
@@ -150,69 +175,26 @@ internal static class WordCloudLayout
         return false;
     }
 
-    /// <summary>A rectangular spiral on the integer grid: the origin, then right one, up one, left two, down two, right three, up
-    /// three, and so on, out to the ring of the given radius.</summary>
-    private static IEnumerable<Offset> Spiral(double radius)
-    {
-        int x = 0, y = 0, leg = 1, direction = 0;
-        yield return new Offset(0, 0);
-        while (Math.Max(Math.Abs(x), Math.Abs(y)) <= radius + 1)
-        {
-            for (int pass = 0; pass < 2; pass++)
-            {
-                for (int step = 0; step < leg; step++)
-                {
-                    switch (direction % 4)
-                    {
-                        case 0: x++; break;
-                        case 1: y--; break;
-                        case 2: x--; break;
-                        default: y++; break;
-                    }
-
-                    yield return new Offset(x, y);
-                }
-
-                direction++;
-            }
-
-            leg++;
-        }
-    }
-
-    /// <summary>A step from the centre, in grid units.</summary>
-    private readonly record struct Offset(int X, int Y)
-    {
-        public void Deconstruct(out int x, out int y)
-        {
-            x = X;
-            y = Y;
-        }
-    }
-
     /// <summary>Refuses a cloud that cannot be laid out: words and weights of different lengths, a weight that is not a finite
-    /// number above zero, an empty or repeated word, a size range that is not above zero. Compute does it first; the verb of the
-    /// series does it before a series exists.</summary>
+    /// number above zero, an empty or repeated word. Compute does it first; the verb of the series does it before a series exists.
+    /// The size range is not checked here: a spec takes it from <c>WordCloudSeries.Sizes</c>, whose setter refuses a range that is
+    /// not above zero, or from the verb's resting range.</summary>
     /// <param name="spec">The cloud.</param>
     /// <exception cref="ArgumentException">The cloud cannot be laid out; the message names the word or the place.</exception>
     internal static void Refuse(WordCloudSpec spec)
     {
-        if (spec.Words.Count != spec.Weights.Count)
-            throw new ArgumentException($"A word cloud needs one weight for each word; there are {spec.Words.Count} words and {spec.Weights.Count} weights.", nameof(spec));
-        if (!(spec.Sizes.Lo > 0) || !(spec.Sizes.Hi >= spec.Sizes.Lo) || !double.IsFinite(spec.Sizes.Hi))
-            throw new ArgumentException($"The sizes of a word cloud are a range above zero, from the smallest to the largest; got {spec.Sizes.Lo} to {spec.Sizes.Hi}.", nameof(spec));
+        static string Weight(string word) => $"The weight of \"{word}\"";
+        spec.Weights.Count.ThrowIfMisaligned(spec.Words.Count, nameof(spec));
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < spec.Words.Count; i++)
         {
             string word = spec.Words[i];
             if (string.IsNullOrWhiteSpace(word))
-                throw new ArgumentException($"A word cloud has an empty word: word {i} is empty, and a word is text.", nameof(spec));
+                throw new ArgumentException(string.Invariant($"A word cloud has an empty word: word {i} is empty, and a word is text."), nameof(spec));
             if (!seen.Add(word))
                 throw new ArgumentException($"The word \"{word}\" is given more than once; give each word once, with its total weight.", nameof(spec));
-            double weight = spec.Weights[i];
-            if (!(weight > 0) || !double.IsFinite(weight))
-                throw new ArgumentException($"The weight of \"{word}\" is {weight}; a weight is a finite number above zero.", nameof(spec));
+            spec.Weights[i].ThrowIfNotFinite(nameof(spec), word, Weight).ThrowIfNotAbove(0, nameof(spec), word, Weight);
         }
     }
 }

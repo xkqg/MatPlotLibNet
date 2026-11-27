@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -15,17 +17,17 @@ internal sealed class FunnelSeriesRenderer : SeriesRenderer<FunnelSeries>
     /// <inheritdoc />
     internal override void AddMarks(FunnelSeries series, MarkObstacles.Builder marks)
     {
-        var font = ThemedFontProvider.DataTextFont(Context.Theme);
+        var font = Context.Theme.DataTextFont();
         foreach (var stage in Stages(series))
         {
             marks.AddBox(stage.Bar);
-            marks.AddBox(new TextBox(stage.Label, Ctx.MeasureText(series.Labels[stage.Index], font), font.Size,
-                TextAlignment.Center, TextVerticalAlignment.Baseline, 0).Bounds());
+            marks.AddBox(new TextBox(stage.Label, Ctx.ExtentOf(TextLabel.Of(series.Labels[stage.Index]), font)).Bounds());
         }
     }
 
-    /// <summary>One stage of a funnel that can be drawn: its place in the series, its bar and where its name stands.</summary>
-    private readonly record struct FunnelStage(int Index, Rect Bar, Point Label);
+    /// <summary>One stage of a funnel that can be drawn: its place in the series, its bar and where its name stands (centred on the
+    /// middle of its row).</summary>
+    private readonly record struct FunnelStage(int Index, Rect Bar, TextPlacement Label);
 
     /// <summary>The stages that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a
     /// legend. Scaled to the widest stage that can be drawn; with none (no stage at all, or none that can be drawn) the plot
@@ -40,21 +42,23 @@ internal sealed class FunnelSeriesRenderer : SeriesRenderer<FunnelSeries>
         {
             double frac = series.Values[i] / maxVal;
             double barW = bounds.Width * frac;
-            double x = bounds.X + (bounds.Width - barW) / 2;
+            double x = Range1D.CentredIn(bounds.X, bounds.Width, barW).Lo;
             double y = bounds.Y + i * rowH;
             var bar = new Rect(x, y + 2, barW, rowH - 4);
             if (!bar.IsDrawable()) continue;
-            yield return new FunnelStage(i, bar, new Point(bounds.X + bounds.Width / 2, y + rowH / 2 + 4));
+            yield return new FunnelStage(i, bar, new TextPlacement(new Point(bounds.Center.X, y + rowH / 2), TextAlignment.Center) { Vertical = TextVerticalAlignment.Center });
         }
     }
 
     /// <inheritdoc />
     public override void Render(FunnelSeries series)
     {
+        double size = Context.Theme.DataTextFont().Size;
         foreach (var stage in Stages(series))
         {
-            Ctx.DrawRectangle(stage.Bar, new ShapeStyle(PartColor(series.Colors, stage.Index), null, 0));
-            Ctx.DrawText(series.Labels[stage.Index], stage.Label, ThemedFontProvider.DataTextFont(Context.Theme), TextAlignment.Center);
+            var ground = PartColor(series.Colors, stage.Index);
+            Ctx.DrawRectangle(stage.Bar, ShapeStyle.Filled(ground));
+            Ctx.Draw(TextLabel.Of(series.Labels[stage.Index]), Context.Theme.DataTextFontOn(ground, size, GroundInk.Readable), stage.Label);
         }
     }
 }

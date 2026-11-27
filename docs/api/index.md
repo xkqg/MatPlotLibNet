@@ -35,7 +35,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `MatPlotLibNet.Geo` | `MatPlotLibNet.Geo` | 13 map projections + GeoJSON loaders |
 | `MatPlotLibNet.DataFrame` | `MatPlotLibNet.DataFrame` | `Microsoft.Data.Analysis` extensions |
 | `MatPlotLibNet.AspNetCore` | `MatPlotLibNet.AspNetCore` | SignalR hub + REST endpoints |
-| `MatPlotLibNet.Interactive` | `MatPlotLibNet.Interactive` | Embedded Kestrel server + `Show()` extension |
+| `MatPlotLibNet.Interactive` | `MatPlotLibNet.Interactive` | Embedded Kestrel server + `ShowAsync()` extension |
 | `MatPlotLibNet.GraphQL` | `MatPlotLibNet.GraphQL` | Hot Chocolate subscription type |
 | `MatPlotLibNet.Blazor` | `MatPlotLibNet.Blazor` | `MplChart`, `MplLiveChart`, `MplStreamingChart` Razor components |
 | `MatPlotLibNet.Wpf` | `MatPlotLibNet.Wpf` | `MplChartControl` and `MplStreamingChartControl` for WPF (Skia-backed) |

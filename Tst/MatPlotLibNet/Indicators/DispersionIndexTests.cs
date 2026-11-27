@@ -7,32 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="DispersionIndex"/>. Covers all 7 branches enumerated in
-/// docs/contrib/indicator-tier-2a.md §3.</summary>
+/// <summary>Verifies <see cref="DispersionIndex"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class DispersionIndexTests
 {
-    // ── Branch 1 — Empty input → empty output ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var d = new DispersionIndex([]);
-        Assert.Empty(d.Compute().Values);
-    }
-
-    // ── Branch 2 — FeatureCount < 2 throws ──
-    [Fact]
-    public void Constructor_SingleSignalPerRow_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new DispersionIndex([[0.5]]));
-    }
-
-    [Fact]
-    public void Constructor_ZeroSignalsPerRow_Throws()
-    {
-        // 1 row, 0 features per row.
-        Assert.Throws<ArgumentException>(() => new DispersionIndex([Array.Empty<double>()]));
-    }
-
     // ── Branch 3 — FeatureCount == 2 boundary ──
     [Fact]
     public void Compute_TwoSignals_BinarySplit_ReturnsHalf()
@@ -56,11 +34,7 @@ public class DispersionIndexTests
         ]);
         var r = d.Compute().Values;
         Assert.Equal(4, r.Length);
-        Assert.All(r, v =>
-        {
-            Assert.Equal(0.0, v, precision: 12);
-            Assert.False(double.IsNaN(v));
-        });
+        Assert.All(r, v => Assert.Equal(0.0, v, precision: 12));
     }
 
     // ── Branch 5 — Maximum disagreement (K=2, signals at [0, 1]) → 0.5 ──
@@ -74,14 +48,6 @@ public class DispersionIndexTests
         var r = d.Compute().Values;
         Assert.Equal(2, r.Length);
         Assert.All(r, v => Assert.Equal(0.5, v, precision: 12));
-    }
-
-    // ── Branch 6 — Non-rectangular feature matrix throws (via base class) ──
-    [Fact]
-    public void Constructor_NonRectangular_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new DispersionIndex([new[] { 0.5, 0.5 }, new[] { 0.3, 0.3, 0.3 }]));
     }
 
     // ── Branch 7 — Normal multi-bar path ──
@@ -110,32 +76,5 @@ public class DispersionIndexTests
         // For [0, 1, 0.5]: mean=0.5, variance = (0.25 + 0.25 + 0)/3 ≈ 0.16667, stddev ≈ 0.408248
         Assert.Equal(Math.Sqrt((0.25 + 0.25 + 0.0) / 3.0), r[1], precision: 12);
         Assert.Equal(Math.Sqrt((0.25 + 0.25 + 0.0) / 3.0), r[2], precision: 12);
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        new DispersionIndex([[0.2, 0.3], [0.5, 0.5]]).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        new DispersionIndex([[0.2, 0.3, 0.4], [0.5, 0.5, 0.5]]).Apply(axes);
-        Assert.Equal("Dispersion(3)", axes.Series[0].Label);
-    }
-
-    // ── Type system ──
-    [Fact]
-    public void InheritsMultivariateIndicator()
-    {
-        var d = new DispersionIndex([[0.5, 0.5]]);
-        Assert.IsAssignableFrom<MultivariateIndicator<SignalResult>>(d);
-        Assert.IsAssignableFrom<IIndicator>(d);
     }
 }

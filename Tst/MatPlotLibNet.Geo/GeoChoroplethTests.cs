@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Geo.Data;
 using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Geo.Projections;
@@ -12,6 +11,7 @@ using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -22,20 +22,17 @@ namespace MatPlotLibNet.Geo.Tests;
 [Collection("ChartSerializerGlobalState")]
 public class GeoChoroplethTests
 {
-    private static readonly ChartSerializer Serializer = new();
-    private static readonly Regex PathFills = new("<path d=\"[^\"]*\" fill=\"(?<f>#[0-9A-Fa-f]{6})\"", RegexOptions.Compiled);
-
     private static GeoFeature Square(double x, string code) =>
-        new(new GeoGeometry { Type = "Polygon", Rings = [[(x, 0), (x + 5, 0), (x + 5, 5), (x, 5), (x, 0)]] },
+        new(new GeoGeometry { Type = "Polygon", PositionRings = [[new(x, 0), new(x + 5, 0), new(x + 5, 5), new(x, 5), new(x, 0)]] },
             new Dictionary<string, string> { ["ADM0_A3"] = code });
 
     private static List<GeoFeature> ThreeSquares() => [Square(0, "AAA"), Square(10, "BBB"), Square(20, "CCC")];
 
-    private static string[] Fills(GeoPolygonSeries series)
+    private static string[] Fills(GeoPolygonSeries series, Theme? theme = null)
     {
-        string svg = Plt.Create().WithSize(600, 330).AddSubPlot(1, 1, 1, ax => ax
+        string svg = Plt.Create().WithSize(600, 330).WithTheme(theme ?? Theme.Default).AddSubPlot(1, 1, 1, ax => ax
             .WithProjection(GeoProjection.PlateCarree).AddSeries(series)).ToSvg();
-        return [.. PathFills.Matches(svg).Select(m => m.Groups["f"].Value.ToUpperInvariant())];
+        return MapSvg.PathFills(svg);
     }
 
     private static string Hex(Color color) => color.ToHex().ToUpperInvariant();
@@ -87,6 +84,31 @@ public class GeoChoroplethTests
         Assert.Equal(Hex(ColorMaps.Viridis.GetColor(0.5)), Fills(logarithmic)[1]);
     }
 
+    /// <summary>Under the matplotlib themes a <see cref="LogNormalizer"/> is matplotlib's <c>LogNorm</c>: 8 in 2 to 200 is
+    /// <c>log(4) / log(100)</c> of the map, where the documented formula of the normaliser, which the library's own theme keeps, gives
+    /// <c>log(7) / log(199)</c>.</summary>
+    [Fact]
+    public void ALogarithmicScale_IsMatplotlibsLogNorm_UnderTheMatplotlibThemes()
+    {
+        var series = new GeoPolygonSeries(ThreeSquares(), GeoProjection.PlateCarree)
+            { Values = [2, 8, 200], ColorMap = ColorMaps.Viridis, Normalizer = new LogNormalizer() };
+
+        Assert.Equal(Hex(ColorMaps.Viridis.GetColor(Math.Log(4) / Math.Log(100))), Fills(series, Theme.MatplotlibV2)[1]);
+        Assert.Equal(Hex(ColorMaps.Viridis.GetColor(Math.Log(7) / Math.Log(199))), Fills(series)[1]);
+    }
+
+    /// <summary>matplotlib's <c>LogNorm</c> takes the smallest value above 0 as <c>vmin</c> and masks 0: of 0, 2, 20 and 200, 20 stands at
+    /// half the map.</summary>
+    [Fact]
+    public void ALogarithmicScale_RunsFromTheSmallestValueAboveZero_UnderTheMatplotlibThemes()
+    {
+        var series = new GeoPolygonSeries([.. ThreeSquares(), Square(30, "DDD")], GeoProjection.PlateCarree)
+            { Values = [0, 2, 20, 200], ColorMap = ColorMaps.Viridis, Normalizer = new LogNormalizer() };
+
+        Assert.Contains(Hex(ColorMaps.Viridis.GetColor(0.5)), Fills(series, Theme.MatplotlibV2));
+        Assert.DoesNotContain(Hex(ColorMaps.Viridis.GetColor(0.5)), Fills(series));
+    }
+
     [Fact]
     public void ValuesThatDoNotPairWithTheFeatures_AreRefused()
     {
@@ -94,7 +116,8 @@ public class GeoChoroplethTests
 
         var ex = Assert.Throws<ArgumentException>(() => series.Values = [1, 2]);
 
-        Assert.Equal("Array lengths must match. Got 2 values for 3 features.", ex.Message);
+        Assert.Equal("Values", ex.ParamName);
+        Assert.StartsWith(2.RefusalAgainst(3), ex.Message, StringComparison.Ordinal);
         Assert.Null(series.Values);
     }
 
@@ -140,8 +163,23 @@ public class GeoChoroplethTests
             Assert.Contains(tick, tail);
     }
 
-    [Fact]
-    public void TheColourBar_ReadsTheRegionsThatHaveValues_NotTheOceanBeneathThem()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
+    {
+        //  With nothing to back it the bar takes the range of its own limits (0 to 1) and the default map, as any colour bar does.
+        new DrawnToken("AMapWithNoValues_BacksNoColourBar", () =>
+        {
+            var series = new GeoPolygonSeries(ThreeSquares(), GeoProjection.PlateCarree);
+            return Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
+                .WithProjection(GeoProjection.PlateCarree).AddSeries(series).WithColorBar()).ToSvg();
+        }, "class=\"colorbar\"") { Absent = [">100<"] },
+        new DrawnToken("TheColourBar_ReadsTheRegionsThatHaveValues_NotTheOceanBeneathThem", ColourBar, ">100<", ">200<"),
+        new DrawnToken("TheColourBar_ReadsTheRegionsThatHaveValues_NotTheOceanBeneathThem_InTheirColour", ColourBar, Colors.Orange.ToHex())
+            { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
+
+    /// <summary>The colour bar of a map whose regions have values, drawn over an ocean: the part of the markup from the bar on.</summary>
+    private static string ColourBar()
     {
         var map = new ListedColorMap("two", [Colors.Blue, Colors.Orange]);
         string svg = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
@@ -150,24 +188,12 @@ public class GeoChoroplethTests
             .AddSeries(new GeoPolygonSeries(ThreeSquares(), GeoProjection.PlateCarree) { Values = [100, 150, 200], ColorMap = map })
             .WithColorBar()).ToSvg();
 
-        string bar = svg[svg.IndexOf("class=\"colorbar\"", StringComparison.Ordinal)..];
-
-        Assert.Contains(">100<", bar);
-        Assert.Contains(">200<", bar);
-        Assert.Contains(Colors.Orange.ToHex(), bar, StringComparison.OrdinalIgnoreCase);
+        return svg[svg.IndexOf("class=\"colorbar\"", StringComparison.Ordinal)..];
     }
 
-    [Fact]
-    public void AMapWithNoValues_BacksNoColourBar()
-    {
-        var series = new GeoPolygonSeries(ThreeSquares(), GeoProjection.PlateCarree);
-        string svg = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
-            .WithProjection(GeoProjection.PlateCarree).AddSeries(series).WithColorBar()).ToSvg();
-
-        // With nothing to back it the bar takes the range of its own limits (0 to 1) and the default map, as any colour bar does.
-        Assert.Contains("class=\"colorbar\"", svg);
-        Assert.DoesNotContain(">100<", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- the join ----------------------------------------------------------------------------------------------------------
 
@@ -247,13 +273,13 @@ public class GeoChoroplethTests
             .AddSeries(new GeoPolygonSeries(ThreeSquares(), GeoProjection.PlateCarree)
                 { Values = [1, double.NaN, 100], ColorMap = map, Normalizer = new LogNormalizer() })).Build();
 
-        var back = Assert.IsType<GeoPolygonSeries>(Serializer.FromJson(Serializer.ToJson(figure)).SubPlots[0].Series[0]);
+        var back = Assert.IsType<GeoPolygonSeries>(figure.RoundTripped().SubPlots[0].Series[0]);
 
         Assert.Equal<double>([1, double.NaN, 100], back.Values!);
         Assert.IsType<LogNormalizer>(back.Normalizer);
         Assert.Equal(map.GetColor(0.3), back.ColorMap!.GetColor(0.3));
         Assert.Equal(map.BadColor, back.ColorMap.GetBadColor());
-        Assert.Equal(figure.ToSvg(), Serializer.FromJson(Serializer.ToJson(figure)).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     [Fact]
@@ -264,6 +290,6 @@ public class GeoChoroplethTests
             .Choropleth(new Dictionary<string, double> { ["FRA"] = 1, ["NOR"] = 4, ["BRA"] = 9 }, ColorMaps.Plasma)
             .WithColorBar()).Build();
 
-        Assert.Equal(figure.ToSvg(), Serializer.FromJson(Serializer.ToJson(figure)).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 }

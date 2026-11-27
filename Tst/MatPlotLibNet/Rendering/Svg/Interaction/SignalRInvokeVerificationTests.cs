@@ -89,7 +89,7 @@ public class SignalRInvokeVerificationTests
         // bubble events, so we fire directly on the SVG with target spoofed
         // to the legend badge — which is what the browser's bubble propagation
         // delivers in production.
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
         var legend = h.Document.querySelector("[data-legend-index='0']")!;
         svg.Fire(new DomEvent("click") { target = legend });
 

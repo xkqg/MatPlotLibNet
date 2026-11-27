@@ -1,9 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Serialization;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Features;
 
@@ -33,44 +35,19 @@ public class ThresholdLineTests
         Assert.Single(axes.Spans);
     }
 
-    /// <summary>For a horizontal threshold with breach=Above the span min equals the threshold value.</summary>
-    [Fact]
-    public void Threshold_Horizontal_Above_SpanMinEqualsValue()
+    /// <summary>The span runs from the threshold to the far end of the breach: above it up to the largest value, below it down to the
+    /// smallest, in either orientation.</summary>
+    [Theory]
+    [InlineData(Orientation.Horizontal, ThresholdBreach.Above, 70.0, double.MaxValue)]
+    [InlineData(Orientation.Horizontal, ThresholdBreach.Below, double.MinValue, 70.0)]
+    [InlineData(Orientation.Vertical, ThresholdBreach.Above, 70.0, double.MaxValue)]
+    public void TheSpan_RunsFromTheThreshold_ToTheFarEndOfTheBreach(Orientation orientation, ThresholdBreach breach, double min, double max)
     {
         var axes = new Axes();
-        axes.AddThreshold(70.0, Orientation.Horizontal, ThresholdBreach.Above);
+        axes.AddThreshold(70.0, orientation, breach);
 
-        Assert.Equal(70.0, axes.Spans[0].Min);
-    }
-
-    /// <summary>For a horizontal threshold with breach=Above the span max is double.MaxValue (extend to +∞ side).</summary>
-    [Fact]
-    public void Threshold_Horizontal_Above_SpanMaxIsPositiveInfinity()
-    {
-        var axes = new Axes();
-        axes.AddThreshold(70.0, Orientation.Horizontal, ThresholdBreach.Above);
-
-        Assert.Equal(double.MaxValue, axes.Spans[0].Max);
-    }
-
-    /// <summary>For a horizontal threshold with breach=Below the span max equals the threshold value.</summary>
-    [Fact]
-    public void Threshold_Horizontal_Below_SpanMaxEqualsValue()
-    {
-        var axes = new Axes();
-        axes.AddThreshold(30.0, Orientation.Horizontal, ThresholdBreach.Below);
-
-        Assert.Equal(30.0, axes.Spans[0].Max);
-    }
-
-    /// <summary>For a horizontal threshold with breach=Below the span min is double.MinValue (extend to -∞ side).</summary>
-    [Fact]
-    public void Threshold_Horizontal_Below_SpanMinIsNegativeInfinity()
-    {
-        var axes = new Axes();
-        axes.AddThreshold(30.0, Orientation.Horizontal, ThresholdBreach.Below);
-
-        Assert.Equal(double.MinValue, axes.Spans[0].Min);
+        Assert.Equal(min, axes.Spans[0].Min);
+        Assert.Equal(max, axes.Spans[0].Max);
     }
 
     /// <summary>The ReferenceLine is dashed by default.</summary>
@@ -126,20 +103,6 @@ public class ThresholdLineTests
 
     // ── AxesBuilder fluent API tests ────────────────────────────────────────
 
-    /// <summary>AxesBuilder.Threshold returns the builder for chaining.</summary>
-    [Fact]
-    public void AxesBuilder_Threshold_IsChainable()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .Threshold(70.0, Orientation.Horizontal, ThresholdBreach.Above))
-            .Build();
-
-        Assert.Single(figure.SubPlots[0].ReferenceLines);
-        Assert.Single(figure.SubPlots[0].Spans);
-    }
-
     /// <summary>AxesBuilder.Threshold with both breach directions adds correct spans.</summary>
     [Fact]
     public void AxesBuilder_Threshold_BelowAndAbove_BothWork()
@@ -172,29 +135,24 @@ public class ThresholdLineTests
 
     // ── SVG rendering tests ─────────────────────────────────────────────────
 
-    /// <summary>SVG output contains a line element for the threshold ReferenceLine.</summary>
-    [Fact]
-    public void Threshold_SvgOutput_ContainsLine()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        //  SVG output contains a line element for the threshold ReferenceLine.
+        new DrawnToken("Threshold_SvgOutput_ContainsLine", () => Plt.Create()
             .Plot([1.0, 2.0, 3.0], [1.0, 2.0, 3.0])
             .Threshold(2.0, Orientation.Horizontal, ThresholdBreach.Above)
-            .ToSvg();
-
-        Assert.Contains("<line", svg);
-    }
-
-    /// <summary>SVG output contains a rect element for the breach SpanRegion.</summary>
-    [Fact]
-    public void Threshold_SvgOutput_ContainsRect()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<line"),
+        //  SVG output contains a rect element for the breach SpanRegion.
+        new DrawnToken("Threshold_SvgOutput_ContainsRect", () => Plt.Create()
             .Plot([1.0, 2.0, 3.0], [1.0, 2.0, 3.0])
             .Threshold(2.0, Orientation.Horizontal, ThresholdBreach.Above)
-            .ToSvg();
+            .ToSvg(), "<rect"),
+    };
 
-        Assert.Contains("<rect", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Vertical threshold (AxVLine direction) adds a vertical ReferenceLine.</summary>
     [Fact]
@@ -206,14 +164,26 @@ public class ThresholdLineTests
         Assert.Equal(Orientation.Vertical, axes.ReferenceLines[0].Orientation);
     }
 
-    /// <summary>Vertical threshold with breach=Above: span min equals value, max is MaxValue.</summary>
+    // ── Axes.AddThreshold — VERTICAL line + span + (labelled) annotation arms (the Horizontal arms are covered elsewhere) ──
     [Fact]
-    public void Threshold_Vertical_Above_SpanRange()
+    public void AddThreshold_Vertical_WithColourAndLabel_AddsVerticalLineSpanAnnotation()
     {
-        var axes = new Axes();
-        axes.AddThreshold(5.0, Orientation.Vertical, ThresholdBreach.Above);
+        var ax = new Axes();
+        ax.AddThreshold(50.0, Orientation.Vertical, ThresholdBreach.Above, Colors.Red, "Limit");
+        Assert.Single(ax.ReferenceLines);   // AxVLine path
+        Assert.Single(ax.Spans);            // AxVSpan path
+        Assert.Single(ax.Annotations);      // label != null -> vertical annotation (annotX=value, annotY=0)
+        Assert.Equal("Limit", ax.Annotations[0].Text);
+    }
 
-        Assert.Equal(5.0, axes.Spans[0].Min);
-        Assert.Equal(double.MaxValue, axes.Spans[0].Max);
+    // ── Axes.AddThreshold — VERTICAL + Below, no colour, no label (the skip arms on the vertical path) ──
+    [Fact]
+    public void AddThreshold_Vertical_Below_NoColourNoLabel_AddsLineSpan_NoAnnotation()
+    {
+        var ax = new Axes();
+        ax.AddThreshold(50.0, Orientation.Vertical, ThresholdBreach.Below);
+        Assert.Single(ax.ReferenceLines);
+        Assert.Single(ax.Spans);
+        Assert.Empty(ax.Annotations);       // label null -> annotation skipped
     }
 }

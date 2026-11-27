@@ -2,23 +2,24 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TextMeasurement;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>
-/// The one rule for the box a drawn text occupies: its width from the alignment, its ascent (the font size) above the
-/// baseline and its descent (the rest of the measured height) below, the whole box turned counter-clockwise about the
+/// The one rule for the box a drawn text occupies: its width from the alignment, its ascent above the baseline and its
+/// descent below, both read from the text's extent, the whole box turned counter-clockwise about the
 /// point the text is drawn at.
 /// </summary>
 public class TextBoxTests
 {
     private const double Tolerance = 1e-9;
     private static readonly Point Anchor = new(100, 50);
-    private static readonly Size Size = new(40, 12);
+    private static readonly TextExtent Extent = new(40, 12, 10);
 
     private static TextBox Box(TextAlignment alignment = TextAlignment.Left,
         TextVerticalAlignment vertical = TextVerticalAlignment.Baseline, double rotation = 0, Point? anchor = null) =>
-        new(anchor ?? Anchor, Size, 10, alignment, vertical, rotation);
+        new(new TextPlacement(anchor ?? Anchor, alignment) { Vertical = vertical, Rotation = rotation }, Extent);
 
     private static void AssertPoint(double x, double y, Point actual)
     {
@@ -62,9 +63,30 @@ public class TextBoxTests
     }
 
     [Fact]
-    public void TheCentreDrop_IsAThirdOfTheSizeAndAHalfAPoint()
+    public void TheAscent_IsTheExtents()
     {
-        Assert.Equal(0.35, TextBox.CentreDrop);
+        var corners = new TextBox(new TextPlacement(Anchor, TextAlignment.Left) { Vertical = TextVerticalAlignment.Top }, new TextExtent(40, 12, 8)).Corners();
+        AssertPoint(100, 50, corners.TopLeft);
+        AssertPoint(100, 62, corners.BottomLeft);
+    }
+
+    /// <summary>A text turned and aligned in its own frame (matplotlib's <c>rotation_mode='anchor'</c>, the label of a contour line) has its
+    /// baseline moved along the text's own down direction, turned with it, where an upright alignment moves it down the picture.</summary>
+    [Theory]
+    [InlineData(TextVerticalAlignment.Center, 0, 100.0, 53.5)]
+    [InlineData(TextVerticalAlignment.Center, 90, 103.5, 50.0)]
+    [InlineData(TextVerticalAlignment.Top, 90, 110.0, 50.0)]
+    [InlineData(TextVerticalAlignment.Baseline, 90, 100.0, 50.0)]
+    public void AlignedInItsOwnFrame_TheBaselineMovesAlongTheTurnedDown(TextVerticalAlignment vertical, double rotation, double x, double y)
+    {
+        AssertPoint(x, y, Box(vertical: vertical, rotation: rotation).AnchoredBaseline);
+    }
+
+    [Fact]
+    public void AlignedInItsOwnFrame_TheBaselineIsTheUprightOne_WhenTheTextIsUpright()
+    {
+        foreach (var vertical in Enum.GetValues<TextVerticalAlignment>())
+            Assert.Equal(Box(vertical: vertical).Baseline, Box(vertical: vertical).AnchoredBaseline);
     }
 
     [Fact]

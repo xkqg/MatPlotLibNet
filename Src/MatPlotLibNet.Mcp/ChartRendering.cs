@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Skia;
 using MatPlotLibNet.Transforms;
 
@@ -79,7 +80,7 @@ internal sealed class ChartRendering
 
         Figure figure = _reader.Read(spec);
         byte[] bytes = Bytes(figure, format);
-        File.WriteAllBytes(full, bytes);
+        full.ReplaceFileWith(bytes);
         return new ChartSaveResult(full, format, bytes.LongLength, _summarizer.Describe(figure));
     }
 
@@ -102,7 +103,7 @@ internal sealed class ChartRendering
         if (FormatOfExtension(path) != format)
         {
             throw new ToolRefusalException(
-                $"The format is {format.ToString().ToLowerInvariant()} but the path ends in '{extension}'. "
+                $"The format is {format.ToWireName()} but the path ends in '{extension}'. "
                 + "Name the file with the extension of the format you asked for (.png, .svg or .pdf).");
         }
     }

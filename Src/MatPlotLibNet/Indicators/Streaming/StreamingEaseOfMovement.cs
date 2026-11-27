@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -17,12 +18,11 @@ public sealed class StreamingEaseOfMovement : WindowedStreamingIndicator<OhlcvBa
     /// <param name="period">How many bars the movement is averaged over; at least 2.</param>
     /// <param name="scale">The factor the volume is scaled by; above 0.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingEaseOfMovement(int period = 14, double scale = 1_000_000, int capacity = 10_000)
-        : base(period + 1, capacity)
+    public StreamingEaseOfMovement(int period = EaseOfMovement.DefaultPeriod, double scale = EaseOfMovement.DefaultScale, int capacity = StreamingSeries.RestingCapacity)
+        : base(EaseOfMovement.Spec(period, scale), capacity)
     {
         _period = period;
         _scale = scale;
-        Label = $"EMV({period})";
     }
 
     /// <inheritdoc />

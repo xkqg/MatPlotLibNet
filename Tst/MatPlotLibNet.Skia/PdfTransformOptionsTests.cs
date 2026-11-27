@@ -10,100 +10,89 @@ namespace MatPlotLibNet.Skia.Tests;
 /// <summary>What <see cref="PdfTransform"/> does with the save options it is handed. A PDF page is vector, so the
 /// resolution has nothing to scale and is a documented no-op; the title and the author go into the document
 /// information; the settings that only an SVG can use leave the file as it was.</summary>
-public class PdfTransformOptionsTests
+public class PdfTransformOptionsTests : TransformOptionsTests<PdfTransform>
 {
-    /// <summary>Save routes .png and .pdf to the Skia transforms only once the Skia assembly's module initializer has
-    /// run, which happens when something of the assembly is first used; a test that saves a file before any other
-    /// Skia call would otherwise write an SVG under a .png name, depending on the order the tests run in.</summary>
-    static PdfTransformOptionsTests() =>
-        System.Runtime.CompilerServices.RuntimeHelpers.RunModuleConstructor(typeof(FigureSkiaExtensions).Module.ModuleHandle);
+    /// <inheritdoc/>
+    protected override int Width => PageWidth;
 
-    private static Figure Chart(double dpi = 96) =>
-        Plt.Create().WithSize(300, 200).WithDpi(dpi).Plot([1.0, 2.0, 3.0], [3.0, 1.0, 2.0]).Build();
+    /// <inheritdoc/>
+    protected override int Height => PageHeight;
 
-    private static byte[] Pdf(Figure figure, SaveOptions? options)
-    {
-        using var stream = new MemoryStream();
-        var transform = new PdfTransform();
-        if (options is null) transform.Transform(figure, stream);
-        else transform.Transform(figure, stream, options);
-        return stream.ToArray();
-    }
+    /// <inheritdoc/>
+    protected override string Extension => PageExtension;
+
+    private const int PageWidth = 300;
+    private const int PageHeight = 200;
+    private const string PageExtension = ".pdf";
+
+    private static Figure Page() => ChartOf(PageWidth, PageHeight);
 
     private static string Text(byte[] pdf) => Encoding.Latin1.GetString(pdf);
 
     // ── title and author ─────────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void TitleAndAuthor_AreWrittenToTheDocumentInformation()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string pdf = Text(Pdf(Chart(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }));
+        new DrawnToken("TitleAndAuthor_AreWrittenToTheDocumentInformation", () => Text(Make(Page(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" })), "/Title (Annual Revenue)", "/Author (Finance Team)"),
+        new DrawnToken("ATitleAlone_LeavesTheAuthorOut", () => Text(Make(Page(), new SaveOptions { Title = "Annual Revenue" })), "/Title (Annual Revenue)") { Absent = ["/Author"] },
+        new DrawnToken("AnAuthorAlone_LeavesTheTitleOut", () => Text(Make(Page(), new SaveOptions { Author = "Finance Team" })), "/Author (Finance Team)") { Absent = ["/Title"] },
+        new DrawnToken("ThePageSurvivesTheDocumentInformation (plain)", () => Text(Make(Page(), options: null)), "/MediaBox [0 0 300 200]"),
+        new DrawnToken("ThePageSurvivesTheDocumentInformation (titled)", () => Text(Make(Page(), new SaveOptions { Title = "T" })), "/MediaBox [0 0 300 200]"),
+        new DrawnToken("Save_ToAPdfPath_WritesTheTitleAndAuthor", () => Text(SavedAs(PageExtension, Page(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" })), "/Title (Annual Revenue)", "/Author (Finance Team)"),
+        //  A date in the document information would make two PDFs of one figure differ whenever they are made in
+        //  different seconds. Skia writes none unless it is handed one; this holds that.
+        new DrawnToken("TextOutsideAscii_IsWrittenAsUtf16", () => Text(Make(Page(), new SaveOptions { Title = NonAsciiTitle })),
+            $"/Title <FEFF{Convert.ToHexString(Encoding.BigEndianUnicode.GetBytes(NonAsciiTitle))}>"),
+        new DrawnToken("TheDocumentInformation_HoldsNoDate", () => Text(Make(Page(), new SaveOptions { Title = "T", Author = "A" }))) { Absent = ["/CreationDate", "/ModDate"] },
+    };
 
-        Assert.Contains("/Title (Annual Revenue)", pdf);
-        Assert.Contains("/Author (Finance Team)", pdf);
-    }
+    private const string NonAsciiTitle = "Résumé — 東京";
 
-    [Fact]
-    public void ATitleAlone_LeavesTheAuthorOut()
-    {
-        string pdf = Text(Pdf(Chart(), new SaveOptions { Title = "Annual Revenue" }));
-
-        Assert.Contains("/Title (Annual Revenue)", pdf);
-        Assert.DoesNotContain("/Author", pdf);
-    }
-
-    [Fact]
-    public void AnAuthorAlone_LeavesTheTitleOut()
-    {
-        string pdf = Text(Pdf(Chart(), new SaveOptions { Author = "Finance Team" }));
-
-        Assert.Contains("/Author (Finance Team)", pdf);
-        Assert.DoesNotContain("/Title", pdf);
-    }
-
-    [Fact]
-    public void TextOutsideAscii_IsWrittenAsUtf16()
-    {
-        const string title = "Résumé — 東京";
-        string utf16 = Convert.ToHexString(Encoding.BigEndianUnicode.GetBytes(title));
-
-        string pdf = Text(Pdf(Chart(), new SaveOptions { Title = title }));
-
-        Assert.Contains($"/Title <FEFF{utf16}>", pdf);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void EmptyTitleAndAuthor_WriteTheSameFileAsNone()
     {
-        Assert.Equal(Pdf(Chart(), options: null), Pdf(Chart(), new SaveOptions { Title = "", Author = "" }));
+        Assert.Equal(Make(Chart(), options: null), Make(Chart(), new SaveOptions { Title = "", Author = "" }));
+    }
+
+    // ── the same figure writes the same bytes ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void PdfsMadeOnManyThreadsAtOnce_AreTheBytesOfTheOneMadeAlone()
+    {
+        // Skia asks the typeface which character each glyph stands for, and the typeface is one the threads share: PDFs
+        // made at the same moment came out with a text map of U+0000 for every glyph in about one of ten (a length of 247
+        // against 259 in the map's stream), so the same figure wrote different bytes and its text could not be copied out.
+        byte[] alone = Make(Chart(), options: null);
+        var made = new byte[64][];
+
+        Parallel.For(0, made.Length, new ParallelOptions { MaxDegreeOfParallelism = 8 }, i => made[i] = Make(Chart(), options: null));
+
+        int differing = made.Count(pdf => !pdf.AsSpan().SequenceEqual(alone));
+        Assert.True(differing == 0, $"{differing} of {made.Length} PDFs made at the same moment differ from the one made alone");
     }
 
     [Fact]
-    public void ThePageSurvivesTheDocumentInformation()
+    public void MultiPagePdfsMadeOnManyThreadsAtOnce_AreTheBytesOfTheOneMadeAlone()
     {
-        string plain = Text(Pdf(Chart(), options: null));
-        string titled = Text(Pdf(Chart(), new SaveOptions { Title = "T" }));
-
-        Assert.Contains("/MediaBox [0 0 300 200]", plain);
-        Assert.Contains("/MediaBox [0 0 300 200]", titled);
-    }
-
-    [Fact]
-    public void Save_ToAPdfPath_WritesTheTitleAndAuthor()
-    {
-        string path = Path.Combine(Path.GetTempPath(), $"s9_{Guid.NewGuid():N}.pdf");
-        try
+        byte[] Write()
         {
-            Chart().Save(path, new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" });
+            using var stream = new MemoryStream();
+            new PdfTransform().TransformMultiPage([Chart(), Chart(dpi: 300)], stream);
+            return stream.ToArray();
+        }
 
-            string pdf = Text(File.ReadAllBytes(path));
-            Assert.Contains("/Title (Annual Revenue)", pdf);
-            Assert.Contains("/Author (Finance Team)", pdf);
-        }
-        finally
-        {
-            if (File.Exists(path)) File.Delete(path);
-        }
+        byte[] alone = Write();
+        var made = new byte[40][];
+
+        Parallel.For(0, made.Length, new ParallelOptions { MaxDegreeOfParallelism = 8 }, i => made[i] = Write());
+
+        int differing = made.Count(pdf => !pdf.AsSpan().SequenceEqual(alone));
+        Assert.True(differing == 0, $"{differing} of {made.Length} PDFs made at the same moment differ from the one made alone");
     }
 
     // ── what a PDF cannot use ────────────────────────────────────────────────────────────────────────
@@ -111,24 +100,10 @@ public class PdfTransformOptionsTests
     [Fact]
     public void Resolution_IsANoOp_ForAVectorPage()
     {
-        byte[] plain = Pdf(Chart(), options: null);
+        byte[] plain = Make(Chart(), options: null);
 
-        Assert.Equal(plain, Pdf(Chart(), new SaveOptions { Dpi = 300 }));
-        Assert.Equal(plain, Pdf(Chart(dpi: 300), options: null));
-        Assert.Equal(plain, Pdf(Chart(dpi: 300), new SaveOptions { Dpi = 600 }));
-    }
-
-    [Fact]
-    public void SvgOnlySettings_LeaveThePdfExactlyAsItWas()
-    {
-        Assert.Equal(
-            Pdf(Chart(), options: null),
-            Pdf(Chart(), new SaveOptions { PrettifySvg = true, SvgDecimalPrecision = 1 }));
-    }
-
-    [Fact]
-    public void NoOptions_AndDefaultOptions_WriteTheSameBytes()
-    {
-        Assert.Equal(Pdf(Chart(), options: null), Pdf(Chart(), new SaveOptions()));
+        Assert.Equal(plain, Make(Chart(), new SaveOptions { Dpi = 300 }));
+        Assert.Equal(plain, Make(Chart(dpi: 300), options: null));
+        Assert.Equal(plain, Make(Chart(dpi: 300), new SaveOptions { Dpi = 600 }));
     }
 }

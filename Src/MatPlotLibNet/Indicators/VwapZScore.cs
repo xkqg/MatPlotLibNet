@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Indicators.Steps;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -11,27 +13,26 @@ namespace MatPlotLibNet.Indicators;
 /// as entry signals. Modern quant-microstructure technique; no single attribution.</summary>
 public sealed class VwapZScore : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>window</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultWindow = 20;
+
     private readonly int _window;
 
     /// <summary>Creates a new VWAP Z-Score indicator.</summary>
     /// <param name="bars">Close and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
-    /// <param name="window">Rolling window length. Default 20. Must be ≥ 2.</param>
-    public VwapZScore(OhlcvBars bars, int window = 20)
-        : base(bars)
+    /// <param name="window">Rolling window length. Default <see cref="DefaultWindow"/>. Must be ≥ 2.</param>
+    public VwapZScore(OhlcvBars bars, int window = DefaultWindow)
+        : base(bars, Spec(window))
     {
-        if (window < 2)
-            throw new ArgumentException($"window must be >= 2 (got {window}).", nameof(window));
         _window = window;
-        Label = $"VwapZ({window})";
     }
+
+    internal static IndicatorSpec Spec(int window) => IndicatorSpec.OfCheckedWindow("VwapZ", window, 2, window - 1);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = BarCount;
-        if (n < _window) return Array.Empty<double>();
-
-        int outLen = n - _window + 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
 
         for (int w = 0; w < outLen; w++)
@@ -49,30 +50,21 @@ public sealed class VwapZScore : CandleIndicator<SignalResult>
             // 2) Rolling std of per-bar VWAP deviations within the same window.
             //    For each i in window, compute VWAP of the window ENDING at i, then dev_i = Close[i] - VwapEndingAt_i.
             //    Only the i's where a full _window fits (i >= _window - 1 in global indexing) are usable.
-            double mean = 0;
             int count = 0;
             double[] devs = new double[_window];
             for (int i = start; i < end; i++)
             {
-                if (i < _window - 1) continue;                    // not enough history for a full VWAP window
+                if (i < FirstValueIndex) continue;               // not enough history for a full VWAP window
                 var localMean = new VolumeWeightedMean();
                 for (int j = i - _window + 1; j <= i; j++) localMean.Add(Close[j], Volume[j]);
                 double localVwap = localMean.Value(Close[i]);
                 devs[count] = Close[i] - localVwap;
-                mean += devs[count];
                 count++;
             }
 
             if (count < 2) { result[w] = 0; continue; }
-            mean /= count;
-            double sqSum = 0;
-            for (int k = 0; k < count; k++)
-            {
-                double d = devs[k] - mean;
-                sqSum += d * d;
-            }
             // Sample standard deviation (ddof=1) to match the Python reference in the spec.
-            double std = Math.Sqrt(sqSum / (count - 1));
+            double std = devs.AsSpan(0, count).StdDev(ddof: 1);
             result[w] = std > 0 ? deviation / std : 0.0;
         }
 
@@ -80,5 +72,5 @@ public sealed class VwapZScore : CandleIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: _window - 1);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

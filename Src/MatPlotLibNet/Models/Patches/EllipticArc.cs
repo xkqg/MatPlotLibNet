@@ -21,9 +21,6 @@ namespace MatPlotLibNet.Models.Patches;
 /// <param name="Angle">The angle the ellipse is turned through, in degrees counter-clockwise.</param>
 internal readonly record struct EllipticArc(DataPoint Center, double Width, double Height, double Angle)
 {
-    /// <summary>numpy's <c>deg2rad</c> factor.</summary>
-    private const double DegreesToRadians = Math.PI / 180.0;
-
     private const double HalfPi = Math.PI * 0.5;
 
     /// <summary>matplotlib's <c>Path.circle</c> constant (Lancaster): how far a control point stands from its end along the tangent,
@@ -65,8 +62,8 @@ internal readonly record struct EllipticArc(DataPoint Center, double Width, doub
         double turns = (theta2 - theta1) / 360;
         double nearest = Math.Round(turns);   // numpy's rint: a half to the even turn
         bool whole = nearest != 0 && Math.Abs(turns - nearest) <= 1e-12;
-        double eta1 = theta1 * DegreesToRadians;
-        double eta2 = (whole ? theta1 + 360 : theta2 - 360 * Math.Floor(turns)) * DegreesToRadians;
+        double eta1 = theta1.ToRadians();
+        double eta2 = (whole ? theta1 + 360 : theta2 - 360 * Math.Floor(turns)).ToRadians();
 
         // An angle of a size whose difference has lost its digits could ask for more curves than a turn has: 2^16 at most.
         double quarters = Math.Ceiling((eta2 - eta1) / HalfPi);
@@ -113,16 +110,17 @@ internal readonly record struct EllipticArc(DataPoint Center, double Width, doub
     /// and moved to the <see cref="Center"/>, as matplotlib's <c>Affine2D().scale(width / 2, height / 2).rotate_deg(angle)
     /// .translate(center)</c> does.</summary>
     /// <param name="unit">The outline on the unit circle.</param>
-    /// <returns>The outline in data units; empty when the ellipse has no size (a width or a height of 0 or less) or a point of the
-    /// outline is not a finite number, so the shape draws nothing.</returns>
+    /// <returns>The outline in data units; a negative width or height mirrors it, as the same scale does in matplotlib. Empty when
+    /// the ellipse has no size (a width or a height of 0) or a point of the outline is not a finite number, so the shape draws
+    /// nothing.</returns>
     internal IReadOnlyList<PathSegment> Place(IEnumerable<PathSegment> unit)
     {
-        if (!(Width > 0 && Height > 0))
+        if (Width == 0 || Height == 0)
         {
             return [];
         }
 
-        double radians = Angle * DegreesToRadians;
+        double radians = Angle.ToRadians();
         double cos = Math.Cos(radians), sin = Math.Sin(radians);
         double halfWidth = Width * 0.5, halfHeight = Height * 0.5;
         double xx = cos * halfWidth, xy = -sin * halfHeight, yx = sin * halfWidth, yy = cos * halfHeight;

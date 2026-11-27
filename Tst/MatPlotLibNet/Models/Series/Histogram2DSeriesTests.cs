@@ -4,6 +4,18 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Interaction;
+using MatPlotLibNet.Models.Streaming;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -12,15 +24,6 @@ public class Histogram2DSeriesTests
 {
     private static readonly double[] SampleX = [1.0, 2.0, 3.0, 4.0, 5.0, 1.5, 2.5, 3.5, 4.5, 2.0];
     private static readonly double[] SampleY = [10.0, 20.0, 30.0, 40.0, 50.0, 15.0, 25.0, 35.0, 45.0, 20.0];
-
-    /// <summary>Verifies that the constructor stores X and Y data.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        var series = new Histogram2DSeries(SampleX, SampleY);
-        Assert.Same(SampleX, series.X);
-        Assert.Same(SampleY, series.Y);
-    }
 
     /// <summary>Verifies that ComputeDataRange returns the min/max of the input X and Y data.</summary>
     [Fact]
@@ -34,18 +37,9 @@ public class Histogram2DSeriesTests
         Assert.Equal(50.0, range.YMax);
     }
 
-    /// <summary>Verifies that the DTO type is "histogram2d".</summary>
-    [Fact]
-    public void ToSeriesDto_TypeIsHistogram2d()
-    {
-        var series = new Histogram2DSeries(SampleX, SampleY);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("histogram2d", dto.Type);
-    }
-
     /// <summary>Verifies that the default number of bins is 20 for both axes.</summary>
     [Fact]
-    public void DefaultBins_Is20()
+    public void ABinCountLeftOut_IsTwentyAlongEachAxis()
     {
         var series = new Histogram2DSeries(SampleX, SampleY);
         Assert.Equal(20, series.BinsX);
@@ -62,28 +56,6 @@ public class Histogram2DSeriesTests
         Assert.True(max >= min);
     }
 
-    /// <summary>Verifies that JSON round-trip preserves data and bin configuration.</summary>
-    [Fact]
-    public void RoundTrip_PreservesData()
-    {
-        var fig = new Figure();
-        var axes = fig.AddSubPlot();
-        var h2d = axes.Histogram2D(SampleX, SampleY, 10);
-        h2d.BinsY = 15;
-
-        var serializer = new ChartSerializer();
-        var json = serializer.ToJson(fig);
-        var restored = serializer.FromJson(json);
-
-        var restoredSeries = restored.SubPlots[0].Series.OfType<Histogram2DSeries>().Single();
-        Assert.Equal(SampleX.Length, restoredSeries.X.Length);
-        Assert.Equal(SampleY.Length, restoredSeries.Y.Length);
-        Assert.Equal(10, restoredSeries.BinsX);
-        Assert.Equal(15, restoredSeries.BinsY);
-        Assert.Equal(SampleX[0], restoredSeries.X[0]);
-        Assert.Equal(SampleY[0], restoredSeries.Y[0]);
-    }
-
     // ---- a histogram has bins ---------------------------------------------------------------------------------------------
 
     [Theory]
@@ -95,7 +67,8 @@ public class Histogram2DSeriesTests
     {
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Histogram2DSeries(SampleX, SampleY, binsX, binsY));
 
-        Assert.Contains("at least one bin along each axis", ex.Message);
+        Assert.Contains("of a 2-D histogram along the", ex.Message);
+        Assert.Contains("must be >= 1", ex.Message);
     }
 
     [Theory]
@@ -116,13 +89,19 @@ public class Histogram2DSeriesTests
         Assert.Equal(9, series.BinsY);
     }
 
-    [Fact]
-    public void OneBinAlongEachAxis_IsTheSmallestHistogram_AndDraws()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create().Histogram2D(SampleX, SampleY, 1).ToSvg();
+        new DrawnToken("OneBinAlongEachAxis_IsTheSmallestHistogram_AndDraws", () => Plt.Create().Histogram2D(SampleX, SampleY, 1).ToSvg(), "rect"),
+        //  Verifies that rendering produces SVG output containing rect elements.
+        new DrawnToken("Render_ProducesSvg", () => Plt.Create()
+            .Histogram2D(SampleX, SampleY, 5)
+            .ToSvg(), "rect"),
+    };
 
-        Assert.Contains("rect", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Theory]
     [InlineData("bins")]
@@ -134,17 +113,59 @@ public class Histogram2DSeriesTests
 
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new ChartSerializer().FromJson(json));
 
-        Assert.Contains("at least one bin along each axis", ex.Message);
+        Assert.Contains("of a 2-D histogram along the", ex.Message);
+        Assert.Contains("must be >= 1", ex.Message);
     }
 
-    /// <summary>Verifies that rendering produces SVG output containing rect elements.</summary>
-    [Fact]
-    public void Render_ProducesSvg()
+    /// <summary>A side of one value is binned as <c>numpy.histogram2d</c> bins it, over the value and half a unit either side:
+    /// <c>histogram2d([3, 3, 3], [1, 2, 3], bins=20)</c> (numpy 2.5.3) counts X bin 10 at Y bins 0, 10 and 19, and the same the other
+    /// way round.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Histogram2DSeries_ASideOfOneValue_IsCountedInTheMiddleBin(bool flatX)
     {
-        var svg = Plt.Create()
-            .Histogram2D(SampleX, SampleY, 5)
-            .ToSvg();
+        double[] flat = [3.0, 3, 3], spread = [1.0, 2, 3];
+        var counts = (flatX ? new Histogram2DSeries(flat, spread) : new Histogram2DSeries(spread, flat)).ComputeBinCounts();
 
-        Assert.Contains("rect", svg);
+        foreach (int across in new[] { 0, 10, 19 })
+            Assert.Equal(1, flatX ? counts[across, 10] : counts[10, across]);
+    }
+
+    [Fact]
+    public void Histogram2DSeries_ComputeBinCounts_EmptyData_ReturnsAllZeros()
+    {
+        var s = new Histogram2DSeries((Vec)Array.Empty<double>(), (Vec)Array.Empty<double>());
+        var counts = s.ComputeBinCounts();
+        Assert.Equal(0, counts.Cast<int>().Sum());
+    }
+
+    [Fact]
+    public void Histogram2DSeries_ComputeDataRange_EmptyData_ReturnsNullRange()
+    {
+        var s = new Histogram2DSeries((Vec)Array.Empty<double>(), (Vec)Array.Empty<double>());
+        var dr = s.ComputeDataRange(null!);
+        Assert.Null(dr.XMin);
+    }
+
+    /// <summary>Histogram2DSeries.GetColorBarRange: with a single bin (BinsX=1, BinsY=1) every data point falls into the same
+    /// cell, so the counts have no width and the range is opened one wide from the count, as every colour range of no width is under
+    /// every theme (<c>ColorMapping.Opened</c>).</summary>
+    [Fact]
+    public void Histogram2DSeries_GetColorBarRange_SingleBin_MinEqualsMax_IsOpenedOneWide()
+    {
+        var s = new Histogram2DSeries([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], binsX: 1, binsY: 1);
+        var range = s.GetColorBarRange();
+        Assert.Equal(3, range.Min);
+        Assert.Equal(4, range.Max);
+    }
+
+    /// <summary>Histogram2DSeries.GetColorBarRange: `X.Length == 0 || Y.Length == 0`
+    /// short-circuit — first OR arm.</summary>
+    [Fact]
+    public void Histogram2D_EmptyX_ReturnsSentinelColorBarRange()
+    {
+        var s = new Histogram2DSeries(Array.Empty<double>(), Array.Empty<double>(), binsX: 5, binsY: 5);
+        Assert.Equal(new MatPlotLibNet.Numerics.MinMaxRange(0.0, 1.0), s.GetColorBarRange());
     }
 }

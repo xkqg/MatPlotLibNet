@@ -8,42 +8,29 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// <summary>Verifies SVG tooltip rendering behavior.</summary>
 public class SvgTooltipTests
 {
-    /// <summary>Verifies that scatter series with tooltips enabled contains title elements.</summary>
-    [Fact]
-    public void ScatterSeries_WithTooltips_ContainsTitleElements()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Verifies that scatter series with tooltips enabled contains title elements.
+        new DrawnToken("ScatterSeries_WithTooltips_ContainsTitleElements", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTooltips()
                 .Scatter([1.0, 2.0], [3.0, 4.0]))
-            .ToSvg();
-
-        Assert.Contains("<title>", svg);
-    }
-
-    /// <summary>Verifies that scatter series without tooltips does not contain title elements.</summary>
-    [Fact]
-    public void Tooltips_Disabled_NoTitleElements()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<title>"),
+        // Verifies that scatter series without tooltips does not contain title elements.
+        new DrawnToken("Tooltips_Disabled_NoTitleElements", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Scatter([1.0, 2.0], [3.0, 4.0]))
-            .ToSvg();
-
-        Assert.DoesNotContain("<title>", svg);
-    }
-
-    /// <summary>Verifies that tooltip text includes the x and y data values for each point.</summary>
-    [Fact]
-    public void ScatterSeries_WithTooltips_ContainsDataValues()
-    {
-        string svg = Plt.Create()
+            .ToSvg()) { Absent = ["<title>"] },
+        // Verifies that tooltip text includes the x and y data values for each point.
+        new DrawnToken("ScatterSeries_WithTooltips_ContainsDataValues", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTooltips()
                 .Scatter([1.5], [3.2]))
-            .ToSvg();
+            .ToSvg(), "x=1.5", "y=3.2"),
+    };
 
-        Assert.Contains("x=1.5", svg);
-        Assert.Contains("y=3.2", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

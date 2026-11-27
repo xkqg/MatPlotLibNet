@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
@@ -17,49 +15,21 @@ public class FigImageTests
 {
     private static readonly double[,] Two = { { 1, 2, 3 }, { 4, 5, 6 } };
 
-    private static RecordingRenderContext Record(Figure figure)
-    {
-        var ctx = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, ctx);
-        return ctx;
-    }
-
-    private static dynamic Args(CallRecord call) => call.Args!;
-
     /// <summary>The rectangles one pixel across: the cells of an image drawn at its native size, in the order they were drawn.</summary>
-    private static List<CallRecord> CellCalls(RecordingRenderContext ctx) =>
-        [.. ctx.Calls.Where(c => c.Kind == "DrawRectangle" && ((Rect)Args(c).rect) is { Width: 1, Height: 1 })];
+    private static List<DrawRectangleCall> CellCalls(RecordingRenderContext ctx) =>
+        [.. ctx.Of<DrawRectangleCall>().Where(c => c.Rect is { Width: 1, Height: 1 })];
 
-    private static List<Rect> Cells(RecordingRenderContext ctx) => [.. CellCalls(ctx).Select(c => (Rect)Args(c).rect)];
+    private static List<Rect> Cells(RecordingRenderContext ctx) => [.. CellCalls(ctx).Select(c => c.Rect)];
 
-    private static List<Color> Fills(RecordingRenderContext ctx) => [.. CellCalls(ctx).Select(c => (Color)Args(c).fill)];
+    private static List<Color> Fills(RecordingRenderContext ctx) => [.. CellCalls(ctx).Select(c => c.Fill!.Value)];
 
     private static Func<FigureBuilder> OneImage(double[,] data, double x = 0, double y = 0, Action<FigureImage>? configure = null) =>
         () => Plt.Create().WithSize(800, 600).FigImage(data, x, y, configure);
 
-    private static readonly Regex SvgCell = new("<rect x=\"([^\"]+)\" y=\"([^\"]+)\" width=\"1\" height=\"1\"");
-
     private static List<Rect> SvgCells(string svg) =>
-        [.. SvgCell.Matches(svg).Select(m => new Rect(
-            double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-            double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture), 1, 1))];
+        [.. svg.Elements("rect").Where(rect => rect["width"] == "1" && rect["height"] == "1").Select(rect => new Rect(rect.Number("x"), rect.Number("y"), 1, 1))];
 
     // ── The model and the builder ──────────────────────────────────────────
-
-    [Fact]
-    public void ANewImage_HoldsItsPixelsAndItsPlace_InTheResolutionsDefaults()
-    {
-        var image = new FigureImage(Two, 12, 34);
-
-        Assert.Same(Two, image.Data);
-        Assert.Equal(12, image.XOffset);
-        Assert.Equal(34, image.YOffset);
-        Assert.Null(image.ColorMap);
-        Assert.Null(image.Normalizer);
-        Assert.Null(image.VMin);
-        Assert.Null(image.VMax);
-        Assert.Equal(1.0, image.Alpha);
-    }
 
     [Fact]
     public void AnImageWithNoPixels_IsRefused() =>
@@ -147,7 +117,7 @@ public class FigImageTests
     [Fact]
     public void TheImage_StandsAtItsPixelOffset_FromTheBottomLeftCorner_FirstRowOnTop()
     {
-        var ctx = Record(OneImage(Two, 10, 20)().Build());
+        var ctx = OneImage(Two, 10, 20)().Build().Drawn();
 
         Assert.Equal(
             [new Rect(10, 578, 1, 1), new Rect(11, 578, 1, 1), new Rect(12, 578, 1, 1),
@@ -163,7 +133,7 @@ public class FigImageTests
     {
         var figure = Plt.Create().WithSize(width, height).FigImage(Two, 0, 0).Build();
 
-        var cells = Cells(Record(figure));
+        var cells = Cells(figure.Drawn());
 
         Assert.Equal(6, cells.Count);
         Assert.All(cells, cell => Assert.Equal((1.0, 1.0), (cell.Width, cell.Height)));
@@ -175,8 +145,8 @@ public class FigImageTests
     {
         var figure = Plt.Create().WithSize(800, 600).WithDpi(192).FigImage(Two, 4, 8).Build();
 
-        Assert.Equal(6, Cells(Record(figure)).Count);
-        Assert.Equal(new Rect(4, 590, 1, 1), Cells(Record(figure))[0]);
+        Assert.Equal(6, Cells(figure.Drawn()).Count);
+        Assert.Equal(new Rect(4, 590, 1, 1), Cells(figure.Drawn())[0]);
     }
 
     [Fact]
@@ -187,7 +157,7 @@ public class FigImageTests
             for (int c = 0; c < 50; c++)
                 data[r, c] = r * 50 + c;
 
-        var cells = Cells(Record(OneImage(data)().Build()));
+        var cells = Cells(OneImage(data)().Build().Drawn());
 
         Assert.Equal(2000, cells.Count);
         Assert.Equal(new Rect(0, 560, 1, 1), cells[0]);
@@ -197,7 +167,7 @@ public class FigImageTests
     [Fact]
     public void AnImageThatReachesPastTheFigure_KeepsItsCells_TheEdgeCutsThem()
     {
-        var cells = Cells(Record(OneImage(Two, -1, 599)().Build()));
+        var cells = Cells(OneImage(Two, -1, 599)().Build().Drawn());
 
         Assert.Equal(6, cells.Count);
         Assert.Equal(new Rect(-1, -1, 1, 1), cells[0]);
@@ -212,7 +182,7 @@ public class FigImageTests
     {
         var figure = OneImage(Two, x, y)().Build();
 
-        Assert.Empty(Cells(Record(figure)));
+        Assert.Empty(Cells(figure.Drawn()));
         Assert.Empty(SvgCells(figure.ToSvg()));
     }
 
@@ -235,10 +205,10 @@ public class FigImageTests
     {
         var figure = OneImage(new double[rows, columns], 0, 0, image => image.Alpha = 0.5)().Build();
 
-        var ctx = Record(figure);
+        var ctx = figure.Drawn();
 
         Assert.Empty(Cells(ctx));
-        Assert.Equal(0, ctx.CountOf("SetOpacity"));
+        Assert.DoesNotContain(ctx.Calls, IsTranslucent);
     }
 
     // ── Colours ────────────────────────────────────────────────────────────
@@ -246,7 +216,7 @@ public class FigImageTests
     [Fact]
     public void WithoutAColourMap_TheCellsAreColouredLikeAnImageSeries_OverTheRangeOfTheValues()
     {
-        var fills = Fills(Record(OneImage(Two)().Build()));
+        var fills = Fills(OneImage(Two)().Build().Drawn());
 
         Assert.Equal(ColorMaps.Viridis.GetColor(0), fills[0]);
         Assert.Equal(ColorMaps.Viridis.GetColor(1), fills[^1]);
@@ -259,7 +229,7 @@ public class FigImageTests
         var map = new LinearColorMap("test", [Colors.Red, Colors.Blue]);
         var data = new double[,] { { 0, 1 } };
 
-        var fills = Fills(Record(OneImage(data, 0, 0, image => image.ColorMap = map)().Build()));
+        var fills = Fills(OneImage(data, 0, 0, image => image.ColorMap = map)().Build().Drawn());
 
         Assert.Equal([Colors.Red, Colors.Blue], fills);
     }
@@ -270,7 +240,7 @@ public class FigImageTests
         var map = new LinearColorMap("test", [Colors.Red, Colors.Blue]);
         var data = new double[,] { { 1, 2 } };
 
-        var fills = Fills(Record(OneImage(data, 0, 0, image => { image.ColorMap = map; image.VMin = 0; image.VMax = 4; })().Build()));
+        var fills = Fills(OneImage(data, 0, 0, image => { image.ColorMap = map; image.VMin = 0; image.VMax = 4; })().Build().Drawn());
 
         Assert.Equal([map.GetColor(0.25), map.GetColor(0.5)], fills);
     }
@@ -282,9 +252,28 @@ public class FigImageTests
         var normalizer = new LogNormalizer();
         var data = new double[,] { { 1, 10, 100 } };
 
-        var fills = Fills(Record(OneImage(data, 0, 0, image => { image.ColorMap = map; image.Normalizer = normalizer; })().Build()));
+        var fills = Fills(OneImage(data, 0, 0, image => { image.ColorMap = map; image.Normalizer = normalizer; })().Build().Drawn());
 
         Assert.Equal([map.GetColor(normalizer.Normalize(1, 1, 100)), map.GetColor(normalizer.Normalize(10, 1, 100)), map.GetColor(normalizer.Normalize(100, 1, 100))], fills);
+    }
+
+    /// <summary>An image on the figure reads its log normaliser under the theme as an image series reads one: matplotlib has one
+    /// <c>LogNorm</c> for <c>figimage</c> and <c>imshow</c> alike, so under the matplotlib themes a value is coloured at
+    /// <c>log(value / vmin) / log(vmax / vmin)</c> (20 over 2 .. 2000 at a third), under the library's own by the documented formula
+    /// (the two agree only where the range starts at 1).</summary>
+    [Fact]
+    public void ALogNormalizer_ColoursTheCellsAsAnImageSeriesDoes_UnderEachTheme()
+    {
+        var map = new LinearColorMap("test", [Colors.Red, Colors.Blue]);
+        var data = new double[,] { { 2, 20, 2000 } };
+        Func<FigureBuilder> image(Theme theme) => () => OneImage(data, 0, 0, i => { i.ColorMap = map; i.Normalizer = new LogNormalizer(); })().WithTheme(theme);
+
+        var matplotlib = Fills(image(Theme.MatplotlibV2)().Build().Drawn());
+        var library = Fills(image(Theme.Default)().Build().Drawn());
+
+        Assert.Equal(map.GetColor(LogNorm.Instance.Normalize(20, 2, 2000)), matplotlib[1]);
+        Assert.NotEqual(matplotlib[1], library[1]);
+        Assert.Equal(map.GetColor(new LogNormalizer().Normalize(20, 2, 2000)), library[1]);
     }
 
     /// <summary>A missing value (NaN) is the one gap: no cell is painted for it (the colour map names no bad colour, so it is
@@ -294,7 +283,7 @@ public class FigImageTests
     {
         var data = new double[,] { { 1, double.NaN }, { 3, 4 } };
 
-        var ctx = Record(OneImage(data)().Build());
+        var ctx = OneImage(data)().Build().Drawn();
 
         Assert.Equal([new Rect(0, 598, 1, 1), new Rect(0, 599, 1, 1), new Rect(1, 599, 1, 1)], Cells(ctx));
         Assert.Equal(ColorMaps.Viridis.GetColor(0), Fills(ctx)[0]);
@@ -308,7 +297,7 @@ public class FigImageTests
         var map = new LinearColorMap("test", [Colors.Red, Colors.Blue]) { BadColor = bad };
         var data = new double[,] { { 0, double.NaN, 1 } };
 
-        var ctx = Record(OneImage(data, 0, 0, image => image.ColorMap = map)().Build());
+        var ctx = OneImage(data, 0, 0, image => image.ColorMap = map)().Build().Drawn();
 
         Assert.Equal([Colors.Red, bad, Colors.Blue], Fills(ctx));
         Assert.Equal(3, Cells(ctx).Count);
@@ -317,21 +306,25 @@ public class FigImageTests
     [Fact]
     public void AnImageOfNothingButNaN_IsNoCell()
     {
-        var ctx = Record(OneImage(new double[,] { { double.NaN, double.NaN } })().Build());
+        var ctx = OneImage(new double[,] { { double.NaN, double.NaN } })().Build().Drawn();
 
         Assert.Empty(Cells(ctx));
     }
 
+    /// <summary>A call that sets an opacity below full: what a drawer sets, as against the full opacity each stage starts at.</summary>
+    private static bool IsTranslucent(CallRecord call) => call is SetOpacityCall { Opacity: < 1.0 };
+
     [Fact]
     public void Alpha_IsTheOpacityOfTheWholeImage_AndIsResetAfterIt()
     {
-        var ctx = Record(OneImage(Two, 0, 0, image => image.Alpha = 0.5)().Build());
+        var ctx = OneImage(Two, 0, 0, image => image.Alpha = 0.5)().Build().Drawn();
 
-        int first = ctx.Calls.FindIndex(c => c.Kind == "SetOpacity");
-        int last = ctx.Calls.FindLastIndex(c => c.Kind == "SetOpacity");
-        Assert.Equal(0.5, (double)Args(ctx.Calls[first]).opacity);
-        Assert.Equal(1.0, (double)Args(ctx.Calls[last]).opacity);
-        Assert.Equal(2, ctx.CountOf("SetOpacity"));
+        // Every stage of a figure starts at full opacity (OpacityStageTests); what the image sets is the one opacity below 1.
+        int first = ctx.Calls.FindIndex(IsTranslucent);
+        int last = ctx.Calls.FindIndex(first + 1, c => c is SetOpacityCall);
+        Assert.Equal(0.5, ((SetOpacityCall)ctx.Calls[first]).Opacity);
+        Assert.Equal(1.0, ((SetOpacityCall)ctx.Calls[last]).Opacity);
+        Assert.Equal(1, ctx.Calls.Count(IsTranslucent));
         Assert.All(CellCalls(ctx), cell =>
         {
             int at = ctx.Calls.IndexOf(cell);
@@ -345,7 +338,7 @@ public class FigImageTests
     {
         var figure = OneImage(Two)().Build();
 
-        Assert.Equal(0, Record(figure).CountOf("SetOpacity"));
+        Assert.DoesNotContain(figure.Drawn().Calls, IsTranslucent);
         Assert.DoesNotContain("opacity=\"", figure.ToSvg());
     }
 
@@ -359,10 +352,10 @@ public class FigImageTests
             .FigImage(Two, 10, 20)
             .Build();
 
-        var ctx = Record(figure);
-        int background = ctx.Calls.FindIndex(c => c.Kind == "DrawRectangle");
+        var ctx = figure.Drawn();
+        int background = ctx.Calls.FindIndex(c => c is DrawRectangleCall);
         int firstCell = ctx.Calls.IndexOf(CellCalls(ctx)[0]);
-        int panel = ctx.Calls.FindIndex(c => c.Kind == "DrawText" && (string)Args(c).text == "Panel");
+        int panel = ctx.Calls.FindIndex(c => c is DrawTextCall { Text: "Panel" });
         Assert.True(background < firstCell && firstCell < panel, $"background {background}, cell {firstCell}, panel {panel}");
 
         string svg = figure.ToSvg();
@@ -380,11 +373,11 @@ public class FigImageTests
         var data = new double[,] { { 0, double.NaN }, { 0.5, 1 } };
         var figure = OneImage(data, 30, 40, image => { image.ColorMap = map; image.Alpha = 0.75; })().Build();
 
-        var recorded = Cells(Record(figure));
+        var recorded = Cells(figure.Drawn());
         string svg = figure.ToSvg();
 
         Assert.Equal(recorded, SvgCells(svg));
-        foreach (var fill in Fills(Record(figure)))
+        foreach (var fill in Fills(figure.Drawn()))
             Assert.Contains($"fill=\"{fill.ToHex()}\"", svg);
     }
 
@@ -394,7 +387,7 @@ public class FigImageTests
         var figure = OneImage(Two, 10, 20)().Build();
         Assert.Empty(figure.SubPlots);
 
-        Assert.Equal(6, Cells(Record(figure)).Count);
+        Assert.Equal(6, Cells(figure.Drawn()).Count);
         Assert.Equal(6, SvgCells(figure.ToSvg()).Count);
     }
 
@@ -406,7 +399,7 @@ public class FigImageTests
             .FigImage(new double[,] { { 1 } }, 5, 5)
             .Build();
 
-        var cells = Cells(Record(figure));
+        var cells = Cells(figure.Drawn());
 
         Assert.Equal([new Rect(0, 599, 1, 1), new Rect(5, 594, 1, 1)], cells);
         Assert.Equal([new Rect(0, 599, 1, 1), new Rect(5, 594, 1, 1)], SvgCells(figure.ToSvg()));
@@ -422,10 +415,10 @@ public class FigImageTests
             .FigImage(Two)
             .Build();
 
-        var ctx = Record(figure);
+        var ctx = figure.Drawn();
         int lastCell = ctx.Calls.IndexOf(CellCalls(ctx)[^1]);
-        int note = ctx.Calls.FindIndex(c => c.Kind == "DrawText" && (string)Args(c).text == "Note");
-        int legend = ctx.Calls.FindLastIndex(c => c.Kind == "BeginGroup" && (string)Args(c).cssClass == "legend");
+        int note = ctx.Calls.FindIndex(c => c is DrawTextCall { Text: "Note" });
+        int legend = ctx.Calls.FindLastIndex(c => c is BeginGroupCall { CssClass: "legend" });
 
         Assert.True(lastCell < note && note < legend, $"cell {lastCell}, note {note}, legend {legend}");
     }

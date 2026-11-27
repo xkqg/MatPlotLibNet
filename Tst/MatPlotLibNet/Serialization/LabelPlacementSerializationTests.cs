@@ -24,56 +24,6 @@ public class LabelPlacementSerializationTests
     private static readonly double[] Y = [2.0, 3.0, 4.0];
 
     [Fact]
-    public void APrimaryLine_AskedForItsNameAtTheEnd_KeepsThatAfterTheRoundTrip()
-    {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
-            .Plot(X, Y, s => s.Label = "history")
-            .Plot(X, Y, s => s.Label = "forecast")
-            .WithDirectLabel()).Build();
-
-        var series = S.FromJson(S.ToJson(figure)).SubPlots[0].Series;
-
-        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)series[0]).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)series[1]).LabelPlacement);
-        Assert.Equal("forecast", series[1].Label);
-    }
-
-    [Fact]
-    public void ASecondaryYLine_AskedForItsNameAtTheEnd_KeepsThatAfterTheRoundTrip()
-    {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
-            .Plot(X, Y, s => s.Label = "left")
-            .WithAddRightYAxis(y2 => y2
-                .Plot(X, Y, s => s.Label = "plain")
-                .Plot(X, Y, s => s.Label = "right")
-                .WithDirectLabel())).Build();
-
-        var secondary = S.FromJson(S.ToJson(figure)).SubPlots[0].YAxes.Right[0].Series;
-
-        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)secondary[0]).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)secondary[1]).LabelPlacement);
-        Assert.Equal("right", secondary[1].Label);
-    }
-
-    [Fact]
-    public void ASecondaryXLine_AskedForItsNameAtTheEnd_KeepsThatAfterTheRoundTrip()
-    {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax =>
-        {
-            ax.Plot(X, Y);
-            ax.WithSecondaryXAxis(x2 => x2.PlotXSecondary(X, Y, s =>
-            {
-                s.Label = "top";
-                s.LabelPlacement = SeriesLabelPlacement.LineEnd;
-            }));
-        }).Build();
-
-        var secondary = S.FromJson(S.ToJson(figure)).SubPlots[0].XSecondarySeries;
-
-        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)secondary[0]).LabelPlacement);
-    }
-
-    [Fact]
     public void ALineInAnInset_KeepsItsPlacement_BecauseInsetsRestoreThroughTheSamePath()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
@@ -82,31 +32,32 @@ public class LabelPlacementSerializationTests
                 .Plot(X, Y, s => s.Label = "zoom")
                 .WithDirectLabel())).Build();
 
-        var inset = S.FromJson(S.ToJson(figure)).SubPlots[0].Insets[0];
+        var inset = figure.RoundTripped().SubPlots[0].Insets[0];
 
         Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)inset.Series[0]).LabelPlacement);
     }
 
-    [Fact]
-    public void ADefaultFigure_WritesNoPlacementField_SoItsJsonIsUnchanged()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
-            .Plot(X, Y, s => s.Label = "a")
-            .WithAddRightYAxis(y2 => y2.Plot(X, Y, s => s.Label = "b"))).Build();
+        new DrawnToken("ADefaultFigure_WritesNoPlacementField_SoItsJsonIsUnchanged", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+                .Plot(X, Y, s => s.Label = "a")
+                .WithAddRightYAxis(y2 => y2.Plot(X, Y, s => s.Label = "b"))).Build();
+            return S.ToJson(figure);
+        }) { Absent = ["labelPlacement"], Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("AMarkedLine_WritesThePlacementByName_NotByOrdinal", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+                .Plot(X, Y, s => s.Label = "a").WithDirectLabel()).Build();
+            return S.ToJson(figure);
+        }, "\"labelPlacement\":\"lineend\""),
+    };
 
-        Assert.DoesNotContain("labelPlacement", S.ToJson(figure), StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void AMarkedLine_WritesThePlacementByName_NotByOrdinal()
-    {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
-            .Plot(X, Y, s => s.Label = "a").WithDirectLabel()).Build();
-
-        string json = S.ToJson(figure);
-
-        Assert.Contains("\"labelPlacement\":\"lineend\"", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void AJsonWrittenBeforeThePlacementExisted_ReadsAsALegendEntry()
@@ -168,31 +119,6 @@ public class LabelPlacementSerializationTests
 
         Assert.IsType<ScatterSeries>(series[0]);
         Assert.Equal("dots", series[0].Label);
-    }
-
-    [Fact]
-    public void AStreamingLine_WritesItsPlacement_AndNowSurvivesFromJson()
-    {
-        // Was: a streaming series serialised as Type "streaming" (its ring buffer and capacity were not part of
-        // the wire format, and the same discriminator covered four classes), no factory was registered for it,
-        // and FromJson dropped it. Fixed (JSON-roundtrip plan, cluster B): each streaming kind now writes and
-        // reads its own discriminator, carrying its current snapshot.
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax =>
-        {
-            ax.Plot(X, Y, s => s.Label = "history");
-            ax.StreamingPlot(configure: s => { s.Label = "live"; s.LabelPlacement = SeriesLabelPlacement.LineEnd; });
-        }).Build();
-
-        string json = S.ToJson(figure);
-        var restored = S.FromJson(json).SubPlots[0];
-
-        Assert.Contains("\"type\":\"streaming_line\"", json);
-        Assert.Contains("\"labelPlacement\":\"lineend\"", json);
-        Assert.Equal(2, restored.Series.Count);
-        Assert.Equal("history", restored.Series[0].Label);
-        var live = Assert.IsType<StreamingLineSeries>(restored.Series[1]);
-        Assert.Equal("live", live.Label);
-        Assert.Equal(SeriesLabelPlacement.LineEnd, live.LabelPlacement);
     }
 
     [Fact]

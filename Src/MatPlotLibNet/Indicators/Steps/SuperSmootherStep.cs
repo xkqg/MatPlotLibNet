@@ -22,7 +22,7 @@ internal struct SuperSmootherStep
     internal SuperSmootherStep(int period)
     {
         double a1 = Math.Exp(-1.414 * Math.PI / period);
-        double b1 = 2 * a1 * Math.Cos(1.414 * 180.0 / period * Math.PI / 180.0);
+        double b1 = 2 * a1 * Math.Cos((1.414 * 180.0 / period).ToRadians());
         _c2 = b1;
         _c3 = -a1 * a1;
         _c1 = 1 - _c2 - _c3;

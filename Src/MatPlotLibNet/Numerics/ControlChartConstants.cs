@@ -53,13 +53,12 @@ internal static class ControlChartConstants
     /// <summary>The constants for subgroups of <paramref name="size"/> observations.</summary>
     /// <param name="size">The subgroup size, from <see cref="SmallestSubgroup"/> to <see cref="LargestSubgroup"/>.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="size"/> is outside the table.</exception>
-    internal static SubgroupConstants ForSubgroup(int size)
-    {
-        if (size < SmallestSubgroup || size > LargestSubgroup)
-        {
-            throw new ArgumentOutOfRangeException(nameof(size), size, $"The table holds subgroups of {SmallestSubgroup} to {LargestSubgroup}.");
-        }
+    internal static SubgroupConstants ForSubgroup(int size) => Subgroups[ThrowIfNotTabulated(size, nameof(size)) - SmallestSubgroup];
 
-        return Subgroups[size - SmallestSubgroup];
-    }
+    /// <summary>The size of a subgroup, refused when the table holds no constants for it: the one place that says which sizes it does.</summary>
+    /// <param name="size">The subgroup size.</param>
+    /// <param name="name">The parameter that holds the subgroups, for the error.</param>
+    /// <returns>The size, unchanged.</returns>
+    internal static int ThrowIfNotTabulated(int size, string name) =>
+        size.ThrowIfNotIn(SmallestSubgroup, LargestSubgroup, name, "The size of a subgroup");
 }

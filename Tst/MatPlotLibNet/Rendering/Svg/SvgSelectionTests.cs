@@ -6,90 +6,42 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// <summary>Verifies SVG Shift+drag rectangular selection script injection and behavior.</summary>
 public class SvgSelectionTests
 {
-    /// <summary>Verifies that enabling selection injects a script element.</summary>
-    [Fact]
-    public void WithSelection_InjectsScriptElement()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Verifies that enabling selection injects a script element.
+        new DrawnToken("WithSelection_InjectsScriptElement", () => Plt.Create()
             .WithSelection()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("<script", svg);
-    }
-
-    /// <summary>Verifies that the selection script requires the Shift key to start a selection.</summary>
-    [Fact]
-    public void SelectionScript_RequiresShiftKey()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<script"),
+        // Verifies that the selection script requires the Shift key to start a selection.
+        new DrawnToken("SelectionScript_RequiresShiftKey", () => Plt.Create()
             .WithSelection()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("shiftKey", svg);
-    }
-
-    /// <summary>Verifies that the selection script dispatches an mpl:selection custom event.</summary>
-    [Fact]
-    public void SelectionScript_DispatchesMplSelectionEvent()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "shiftKey"),
+        // Verifies that the selection script dispatches an mpl:selection custom event.
+        new DrawnToken("SelectionScript_DispatchesMplSelectionEvent", () => Plt.Create()
             .WithSelection()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("mpl:selection", svg);
-    }
-
-    /// <summary>Verifies that the selection script includes x1, y1, x2, y2 in the event detail.</summary>
-    [Fact]
-    public void SelectionScript_IncludesCoordinatesInEventDetail()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "mpl:selection"),
+        // Verifies that the selection script includes x1, y1, x2, y2 in the event detail.
+        new DrawnToken("SelectionScript_IncludesCoordinatesInEventDetail", () => Plt.Create()
             .WithSelection()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("x1", svg);
-        Assert.Contains("y1", svg);
-        Assert.Contains("x2", svg);
-        Assert.Contains("y2", svg);
-    }
-
-    /// <summary>Verifies that the selection script draws a visible selection rectangle.</summary>
-    [Fact]
-    public void SelectionScript_DrawsSelectionRectangle()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "x1", "y1", "x2", "y2"),
+        // Verifies that the selection script draws a visible selection rectangle.
+        new DrawnToken("SelectionScript_DrawsSelectionRectangle", () => Plt.Create()
             .WithSelection()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("createElementNS", svg);
-        Assert.Contains("'rect'", svg);
-    }
-
-    /// <summary>Verifies that without WithSelection(), no selection script is present.</summary>
-    [Fact]
-    public void WithoutSelection_NoScript()
-    {
-        string svg = Plt.Create()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.DoesNotContain("<script", svg);
-    }
-
-    /// <summary>Verifies that WithSelection(false) disables the feature.</summary>
-    [Fact]
-    public void WithSelectionFalse_NoScript()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "createElementNS", "'rect'"),
+        // Verifies that WithSelection(false) disables the feature.
+        new DrawnToken("WithSelectionFalse_NoScript", () => Plt.Create()
             .WithSelection(false)
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
+            .ToSvg()) { Absent = ["<script"] },
+    };
 
-        Assert.DoesNotContain("<script", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

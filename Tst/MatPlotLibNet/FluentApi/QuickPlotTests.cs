@@ -11,29 +11,28 @@ public class QuickPlotTests
     private static readonly double[] X = [1.0, 2.0, 3.0, 4.0];
     private static readonly double[] Y = [10.0, 20.0, 30.0, 40.0];
 
+    public static TheoryData<string, Func<string?, FigureBuilder>, Type> OneLiners => new()
+    {
+        { "line", title => QuickPlot.Line(X, Y, title: title), typeof(LineSeries) },
+        { "scatter", title => QuickPlot.Scatter(X, Y, title: title), typeof(ScatterSeries) },
+        { "histogram", title => QuickPlot.Hist(Y, title: title), typeof(HistogramSeries) },
+        { "signal", title => QuickPlot.Signal(Y, title: title), typeof(SignalSeries) },
+        { "signal over x", title => QuickPlot.SignalXY(X, Y, title: title), typeof(SignalXYSeries) },
+    };
+
+    /// <summary>A one-liner draws one series of its kind, and the figure carries the title it is given and none when it is given none.</summary>
+    [Theory]
+    [MemberData(nameof(OneLiners))]
+    public void AOneLiner_DrawsOneSeriesOfItsKind_UnderTheTitleItIsGiven(string title, Func<string?, FigureBuilder> plot, Type kind)
+    {
+        var untitled = plot(null).Build();
+
+        Assert.IsType(kind, Assert.Single(untitled.SubPlots[0].Series));
+        Assert.Null(untitled.Title);
+        Assert.Equal(title, plot(title).Build().Title);
+    }
+
     // ── Line ──────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Line_NoTitle_ReturnsFigureBuilderWithLineSeries()
-    {
-        var fig = QuickPlot.Line(X, Y).Build();
-        Assert.Single(fig.SubPlots[0].Series);
-        Assert.IsType<LineSeries>(fig.SubPlots[0].Series[0]);
-    }
-
-    [Fact]
-    public void Line_NoTitle_TitleIsNull()
-    {
-        var fig = QuickPlot.Line(X, Y).Build();
-        Assert.Null(fig.Title);
-    }
-
-    [Fact]
-    public void Line_WithTitle_SetsTitle()
-    {
-        var fig = QuickPlot.Line(X, Y, title: "Demo").Build();
-        Assert.Equal("Demo", fig.Title);
-    }
 
     [Fact]
     public void Line_ReturnsChainableFigureBuilder()
@@ -43,33 +42,7 @@ public class QuickPlotTests
         Assert.Equal(400, fig.Height);
     }
 
-    // ── Scatter ───────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Scatter_NoTitle_ReturnsFigureBuilderWithScatterSeries()
-    {
-        var fig = QuickPlot.Scatter(X, Y).Build();
-        Assert.Single(fig.SubPlots[0].Series);
-        Assert.IsType<ScatterSeries>(fig.SubPlots[0].Series[0]);
-    }
-
-    [Fact]
-    public void Scatter_WithTitle_SetsTitle()
-    {
-        var fig = QuickPlot.Scatter(X, Y, title: "Dots").Build();
-        Assert.Equal("Dots", fig.Title);
-    }
-
     // ── Hist ──────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Hist_NoTitle_ReturnsFigureBuilderWithHistogramSeries()
-    {
-        var data = Enumerable.Range(0, 50).Select(i => (double)i).ToArray();
-        var fig = QuickPlot.Hist(data).Build();
-        Assert.Single(fig.SubPlots[0].Series);
-        Assert.IsType<HistogramSeries>(fig.SubPlots[0].Series[0]);
-    }
 
     [Fact]
     public void Hist_DefaultBins_Is10()
@@ -89,24 +62,7 @@ public class QuickPlotTests
         Assert.Equal(20, s.Bins);
     }
 
-    [Fact]
-    public void Hist_WithTitle_SetsTitle()
-    {
-        var data = Enumerable.Range(0, 10).Select(i => (double)i).ToArray();
-        var fig = QuickPlot.Hist(data, title: "Distribution").Build();
-        Assert.Equal("Distribution", fig.Title);
-    }
-
     // ── Signal ────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Signal_NoTitle_ReturnsFigureBuilderWithSignalSeries()
-    {
-        var y = Enumerable.Range(0, 100).Select(i => Math.Sin(i * 0.1)).ToArray();
-        var fig = QuickPlot.Signal(y).Build();
-        Assert.Single(fig.SubPlots[0].Series);
-        Assert.IsType<SignalSeries>(fig.SubPlots[0].Series[0]);
-    }
 
     [Fact]
     public void Signal_DefaultSampleRate_Is1()
@@ -127,53 +83,18 @@ public class QuickPlotTests
         Assert.Equal(5.0, s.XStart);
     }
 
-    [Fact]
-    public void Signal_WithTitle_SetsTitle()
-    {
-        var y = new double[] { 1.0, 2.0 };
-        var fig = QuickPlot.Signal(y, title: "Audio").Build();
-        Assert.Equal("Audio", fig.Title);
-    }
-
-    // ── SignalXY ──────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void SignalXY_NoTitle_ReturnsFigureBuilderWithSignalXYSeries()
-    {
-        var fig = QuickPlot.SignalXY(X, Y).Build();
-        Assert.Single(fig.SubPlots[0].Series);
-        Assert.IsType<SignalXYSeries>(fig.SubPlots[0].Series[0]);
-    }
-
-    [Fact]
-    public void SignalXY_WithTitle_SetsTitle()
-    {
-        var fig = QuickPlot.SignalXY(X, Y, title: "XY").Build();
-        Assert.Equal("XY", fig.Title);
-    }
-
     // ── Svg ───────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Svg_InvokesConfigureAction_ReturnsValidSvgString()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = QuickPlot.Svg(fb => fb.Plot(X, Y).WithTitle("T"));
-        Assert.Contains("<polyline", svg);
-    }
+        new DrawnToken("Svg_InvokesConfigureAction_ReturnsValidSvgString", () => QuickPlot.Svg(fb => fb.Plot(X, Y).WithTitle("T")), "<polyline"),
+        new DrawnToken("Svg_ActionCanChainBuilderMethods", () => QuickPlot.Svg(fb => fb.Plot(X, Y).WithTitle("Chained").WithSize(400, 300)), "Chained"),
+    };
 
-    [Fact]
-    public void Svg_ActionCanChainBuilderMethods()
-    {
-        var svg = QuickPlot.Svg(fb => fb.Plot(X, Y).WithTitle("Chained").WithSize(400, 300));
-        Assert.Contains("Chained", svg);
-    }
-
-    [Fact]
-    public void Svg_EmptyAction_StillReturnsValidSvg()
-    {
-        var svg = QuickPlot.Svg(_ => { });
-        Assert.StartsWith("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void Svg_NullAction_ThrowsArgumentNullException()

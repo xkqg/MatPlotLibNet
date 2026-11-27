@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Tests.Packaging;
 
 namespace MatPlotLibNet.Tests.Extensions;
 
@@ -255,19 +256,21 @@ public class ComposedChartDataTablesTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarHeatmap(days, [.. days.Select(d => (double)d.Day)])).Build();
 
         var written = Assert.Single(figure.ToDataTables());
-        var read = Assert.Single(new MatPlotLibNet.Serialization.ChartSerializer().FromJson(figure.ToJson()).ToDataTables());
+        var read = Assert.Single(figure.RoundTripped().ToDataTables());
 
         Assert.Equal(written.Rows.Select(row => row[2].Number), read.Rows.Select(row => row[2].Number));
         Assert.Contains("\"firstCellDate\"", figure.ToJson());
     }
 
-    [Fact]
-    public void APlainHeatmap_WritesNoFirstCellDate()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var json = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })).Build().ToJson();
+        new DrawnToken("APlainHeatmap_WritesNoFirstCellDate", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })).Build().ToJson()) { Absent = ["firstCellDate"] },
+    };
 
-        Assert.DoesNotContain("firstCellDate", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The ends of the calendar a <see cref="DateTime"/> can hold: a cell past the last day it holds, or a first cell
     /// before the first, has no date to name, and the table still reads.</summary>
@@ -371,47 +374,47 @@ public class ComposedChartDataTablesTests
     /// series holds, as it does for any gapped line: three rows for a segment, the last of them the separator, spelled NaN in every
     /// form. A segment that cannot be drawn is not in the series, so it has no row.</summary>
     [Fact]
-    public void AVLinesChart_TablesItsDrawnPoints_ASeparatorRowAfterEverySegment()
+    public void AVLinesChart_TablesItsDrawnPoints_ASeparatorRowBetweenSegments()
     {
         var table = Assert.Single(TablesOf(ax => ax.VLines([1, 2, 3], [0, 10, 0], [5, 20, double.NaN], line => line.Label = "range")));
 
         Assert.Equal(["x", "range"], Headers(table));
         Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
-        Assert.Equal(6, table.RowCount);
-        Assert.Equal([1.0, 1.0, double.NaN, 2.0, 2.0, double.NaN], table.Rows.Select(row => row[0].Number));
-        Assert.Equal([0.0, 5.0, double.NaN, 10.0, 20.0, double.NaN], table.Rows.Select(row => row[1].Number));
-        Assert.Equal(["x,range", "1,0", "1,5", "NaN,NaN", "2,10", "2,20", "NaN,NaN"],
-            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+        Assert.Equal(5, table.RowCount);
+        Assert.Equal([1.0, 1.0, double.NaN, 2.0, 2.0], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([0.0, 5.0, double.NaN, 10.0, 20.0], table.Rows.Select(row => row[1].Number));
+        Assert.Equal(["x,range", "1,0", "1,5", "NaN,NaN", "2,10", "2,20"],
+            SourceFile.CsvRecordsOf(table.ToCsv()));
     }
 
     /// <summary>The horizontal twin tables the same way: the x column holds the ends along X, the y column the position.</summary>
     [Fact]
-    public void AnHLinesChart_TablesItsDrawnPoints_ASeparatorRowAfterEverySegment()
+    public void AnHLinesChart_TablesItsDrawnPoints_ASeparatorRowBetweenSegments()
     {
         var table = Assert.Single(TablesOf(ax => ax.HLines([1, 2], [0, 10], [5, 20], line => line.Label = "range")));
 
         Assert.Equal(["x", "range"], Headers(table));
-        Assert.Equal(6, table.RowCount);
-        Assert.Equal([0.0, 5.0, double.NaN, 10.0, 20.0, double.NaN], table.Rows.Select(row => row[0].Number));
-        Assert.Equal([1.0, 1.0, double.NaN, 2.0, 2.0, double.NaN], table.Rows.Select(row => row[1].Number));
+        Assert.Equal(5, table.RowCount);
+        Assert.Equal([0.0, 5.0, double.NaN, 10.0, 20.0], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([1.0, 1.0, double.NaN, 2.0, 2.0], table.Rows.Select(row => row[1].Number));
         Assert.Contains("NaN,NaN", table.ToCsv());
     }
 
     /// <summary>The edges <c>Triplot</c> draws are one line of segments, and the table says what the series holds as it does for
-    /// any gapped line: three rows for an edge, the last of them the separator, spelled NaN in every form, at the coordinates of
+    /// any gapped line: two rows for an edge and a separator row between two edges, spelled NaN in every form, at the coordinates of
     /// the caller's own points. An edge to a vertex that cannot be placed is not in the series, so it has no row.</summary>
     [Fact]
-    public void ATriplotChart_TablesItsDrawnPoints_ASeparatorRowAfterEveryEdge()
+    public void ATriplotChart_TablesItsDrawnPoints_ASeparatorRowBetweenEdges()
     {
         var table = Assert.Single(TablesOf(ax => ax.Triplot([0, 2, 1, double.NaN], [0, 0, 2, 5], [0, 1, 2, 1, 2, 3], line => line.Label = "mesh")));
 
         Assert.Equal(["x", "mesh"], Headers(table));
         Assert.Equal(DataColumnKind.Number, table.Columns[0].Kind);
-        Assert.Equal(9, table.RowCount);
-        Assert.Equal([0.0, 2.0, double.NaN, 2.0, 1.0, double.NaN, 1.0, 0.0, double.NaN], table.Rows.Select(row => row[0].Number));
-        Assert.Equal([0.0, 0.0, double.NaN, 0.0, 2.0, double.NaN, 2.0, 0.0, double.NaN], table.Rows.Select(row => row[1].Number));
-        Assert.Equal(["x,mesh", "0,0", "2,0", "NaN,NaN", "2,0", "1,2", "NaN,NaN", "1,2", "0,0", "NaN,NaN"],
-            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+        Assert.Equal(8, table.RowCount);
+        Assert.Equal([0.0, 2.0, double.NaN, 2.0, 1.0, double.NaN, 1.0, 0.0], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([0.0, 0.0, double.NaN, 0.0, 2.0, double.NaN, 2.0, 0.0], table.Rows.Select(row => row[1].Number));
+        Assert.Equal(["x,mesh", "0,0", "2,0", "NaN,NaN", "2,0", "1,2", "NaN,NaN", "1,2", "0,0"],
+            SourceFile.CsvRecordsOf(table.ToCsv()));
     }
 
     /// <summary>The line <c>Psd</c> draws is one series of (frequency, decibels), and the table says what it holds: a row for each
@@ -431,7 +434,7 @@ public class ComposedChartDataTablesTests
         Assert.Equal(10 * Math.Log10(8), table.Rows[0][1].Number, 9);
         Assert.All(table.Rows.Skip(1), row => Assert.True(double.IsNaN(row[1].Number)));
         Assert.Equal(["0.125,NaN", "0.25,NaN", "0.375,NaN", "0.5,NaN"],
-            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(2));
+            SourceFile.CsvRecordsOf(table.ToCsv()).Skip(2));
     }
 
     /// <summary>The line <c>MagnitudeSpectrum</c> draws in decibels is one series of (frequency, decibels), and the table says what
@@ -450,11 +453,11 @@ public class ComposedChartDataTablesTests
         Assert.Equal([0.0, 0.5], table.Rows.Select(row => row[0].Number));
         Assert.Equal(0.0, table.Rows[0][1].Number, 12);
         Assert.True(double.IsNaN(table.Rows[1][1].Number));
-        Assert.Equal("0.5,NaN", table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries)[^1]);
+        Assert.Equal("0.5,NaN", SourceFile.CsvRecordsOf(table.ToCsv())[^1]);
     }
 
     /// <summary>The stems <c>Acorr</c> draws are one line of a segment from 0 to the correlation at each lag, and the table says what
-    /// the series holds: three rows for each lag, the foot of its stem, its top and the gap that parts it from the next. The
+    /// the series holds: two rows for each lag, the foot of its stem and its top, and a gap row between one stem and the next. The
     /// reference line at 0 is an overlay, not a series, and has no row.</summary>
     [Fact]
     public void AnAcorrOfStems_TablesTheFootAndTheTopOfEveryStem_AGapPartsThem()
@@ -462,12 +465,12 @@ public class ComposedChartDataTablesTests
         var table = Assert.Single(TablesOf(ax => ax.Acorr([1, 2, 3], new CorrelationOptions { MaxLags = 1 }, parts => parts.Line.Label = "autocorrelation")));
 
         Assert.Equal(["x", "autocorrelation"], Headers(table));
-        Assert.Equal(9, table.RowCount);
-        Assert.Equal([-1.0, -1.0, double.NaN, 0.0, 0.0, double.NaN, 1.0, 1.0, double.NaN], table.Rows.Select(row => row[0].Number));
+        Assert.Equal(8, table.RowCount);
+        Assert.Equal([-1.0, -1.0, double.NaN, 0.0, 0.0, double.NaN, 1.0, 1.0], table.Rows.Select(row => row[0].Number));
         Assert.Equal(0.0, table.Rows[0][1].Number);
         Assert.Equal(8 / 14.0, table.Rows[1][1].Number, 12);
         Assert.Equal(1.0, table.Rows[4][1].Number);
-        Assert.Equal(["x,autocorrelation", "-1,0", "NaN,NaN"], table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Where((_, i) => i is 0 or 1 or 3));
+        Assert.Equal(["x,autocorrelation", "-1,0", "NaN,NaN"], SourceFile.CsvRecordsOf(table.ToCsv()).Where((_, i) => i is 0 or 1 or 3));
     }
 
     /// <summary>The markers <c>Xcorr</c> draws are one line of the lags and the correlations, and the table is a row for each lag; a
@@ -485,7 +488,7 @@ public class ComposedChartDataTablesTests
         Assert.Equal([0.0, 0.0, 1.0], whole.Rows.Select(row => row[1].Number));
         Assert.Equal([-1.0, 0.0, 1.0], gappy.Rows.Select(row => row[0].Number));
         Assert.All(gappy.Rows, row => Assert.True(double.IsNaN(row[1].Number)));
-        Assert.Equal(["x,cross-correlation", "-1,NaN", "0,NaN", "1,NaN"], gappy.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+        Assert.Equal(["x,cross-correlation", "-1,NaN", "0,NaN", "1,NaN"], SourceFile.CsvRecordsOf(gappy.ToCsv()));
     }
 
     /// <summary>The staircase <c>Stairs</c> draws without a baseline is one line, and the table says what the series holds: two
@@ -501,7 +504,7 @@ public class ComposedChartDataTablesTests
         Assert.Equal([0.0, 1.0, 1.0, 2.0, 2.0, 3.0], table.Rows.Select(row => row[0].Number));
         Assert.Equal([5.0, 5.0, double.NaN, double.NaN, 7.0, 7.0], table.Rows.Select(row => row[1].Number));
         Assert.Equal(["x,counts", "0,5", "1,5", "1,NaN", "2,NaN", "2,7", "3,7"],
-            table.ToCsv().Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+            SourceFile.CsvRecordsOf(table.ToCsv()));
     }
 
     /// <summary>The filled staircase is one area, so its table carries the baseline it is filled down to as a second curve; a

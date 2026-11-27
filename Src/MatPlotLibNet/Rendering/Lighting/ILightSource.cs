@@ -20,5 +20,5 @@ public interface ILightSource
     /// <param name="ny">Y component of the face's outward normal.</param>
     /// <param name="nz">Z component of the face's outward normal.</param>
     /// <returns>The shaded colour.</returns>
-    Color Shade(Color color, double nx, double ny, double nz) => color.Modulate(ComputeIntensity(nx, ny, nz));
+    Color Shade(Color color, double nx, double ny, double nz) => this.ShadeAtIntensity(color, nx, ny, nz);
 }

@@ -34,12 +34,30 @@ public sealed class ChartHub : Hub<IChartHubClient>
         return Groups.AddToGroupAsync(Context.ConnectionId, chartId);
     }
 
+    /// <summary>Subscribes the calling client to updates for the specified chart as a viewer that patches: it is sent the
+    /// whole document once, with every drawn part in a group named by <c>data-mpl-part</c>, and after that only the parts that
+    /// changed (<see cref="IChartHubClient.UpdateChartParts"/>); when nothing changed it is sent nothing. Every other message
+    /// of the chart (view changes, cursors, tooltips) reaches it as it reaches any subscriber.</summary>
+    public Task SubscribeToParts(string chartId)
+    {
+        _subscriptions.SubscribeToParts(chartId, Context.ConnectionId);
+        return Groups.AddToGroupAsync(Context.ConnectionId, chartId);
+    }
+
     /// <summary>Unsubscribes the calling client from updates for the specified chart.</summary>
     public async Task Unsubscribe(string chartId)
     {
         _subscriptions.Unsubscribe(chartId, Context.ConnectionId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, chartId);
         await Clients.Group(chartId).ViewerLeft(chartId, Context.ConnectionId);
+        await ForgetIfUnwatchedAsync(chartId);
+    }
+
+    /// <summary>A chart its last viewer has left is told to the registry, so the publisher lets go of the picture it kept to
+    /// send each viewer only what changed.</summary>
+    private async Task ForgetIfUnwatchedAsync(string chartId)
+    {
+        if (!_subscriptions.HasSubscribers(chartId)) await _registry.ViewersLeftAsync(chartId);
     }
 
     /// <summary>A closed browser never calls Unsubscribe: the connection leaves every chart it joined here, so
@@ -53,6 +71,7 @@ public sealed class ChartHub : Hub<IChartHubClient>
         foreach (var chartId in charts)
         {
             await Clients.OthersInGroup(chartId).ViewerLeft(chartId, Context.ConnectionId);
+            await ForgetIfUnwatchedAsync(chartId);
         }
 
         await base.OnDisconnectedAsync(exception);

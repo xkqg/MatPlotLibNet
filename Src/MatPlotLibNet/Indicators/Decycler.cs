@@ -1,9 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Indicators.Ehlers;
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -11,29 +11,30 @@ namespace MatPlotLibNet.Indicators;
 /// leave only the trend component. <c>decycler_t = price_t − HP_t</c> where HP is the
 /// one-pole high-pass filter output. Cleaner than <see cref="EhlersITrend"/> for
 /// pure-trend extraction; less reactive because cycle information is fully removed.
-/// Reuses <see cref="Ehlers.HighPassFilter"/> (Tier 2c). Reference: Ehlers, J. F. (2015),
+/// Reuses the high-pass filter of the roofing filter. Reference: Ehlers, J. F. (2015),
 /// <i>Decycler Oscillator</i>, Stocks &amp; Commodities 33(6).</summary>
 public sealed class Decycler : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>hpPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultHpPeriod = 60;
+
     private readonly int _hpPeriod;
 
     /// <summary>Creates a new Decycler indicator.</summary>
     /// <param name="prices">Price series.</param>
-    /// <param name="hpPeriod">High-pass cutoff period. Default 60. Must be ≥ 4
+    /// <param name="hpPeriod">High-pass cutoff period. Default <see cref="DefaultHpPeriod"/>. Must be ≥ 4
     /// (HP filter needs at least a 4-bar recurrence to converge).</param>
-    public Decycler(double[] prices, int hpPeriod = 60) : base(prices)
+    public Decycler(double[] prices, int hpPeriod = DefaultHpPeriod) : base(prices, Spec(hpPeriod))
     {
-        if (hpPeriod < 4)
-            throw new ArgumentException($"hpPeriod must be >= 4 (got {hpPeriod}).", nameof(hpPeriod));
         _hpPeriod = hpPeriod;
-        Label = $"Decycler({hpPeriod})";
     }
+
+    internal static IndicatorSpec Spec(int hpPeriod) => IndicatorSpec.OfCheckedWindow("Decycler", hpPeriod, 4, 2);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
-        if (n < 3) return Array.Empty<double>();
+        int n = ValuedBars;
         var result = new double[n];
         var highPass = new HighPassStep(_hpPeriod);
         for (int i = 0; i < n; i++) result[i] = Prices[i] - highPass.Next(Prices[i]);
@@ -41,5 +42,5 @@ public sealed class Decycler : PriceIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: 2);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

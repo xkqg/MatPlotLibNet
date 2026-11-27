@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
 /// <summary>Phase G.4 of the v1.7.2 follow-on plan — behavioural coverage for
-/// <see cref="MatPlotLibNet.Rendering.Svg.SvgCustomTooltipScript"/>. The script
+/// <see cref="Transforms.SvgTransform.CustomTooltipScript"/>. The script
 /// intercepts <c>&lt;g&gt;&lt;title&gt;</c> wrappers emitted by
 /// <c>SvgRenderContext.BeginTooltipGroup</c> when the figure has rich tooltips
 /// enabled and shows a styled floating <c>&lt;div&gt;</c> with

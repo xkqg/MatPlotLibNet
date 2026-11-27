@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -16,7 +16,7 @@ public class GridVisibilityTests
 {
     /// <summary>Grid lines are the thin ones drawn in the theme's grid colour, before the series.</summary>
     private static int GridLines(string svg, string colour) =>
-        Regex.Matches(svg, @"<line[^>]*stroke=""" + colour + @"""", RegexOptions.IgnoreCase).Count;
+        svg.Elements("line").Count(line => string.Equals(line["stroke"], colour, StringComparison.OrdinalIgnoreCase));
 
     private static string Render(bool hideGrid)
     {

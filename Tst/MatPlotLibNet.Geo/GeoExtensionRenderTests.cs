@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Geo;
-using MatPlotLibNet.Geo.Data;
 using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Geo.Series;
@@ -10,58 +9,42 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
-/// <summary>Verifies that the geo extension methods (Coastlines, Borders, Land, Ocean)
-/// actually add their series to the axes — bug found 2026-04-18 where the methods
-/// constructed a series but never attached it, so SVGs rendered as blank.</summary>
+/// <summary>Verifies that the geo extension methods (Coastlines, Borders, Land, Ocean) add their series to the axes: they once built a
+/// series and never attached it, so the picture was blank.</summary>
 public class GeoExtensionRenderTests
 {
-    [Fact]
-    public void Coastlines_AddsSeriesToAxes()
+    public static TheoryData<string, Func<AxesBuilder, IGeoProjection, AxesBuilder>> Verbs => new()
+    {
+        { "coastlines", (ax, projection) => ax.Coastlines(projection) },
+        { "borders", (ax, projection) => ax.Borders(projection) },
+        { "land", (ax, projection) => ax.Land(projection, Colors.Green) },
+        { "ocean", (ax, projection) => ax.Ocean(projection, Colors.Blue) },
+    };
+
+    [Theory]
+    [MemberData(nameof(Verbs))]
+    public void AGeoVerb_AddsItsSeriesToTheAxes(string verb, Func<AxesBuilder, IGeoProjection, AxesBuilder> add)
     {
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithProjection(GeoProjection.Robinson)
-                .Coastlines(GeoProjection.Robinson))
+            .AddSubPlot(1, 1, 1, ax => add(ax.WithProjection(GeoProjection.Robinson), GeoProjection.Robinson))
             .Build();
 
-        Assert.Single(fig.SubPlots[0].Series);
+        Assert.True(fig.SubPlots[0].Series.Count == 1, $"{verb} added {fig.SubPlots[0].Series.Count} series");
     }
 
-    [Fact]
-    public void Borders_AddsSeriesToAxes()
-    {
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithProjection(GeoProjection.Robinson)
-                .Borders(GeoProjection.Robinson))
-            .Build();
+    /// <summary>The picture of one <paramref name="series"/> on a Plate Carree map, 400 by 300.</summary>
+    private static string Drawn(GeoPolygonSeries series) => Plt.Create()
+        .WithSize(400, 300)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.WithProjection(GeoProjection.PlateCarree);
+            ax.AddSeries(series);
+        })
+        .ToSvg();
 
-        Assert.Single(fig.SubPlots[0].Series);
-    }
-
-    [Fact]
-    public void Land_AddsSeriesToAxes()
-    {
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithProjection(GeoProjection.Robinson)
-                .Land(GeoProjection.Robinson, Colors.Green))
-            .Build();
-
-        Assert.Single(fig.SubPlots[0].Series);
-    }
-
-    [Fact]
-    public void Ocean_AddsSeriesToAxes()
-    {
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithProjection(GeoProjection.Robinson)
-                .Ocean(GeoProjection.Robinson, Colors.Blue))
-            .Build();
-
-        Assert.Single(fig.SubPlots[0].Series);
-    }
+    /// <summary>A feature of one <paramref name="type"/> and one ring.</summary>
+    private static GeoFeature Feature(string type, params GeoPosition[] ring) =>
+        new(new GeoGeometry { Type = type, PositionRings = [ring] }, new Dictionary<string, string>());
 
     [Fact]
     public void FullStack_AddsAllFourSeries()
@@ -97,174 +80,58 @@ public class GeoExtensionRenderTests
             "SVG should contain rendered geometry from coastlines");
     }
 
-    [Fact]
-    public void Land_SvgContainsRenderedPolygons()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        // Land renders countries as filled paths (a polygon with a hole is one path) — must contain at least one <path>.
-        string svg = Plt.Create()
+        //  Land renders countries as filled paths (a polygon with a hole is one path) — must contain at least one <path>.
+        new DrawnToken("Land_SvgContainsRenderedPolygons", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithProjection(GeoProjection.Robinson)
                 .Land(GeoProjection.Robinson, Colors.Green))
-            .ToSvg();
-
-        Assert.Contains("<path", svg);
-    }
-
-    // ── Wave J.2 — NaturalEarth110m cache-hit and GeoPolygonSeries edge cases ──
-
-    /// <summary>NaturalEarth110m.Coastlines() called twice — second call returns cached
-    /// list (L18 `??=` false arm, cache hit). Same instance must be returned.</summary>
-    [Fact]
-    public void NaturalEarth110m_Coastlines_CacheHit_ReturnsSameInstance()
-    {
-        var first = NaturalEarth110m.Coastlines();
-        var second = NaturalEarth110m.Coastlines();
-        Assert.Same(first, second);
-    }
-
-    /// <summary>NaturalEarth110m.Countries() called twice — L22 `??=` false arm.</summary>
-    [Fact]
-    public void NaturalEarth110m_Countries_CacheHit_ReturnsSameInstance()
-    {
-        var first = NaturalEarth110m.Countries();
-        var second = NaturalEarth110m.Countries();
-        Assert.Same(first, second);
-    }
-
-    /// <summary>GeoPolygonSeries.Accept with a Polygon ring that has fewer than 3 points —
-    /// L78 `points.Count < 3 && Type is Polygon` continue arm.</summary>
-    [Fact]
-    public void GeoPolygonSeries_PolygonWithTwoPoints_SkipsRing()
-    {
-        var feature = new GeoFeature(
-            new GeoGeometry { Type = "Polygon", Rings = [[(0, 0), (1, 1)]] },
-            new Dictionary<string, string>());
-        var series = new GeoPolygonSeries([feature], GeoProjection.PlateCarree)
-        {
-            Color = Colors.Green,
-        };
-        var fig = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.WithProjection(GeoProjection.PlateCarree);
-                ax.AddSeries(series);
-            })
-            .Build();
-        var svg = fig.ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>GeoPolygonSeries with a LineString that has only 1 point — L79 `< 2` continue arm.</summary>
-    [Fact]
-    public void GeoPolygonSeries_LineStringWithOnePoint_SkipsRing()
-    {
-        var feature = new GeoFeature(
-            new GeoGeometry { Type = "LineString", Rings = [[(10, 20)]] },
-            new Dictionary<string, string>());
-        var series = new GeoPolygonSeries([feature], GeoProjection.PlateCarree)
-        {
-            StrokeColor = Colors.Black,
-        };
-        var fig = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.WithProjection(GeoProjection.PlateCarree);
-                ax.AddSeries(series);
-            })
-            .Build();
-        var svg = fig.ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    // ── Wave J.1 — GeoPolygonSeries remaining branch arms ────────────────────
-
-    /// <summary>L69 TRUE arm — IsRawProjected = true: Ocean uses raw projected coordinates
-    /// instead of calling Projection.Forward. SVG must contain a filled polygon.</summary>
-    [Fact]
-    public void Ocean_SvgContainsFilledPolygon_RawProjectedArm()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<path"),
+        //  Ocean with IsRawProjected = true uses raw projected coordinates instead of calling Projection.Forward. SVG must
+        // contain a filled polygon.
+        new DrawnToken("Ocean_SvgContainsFilledPolygon_RawProjectedArm", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithProjection(GeoProjection.PlateCarree)
                 .Ocean(GeoProjection.PlateCarree, Colors.Blue))
-            .ToSvg();
-        Assert.Contains("<path", svg);
+            .ToSvg(), "<path"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>A ring too short to draw is skipped and the picture is still drawn: a polygon of two points, a line of one, draws what a
+    /// series of no feature draws.</summary>
+    [Theory]
+    [InlineData("Polygon", 2)]
+    [InlineData("LineString", 1)]
+    public void ARingTooShortToDraw_IsSkipped(string type, int points)
+    {
+        var ring = Enumerable.Range(0, points).Select(i => new GeoPosition(10 * i, 20 * i)).ToArray();
+        GeoPolygonSeries Of(List<GeoFeature> features) => new(features, GeoProjection.PlateCarree) { Color = Colors.Green, StrokeColor = Colors.Black };
+
+        Assert.Equal(Drawn(Of([])), Drawn(Of([Feature(type, ring)])));
     }
 
-    /// <summary>L70 TRUE arm — NaN projected coordinate is skipped. A LineString with one
-    /// NaN point and two valid points still produces a rendered line (2 valid ≥ 2).</summary>
-    [Fact]
-    public void GeoPolygonSeries_NanCoord_SkippedAndValidPointsDrawn()
+    public static TheoryData<string, GeoPosition[], Color?, Color?> Lines => new()
     {
-        var feature = new GeoFeature(
-            new GeoGeometry { Type = "LineString", Rings = [[(double.NaN, 0), (10, 20), (20, 30)]] },
-            new Dictionary<string, string>());
-        var series = new GeoPolygonSeries([feature], GeoProjection.PlateCarree)
-        {
-            StrokeColor = Colors.Black,
-        };
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.WithProjection(GeoProjection.PlateCarree);
-                ax.AddSeries(series);
-            })
-            .ToSvg();
-        Assert.True(
-            svg.Contains("<polyline") || svg.Contains("<path") || svg.Contains("<line"),
-            "SVG must contain line geometry — NaN point skipped, 2 valid points drawn");
-    }
+        // A point that does not project is skipped; the two that do still make a line.
+        { "a point that does not project", [new(double.NaN, 0), new(10, 20), new(20, 30)], null, Colors.Black },
+        // StrokeColor ?? Color ?? Colors.Black: the series colour when no stroke colour is given, black when neither is.
+        { "the series colour", [new(10, 20), new(20, 30), new(30, 40)], Colors.Red, null },
+        { "black", [new(10, 20), new(20, 30)], null, null },
+    };
 
-    /// <summary>L84 middle arm — StrokeColor is null but Color is set: DrawLines falls
-    /// through to Color arm of StrokeColor ?? Color ?? Colors.Black.</summary>
-    [Fact]
-    public void GeoPolygonSeries_LineString_NullStrokeColor_UsesColorFallback()
+    /// <summary>A line feature is drawn as a line whichever colour it falls back to and when one of its points does not project.</summary>
+    [Theory]
+    [MemberData(nameof(Lines))]
+    public void ALineFeature_IsDrawnAsALine(string line, GeoPosition[] ring, Color? color, Color? stroke)
     {
-        var feature = new GeoFeature(
-            new GeoGeometry { Type = "LineString", Rings = [[(10, 20), (20, 30), (30, 40)]] },
-            new Dictionary<string, string>());
-        var series = new GeoPolygonSeries([feature], GeoProjection.PlateCarree)
-        {
-            Color = Colors.Red,
-            StrokeColor = null,
-        };
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.WithProjection(GeoProjection.PlateCarree);
-                ax.AddSeries(series);
-            })
-            .ToSvg();
-        Assert.True(
-            svg.Contains("<polyline") || svg.Contains("<path") || svg.Contains("<line"),
-            "SVG must contain line geometry drawn using Color fallback");
-    }
+        string svg = Drawn(new GeoPolygonSeries([Feature("LineString", ring)], GeoProjection.PlateCarree) { Color = color, StrokeColor = stroke });
 
-    /// <summary>L84 final arm — both StrokeColor and Color are null: DrawLines uses
-    /// Colors.Black as the final fallback.</summary>
-    [Fact]
-    public void GeoPolygonSeries_LineString_BothColorsNull_UsesBlackFallback()
-    {
-        var feature = new GeoFeature(
-            new GeoGeometry { Type = "LineString", Rings = [[(10, 20), (20, 30)]] },
-            new Dictionary<string, string>());
-        var series = new GeoPolygonSeries([feature], GeoProjection.PlateCarree);
-        // Both Color and StrokeColor are null → final fallback to Colors.Black
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                ax.WithProjection(GeoProjection.PlateCarree);
-                ax.AddSeries(series);
-            })
-            .ToSvg();
-        Assert.True(
-            svg.Contains("<polyline") || svg.Contains("<path") || svg.Contains("<line"),
-            "SVG must contain line geometry drawn using Colors.Black final fallback");
+        Assert.True(svg.Contains("<polyline") || svg.Contains("<path") || svg.Contains("<line"), $"no line drawn for {line}");
     }
 
     /// <summary>A Best legend looks at the marks the chart drew without drawing it again: a map draws itself, and drawing it
@@ -280,7 +147,7 @@ public class GeoExtensionRenderTests
                 .Land(GeoProjection.Robinson, Colors.Green)
                 .Plot([0.0, 1.0], [0.0, 1.0], line => line.Label = "route")
                 .WithLegend(legend ? MatPlotLibNet.Models.LegendPosition.Best : MatPlotLibNet.Models.LegendPosition.UpperRight)).ToSvg();
-            return System.Text.RegularExpressions.Regex.Matches(svg, "<polygon").Count;
+            return svg.Elements("polygon").Count;
         }
 
         Assert.Equal(Polygons(legend: false), Polygons(legend: true));

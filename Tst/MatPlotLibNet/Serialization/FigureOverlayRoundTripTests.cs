@@ -25,8 +25,6 @@ public class FigureOverlayRoundTripTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     /// <summary>The names of the fields at the top level of the figure's JSON.</summary>
     private static List<string> RootFields(Figure figure)
     {
@@ -54,17 +52,10 @@ public class FigureOverlayRoundTripTests
             text.Rotation = 30;
         }).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Texts);
+        var read = Assert.Single(figure.RoundTripped().Texts);
 
         var written = figure.Texts[0];
-        Assert.Equal(written.Text, read.Text);
-        Assert.Equal(written.X, read.X);
-        Assert.Equal(written.Y, read.Y);
-        Assert.Equal(written.Font, read.Font);
-        Assert.Equal(written.Color, read.Color);
-        Assert.Equal(written.Alignment, read.Alignment);
-        Assert.Equal(written.VerticalAlignment, read.VerticalAlignment);
-        Assert.Equal(written.Rotation, read.Rotation);
+        Assert.Equivalent(written, read);
     }
 
     [Fact]
@@ -72,7 +63,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigText("first", 0.1, 0.1).FigText("second", 0.2, 0.2).FigText("third", 0.3, 0.3).Build();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.Equal(["first", "second", "third"], read.Texts.Select(text => text.Text));
     }
@@ -93,7 +84,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigText("plain", 0.5, 0.5).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Texts);
+        var read = Assert.Single(figure.RoundTripped().Texts);
 
         Assert.Null(read.Font);
         Assert.Null(read.Color);
@@ -113,7 +104,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigText("nowhere", x, y).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Texts);
+        var read = Assert.Single(figure.RoundTripped().Texts);
 
         Assert.Equal(x, read.X);
         Assert.Equal(y, read.Y);
@@ -131,7 +122,7 @@ public class FigureOverlayRoundTripTests
 
         Assert.Contains(">Source: ECB<", drawn);
         Assert.Contains(">(a)<", drawn);
-        Assert.Equal(drawn, RoundTrip(figure).ToSvg());
+        Assert.Equal(drawn, figure.RoundTripped().ToSvg());
     }
 
     [Fact]
@@ -142,7 +133,7 @@ public class FigureOverlayRoundTripTests
         string drawn = figure.ToSvg();
 
         Assert.Contains(">only a note<", drawn);
-        Assert.Equal(drawn, RoundTrip(figure).ToSvg());
+        Assert.Equal(drawn, figure.RoundTripped().ToSvg());
     }
 
     // ---- the legend ----------------------------------------------------------------------------------------------
@@ -171,25 +162,25 @@ public class FigureOverlayRoundTripTests
         };
         var figure = TwoLines().FigLegend(_ => legend).Build();
 
-        var read = RoundTrip(figure).Legend;
+        var read = figure.RoundTripped().Legends;
 
-        Assert.Equal(legend, read);
+        Assert.Equal([legend], read);
     }
 
     /// <summary>A figure with no legend and a figure with a plain one are different figures: the first draws none, the second
     /// lists the labelled series of every subplot. So the plain legend, which an axes' legend leaves out of the JSON, is
-    /// written here as an empty object, and comes back as a legend.</summary>
+    /// written here as an empty object in the figure's list of legends, and comes back as a legend.</summary>
     [Fact]
     public void APlainFigureLegend_ReadBackFromJson_IsStillALegend()
     {
         var figure = TwoLines().FigLegend().Build();
 
         string json = Serializer.ToJson(figure);
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
-        Assert.Equal(new Legend(), read.Legend);
+        Assert.Equal([new Legend()], read.Legends);
         using var document = JsonDocument.Parse(json);
-        var written = document.RootElement.GetProperty("legend");
+        var written = Assert.Single(document.RootElement.GetProperty("legends").EnumerateArray());
         Assert.Equal(JsonValueKind.Object, written.ValueKind);
         Assert.Empty(written.EnumerateObject());
     }
@@ -199,10 +190,45 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigLegend(legend => legend with { Visible = false }).Build();
 
-        var read = RoundTrip(figure).Legend;
+        var read = Assert.Single(figure.RoundTripped().Legends);
 
-        Assert.NotNull(read);
         Assert.False(read.Visible);
+    }
+
+    [Fact]
+    public void TwoFigureLegends_ReadBackFromJson_InTheirOrder()
+    {
+        var first = new Legend { Title = "first", Position = LegendPosition.OutsideRight };
+        var second = new Legend { Title = "second", NCols = 2 };
+        var figure = TwoLines().FigLegend(_ => first).FigLegend(_ => second).Build();
+
+        Assert.Equal([first, second], figure.RoundTripped().Legends);
+        Assert.DoesNotContain("legend", RootFields(figure));
+    }
+
+    /// <summary>A JSON written while a figure had one legend carries it in <c>legend</c>; it reads back as the figure's one
+    /// legend, and is written again in the list.</summary>
+    [Fact]
+    public void AJsonThatCarriesTheOneLegendOfEarlierReleases_ReadsItAsTheFigureLegend()
+    {
+        const string older = """{"width":400,"height":300,"legend":{"position":"LowerLeft","title":"Series"},"subPlots":[{"series":[{"type":"line","xData":[1,2],"yData":[1,2],"label":"a"}]}]}""";
+
+        var read = Serializer.FromJson(older);
+
+        Assert.Equal([new Legend { Position = LegendPosition.LowerLeft, Title = "Series" }], read.Legends);
+        Assert.Contains("legends", RootFields(read));
+        Assert.DoesNotContain("legend", RootFields(read));
+    }
+
+    /// <summary>A JSON that carries both forms lists the legend of the older field first, then the list.</summary>
+    [Fact]
+    public void AJsonThatCarriesBothForms_ListsTheOlderLegendFirst()
+    {
+        const string both = """{"width":400,"height":300,"legend":{"title":"older"},"legends":[{"title":"newer"}],"subPlots":[]}""";
+
+        var read = Serializer.FromJson(both);
+
+        Assert.Equal([new Legend { Title = "older" }, new Legend { Title = "newer" }], read.Legends);
     }
 
     [Fact]
@@ -214,7 +240,7 @@ public class FigureOverlayRoundTripTests
 
         Assert.Contains(">north<", drawn);
         Assert.Contains(">Series<", drawn);
-        Assert.Equal(drawn, RoundTrip(figure).ToSvg());
+        Assert.Equal(drawn, figure.RoundTripped().ToSvg());
     }
 
     // ---- the images ----------------------------------------------------------------------------------------------
@@ -233,7 +259,7 @@ public class FigureOverlayRoundTripTests
             image.Alpha = 0.6;
         }).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Images);
+        var read = Assert.Single(figure.RoundTripped().Images);
 
         var written = figure.Images[0];
         Assert.Equal(2, read.Data.GetLength(0));
@@ -253,7 +279,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigImage(new double[,] { { 0, 1 } }, 0, 0, image => image.ColorMap = ColorMaps.Plasma).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Images);
+        var read = Assert.Single(figure.RoundTripped().Images);
 
         Assert.Equal(ColorMaps.Plasma.Name, read.ColorMap!.Name);
         Assert.True(DrawnSeriesFixtures.SameValue(ColorMaps.Plasma, read.ColorMap));
@@ -275,7 +301,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigImage(new double[,] { { 0, 1 } }, 3, 4).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Images);
+        var read = Assert.Single(figure.RoundTripped().Images);
 
         Assert.Null(read.ColorMap);
         Assert.Null(read.Normalizer);
@@ -293,7 +319,7 @@ public class FigureOverlayRoundTripTests
         var figure = TwoLines().FigImage(pixels, 5, 5).Build();
 
         string json = Serializer.ToJson(figure);
-        var read = Assert.Single(RoundTrip(figure).Images);
+        var read = Assert.Single(figure.RoundTripped().Images);
 
         Assert.Contains("\"NaN\"", json);
         Assert.Equal([1, double.NaN, 3, double.NaN, 5, 6], read.Data.Cast<double>());
@@ -308,8 +334,8 @@ public class FigureOverlayRoundTripTests
         var plain = TwoLines().FigImage(pixels, 5, 5).Build();
         var coloured = TwoLines().FigImage(pixels, 5, 5, image => image.ColorMap = withBadColour).Build();
 
-        Assert.Equal(plain.ToSvg(), RoundTrip(plain).ToSvg());
-        Assert.Equal(coloured.ToSvg(), RoundTrip(coloured).ToSvg());
+        Assert.Equal(plain.ToSvg(), plain.RoundTripped().ToSvg());
+        Assert.Equal(coloured.ToSvg(), coloured.RoundTripped().ToSvg());
         Assert.Contains("#FF00FF", coloured.ToSvg());
     }
 
@@ -319,7 +345,7 @@ public class FigureOverlayRoundTripTests
         double[,] pixels = { { 0, 1, 2, 3 }, { 4, 5, 6, 7 }, { 8, 9, 10, 11 } };
         var figure = TwoLines().FigImage(pixels, 20, 15, image => { image.ColorMap = ColorMaps.Plasma; image.Alpha = 0.7; image.VMax = 20; }).Build();
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     [Fact]
@@ -327,7 +353,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigImage(new double[,] { { 1 } }, 1, 1).FigImage(new double[,] { { 2 } }, 2, 2).Build();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.Equal([1.0, 2.0], read.Images.Select(image => image.Data[0, 0]));
         Assert.Equal([1.0, 2.0], read.Images.Select(image => image.XOffset));
@@ -338,7 +364,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigImage(new double[0, 0], 1, 2).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Images);
+        var read = Assert.Single(figure.RoundTripped().Images);
 
         Assert.Equal(0, read.Data.GetLength(0));
         Assert.Equal(1, read.XOffset);
@@ -351,7 +377,7 @@ public class FigureOverlayRoundTripTests
     {
         var figure = TwoLines().FigImage(new double[,] { { 1 } }, double.NaN, double.NegativeInfinity).Build();
 
-        var read = Assert.Single(RoundTrip(figure).Images);
+        var read = Assert.Single(figure.RoundTripped().Images);
 
         Assert.True(double.IsNaN(read.XOffset));
         Assert.True(double.IsNegativeInfinity(read.YOffset));
@@ -393,7 +419,7 @@ public class FigureOverlayRoundTripTests
             Serializer.FromJson("""{"width":400,"height":300,"images":[{"data":[[1,2,3],[4,5]]}]}"""));
 
         Assert.Equal("data", refusal.ParamName);
-        Assert.Contains("same number", refusal.Message);
+        Assert.StartsWith(2.RefusalAgainst(3, of: "row 1"), refusal.Message);
     }
 
     [Fact]
@@ -426,6 +452,7 @@ public class FigureOverlayRoundTripTests
         Assert.DoesNotContain("texts", fields);
         Assert.DoesNotContain("images", fields);
         Assert.DoesNotContain("legend", fields);
+        Assert.DoesNotContain("legends", fields);
     }
 
     [Fact]
@@ -435,7 +462,7 @@ public class FigureOverlayRoundTripTests
         Assert.DoesNotContain("images", RootFields(TwoLines().FigText("t", 0.5, 0.5).Build()));
         Assert.Contains("images", RootFields(TwoLines().FigImage(new double[,] { { 1 } }).Build()));
         Assert.DoesNotContain("texts", RootFields(TwoLines().FigImage(new double[,] { { 1 } }).Build()));
-        Assert.Contains("legend", RootFields(TwoLines().FigLegend().Build()));
+        Assert.Contains("legends", RootFields(TwoLines().FigLegend().Build()));
         Assert.DoesNotContain("texts", RootFields(TwoLines().FigLegend().Build()));
     }
 
@@ -448,7 +475,7 @@ public class FigureOverlayRoundTripTests
 
         Assert.Empty(read.Texts);
         Assert.Empty(read.Images);
-        Assert.Null(read.Legend);
+        Assert.Empty(read.Legends);
     }
 
     /// <summary>A figure with every overlay set is a fixed point of the round trip: written, read and written again it is the
@@ -476,7 +503,7 @@ public class FigureOverlayRoundTripTests
         Assert.NotEmpty(DrawnAxesFixtures.FigureLists);
         foreach (var list in DrawnAxesFixtures.FigureLists)
         {
-            int count = ((System.Collections.ICollection)list.GetValue(figure)!).Count;
+            int count = ((System.Collections.IEnumerable)list.GetValue(figure)!).Cast<object>().Count();
             Assert.True(count > 0, $"Figure.{list.Name} is empty in DrawnAxesFixtures.Build: add an item of it, or the JSON can drop the whole list unseen.");
             var itemType = list.PropertyType.GetGenericArguments()[0];
             Assert.True(partTypes.Contains(itemType), $"Figure.{list.Name} holds {itemType.Name}, which no part of DrawnAxesFixtures.Parts covers.");
@@ -484,26 +511,9 @@ public class FigureOverlayRoundTripTests
     }
 
     [Fact]
-    public void TheGuard_FindsTheTextsAndTheImagesOfTheFigure()
+    public void TheGuard_FindsTheTextsTheImagesAndTheLegendsOfTheFigure()
     {
-        Assert.Equal([nameof(Figure.Images), nameof(Figure.Texts)], DrawnAxesFixtures.FigureLists.Select(list => list.Name));
-    }
-
-    /// <summary>The length of each list and every value of every item of it, the ones given when it is made (a text's words
-    /// and place, an image's pixels and offsets) included, comes back from JSON as it was. One row per value, so a field the
-    /// DTO drops is named: <c>Texts[0].Y</c>, <c>Images[0].XOffset</c>.</summary>
-    [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.FigureListValueKeys), MemberType = typeof(DrawnAxesFixtures))]
-    public void AFigureListValue_ComesBackFromJson_AsItWasWritten(string key)
-    {
-        var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        object? written = DrawnAxesFixtures.FigureListValues(figure)[key];
-
-        var read = DrawnAxesFixtures.FigureListValues(RoundTrip(figure));
-
-        Assert.True(read.ContainsKey(key), $"Figure.{key}: written as {DrawnSeriesFixtures.Show(written)}, and nothing of it came back from JSON.");
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read[key]),
-            $"Figure.{key}: written as {DrawnSeriesFixtures.Show(written)}, read back from JSON as {DrawnSeriesFixtures.Show(read[key])}.");
+        Assert.Equal([nameof(Figure.Images), nameof(Figure.Legends), nameof(Figure.Texts)], DrawnAxesFixtures.FigureLists.Select(list => list.Name));
     }
 
     /// <summary>The guard sees the places a flat comparison of pixels would not: the size of an image is a value of it.</summary>

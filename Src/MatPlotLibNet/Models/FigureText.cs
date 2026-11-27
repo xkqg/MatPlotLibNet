@@ -9,8 +9,15 @@ namespace MatPlotLibNet.Models;
 /// <summary>A text placed on the figure itself rather than in a subplot (matplotlib's <c>figtext</c>): a note, a source
 /// line, a panel letter. Its position is a pair of fractions of the figure, so it stays where it is put whatever the
 /// subplots show, and it is drawn above every subplot.</summary>
-public sealed class FigureText
+public sealed class FigureText : IChangeTracked
 {
+    private long _stamp;
+
+    /// <summary>Stores <paramref name="value"/> and marks this text changed, unless it already holds an equal value.</summary>
+    private void Change<T>(ref T slot, T value) => ChangeClock.Change(ref slot, value, ref _stamp);
+
+    long IChangeTracked.LatestChange => _stamp;
+
     /// <summary>The text that is drawn, as given.</summary>
     public string Text { get; }
 
@@ -24,25 +31,25 @@ public sealed class FigureText
 
     /// <summary>The font the text is drawn in. <see langword="null"/> (the default) takes the theme's text font, the one an
     /// annotation is drawn in; a font that carries no colour of its own takes <see cref="Color"/>.</summary>
-    public Font? Font { get; set; }
+    public Font? Font { get; set => Change(ref field, value); }
 
     /// <summary>The colour of the text. <see langword="null"/> (the default) takes the theme's text colour.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>How the text stands against its point horizontally: <see cref="TextAlignment.Left"/> (the default) starts
     /// the text at the point, <see cref="TextAlignment.Center"/> centres it on the point and <see cref="TextAlignment.Right"/>
     /// ends it at the point.</summary>
-    public TextAlignment Alignment { get; set; } = TextAlignment.Left;
+    public TextAlignment Alignment { get; set => Change(ref field, value); } = TextAlignment.Left;
 
     /// <summary>How the text stands against its point vertically: <see cref="TextVerticalAlignment.Baseline"/> (the
     /// default) puts the baseline on the point, <see cref="TextVerticalAlignment.Center"/> centres the text on it,
     /// <see cref="TextVerticalAlignment.Top"/> hangs the text from it and <see cref="TextVerticalAlignment.Bottom"/> stands
     /// the text on it.</summary>
-    public TextVerticalAlignment VerticalAlignment { get; set; } = TextVerticalAlignment.Baseline;
+    public TextVerticalAlignment VerticalAlignment { get; set => Change(ref field, value); } = TextVerticalAlignment.Baseline;
 
     /// <summary>The angle the text is turned through about its point, in degrees, counter-clockwise when positive. 0 (the
     /// default) leaves the text horizontal.</summary>
-    public double Rotation { get; set; }
+    public double Rotation { get; set => Change(ref field, value); }
 
     /// <summary>Creates a text at a place on the figure. A position outside 0 to 1, or one that is not a number, is kept
     /// but not drawn: the text has no place on the figure.</summary>

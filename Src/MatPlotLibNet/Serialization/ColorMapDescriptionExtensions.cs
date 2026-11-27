@@ -1,13 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Serialization;
 
-/// <summary>How a colour map is written to the figure JSON and taken back: the one rule for every series that draws
-/// through a colour map, the colour bar and the pair grid, so none of them carries its own copy.
+/// <summary>How a colour map is written to the figure JSON: the one rule for every series that draws through a colour map, the colour
+/// bar, the theme, the pair grid and an image on the figure, so none of them carries its own copy. What the document holds is a
+/// <see cref="ColorMapWire"/>, which also reads it back.
 /// <para>A map is written by the means that make it again: by its name in a <c>colorMapName</c> field when it is a map
 /// the library ships (every reader knows those names, and that JSON is the bytes it always was), or when it is a map of
 /// your own type that is registered under its name (a reader that registered it too makes it again; another reads no
@@ -30,38 +30,14 @@ internal static class ColorMapDescriptionExtensions
             _ => null,
         };
 
-        /// <summary>What a <c>colorMapName</c> field holds for <paramref name="map"/>: its name when it travels by its name,
-        /// otherwise <see langword="null"/>.</summary>
-        internal string? NameForJson() => map.Describe() is NamedColorMapDto named ? named.Name : null;
-
-        /// <summary>What a <c>colorMap</c> field holds for <paramref name="map"/>: the description of a map built in code,
-        /// otherwise <see langword="null"/>.</summary>
-        internal ColorMapDto? DescriptionForJson() => map.Describe() is { } description and not NamedColorMapDto ? description : null;
-    }
-
-    extension(ColorMapDto? description)
-    {
-        /// <summary>The map a <c>colorMap</c> description and a <c>colorMapName</c> written beside it make together: the
-        /// description's map when there is one, otherwise the map registered under the name (none when nobody registered
-        /// it), otherwise none.</summary>
-        /// <param name="name">The name, when the JSON holds one.</param>
-        /// <exception cref="ArgumentException">The description cannot make a map; the exception names the field.</exception>
-        internal IColorMap? ReadColorMap(string? name) =>
-            (description ?? (name is null ? null : new NamedColorMapDto(name)))?.Restore();
-    }
-
-    extension(IColormappable series)
-    {
-        /// <summary>Gives <paramref name="series"/> the map <paramref name="dto"/> writes. A DTO that writes none leaves the
-        /// series on the map it was created with.</summary>
-        /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-        /// <exception cref="ArgumentException">The description cannot make a map; the exception names the field.</exception>
-        internal void RestoreColorMap(SeriesDto dto)
+        /// <summary>What the document carries for <paramref name="map"/>: its name when it travels by its name, its description when it
+        /// is built in code, nothing when there is no map or it cannot be written. The map is described once.</summary>
+        /// <returns>The two fields of the document, one of them at most written.</returns>
+        internal ColorMapWire ColorMapOnTheWire() => map.Describe() switch
         {
-            if (dto.ColorMap is not null || dto.ColorMapName is not null)
-            {
-                series.ColorMap = dto.ColorMap.ReadColorMap(dto.ColorMapName);
-            }
-        }
+            NamedColorMapDto named => new ColorMapWire(named.Name, null),
+            { } description => new ColorMapWire(null, description),
+            _ => default,
+        };
     }
 }

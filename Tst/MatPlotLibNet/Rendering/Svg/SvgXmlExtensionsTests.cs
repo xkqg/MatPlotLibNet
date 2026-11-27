@@ -16,28 +16,14 @@ public class SvgXmlExtensionsTests
         Assert.Same(input, input.EscapeForXml());
     }
 
-    [Fact]
-    public void EscapeForXml_Ampersand_Escapes()
+    [Theory]
+    [InlineData("a&amp;b", "a&b")] // EscapeForXml_Ampersand_Escapes
+    [InlineData("a&lt;b", "a<b")] // EscapeForXml_LessThan_Escapes
+    [InlineData("a&gt;b", "a>b")] // EscapeForXml_GreaterThan_Escapes
+    [InlineData("&amp;&lt;&gt;", "&<>")] // EscapeForXml_AllThree_EscapesAll
+    public void EscapeForXml_EscapesWhatXmlReserves(string expected, string text)
     {
-        Assert.Equal("a&amp;b", "a&b".EscapeForXml());
-    }
-
-    [Fact]
-    public void EscapeForXml_LessThan_Escapes()
-    {
-        Assert.Equal("a&lt;b", "a<b".EscapeForXml());
-    }
-
-    [Fact]
-    public void EscapeForXml_GreaterThan_Escapes()
-    {
-        Assert.Equal("a&gt;b", "a>b".EscapeForXml());
-    }
-
-    [Fact]
-    public void EscapeForXml_AllThree_EscapesAll()
-    {
-        Assert.Equal("&amp;&lt;&gt;", "&<>".EscapeForXml());
+        Assert.Equal(expected, text.EscapeForXml());
     }
 
     [Fact]

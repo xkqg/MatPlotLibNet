@@ -4,37 +4,41 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>The grid of a polar axes and every series on it read ONE radial scale: a ring labelled 10 stands exactly where
 /// a radius of 10 is drawn, whichever kind of series draws it, and two series on one axes share their scale. For a plot of
-/// 400 by 400 the centre is (200, 200) and the outermost ring is 0.85 · 200 = 170 px out.</summary>
+/// 400 by 400 the centre is (200, 200) and the outermost ring is 200 px out, on the edge of the square.</summary>
 public class PolarScaleAgreementTests
 {
     private static readonly Rect Plot = new(0, 0, 400, 400);
-    private const double MaxRadius = 170;
+    private const double MaxRadius = 200;
     private static readonly Point Centre = new(200, 200);
 
     private static double Distance(Point p) => Math.Sqrt((p.X - Centre.X) * (p.X - Centre.X) + (p.Y - Centre.Y) * (p.Y - Centre.Y));
 
-    private static RecordingRenderContext Draw(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        new PolarAxesRenderer(axes, Plot, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     /// <summary>The rings: the label of each, with the radius in pixels of the circle drawn for it.</summary>
     private static Dictionary<string, double> Rings(RecordingRenderContext ctx)
     {
-        var circles = ctx.OfKind("DrawEllipse").Select(c => (Rect)((dynamic)c.Args!).bounds).Select(b => b.Width / 2).ToList();
-        var labels = ctx.OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text).Where(t => !t.EndsWith('°')).ToList();
+        // A ring is a circle with an edge in the grid's colour and no fill; the spine that closes the circle (PolarSpineTests) is the
+        // circle in the spine's colour.
+        var spine = new Axes().Spines.Top.ColorIn(Theme.Default);
+        var circles = ctx.Of<DrawCircleCall>()
+            .Where(a => a.Stroke is not null && a.Fill is null && a.Stroke != spine)
+            .Select(a => a.Radius).ToList();
+        var labels = ctx.Of<DrawTextCall>().Select(c => c.Text).Where(t => !t.EndsWith('°')).ToList();
         // A ring's label is drawn with its ring: the grid draws a circle and then the label of that circle.
         return labels.Zip(circles.Skip(circles.Count - labels.Count), (label, radius) => (label, radius)).ToDictionary(t => t.label, t => t.radius);
     }
+
+    /// <summary>The circles the series drew: every circle but the axes' background, which is the circle the axes stands in
+    /// (<see cref="PolarBackgroundTests"/>), filled with the theme's axes colour and no edge, and the spine that closes it
+    /// (<see cref="PolarSpineTests"/>), an edge with no fill.</summary>
+    private static IEnumerable<DrawCircleCall> MarkCircles(RecordingRenderContext ctx) => ctx.Of<DrawCircleCall>()
+        .Where(c => !(c.Fill == Theme.Default.AxesBackground && c.Stroke is null))
+        .Where(c => c.Fill is not null);
 
     private static Axes PolarAxes() => new() { CoordinateSystem = CoordinateSystem.Polar };
 
@@ -44,9 +48,9 @@ public class PolarScaleAgreementTests
 
     private static IEnumerable<Point> FarthestMarks(RecordingRenderContext ctx, string kind) => kind switch
     {
-        "scatter" => ctx.OfKind("DrawCircle").Select(c => (Point)((dynamic)c.Args!).center),
-        "line" => ctx.OfKind("DrawLines").SelectMany(c => (Point[])((dynamic)c.Args!).points),
-        _ => ctx.OfKind("DrawPolygon").SelectMany(c => (Point[])((dynamic)c.Args!).points),
+        "scatter" => MarkCircles(ctx).Select(c => c.Center),
+        "line" => ctx.Of<DrawLinesCall>().SelectMany(c => c.Points),
+        _ => ctx.Of<DrawPolygonCall>().SelectMany(c => c.Points),
     };
 
     [Theory]
@@ -63,7 +67,7 @@ public class PolarScaleAgreementTests
             default: axes.PolarHeatmap(new double[4, 3], 4, 3).RMax = 10; break;
         }
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
         Assert.Equal(Rings(ctx)["10"], FarthestMarks(ctx, kind).Max(Distance), 6);
     }
@@ -75,11 +79,12 @@ public class PolarScaleAgreementTests
         axes.PolarScatter([10.0, 3], [0.0, 1]).MarkerSize = 10;
         axes.PolarScatter([2.0], [2.0]).MarkerSize = 20;
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
-        double Farthest(double radius) => ctx.OfKind("DrawCircle").Where(c => (double)((dynamic)c.Args!).radius == radius)
-            .Max(c => Distance((Point)((dynamic)c.Args!).center));
-        Assert.Equal(0.2, Farthest(10) / Farthest(5), 9);
+        // A marker is its size in points across (PolarScatterMarkerSizeTests): the 20 one's radius is 10 points, the 10 one's 5.
+        double Farthest(double radius) => MarkCircles(ctx).Where(c => c.Radius == radius)
+            .Max(c => Distance(c.Center));
+        Assert.Equal(0.2, Farthest(20.0.PointsInPixels / 2) / Farthest(10.0.PointsInPixels / 2), 9);
     }
 
     [Fact]
@@ -88,23 +93,27 @@ public class PolarScaleAgreementTests
         var axes = PolarAxes();
         axes.PolarScatter([0.4], [0.0]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
         // The extent is 0.4 · 1.05 = 0.42: the mark stands 0.4 / 0.42 of the way out, not 0.4 / 1.1.
-        Assert.Equal(MaxRadius * 0.4 / 0.42, ctx.OfKind("DrawCircle").Select(c => Distance((Point)((dynamic)c.Args!).center)).Single(), 6);
+        Assert.Equal(MaxRadius * 0.4 / 0.42, MarkCircles(ctx).Select(c => Distance(c.Center)).Single(), 6);
     }
 
+    /// <summary>A radius below zero is drawn, on a scale that reaches it (matplotlib: r -20 and 4 give rlim (-21.2, 5.2)): -20 stands
+    /// 1.2 / 26.4 of the way out and 4 stands 25.2 / 26.4, and no mark lies outside the outermost ring.</summary>
     [Fact]
-    public void ARadiusBelowZero_IsSkipped_AndNoMarkLiesOutsideTheOutermostRing()
+    public void ARadiusBelowZero_IsDrawnOnAScaleThatReachesIt_AndNoMarkLiesOutsideTheOutermostRing()
     {
         var axes = PolarAxes();
         axes.PolarScatter([-20.0, 4], [0.0, 1]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
-        var marks = ctx.OfKind("DrawCircle").Select(c => (Point)((dynamic)c.Args!).center).ToList();
-        Assert.Single(marks);
-        Assert.All(marks, m => Assert.True(Distance(m) <= MaxRadius + 1e-6));
+        var marks = MarkCircles(ctx).Select(c => Distance(c.Center)).ToList();
+        Assert.Equal(2, marks.Count);
+        Assert.Equal(MaxRadius * 1.2 / 26.4, marks[0], 6);
+        Assert.Equal(MaxRadius * 25.2 / 26.4, marks[1], 6);
+        Assert.All(marks, distance => Assert.True(distance <= MaxRadius + 1e-6));
     }
 
     [Fact]
@@ -118,7 +127,7 @@ public class PolarScaleAgreementTests
             return axes;
         }
 
-        Assert.Equal(Rings(Draw(With(hidden: true))), Rings(Draw(With(hidden: false))));
+        Assert.Equal(Rings(With(hidden: true).Drawn(Plot)), Rings(With(hidden: false).Drawn(Plot)));
     }
 
     [Fact]
@@ -128,10 +137,10 @@ public class PolarScaleAgreementTests
         axes.PolarHeatmap(new double[4, 3], 4, 3).RMax = 5;
         axes.PolarScatter([8.0], [0.0]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
         // The scatter reaches 8 · 1.05 = 8.4; the heatmap's edge stands 5 / 8.4 of the way out.
-        double heatmapEdge = ctx.OfKind("DrawPolygon").SelectMany(c => (Point[])((dynamic)c.Args!).points).Max(Distance);
+        double heatmapEdge = ctx.Of<DrawPolygonCall>().SelectMany(c => c.Points).Max(Distance);
         Assert.Equal(MaxRadius * 5 / 8.4, heatmapEdge, 6);
     }
 
@@ -139,7 +148,7 @@ public class PolarScaleAgreementTests
 
     /// <summary>The inner and the outer radius of each wedge drawn, in pixels, in the order they were drawn.</summary>
     private static List<(double Inner, double Outer)> Wedges(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawPolygon").Select(c => ((Point[])((dynamic)c.Args!).points).Select(Distance).ToArray())
+        [.. ctx.Of<DrawPolygonCall>().Select(c => c.Points.Select(Distance).ToArray())
             .Select(d => (d.Min(), d.Max()))];
 
     private static Axes TwoBars(BarMode mode)
@@ -154,7 +163,7 @@ public class PolarScaleAgreementTests
     [Fact]
     public void StackedPolarBars_StandOnTheBarsBeforeThem()
     {
-        var ctx = Draw(TwoBars(BarMode.Stacked));
+        var ctx = TwoBars(BarMode.Stacked).Drawn(Plot);
 
         var wedges = Wedges(ctx);
         // The stack is 3 + 2 = 5 high and the scale reaches 5 · 1.05 = 5.25: the first wedge runs from the centre to 3, the
@@ -169,7 +178,7 @@ public class PolarScaleAgreementTests
     [Fact]
     public void TheRingsOfAStack_ReachItsTop()
     {
-        var rings = Rings(Draw(TwoBars(BarMode.Stacked)));
+        var rings = Rings(TwoBars(BarMode.Stacked).Drawn(Plot));
 
         Assert.True(rings.ContainsKey("5"), "a ring is labelled with the top of the stack");
         Assert.Equal(MaxRadius * 5 / 5.25, rings["5"], 6);
@@ -178,7 +187,7 @@ public class PolarScaleAgreementTests
     [Fact]
     public void GroupedPolarBars_StillOverlayEachOther()
     {
-        var wedges = Wedges(Draw(TwoBars(BarMode.Grouped)));
+        var wedges = Wedges(TwoBars(BarMode.Grouped).Drawn(Plot));
 
         Assert.Equal(0, wedges[1].Inner, 6);
         Assert.Equal(MaxRadius * 2 / 3.15, wedges[1].Outer, 6);
@@ -203,9 +212,9 @@ public class PolarScaleAgreementTests
         var axes = PolarAxes();
         axes.PolarBar([14.1, 8.0, 5.0], [0.0, 0.8, 1.6]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
-        var labels = ctx.OfKind("DrawText").Select(c => (Text: (string)((dynamic)c.Args!).text, At: (Point)((dynamic)c.Args!).position))
+        var labels = ctx.Of<DrawTextCall>().Select(c => (Text: c.Text, At: c.Position))
             .Where(t => !t.Text.EndsWith('°')).ToList();
         // The rings ask for as many ticks as fit along 170 px (6), which the locator gives as steps of 2.5.
         Assert.Equal(["2.5", "5.0", "7.5", "10.0", "12.5"], labels.Select(l => l.Text).ToArray());
@@ -221,23 +230,24 @@ public class PolarScaleAgreementTests
     {
         var axes = PolarAxes();
         axes.PolarScatter([10.0], [0.0]);
-        axes.YAxis.TickFormatter = new MarkedFormatter();
+        axes.YAxis.TickFormatter = new TestTickFormatter(value => "#" + value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
-        Assert.All(ctx.OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text).Where(t => !t.EndsWith('°')),
+        Assert.All(ctx.Of<DrawTextCall>().Select(c => c.Text).Where(t => !t.EndsWith('°')),
             text => Assert.StartsWith("#", text));
     }
 
     [Fact]
-    public void AnOutermostCircle_IsDrawnAtTheExtent_WhenNoRingStandsThere()
+    public void TheCircle_IsClosedAtTheExtent_WhenNoRingStandsThere()
     {
         var axes = PolarAxes();
         axes.PolarScatter([10.0], [0.0]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Plot);
 
-        Assert.Contains(ctx.OfKind("DrawEllipse"), c => Math.Abs(((Rect)((dynamic)c.Args!).bounds).Width / 2 - MaxRadius) < 1e-9);
+        // The spine closes it (PolarSpineTests): a circle with an edge and no fill.
+        Assert.Contains(ctx.Of<DrawCircleCall>(), c => c.Fill is null && Math.Abs(c.Radius - MaxRadius) < 1e-9);
     }
 
     // ---- the marks a legend keeps clear of --------------------------------------------------------------------------------
@@ -247,18 +257,12 @@ public class PolarScaleAgreementTests
     {
         var axes = PolarAxes();
         axes.PolarScatter([10.0, 4, 7], [0.0, 1, 2]);
-        var drawn = Draw(axes).OfKind("DrawCircle").Select(c => (Point)((dynamic)c.Args!).center).ToList();
+        var drawn = MarkCircles(axes.Drawn(Plot)).Select(c => c.Center).ToList();
 
         var marks = new PolarAxesRenderer(axes, Plot, new RecordingRenderContext(), Theme.Default).LegendObstacles();
 
         Assert.Equal(drawn.Count, marks.Points.Count);
         foreach (var point in drawn)
             Assert.Contains(marks.Points, p => Math.Abs(p.X - point.X) < 1e-9 && Math.Abs(p.Y - point.Y) < 1e-9);
-    }
-
-    /// <summary>A formatter that marks what it wrote.</summary>
-    private sealed class MarkedFormatter : ITickFormatter
-    {
-        public string Format(double value) => "#" + value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
     }
 }

@@ -29,18 +29,35 @@ public class StateTimelineHatchTests
         Assert.Equal(HatchPattern.None, segment.Hatch);
     }
 
-    /// <summary>A hatched segment reaches the canvas as a pattern fill, not a flat colour.</summary>
-    [Fact]
-    public void HatchedSegment_RendersAsAPattern()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Render(new StateSegment(0, 10, "No contact", Colors.Gray)
+        // A hatched segment reaches the canvas as a pattern fill, not a flat colour.
+        new DrawnToken("HatchedSegment_RendersAsAPattern", () => Render(new StateSegment(0, 10, "No contact", Colors.Gray)
         {
             Hatch = HatchPattern.ForwardDiagonal
-        });
+        }), "<pattern", "fill=\"url(#"),
+        // A band that carries a condition instead of a pattern still draws one: the mapping lives in the library, so a caller does not
+        // repeat it per segment.
+        new DrawnToken("ASegmentInAShelvedCondition_RendersAsAPattern", () => Render(new StateSegment(0, 10, "Muted", Colors.Gray)
+        {
+            Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved)
+        }), "<pattern"),
+        // A resting band draws flat — no pattern appears from a condition nobody set.
+        new DrawnToken("ARestingSegment_StaysFlat", () => Render(new StateSegment(0, 10, "Up", Colors.Tab10Green))) { Absent = ["<pattern"] },
+        // An unhatched timeline adds no hatch bytes — the existing golden stays byte-identical.
+        new DrawnToken("UnhatchedTimeline_AddsNoBytes", () =>
+        {
+            var figure = Plt.Create()
+                .AddSubPlot(1, 1, 1, ax => ax.StateTimeline([new StateSegment(0, 10, "Up", Colors.Tab10Green)]))
+                .Build();
+            return new ChartSerializer().ToJson(figure);
+        }) { Absent = ["atch"] },
+    };
 
-        Assert.Contains("<pattern", svg);
-        Assert.Contains("fill=\"url(#", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Hatched and plain segments coexist on one row: only the hatched band gets a pattern, the
     /// others keep their flat fill. A single unknown stretch must stand out inside an otherwise normal row.</summary>
@@ -52,7 +69,7 @@ public class StateTimelineHatchTests
             new StateSegment(10, 20, "No contact", Colors.Gray) { Hatch = HatchPattern.ForwardDiagonal },
             new StateSegment(20, 30, "Up", Colors.Tab10Green));
 
-        Assert.Equal(1, CountOccurrences(svg, "<pattern"));
+        Assert.Equal(1, svg.CountOf("<pattern"));
         Assert.Contains(Colors.Tab10Green.ToHex(), svg);
     }
 
@@ -68,48 +85,11 @@ public class StateTimelineHatchTests
             ]))
             .Build();
 
-        var serializer = new ChartSerializer();
-        var restored = serializer.FromJson(serializer.ToJson(figure))
+        var restored = figure.RoundTripped()
             .SubPlots[0].Series.OfType<StateTimelineSeries>().Single();
 
         Assert.Equal(HatchPattern.None, restored.Segments[0].Hatch);
         Assert.Equal(HatchPattern.BackDiagonal, restored.Segments[1].Hatch);
-    }
-
-    /// <summary>An unhatched timeline adds no hatch bytes — the existing golden stays byte-identical.</summary>
-    [Fact]
-    public void UnhatchedTimeline_AddsNoBytes()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StateTimeline([new StateSegment(0, 10, "Up", Colors.Tab10Green)]))
-            .Build();
-
-        Assert.DoesNotContain("atch", new ChartSerializer().ToJson(figure));
-    }
-
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        int count = 0;
-        int i = 0;
-        while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            i += needle.Length;
-        }
-
-        return count;
-    }
-    /// <summary>A band that carries a condition instead of a pattern still draws one: the mapping lives in the
-    /// library, so a caller does not repeat it per segment.</summary>
-    [Fact]
-    public void ASegmentInAShelvedCondition_RendersAsAPattern()
-    {
-        string svg = Render(new StateSegment(0, 10, "Muted", Colors.Gray)
-        {
-            Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved)
-        });
-
-        Assert.Contains("<pattern", svg);
     }
 
     /// <summary>An explicit hatch wins over the condition's: what the caller said outright is never
@@ -126,14 +106,4 @@ public class StateTimelineHatchTests
         Assert.Equal(HatchPattern.Dots, segment.Hatch);
         Assert.Contains("<pattern", Render(segment));
     }
-
-    /// <summary>A resting band draws flat — no pattern appears from a condition nobody set.</summary>
-    [Fact]
-    public void ARestingSegment_StaysFlat()
-    {
-        string svg = Render(new StateSegment(0, 10, "Up", Colors.Tab10Green));
-
-        Assert.DoesNotContain("<pattern", svg);
-    }
-
 }

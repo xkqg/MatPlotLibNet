@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -30,17 +30,8 @@ public class TreemapSeriesRendererTests
         // Match <text ... font-size="X" ... >label</text>  OR  <text ...>label</text>
         // where font-size could come from a parent/attribute. Simplest: scan every
         // <text ...>label</text> and parse its font-size from the same tag.
-        var pattern = $"<text\\b([^>]*?)>{Regex.Escape(label)}</text>";
-        foreach (Match m in Regex.Matches(svg, pattern))
-        {
-            var attrs = m.Groups[1].Value;
-            var fs = Regex.Match(attrs, "font-size=\"([\\d.]+)");
-            if (fs.Success && double.TryParse(fs.Groups[1].Value,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var v))
-                return v;
-        }
-        return double.NaN;
+        return svg.Elements("text").Where(element => element.Text == label && element["font-size"] is not null)
+            .Select(element => element.Number("font-size")).DefaultIfEmpty(double.NaN).First();
     }
 
     [Fact]
@@ -59,26 +50,53 @@ public class TreemapSeriesRendererTests
 
         var f1 = FontSizeOfLabel(RenderSvg(depth1, 800, 600), "Big");
         var fE = FontSizeOfLabel(RenderSvg(depth5, 800, 600), "Big");
-        Assert.False(double.IsNaN(f1), "depth-1 'Big' label not found in SVG");
-        Assert.False(double.IsNaN(fE), "depth-5 'Big' label not found in SVG");
-        Assert.Equal(12.0, f1);
-        Assert.Equal(12.0, fE);
+        f1.AssertFinite("depth-1 'Big' label not found in SVG");
+        fE.AssertFinite("depth-5 'Big' label not found in SVG");
+        // The figure's default theme is matplotlib's v2 style: a name that names no size is its font size, at every depth.
+        Assert.Equal(Math.Round(Theme.MatplotlibV2.DefaultFont.Size, 2), f1);
+        Assert.Equal(f1, fE);
     }
 
-    [Fact]
-    public void Label_RendersEvenWhenTileNarrowerThanText()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        // A leaf with a long label inside a tiny rect must STILL render the label.
-        // Pre-W the rect-fit gate (`size.Width + 8 <= bounds.Width`) hid it; post-W
-        // it overflows visually but the data is in the SVG. Users zoom in via
-        // `WithBrowserInteraction()`, or call `.WithAutoSize(root)` for a canvas big
-        // enough to avoid overflow. "When no browserInteraction he sees all."
+        new DrawnToken("Label_RendersEvenWhenTileNarrowerThanText", () =>
+        {
+            // A leaf with a long label inside a tiny rect must STILL render the label.
+            // Pre-W the rect-fit gate (`size.Width + 8 <= bounds.Width`) hid it; post-W
+            // it overflows visually but the data is in the SVG. Users zoom in via
+            // `WithBrowserInteraction()`, or call `.WithAutoSize(root)` for a canvas big
+            // enough to avoid overflow. "When no browserInteraction he sees all."
+            var tree = new TreeNode { Label = "Root", Children = [
+                new() { Label = "Big",         Value = 100 },
+                new() { Label = "Smartphones", Value = 1   },   // tiny tile, long label
+            ]};
+            return RenderSvg(tree, 400, 300);
+        }, ">Big<", ">Smartphones<"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>A value that is not a number, or an infinite one, makes the total of its siblings one too, so they have no area
+    /// to share: the parent is drawn and its children are not, as a sunburst leaves them out. Before, every child was drawn at
+    /// coordinates of "NaN", which no SVG reader can place.</summary>
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void ChildrenWhoseTotalIsNotAFiniteNumber_AreNotDrawn(double value)
+    {
         var tree = new TreeNode { Label = "Root", Children = [
-            new() { Label = "Big",         Value = 100 },
-            new() { Label = "Smartphones", Value = 1   },   // tiny tile, long label
+            new() { Label = "Apples",  Value = 3 },
+            new() { Label = "Unknown", Value = value },
+            new() { Label = "Pears",   Value = 1 },
         ]};
+
         string svg = RenderSvg(tree, 400, 300);
-        Assert.Contains(">Big<", svg);
-        Assert.Contains(">Smartphones<", svg);
+
+        Assert.Contains(">Root<", svg);
+        svg.AssertNoNonFiniteNumber();
+        Assert.DoesNotContain(">Apples<", svg);
     }
 }

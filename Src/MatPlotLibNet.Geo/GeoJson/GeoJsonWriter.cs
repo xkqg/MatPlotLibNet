@@ -48,49 +48,8 @@ public static class GeoJsonWriter
     {
         writer.WriteString("type", geometry.Type);
         writer.WriteStartArray("coordinates");
-        switch (geometry.Type)
-        {
-            case "Polygon":
-                foreach (var polygon in geometry.Polygons) WritePolygonRings(writer, polygon);
-                break;
-            case "MultiPolygon":
-                foreach (var polygon in geometry.Polygons)
-                {
-                    writer.WriteStartArray();
-                    WritePolygonRings(writer, polygon);
-                    writer.WriteEndArray();
-                }
-                break;
-            case "LineString":   // the coordinates of a line are its positions, not a ring of them
-                if (geometry.Rings.Count > 0)
-                    foreach (var (lon, lat) in geometry.Rings[0]) WritePosition(writer, new GeoPosition(lon, lat));
-                break;
-            default:   // MultiLineString
-                foreach (var ring in geometry.Rings) WriteRing(writer, ring.Select(p => new GeoPosition(p.Lon, p.Lat)));
-                break;
-        }
-
-        writer.WriteEndArray();
-    }
-
-    private static void WritePolygonRings(Utf8JsonWriter writer, GeoPolygon polygon)
-    {
-        WriteRing(writer, polygon.Exterior);
-        foreach (var hole in polygon.Holes) WriteRing(writer, hole);
-    }
-
-    private static void WriteRing(Utf8JsonWriter writer, IEnumerable<GeoPosition> ring)
-    {
-        writer.WriteStartArray();
-        foreach (var position in ring) WritePosition(writer, position);
-        writer.WriteEndArray();
-    }
-
-    private static void WritePosition(Utf8JsonWriter writer, GeoPosition position)
-    {
-        writer.WriteStartArray();
-        writer.WriteNumberValue(position.Lon);
-        writer.WriteNumberValue(position.Lat);
+        // The kind the type names writes its own coordinates; a type the library does not read writes its rings as lines.
+        geometry.Kind.Write(writer, geometry);
         writer.WriteEndArray();
     }
 }

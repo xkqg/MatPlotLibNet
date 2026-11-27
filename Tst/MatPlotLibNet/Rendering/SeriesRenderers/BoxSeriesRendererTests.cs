@@ -4,6 +4,9 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Tests.TestFixtures;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -19,95 +22,57 @@ public class BoxSeriesRendererTests
         [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0],
     ];
 
-    private static string Render(BoxSeries s) =>
+    private static string Render(BoxSeries s, Theme? theme = null) =>
         Plt.Create()
             .WithSize(400, 300)
+            .WithTheme(theme ?? Theme.MatplotlibV2)
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(s))
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_VerticalDefault_DrawsBoxAndWhiskers()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new BoxSeries(SampleSets));
-        Assert.Contains("<rect", svg);
-    }
+        new DrawnToken("Render_VerticalDefault_DrawsBoxAndWhiskers", () => Render(new BoxSeries(SampleSets)), "<rect"),
+        // Horizontal orientation (Vert=false branch).
+        new DrawnToken("Render_Horizontal_SwapsAxes", () => Render(new BoxSeries(SampleSets) { Vert = false }), "<rect"),
+        // ShowMeans=true exercises the green-circle mean marker the library's own themes draw (the matplotlib themes draw matplotlib's:
+        // BoxLookTests); the vertical and the horizontal box each have a fact below.
+        new DrawnToken("Render_ShowMeans_Vertical_DrawsCircleAtMean", () => Render(new BoxSeries(SampleSets) { ShowMeans = true }, Theme.Default), "<circle"),
+        new DrawnToken("Render_ShowMeans_Horizontal_DrawsCircleAtMean", () => Render(new BoxSeries(SampleSets) { Vert = false, ShowMeans = true }, Theme.Default), "<circle"),
+        // Explicit Positions array (`Positions is not null && i < Positions.Length` true branch). Default is i=0,1,...; explicit
+        // positions place boxes at custom x-coords.
+        new DrawnToken("Render_ExplicitPositions_PlacesBoxesAtCustomCoords", () => Render(new BoxSeries(SampleSets) { Positions = [10.0, 20.0] }), "<rect"),
+        // Positions array shorter than dataset count — i >= Positions.Length false arm of the ternary; falls back to integer index.
+        // only 1 position for 2 datasets
+        new DrawnToken("Render_ShortPositions_FallsBackToIndex", () => Render(new BoxSeries(SampleSets) { Positions = [10.0] }), "<rect"),
+        // Explicit MedianColor (`series.MedianColor ?? Colors.Red`).
+        new DrawnToken("Render_ExplicitMedianColor_UsesItForMedianLine", () => Render(new BoxSeries(SampleSets) { MedianColor = new Color(0, 255, 0, 255) }), "<rect"),
+    };
 
-    /// <summary>Horizontal orientation (line 44-58: Vert=false branch).</summary>
-    [Fact]
-    public void Render_Horizontal_SwapsAxes()
-    {
-        var svg = Render(new BoxSeries(SampleSets) { Vert = false });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>ShowMeans=true exercises the green-circle mean marker (lines 38-42 vertical
-    /// AND lines 53-57 horizontal both share the same `if (series.ShowMeans)` shape — one
-    /// fact each below).</summary>
-    [Fact]
-    public void Render_ShowMeans_Vertical_DrawsCircleAtMean()
-    {
-        var svg = Render(new BoxSeries(SampleSets) { ShowMeans = true });
-        Assert.Contains("<circle", svg);
-    }
-
-    [Fact]
-    public void Render_ShowMeans_Horizontal_DrawsCircleAtMean()
-    {
-        var svg = Render(new BoxSeries(SampleSets) { Vert = false, ShowMeans = true });
-        Assert.Contains("<circle", svg);
-    }
-
-    /// <summary>Explicit Positions array (line 24's `Positions is not null &amp;&amp; i &lt; Positions.Length`
-    /// true branch). Default is i=0,1,...; explicit positions place boxes at custom x-coords.</summary>
-    [Fact]
-    public void Render_ExplicitPositions_PlacesBoxesAtCustomCoords()
-    {
-        var svg = Render(new BoxSeries(SampleSets) { Positions = [10.0, 20.0] });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Positions array shorter than dataset count — i &gt;= Positions.Length false
-    /// arm of the ternary; falls back to integer index.</summary>
-    [Fact]
-    public void Render_ShortPositions_FallsBackToIndex()
-    {
-        var svg = Render(new BoxSeries(SampleSets) { Positions = [10.0] });   // only 1 position for 2 datasets
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Explicit MedianColor (line 35/50 — `series.MedianColor ?? Colors.Red`).</summary>
-    [Fact]
-    public void Render_ExplicitMedianColor_UsesItForMedianLine()
-    {
-        var svg = Render(new BoxSeries(SampleSets) { MedianColor = new Color(0, 255, 0, 255) });
-        Assert.Contains("<rect", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── boxes placed by Positions, or lying down, are drawn inside the plot ─────────────────────────────────────────
-
-    private static double Number(string text) => double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
-
     /// <summary>The boxes of the picture: every unfilled rectangle (a box is its outline), as written.</summary>
     private static Rect[] Boxes(string svg) =>
     [
-        .. System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<rect x=""([-0-9.eE+]+)"" y=""([-0-9.eE+]+)"" width=""([-0-9.eE+]+)"" height=""([-0-9.eE+]+)"" fill=""none""")
-            .Select(m => new Rect(Number(m.Groups[1].Value), Number(m.Groups[2].Value), Number(m.Groups[3].Value), Number(m.Groups[4].Value))),
+        .. svg.RectsFilled("none"),
     ];
 
     private static void AssertInsideThePlot(string svg, int boxes)
     {
-        var plot = BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
         var drawn = Boxes(svg);
 
         Assert.Equal(boxes, drawn.Length);
         Assert.All(drawn, b =>
         {
-            Assert.InRange(b.X, plot.X - 1e-6, plot.X + plot.W + 1e-6);
-            Assert.InRange(b.Right, plot.X - 1e-6, plot.X + plot.W + 1e-6);
-            Assert.InRange(b.Y, plot.Y - 1e-6, plot.Y + plot.H + 1e-6);
-            Assert.InRange(b.Bottom, plot.Y - 1e-6, plot.Y + plot.H + 1e-6);
+            Assert.InRange(b.X, plot.X - 1e-6, plot.X + plot.Width + 1e-6);
+            Assert.InRange(b.Right, plot.X - 1e-6, plot.X + plot.Width + 1e-6);
+            Assert.InRange(b.Y, plot.Y - 1e-6, plot.Y + plot.Height + 1e-6);
+            Assert.InRange(b.Bottom, plot.Y - 1e-6, plot.Y + plot.Height + 1e-6);
         });
     }
 
@@ -180,28 +145,168 @@ public class BoxSeriesRendererTests
         });
     }
 
-    /// <summary>Boxes that set no Positions draw exactly where they did: their default room is kept.</summary>
+    /// <summary>Boxes that set no Positions draw exactly where they did under the library's own themes: their default room is kept (the
+    /// matplotlib themes stand them at 1, 2, ..., <see cref="BoxPlacementTests"/>).</summary>
     [Fact]
     public void BoxesWithoutPositions_StandWhereTheyAlwaysDid()
     {
-        string svg = Plt.Create().WithSize(500, 300)
+        string svg = Plt.Create().WithSize(500, 300).WithTheme(Theme.Default)
             .AddSubPlot(1, 1, 1, ax => ax.BoxPlot([.. SampleSets, [1.0, 2, 3, 4]])).Build().ToSvg();
-        var plot = BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
         var boxes = Boxes(svg);
 
         // Positions 0, 1, 2 in the range -0.5..2.5 plus its 5 % margin on each side: the plot is 3.3 positions wide and
         // the middle box stands in the middle of it.
         double Centre(int g) => boxes[g].Center.X;
         double pitch = Centre(1) - Centre(0);
-        Assert.Equal(3.3, plot.W / pitch, 3);
-        Assert.Equal(plot.X + plot.W / 2, Centre(1), 6);
+        Assert.Equal(3.3, plot.Width / pitch, 3);
+        Assert.Equal(plot.X + plot.Width / 2, Centre(1), SvgMarkupExtensions.WrittenPrecision);
     }
 
-    // X.3.a finding (NOT a renderer test, deliberately omitted): the
-    // `data.Length == 0` continue arm in BoxSeriesRenderer (line 23) is dead code
-    // through the public API — BoxSeries.ComputeDataRange throws on an empty
-    // dataset before render is even reached (Min/Max on empty IEnumerable).
-    // Either ComputeDataRange should filter empty datasets, or the renderer's
-    // guard is unreachable. Tracked as a tiny stabilisation TODO; no Phase X
-    // bandaid here.
+    /// <summary>A dataset with nothing to draw (no values, or only missing ones) leaves its place empty, and the range does not
+    /// throw on it: the other boxes are drawn.</summary>
+    [Fact]
+    public void ADatasetWithNothingToDraw_LeavesItsPlaceEmpty_TheOthersAreDrawn()
+    {
+        string svg = Render(new BoxSeries([.. SampleSets, [], [double.NaN]]));
+
+        Assert.Equal(SampleSets.Length, Boxes(svg).Length);
+    }
+
+    /// <summary>The marks a box leaves for a legend placed where it is clearest hold each outlier it draws (under a theme that marks them).</summary>
+    [Fact]
+    public void TheMarksOfABox_HoldItsOutliers()
+    {
+        var bounds = new Rect(0, 0, 100, 100);
+        var ctx = new MatPlotLibNet.Rendering.Svg.SvgRenderContext();
+        var context = new MatPlotLibNet.Rendering.SeriesRenderers.SeriesRenderContext(new DataTransform(0, 2, 0, 110, bounds), ctx, Colors.Tab10Blue, new RenderArea(bounds, ctx))
+        {
+            Theme = Theme.MatplotlibV2,
+        };
+        var marks = new MarkObstacles.Builder();
+
+        new MatPlotLibNet.Rendering.SeriesRenderers.BoxSeriesRenderer(context).AddMarks(new BoxSeries([[1.0, 2, 2, 3, 3, 3, 4, 4, 5, 100]]), marks);
+
+        Assert.Single(marks.Build().Points);
+    }
+
+    // ---- the statistics of a box (StatisticsOf) ----
+    // The statistics of one box, as matplotlib's <c>cbook.boxplot_stats</c> works them out (matplotlib 3.11.2, each case
+    // printed): the quartiles are <c>np.percentile</c>'s; a whisker reaches to the most extreme observation inside <c>whis</c>
+    // times the interquartile range past its box, or stops at the box where no observation lies between the two; the observations
+    // outside the whiskers are the fliers. The library's box ended each whisker at the fence itself (<c>q1 - whis * iqr</c>),
+    // which is no observation, where <see cref="BoxSeries.Whis"/> says it stops at the most extreme observation inside that
+    // reach.
+
+    private static BoxSeriesRenderer.BoxStatistics Of(double whis, params double[] values)
+    {
+        Array.Sort(values);
+        return BoxSeriesRenderer.StatisticsOf(values, whis);
+    }
+
+    [Fact]
+    public void AnOutlierBeyondTheFence_IsAFlier_AndTheWhiskerStopsAtTheLastObservationInside()
+    {
+        var s = Of(1.5, 1, 2, 3, 4, 5, 100);   // q1 2.25, median 3.5, q3 4.75, fence 8.5
+
+        Assert.Equal(2.25, s.Q1);
+        Assert.Equal(3.5, s.Median);
+        Assert.Equal(4.75, s.Q3);
+        Assert.Equal(1, s.WhiskerLow);
+        Assert.Equal(5, s.WhiskerHigh);
+        Assert.Equal([100.0], s.Fliers);
+    }
+
+    [Fact]
+    public void AnOutlierBelowTheFence_IsAFlier()
+    {
+        var s = Of(1.5, -50, 1, 2, 3, 4, 5);   // q1 1.25, q3 3.75, fence -1.25 .. 6.25
+
+        Assert.Equal(1, s.WhiskerLow);
+        Assert.Equal(5, s.WhiskerHigh);
+        Assert.Equal([-50.0], s.Fliers);
+    }
+
+    [Fact]
+    public void NoObservationBeyondTheFence_TheWhiskersReachTheExtremes_AndThereAreNoFliers()
+    {
+        var s = Of(1.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+        Assert.Equal(1, s.WhiskerLow);
+        Assert.Equal(10, s.WhiskerHigh);
+        Assert.Empty(s.Fliers);
+    }
+
+    [Fact]
+    public void AReachOfNothing_StopsTheWhiskersAtTheBox_AndEveryObservationOutsideItIsAFlier()
+    {
+        var s = Of(0, 1, 2, 3, 4, 5, 100);   // q1 2.25, q3 4.75: nothing lies between the box and a fence at the box's edge
+
+        Assert.Equal(2.25, s.WhiskerLow);
+        Assert.Equal(4.75, s.WhiskerHigh);
+        Assert.Equal([1.0, 2.0, 5.0, 100.0], s.Fliers);
+    }
+
+    [Fact]
+    public void AReachWideEnoughForEverything_HasNoFliers()
+    {
+        var s = Of(100, 1, 2, 3, 4, 5, 100);
+
+        Assert.Equal(1, s.WhiskerLow);
+        Assert.Equal(100, s.WhiskerHigh);
+        Assert.Empty(s.Fliers);
+    }
+
+    [Fact]
+    public void AnOutlierOnEachSide_AtAReachOfOne()
+    {
+        var s = Of(1.0, 1, 2, 3, 4, 5, 100, -40, 7.5);   // q1 1.75, q3 5.625, fence -1.875 .. 9.5
+
+        Assert.Equal(1.75, s.Q1);
+        Assert.Equal(5.625, s.Q3);
+        Assert.Equal(1, s.WhiskerLow);
+        Assert.Equal(7.5, s.WhiskerHigh);
+        Assert.Equal([-40.0, 100.0], s.Fliers);
+    }
+
+    [Fact]
+    public void ConstantValues_HaveABoxOfNoHeight_AndNoFliers()
+    {
+        var s = Of(1.5, 2, 2, 2, 2);
+
+        Assert.Equal(2, s.Q1);
+        Assert.Equal(2, s.Q3);
+        Assert.Equal(2, s.WhiskerLow);
+        Assert.Equal(2, s.WhiskerHigh);
+        Assert.Empty(s.Fliers);
+    }
+
+    [Fact]
+    public void OneValue_IsEveryStatistic()
+    {
+        var s = Of(1.5, 5);
+
+        Assert.Equal([5.0, 5.0, 5.0, 5.0, 5.0], new[] { s.Q1, s.Median, s.Q3, s.WhiskerLow, s.WhiskerHigh });
+        Assert.Empty(s.Fliers);
+    }
+
+    [Fact]
+    public void AReachThatIsNotANumber_HasNoWhiskersAndNoFliers()
+    {
+        var s = Of(double.NaN, 1, 2, 3, 4, 5, 100);
+
+        Assert.True(double.IsNaN(s.WhiskerLow));
+        Assert.True(double.IsNaN(s.WhiskerHigh));
+        Assert.Empty(s.Fliers);
+    }
+
+    [Fact]
+    public void AnInfiniteReach_ReachesTheExtremes()
+    {
+        var s = Of(double.PositiveInfinity, 1, 2, 3, 4, 5, 100);
+
+        Assert.Equal(1, s.WhiskerLow);
+        Assert.Equal(100, s.WhiskerHigh);
+        Assert.Empty(s.Fliers);
+    }
 }

@@ -12,12 +12,17 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.*" />
+    <!-- The publisher and the chart session of the server package run over a stand-in hub here, which needs the SignalR types. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.AspNetCore\MatPlotLibNet.AspNetCore.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.DataFrame\MatPlotLibNet.DataFrame.csproj" />
+    <!-- The tool server's spec reader runs once for each request; its row measures what that costs. -->
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Mcp\MatPlotLibNet.Mcp.csproj" />
   </ItemGroup>
 
 </Project>

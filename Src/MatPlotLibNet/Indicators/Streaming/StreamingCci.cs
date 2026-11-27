@@ -2,52 +2,32 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Commodity Channel Index. O(n/period) per candle (mean deviation scan).</summary>
-public sealed class StreamingCci : StreamingIndicator
+/// <summary>Streaming Commodity Channel Index: the mean of the last <c>period</c> typical prices is the moving-average step the
+/// batch <see cref="Cci"/>'s moving average adds up, and the index of that window is worked out by the arithmetic the batch reads.
+/// O(period) per bar (the mean deviation of the window).</summary>
+public sealed class StreamingCci : StreamingIndicator<OhlcvBar>
 {
-    private readonly int _period;
-    private readonly double[] _typicalPrices;
-    private int _ringIndex;
+    private RollingMeanStep _mean;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => _period;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming CCI indicator.</summary>
-    public StreamingCci(int period = 20, int capacity = 10_000) : base(capacity)
+    public StreamingCci(int period = Cci.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity) : base(Cci.Spec(period), capacity)
     {
-        _period = period;
-        _typicalPrices = new double[period];
-        Label = $"CCI({period})";
+        _mean = new RollingMeanStep(period);
     }
 
     /// <inheritdoc />
-    public override void AppendCandle(OhlcBar bar)
+    protected override void Step(OhlcvBar input, int index, Span<double> outputs)
     {
-        ProcessedCount++;
-        double tp = (bar.High + bar.Low + bar.Close) / 3.0;
-
-        _typicalPrices[_ringIndex] = tp;
-        _ringIndex = (_ringIndex + 1) % _period;
-
-        double x = ProcessedCount - 1;
-        if (ProcessedCount < _period) { OutputSeries[0].AppendPoint(x, double.NaN); return; }
-
-        int count = Math.Min(ProcessedCount, _period);
-        double mean = 0;
-        for (int i = 0; i < count; i++) mean += _typicalPrices[i];
-        mean /= count;
-
-        double meanDev = 0;
-        for (int i = 0; i < count; i++) meanDev += Math.Abs(_typicalPrices[i] - mean);
-        meanDev /= count;
-
-        double cci = meanDev == 0 ? 0 : (tp - mean) / (0.015 * meanDev);
-        OutputSeries[0].AppendPoint(x, cci);
+        double typical = PriceSources.TypicalPrice(input.High, input.Low, input.Close);
+        double mean = _mean.Next(typical);
+        if (_mean.IsFull) outputs[0] = _mean.Window.ChannelIndex(mean, typical);
     }
-
-    /// <inheritdoc />
-    protected override double ComputeNext(double price) => double.NaN; // use AppendCandle
 }

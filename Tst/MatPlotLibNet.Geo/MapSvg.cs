@@ -1,8 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -10,17 +9,16 @@ namespace MatPlotLibNet.Geo.Tests;
 /// first path of a map that has one), the pixel a position stands at on a PlateCarree map, the circles and the polylines.</summary>
 internal static class MapSvg
 {
-    private static readonly Regex PathData = new("<path d=\"(?<d>[^\"]+)\"", RegexOptions.Compiled);
-    private static readonly Regex PathPoint = new(@"[ML] (?<x>[-0-9.eE]+) (?<y>[-0-9.eE]+)", RegexOptions.Compiled);
-    private static readonly Regex Circle = new("<circle cx=\"(?<x>[-0-9.eE]+)\" cy=\"(?<y>[-0-9.eE]+)\" r=\"(?<r>[-0-9.eE]+)\"", RegexOptions.Compiled);
-    private static readonly Regex Polyline = new("<polyline points=\"(?<p>[^\"]+)\"(?<rest>[^>]*)>", RegexOptions.Compiled);
-
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
+    /// <summary>How far a number read back from the picture may lie from the one the layer worked out. The SVG writes a
+    /// coordinate or a length to two decimals, so one number is within half a hundredth of a pixel of the layer's; a test that
+    /// compares a read-back number with one worked out from other read-back numbers (a pixel from the frame) allows a
+    /// hundredth. A hair over, so a difference of exactly a hundredth in binary arithmetic passes.</summary>
+    internal const double WrittenPrecision = 0.01 + 1e-9;
 
     /// <summary>The corners of the frame: the ocean path, which is the first path of the picture.</summary>
     internal static (double Left, double Right, double Top, double Bottom) Frame(string svg)
     {
-        var points = PathPoint.Matches(PathData.Match(svg).Groups["d"].Value).Select(m => (X: Number(m.Groups["x"].Value), Y: Number(m.Groups["y"].Value))).ToArray();
+        var points = svg.Elements("path").First(path => path["d"] is not null).PathPoints();
         return (points.Min(p => p.X), points.Max(p => p.X), points.Min(p => p.Y), points.Max(p => p.Y));
     }
 
@@ -33,15 +31,20 @@ internal static class MapSvg
 
     /// <summary>The circles of the picture: the centre and the radius of each, in the order they are drawn.</summary>
     internal static (double X, double Y, double R)[] Circles(string svg) =>
-        [.. Circle.Matches(svg).Select(m => (Number(m.Groups["x"].Value), Number(m.Groups["y"].Value), Number(m.Groups["r"].Value)))];
+        [.. svg.Elements("circle").Where(circle => circle["cx"] is not null && circle["cy"] is not null && circle["r"] is not null)
+            .Select(circle => (circle.Number("cx"), circle.Number("cy"), circle.Number("r")))];
 
-    /// <summary>The polylines of the picture: the vertices of each and the rest of its attributes.</summary>
-    internal static (string Attributes, (double X, double Y)[] Points)[] Polylines(string svg) =>
-        [.. Polyline.Matches(svg).Select(m => (m.Groups["rest"].Value,
-            m.Groups["p"].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(','))
-                .Select(xy => (Number(xy[0]), Number(xy[1]))).ToArray()))];
+    /// <summary>The polylines of the picture: each element and its vertices.</summary>
+    internal static (SvgElement Element, (double X, double Y)[] Points)[] Polylines(string svg) =>
+        [.. svg.Elements("polyline").Where(polyline => polyline["points"] is not null)
+            .Select(polyline => (polyline, polyline.Points().Select(point => (point.X, point.Y)).ToArray()))];
 
-    /// <summary>The stroke width of a polyline's attributes.</summary>
-    internal static double StrokeWidth(string attributes) =>
-        Number(Regex.Match(attributes, "stroke-width=\"(?<w>[-0-9.eE]+)\"").Groups["w"].Value);
+    /// <summary>The fills (hex, upper case) of the paths of the picture, in the order drawn.</summary>
+    internal static string[] PathFills(string svg) =>
+        [.. svg.Elements("path").Where(path => path["d"] is not null).Select(path => path["fill"]).OfType<string>()
+            .Where(fill => fill.StartsWith('#')).Select(fill => fill.ToUpperInvariant())];
+
+    /// <summary>The fills of the handles of a legend: its rectangles that have no outline (the frame of a classic legend has one).</summary>
+    internal static string[] HandleFills(string legend) =>
+        [.. legend.Elements("rect").Where(rect => rect["stroke"] is null).Select(rect => rect["fill"]).OfType<string>().Where(fill => fill.StartsWith('#'))];
 }

@@ -111,7 +111,7 @@ public class FigureHomeTests
         var figure = TwoRightAxes();
         new ZoomEvent("c", 0, 1.5, 2.5, 15, 25).ApplyTo(figure);
 
-        var readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var readBack = figure.RoundTripped();
 
         Assert.False(readBack.Home.Remembers(readBack.SubPlots[0]));
         Assert.True(figure.Home.Remembers(figure.SubPlots[0]));

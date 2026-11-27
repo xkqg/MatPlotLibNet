@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -11,7 +12,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders <see cref="NetworkGraphSeries"/> as nodes (circles) connected by
 /// edges (line segments), with optional arrowheads on directed edges and per-node
-/// labels. Layout is delegated to <see cref="NetworkGraphLayouts"/>; this renderer
+/// labels. The nodes are placed by the series (<see cref="NetworkGraphSeries.Placement"/>); this renderer
 /// owns coordinate-mapping (data→pixel) and per-element drawing only.</summary>
 internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSeries>
 {
@@ -29,12 +30,9 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
     {
         if (series.Nodes.Count == 0) return;
 
-        // 1. Apply layout to get positioned nodes (X/Y in data space).
-        // The seed, the iteration count and the convergence threshold come from the series, exactly as they do
-        // in NetworkGraphSeries.ComputeDataRange. Leave them out here and the axes are scaled to the
-        // caller's layout while the nodes are drawn from the default one, which puts nodes outside the plot.
-        var positioned = NetworkGraphLayouts.Apply(series.Layout, series.Nodes, series.Edges,
-            series.LayoutSeed, series.LayoutIterations, series.ConvergenceThreshold);
+        // 1. The placed nodes (X/Y in data space): the placement the series' data range was worked out from, so the axes are
+        // scaled to the very nodes drawn here.
+        var (_, layout, positioned) = series.Placement;
 
         // 2. Build ID → index → pixel-position map for fast edge lookup.
         var idToIndex = new Dictionary<string, int>(positioned.Length);
@@ -44,8 +42,8 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
         for (int i = 0; i < positioned.Length; i++)
             pixelPositions[i] = Transform.DataToPixel(positioned[i].X, positioned[i].Y);
 
-        // 3. Resolve colour map (Viridis default; per-node ColorScalar already in [0,1] for now).
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        // 3. Resolve colour map (Viridis default); a node's ColorScalar is its position on the map, 0 to 1 (GraphNode.ColorScalar).
+        var cmap = series.ColorMapUnder(Context.Theme);
 
         // 4. Draw edges first (so nodes paint over them).
         foreach (var edge in series.Edges)
@@ -56,14 +54,14 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             var p1 = pixelPositions[u];
             var p2 = pixelPositions[v];
             double thickness = edge.Weight * series.EdgeThicknessScale;
-            if (series.Layout == GraphLayout.Arc)
+            if (layout.DrawsEdgesAsArcs)
             {
                 // An arc diagram draws every edge as a semicircle over the row of nodes; a self-loop has none to draw.
                 if (u != v) DrawArc(series, edge, positioned[u].X, positioned[v].X, thickness);
                 continue;
             }
 
-            Ctx.DrawLine(p1, p2, new StrokeStyle(SeriesColor, thickness, LineStyle.Solid));
+            Ctx.DrawLine(p1, p2, StrokeStyle.Solid(SeriesColor, thickness));
 
             if (edge.IsDirected)
                 DrawArrowhead(p1, p2, SeriesColor);
@@ -71,9 +69,7 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             if (series.ShowEdgeWeights)
             {
                 var mid = new Point((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0);
-                Ctx.DrawText(edge.Weight.ToString("G3", System.Globalization.CultureInfo.InvariantCulture),
-                    mid, new Font { Family = "sans-serif", Size = 9, Color = Colors.Black },
-                    TextAlignment.Center);
+                Ctx.Draw(TextLabel.Of(edge.Weight.InvariantText("G3")), Context.Theme.DataTextFont(series.TextSizeUnder(Context.Theme)), new TextPlacement(mid, TextAlignment.Center) { Vertical = TextVerticalAlignment.Center });
             }
         }
 
@@ -83,14 +79,14 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             var n = positioned[i];
             double radius = n.SizeScalar * series.NodeRadiusScale;
             var fill = cmap.ColorOf(n.ColorScalar, NoNormNormalizer.Instance, 0, 1);
-            Ctx.DrawCircle(pixelPositions[i], radius, new ShapeStyle(fill, Colors.Black, 0.5));
+            Ctx.DrawCircle(pixelPositions[i], radius, ShapeStyle.Edged(fill, Colors.Black, Slot.LineWidthOf(LineWidthRule.OwnHairline)));
 
             if (series.ShowNodeLabels)
             {
                 string label = n.Label ?? n.Id;
-                // Place label slightly to the right of the node.
+                // The name stands slightly to the right of the node, centred on it.
                 var labelPos = new Point(pixelPositions[i].X + radius + 2, pixelPositions[i].Y);
-                Ctx.DrawText(label, labelPos, ThemedFontProvider.DataTextFont(Context.Theme), TextAlignment.Left);
+                Ctx.Draw(TextLabel.Of(label), Context.Theme.DataTextFont(), new TextPlacement(labelPos, TextAlignment.Left) { Vertical = TextVerticalAlignment.Center });
             }
         }
     }
@@ -106,7 +102,7 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
     /// last control point to the node.</summary>
     private void DrawArc(NetworkGraphSeries series, GraphEdge edge, double xFrom, double xTo, double thickness)
     {
-        double radius = NetworkGraphLayouts.ArcRadius(xFrom, xTo);
+        double radius = ArcGraphLayout.Radius(xFrom, xTo);
         double centre = (xFrom + xTo) / 2, side = xTo > xFrom ? 1 : -1, bend = QuarterCircle * radius;
         Point At(double x, double y) => Transform.DataToPixel(x, y);
 
@@ -118,25 +114,19 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             new BezierSegment(At(xFrom, bend), At(centre - side * bend, radius), At(centre, radius)),
             new BezierSegment(At(centre + side * bend, radius), lastControl, end),
         ];
-        Ctx.DrawPath(arc, new ShapeStyle(null, SeriesColor, thickness));
+        Ctx.DrawPath(arc, ShapeStyle.Outlined(SeriesColor, thickness));
 
         if (edge.IsDirected)
             DrawArrowhead(lastControl, end, SeriesColor);
 
         if (series.ShowEdgeWeights)
         {
-            Ctx.DrawText(edge.Weight.ToString("G3", System.Globalization.CultureInfo.InvariantCulture),
-                At(centre, radius), new Font { Family = "sans-serif", Size = 9, Color = Colors.Black },
-                TextAlignment.Center);
+            Ctx.Draw(TextLabel.Of(edge.Weight.InvariantText("G3")), Context.Theme.DataTextFont(series.TextSizeUnder(Context.Theme)), new TextPlacement(At(centre, radius), TextAlignment.Center) { Vertical = TextVerticalAlignment.Center });
         }
     }
 
-    /// <summary>Paints a small filled triangle at the target end of a directed edge,
-    /// reusing <see cref="ArrowHeadBuilder"/> so the geometry matches annotation-style
-    /// arrows used elsewhere in the library.</summary>
-    private void DrawArrowhead(Point from, Point to, Color color)
-    {
-        var verts = ArrowHeadBuilder.BuildPolygon(from, to, ArrowStyle.FancyArrow, ArrowSizePx);
-        if (verts.Count > 0) Ctx.DrawPolygon(verts, new ShapeStyle(color, null, 0.0));
-    }
+    /// <summary>Paints a small filled triangle at the target end of a directed edge: the head of
+    /// <see cref="ArrowStyle.FancyArrow"/>, so the geometry matches the annotation arrows used elsewhere in the library.</summary>
+    private void DrawArrowhead(Point from, Point to, Color color) =>
+        ArrowHead.Of(ArrowStyle.FancyArrow).Draw(Ctx, from, to, ArrowSizePx, color);
 }

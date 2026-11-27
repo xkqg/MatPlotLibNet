@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"funnel","label":"text 1","values":[30,20,10],"pieLabels":["A","B","C"],"zOrder":5,"visible":false,"colors":["#14C83C","#14AA64","#148C8C"]}]}]}

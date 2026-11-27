@@ -6,43 +6,45 @@ using MatPlotLibNet.Models.Series;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>A box that stands on a foot, as it stands on the plot in pixels: the two opposite corners it runs between.</summary>
-/// <param name="From">The corner at the data's upper-left of an upright box that rises, as <see cref="PixelBar"/> keeps it.</param>
+/// <param name="From">The corner at the data's upper-left of an upright box that rises, as <see cref="Rendering.SeriesRenderers.BarSeriesRenderer.PixelBar"/> keeps it.</param>
 /// <param name="To">The opposite corner.</param>
 internal readonly record struct PixelBox(Point From, Point To)
 {
     /// <summary>The rectangle the box fills: it keeps a positive size on an axis that runs backwards.</summary>
     internal Rect Rect => Rect.FromCorners(From, To);
-}
 
-/// <summary>The one rule that turns a box in data units into pixels: it stands on a foot and reaches an end.</summary>
-internal static class PixelBoxExtensions
-{
-    extension(DataTransform transform)
+    /// <summary>The one rule that turns a box in data units into pixels: the box that stands on <paramref name="foot"/> and reaches
+    /// <paramref name="end"/>, across <paramref name="slot"/> of the category axis, as matplotlib draws a bar: each corner placed by the log scale's clip (a
+    /// value a log axis cannot place a thousand decades beyond it), then cut by the plot. A side that runs to such a value is
+    /// cut on the edge where that axis begins (a foot or an end of 0 or below, a slot reaching 0 or below), and a box whose
+    /// two sides along one axis both lie beyond it is not drawn (its corners are not numbers, so it is skipped). A missing
+    /// value leaves a corner that is not a number too. Bars, waterfall steps, counts, histogram bins and the box of a box
+    /// plot all stand this way.</summary>
+    /// <param name="transform">The mapping of the plot the box is drawn on.</param>
+    /// <param name="slot">The stretch of the category axis the box covers.</param>
+    /// <param name="foot">Where the box starts along the value axis, in data units.</param>
+    /// <param name="end">Where it ends along the value axis, in data units.</param>
+    /// <param name="rising"><see langword="true"/> when the end lies at or beyond the foot in the direction the data
+    /// grows; a falling box keeps its corners the other way round, so <see cref="PixelBox.From"/> stays the corner at the
+    /// data's upper-left.</param>
+    /// <param name="orientation">The axis the value runs along: Y for <see cref="BarOrientation.Vertical"/>, X for horizontal.</param>
+    /// <returns>The box in pixels.</returns>
+    internal static PixelBox OnFoot(DataTransform transform, CategorySlot slot, double foot, double end, bool rising, BarOrientation orientation)
     {
-        /// <summary>The box that stands on <paramref name="foot"/> and reaches <paramref name="end"/>, across
-        /// <paramref name="slot"/> of the category axis. A foot the axis cannot place (0 on a log axis) is clipped to the edge
-        /// where the axis begins, as matplotlib clips it; an end it cannot place leaves a corner that is not a number, so the
-        /// box is not drawable and is skipped. Bars, waterfall steps, counts, histogram bins and the box of a box plot all
-        /// stand this way, and a mark sized in data units (a waffle cell, a Point and Figure box) will too.</summary>
-        /// <param name="slot">The stretch of the category axis the box covers.</param>
-        /// <param name="foot">Where the box starts along the value axis, in data units.</param>
-        /// <param name="end">Where it ends along the value axis, in data units.</param>
-        /// <param name="rising"><see langword="true"/> when the end lies at or beyond the foot in the direction the data
-        /// grows; a falling box keeps its corners the other way round so the clipped foot stays the clipped one.</param>
-        /// <param name="orientation">The axis the value runs along: Y for <see cref="BarOrientation.Vertical"/>, X for horizontal.</param>
-        /// <returns>The box in pixels.</returns>
-        internal PixelBox BoxOnFoot(CategorySlot slot, double foot, double end, bool rising, BarOrientation orientation)
-        {
-            if (orientation == BarOrientation.Vertical)
-            {
-                return rising
-                    ? new(transform.DataToPixel(slot.Left, end), transform.DataToPixelClippedY(slot.Right, foot))
-                    : new(transform.DataToPixelClippedY(slot.Left, foot), transform.DataToPixel(slot.Right, end));
-            }
+        // From is the corner at the screen's start along both axes (the data's upper-left): along the value axis the value that
+        // stands there of the box's low and high value, across it the slot's end that stands there.
+        bool alongX = orientation.ValuesAlongX;
+        double low = rising ? foot : end, high = rising ? end : foot;
+        var from = Point.Along(alongX, alongX.AtScreenStart(low, high), (!alongX).AtScreenStart(slot.Left, slot.Right));
+        var to = Point.Along(alongX, alongX.AtScreenEnd(low, high), (!alongX).AtScreenEnd(slot.Left, slot.Right));
+        var box = new PixelBox(transform.DataToPixelUnclipped(from.X, from.Y), transform.DataToPixelUnclipped(to.X, to.Y));
 
-            return rising
-                ? new(transform.DataToPixelClippedX(foot, slot.Right), transform.DataToPixel(end, slot.Left))
-                : new(transform.DataToPixel(end, slot.Right), transform.DataToPixelClippedX(foot, slot.Left));
+        // Both corners beyond one axis: the box lies wholly where that axis' log scale puts what it cannot place.
+        if ((transform.BeyondOf(box.From) & transform.BeyondOf(box.To)).Any)
+        {
+            return new PixelBox(new Point(double.NaN, double.NaN), box.To);
         }
+
+        return new PixelBox(transform.AtTheStart(box.From), transform.AtTheStart(box.To));
     }
 }

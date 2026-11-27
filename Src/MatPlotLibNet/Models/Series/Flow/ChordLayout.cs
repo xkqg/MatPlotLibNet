@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Models.Series;
@@ -30,13 +31,6 @@ internal readonly record struct ChordArc(int Group, double Start, double End)
 /// <param name="Value">The flow from <paramref name="Source"/> to <paramref name="Target"/>.</param>
 internal readonly record struct ChordRibbon(int Source, int Target, ChordSpan SourceSpan, ChordSpan TargetSpan, double Value);
 
-/// <summary>Where the label of an arc stands: the angle of its middle, how it is aligned at that point, and how far it is turned
-/// so that it reads outward from the rim and is never upside down.</summary>
-/// <param name="Angle">The middle of the arc, in radians clockwise from twelve o'clock.</param>
-/// <param name="Alignment">Left on the right half of the circle (the text starts at the rim), right on the left half (it ends there).</param>
-/// <param name="Rotation">The turn in degrees, within -90 and 90.</param>
-internal readonly record struct ChordLabel(double Angle, TextAlignment Alignment, double Rotation);
-
 /// <summary>The arcs and the ribbons of a chord diagram.</summary>
 /// <param name="Arcs">One arc for each group, in the order of the matrix.</param>
 /// <param name="Ribbons">One ribbon for each pair of groups with a flow between them, and one for each group with a flow to
@@ -59,9 +53,9 @@ internal static class ChordLayout
     /// all zero.</param>
     /// <param name="padding">The gap between neighbouring arcs, in radians.</param>
     /// <returns>The arcs and the ribbons.</returns>
-    /// <exception cref="ArgumentException"><paramref name="flows"/> is not square, holds a flow that is negative, infinite or
-    /// not a number (the message names its place), or is all zero.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="padding"/> is negative, not a number, or so large that the gaps
+    /// <exception cref="ArgumentException"><paramref name="flows"/> is not square, or is all zero.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="flows"/> holds a flow that is negative, infinite or not a
+    /// number (the message names its place), or <paramref name="padding"/> is negative, not a number, or so large that the gaps
     /// alone fill the circle.</exception>
     public static ChordLayoutResult Compute(double[,] flows, double padding = DefaultPadding)
     {
@@ -69,8 +63,7 @@ internal static class ChordLayout
         int n = flows.GetLength(0);
         if (n == 0) return new ChordLayoutResult([], []);
 
-        if (!(padding >= 0) || !(padding * n < 2 * Math.PI))
-            throw new ArgumentOutOfRangeException(nameof(padding), padding, "The gaps between the arcs are 0 or more, and together less than the circle.");
+        ThrowIfNotAGap(padding, n, nameof(padding));
 
         double scale = (2 * Math.PI - padding * n) / total;
         var spans = new ChordSpan[n, n];
@@ -95,13 +88,11 @@ internal static class ChordLayout
         return new ChordLayoutResult(arcs, Ribbons(flows, spans));
     }
 
-    /// <summary>A ribbon with what orders it: how large it is and which pair of groups it joins.</summary>
-    private readonly record struct Candidate(ChordRibbon Ribbon, double Size, int Low, int High);
-
-    private static List<ChordRibbon> Ribbons(double[,] flows, ChordSpan[,] spans)
+    private static ChordRibbon[] Ribbons(double[,] flows, ChordSpan[,] spans)
     {
         int n = flows.GetLength(0);
-        var candidates = new List<Candidate>();
+        var ribbons = new List<ChordRibbon>();
+        var sizes = new List<double>();
         for (int low = 0; low < n; low++)
         {
             for (int high = low; high < n; high++)
@@ -111,39 +102,46 @@ internal static class ChordLayout
 
                 if (low == high)
                 {
-                    candidates.Add(new Candidate(new ChordRibbon(low, low, spans[low, low], spans[low, low], there), there, low, high));
+                    ribbons.Add(new ChordRibbon(low, low, spans[low, low], spans[low, low], there));
+                    sizes.Add(there);
                     continue;
                 }
 
                 // The group that sends more owns the ribbon; of two that send the same, the lower.
                 bool lowSends = there >= back;
                 int source = lowSends ? low : high, target = lowSends ? high : low;
-                var ribbon = new ChordRibbon(source, target, spans[source, target], spans[target, source], flows[source, target]);
-                candidates.Add(new Candidate(ribbon, there + back, low, high));
+                ribbons.Add(new ChordRibbon(source, target, spans[source, target], spans[target, source], flows[source, target]));
+                sizes.Add(there + back);
             }
         }
 
-        // The largest first, so the small ribbons are drawn over it and stay visible; a tie by the pair's place in the matrix.
-        return [.. candidates.OrderByDescending(c => c.Size).ThenBy(c => c.Low).ThenBy(c => c.High).Select(c => c.Ribbon)];
+        // The largest first, so the small ribbons are drawn over it and stay visible; a tie by the pair's place in the matrix, the order
+        // the ribbons were made in (the order is stable).
+        return sizes.ToArray().DescendingOrder().Pick(ribbons);
     }
+
+    /// <summary>The gap between neighbouring arcs, refused unless it is 0 or more and the gaps of all <paramref name="arcs"/> arcs
+    /// leave room for the arcs: the one place that says how wide a gap can be.</summary>
+    /// <param name="padding">The gap, in radians.</param>
+    /// <param name="arcs">How many arcs, and so gaps, the circle holds.</param>
+    /// <param name="name">The parameter that holds the gap, for the error.</param>
+    internal static double ThrowIfNotAGap(double padding, int arcs, string name) =>
+        padding.ThrowIfNot(padding >= 0 && padding * arcs < 2 * Math.PI, name, "must be 0 or more, and together with the other gaps less than the circle");
 
     /// <summary>Checks that the matrix can be drawn and returns the sum of its flows.</summary>
     private static double Refuse(double[,] flows)
     {
+        static string Cell((int Row, int Column) at) => string.Invariant($"flows[{at.Row},{at.Column}]");
         int n = flows.GetLength(0), columns = flows.GetLength(1);
         if (n != columns)
-            throw new ArgumentException($"flows must be square, with one row and one column for each group; it has {n} rows and {columns} columns.", nameof(flows));
+            throw new ArgumentException(string.Invariant($"flows must be square, with one row and one column for each group; it has {n} rows and {columns} columns."), nameof(flows));
 
         double total = 0;
         for (int row = 0; row < n; row++)
         {
             for (int column = 0; column < n; column++)
             {
-                double flow = flows[row, column];
-                string? reason = double.IsNaN(flow) ? "not a number" : double.IsInfinity(flow) ? "infinite" : flow < 0 ? "negative" : null;
-                if (reason is not null)
-                    throw new ArgumentException($"flows[{row},{column}] is {reason}; a flow is a finite amount that is not negative.", nameof(flows));
-                total += flow;
+                total += flows[row, column].ThrowIfNotFinite(nameof(flows), (row, column), Cell).ThrowIfBelow(0, nameof(flows), (row, column), Cell);
             }
         }
 
@@ -152,25 +150,5 @@ internal static class ChordLayout
         if (n > 0 && total == 0)
             throw new ArgumentException("flows are all zero, so there is nothing to draw.", nameof(flows));
         return total;
-    }
-}
-
-/// <summary>The label of an arc.</summary>
-internal static class ChordArcExtensions
-{
-    extension(ChordArc arc)
-    {
-        /// <summary>Where the label of this arc stands and how it is turned: aligned to start at the rim on the right half of the
-        /// circle and to end there on the left half, turned by the angle less a quarter turn (and a half turn more on the left
-        /// half), so that it reads outward and no label is ever upside down.</summary>
-        /// <returns>The angle of the middle of the arc, the alignment and the turn in degrees.</returns>
-        public ChordLabel Label()
-        {
-            double mid = arc.Mid;
-            bool onTheLeft = mid > Math.PI;
-            double rotation = mid * 180 / Math.PI - 90 + (onTheLeft ? 180 : 0);
-            rotation = ((rotation + 180) % 360 + 360) % 360 - 180;
-            return new ChordLabel(mid, onTheLeft ? TextAlignment.Right : TextAlignment.Left, rotation);
-        }
     }
 }

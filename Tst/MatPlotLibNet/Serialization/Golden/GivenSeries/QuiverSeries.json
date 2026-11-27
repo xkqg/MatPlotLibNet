@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"quiver","label":"text 3","xData":[1,2,3],"yData":[2,4,3],"color":"#22BE42","uData":[0.5,0.5,0.5],"vData":[0.5,0.5,0.5],"scale":0.3125,"arrowHeadSize":0.25,"quiverAutoScale":true,"zOrder":8,"visible":false}]}]}

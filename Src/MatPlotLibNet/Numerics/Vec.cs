@@ -1,25 +1,27 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Numerics.Tensors;
+
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>LINQ-style fluent wrapper around a <c>double[]</c> with SIMD-accelerated operators and reductions.</summary>
 /// <param name="Data">The underlying data array.</param>
 /// <remarks>Operator overloads (<c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>) and reductions (<see cref="Sum"/>,
-/// <see cref="Mean"/>, <see cref="Std"/>) delegate to <see cref="VectorMath"/> for SIMD acceleration.
+/// <see cref="Mean"/>, <see cref="Std"/>) run on <c>System.Numerics.Tensors.TensorPrimitives</c>, which uses SIMD.
 /// LINQ-style methods (<see cref="Select"/>, <see cref="Where"/>, <see cref="Zip"/>) use scalar loops
 /// because lambdas prevent vectorization — use operators for hot-path arithmetic.</remarks>
 public readonly record struct Vec(double[] Data)
 {
     // -------------------------------------------------------------------------
-    // Operators (SIMD via VectorMath)
+    // Operators (SIMD via TensorPrimitives)
     // -------------------------------------------------------------------------
 
     /// <summary>Element-wise addition.</summary>
     public static Vec operator +(Vec a, Vec b)
     {
         var dst = new double[a.Length];
-        VectorMath.Add(a.Data, b.Data, dst);
+        TensorPrimitives.Add<double>(a.Data, b.Data, dst);
         return new Vec(dst);
     }
 
@@ -27,7 +29,7 @@ public readonly record struct Vec(double[] Data)
     public static Vec operator -(Vec a, Vec b)
     {
         var dst = new double[a.Length];
-        VectorMath.Subtract(a.Data, b.Data, dst);
+        TensorPrimitives.Subtract<double>(a.Data, b.Data, dst);
         return new Vec(dst);
     }
 
@@ -35,7 +37,7 @@ public readonly record struct Vec(double[] Data)
     public static Vec operator *(Vec a, Vec b)
     {
         var dst = new double[a.Length];
-        VectorMath.Multiply(a.Data, b.Data, dst);
+        TensorPrimitives.Multiply<double>(a.Data, b.Data, dst);
         return new Vec(dst);
     }
 
@@ -43,7 +45,7 @@ public readonly record struct Vec(double[] Data)
     public static Vec operator *(Vec a, double scalar)
     {
         var dst = new double[a.Length];
-        VectorMath.Multiply(a.Data, scalar, dst);
+        TensorPrimitives.Multiply<double>(a.Data, scalar, dst);
         return new Vec(dst);
     }
 
@@ -51,7 +53,7 @@ public readonly record struct Vec(double[] Data)
     public static Vec operator /(Vec a, double scalar)
     {
         var dst = new double[a.Length];
-        VectorMath.Divide(a.Data, scalar, dst);
+        TensorPrimitives.Divide<double>(a.Data, scalar, dst);
         return new Vec(dst);
     }
 
@@ -59,7 +61,7 @@ public readonly record struct Vec(double[] Data)
     public static Vec operator -(Vec a)
     {
         var dst = new double[a.Length];
-        VectorMath.Negate(a.Data, dst);
+        TensorPrimitives.Negate<double>(a.Data, dst);
         return new Vec(dst);
     }
 
@@ -101,23 +103,23 @@ public readonly record struct Vec(double[] Data)
     }
 
     // -------------------------------------------------------------------------
-    // Reductions (SIMD-accelerated via VectorMath)
+    // Reductions (SIMD via TensorPrimitives)
     // -------------------------------------------------------------------------
 
     /// <summary>Returns the sum of all elements.</summary>
-    public double Sum() => VectorMath.Sum(Data);
+    public double Sum() => TensorPrimitives.Sum<double>(Data);
 
     /// <summary>Returns the minimum element value.</summary>
-    public double Min() => VectorMath.Min(Data);
+    public double Min() => TensorPrimitives.Min<double>(Data);
 
     /// <summary>Returns the maximum element value.</summary>
-    public double Max() => VectorMath.Max(Data);
+    public double Max() => TensorPrimitives.Max<double>(Data);
 
     /// <summary>Returns the arithmetic mean.</summary>
-    public double Mean() => VectorMath.Sum(Data) / Length;
+    public double Mean() => AsSpan().Mean();
 
     /// <summary>Returns the population standard deviation.</summary>
-    public double Std() => VectorMath.StandardDeviation(Data);
+    public double Std() => AsSpan().StdDev();
 
     /// <summary>Folds the vector with an accumulator function.</summary>
     /// <param name="reducer">A function combining the running accumulator and the next element.</param>
@@ -165,10 +167,7 @@ public readonly record struct Vec(double[] Data)
         if (Length == 1) return Data[0];
         var sorted = Data.ToArray();
         Array.Sort(sorted);
-        double idx = (sorted.Length - 1) * Math.Clamp(p, 0.0, 100.0) / 100.0;
-        int lower = (int)Math.Floor(idx);
-        int upper = Math.Min(lower + 1, sorted.Length - 1);
-        return sorted[lower] + (idx - lower) * (sorted[upper] - sorted[lower]);
+        return sorted.Percentile(Math.Clamp(p, 0.0, 100.0));
     }
 
     /// <summary>Returns the value at the specified quantile (0–1) using linear interpolation.</summary>

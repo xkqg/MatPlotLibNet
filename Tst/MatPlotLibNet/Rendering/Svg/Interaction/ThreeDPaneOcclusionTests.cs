@@ -24,29 +24,11 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// expose depth-order bugs (matplotlib default, playground default, edge cases).</para></summary>
 public class ThreeDPaneOcclusionTests
 {
-    public static IEnumerable<object[]> CameraAngles() =>
-    [
-        [30, -60],  // matplotlib default
-        [35, -50],  // playground default
-        [45,   0],  // looking straight down +X
-        [10, -90],  // shallow elevation, sideways
-        [60, -30],  // high elevation, slight rotation
-    ];
-
     [Theory]
-    [MemberData(nameof(CameraAngles))]
+    [ClassData(typeof(CameraAngles))]
     public void PanesStayBeforeSeriesInDom_AfterDragRotate(int elev, int azim)
     {
-        const int n = 20;
-        var sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sy = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sz = new double[n, n];
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-            {
-                double r = Math.Sqrt(sx[i] * sx[i] + sy[j] * sy[j]);
-                sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
-            }
+        var (sx, sy, sz) = SampleSurface.Sinc();
 
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithSize(600, 500)

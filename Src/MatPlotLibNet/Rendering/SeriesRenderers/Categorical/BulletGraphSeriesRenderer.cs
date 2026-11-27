@@ -4,6 +4,7 @@
 using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -36,70 +37,46 @@ internal sealed class BulletGraphSeriesRenderer : SeriesRenderer<BulletGraphSeri
         Color ink = series.BarColor ?? Context.Theme.ForegroundText;
         Color tick = series.TargetColor ?? Context.Theme.ForegroundText;
 
-        if (series.Orientation == Orientation.Horizontal)
-        {
-            RenderHorizontal(series, bounds, upper, ink, tick);
-        }
-        else
-        {
-            RenderVertical(series, bounds, upper, ink, tick);
-        }
+        Render(series, series.Orientation.RunsAlongX, bounds, upper, ink, tick);
     }
 
-    private void RenderHorizontal(BulletGraphSeries series, Rect bounds, double upper, Color ink, Color tick)
+    /// <summary>Draws the bands, the measure and the target along the way the graph runs: along X (horizontal, from the left edge) or
+    /// along Y (vertical, from the bottom edge up). Every place along it is where its value's share of the upper bound stands from where
+    /// values start (<c>ValueStartAlong</c>), the way a value grows on the screen (<c>ValueGrowthAlong</c>); every place across it is a
+    /// share of the strip.</summary>
+    private void Render(BulletGraphSeries series, bool alongX, Rect bounds, double upper, Color ink, Color tick)
     {
-        double cy = bounds.Y + bounds.Height / 2;
-        double barH = bounds.Height * BarThickness;
+        double start = bounds.ValueStartAlong(alongX), growth = Rect.ValueGrowthAlong(alongX), length = bounds.LengthAlong(alongX);
+        double acrossStart = bounds.StartAlong(!alongX), acrossLength = bounds.LengthAlong(!alongX);
+        double At(double value) => start + growth * (Fraction(value, upper) * length);
 
         double prev = 0;
         foreach (var band in series.Bands ?? [])
         {
-            double x0 = bounds.X + Fraction(prev, upper) * bounds.Width;
-            double x1 = bounds.X + Fraction(band.Threshold, upper) * bounds.Width;
-            // The band runs between the two thresholds, by the rule the upright strip follows: a band out of order covers
-            // the stretch between them there too, where it was drawn with no width.
-            Ctx.DrawRectangle(new Rect(Math.Min(x0, x1), bounds.Y, Math.Abs(x1 - x0), bounds.Height),
-                new ShapeStyle(band.Color, null, 0));
+            if (band.Threshold.IsMissing()) continue;
+            double from = At(prev), to = At(band.Threshold);
+            // The band runs between the two thresholds, the same rule in either orientation: a band out of order covers the stretch
+            // between them there too, where it was drawn with no width.
+            Ctx.DrawRectangle(Rect.Along(alongX, Math.Min(from, to), Math.Abs(to - from), acrossStart, acrossLength),
+                ShapeStyle.Filled(band.Color));
             prev = band.Threshold;
         }
 
-        double barW = Fraction(series.Value, upper) * bounds.Width;
-        Ctx.DrawRectangle(new Rect(bounds.X, cy - barH / 2, barW, barH), new ShapeStyle(ink, null, 0));
-
-        if (series.Target is { } target)
+        // A measure that cannot be placed (missing, or infinite) has no bar; the bands and the target are still drawn.
+        if (series.Value.IsDrawable())
         {
-            double tx = bounds.X + Fraction(target, upper) * bounds.Width;
-            Ctx.DrawLine(new Point(tx, bounds.Y + bounds.Height * 0.15),
-                         new Point(tx, bounds.Y + bounds.Height * 0.85),
-                         new StrokeStyle(tick, 2.5, LineStyle.Solid));
-        }
-    }
-
-    private void RenderVertical(BulletGraphSeries series, Rect bounds, double upper, Color ink, Color tick)
-    {
-        double cx = bounds.X + bounds.Width / 2;
-        double barW = bounds.Width * BarThickness;
-        double bottom = bounds.Y + bounds.Height;
-
-        double prev = 0;
-        foreach (var band in series.Bands ?? [])
-        {
-            double y0 = bottom - Fraction(prev, upper) * bounds.Height;
-            double y1 = bottom - Fraction(band.Threshold, upper) * bounds.Height;
-            Ctx.DrawRectangle(new Rect(bounds.X, Math.Min(y0, y1), bounds.Width, Math.Abs(y0 - y1)),
-                new ShapeStyle(band.Color, null, 0));
-            prev = band.Threshold;
+            double reach = Fraction(series.Value, upper) * length, thickness = acrossLength * BarThickness;
+            var across = Range1D.Around(bounds.CentreAlong(!alongX), thickness);
+            Ctx.DrawRectangle(Rect.Along(alongX, Math.Min(start, start + growth * reach), reach, across.Lo, thickness),
+                ShapeStyle.Filled(ink));
         }
 
-        double barH = Fraction(series.Value, upper) * bounds.Height;
-        Ctx.DrawRectangle(new Rect(cx - barW / 2, bottom - barH, barW, barH), new ShapeStyle(ink, null, 0));
-
-        if (series.Target is { } target)
+        if (series.Target is { } target && target.IsDrawable())
         {
-            double ty = bottom - Fraction(target, upper) * bounds.Height;
-            Ctx.DrawLine(new Point(bounds.X + bounds.Width * 0.15, ty),
-                         new Point(bounds.X + bounds.Width * 0.85, ty),
-                         new StrokeStyle(tick, 2.5, LineStyle.Solid));
+            double at = At(target);
+            Ctx.DrawLine(Point.Along(alongX, at, acrossStart + acrossLength * 0.15),
+                         Point.Along(alongX, at, acrossStart + acrossLength * 0.85),
+                         Slot.StrokeOf(tick, LineWidthRule.OwnMark));
         }
     }
 
@@ -120,8 +97,8 @@ internal sealed class BulletGraphSeriesRenderer : SeriesRenderer<BulletGraphSeri
             {
                 ChartDiagnostics.Emit(new ChartDiagnostic(
                     nameof(BulletGraphSeriesRenderer),
-                    $"Bullet graph bands are not in ascending order (band {i} threshold {bands[i].Threshold} " +
-                    $"is below band {i - 1} threshold {bands[i - 1].Threshold}); the bands overpaint each other " +
+                    string.Invariant($"Bullet graph bands are not in ascending order (band {i} threshold {bands[i].Threshold} ") +
+                    string.Invariant($"is below band {i - 1} threshold {bands[i - 1].Threshold}); the bands overpaint each other ") +
                     "and the qualitative ranges read backwards.",
                     null));
                 return;
@@ -129,5 +106,5 @@ internal sealed class BulletGraphSeriesRenderer : SeriesRenderer<BulletGraphSeri
         }
     }
 
-    private static double Fraction(double value, double upper) => Math.Clamp(value / upper, 0, 1);
+    private static double Fraction(double value, double upper) => LinearNormalizer.Instance.Normalize(value, 0, upper);
 }

@@ -2,6 +2,19 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.30.0, a figure drawn again draws only what changed: every change reports itself, an unchanged subplot is handed out again in SVG and replayed in a native control, every target is drawn by one sequence, and over SignalR a viewer that patches is sent only the parts that changed; and the whole library put in order, one owner for each rule):** **1,287/1,287 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 1287 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.8L / 99.1B**; **33,185 tests, 0 failures** (4 skipped) across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite, the Uno suite
+and the benchmark-program suite run beside the gate and are not measured by it). The gate counts 126 more classes than it did at 1.29.0, among them the change
+clock and the stamped list, the copy of a series' collections (`DataSnapshot`), the kept draw of a subplot (`KeptAxesDraw`), the targets a figure is drawn onto
+(`FrameTarget`, `KeepingFrameTarget`, `SvgFrameTarget`, `SkiaFrameTarget`), the frame of one draw (`FigureFrame`), the painter of a native control
+(`SkiaChartPainter`), the document in its parts (`SvgFigureDocument`), the parts a publisher sends (`ChartSvgParts`), and the owners the refactor gave each
+rule: the name tables (`NamedTable`), the sealed shapes that replaced repeated switches (markers, arrow heads, connections, callouts, layouts, scale modes),
+the math-text command families (`MathCommand`), the hover targets, the event batch of a server session, the one streaming follower of the native controls,
+the base of the interaction modifiers (`InteractionModifier`), the internal interfaces beside the public ones and the one date rule (`OleDateExtensions`).
+One class read short on the first run: a check in the mosaic parser that the shared row rule had made unreachable, so the branch was deleted instead of
+tested. The Linux run of the same gate, collected in a container and checked on the host, passes with the same total.
+
 **Status (v1.29.0, the last three roadmap rows: shapes in data coordinates, circles and arcs, and a second axis in other units; plus the cell of a subplot kept through JSON):** **1,161/1,161 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 1161 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.8L / 98.9B**; **28,839 tests, 0 failures** (4 skipped) across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite
@@ -17,7 +30,7 @@ was put back.
 regressions (`PASS: All 1120 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.8L / 98.9B**; **27,290 tests, 0 failures** (4 skipped) across the 12 measured suites (the wiki suite, the fidelity suite, the WPF suite and the Uno suite
 run beside the gate and are not measured by it). The gate counts 26 more classes than it did at 1.27.0, among them the windows (`SpectralWindow`), the Welch estimator
-(`Welch`), the single-transform spectrum (`Spectrum`), the correlation (`Correlation`), the segment and staircase paths (`SegmentPath`, `StaircasePath`), the contour label
+(`Welch`), the single-transform spectrum (`Spectrum`), the correlation (`Correlation`), the segment and staircase paths (`SegmentPath`, and the staircase `Stairs` lays out), the contour label
 placement (`ContourLabelPlacement`), the legend and image-cell drawing the figure legend and figure image share (`LegendRenderer`, `ImageCells`), and the zoom indicator
 (`ZoomIndicator`, `ZoomIndicatorPath`, `DrawnView`). The first strict run passed with no class short and none under its baseline. The tests of each class were written before
 its code, and a mutation of a production line (a sign, a doubled bin, a dropped check) turned them red before the line was put back.
@@ -62,7 +75,7 @@ finishes later than the call. A test per arm closed it, and the closed-channel o
 
 The placement of texts added the classes that hold the marks a legend and an annotation keep clear of (`MarkObstacles`,
 `MarkCollectingContext`), the rule for the rectangle a text occupies (`TextBox`), the layout of the annotations that move
-(`AnnotationLayout`) and the pixels of a bar as drawn. Its first strict run reported two classes below 90/90 and five
+(`CartesianAnnotationsPart.PlaceText`) and the pixels of a bar as drawn. Its first strict run reported two classes below 90/90 and five
 that regressed from 100 %: `MarkCollectingContext` had no test of its own (an ellipse, a Bezier step, the clip calls and the
 measuring calls were never made), and the marks of the error bar, the kernel density, the regression and the residual plot left
 one arm each without a test (an error bar every third point and one with errors along X; a series with nothing to fit). A test
@@ -70,7 +83,7 @@ per arm closed them. `CartesianAnnotationsPart` had two arms untested (a text th
 lost a property no caller used.
 
 The thirteen roadmap rows of this release added classes of their own, among them the colour bar's scale and its choice of provider (`ColorBarScale`,
-`ColorBarProviderExtensions`), the polar scale (`RadialScale`, `RadialExtent`), the legend's swatch and part (`LegendSwatch`,
+`ResolvedColorBarExtensions`), the polar scale (`RadialScale`, `RadialExtent`), the legend's swatch and part (`LegendSwatch`,
 `LegendPart`), the contour band fill, the state segment fill, the Sankey link check, and in the Geo package the package data of a map
 (`GeoPackageData`, `GeoPackage`), the great circle, the projected region, a flow, a polygon and a position, and the GeoJSON writer. Its first
 strict run reported seven classes below 90/90 and four that regressed: the arms left without a test were geometries built from rings
@@ -131,7 +144,7 @@ its absence from the collector's module allowlist would have let the gate pass o
 
 **Status (v1.14.2, measured 3-D axis-title clearance, 2026-08-17):** **659/659 classes at ≥90/90**,
 strict gate **PASSES** with no regressions. **10,714 tests, 0 failures** across the 9 CI suites of that release, plus
-152 matplotlib pixel-fidelity tests. The two new branches in `ThreeDAxesRenderer.TitlePad` (a custom
+152 matplotlib pixel-fidelity tests. The two new branches in the 3-D axes renderer's title clearance (a custom
 tick `LabelSize` and a custom `TickFormatter`) are covered by a behavioural test — the title must
 still clear the band when either widens it — not by a coverage-shaped smoke test.
 
@@ -155,56 +168,26 @@ current per-class breakdown before relying on exact per-class numbers.
 
 **Status (v1.9.0, indicator-expansion release complete, 2026-04-23):** **622 classes, all at ≥90/90.** Strict gate **PASSES on CI** — `--strict` flag is active in `.github/workflows/ci.yml`. Total project coverage: **98.7L / 95.7B**. v1.9.0 adds 12 indicators (Tier 3a Volume / Tier 3b Trend+Transform / Tier 3c Advanced+Cross-asset) bringing the total to 52; every new class ships with its own ≥90/90 test file and the `AxesBuilder` shortcuts have paired tests. No framework refactors this release — rendering paths are unchanged, SVG output byte-identical to v1.8.0.
 
-### Phase X uplift summary (2026-04-19)
+## Where a test that reaches a branch goes
 
-| Sub-phase | Scope | Outcome |
-|---|---|---|
-| **X.6** | Exemption sweep | 3 unreachable arms documented (`Sinusoidal.Inverse` cosLat==0; `Stereographic.Forward` k<0; `StreamingChartSession` race-only `_disposed` guard) |
-| **X.7** | C2 quick-fire (~26 classes at 80–89%B) | ~40 facts in `PinpointBranchTests11.cs` + `NearMissBranchTests` |
-| **X.8** | Modifier branch precision (10 modifiers) | New `ModifierTestBase<TModifier>` stacked-OO base + per-class `ModifierBranchPrecisionTests` — Pan/SpanSelect/BrushSelect/LegendToggle 100/100; Hover/DataCursor/Zoom exempted (provably-unreachable `coords is null` arm) |
-| **X.9** | B2 mid-partial (renderers + interactions + misc) | 8 NEW renderer test files (5 of 7 fully graduated); `CrosshairModifier` + `InteractionToolbar` graduated; `ChartServices` + `FigureExtensions` 57→100 |
-| **X.10** | B1 high-lift | `StreamingIndicatorExtensions` 53→100 (9 per-extension facts); `InteractiveFigure` covered via `internal` ctor; `NullCallerPublisher` reached via `HoverEvent` flow; `ChartSubscriptionType` direct-called via `[InternalsVisibleTo]` |
-| **X.11** | Blazor streaming end-to-end | New `StreamingHostFixture` (xunit `IClassFixture`, real Kestrel on random port + ChartHub mapped); `MplStreamingChart` 0→100; `ChartSubscriptionClient` 0→100 (no-hub no-op + real-hub `ConnectAsync`/Subscribe/UpdateChartSvg/Dispose roundtrip) |
-| **X.12** | Re-baseline + verify | All 9 test projects collected; merged with `reportgenerator`; baseline regenerated; gate **PASS**: 0 regressions |
+A test is written for a type or for a behaviour, never for the round of work that found a missed branch. A branch the class's own
+tests did not reach is reached by a test in those tests: one test class per library type, named `<Type>Tests`, in a file of the same
+name, and a behaviour that spans types in a class named for the behaviour. Three guards hold it:
 
-Exemptions in `tools/coverage/thresholds.json`: 19 → **25 → 27 → 29** (Phase X added 6, Phase Y added 2 — `ISeriesVisitor` for the 14 default no-op `Visit(...){}` overloads matching the existing `IStreamingIndicator` exemption, and `IRenderContext` for the default-impl arms only reachable when concrete impls omit overrides; Phase Z removed the duplicate `ISeriesVisitor` entry and added 3: `PriceIndicator<TResult>` (generic abstract base, branch already 100), `PlaygroundExampleExtensions` (sample-only helper), `SecondaryXAxisBuilder` (small placeholder builder reached only via `WithSecondaryXAxis`)).
+| Guard | Refuses |
+|---|---|
+| `TestClassContractTests` (`Tst/MatPlotLibNet/Packaging/`) | a second test class for one library type (`<Type>EdgeTests`, `<Type>UnitTests`, `<Type>IntegrationTests` beside `<Type>Tests`), and a file that holds a class of another name |
+| `TestCodeRules` (`Tst/MatPlotLibNet/Packaging/OwnedRules/`) | a class named for a phase of work (`*CoverageTests`, `*BranchTests`, `*EdgeCaseTests`, `*NearMissTests`, `Phase*`, `V170*`, `*TestsV122`), a test whose only check is that some SVG was drawn (`Assert.Contains("<svg", svg)`, `Assert.NotNull(figure.ToSvg())`), a drawn-token row whose only token is the svg element, and a comment of a test that names the line of a library file (`line 45`, `L45`, `File.cs:45`; a matplotlib citation with its `.py` file on the same line is allowed) |
+| `CodeCloneContractTests` | a block of eight lines of code that stands in two files of `Src` or `Tst` (outside a declared family), or twice in one file of the library or of its tests (budget 0), or three facts of one shape in a file, or two facts of one shape in a folder, in one file or in several, whose names end alike (the same last part) or start alike (the same parts before the last) (a difference in a literal or in any name, such as a member, a type, a local or an argument, is a row) |
 
-### Phase Z uplift summary (2026-04-19, second sub-90 close-out wave)
-
-| Sub-phase | Scope | Outcome |
-|---|---|---|
-| **Z.1** | SeriesRenderer base-class deep dive (high leverage) | NEW `SeriesRendererBaseTests.cs` (16 facts) — internal `TestRenderer : SeriesRenderer<LineSeries>` exposes protected `Resolve*`/`BeginTooltip`/`EndTooltip`/`ApplyDownsampling`; `RecordingRenderContext` fakes a non-SVG `IRenderContext` for the tooltip branch matrix. **SeriesRenderer 72.7L/39.3B → graduated.** |
-| **Z.2** | ChartSerializer per-series round-trip Theory (high leverage) | NEW `ChartSerializerRoundTripTests.cs` (44 facts) — 33-row `[Theory]` over series-type discriminators + 11 axes-extras facts (spans/refs/annotations/breaks/insets/GridSpec/DirectionalLight/secondary-Y/share-X/extra-fields/unknown-type). **ChartSerializer 95.9L/76.2B → 99.3L/83.6B.** |
-| **Z.8** | Branch-only quick-fire batch 13 | NEW `PinpointBranchTests13.cs` (32 facts) — `LogLocator` (5 facts: graduates line), `PriceSources` (5 facts: every-enum-arm Theory + default fallback), `TwoSlopeNormalizer` (4 facts), `FacetedFigure` (4 facts), `MathTextParser` (4 facts), `EnumerableFigureExtensions` (3 facts), `LeastSquares` (4 facts: PolyFit) |
-| **Z.6** | Skia bucket round 2 | Extended `SkiaRenderContextCoverageTests.cs` (+14 facts) — Bold/Italic/BoldItalic combos, `DrawRichText` super/sub/rotation/empty-spans, `SetOpacity` pixel-alpha verification, dash-style Theory, CSS-style font-family stack. **SkiaRenderContext 68.5L/60.2B → graduated.** |
-| **Z.7** | Interactive/Blazor remainders | NEW `FigureRegistryCoverageTests.cs` (5 facts) — null-configure throws, register-twice disposes previous, RegisterStreaming-twice disposes previous. **AspNetCore.FigureRegistry 96.4L/87.5B → graduated.** |
-| **Z.5** | AxesBuilder null-configure arms | Extended `AxesBuilderCoverageTests.cs` (+10 facts) — false arm of every configure-callback overload (`WithTitle/SetXLabel/SetYLabel(_, configure: null)`, `AxHLine/AxVLine/AxHSpan/AxVSpan(_, configure: null)`, `Plot/Scatter/Bar(_, _, configure: null)`). **AxesBuilder 85.3L/60.8B → 96.6L/76.5B (line graduates).** |
-| **Z.3** | AxesRenderer colorbar+log+legend deep dive | Extended `AxesRendererCoverageTests.cs` (+9 facts) — every `(ColorBarOrientation × ColorBarExtend)` combination + DrawEdges per orientation + Horizontal-with-Both-and-Label. **AxesRenderer 75.4L/62.4B → 86.2L/75.4B (still under, +11/+13pp).** |
-| **Z.4** | CartesianAxesRenderer span/break/grid/radar deep dive | Extended `CartesianAxesRendererCoverageTests.cs` (+12 facts) — vertical span+ref-line with label, X+Y break tick filtering, grid-hidden, Radar/Pie skip-Cartesian, Date/SymLog auto-locator install. **Movement masked by LOC denominator expansion** — same Phase-Y trap. |
-| **Z.9** | Exemption review | Removed duplicate `ISeriesVisitor` entry; added 3 new: `PriceIndicator<TResult>` (line=70 branch=100), `PlaygroundExampleExtensions` (sample), `SecondaryXAxisBuilder` (small placeholder builder) |
-| **Z.10** | Re-baseline + verify | All 9 CI test projects PASS (**7 345 tests / 0 fail / 4 skips**); local cobertura **95.9%L / 87.5%B**; CI baseline refresh post-push |
-| **Z.11** | Documentation refresh | README + CHANGELOG + COVERAGE.md + wiki Home + wiki Contributing — stats lines refreshed |
-
-### Phase Y uplift summary (2026-04-19)
-
-| Sub-phase | Scope | Outcome |
-|---|---|---|
-| **Y.1** | Interface exemption sweep | `ISeriesVisitor` + `IRenderContext` exemptions documented (sub-90 64→54 with no test code) |
-| **Y.2** | AxesRenderer deep dive | NEW `AxesRendererCoverageTests.cs` (23 facts) — every `LegendPosition`/`TitleLocation` arm + math title + colorbar + multi-series legend |
-| **Y.3** | CartesianAxesRenderer deep dive | NEW `CartesianAxesRendererCoverageTests.cs` (25 facts) — grid/tick direction/rotation, spines (Data/Axes positions), Log/SymLog scale arms, mirror ticks, secondary Y-axis, themed renders |
-| **Y.4** | AxesBuilder deep dive | NEW `AxesBuilderCoverageTests.cs` (15 facts) — configure-callback arms (AxHLine/AxVLine/AxHSpan/AxVSpan), `SetXDateFormat`, `WithDownsampling`, `NestedPie`, `WithProjection`, indicator helpers (Sma/WilliamsR/Obv/Cci) |
-| **Y.5** | ChartSerializer branch lift | NEW `ChartSerializerCoverageTests.cs` (11 facts) — malformed JSON throws, Enable3DRotation round-trip, Spine config round-trip, camera config round-trip, BarMode.Stacked round-trip |
-| **Y.6** | Skia bucket | NEW `SkiaRenderContextCoverageTests.cs` (23 facts) — DrawLines/DrawPolygon/DrawEllipse early-return arms, DrawText alignment + rotation, DrawRichText (was 0%-covered), DrawPath all PathSegment subtypes, PushClip/PopClip stack discipline, SetOpacity clamping |
-| **Y.7** | Interactive/Blazor remainders | NEW `ChartServerCoverageTests.cs` (5 facts) — DisposeAsync lifecycle, IsRunning/Port on fresh instance, EnsureStartedAsync idempotence; NEW `InteractiveExtensionsBranchTests.cs` (2 facts) — Browser setter null-arg guard; NEW `MplChartCoverageTests.cs` (2 facts) — Expandable ToggleExpand button; NEW `MplLiveChartCoverageTests.cs` (3 facts) — explicit Client + chartId mismatch arms via in-memory recording client |
-| **Y.8** | Branch-only quick-fire | NEW `PinpointBranchTests12.cs` (22 facts) — TripcolorSeries 50%B→100%B, MarkerRenderer Cross/Plus stroke arms, PriceSources every-enum-arm Theory + default fallback, TwoSlopeNormalizer edge cases, MathTextParser plain-text vs math-mode, QuiverKeySeriesRenderer zero-dataRange fallback |
-| **Y.9** | Full suite verify | All 9 test projects PASS — **7 203 tests / 0 fail / 4 skips** |
-| **Y.10** | Documentation refresh | README + CHANGELOG + COVERAGE.md + wiki Home + wiki Contributing — stats lines refreshed across the board |
+A test that pins a figure names the token the case draws, or compares the picture with one it must equal. A test double or a
+fixture with no logic of its own has no test file: the tests that use it are its tests.
 
 ## Why 90/90 (not 80/80)
 
 Industry consensus is "80% is good enough"; we don't accept that. Branch coverage of 80% means 1 in 5 conditional paths is never tested — exactly where silent-failure bugs hide. v1.7.0 shipped four such bugs (geo extensions, broken-axis, symlog, playground grid) under a 3 967-test suite that was 85% line / 68% branch. The threshold lives in [`tools/coverage/thresholds.json`](https://github.com/xkqg/MatPlotLibNet/blob/main/tools/coverage/thresholds.json).
 
-Branch coverage continues to surface real bugs through the uplift wave — two found in the v1.7.2 work by edge-case Theories. The empty-input crash of the wiggle baselines (`ComputeWiggle` / `ComputeWeightedWiggle`) is fixed: a wiggle baseline of no layers is no baselines. `SymLogNormalizer.Normalize(NaN)` still throws, by contract: a normaliser is never handed a missing value, because a colormap and every renderer leave it out first, and `SymLogNormalizerEdgeCaseTests` says so.
+Branch coverage continues to surface real bugs through the uplift wave — two found in the v1.7.2 work by edge-case Theories. The empty-input crash of the wiggle baselines (`ComputeWiggle` / `ComputeWeightedWiggle`) is fixed: a wiggle baseline of no layers is no baselines. `SymLogNormalizer.Normalize(NaN, min, max)` still throws, by contract: a normaliser is never handed a missing value, because a colormap and every renderer leave it out first, and `NormalizerTests` says so.
 
 ## Run coverage locally
 
@@ -230,25 +213,13 @@ The script in [`tools/coverage/check-thresholds.ps1`](https://github.com/xkqg/Ma
 - **Default (CI mode)** — fails ONLY on **regression vs baseline**. The 90/90 absolute target is informational. This keeps CI green from day 1 while we lift coverage incrementally through the multi-phase plan. A class that was at 95% may not drop to 91% even though 91% > 90% — that signals a deleted or weakened test.
 - **`-Strict` mode** — adds the absolute 90/90 line/branch check. Used locally to track uplift progress, and intended to become the CI default once the codebase reaches the 90/90 baseline globally.
 
-Per-class minimums and exemptions live in `thresholds.json`. The default in that file is 90/90; per-class entries can override (e.g., pure JS string templates are exempted to 0/0).
+The minimum lives in `thresholds.json`: 90/90 for every class, and its `exemptions` list is empty by policy.
 
-## Adding an exemption
+## A class that cannot be tested
 
-Open [`tools/coverage/thresholds.json`](https://github.com/xkqg/MatPlotLibNet/blob/main/tools/coverage/thresholds.json) and add a per-class entry **with a `reason` string explaining why the default doesn't apply**. Example:
-
-```json
-{
-  "exemptions": {
-    "MatPlotLibNet.Rendering.Svg.Svg3DRotationScript": {
-      "line": 0,
-      "branch": 0,
-      "reason": "Pure JS string template — no testable C# branches."
-    }
-  }
-}
-```
-
-Exemptions require PR review. Add a comment in the PR description referencing the lines that were impossible to cover.
+A class that is legitimately untestable (an interface, a generic abstract base, the code at a browser or process boundary) carries
+`[ExcludeFromCodeCoverage]` at its declaration, with the reason in its documentation. It then drops out of the Cobertura report, so the
+gate never reads it, and the reason stands beside the code it is about. No class is given a lower floor in `thresholds.json`.
 
 ## When a CI build fails on coverage
 
@@ -262,7 +233,7 @@ Then either:
 
 1. **Add tests** to lift the failing class above its threshold (preferred).
 2. **Restore the deleted/weakened test** that caused the regression.
-3. **Add a documented exemption** with a clear reason (last resort).
+3. **Mark the class `[ExcludeFromCodeCoverage]`** with its reason, when it cannot be tested at all (last resort).
 
 ## How baselines work
 
@@ -277,10 +248,14 @@ Per-class baselines protect against subtle quality erosion — e.g., someone del
 | Unit tests | `Tst/MatPlotLibNet/`, `Tst/MatPlotLibNet.Geo/`, `Tst/MatPlotLibNet.Skia/` | Single method/class behavior, including all edge cases (NaN, ±∞, empty, single-point) |
 | Theory tests | `[Theory] [InlineData]` / `[MemberData]` | Parametrised over input matrices to exercise every branch |
 | Visual regression tests | `Tst/MatPlotLibNet/Rendering/` | Extract SVG geometry, assert points fall in canvas, ticks don't overlap |
-| Numpy/matplotlib parity | `Tst/MatPlotLibNet/.../*EdgeCaseTests.cs` | Math formulas verified against pre-computed numpy/matplotlib values from `TestFixtures/NumpyReference.cs` |
+| Numpy/matplotlib parity | `SymlogTransformTests`, `LogTickFormatterTests`, `NormalizerTests` | Math formulas verified against pre-computed numpy/matplotlib values from `TestFixtures/NumpyReference.cs` |
 | Drawn-property contracts | `Tst/MatPlotLibNet/Serialization/` (`SeriesDrawnPropertiesRoundTripTests`, `AxesDrawnPropertiesRoundTripTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every settable property of every series type and every part of an axes, found by reflection, comes back from a JSON round trip with the value it was given; a property added without its DTO field turns a Theory red and names itself |
-| Composed charts | `Tst/MatPlotLibNet/Rendering/` (`ComposedChartShapes`, `ComposedChartRoundTripTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every chart verb's figure is written as JSON, read back to the same picture, wears one colour for each drawn unit and lists the legend entries it should, and a missing value is never written into the picture; each verb's SVG equals the SVG of the public calls it replaces |
-| Document claims | `Tst/MatPlotLibNet/Packaging/` (`ReleaseContractTests`, `VerbPlacementContractTests`), `Tst/MatPlotLibNet.Geo/` | The numbers and lists the documents state (the colormap count, the version a document names, the verbs and where they live, the map projections) are held against the assembly and the project files |
+| Byte pins | `Tst/MatPlotLibNet/Serialization/` (`ChartSerializerGoldenCorpusTests`, `GivenSeriesCorpusTests`, `GivenAxesCorpusTests`, `ThemeCorpusTests`; files under `Golden/`) | The JSON a series at rest, a series with every property given, the axes with every property given and every shipped theme write, byte for byte; a refactor that must not move the wire passes them without a file regenerated |
+| Resting values | `Tst/MatPlotLibNet/Serialization/` (`RestingValueCorpusTests` over the roster of `RestingSubjects`, files under `Golden/Resting/`; `RestingValueContractTests`) | What every series type, every part of an axes or a figure and every settings record a part is made of starts from, setting by setting, and that each setting with a `Resting` constant starts from it; a test of one start, of one stored setting or of one series' trip through JSON adds nothing, and rows of `TestCodeRules` refuse its name and the shape of a fact that only gives a series a setting and reads it back |
+| One owner per rule | `Tst/MatPlotLibNet/Packaging/` (`OneOwnerSourceContractTests` over the rows of `OwnedRules/`, one file per area, the calculations in `NumericsRules`: an angle in the other unit, the spread of a run, a range of no width, a distribution's domain, a power of two, a moving average, a linear system; `OpacityContractTests` in `Models/`, which finds every opacity setting by reflection and refuses a setting that takes a number outside 0 to 1) | A rule worked out in one place is spelled in that place only: a pattern per rule, the files that may match it and the lines it must find and must pass, read over every source file, and over every test file for the rules of the tests (the repository root is found by `RepositoryRoot` only); a name the library deleted (`DeletedName`, `DeletedNameTests`) is named in no source or test line or comment, no document of the repository and no wiki page |
+| Composed charts | `Tst/MatPlotLibNet/Rendering/` (`ComposedChartShapes`, `ComposedChartContractTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every chart verb's figure is written as JSON, read back to the same picture, wears one colour for each drawn unit and lists the legend entries it should, and a missing value is never written into the picture; each verb's SVG equals the SVG of the public calls it replaces, a call it refuses names its parameter and leaves the axes as they were, and the limits are the caller's |
+| Verbs with a callback | `Tst/MatPlotLibNet/TestFixtures/VerbCatalogue.cs`, `Tst/MatPlotLibNet/Builders/VerbContractTests.cs` | Every verb that takes a callback, at every layer, is one row: the callback runs once on each unit the verb added, after the verb, so what it sets wins; no callback draws what an empty one does, or is refused by name; the verb returns its builder; a figure verb draws what the axes verb of its name draws on the one subplot |
+| Document claims | `Tst/MatPlotLibNet/Packaging/` (`ReleaseVersionContractTests`, `ReleasePackagingContractTests`, `ReleaseDocumentContractTests`, `VerbPlacementContractTests`), `Tst/MatPlotLibNet.Geo/` | The numbers and lists the documents state (the colormap count, the version a document names, the verbs and where they live, the map projections) are held against the assembly and the project files |
 | Fidelity tests | `Tst/MatPlotLibNet.Fidelity/` | Render PNG, compare to matplotlib reference via `PerceptualDiff` (RMS / SSIM / ΔE read from every pixel). Run by CI and by the publish job; no coverage is measured for it, since it holds no product code |
 | Performance benchmarks | `Tst/MatPlotLibNet/Benchmarks/` | Throughput numbers (not gated, informational) |
 
@@ -300,7 +275,7 @@ Every new test file must include test methods named for these cases (where appli
 Common edge-case data lives in [`Tst/MatPlotLibNet/TestFixtures/`](https://github.com/xkqg/MatPlotLibNet/tree/main/Tst/MatPlotLibNet/TestFixtures):
 
 - `EdgeCaseData.cs` — `Empty`, `SinglePoint`, `AllNaN`, `MixedNaN`, `BoundaryDoubles`, `Ramp(n)`, `Sin(n)`, `Large(n)`, `Descending(n)`, `AllEqual(n)`
-- `SvgGeometry.cs` — `ExtractPolylinePoints(svg)`, `ExtractYAxisTickPositions(svg)`, `CountPolygons(svg)`, `CountScripts(svg)`, `AssertPointsInCanvas(...)`
+- `Rendering/SvgMarkupExtensions.cs` — the one reader of a drawn SVG: `svg.Elements(name)`, `svg.SeriesGroup(index)`, `svg.PlotArea()`, `svg.Scripts()`, `svg.LegendEntries()`
 - `NumpyReference.cs` — pre-computed reference values for SymLog, Log10, Robinson projection, etc.
 - `Tst/MatPlotLibNet/Indicators/Streaming/StreamingTestData.cs` — synthetic OHLC fixtures (`RisingBars`, `FlatBars`, `ZigZagBars`) for streaming-indicator tests.
 
@@ -308,7 +283,7 @@ Use these instead of inlining your own — keeps "what's an edge case" consisten
 
 ## Cross-cutting Theory pattern (DRY)
 
-For families of types that share a contract, **extend the central Theory** instead of cloning per-type tests. The canonical example is [`Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs), which exercises **every** `ISeries` (all 83 types in `AllSeriesInstances`; `TheAllSeriesList_HoldsEveryConcreteSeriesTypeTheLibraryShips` fails when a type is missing from the list) against the same invariants:
+For families of types that share a contract, **extend the central Theory** instead of cloning per-type tests. The canonical example is [`Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs), which exercises **every** `ISeries` the library ships, read from the suite's one roster: its rows are `DrawnSeriesFixtures.TypeNames`, each case takes the kind at rest from `DrawnSeriesFixtures.Instance`, and `SeriesDrawnPropertiesRoundTripTests` fails when a shipped type is missing from the roster. The invariants:
 
 - `Label` defaults to `null`, can be set/read
 - `Visible` defaults to `true`, can be set to `false`
@@ -319,11 +294,13 @@ For families of types that share a contract, **extend the central Theory** inste
 - `IHasMarkerStyle.MarkerStyle` defaults to `Circle` (interface-filtered)
 - `IHasAlpha.Alpha` falls within `[0, 1]` (interface-filtered)
 - `IHasEdgeColor.EdgeColor` defaults to `null` (interface-filtered)
-- `XYSeries.XData/YData` are stored unchanged (XYSeries-filtered)
-- `ToSeriesDto()` round-trips with non-empty `Type` string
-- `ComputeDataRange(...)` produces finite numbers for non-empty data
-- Rendering to SVG neither crashes nor writes a coordinate that is not finite
+- the data a base holds (`XYSeries`, `DatasetSeries`, `HierarchicalSeries`, `OhlcSeries` and the other data bases) is what the kind's own constructor was given, one case per base
+- `ToSeriesDto()` is written under a type tag the registry reads (the tag's spelling is the golden corpus')
+- `ComputeDataRange(...)` produces finite numbers under axes with and without limits
+- Rendering to SVG neither crashes nor writes a coordinate that is not finite, and every optional setting given a value still renders
 
-Adding a new series type requires **one line** in `AllSeriesInstances` plus the corresponding `Visit` overload in `TestSeriesVisitor.cs` — and that single addition runs the conformance tests above. The type also joins `DrawnSeriesFixtures.DrawnTypes` (or is named in `NotUnderContract` with a reason), which holds each of its settable properties to the JSON round trip; the discriminator joins the `ChartSerializerRoundTripTests` Theory; and `SeriesCountContractTests` stays red until its published count and every document that states the count are bumped. A chart verb adds no series type, so it adds none of these: it adds one shape to `ComposedChartShapes`, which `ComposedChartRoundTripTests` runs through the promises for a composed chart. The renderer-side equivalent is [`Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs) — direct-invocation Theory over every `SeriesRenderer<T>` to cover renderer code paths that the visitor dispatch hides from the static call graph.
+Adding a new series type requires **one row** in `DrawnSeriesFixtures` (`DrawnTypes` and its `Build` row, or a name in `NotUnderContract` with a reason) plus the corresponding `Visit` overload in `TestSeriesVisitor.cs` — and that single addition runs the conformance tests above and holds each of its settable properties to the JSON round trip. Its discriminator needs a row in `SampleSeries.AddSampleSeries`, the data the golden corpus pins for every registered kind (and puts on every secondary Y axis seat); its verb, when it takes a callback, needs a row in `VerbCatalogue` (`VerbContractTests` names the overload until it has one); and `SeriesCountContractTests` stays red until its published count and every document that states the count are bumped. A chart verb adds no series type, so it adds none of these: it adds one shape to `ComposedChartShapes`, which `ComposedChartContractTests` runs through the promises for a composed chart and `VerbContractTests` through the promises of a verb with a callback. The renderer-side equivalent is [`Tst/MatPlotLibNet/Rendering/SeriesRenderers/SeriesRenderersTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Rendering/SeriesRenderers/SeriesRenderersTests.cs) — direct-invocation Theory over every `SeriesRenderer<T>` to cover renderer code paths that the visitor dispatch hides from the static call graph.
+
+Indicators follow the same pattern. Every calculator of the package is one case of `IndicatorCases` (`Tst/MatPlotLibNet/Indicators/IndicatorCases.cs`): how it is made over a walk of bars, what it draws and under which labels, the range it pins its pane to, the bar of its first value and the fewest bars it needs, what it says over bars that never move, its name when made with its defaults, and the arguments it refuses with the name each refusal gives, its streaming form beside it. `IndicatorContractTests` holds every case to all of them, one case an indicator, each listing every rule it breaks, and its guard fails when a calculator has no case or the streaming map holds another list. Adding an indicator is one case there (and a line of the streaming map); its own test file holds only its arithmetic against reference values.
 
 Phase-9 dedup (v1.7.2) removed 78 per-series `[Fact]` duplicates of these Theory tests across 55 files — net delta 5 569 → 5 468 tests, zero coverage regression.

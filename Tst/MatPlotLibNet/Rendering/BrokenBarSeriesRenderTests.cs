@@ -11,39 +11,16 @@ public class BrokenBarSeriesRenderTests
 {
     private static readonly BarRange[][] Ranges = [[new(1.0, 2.0), new(4.0, 1.5)], [new(0.5, 3.0)]];
 
-    [Fact]
-    public void BrokenBar_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("BrokenBar_SvgContainsRectangles", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.BrokenBarH(Ranges))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<rect"),
+    };
 
-    [Fact]
-    public void BrokenBar_SvgContainsRectangles()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.BrokenBarH(Ranges))
-            .ToSvg();
-        Assert.Contains("<rect", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void BrokenBar_EmptyRanges_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.BrokenBarH([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void BrokenBar_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .BrokenBarH(Ranges)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

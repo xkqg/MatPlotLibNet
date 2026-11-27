@@ -9,28 +9,24 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// (a direct visual cue) rather than a hint text element.</summary>
 public class UxHintsTests
 {
-    [Fact]
-    public void TreemapDrilldownScript_IndicatesParentsAreClickableViaCursor()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
         // The new expand/collapse script emits "cursor = 'pointer'" on parent rects.
         // A static string assertion guarantees this affordance ships in every build.
-        var svg = Plt.Create()
+        // Guard against accidental reintroduction of the retired hint element.
+        new DrawnToken("TreemapDrilldownScript_IndicatesParentsAreClickableViaCursor", () => Plt.Create()
             .WithTreemapDrilldown()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-        Assert.Contains("cursor = 'pointer'", svg);
-        // Guard against accidental reintroduction of the retired hint element.
-        Assert.DoesNotContain("data-mpl-treemap-hint", svg);
-    }
-
-    [Fact]
-    public void TooltipScript_FocusUsesElementBoundsNotZeroZero()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "cursor = 'pointer'") { Absent = ["data-mpl-treemap-hint"] },
+        // Phase 12: focus handler must use getBoundingClientRect, not (0, 0).
+        new DrawnToken("TooltipScript_FocusUsesElementBoundsNotZeroZero", () => Plt.Create()
             .WithRichTooltips()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-        // Phase 12: focus handler must use getBoundingClientRect, not (0, 0).
-        Assert.Contains("getBoundingClientRect", svg);
-    }
+            .ToSvg(), "getBoundingClientRect"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

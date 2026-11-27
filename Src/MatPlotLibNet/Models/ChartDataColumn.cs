@@ -47,4 +47,17 @@ public readonly record struct ChartDataColumn(
 {
     /// <summary>The header text, as the reader sees it.</summary>
     public string Header { get; } = Header ?? throw new ArgumentNullException(nameof(Header));
+
+    /// <summary>A column of positions along one axis (a point's <c>x</c> or <c>y</c>, a bar's start, a price): the one spelling of a
+    /// column on an axis in every table, and the owner of the bare header a position the series gives no name of its own is read under.</summary>
+    /// <param name="axis">The axis the values are positions on: <see cref="DataAxis.X"/> or <see cref="DataAxis.Y"/>.</param>
+    /// <param name="header">What the series calls it; <see langword="null"/> for the bare header, <c>x</c> or <c>y</c>.</param>
+    /// <returns>The column.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="axis"/> is <see cref="DataAxis.None"/>, which has no default header.</exception>
+    internal static ChartDataColumn Position(DataAxis axis, string? header = null) => new(header ?? axis switch
+    {
+        DataAxis.X => "x",
+        DataAxis.Y => "y",
+        _ => throw axis.NotAMember(nameof(axis), "A point is a position along the X or the Y axis."),
+    }, Axis: axis);
 }

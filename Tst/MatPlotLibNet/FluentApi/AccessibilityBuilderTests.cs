@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text.Json;
-using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.FluentApi;
 
@@ -23,103 +23,73 @@ public class AccessibilityBuilderTests
         Assert.Equal("Detailed data", figure.Description);
     }
 
-    [Fact]
-    public void WithAltText_AppearsInSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create()
+        new DrawnToken("WithAltText_AppearsInSvg", () => Plt.Create()
             .WithAltText("Revenue chart")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("Revenue chart", svg);
-    }
-
-    [Fact]
-    public void WithDescription_AppearsInSvg()
-    {
-        var svg = Plt.Create()
+            .ToSvg(), "Revenue chart"),
+        new DrawnToken("WithDescription_AppearsInSvg", () => Plt.Create()
             .WithDescription("Quarterly data 2025")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
+            .ToSvg(), "Quarterly data 2025"),
+    };
 
-        Assert.Contains("Quarterly data 2025", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void WithAltText_Chainable()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void WithAltTextAndWithDescription_Chainable(bool altText)
     {
-        var builder = Plt.Create().WithAltText("Test");
+        var builder = altText ? Plt.Create().WithAltText("Test") : Plt.Create().WithDescription("Test");
         Assert.IsType<FigureBuilder>(builder);
     }
 
-    [Fact]
-    public void WithDescription_Chainable()
+    public static TheoryData<Func<FigureBuilder, FigureBuilder>, Func<Figure, string?>, string> TheTextsOfARoundTrip => new()
     {
-        var builder = Plt.Create().WithDescription("Test");
-        Assert.IsType<FigureBuilder>(builder);
-    }
+        { builder => builder.WithAltText("Preserved alt text"), figure => figure.AltText, "Preserved alt text" },
+        { builder => builder.WithDescription("Preserved description"), figure => figure.Description, "Preserved description" },
+    };
 
-    [Fact]
-    public void RoundTrip_PreservesAltText()
+    [Theory]
+    [MemberData(nameof(TheTextsOfARoundTrip))]
+    public void RoundTrip_PreservesTheAccessibilityText(Func<FigureBuilder, FigureBuilder> set, Func<Figure, string?> read, string expected)
     {
-        var figure = Plt.Create()
-            .WithAltText("Preserved alt text")
+        var figure = set(Plt.Create())
             .Plot([1.0, 2.0], [3.0, 4.0])
             .Build();
-
-        var json = ChartSerializerDefault.Current.ToJson(figure);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
-
-        Assert.Equal("Preserved alt text", restored.AltText);
+        var restored = figure.RoundTripped();
+        Assert.Equal(expected, read(restored));
     }
 
-    [Fact]
-    public void RoundTrip_PreservesDescription()
+    public static TheoryData<Func<FigureBuilder, FigureBuilder>, string, string> TheAccessibilityTexts => new()
     {
-        var figure = Plt.Create()
-            .WithDescription("Preserved description")
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
+        { builder => builder.WithAltText("chart alt"), "altText", "chart alt" },
+        { builder => builder.WithDescription("chart desc"), "description", "chart desc" },
+    };
 
-        var json = ChartSerializerDefault.Current.ToJson(figure);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
-
-        Assert.Equal("Preserved description", restored.Description);
-    }
-
-    [Fact]
-    public void ToJson_IncludesAltText()
+    [Theory]
+    [MemberData(nameof(TheAccessibilityTexts))]
+    public void ToJson_IncludesTheAccessibilityText(Func<FigureBuilder, FigureBuilder> set, string property, string expected)
     {
-        var figure = Plt.Create().WithAltText("chart alt").Build();
+        var figure = set(Plt.Create()).Build();
         var json = ChartSerializerDefault.Current.ToJson(figure);
         var doc = JsonDocument.Parse(json);
-        Assert.Equal("chart alt", doc.RootElement.GetProperty("altText").GetString());
+        Assert.Equal(expected, doc.RootElement.GetProperty(property).GetString());
     }
 
-    [Fact]
-    public void ToJson_IncludesDescription()
-    {
-        var figure = Plt.Create().WithDescription("chart desc").Build();
-        var json = ChartSerializerDefault.Current.ToJson(figure);
-        var doc = JsonDocument.Parse(json);
-        Assert.Equal("chart desc", doc.RootElement.GetProperty("description").GetString());
-    }
-
-    [Fact]
-    public void NullAltText_OmittedFromJson()
+    [Theory]
+    [InlineData("altText")]
+    [InlineData("description")]
+    public void ANullAccessibilityText_IsOmittedFromJson(string property)
     {
         var figure = Plt.Create().Build();
         var json = ChartSerializerDefault.Current.ToJson(figure);
         var doc = JsonDocument.Parse(json);
-        Assert.False(doc.RootElement.TryGetProperty("altText", out _));
-    }
-
-    [Fact]
-    public void NullDescription_OmittedFromJson()
-    {
-        var figure = Plt.Create().Build();
-        var json = ChartSerializerDefault.Current.ToJson(figure);
-        var doc = JsonDocument.Parse(json);
-        Assert.False(doc.RootElement.TryGetProperty("description", out _));
+        Assert.False(doc.RootElement.TryGetProperty(property, out _));
     }
 }

@@ -3,467 +3,150 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Serialization;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies common <see cref="ISeries"/> behavior across all series types.</summary>
+/// <summary>Verifies common <see cref="ISeries"/> behavior across all series types: one case per type the library ships, the instance
+/// read from the one roster, <see cref="DrawnSeriesFixtures"/>, which <see cref="SeriesDrawnPropertiesRoundTripTests"/> holds to every
+/// shipped type.</summary>
 public class AllSeriesTests
 {
-    /// <summary>Minimal <see cref="IAxesContext"/> for series whose <c>ComputeDataRange</c>
-    /// reads context fields (e.g. CandlestickSeries, WaterfallSeries, GanttSeries).</summary>
-    private sealed class NullAxesContext : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
-    /// <summary>Phase Q (2026-04-19): companion context with all four axis bounds set so the
-    /// non-null branch of every <c>context.XAxisMin ?? default</c> in <c>ComputeDataRange</c>
-    /// actually executes. Pre-Q the only available context was <see cref="NullAxesContext"/>,
-    /// which left those branches unhit and pinned multiple series at 100% line / 50% branch
-    /// (CandlestickSeries, GanttSeries, OhlcBarSeries, Contour3D / Line3D / Surface /
-    /// Trisurf3D / ResidualSeries — every series whose ComputeDataRange consults the
-    /// axes context for its primary axis bounds).</summary>
-    private sealed class BoundedAxesContext : IAxesContext
-    {
-        public double? XAxisMin => -100.0;
-        public double? XAxisMax => 100.0;
-        public double? YAxisMin => -100.0;
-        public double? YAxisMax => 100.0;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
-    /// <summary>Helper: factory for a populated streaming line series (so its data range is non-null).</summary>
-    private static StreamingLineSeries MakeStreamingLine()
-    {
-        var s = new StreamingLineSeries(capacity: 16);
-        s.AppendPoint(0.0, 1.0);
-        s.AppendPoint(1.0, 2.0);
-        s.AppendPoint(2.0, 3.0);
-        return s;
-    }
-
-    /// <summary>Helper: factory for a populated streaming scatter series.</summary>
-    private static StreamingScatterSeries MakeStreamingScatter()
-    {
-        var s = new StreamingScatterSeries(capacity: 16);
-        s.AppendPoint(0.0, 1.0);
-        s.AppendPoint(1.0, 2.0);
-        return s;
-    }
-
-    /// <summary>Helper: factory for a populated streaming signal series.</summary>
-    private static StreamingSignalSeries MakeStreamingSignal()
-    {
-        var s = new StreamingSignalSeries(capacity: 16);
-        s.AppendSample(1.0);
-        s.AppendSample(2.0);
-        return s;
-    }
-
-    /// <summary>Helper: factory for a populated streaming candlestick series.</summary>
-    private static StreamingCandlestickSeries MakeStreamingCandlestick()
-    {
-        var s = new StreamingCandlestickSeries(capacity: 16);
-        s.AppendBar(10, 15, 8, 13);
-        s.AppendBar(13, 18, 11, 16);
-        return s;
-    }
-
-    public static TheoryData<ISeries, string> AllSeriesInstances => new()
-    {
-        { new LineSeries([1.0], [2.0]), nameof(LineSeries) },
-        { new ScatterSeries([1.0], [2.0]), nameof(ScatterSeries) },
-        { new BarSeries(["A"], [1.0]), nameof(BarSeries) },
-        { new HistogramSeries([1.0, 2.0, 3.0]), nameof(HistogramSeries) },
-        { new PieSeries([30.0, 70.0]), nameof(PieSeries) },
-        { new WaffleSeries(["A", "B"], [30.0, 70.0]), nameof(WaffleSeries) },
-        { new PointAndFigureSeries([20.4, 22.3, 24.4, 21.0], 1), nameof(PointAndFigureSeries) },
-        { new HeatmapSeries(new double[,] { { 1, 2 }, { 3, 4 } }), nameof(HeatmapSeries) },
-        { new Histogram2DSeries([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), nameof(Histogram2DSeries) },
-        { new BoxSeries([[1.0, 2.0, 3.0]]), nameof(BoxSeries) },
-        { new ViolinSeries([[1.0, 2.0, 3.0]]), nameof(ViolinSeries) },
-        { new KdeSeries([1.0, 2.0, 3.0]), nameof(KdeSeries) },
-        { new RegressionSeries([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]), nameof(RegressionSeries) },
-        { new HexbinSeries([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]), nameof(HexbinSeries) },
-        { new ContourSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ContourSeries) },
-        { new ContourfSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ContourfSeries) },
-        { new StemSeries([1.0, 2.0], [3.0, 4.0]), nameof(StemSeries) },
-        { new AreaSeries([1.0, 2.0], [3.0, 4.0]), nameof(AreaSeries) },
-        { new StepSeries([1.0, 2.0], [3.0, 4.0]), nameof(StepSeries) },
-        { new EcdfSeries([3.0, 1.0, 2.0]), nameof(EcdfSeries) },
-        { new ErrorBarSeries([1.0, 2.0], [3.0, 4.0], [0.1, 0.1], [0.2, 0.2]), nameof(ErrorBarSeries) },
-        { new CandlestickSeries([10.0], [15.0], [8.0], [13.0]), nameof(CandlestickSeries) },
-        { new QuiverSeries([1.0], [2.0], [0.5], [0.5]), nameof(QuiverSeries) },
-        { new StreamplotSeries([0.0, 1.0], [0.0, 1.0], new double[,] { { 1, 0 }, { 0, 1 } }, new double[,] { { 0, 1 }, { 1, 0 } }), nameof(StreamplotSeries) },
-        { new RadarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]), nameof(RadarSeries) },
-        { new DonutSeries([30.0, 70.0]), nameof(DonutSeries) },
-        { new BubbleSeries([1.0], [2.0], [10.0]), nameof(BubbleSeries) },
-        { new OhlcBarSeries([10.0], [15.0], [8.0], [13.0]), nameof(OhlcBarSeries) },
-        { new WaterfallSeries(["A"], [10.0]), nameof(WaterfallSeries) },
-        { new FunnelSeries(["A"], [10.0]), nameof(FunnelSeries) },
-        { new GanttSeries(["A"], [0.0], [1.0]), nameof(GanttSeries) },
-        { new GaugeSeries(50), nameof(GaugeSeries) },
-        { new ProgressBarSeries(0.5), nameof(ProgressBarSeries) },
-        { new SparklineSeries([1.0, 2.0, 3.0]), nameof(SparklineSeries) },
-        // v1.12/v1.13 dashboard primitives — absent from this theory since they shipped, so every
-        // cross-cutting conformance check (Label, Visible, ZOrder, ToSeriesDto, Accept) skipped them.
-        { new StatTileSeries(42), nameof(StatTileSeries) },
-        { new StateTimelineSeries([new StateSegment(0, 1, "Up", Colors.Tab10Green)]), nameof(StateTimelineSeries) },
-        { new BulletGraphSeries(50), nameof(BulletGraphSeries) },
-        { new TreeGridSeries([new TreeGridRow("Root", ["1", "2"])]), nameof(TreeGridSeries) },
-        { new RelativeRotationSeries([[1.0, 2.0, 3.0]], [1.0, 1.0, 1.0], ["A"]), nameof(RelativeRotationSeries) },
-        { new TreemapSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(TreemapSeries) },
-        { new SunburstSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(SunburstSeries) },
-        { new IcicleSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(IcicleSeries) },
-        { new DendrogramSeries(new TreeNode { Label = "Root", Value = 1.0, Children = [new TreeNode { Label = "A" }, new TreeNode { Label = "B" }] }), nameof(DendrogramSeries) },
-        { new ClustermapSeries(new double[,] { { 1.0, 2.0 }, { 3.0, 4.0 } }), nameof(ClustermapSeries) },
-        { new PairGridSeries(new[] { new[] { 1.0, 2.0, 3.0 }, new[] { 4.0, 5.0, 6.0 } }), nameof(PairGridSeries) },
-        { new NetworkGraphSeries([new GraphNode("a"), new GraphNode("b")], [new GraphEdge("a", "b")]), nameof(NetworkGraphSeries) },
-        { new SankeySeries([new SankeyNode("A"), new SankeyNode("B")], [new SankeyLink(0, 1, 10)]), nameof(SankeySeries) },
-        { new ChordSeries(["A", "B"], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ChordSeries) },
-        { new WordCloudSeries(["data", "chart"], [10.0, 4.0]), nameof(WordCloudSeries) },
-        { new PolarLineSeries([1.0, 2.0], [0.0, 1.0]), nameof(PolarLineSeries) },
-        { new PolarScatterSeries([1.0], [0.5]), nameof(PolarScatterSeries) },
-        { new PolarBarSeries([5.0, 10.0], [0.0, 1.57]), nameof(PolarBarSeries) },
-        { new TernaryScatterSeries([0.2, 0.5], [0.5, 0.3], [0.3, 0.2]), nameof(TernaryScatterSeries) },
-        { new TernaryLineSeries([0.2, 0.5], [0.5, 0.3], [0.3, 0.2]), nameof(TernaryLineSeries) },
-        { new PiperSeries([new WaterSample { Ca = 60, Mg = 10, Na = 8, HCO3 = 200, SO4 = 20, Cl = 10 }]), nameof(PiperSeries) },
-        { new SurfaceSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(SurfaceSeries) },
-        { new WireframeSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(WireframeSeries) },
-        { new Scatter3DSeries(new double[] { 1.0 }, new double[] { 2.0 }, new double[] { 3.0 }), nameof(Scatter3DSeries) },
-        { new RugplotSeries(new double[] { 1.0, 2.0, 3.0 }), nameof(RugplotSeries) },
-        { new StripplotSeries([[1.0, 2.0], [3.0, 4.0]]), nameof(StripplotSeries) },
-        { new EventplotSeries([[1.0, 2.0], [3.0]]), nameof(EventplotSeries) },
-        { new BrokenBarSeries([[new(1.0, 2.0), new(4.0, 1.0)]]), nameof(BrokenBarSeries) },
-        { new CountSeries(["a", "b", "a"]), nameof(CountSeries) },
-        { new PcolormeshSeries(new double[] { 0.0, 1.0, 2.0 }, new double[] { 0.0, 1.0, 2.0 }, new double[,] { { 1, 2 }, { 3, 4 } }), nameof(PcolormeshSeries) },
-        { new ResidualSeries(new double[] { 1.0, 2.0, 3.0 }, new double[] { 2.0, 4.0, 6.0 }), nameof(ResidualSeries) },
-        { new PointplotSeries([[1.0, 2.0, 3.0], [4.0, 5.0]]), nameof(PointplotSeries) },
-        { new SwarmplotSeries([[1.0, 2.0], [3.0, 4.0]]), nameof(SwarmplotSeries) },
-        { new SpectrogramSeries(new double[] { 1.0, 0.5, -0.5, -1.0, 0.0, 0.5, 1.0, 0.5 }), nameof(SpectrogramSeries) },
-        { new TableSeries([["a", "b"], ["c", "d"]]), nameof(TableSeries) },
-        { new TricontourSeries(new double[] { 0.0, 1.0, 0.5 }, new double[] { 0.0, 0.0, 1.0 }, new double[] { 1.0, 2.0, 3.0 }), nameof(TricontourSeries) },
-        { new TripcolorSeries(new double[] { 0.0, 1.0, 0.5 }, new double[] { 0.0, 0.0, 1.0 }, new double[] { 1.0, 2.0, 3.0 }), nameof(TripcolorSeries) },
-        { new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s"), nameof(QuiverKeySeries) },
-        { new BarbsSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 10.0, 20.0 }, new double[] { 45.0, 90.0 }), nameof(BarbsSeries) },
-        { new Stem3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Stem3DSeries) },
-        { new Bar3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Bar3DSeries) },
-        // ── Batch C extension: 16 missing series types (2026-04-18) ───────────
-        { new ImageSeries(new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ImageSeries) },
-        { new StackedAreaSeries([1.0, 2.0, 3.0], [[1.0, 2.0, 3.0], [2.0, 3.0, 1.0]]), nameof(StackedAreaSeries) },
-        { new PolarHeatmapSeries(new double[,] { { 1, 2 }, { 3, 4 } }, thetaBins: 2, rBins: 2), nameof(PolarHeatmapSeries) },
-        { new SignalSeries([1.0, 2.0, 3.0], sampleRate: 100.0), nameof(SignalSeries) },
-        { new SignalXYSeries([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), nameof(SignalXYSeries) },
-        { new PlanarBar3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(PlanarBar3DSeries) },
-        { new Text3DSeries([new Text3DAnnotation(1, 2, 3, "A"), new Text3DAnnotation(4, 5, 6, "B")]), nameof(Text3DSeries) },
-        { new Line3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Line3DSeries) },
-        { new Trisurf3DSeries(new double[] { 0.0, 1.0, 0.5 }, new double[] { 0.0, 0.0, 1.0 }, new double[] { 1.0, 2.0, 3.0 }), nameof(Trisurf3DSeries) },
-        { new Contour3DSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 1.0 }, new double[,] { { 1, 2 }, { 3, 4 } }), nameof(Contour3DSeries) },
-        { new Quiver3DSeries(new double[] { 1.0 }, new double[] { 2.0 }, new double[] { 3.0 }, new double[] { 0.5 }, new double[] { 0.5 }, new double[] { 0.5 }), nameof(Quiver3DSeries) },
-        { new VoxelSeries(new bool[2, 2, 2] { { { true, false }, { false, true } }, { { false, true }, { true, false } } }), nameof(VoxelSeries) },
-        { MakeStreamingLine(), nameof(StreamingLineSeries) },
-        { MakeStreamingScatter(), nameof(StreamingScatterSeries) },
-        { MakeStreamingSignal(), nameof(StreamingSignalSeries) },
-        { MakeStreamingCandlestick(), nameof(StreamingCandlestickSeries) },
-    };
-
-    /// <summary>The list above holds one instance of every concrete series type the library ships. Two types were once
-    /// missing from it, and every cross-cutting check below skipped them without a word: a series that is not in the
-    /// list is not checked for its label, its visibility, its drawing order or the visitor method it dispatches to.</summary>
-    [Fact]
-    public void TheAllSeriesList_HoldsEveryConcreteSeriesTypeTheLibraryShips()
-    {
-        var shipped = typeof(ISeries).Assembly.GetExportedTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ISeries).IsAssignableFrom(t));
-        var listed = AllSeriesInstances.Select(row => ((ITheoryDataRow)row).GetData()[0]!.GetType()).ToHashSet();
-
-        var missing = shipped.Where(t => !listed.Contains(t)).Select(t => t.Name).Order(StringComparer.Ordinal).ToList();
-
-        Assert.True(missing.Count == 0, $"{missing.Count} shipped series type(s) are missing from AllSeriesInstances: {string.Join(", ", missing)}.");
-    }
-
-    /// <summary>Verifies that Label defaults to null for every series type.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void Label_DefaultsToNull(ISeries series, string _)
-        => Assert.Null(series.Label);
-
     /// <summary>Verifies that exactly one series kind draws its own label (and so is never a legend entry): the stat
     /// tile. Every other kind lists its label in the legend, so none of them may answer true.</summary>
     [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void DrawsOwnLabel_IsTrueForTheStatTileOnly(ISeries series, string _)
-        => Assert.Equal(series is StatTileSeries, series is ChartSeries { DrawsOwnLabel: true });
-
-    /// <summary>Verifies that Visible defaults to true for every series type.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void Visible_DefaultsToTrue(ISeries series, string _)
-        => Assert.True(series.Visible);
-
-    /// <summary>Verifies that ZOrder has the correct default for each series type.
-    /// AreaSeries defaults to -1 (renders behind all other series); everything else defaults to 0.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void ZOrder_DefaultsToExpectedValue(ISeries series, string _)
-        => Assert.Equal(series is AreaSeries ? -1 : 0, series.ZOrder);
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void DrawsOwnLabel_IsTrueForTheStatTileOnly(string type)
+    {
+        var series = DrawnSeriesFixtures.Instance(type);
+        Assert.Equal(series is StatTileSeries, series is ChartSeries { DrawsOwnLabel: true });
+    }
 
     /// <summary>Verifies that Accept dispatches to the correct visitor method for each series type.</summary>
     [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void Accept_DispatchesToCorrectVisitorMethod(ISeries series, string expectedName)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void Accept_DispatchesToCorrectVisitorMethod(string type)
     {
         var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(expectedName, visitor.LastVisited);
+        DrawnSeriesFixtures.Instance(type).Accept(visitor, null!);
+        Assert.Equal(type, visitor.LastVisited);
     }
 
-    /// <summary>Verifies that Label can be set and read back for every series type.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void Label_CanBeSetAndRead(ISeries series, string _)
-    {
-        series.Label = "test-label";
-        Assert.Equal("test-label", series.Label);
-    }
+    /// <summary>A base that holds the data of the kinds made on it: the arguments every such kind is made from, and the members that keep
+    /// them, in the order given.</summary>
+    private readonly record struct DataBase(Type Base, object[] Arguments, string[] Members);
 
-    /// <summary>Verifies that Visible can be set to false for every series type.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void Visible_CanBeSetToFalse(ISeries series, string _)
-    {
-        series.Visible = false;
-        Assert.False(series.Visible);
-    }
+    private static readonly double[] Ones = [1, 2, 3], Fours = [4, 5, 6], Sevens = [7, 8, 9], Tens = [10, 11, 12];
+    private static readonly double[,] Grid = { { 1, 2, 3 }, { 4, 5, 6 } };
 
-    /// <summary>Verifies that ZOrder can be set and read back for every series type.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void ZOrder_CanBeSet(ISeries series, string _)
-    {
-        series.ZOrder = 42;
-        Assert.Equal(42, series.ZOrder);
-    }
+    private static readonly DataBase[] DataBases =
+    [
+        new(typeof(XYSeries), [Ones, Fours], [nameof(XYSeries.XData), nameof(XYSeries.YData)]),
+        new(typeof(XYZSeries), [(Vec)Ones, (Vec)Fours, (Vec)Sevens], [nameof(XYZSeries.X), nameof(XYZSeries.Y), nameof(XYZSeries.Z)]),
+        new(typeof(PolarSeries), [Ones, Fours], [nameof(PolarSeries.R), nameof(PolarSeries.Theta)]),
+        new(typeof(DatasetSeries), [new[] { Ones, Fours }], [nameof(DatasetSeries.Datasets)]),
+        new(typeof(HierarchicalSeries), [new TreeNode { Label = "Root" }], [nameof(HierarchicalSeries.Root)]),
+        new(typeof(OhlcSeries), [Ones, Fours, Sevens, Tens], [nameof(OhlcSeries.Open), nameof(OhlcSeries.High), nameof(OhlcSeries.Low), nameof(OhlcSeries.Close)]),
+        new(typeof(GridSeries3D), [Ones, Fours[..2], Grid], [nameof(GridSeries3D.X), nameof(GridSeries3D.Y), nameof(GridSeries3D.Z)]),
+        new(typeof(GridContourSeries), [Ones, Fours[..2], Grid], [nameof(GridContourSeries.XData), nameof(GridContourSeries.YData), nameof(GridContourSeries.ZData)]),
+        new(typeof(TernarySeries), [Ones, Fours, Sevens], [nameof(TernarySeries.Top), nameof(TernarySeries.Left), nameof(TernarySeries.Right)]),
+    ];
 
-    // ── Consolidated property-default checks (Phase 9 dedup, 2026-04-18) ─────
-    // These three tests replace ~50 near-identical per-series test methods that
-    // each constructed one series and asserted the same default. The source of
-    // truth for "what defaults to null" is now ONE place. Per-series test files
-    // keep only TYPE-SPECIFIC behaviour (e.g. AreaSeries.YData2 default).
+    /// <summary>One row per base of <see cref="DataBases"/>, by name.</summary>
+    public static TheoryData<string> DataBaseNames { get; } = new(DataBases.Select(data => data.Base.Name));
 
-    /// <summary>Every series implementing <see cref="IHasColor"/> must default to
-    /// <c>Color = null</c> so the theme cycler picks the actual colour at render time.</summary>
+    /// <summary>Every kind of the roster made on a base that holds its data keeps, in the base's members, what its own constructor is
+    /// given, in the order given: one case per base, each kind on it whose constructor takes exactly the base's data made through
+    /// that constructor, and each member a kind does not keep named. A kind made from more than its base holds (a bubble's sizes, an
+    /// error bar's arms, a signal's rate) says what it keeps in its own tests.</summary>
     [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void IHasColor_DefaultsToNull(ISeries series, string _)
+    [MemberData(nameof(DataBaseNames))]
+    public void EveryKindOnADataBase_KeepsWhatItIsMadeFrom_InTheBasesMembers(string baseName)
     {
-        if (series is IHasColor hc) Assert.Null(hc.Color);
-    }
+        var data = DataBases.Single(b => b.Base.Name == baseName);
+        Type[] signature = [.. data.Arguments.Select(argument => argument.GetType())];
+        var kinds = DrawnSeriesFixtures.DrawnTypes.Where(type => data.Base.IsAssignableFrom(type) && type.GetConstructor(signature) is not null).ToList();
 
-    /// <summary>Every series implementing <see cref="IColormappable"/> must default to
-    /// <c>ColorMap = null</c> so the axes-level colormap propagates instead.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void IColormappable_DefaultColorMapIsNull(ISeries series, string _)
-    {
-        if (series is IColormappable cm) Assert.Null(cm.ColorMap);
-    }
-
-    /// <summary>Every <see cref="XYSeries"/>-derived series must store the X and Y
-    /// data passed to its constructor (i.e. no defensive cloning that breaks
-    /// downstream Append-style mutation).</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void XYSeries_StoresXAndYData(ISeries series, string _)
-    {
-        if (series is XYSeries xy)
+        var lost = kinds.SelectMany(type =>
         {
-            Assert.NotNull(xy.XData);
-            Assert.NotNull(xy.YData);
-            Assert.Equal(xy.XData.Length, xy.YData.Length);
+            var series = type.GetConstructor(signature)!.Invoke(data.Arguments);
+            return data.Members.Where((member, i) => !DrawnSeriesFixtures.SameValue(data.Arguments[i], type.GetProperty(member)!.GetValue(series)))
+                .Select(member => $"{type.Name}.{member}");
+        }).ToList();
+
+        Assert.NotEmpty(kinds);
+        Assert.True(lost.Count == 0, $"{baseName}: {string.Join(", ", lost)} not kept as given.");
+    }
+
+    /// <summary>Every series writes its DTO under the type tag the registry reads it back by: the tag of each kind is held to its
+    /// spelling by the golden corpus (<see cref="ChartSerializerGoldenCorpusTests"/>), and the kind it reads back as by
+    /// <see cref="SeriesDrawnPropertiesRoundTripTests"/>, so no kind states its own tag or its registry row again.</summary>
+    [Theory]
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void ToSeriesDto_IsWrittenUnderATagTheRegistryReads(string type)
+    {
+        var dto = DrawnSeriesFixtures.Instance(type).ToSeriesDto();
+
+        Assert.Contains(dto.Type, SeriesRegistry.Discriminators);
+    }
+
+    /// <summary>Every series with non-empty data produces a finite (no NaN, no infinity) <see cref="DataRangeContribution"/>, under
+    /// axes that give no limits and under axes that do (the <c>context.XAxisMin ?? default</c> reads of the candle, Gantt and 3-D
+    /// kinds take the other branch then). A member may be null when the series does not contribute to that axis (a polar series, a
+    /// voxel series with an empty mask); a null is skipped, not failed on, and the first member that is not finite is named.</summary>
+    [Theory]
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void ComputeDataRange_UnderAxesWithAndWithoutLimits_IsFinite(string type)
+    {
+        var series = DrawnSeriesFixtures.Instance(type);
+        TestAxesContext[] contexts = [new(), new(-100.0, 100.0, -100.0, 100.0)];
+
+        foreach (var context in contexts)
+        {
+            foreach (var (name, value) in GivenMembers(series.ComputeDataRange(context)))
+            {
+                value.AssertFinite($"{type}.{name} under {(context.XAxisMin is null ? "no limits" : "limits")}");
+            }
         }
     }
 
-    // ── Cross-cutting Theory tests added in Batch C (2026-04-18) ─────────────
-    // Replace dozens of per-series ToSeriesDto / DataRange / interface-default
-    // checks with a single Theory each. Keeps the source of truth in ONE place.
-
-    /// <summary>Every series' <see cref="ISeries.ToSeriesDto"/> must round-trip to a
-    /// non-null DTO with a non-empty <see cref="Serialization.SeriesDto.Type"/> string,
-    /// otherwise persistence and renderer dispatch break.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void ToSeriesDto_RoundTrips(ISeries series, string _)
-    {
-        var dto = series.ToSeriesDto();
-        Assert.NotNull(dto);
-        Assert.False(string.IsNullOrEmpty(dto.Type));
-    }
-
-    /// <summary>Every series with non-empty data must produce a finite (no NaN, no
-    /// infinity) <see cref="DataRangeContribution"/>. Members may be null when the
-    /// series legitimately doesn't contribute to that axis (polar series, voxel
-    /// series with empty mask, etc.) — those nulls are skipped, not failed on.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void ComputeDataRange_NonEmpty_ProducesFiniteRange(ISeries series, string _)
-    {
-        var range = series.ComputeDataRange(new NullAxesContext());
-        AssertFinite(range.XMin, nameof(range.XMin));
-        AssertFinite(range.XMax, nameof(range.XMax));
-        AssertFinite(range.YMin, nameof(range.YMin));
-        AssertFinite(range.YMax, nameof(range.YMax));
-        AssertFinite(range.ZMin, nameof(range.ZMin));
-        AssertFinite(range.ZMax, nameof(range.ZMax));
-        AssertFinite(range.StickyXMin, nameof(range.StickyXMin));
-        AssertFinite(range.StickyXMax, nameof(range.StickyXMax));
-        AssertFinite(range.StickyYMin, nameof(range.StickyYMin));
-        AssertFinite(range.StickyYMax, nameof(range.StickyYMax));
-        AssertFinite(range.StickyZMin, nameof(range.StickyZMin));
-        AssertFinite(range.StickyZMax, nameof(range.StickyZMax));
-
-        static void AssertFinite(double? v, string name)
+    /// <summary>The members of <paramref name="range"/> that are given (not null), by name.</summary>
+    private static IEnumerable<(string Name, double Value)> GivenMembers(DataRangeContribution range) =>
+        new (string Name, double? Value)[]
         {
-            if (v is null) return;          // null = no contribution → legitimate
-            Assert.False(double.IsNaN(v.Value), $"{name} is NaN");
-            Assert.False(double.IsInfinity(v.Value), $"{name} is infinite");
-        }
-    }
+            (nameof(range.XMin), range.XMin), (nameof(range.XMax), range.XMax), (nameof(range.YMin), range.YMin),
+            (nameof(range.YMax), range.YMax), (nameof(range.ZMin), range.ZMin), (nameof(range.ZMax), range.ZMax),
+            (nameof(range.StickyXMin), range.StickyXMin), (nameof(range.StickyXMax), range.StickyXMax),
+            (nameof(range.StickyYMin), range.StickyYMin), (nameof(range.StickyYMax), range.StickyYMax),
+            (nameof(range.StickyZMin), range.StickyZMin), (nameof(range.StickyZMax), range.StickyZMax),
+        }.Where(member => member.Value.HasValue).Select(member => (member.Name, member.Value!.Value));
 
-    /// <summary>Every series implementing <see cref="IHasMarkerStyle"/> must default to
-    /// <c>MarkerStyle.Circle</c> — matplotlib's <c>scatter</c> default.</summary>
+    /// <summary>Every series alone, with finite data, draws through the whole pipeline and writes no NaN or Infinity into its SVG (the
+    /// scripts, which test <c>isNaN</c>, left out).</summary>
     [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void IHasMarkerStyle_DefaultsToCircle(ISeries series, string _)
-    {
-        if (series is IHasMarkerStyle ms) Assert.Equal(MarkerStyle.Circle, ms.MarkerStyle);
-    }
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void RendersToSvg_WithoutANonFiniteCoordinate(string type) =>
+        AssertDrawnWithoutANonFiniteCoordinate(DrawnSeriesFixtures.Instance(type));
 
-    /// <summary>Every series implementing <see cref="IHasAlpha"/> must have <c>Alpha</c>
-    /// in the valid <c>[0, 1]</c> range — defaults vary by series type (1.0 for opaque
-    /// scatter/bar, 0.3 for translucent KDE/area/violin, etc.) so the assertion is a
-    /// range check, not equality. The lower bound is exclusive of NaN; the upper bound
-    /// is inclusive of 1.0.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void IHasAlpha_DefaultsToValidRange(ISeries series, string _)
-    {
-        if (series is IHasAlpha ha)
-        {
-            Assert.False(double.IsNaN(ha.Alpha), "Alpha defaulted to NaN");
-            Assert.InRange(ha.Alpha, 0.0, 1.0);
-        }
-    }
+    /// <summary>A 3-D scatter of one point draws no non-finite coordinate: its projection fitted a box of no width and wrote
+    /// <c>cx="NaN" cy="NaN"</c>. The roster's 3-D scatter holds three points, so this one is made here.</summary>
+    [Fact]
+    public void AOnePointScatter3D_RendersToSvg_WithoutANonFiniteCoordinate() =>
+        AssertDrawnWithoutANonFiniteCoordinate(new Scatter3DSeries(new double[] { 1.0 }, new double[] { 2.0 }, new double[] { 3.0 }));
 
-    /// <summary>Every series implementing <see cref="IHasEdgeColor"/> must default to
-    /// <c>EdgeColor = null</c> so the renderer's per-series default stroke is used.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void IHasEdgeColor_DefaultsToNull(ISeries series, string _)
-    {
-        if (series is IHasEdgeColor ec) Assert.Null(ec.EdgeColor);
-    }
-
-    /// <summary>Phase X.2.a (v1.7.2, 2026-04-19) — exercises every renderer end-to-end.
-    /// Pre-X the AllSeries Theories covered model-side properties (Label, Visible, Alpha,
-    /// ZOrder, ToSeriesDto, ComputeDataRange) but NEVER touched the renderers — so every
-    /// `Render` method's empty-data guards, null-color fallbacks, single-point arms etc.
-    /// stayed unexercised by the cross-cutting harness. Each series here builds a real
-    /// Figure and renders to SVG, hitting the renderer's `Render(series)` method through
-    /// the full SvgSeriesRenderer dispatch path. Asserts the SVG is non-empty + valid;
-    /// catches render-time exceptions on degenerate-input series. Lifts many renderers
-    /// from "ComputeDataRange covered, Render not" → "both covered". 3D / polar / hierarchical
-    /// series use their dedicated AddSubPlot variants (none — AddSeries works for all).</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void RendersToSvg_WithoutCrash(ISeries series, string _)
-    {
-        var fig = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries((ChartSeries)series))
-            .Build();
-        var svg = fig.ToSvg();
-        Assert.NotNull(svg);
-        Assert.StartsWith("<svg", svg);
-        Assert.EndsWith("</svg>", svg.TrimEnd());      // trailing whitespace OK
-    }
-
-    /// <summary>Every series alone, with finite data, writes no NaN or Infinity into its SVG (the scripts, which test
-    /// <c>isNaN</c>, left out). A one-point 3-D scatter on 2-D axes wrote <c>cx="NaN" cy="NaN"</c>: its projection fitted
-    /// a box of no width.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void RendersToSvg_WithoutANonFiniteCoordinate(ISeries series, string _)
+    private static void AssertDrawnWithoutANonFiniteCoordinate(ISeries series)
     {
         var svg = Plt.Create()
             .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries((ChartSeries)series).WithTooltips())
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(series).WithTooltips())
             .Build()
             .ToSvg();
 
-        string body = System.Text.RegularExpressions.Regex.Replace(svg, "<script[\\s\\S]*?</script>", "");
-        Assert.DoesNotMatch("NaN|Infinity", body);
-    }
-
-    /// <summary>Phase X.2.a (v1.7.2, 2026-04-19) — exercises every IHasColor renderer's
-    /// `series.Color != null` true branch. The existing IHasColor_DefaultsToNull Theory
-    /// covers the null arm; this covers the non-null arm by setting an explicit color
-    /// before render. Many renderers fall back to ResolveColor()'s cycler path when Color
-    /// is null; the explicit-Color path is otherwise unhit by AllSeries scaffolding.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void RendersToSvg_WithExplicitColor(ISeries series, string _)
-    {
-        if (series is not IHasColor hc) return;     // non-coloured series → no branch to hit
-        hc.Color = Colors.Red;
-        var fig = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries((ChartSeries)series))
-            .Build();
-        var svg = fig.ToSvg();
         Assert.StartsWith("<svg", svg);
-    }
-
-    /// <summary>Phase Q Wave 1 (2026-04-19): exercises the non-null branch of every
-    /// <c>context.XAxisMin ?? default</c> / <c>context.XAxisMax ?? default</c> in
-    /// <c>ComputeDataRange</c>. Pre-Q only <see cref="NullAxesContext"/> was used, so the
-    /// non-null branch was unhit on every series whose range computation reads the context —
-    /// CandlestickSeries / OhlcBarSeries / GanttSeries / 3D series — pinning each at
-    /// 100% line / 50% branch. This Theory adds one assertion per series that the same
-    /// finite-range invariant holds when the context DOES provide bounds; together with
-    /// the existing null-context Theory, both branches are now covered for every series.</summary>
-    [Theory]
-    [MemberData(nameof(AllSeriesInstances))]
-    public void ComputeDataRange_WithBoundedAxisContext_StillProducesFiniteRange(ISeries series, string _)
-    {
-        var range = series.ComputeDataRange(new BoundedAxesContext());
-        AssertFinite(range.XMin, nameof(range.XMin));
-        AssertFinite(range.XMax, nameof(range.XMax));
-        AssertFinite(range.YMin, nameof(range.YMin));
-        AssertFinite(range.YMax, nameof(range.YMax));
-        AssertFinite(range.ZMin, nameof(range.ZMin));
-        AssertFinite(range.ZMax, nameof(range.ZMax));
-        AssertFinite(range.StickyXMin, nameof(range.StickyXMin));
-        AssertFinite(range.StickyXMax, nameof(range.StickyXMax));
-        AssertFinite(range.StickyYMin, nameof(range.StickyYMin));
-        AssertFinite(range.StickyYMax, nameof(range.StickyYMax));
-        AssertFinite(range.StickyZMin, nameof(range.StickyZMin));
-        AssertFinite(range.StickyZMax, nameof(range.StickyZMax));
-
-        static void AssertFinite(double? v, string name)
-        {
-            if (v is null) return;
-            Assert.False(double.IsNaN(v.Value), $"{name} is NaN");
-            Assert.False(double.IsInfinity(v.Value), $"{name} is infinite");
-        }
+        svg.AssertNoNonFiniteNumber();
     }
 }

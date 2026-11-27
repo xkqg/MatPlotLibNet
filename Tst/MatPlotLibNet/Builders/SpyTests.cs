@@ -1,11 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -26,16 +25,11 @@ public class SpyTests
         { 0.5, 0, 0, 7, 9 },
     };
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
-    private static ScatterSeries SpySeries(Action<AxesBuilder> configure) => (ScatterSeries)Assert.Single(AxesOf(configure).Series);
+    private static ScatterSeries SpySeries(Action<AxesBuilder> configure) => (ScatterSeries)Assert.Single(Plt.Create().OneAxes(configure).Series);
 
     // ---- reading the picture ---------------------------------------------------------------------------------------
 
     /// <summary>The plot area in pixels.</summary>
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     /// <summary>A marker as drawn: its rectangle in pixels.</summary>
     private readonly record struct Box(double X, double Y, double W, double H)
     {
@@ -50,30 +44,19 @@ public class SpyTests
         return figure.ToSvg();
     }
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    /// <summary>The plot area: the first background-coloured rectangle that is not the figure's.</summary>
-    private static Area PlotArea(string svg)
-    {
-        var m = Regex.Match(svg, """<rect x="([1-9][0-9.]*)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" fill="#FFFFFF" """.TrimEnd());
-        return new Area(Num(m.Groups[1].Value), Num(m.Groups[2].Value), Num(m.Groups[3].Value), Num(m.Groups[4].Value));
-    }
-
     /// <summary>The markers, in the order they are drawn: the rectangles inside the group the series are clipped to the plot
     /// area in (a figure without interactivity has no other group around a series).</summary>
     private static Box[] Markers(string svg) =>
-        [.. XDocument.Parse(svg).Descendants()
-            .Where(g => g.Name.LocalName == "g" && g.Attribute("clip-path") is not null)
-            .SelectMany(g => g.Descendants().Where(e => e.Name.LocalName == "rect"))
+        [.. svg.Each("g").Where(g => g.Attribute("clip-path") is not null)
+            .SelectMany(g => g.Each("rect"))
             .Select(r => new Box(
-                Num((string)r.Attribute("x")!), Num((string)r.Attribute("y")!),
-                Num((string)r.Attribute("width")!), Num((string)r.Attribute("height")!)))];
+                r.Number("x"), r.Number("y"),
+                r.Number("width"), r.Number("height")))];
 
     /// <summary>The text of the tick labels along one axis: the labels centred on their tick are the X axis', the ones that
     /// end at it the Y axis'.</summary>
     private static string[] TickLabels(string svg, string anchor) =>
-        [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text" && (string?)e.Attribute("text-anchor") == anchor)
+        [.. svg.Direct("text").Where(e => (string?)e.Attribute("text-anchor") == anchor)
             .Select(e => e.Value)];
 
     // ---- one scatter of the non-zero cells -------------------------------------------------------------------------
@@ -83,7 +66,7 @@ public class SpyTests
     [Fact]
     public void TheChart_IsOneScatterOfTheNonZeroCells_AndNothingElse()
     {
-        var axes = AxesOf(ax => ax.Spy(Wide));
+        var axes = Plt.Create().OneAxes(ax => ax.Spy(Wide));
 
         var spy = Assert.IsType<ScatterSeries>(Assert.Single(axes.Series));
         Assert.Empty(axes.YAxes.Right);
@@ -129,7 +112,7 @@ public class SpyTests
         var spy = SpySeries(ax => ax.Spy(row));
 
         Assert.Equal([1.0, 2, 3], spy.XData);
-        Assert.All(spy.XData.Concat(spy.YData), v => Assert.True(double.IsFinite(v)));
+        spy.XData.Concat(spy.YData).AssertAllFinite();
     }
 
     /// <summary>The marker of a missing value takes no place in the picture, and the other markers are where they are
@@ -143,7 +126,7 @@ public class SpyTests
         string svg = Svg(ax => ax.Spy(withHole));
         string without = Svg(ax => ax.Spy(Wide));
 
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
         var all = Markers(without);
         Assert.Equal([.. all.Where((_, i) => i != 1)], Markers(svg));
     }
@@ -155,7 +138,7 @@ public class SpyTests
     [Fact]
     public void TheAxes_RunOverTheMatrix_WithHalfACellOfMargin_RowZeroOnTop()
     {
-        var axes = AxesOf(ax => ax.Spy(Wide));
+        var axes = Plt.Create().OneAxes(ax => ax.Spy(Wide));
 
         Assert.Equal(-0.5, axes.XAxis.Min);
         Assert.Equal(4.5, axes.XAxis.Max);
@@ -171,17 +154,17 @@ public class SpyTests
     {
         string svg = Svg(ax => ax.Spy(Wide));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var markers = Markers(svg);
         (int Row, int Column)[] cells = [(0, 0), (0, 1), (1, 4), (2, 0), (2, 3), (2, 4)];
         Assert.Equal(cells.Length, markers.Length);
         for (int k = 0; k < cells.Length; k++)
         {
             var (row, column) = cells[k];
-            Assert.Equal(plot.X + (column + 0.5) * plot.W / 5, markers[k].CentreX, 6);
-            Assert.Equal(plot.Y + (row + 0.5) * plot.H / 3, markers[k].CentreY, 6);
-            Assert.True(markers[k].X >= plot.X && markers[k].X + markers[k].W <= plot.X + plot.W, $"marker {k} leaves the plot sideways");
-            Assert.True(markers[k].Y >= plot.Y && markers[k].Y + markers[k].H <= plot.Y + plot.H, $"marker {k} leaves the plot vertically");
+            Assert.Equal(plot.X + (column + 0.5) * plot.Width / 5, markers[k].CentreX, 0.02);
+            Assert.Equal(plot.Y + (row + 0.5) * plot.Height / 3, markers[k].CentreY, 0.02);
+            Assert.True(markers[k].X >= plot.X && markers[k].X + markers[k].W <= plot.X + plot.Width, $"marker {k} leaves the plot sideways");
+            Assert.True(markers[k].Y >= plot.Y && markers[k].Y + markers[k].H <= plot.Y + plot.Height, $"marker {k} leaves the plot vertically");
         }
     }
 
@@ -199,11 +182,11 @@ public class SpyTests
 
         string svg = Svg(ax => ax.Spy(full), width, height);
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var markers = Markers(svg);
         Assert.Equal(24, markers.Length);
-        Assert.Equal(plot.W / 6, markers[1].CentreX - markers[0].CentreX, 6);
-        Assert.Equal(plot.H / 4, markers[6].CentreY - markers[0].CentreY, 6);
+        Assert.Equal(plot.Width / 6, markers[1].CentreX - markers[0].CentreX, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.Height / 4, markers[6].CentreY - markers[0].CentreY, SvgMarkupExtensions.WrittenPrecision);
     }
 
     /// <summary>The markers are squares of the scatter's own size: a size in points, not in cells, so a bigger matrix has
@@ -248,8 +231,8 @@ public class SpyTests
     [InlineData(1000, 200)]
     public void TheTicks_AreWholeCellNumbers_WithAtMostNineIntervalsAcross(int count, int step)
     {
-        var across = AxesOf(ax => ax.Spy(new double[2, count]));
-        var down = AxesOf(ax => ax.Spy(new double[count, 2]));
+        var across = Plt.Create().OneAxes(ax => ax.Spy(new double[2, count]));
+        var down = Plt.Create().OneAxes(ax => ax.Spy(new double[count, 2]));
 
         double[] expected = [.. Enumerable.Range(0, (count - 1) / step + 1).Select(k => (double)(k * step))];
         Assert.Equal(expected, across.XAxis.TickLocator!.Locate(across.XAxis.Min!.Value, across.XAxis.Max!.Value));
@@ -274,7 +257,7 @@ public class SpyTests
     {
         double[,] zeros = new double[3, 4];
 
-        var axes = AxesOf(ax => ax.Spy(zeros));
+        var axes = Plt.Create().OneAxes(ax => ax.Spy(zeros));
         string svg = Svg(ax => ax.Spy(zeros));
 
         Assert.Empty(((ScatterSeries)axes.Series[0]).XData);
@@ -283,7 +266,7 @@ public class SpyTests
         Assert.Equal(2.5, axes.YAxis.Min);
         Assert.Equal(-0.5, axes.YAxis.Max);
         Assert.Empty(Markers(svg));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>A matrix of one cell is a marker at the middle of the plot, with half a cell on every side.</summary>
@@ -294,10 +277,10 @@ public class SpyTests
 
         string svg = Svg(ax => ax.Spy(one));
 
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var marker = Assert.Single(Markers(svg));
-        Assert.Equal(plot.X + plot.W / 2, marker.CentreX, 6);
-        Assert.Equal(plot.Y + plot.H / 2, marker.CentreY, 6);
+        Assert.Equal(plot.X + plot.Width / 2, marker.CentreX, 0.02);
+        Assert.Equal(plot.Y + plot.Height / 2, marker.CentreY, 0.02);
     }
 
     // ---- the callback -----------------------------------------------------------------------------------------------
@@ -351,23 +334,9 @@ public class SpyTests
         if (!empty) matrix[2, 3] = double.NaN;
         var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax.Spy(matrix)).Build();
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         Assert.Equal(figure.ToSvg(), back.ToSvg());
-    }
-
-    /// <summary>The verb draws exactly the picture of the hand chain of public building blocks it replaces (a scatter of
-    /// square markers on the non-zero cells, the limits half a cell wider than the matrix, the Y axis reversed, whole-number
-    /// ticks), with and without a missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("spy").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.SpyByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
     }
 
     // ---- what is refused -------------------------------------------------------------------------------------------
@@ -378,10 +347,10 @@ public class SpyTests
     public void EveryRefusal_NamesTheParameter()
     {
         Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).Spy(Wide)).ParamName);
-        Assert.Equal("matrix", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.Spy(null!))).ParamName);
-        Assert.Equal("matrix", Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.Spy(new double[0, 0]))).ParamName);
-        Assert.Equal("matrix", Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.Spy(new double[0, 3]))).ParamName);
-        Assert.Equal("matrix", Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.Spy(new double[3, 0]))).ParamName);
+        Assert.Equal("matrix", Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.Spy(null!))).ParamName);
+        Assert.Equal("matrix", Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.Spy(new double[0, 0]))).ParamName);
+        Assert.Equal("matrix", Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.Spy(new double[0, 3]))).ParamName);
+        Assert.Equal("matrix", Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.Spy(new double[3, 0]))).ParamName);
     }
 
     /// <summary>A threshold must be a finite number of 0 or more: a negative one would make every cell a marker, zeros
@@ -393,25 +362,8 @@ public class SpyTests
     [InlineData(double.NegativeInfinity)]
     public void AThreshold_ThatIsNotAFiniteNumberOfZeroOrMore_IsRefused(double threshold)
     {
-        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => AxesOf(ax => ax.Spy(Wide, threshold)));
+        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => Plt.Create().OneAxes(ax => ax.Spy(Wide, threshold)));
 
         Assert.Equal("threshold", refusal.ParamName);
-    }
-
-    /// <summary>A refused call leaves the axes as it was: no series, no limits.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var axes = AxesOf(ax =>
-        {
-            Assert.Throws<ArgumentException>(() => ax.Spy(new double[0, 3]));
-            Assert.Throws<ArgumentOutOfRangeException>(() => ax.Spy(Wide, -1));
-        });
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
     }
 }

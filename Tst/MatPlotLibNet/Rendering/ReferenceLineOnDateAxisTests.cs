@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -14,7 +12,7 @@ public class ReferenceLineOnDateAxisTests
 {
     private static readonly DateTime Now = new(2026, 8, 30, 16, 0, 0, DateTimeKind.Utc);
 
-    private static double LabelX(Action<AxesBuilder> threshold)
+    private static double? LabelX(Action<AxesBuilder> threshold)
     {
         string svg = Plt.Create().WithSize(800, 300)
             .AddSubPlot(1, 1, 1, ax =>
@@ -25,24 +23,24 @@ public class ReferenceLineOnDateAxisTests
                 threshold(ax);
             })
             .ToSvg();
-        var m = Regex.Match(svg, "<text[^>]*x=\"([-0-9.]+)\"[^>]*>target 6 µs<");
-        Assert.True(m.Success, "the threshold label is drawn");
-        return double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+        var label = svg.Elements("text").Where(text => text.Text == "target 6 µs").Select(text => (double?)text.Number("x")).FirstOrDefault();
+        return label;
     }
 
     [Fact]
     public void AnAxHLineLabel_SitsInsideTheCanvas()
     {
-        double x = LabelX(ax => ax.AxHLine(6, r => r.Label = "target 6 µs"));
+        double? x = LabelX(ax => ax.AxHLine(6, r => r.Label = "target 6 µs"));
 
-        Assert.InRange(x, 0, 800);
+        Assert.NotNull(x);
+        Assert.InRange(x.Value, 0, 800);
     }
 
+    /// <summary>The threshold's label annotates a data x of 0, the year 1899 on an OADate axis, which the axes do not show, so it is not
+    /// drawn (matplotlib's <c>Annotation._check_xy</c>): which is why a threshold is not used on a time axis.</summary>
     [Fact]
-    public void AThresholdLabel_LandsOffTheCanvas_WhichIsWhyItIsNotUsedOnATimeAxis()
+    public void AThresholdLabel_AnnotatesAPointOffTheAxes_AndIsNotDrawn_WhichIsWhyItIsNotUsedOnATimeAxis()
     {
-        double x = LabelX(ax => ax.Threshold(6, Orientation.Horizontal, ThresholdBreach.Above, label: "target 6 µs"));
-
-        Assert.True(x < 0, $"a data-x of 0 on an OADate axis is the year 1899, was {x}");
+        Assert.Null(LabelX(ax => ax.Threshold(6, Orientation.Horizontal, ThresholdBreach.Above, label: "target 6 µs")));
     }
 }

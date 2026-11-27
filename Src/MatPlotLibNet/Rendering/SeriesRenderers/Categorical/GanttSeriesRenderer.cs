@@ -15,26 +15,39 @@ internal sealed class GanttSeriesRenderer : SeriesRenderer<GanttSeries>
     /// <inheritdoc />
     internal override void AddMarks(GanttSeries series, MarkObstacles.Builder marks)
     {
-        foreach (var bar in Bars(series)) marks.AddBox(bar);
+        foreach (var bar in Bars(series)) marks.AddBox(bar.Box);
     }
 
+    /// <summary>A task's bar: which task it is and the rectangle it fills.</summary>
+    /// <param name="Task">The task's index.</param>
+    /// <param name="Box">The bar, in pixels.</param>
+    private readonly record struct GanttBar(int Task, Rect Box);
+
     /// <summary>The task bars that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands
-    /// to a legend. A task with an end that cannot be placed draws no bar.</summary>
-    private IEnumerable<Rect> Bars(GanttSeries series)
+    /// to a legend. Task <c>i</c> stands in the category slot <c>i</c> from the top (<see cref="CategorySlot.FromTop"/>), where the Y
+    /// axis names it; a task with an end that cannot be placed draws no bar.</summary>
+    private IEnumerable<GanttBar> Bars(GanttSeries series)
     {
         double halfH = series.BarHeight / 2;
-        for (int i = 0; i < series.Tasks.Length; i++)
+        int rows = series.Tasks.Length;
+        for (int i = 0; i < rows; i++)
         {
-            var bar = Rect.FromCorners(Transform.DataToPixel(series.Starts[i], i + halfH), Transform.DataToPixel(series.Ends[i], i - halfH));
-            if (bar.IsDrawable()) yield return bar;
+            double centre = CategorySlot.FromTop(i, rows).Centre;
+            var bar = Rect.FromCorners(Transform.DataToPixel(series.Starts[i], centre + halfH), Transform.DataToPixel(series.Ends[i], centre - halfH));
+            if (bar.IsDrawable()) yield return new GanttBar(i, bar);
         }
     }
 
     /// <inheritdoc />
     public override void Render(GanttSeries series)
     {
-        var color = ResolveColor(series.Color);
+        var edges = Context.Theme.PatchEdgesOf(series);
         foreach (var bar in Bars(series))
-            Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
+        {
+            // The colour given to the chart, else the task's own colour of the cycle (one slot for each task, ColorSlotSpan); a bar's edge
+            // is matplotlib's patch rule under the matplotlib themes (barh: black 1 pt under classic), none otherwise.
+            var color = series.Color ?? PartColor(bar.Task);
+            Ctx.DrawRectangle(bar.Box, edges.StyleOf(color, color));
+        }
     }
 }

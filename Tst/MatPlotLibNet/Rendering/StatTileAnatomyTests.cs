@@ -9,6 +9,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -22,20 +23,6 @@ public class StatTileAnatomyTests
 {
     private static readonly double[] Trend = [4.0, 4.5, 5.0, 6.0, 8.0, 12.0];
 
-    /// <summary>A tile with a trend draws the sparkline inside its own area — an extra polyline that a plain
-    /// tile does not have.</summary>
-    [Fact]
-    public void ATileWithATrend_DrawsASparkline()
-    {
-        string plain = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StatTile(12.0)).ToSvg();
-        string withTrend = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StatTile(12.0, s => s.Trend = Trend)).ToSvg();
-
-        Assert.DoesNotContain("<polyline", plain);
-        Assert.Contains("<polyline", withTrend);
-    }
-
     /// <summary>The trend is a Tufte sparkline: no axis, no frame, no ticks. It contributes nothing to the
     /// axes' data range, so a tile's headline scale is never dragged around by its own history.</summary>
     [Fact]
@@ -43,7 +30,7 @@ public class StatTileAnatomyTests
     {
         var tile = new StatTileSeries(12.0) { Trend = Trend };
 
-        var range = tile.ComputeDataRange(new NullContext());
+        var range = tile.ComputeDataRange(new TestAxesContext());
 
         Assert.Null(range.XMin);
         Assert.Null(range.XMax);
@@ -51,21 +38,38 @@ public class StatTileAnatomyTests
         Assert.Null(range.YMax);
     }
 
-    /// <summary>The caption — the gap line — is drawn beneath the value.</summary>
-    [Fact]
-    public void TheCaption_IsRendered()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // The caption — the gap line — is drawn beneath the value.
+        new DrawnToken("TheCaption_IsRendered", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(28.1, s =>
             {
                 s.Label = "Request p99";
                 s.Caption = "target 25 ms · +3.1 over";
             }))
-            .ToSvg();
+            .ToSvg(), "target 25 ms", "Request p99"),
+        // A hatched tile reads as "no information" — the source has gone silent, and that is a different fault from a bad value. It is a
+        // pattern, never a colour.
+        new DrawnToken("AHatchedTile_RendersAPattern", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(0, s => s.Hatch = HatchPattern.ForwardDiagonal))
+            .ToSvg(), "<pattern"),
+        // A tile with a trend draws the sparkline inside its own area — an extra polyline that a plain tile does not have.
+        new DrawnToken("ATileWithATrend_DrawsASparkline (plain)", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(12.0)).ToSvg()) { Absent = ["<polyline"] },
+        new DrawnToken("ATileWithATrend_DrawsASparkline (withTrend)", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(12.0, s => s.Trend = Trend)).ToSvg(), "<polyline"),
+        // A tile at rest carries no colour from the series cycle — the neutral shade of the theme's alarm palette. Colour is reserved for
+        // what needs attention; a wall of cheerful tiles leaves the one that matters nothing to stand out against.
+        new DrawnToken("ATileAtRest_WearsTheNeutralShade_NotACycleColour", () => Plt.Create()
+            .WithTheme(Theme.OpsNight)
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(42))
+            .ToSvg(), Theme.OpsNight.Alarm.Resting.ToHex()) { Absent = [Theme.OpsNight.CycleColors[0].ToHex()] },
+    };
 
-        Assert.Contains("target 25 ms", svg);
-        Assert.Contains("Request p99", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>A caption may carry MORE THAN ONE LINE. A tile's gap line answers "is this good or bad", and a
     /// second line answers "measured over what" — two different questions that do not belong on one crowded row
@@ -103,11 +107,18 @@ public class StatTileAnatomyTests
 
         Assert.Equal(HeadlineY("threshold 6"), HeadlineY(two), 3);
         Assert.Equal(CaptionY("threshold 6", "threshold 6"), CaptionY(two, "threshold 6"), 3);
-        Assert.Equal(CaptionY(two, "threshold 6") + CaptionLineHeightPx, CaptionY(two, "2148 msg · 1 s"), 3);
+        Assert.Equal(CaptionY(two, "threshold 6") + CaptionLineHeightPx, CaptionY(two, "2148 msg · 1 s"), SvgMarkupExtensions.WrittenPrecision);   // the SVG writes two decimals
     }
 
-    /// <summary>One caption line, at 11 pt.</summary>
-    private const double CaptionLineHeightPx = 14;
+    /// <summary>How large the tile's anatomy is drawn under the figure's default theme (matplotlib's v2 style): its label takes the theme's
+    /// font size where it rests at 14 px, and the headline, the caption and the steps between the lines keep their proportion to it.</summary>
+    private static readonly double K = Theme.MatplotlibV2.DefaultFont.Size / 14;
+
+    /// <summary>A size as the SVG writes it.</summary>
+    private static string Written(double size) => Math.Round(size, 2).ToString("0.##", CultureInfo.InvariantCulture);
+
+    /// <summary>One caption line: 14 px at the label's resting size.</summary>
+    private static readonly double CaptionLineHeightPx = 14 * K;
 
     /// <summary>The y of one caption LINE, found by its own text — an axis tick is text too, so "the lowest
     /// text element" is not the caption.</summary>
@@ -116,71 +127,20 @@ public class StatTileAnatomyTests
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s => s.Caption = caption))
             .ToSvg();
-        var m = System.Text.RegularExpressions.Regex.Match(
-            svg, "<text[^>]*y=\"([-0-9.]+)\"[^>]*>" + System.Text.RegularExpressions.Regex.Escape(line) + "<");
-        Assert.True(m.Success, $"'{line}' was not drawn");
-        return double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        return svg.TextReading(line).Number("y");
     }
 
     // The y of the tile's headline (the 44 pt text), and the y of its lowest text — read straight off the SVG.
-    private static double HeadlineY(string caption) => TextYs(caption, "44")[0];
+    private static double HeadlineY(string caption) => TileOf(caption).TextYs(Written(44 * K))[0];
 
-    private static double LowestTextY(string caption)
-    {
-        double[] ys = TextYs(caption, null);
-        return ys[^1];
-    }
-
-    private static double[] TextYsIn(string svg, string? fontSize)
-    {
-        var ys = new List<double>();
-        foreach (string chunk in svg.Split("<text").Skip(1))
-        {
-            string head = chunk[..chunk.IndexOf('>')];
-            if (fontSize is not null && !head.Contains("font-size=\"" + fontSize, StringComparison.Ordinal))
-            {
-                continue;
-            }
-            int at = head.IndexOf("y=\"", StringComparison.Ordinal);
-            if (at < 0)
-            {
-                continue;
-            }
-            string raw = head[(at + 3)..];
-            ys.Add(double.Parse(raw[..raw.IndexOf('"')], CultureInfo.InvariantCulture));
-        }
-        ys.Sort();
-        return [.. ys];
-    }
-
-    private static double[] TextYs(string caption, string? fontSize)
-    {
-        string svg = Plt.Create()
+    private static string TileOf(string caption) =>
+        Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s =>
             {
                 s.Label = "Relay";
                 s.Caption = caption;
             }))
             .ToSvg();
-        var ys = new List<double>();
-        foreach (string chunk in svg.Split("<text").Skip(1))
-        {
-            string head = chunk[..chunk.IndexOf('>')];
-            if (fontSize is not null && !head.Contains("font-size=\"" + fontSize, StringComparison.Ordinal))
-            {
-                continue;
-            }
-            int at = head.IndexOf("y=\"", StringComparison.Ordinal);
-            if (at < 0)
-            {
-                continue;
-            }
-            string raw = head[(at + 3)..];
-            ys.Add(double.Parse(raw[..raw.IndexOf('"')], CultureInfo.InvariantCulture));
-        }
-        ys.Sort();
-        return [.. ys];
-    }
 
     /// <summary>A caption WRAPS to the tile's width — the CSS behaviour, in the renderer: a caption longer than
     /// its tile is broken at word boundaries instead of running out over the neighbouring tiles (reported from
@@ -209,7 +169,7 @@ public class StatTileAnatomyTests
         int lines = 0;
         foreach (string chunk in svg.Split("<text").Skip(1))
         {
-            if (chunk[..chunk.IndexOf('>')].Contains("font-size=\"11", StringComparison.Ordinal))
+            if (chunk[..chunk.IndexOf('>')].Contains("font-size=\"" + Written(11 * K) + "\"", StringComparison.Ordinal))
             {
                 lines++;
             }
@@ -240,7 +200,7 @@ public class StatTileAnatomyTests
             })
             .ToSvg();
 
-        double lowestText = TextYsIn(svg, null)[^1];
+        double lowestText = svg.TextYs()[^1];
         double sparklineTop = PolylineTop(svg);
 
         Assert.True(sparklineTop > lowestText,
@@ -267,67 +227,6 @@ public class StatTileAnatomyTests
         return top;
     }
 
-    /// <summary>A hatched tile reads as "no information" — the source has gone silent, and that is a different
-    /// fault from a bad value. It is a pattern, never a colour.</summary>
-    [Fact]
-    public void AHatchedTile_RendersAPattern()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StatTile(0, s => s.Hatch = HatchPattern.ForwardDiagonal))
-            .ToSvg();
-
-        Assert.Contains("<pattern", svg);
-    }
-
-    /// <summary>A tile at rest carries no colour from the series cycle — the neutral shade of the theme's
-    /// alarm palette. Colour is reserved for what needs attention; a wall of cheerful tiles leaves the one
-    /// that matters nothing to stand out against.</summary>
-    [Fact]
-    public void ATileAtRest_WearsTheNeutralShade_NotACycleColour()
-    {
-        string svg = Plt.Create()
-            .WithTheme(Theme.OpsNight)
-            .AddSubPlot(1, 1, 1, ax => ax.StatTile(42))
-            .ToSvg();
-
-        Assert.Contains(Theme.OpsNight.Alarm.Resting.ToHex(), svg);
-        Assert.DoesNotContain(Theme.OpsNight.CycleColors[0].ToHex(), svg);
-    }
-
-    /// <summary>The whole anatomy survives a round-trip: target, caption, trend and hatch all persist.</summary>
-    [Fact]
-    public void TheWholeAnatomy_SurvivesRoundTrip()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.StatTile(28.1, s =>
-            {
-                s.Target = 25;
-                s.Caption = "target 25 ms · +3.1 over";
-                s.Trend = Trend;
-                s.Hatch = HatchPattern.BackDiagonal;
-            }))
-            .Build();
-
-        var serializer = new ChartSerializer();
-        var tile = serializer.FromJson(serializer.ToJson(figure))
-            .SubPlots[0].Series.OfType<StatTileSeries>().Single();
-
-        Assert.Equal(25, tile.Target);
-        Assert.Equal("target 25 ms · +3.1 over", tile.Caption);
-        Assert.Equal(Trend, tile.Trend);
-        Assert.Equal(HatchPattern.BackDiagonal, tile.Hatch);
-    }
-
-    private sealed class NullContext : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
     /// <summary>The label wears the theme's own ink, like the value and the caption above and below it.
     /// <para>It did not: the label was drawn with a Font carrying no Color, so it fell back to black — on an
     /// operator ground (Theme.OpsNight, #191C1E) that is a label nobody can read, while the number right
@@ -341,9 +240,8 @@ public class StatTileAnatomyTests
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(12.0, s => s.Label = "Latency"))
             .ToSvg();
 
-        var label = System.Text.RegularExpressions.Regex.Match(svg, "<text[^>]*>Latency</text>");
-        Assert.True(label.Success, "the label must be drawn at all");
-        Assert.Contains("fill=", label.Value, StringComparison.Ordinal);
-        Assert.Contains(Theme.OpsNight.ForegroundText.ToHex(), label.Value, StringComparison.OrdinalIgnoreCase);
+        var label = svg.TextReading("Latency");
+        Assert.NotNull(label["fill"]);
+        Assert.Equal(Theme.OpsNight.ForegroundText.ToHex(), label["fill"], ignoreCase: true);
     }
 }

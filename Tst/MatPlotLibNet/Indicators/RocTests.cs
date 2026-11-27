@@ -10,30 +10,6 @@ namespace MatPlotLibNet.Tests.Indicators;
 /// <summary>v1.11.0 — Verifies <see cref="Roc"/> (Rate of Change) indicator.</summary>
 public class RocTests
 {
-    // ── Length guards ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        double[] result = new Roc([], 3).Compute();
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void Compute_LengthEqualToLookback_ReturnsEmpty()
-    {
-        // Exactly at the lookback boundary: n == lookback → no valid ROC value.
-        double[] result = new Roc([1.0, 2.0, 3.0], 3).Compute();
-        Assert.Empty(result);
-    }
-
-    [Fact]
-    public void Compute_LengthBelowLookback_ReturnsEmpty()
-    {
-        double[] result = new Roc([1.0, 2.0], 5).Compute();
-        Assert.Empty(result);
-    }
-
     // ── Output length ─────────────────────────────────────────────────────────
 
     [Fact]
@@ -86,23 +62,5 @@ public class RocTests
 
     // ── Label ─────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Label_ContainsPeriod()
-    {
-        var roc = new Roc([1.0, 2.0, 3.0], 2);
-        Assert.Contains("2", roc.Label);
-    }
-
     // ── Apply ─────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Apply_AddsLineSeriesWithCorrectLength()
-    {
-        var axes = new Axes();
-        new Roc([100.0, 110.0, 115.0, 121.0], 2).Apply(axes);
-        Assert.Single(axes.Series);
-        var s = Assert.IsType<LineSeries>(axes.Series[0]);
-        // 4 prices, lookback 2 → 2 ROC values → X array length 2
-        Assert.Equal(2, s.XData.Length);
-    }
 }

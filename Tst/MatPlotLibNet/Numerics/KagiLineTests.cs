@@ -120,4 +120,87 @@ public class KagiLineTests
 
         Assert.Contains("c3 15-10.5 thick", Describe(closes.KagiLines(1)));
     }
+
+    [Fact]
+    public void ThePieces_AreEachLegThenTheConnectorThatLeavesIt_InTheCentreOfTheirColumns()
+    {
+        var walked = string.Join(" | ", Fifteen.KagiLines(1).Pieces().Select(p =>
+            $"{p.FromX},{p.FromY}>{p.ToX},{p.ToY} {(p.Thick ? "thick" : "thin")}"));
+
+        Assert.Equal(
+            "0.5,10>0.5,13 thin | 0.5,13>1.5,13 thin"
+            + " | 1.5,13>1.5,10 thin | 1.5,10>2.5,10 thin"
+            + " | 2.5,10>2.5,13 thin | 2.5,13>2.5,15 thick | 2.5,15>3.5,15 thick"
+            + " | 3.5,15>3.5,10 thick | 3.5,10>3.5,9 thin | 3.5,9>4.5,9 thin"
+            + " | 4.5,9>4.5,10 thin",
+            walked);
+    }
+
+    [Fact]
+    public void ThePathOfTheThinWidth_JoinsPiecesThatCarryOn_AndPartsTheOthersByAMissingValue()
+    {
+        var path = Fifteen.KagiLines(1).Path(thick: false);
+
+        // The thick stretch of column 2 and 3 parts the thin line in two; inside each stretch a corner is a join, not a gap.
+        Assert.Equal([0.5, 0.5, 1.5, 1.5, 2.5, 2.5, double.NaN, 3.5, 3.5, 4.5, 4.5], path.X);
+        Assert.Equal([10, 13, 13, 10, 10, 13, double.NaN, 10, 9, 9, 10], path.Y);
+    }
+
+    [Fact]
+    public void ThePathOfTheThickWidth_IsTheOneStretchTheLineWasThick()
+    {
+        var path = Fifteen.KagiLines(1).Path(thick: true);
+
+        Assert.Equal([2.5, 2.5, 3.5, 3.5], path.X);
+        Assert.Equal([13, 15, 15, 10], path.Y);
+    }
+
+    [Fact]
+    public void ALineWithNoLegs_HasNoPiecesAndEmptyPaths()
+    {
+        var none = Array.Empty<double>().KagiLines(1);
+
+        Assert.Empty(none.Pieces());
+        Assert.Empty(none.Path(thick: false).X);
+        Assert.Empty(none.Path(thick: true).Y);
+    }
+
+    [Fact]
+    public void ALineWithOneLeg_HasItsPieceAndNoConnector()
+    {
+        var pieces = new double[] { 10, 12 }.KagiLines(1).Pieces().ToArray();
+
+        var only = Assert.Single(pieces);
+        Assert.Equal((0.5, 10.0, 0.5, 12.0, false), (only.FromX, only.FromY, only.ToX, only.ToY, only.Thick));
+    }
+
+    [Fact]
+    public void ALeg_AlwaysStartsInTheWidthTheConnectorBeforeItEndedIn_SoAWidthChangeIsNeverAtTheStartOfALine()
+    {
+        var random = new Random(2024);
+        for (int round = 0; round < 3000; round++)
+        {
+            double price = 100;
+            double[] closes = [.. Enumerable.Range(0, 60).Select(_ => price += Math.Round((random.NextDouble() - 0.5) * 4, 1))];
+            var lines = closes.KagiLines(1);
+
+            foreach (var column in lines.Segments.GroupBy(s => s.Column))
+            {
+                var pieces = column.ToArray();
+                // At most one change of width in a leg, and not before its first price: the break is inside the line.
+                Assert.True(pieces.Length <= 2);
+                if (column.Key > 0)
+                {
+                    Assert.Equal(lines.Connectors[column.Key - 1].Thick, pieces[0].Thick);
+                }
+
+                if (pieces.Length == 2)
+                {
+                    Assert.NotEqual(pieces[0].From, pieces[0].To);
+                    Assert.Equal(pieces[0].To, pieces[1].From);
+                    Assert.NotEqual(pieces[0].Thick, pieces[1].Thick);
+                }
+            }
+        }
+    }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
 
@@ -18,7 +19,7 @@ internal readonly record struct CategoryTicks(FixedLocator Locator, CategoryForm
 /// <see cref="CategoryFormatter"/> are made here as one pair (<see cref="CategoryTicks"/>), so the positions and the names
 /// cannot disagree, and both are built-ins, so the named ticks survive JSON. Read by the clustermap's heatmap and the
 /// composed verbs that name their categories along an axis (every slot, or only some: the months over a calendar's week
-/// columns; or names at positions of their own: the centres of a Marimekko chart's columns, whose widths are shares), and
+/// columns; or names at positions of their own: the centres of a Marimekko chart's columns, whose widths are shares; the groups of a raincloud chart, which stand on their own index), and
 /// by the axes renderer, which names the categories of bars that lie down on the Y axis with the same pair.</summary>
 internal static class CategoryTickExtensions
 {
@@ -28,11 +29,7 @@ internal static class CategoryTickExtensions
         /// <param name="names">The categories' names, in the order of their slots.</param>
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="names"/> is <see langword="null"/>.</exception>
-        internal AxesBuilder SetXCategoryTicks(string[] names)
-        {
-            var ticks = names.AsCategoryTicks();
-            return axes.SetXTickLocator(ticks.Locator).SetXTickFormatter(ticks.Formatter);
-        }
+        internal AxesBuilder SetXCategoryTicks(string[] names) => axes.NamesCategoriesAlong(isX: true, names.AsCategoryTicks());
 
         /// <summary>Names <paramref name="names"/> along the X axis at positions of their own instead of on slots of width one
         /// (the centres of a Marimekko chart's columns, whose widths are shares): a tick on each position, reading its name.</summary>
@@ -43,22 +40,16 @@ internal static class CategoryTickExtensions
         /// <see langword="null"/>.</exception>
         /// <exception cref="ArgumentException"><paramref name="positions"/> does not carry one position per name; the axis is
         /// left as it was.</exception>
-        internal AxesBuilder SetXCategoryTicks(string[] names, double[] positions)
-        {
-            var ticks = names.AsCategoryTicks(positions);
-            return axes.SetXTickLocator(ticks.Locator).SetXTickFormatter(ticks.Formatter);
-        }
+        internal AxesBuilder SetXCategoryTicks(string[] names, double[] positions) =>
+            axes.NamesCategoriesAlong(isX: true, names.AsCategoryTicks(positions));
 
         /// <summary>Names only some slots along the X axis (the months over a calendar's week columns): a tick on the centre of
         /// each named slot, reading its name, and no tick on a slot without a name.</summary>
         /// <param name="namesBySlot">The name of each slot that carries one, by the slot's index from 0.</param>
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="namesBySlot"/> is <see langword="null"/>.</exception>
-        internal AxesBuilder SetXCategoryTicks(IReadOnlyDictionary<int, string> namesBySlot)
-        {
-            var ticks = namesBySlot.AsCategoryTicks();
-            return axes.SetXTickLocator(ticks.Locator).SetXTickFormatter(ticks.Formatter);
-        }
+        internal AxesBuilder SetXCategoryTicks(IReadOnlyDictionary<int, string> namesBySlot) =>
+            axes.NamesCategoriesAlong(isX: true, namesBySlot.AsCategoryTicks());
 
         /// <summary>Names <paramref name="names"/> along the Y axis: the first category at the bottom, where the axis starts
         /// counting, or at the top when the categories are drawn from the top down (<paramref name="topDown"/>; the rows of a
@@ -67,10 +58,20 @@ internal static class CategoryTickExtensions
         /// <param name="topDown">Whether the first category is drawn at the top.</param>
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="names"/> is <see langword="null"/>.</exception>
-        internal AxesBuilder SetYCategoryTicks(string[] names, bool topDown = false)
+        internal AxesBuilder SetYCategoryTicks(string[] names, bool topDown = false) =>
+            axes.NamesCategoriesAlong(isX: false, names.AsCategoryTicks(topDown));
+
+        /// <summary>Names categories along the X axis (<paramref name="isX"/>) or the primary Y axis by <paramref name="ticks"/>: its
+        /// locator and its formatter set on that axis as one pair, the one implementation every Set*CategoryTicks entry forwards to.</summary>
+        /// <param name="isX">The X axis when <see langword="true"/>, the primary Y axis otherwise.</param>
+        /// <param name="ticks">The ticks that name the categories.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        internal AxesBuilder NamesCategoriesAlong(bool isX, CategoryTicks ticks)
         {
-            var ticks = names.AsCategoryTicks(topDown);
-            return axes.SetYTickLocator(ticks.Locator).SetYTickFormatter(ticks.Formatter);
+            var verbs = new TickVerbs(axes.Axes.AxisAlong(isX));
+            verbs.Locator(ticks.Locator);
+            verbs.Formatter(ticks.Formatter);
+            return axes;
         }
     }
 
@@ -98,7 +99,7 @@ internal static class CategoryTickExtensions
         {
             ArgumentNullException.ThrowIfNull(names);
             return new CategoryTicks(
-                new FixedLocator([.. Enumerable.Range(0, names.Length).Select(k => CategorySlot.Of(k).Centre)]),
+                new FixedLocator(CategorySlot.Centres(names.Length)),
                 new CategoryFormatter(names, reversed: topDown));
         }
     }

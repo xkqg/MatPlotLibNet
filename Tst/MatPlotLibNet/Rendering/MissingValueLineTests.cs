@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
@@ -22,14 +21,8 @@ public class MissingValueLineTests
     private static SeriesRenderContext ContextOn(RecordingRenderContext ctx) =>
         new(new DataTransform(0, 10, 0, 10, Bounds), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx));
 
-    private static Point[] PointsOf(CallRecord call) => (Point[])call.Args!.GetType().GetProperty("points")!.GetValue(call.Args)!;
-
-    private static List<Point[]> Lines(RecordingRenderContext ctx) => ctx.OfKind("DrawLines").Select(PointsOf).ToList();
-
-    private static List<Point[]> Polygons(RecordingRenderContext ctx) => ctx.OfKind("DrawPolygon").Select(PointsOf).ToList();
-
     private static void AssertEveryPointDrawable(IEnumerable<Point[]> shapes) =>
-        Assert.All(shapes.SelectMany(p => p), p => Assert.True(double.IsFinite(p.X) && double.IsFinite(p.Y), $"a point ({p.X}, {p.Y}) reached the render context"));
+        Assert.All(shapes.SelectMany(p => p), p => p.AssertFinite("a point that reached the render context"));
 
     private static RecordingRenderContext DrawLine(LineSeries series)
     {
@@ -47,19 +40,12 @@ public class MissingValueLineTests
 
     // ---- a line -----------------------------------------------------------------------------------------------------
 
-    [Fact]
-    public void ALine_BreaksAtAMissingValue()
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void ALine_BreaksAtAValueThatCannotBeDrawn(double missing)
     {
-        var lines = Lines(DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 2, 1])));
-
-        Assert.Equal([2, 2], lines.Select(l => l.Length));
-        AssertEveryPointDrawable(lines);
-    }
-
-    [Fact]
-    public void ALine_BreaksAtAnInfinity()
-    {
-        var lines = Lines(DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, double.PositiveInfinity, 2, 1])));
+        var lines = DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, missing, 2, 1])).Polylines();
 
         Assert.Equal([2, 2], lines.Select(l => l.Length));
         AssertEveryPointDrawable(lines);
@@ -70,7 +56,7 @@ public class MissingValueLineTests
     [Fact]
     public void APointAloneBetweenTwoGaps_DrawsNoLine()
     {
-        var lines = Lines(DrawLine(new LineSeries([0.0, 1, 2, 3, 4, 5], [1, double.NaN, 2, double.NaN, 3, 4])));
+        var lines = DrawLine(new LineSeries([0.0, 1, 2, 3, 4, 5], [1, double.NaN, 2, double.NaN, 3, 4])).Polylines();
 
         var only = Assert.Single(lines);
         Assert.Equal(2, only.Length);
@@ -78,14 +64,14 @@ public class MissingValueLineTests
 
     [Fact]
     public void ALineWithoutAGap_IsOnePolylineThroughEveryPoint() =>
-        Assert.Equal(5, Assert.Single(Lines(DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, 3, 2, 1])))).Length);
+        Assert.Equal(5, Assert.Single(DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, 3, 2, 1])).Polylines()).Length);
 
     /// <summary>matplotlib's steps-post: the step of the value before the gap still runs to the gap's x, then the line
     /// stops; it resumes at the next value.</summary>
     [Fact]
     public void ASteppedLine_BreaksAtAMissingValue()
     {
-        var lines = Lines(DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 3, 4]) { DrawStyle = DrawStyle.StepsPost }));
+        var lines = DrawLine(new LineSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 3, 4]) { DrawStyle = DrawStyle.StepsPost }).Polylines();
 
         Assert.Equal([4, 3], lines.Select(l => l.Length));
         AssertEveryPointDrawable(lines);
@@ -96,7 +82,7 @@ public class MissingValueLineTests
     [Fact]
     public void ASmoothedLine_IsSmoothedRunByRun()
     {
-        var lines = Lines(DrawLine(new LineSeries([0.0, 1, 2, 3, 4, 5, 6], [0, 1, 4, double.NaN, 1, 0, 2]) { Smooth = true, SmoothResolution = 10 }));
+        var lines = DrawLine(new LineSeries([0.0, 1, 2, 3, 4, 5, 6], [0, 1, 4, double.NaN, 1, 0, 2]) { Smooth = true, SmoothResolution = 10 }).Polylines();
 
         Assert.Equal([21, 21], lines.Select(l => l.Length));
         AssertEveryPointDrawable(lines);
@@ -108,7 +94,7 @@ public class MissingValueLineTests
         var ctx = new RecordingRenderContext();
         new StepSeriesRenderer(ContextOn(ctx)).Render(new StepSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 3, 4]));
 
-        var lines = Lines(ctx);
+        var lines = ctx.Polylines();
         Assert.Equal([4, 3], lines.Select(l => l.Length));
         AssertEveryPointDrawable(lines);
     }
@@ -118,8 +104,8 @@ public class MissingValueLineTests
     {
         string svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 2, 1])).ToSvg();
 
-        Assert.Equal(2, Regex.Matches(svg, "<polyline ").Count);
-        Assert.DoesNotContain("NaN", svg);
+        Assert.Equal(2, svg.Elements("polyline").Count);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- an area ----------------------------------------------------------------------------------------------------
@@ -129,9 +115,9 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 2, 1]));
 
-        Assert.Equal(2, Polygons(ctx).Count);
-        Assert.Equal(2, Lines(ctx).Count);
-        AssertEveryPointDrawable(Polygons(ctx).Concat(Lines(ctx)));
+        Assert.Equal(2, ctx.Polygons().Count);
+        Assert.Equal(2, ctx.Polylines().Count);
+        AssertEveryPointDrawable(ctx.Polygons().Concat(ctx.Polylines()));
     }
 
     /// <summary>The runs here are [0, 1], [3] and [5, 7]: the gap in the lower line breaks the fill as the gap in the
@@ -142,8 +128,8 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1, 2, 3, 4, 5, 6, 7], [3, 3, 3, 3, double.NaN, 3, 3, 3]) { YData2 = [1, 1, double.NaN, 1, 1, 1, 1, 1] });
 
-        Assert.Equal([4, 2, 6], Polygons(ctx).Select(p => p.Length));
-        AssertEveryPointDrawable(Polygons(ctx).Concat(Lines(ctx)));
+        Assert.Equal([4, 2, 6], ctx.Polygons().Select(p => p.Length));
+        AssertEveryPointDrawable(ctx.Polygons().Concat(ctx.Polylines()));
     }
 
     [Fact]
@@ -151,8 +137,8 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 2, 1]) { StepMode = DrawStyle.StepsPost });
 
-        Assert.Equal(2, Polygons(ctx).Count);
-        AssertEveryPointDrawable(Polygons(ctx).Concat(Lines(ctx)));
+        Assert.Equal(2, ctx.Polygons().Count);
+        AssertEveryPointDrawable(ctx.Polygons().Concat(ctx.Polylines()));
     }
 
     [Fact]
@@ -160,8 +146,8 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1, 2, 3, 4, 5, 6], [0, 1, 4, double.NaN, 1, 0, 2]) { Smooth = true });
 
-        Assert.Equal(2, Polygons(ctx).Count);
-        AssertEveryPointDrawable(Polygons(ctx).Concat(Lines(ctx)));
+        Assert.Equal(2, ctx.Polygons().Count);
+        AssertEveryPointDrawable(ctx.Polygons().Concat(ctx.Polylines()));
     }
 
     [Fact]
@@ -169,8 +155,8 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1, 2, 3, 4], [1, 2, double.NaN, 2, 1]) { Where = (_, _) => true, YData2 = [0, 0, 0, 0, 0] });
 
-        Assert.Equal(2, Polygons(ctx).Count);
-        AssertEveryPointDrawable(Polygons(ctx).Concat(Lines(ctx)));
+        Assert.Equal(2, ctx.Polygons().Count);
+        AssertEveryPointDrawable(ctx.Polygons().Concat(ctx.Polylines()));
     }
 
     [Fact]
@@ -178,8 +164,8 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1, 2], [1, 2, 1]));
 
-        Assert.Single(Polygons(ctx));
-        Assert.Equal(3, Assert.Single(Lines(ctx)).Length);
+        Assert.Single(ctx.Polygons());
+        Assert.Equal(3, Assert.Single(ctx.Polylines()).Length);
     }
 
     [Fact]
@@ -187,8 +173,8 @@ public class MissingValueLineTests
     {
         var ctx = DrawArea(new AreaSeries([0.0, 1], [double.NaN, double.NaN]));
 
-        Assert.Empty(Polygons(ctx));
-        Assert.Empty(Lines(ctx));
+        Assert.Empty(ctx.Polygons());
+        Assert.Empty(ctx.Polylines());
     }
 
     // ---- the smoothing itself ---------------------------------------------------------------------------------------

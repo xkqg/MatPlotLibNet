@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Equal Earth projection (Šavrič, Patterson, Jenny, 2018) — equal-area pseudo-cylindrical.
 /// A modern alternative to Mollweide/Robinson with pleasant aesthetics and true equal-area.</summary>
-public sealed class EqualEarth : IGeoProjection
+public sealed class EqualEarth : IGeoProjection, IProjectionOutline
 {
     private const double A1 = 1.340264, A2 = -0.081106, A3 = 0.000893, A4 = 0.003796;
     private const double M = 0.8660254037844386; // sqrt(3) / 2
@@ -36,13 +36,8 @@ public sealed class EqualEarth : IGeoProjection
     public GeoCoordinate? Inverse(double x, double y) => null;
 
     /// <inheritdoc />
-    public GeoBounds Bounds
-    {
-        get
-        {
-            var (xMax, _) = Forward(0, 180);
-            var (_, yMax) = Forward(90, 0);
-            return new(-xMax, xMax, -yMax, yMax);
-        }
-    }
+    /// <remarks>The box round the edge of the world.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
+
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => this.MeridianOutline();
 }

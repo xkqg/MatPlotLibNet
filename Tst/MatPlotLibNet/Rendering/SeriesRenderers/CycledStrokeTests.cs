@@ -6,6 +6,7 @@ using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -33,21 +34,18 @@ public class CycledStrokeTests
     private static Theme ThemeWith(PropCycler cycler) => Theme.CreateFrom(Theme.Default).WithPropCycler(cycler).Build();
 
     private static XDocument Doc(Theme theme, Action<AxesBuilder> build) =>
-        XDocument.Parse(Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, build).ToSvg());
-
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
+        Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, build).ToSvg().Xml();
 
     private static IEnumerable<XElement> Strokes(XContainer root, string element, Color colour) =>
-        Named(root, element).Where(e => (string?)e.Attribute("stroke") == colour.ToHex());
+        root.Each(element).Where(e => (string?)e.Attribute("stroke") == colour.ToHex());
 
     private static IEnumerable<XElement> Fills(XContainer root, string element, Color colour) =>
-        Named(root, element).Where(e => (string?)e.Attribute("fill") == colour.ToHex());
+        root.Each(element).Where(e => (string?)e.Attribute("fill") == colour.ToHex());
 
     private static XElement Polyline(XContainer root, Color colour) => Assert.Single(Strokes(root, "polyline", colour));
 
     private static XElement Legend(XDocument doc) =>
-        Assert.Single(Named(doc, "g"), g => (string?)g.Attribute("class") == "legend");
+        Assert.Single(doc.Each("g"), g => (string?)g.Attribute("class") == "legend");
 
     private static string? Dash(XElement e) => (string?)e.Attribute("stroke-dasharray");
 
@@ -57,10 +55,10 @@ public class CycledStrokeTests
     private static string ReferenceDash(LineStyle style)
     {
         var doc = Doc(Theme.Default, ax => ax.Plot(X, Y1, s => s.LineStyle = style));
-        return Dash(Assert.Single(Named(doc, "polyline"), p => (string?)p.Attribute("stroke") == Theme.Default.CycleColors[0].ToHex()))!;
+        return Dash(Assert.Single(doc.Each("polyline"), p => (string?)p.Attribute("stroke") == Theme.Default.CycleColors[0].ToHex()))!;
     }
 
-    // â”€â”€ a line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── a line ───────────────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void ALine_TakesTheDashPatternOfItsSlot()
@@ -115,7 +113,7 @@ public class CycledStrokeTests
         Assert.Empty(Fills(doc, "rect", Colors.Green));
     }
 
-    // â”€â”€ a scatter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── a scatter ────────────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void AScatter_TakesTheMarkerOfItsSlot_AndAnUnaskedSlotLeavesItsCircles()
@@ -136,7 +134,7 @@ public class CycledStrokeTests
         Assert.Empty(Fills(doc, "rect", Colors.Green));
     }
 
-    // â”€â”€ a step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── a step ───────────────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void AStep_TakesTheDashPatternWidthAndMarkerOfItsSlot()
@@ -191,7 +189,7 @@ public class CycledStrokeTests
         Assert.Empty(Fills(doc, "rect", Colors.Green));
     }
 
-    // â”€â”€ an area's outline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── an area's outline ────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void AnAreasOutline_TakesTheDashPatternAndWidthOfItsSlot()
@@ -218,7 +216,7 @@ public class CycledStrokeTests
         Assert.Equal("2.5", Width(outline));
     }
 
-    // â”€â”€ an error bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── an error bar ─────────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void AnErrorBar_TakesTheWidthOfItsSlot_ForItsBarsAndCaps()
@@ -244,7 +242,7 @@ public class CycledStrokeTests
         Assert.Equal(["0.5", "2.5"], widths);
     }
 
-    // â”€â”€ the rest of the line family: density curve, ECDF, regression, signals, sparkline, polar and 3-D lines â”€â”€â”€â”€
+    // ── the rest of the line family: density curve, ECDF, regression, signals, sparkline, polar and 3-D lines ────
 
     private static readonly double[] Sample1 = [1.0, 2, 2, 3, 3, 3, 4, 4, 5, 7];
     private static readonly double[] Sample2 = [2.0, 3, 3, 4, 4, 4, 5, 5, 6, 8];
@@ -322,9 +320,9 @@ public class CycledStrokeTests
 
         Assert.Equal("2", Width(Polyline(doc, Colors.Red)));
         Assert.Equal("2", Width(Polyline(doc, Colors.Green)));
-        // slot 0 of the styled cycler names 1.5 as well: the line keeps its own 2; slot 1 names 4 and wins
+        // slot 0 of the styled cycler names 1.5, a width, which wins over the line's own 2; slot 1 names 4 and wins
         var styled = Doc(ThemeWith(Styled), ax => ax.Regression(X, Y1).Regression(X, Y2));
-        Assert.Equal("2", Width(Polyline(styled, Colors.Red)));
+        Assert.Equal("1.5", Width(Polyline(styled, Colors.Red)));
         Assert.Equal("4", Width(Polyline(styled, Colors.Green)));
     }
 
@@ -360,7 +358,7 @@ public class CycledStrokeTests
         Assert.Equal("2.5", Width(Polyline(doc, Colors.Green)));
     }
 
-    // â”€â”€ the other axis pairs follow the same slots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── the other axis pairs follow the same slots ───────────────────────────────────────────────────────────────
 
     [Fact]
     public void ALineOnTheRightHandAxis_FollowsTheSlotRuleAfterThePrimarySeries()
@@ -374,7 +372,7 @@ public class CycledStrokeTests
         Assert.Equal(X.Length, Fills(doc, "rect", Colors.Green).Count());
     }
 
-    // â”€â”€ the legend swatch shows what the series draws â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── the legend swatch shows what the series draws ────────────────────────────────────────────────────────────
 
     [Fact]
     public void ALegendSwatch_ShowsTheDashPatternWidthAndMarkerOfItsLine()
@@ -450,7 +448,7 @@ public class CycledStrokeTests
         Assert.Null(Dash(Assert.Single(Strokes(legend, "line", Colors.Red))));
     }
 
-    // â”€â”€ what must not move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── what must not move ───────────────────────────────────────────────────────────────────────────────────────
 
     private static string EveryFamily(Theme theme) => Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
         .Plot(X, Y1, s => s.Label = "line").Scatter(X, Y2, s => s.Label = "scatter").Step(X, Y1, s => s.Label = "step")
@@ -459,11 +457,14 @@ public class CycledStrokeTests
         .WithLegend()).ToSvg();
 
     /// <summary>The line renderers that took the slot later: a regression line is 2 wide of its own, so it is the one a
-    /// careless "cycler width of 1.5" would move.</summary>
-    private static string EveryRemainingFamily(Theme theme) => Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
-        .Kde(Sample1, s => s.Label = "kde").Ecdf(Sample1, s => s.Label = "ecdf").Regression(X, Y1, s => s.Label = "regression")
-        .Signal(Y2, 1.0, 0.0, s => s.Label = "signal").SignalXY(X, Y1, s => s.Label = "signalxy").Sparkline(Y2, s => s.Label = "spark")
-        .WithLegend()).ToSvg()
+    /// cycler that names 1.5 moves (it names a width); <paramref name="withRegression"/> leaves it out.</summary>
+    private static string EveryRemainingFamily(Theme theme, bool withRegression = true) => Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.Kde(Sample1, s => s.Label = "kde").Ecdf(Sample1, s => s.Label = "ecdf");
+        if (withRegression) ax.Regression(X, Y1, s => s.Label = "regression");
+        ax.Signal(Y2, 1.0, 0.0, s => s.Label = "signal").SignalXY(X, Y1, s => s.Label = "signalxy").Sparkline(Y2, s => s.Label = "spark")
+        .WithLegend();
+    }).ToSvg()
         + Plt.Create().WithTheme(theme).WithSize(400, 400).AddSubPlot(1, 1, 1, ax => ax
             .PolarPlot(Radii1, Angles).PolarPlot(Radii2, Angles)).ToSvg()
         + Plt.Create().WithTheme(theme).WithSize(400, 400).AddSubPlot(1, 1, 1, ax => ax
@@ -480,7 +481,7 @@ public class CycledStrokeTests
     }
 
     [Fact]
-    public void ACyclerWhoseStylesAreAllTheDefaults_DrawsTheBytesOfAThemeWithoutOne()
+    public void ACyclerWhoseStylesAreAllTheDefaults_DrawsTheBytesOfAThemeWithoutOne_ButARegressionTakesTheWidthItNames()
     {
         var plain = Theme.Default;
         var restingStyles = ThemeWith(new PropCyclerBuilder().WithColors(plain.CycleColors)
@@ -488,7 +489,11 @@ public class CycledStrokeTests
             .WithLineWidths(1.5, 1.5, 1.5).Build());
 
         Assert.Equal(EveryFamily(plain), EveryFamily(restingStyles));
-        Assert.Equal(EveryRemainingFamily(plain), EveryRemainingFamily(restingStyles));
+        Assert.Equal(EveryRemainingFamily(plain, withRegression: false), EveryRemainingFamily(restingStyles, withRegression: false));
+        // a cycler that names 1.5 names a width, which a regression line given none takes over its own 2 (a prop_cycle's
+        // linewidth wins over a line's default in matplotlib)
+        var regression = Doc(restingStyles, ax => ax.Regression(X, Y1));
+        Assert.Equal("1.5", Width(Polyline(regression, plain.CycleColors[0])));
     }
 
     [Fact]
@@ -510,7 +515,7 @@ public class CycledStrokeTests
             .Plot(X, Y1, s => s.Label = "line").Plot(X, Y2, s => s.Label = "dashed").Scatter(X, Y1).Step(X, Y2)
             .FillBetween(X, Y1).ErrorBar(X, Y2, Low, Low).WithLegend()).Build();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(figure.ToSvg(), readBack);
     }
@@ -530,7 +535,7 @@ public class CycledStrokeTests
         Action<AxesBuilder> build = family == "sparkline" ? ax => ax.Sparkline(Y1).Sparkline(Y2).Sparkline(Y1) : Two(family);
         var figure = Plt.Create().WithTheme(ThemeWith(Styled)).WithSize(500, 400).AddSubPlot(1, 1, 1, build).Build();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(figure.ToSvg(), readBack);
     }

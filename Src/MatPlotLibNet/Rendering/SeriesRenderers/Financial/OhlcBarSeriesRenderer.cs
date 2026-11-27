@@ -45,14 +45,20 @@ internal sealed class OhlcBarSeriesRenderer : SeriesRenderer<OhlcBarSeries>
     /// <inheritdoc />
     public override void Render(OhlcBarSeries series)
     {
+        double width = Slot.LineWidthOf(series);
         foreach (var bar in Bars(series))
         {
-            if (bar.Low.CanDrawLineTo(bar.High))
-                Ctx.DrawLine(bar.Low, bar.High, new StrokeStyle(bar.Colour, 1.5, LineStyle.Solid));
-            if (bar.OpenTick.CanDrawLineTo(bar.Open))
-                Ctx.DrawLine(bar.OpenTick, bar.Open, new StrokeStyle(bar.Colour, 1.5, LineStyle.Solid));
-            if (bar.Close.CanDrawLineTo(bar.CloseTick))
-                Ctx.DrawLine(bar.Close, bar.CloseTick, new StrokeStyle(bar.Colour, 1.5, LineStyle.Solid));
+            if (bar.Low.CanDrawLineTo(bar.High)) Stroke(new PixelSegment(bar.Low, bar.High), bar.Colour, width);
+            if (bar.OpenTick.CanDrawLineTo(bar.Open)) Stroke(new PixelSegment(bar.OpenTick, bar.Open), bar.Colour, width);
+            if (bar.Close.CanDrawLineTo(bar.CloseTick)) Stroke(new PixelSegment(bar.Close, bar.CloseTick), bar.Colour, width);
         }
+    }
+
+    /// <summary>One line of a bar. Each of the three is a segment of a <c>LineCollection</c> (<c>vlines</c>, <c>hlines</c>), which Agg
+    /// puts on the pixel grid with butt ends; a theme that does not ask leaves it where it stands.</summary>
+    private void Stroke(PixelSegment line, Color colour, double width)
+    {
+        var drawn = Ctx.OnPixelGrid(line, width, projectingEnds: false);
+        Ctx.DrawLine(drawn.From, drawn.To, StrokeStyle.Solid(colour, width));
     }
 }

@@ -1,11 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Jint;
 using Jint.Runtime.Interop;
 using MatPlotLibNet.Builders;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
@@ -95,6 +95,29 @@ public sealed class InteractionScriptHarness : IDisposable
     public static InteractionScriptHarness FromBuilder(Action<FigureBuilder> configure)
         => FromBuilders(configure);
 
+    /// <summary>Asserts that a wheel zoom, then Home, then the reset Home sends applied to the figure the builder makes, draws the first
+    /// picture again, every point of the series within 0.02 of where it first stood.</summary>
+    /// <param name="configure">The figure the viewer shows.</param>
+    public static void AssertHomeRestoresTheFirstDrawing(Action<FigureBuilder> configure)
+    {
+        using var h = FromBuilder(configure);
+        var before = h.Svg.PointsOf("data");
+        h.Wheel(before[1]);
+        var mock = h.WireSignalRMock();
+
+        h.PressHome();
+
+        var figure = configure.Build();
+        mock.Payload("OnReset").ToResetEvent().ApplyTo(figure);
+        var after = figure.ToSvg().PointsOf("data");
+
+        for (int i = 0; i < before.Length; i++)
+        {
+            Assert.InRange(after[i].X, before[i].X - 0.02, before[i].X + 0.02);
+            Assert.InRange(after[i].Y, before[i].Y - 0.02, before[i].Y + 0.02);
+        }
+    }
+
     /// <summary>Multi-chart variant — wraps N figures in one synthetic document so
     /// per-chart isolation can be asserted (Phase 2). The harness then tags each SVG
     /// with <c>id="mpl-chart-0"</c>, <c>"mpl-chart-1"</c>, ... so tests can scope queries.</summary>
@@ -111,22 +134,37 @@ public sealed class InteractionScriptHarness : IDisposable
         return FromSvgs(svgs, reducedMotion: false);
     }
 
+    /// <summary>The figures run as a host runs their scripts when it gives them no current script (a script it evaluates itself):
+    /// every script falls back on what it finds in the document.</summary>
+    public static InteractionScriptHarness FromBuildersWithoutCurrentScript(params Action<FigureBuilder>[] configures)
+    {
+        var svgs = new List<string>();
+        foreach (var configure in configures)
+        {
+            var fb = Plt.Create();
+            configure(fb);
+            svgs.Add(fb.ToSvg());
+        }
+
+        return FromSvgs(svgs, reducedMotion: false, withCurrentScript: false);
+    }
+
     /// <summary>One document that is not a figure's own: an SVG a transform wrote (an animation that steps through its frames), run
     /// as a page runs it. Time is the test's: an interval armed by a script fires when <see cref="Tick"/> says so.</summary>
     /// <param name="svg">The SVG document.</param>
     /// <param name="reducedMotion">Whether the page's reader asked for reduced motion (<c>prefers-reduced-motion</c>).</param>
     public static InteractionScriptHarness FromSvg(string svg, bool reducedMotion = false) => FromSvgs([svg], reducedMotion);
 
-    private static InteractionScriptHarness FromSvgs(IReadOnlyList<string> svgs, bool reducedMotion)
+    private static InteractionScriptHarness FromSvgs(IReadOnlyList<string> svgs, bool reducedMotion, bool withCurrentScript = true)
     {
         var combined = string.Concat(svgs);
 
         // Strip XML declarations + namespace decls so XDocument can parse the multi-SVG bag
         // wrapped in a synthetic <html> root.
-        var stripped = Strip(combined);
+        var stripped = combined.WithoutDeclarations();
 
         var wrapped = $"<html>{stripped}</html>";
-        var xdoc = XDocument.Parse(wrapped);
+        var xdoc = wrapped.Xml();
 
         // Tag each <svg> with a unique id AFTER parsing — doing this via text regex misfires
         // when script bodies contain literal `<svg` text in comments (the IIFE for legend
@@ -142,16 +180,8 @@ public sealed class InteractionScriptHarness : IDisposable
         var harness = new InteractionScriptHarness(combined, dom, engine);
         harness.Window.PrefersReducedMotion = reducedMotion;
         harness.WireGlobals();
-        harness.RunEmbeddedScripts(dom.QuerySelectorAllRaw("script"));
+        harness.RunEmbeddedScripts(dom.QuerySelectorAllRaw("script"), withCurrentScript);
         return harness;
-    }
-
-    /// <summary>Strips the XML declaration and the default namespace, so a figure's SVG parses into the synthetic
-    /// document the harness holds.</summary>
-    private static string Strip(string svg)
-    {
-        var stripped = Regex.Replace(svg, @"<\?xml[^>]*\?>", "").Trim();
-        return Regex.Replace(stripped, @"xmlns\s*=\s*""[^""]*""", "");
     }
 
     /// <summary>Mounts a redrawn chart the way a page does after an update: the <c>&lt;svg&gt;</c> carrying the same
@@ -164,7 +194,7 @@ public sealed class InteractionScriptHarness : IDisposable
     {
         var fb = Plt.Create();
         configure(fb);
-        var replacement = XElement.Parse(Strip(fb.ToSvg()));
+        var replacement = XElement.Parse(fb.ToSvg().WithoutDeclarations());
         string? chartId = replacement.Attribute("data-chart-id")?.Value;
         var old = Document.Xml.Descendants("svg").First(e => e.Attribute("data-chart-id")?.Value == chartId);
         replacement.SetAttributeValue("id", old.Attribute("id")?.Value);
@@ -213,7 +243,7 @@ public sealed class InteractionScriptHarness : IDisposable
         _engine.SetValue("CustomEvent", TypeReference.CreateTypeReference<DomEvent>(_engine));
     }
 
-    private void RunEmbeddedScripts(IEnumerable<DomElement> scriptElements)
+    private void RunEmbeddedScripts(IEnumerable<DomElement> scriptElements, bool withCurrentScript = true)
     {
         // Run the <script> elements in document order. For EACH script, set document.currentScript to its DOM
         // wrapper, so any script that calls `document.currentScript.parentNode` gets its OWN owning <svg> — the
@@ -228,7 +258,7 @@ public sealed class InteractionScriptHarness : IDisposable
             if (body.EndsWith("]]>")) body = body[..^3];
 
             // Set currentScript so the script can self-locate.
-            Document.SetCurrentScript(scriptEl);
+            Document.SetCurrentScript(withCurrentScript ? scriptEl : null);
             try { _engine.Execute(body); }
             catch (Jint.Runtime.JavaScriptException ex)
             {
@@ -283,7 +313,7 @@ public sealed class InteractionScriptHarness : IDisposable
     /// <see cref="SignalRInvokeMock"/> records every
     /// <c>invoke(method, payload)</c> call the embedded scripts make, so tests
     /// can verify which hub methods got dispatched with which payload shapes.
-    /// The <see cref="SvgSignalRInteractionScript"/> reads <c>window</c> lazily
+    /// The server-interaction script (<see cref="Transforms.SvgTransform.ServerInteractionScript"/>) reads <c>window</c> lazily
     /// inside its <c>invoke()</c> helper, so wiring the mock AFTER harness
     /// construction still takes effect on every subsequent event.</summary>
     public SignalRInvokeMock WireSignalRMock()
@@ -320,7 +350,7 @@ public sealed class SignalRWindowStub
 }
 
 /// <summary>Records every <c>invoke(method, payload)</c> call made by the
-/// <see cref="MatPlotLibNet.Rendering.Svg.SvgSignalRInteractionScript"/>. Tests
+/// <see cref="Transforms.SvgTransform.ServerInteractionScript"/>. Tests
 /// inspect <see cref="Calls"/> to assert which hub methods the client would
 /// have dispatched under a given event sequence.</summary>
 public sealed class SignalRInvokeMock

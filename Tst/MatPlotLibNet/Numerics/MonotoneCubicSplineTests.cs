@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Numerics;
 
@@ -115,39 +116,90 @@ public class MonotoneCubicSplineTests
         var (ox, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 4);
 
         // Should not throw or produce NaN/Inf
-        Assert.All(oy, v => Assert.True(double.IsFinite(v), $"Non-finite value {v}"));
+        oy.AssertAllFinite("output");
         // First and last points preserved
         Assert.Equal(0, oy[0], 1e-9);
         Assert.Equal(6, oy[^1], 1e-6);
     }
 
-    [Fact]
-    public void LineSeries_SmoothFalse_Default()
+    /// <summary>Every knot is a sample of the curve: the sample at <c>SampleOf</c> is the knot itself (a smoothed fill's region is cut
+    /// from the curve through the whole run by it, so the fill's top lies on the line).</summary>
+    [Theory]
+    [InlineData(10)]
+    [InlineData(3)]
+    [InlineData(1)]
+    public void EachKnot_IsTheSampleAtItsIndex(int resolution)
     {
-        var s = new LineSeries([0, 1, 2], [0, 1, 0]);
-        Assert.False(s.Smooth);
-        Assert.Equal(10, s.SmoothResolution);
-    }
+        double[] x = [0, 1, 3, 4, 7], y = [2, 5, 1, 4, 3];
 
-    [Fact]
-    public void LineSeries_Smooth_RoundTripsJson()
-    {
-        var s = new LineSeries([0.0, 1.0, 2.0], [0.0, 1.0, 0.0])
+        var curve = MonotoneCubicSpline.Interpolate(x, y, resolution);
+
+        for (int k = 0; k < x.Length; k++)
         {
-            Smooth = true,
-            SmoothResolution = 5
-        };
-        var dto = s.ToSeriesDto();
-        Assert.Equal(true, dto.Smooth);
-        Assert.Equal(5, dto.SmoothResolution);
+            int at = MonotoneCubicSpline.SampleOf(k, x.Length, resolution);
+            Assert.Equal(x[k], curve.X[at]);
+            Assert.Equal(y[k], curve.Y[at]);
+        }
+        Assert.Equal(curve.X.Length - 1, MonotoneCubicSpline.SampleOf(x.Length - 1, x.Length, resolution));
     }
 
     [Fact]
-    public void LineSeries_SmoothFalse_DtoOmitsFields()
+    public void ALoneKnot_IsItsOwnSample() => Assert.Equal(0, MonotoneCubicSpline.SampleOf(0, 1, 10));
+
+    [Fact]
+    public void EmptyInput_ReturnsInputUnchanged()
     {
-        var s = new LineSeries([0.0, 1.0], [0.0, 1.0]);
-        var dto = s.ToSeriesDto();
-        Assert.Null(dto.Smooth);
-        Assert.Null(dto.SmoothResolution);
+        var (ox, oy) = MonotoneCubicSpline.Interpolate(EdgeCaseData.Empty, EdgeCaseData.Empty);
+        Assert.Empty(ox);
+        Assert.Empty(oy);
+    }
+
+    [Fact]
+    public void DuplicateX_TriggersZeroSecantSlope_StillProducesOutput()
+    {
+        // Two consecutive X values are equal — secant slope at that interval is 0.
+        // The monotonicity step then forces both adjacent tangents to 0. Output must
+        // still have correct length and not contain NaN.
+        double[] x = [0, 1, 1, 2];   // duplicate at index 1, 2
+        double[] y = [0, 1, 1, 2];
+        var (ox, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 4);
+        Assert.Equal(13, ox.Length);  // (4-1)*4+1
+        oy.AssertAllFinite("output");
+    }
+
+    [Fact]
+    public void SteepThenFlatData_TriggersMonotonicityClampingBranch()
+    {
+        // The "sq > 9" branch in the algorithm fires when the initial Hermite tangent
+        // overshoots — typically at a sharp transition. Construct data with a steep
+        // spike then plateau to force it.
+        double[] x = [0, 1, 2, 3, 4];
+        double[] y = [0, 100, 100, 100, 100];   // steep up, then plateau
+        var (_, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 10);
+        // Monotonicity: output must never exceed the max input value (no overshoot above 100).
+        Assert.All(oy, v => Assert.True(v <= 100.0001, $"Overshoot: {v} > 100"));
+        Assert.All(oy, v => Assert.True(v >= -0.0001, $"Undershoot: {v} < 0"));
+    }
+
+    [Fact]
+    public void DescendingY_PreservesMonotonicity()
+    {
+        // Strictly decreasing Y — output must also be monotonically decreasing.
+        double[] x = [0, 1, 2, 3, 4];
+        double[] y = [4, 3, 2, 1, 0];
+        var (_, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 8);
+        for (int i = 1; i < oy.Length; i++)
+            Assert.True(oy[i] <= oy[i - 1] + 1e-9,
+                $"Monotonicity broken at index {i}: {oy[i]:F6} > {oy[i-1]:F6}");
+    }
+
+    [Fact]
+    public void AllEqualY_FlatLineThroughout()
+    {
+        // All Y equal → output must be exactly flat.
+        double[] x = [0, 1, 2, 3];
+        double[] y = [5, 5, 5, 5];
+        var (_, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 6);
+        Assert.All(oy, v => Assert.Equal(5.0, v, 1e-9));
     }
 }

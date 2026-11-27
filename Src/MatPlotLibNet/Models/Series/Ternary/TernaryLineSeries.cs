@@ -9,21 +9,28 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>A line in a ternary diagram: a polyline through the compositions of three parts, in the order given. A drift, a
 /// mixing line or the path of a process reads as the line it is, straight between two samples.</summary>
-public sealed class TernaryLineSeries : TernarySeries, IHasColor
+public sealed class TernaryLineSeries : TernarySeries, IHasColor, ISeriesKind<TernaryLineSeries>, IGivenStroked
 {
+    /// <inheritdoc />
+    /// <remarks>2: mpltern's <c>plot</c> draws a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
     /// <summary>The colour of the line; the theme's colour for this series when <see langword="null"/>.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The line style; solid unless said otherwise.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
-    /// <summary>The width of the line, in pixels; 1.5 unless said otherwise.</summary>
-    public double LineWidth { get; set; } = RestingLineWidth;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
 
-    private const double RestingLineWidth = 1.5;
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Line(this);
 
     /// <summary>Initializes a new ternary line series. Built through <c>Axes.TernaryPlot</c>, which refuses a sample that cannot
     /// be placed.</summary>
@@ -32,31 +39,25 @@ public sealed class TernaryLineSeries : TernarySeries, IHasColor
     /// <param name="right">The part at the bottom right corner, for each sample.</param>
     public TernaryLineSeries(double[] top, double[] left, double[] right) : base(top, left, right) { }
 
+    static string ISeriesKind<TernaryLineSeries>.Kind => "ternaryline";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "ternaryline",
+        Type = this.WireKind(),
         TopData = Top,
         LeftData = Left,
         RightData = Right,
         Color = Color,
-        LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth.OrNullAtRest(RestingLineWidth),
+        Stroking = Stroke,
     };
 
-    /// <summary>Reconstructs a <see cref="TernaryLineSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="TernaryLineSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static TernaryLineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.TernaryPlot(dto.TopData ?? [], dto.LeftData ?? [], dto.RightData ?? []);
         s.Color = dto.Color;
-        dto.LineStyle.ApplyEnum<LineStyle>(v => s.LineStyle = v);
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
+        s.Stroke = dto.StrokeOver(s.Stroke);
 
         return s;
     }

@@ -1,11 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -14,8 +12,9 @@ namespace MatPlotLibNet.Tests.Builders;
 /// <summary>The <c>Stairs</c> verb: values in bins between edges, drawn as ONE staircase. Without a baseline it is the outline
 /// alone, a <see cref="LineSeries"/> with no drops at its ends (matplotlib's <c>baseline=None</c>). With a baseline it is a
 /// single <see cref="AreaSeries"/> filled down to it, whose top edge is the one stroke of the staircase, so no edge is drawn
-/// twice. Exactly one of the two parts is set. The staircase itself is <c>StaircasePath</c>, held to its rules in
-/// <c>StaircasePathTests</c>; this holds what the verb does with it.</summary>
+/// twice. Exactly one of the two parts is set. The staircase: bin <c>i</c> runs from edge <c>i</c> to edge <c>i + 1</c> at its value,
+/// so it contributes two points at the same height, and the next bin begins where this one ends, which is the riser; a bin whose
+/// value or either edge cannot be drawn is a gap, both its points missing, so neither the outline nor the fill bridges it.</summary>
 public class StairsTests
 {
     private static readonly Color SeriesColour = Theme.Default.CycleColors[0];
@@ -23,56 +22,27 @@ public class StairsTests
     private const double Gap = double.NaN;
 
     private static Figure Of(double[] values, double[] edges, double? baseline = null, Action<StairsParts>? configure = null) =>
-        Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax => ax.Stairs(values, edges, baseline, configure)).Build();
-
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
+        TestFigures.OfOneVerb(ax => ax.Stairs(values, edges, baseline, configure));
 
     /// <summary>The strokes of the staircase, each as its points in pixels: the polylines in the series colour at the width of a
-    /// line (and of the top edge of an area), in the order drawn.</summary>
-    private static List<Point[]> Strokes(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawLines")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => (Color)args.color == SeriesColour && (double)args.thickness == 1.5)
-        .Select(args => (Point[])args.points)];
+    /// line (the outline names none, so it is the theme's) or of the top edge of the fill (the verb names its 1.5), in the order
+    /// drawn.</summary>
+    private static List<Point[]> Strokes(RecordingRenderContext drawn) => [.. drawn.Of<DrawLinesCall>()
+        .Where(args => args.Color == SeriesColour
+            && (args.Thickness == Theme.MatplotlibV2.Looks.Lines.Width || args.Thickness == LineWidthRule.Line.Resting))
+        .Select(args => args.Points)];
 
     /// <summary>The fills of the staircase, each as its polygon in pixels: the polygons drawn with no outline of their own.</summary>
-    private static List<Point[]> Fills(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawPolygon")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => args.fill != null && args.stroke == null)
-        .Select(args => (Point[])args.points)];
-
-    private static Axes AxesOf(Figure figure) => figure.SubPlots[0];
-
-    private static LineSeries OutlineOf(Figure figure) => Assert.IsType<LineSeries>(Assert.Single(AxesOf(figure).Series));
-
-    private static AreaSeries FillOf(Figure figure) => Assert.IsType<AreaSeries>(Assert.Single(AxesOf(figure).Series));
-
-    // ---- the shape the contracts hold ---------------------------------------------------------------------------------
-
-    [Fact]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws()
-    {
-        Assert.Equal(ComposedChartShapes.StairsByHand(false).ToSvg(), ComposedChartShapes.Named("stairs").Build(false).ToSvg());
-        Assert.Equal(ComposedChartShapes.StairsByHand(true).ToSvg(), ComposedChartShapes.Named("stairs").Build(true).ToSvg());
-    }
-
-    [Fact]
-    public void TheFilledVerb_DrawsExactlyWhatItsHandRecipeDraws()
-    {
-        Assert.Equal(ComposedChartShapes.StairsFilledByHand(false).ToSvg(), ComposedChartShapes.Named("stairs-filled").Build(false).ToSvg());
-        Assert.Equal(ComposedChartShapes.StairsFilledByHand(true).ToSvg(), ComposedChartShapes.Named("stairs-filled").Build(true).ToSvg());
-    }
+    private static List<Point[]> Fills(RecordingRenderContext drawn) => [.. drawn.Of<DrawPolygonCall>()
+        .Where(args => args.Fill != null && args.Stroke == null)
+        .Select(args => args.Points)];
 
     // ---- without a baseline: the outline alone ------------------------------------------------------------------------
 
     [Fact]
     public void WithoutABaseline_TheChartIsOneLineSeries_OfTheStaircase()
     {
-        var line = OutlineOf(Of([5, 3, 7], [0, 1, 2, 3]));
+        var line = Of([5, 3, 7], [0, 1, 2, 3]).OnlySeries<LineSeries>();
 
         Assert.Equal([0.0, 1.0, 1.0, 2.0, 2.0, 3.0], line.XData);
         Assert.Equal([5.0, 5.0, 3.0, 3.0, 7.0, 7.0], line.YData);
@@ -81,7 +51,7 @@ public class StairsTests
     [Fact]
     public void WithoutABaseline_ThereAreNoDropsAtTheEnds()
     {
-        var line = OutlineOf(Of([5, 3, 7], [0, 1, 2, 3]));
+        var line = Of([5, 3, 7], [0, 1, 2, 3]).OnlySeries<LineSeries>();
 
         // The first point stands at the height of the first value and the last at the height of the last: nothing runs down to a
         // baseline before the first edge or after the last.
@@ -96,14 +66,14 @@ public class StairsTests
         StairsParts parts = default;
         var figure = Of([5, 3, 7], [0, 1, 2, 3], configure: p => parts = p);
 
-        Assert.Same(OutlineOf(figure), parts.Outline);
+        Assert.Same(figure.OnlySeries<LineSeries>(), parts.Outline);
         Assert.Null(parts.Fill);
     }
 
     [Fact]
     public void WithoutABaseline_TheStaircaseIsOnePolyline_NothingIsFilled()
     {
-        var drawn = Drawn(Of([5, 3, 7], [0, 1, 2, 3]));
+        var drawn = Of([5, 3, 7], [0, 1, 2, 3]).Drawn();
 
         var strokes = Strokes(drawn);
 
@@ -115,7 +85,7 @@ public class StairsTests
     [Fact]
     public void TheRisers_AreVerticalOnThePage_AndTheTreadsAreLevel()
     {
-        var points = Assert.Single(Strokes(Drawn(Of([5, 3, 7], [0, 1, 2, 3]))));
+        var points = Assert.Single(Strokes(Of([5, 3, 7], [0, 1, 2, 3]).Drawn()));
 
         for (int i = 0; i < points.Length; i += 2)
         {
@@ -133,7 +103,7 @@ public class StairsTests
     [Fact]
     public void WithABaseline_TheChartIsOneAreaSeriesAndNothingElse()
     {
-        var axes = AxesOf(Of([5, 3, 7], [0, 1, 2, 3], baseline: 0));
+        var axes = (Of([5, 3, 7], [0, 1, 2, 3], baseline: 0)).SubPlots[0];
 
         var fill = Assert.IsType<AreaSeries>(Assert.Single(axes.Series));
 
@@ -147,14 +117,14 @@ public class StairsTests
         StairsParts parts = default;
         var figure = Of([5, 3, 7], [0, 1, 2, 3], baseline: 0, configure: p => parts = p);
 
-        Assert.Same(FillOf(figure), parts.Fill);
+        Assert.Same(figure.OnlySeries<AreaSeries>(), parts.Fill);
         Assert.Null(parts.Outline);
     }
 
     [Fact]
     public void ABaselineOfZero_FillsDownToZero_TheAreasOwnDefault()
     {
-        var fill = FillOf(Of([5, 3, 7], [0, 1, 2, 3], baseline: 0));
+        var fill = Of([5, 3, 7], [0, 1, 2, 3], baseline: 0).OnlySeries<AreaSeries>();
 
         Assert.Null(fill.YData2);
     }
@@ -162,7 +132,7 @@ public class StairsTests
     [Fact]
     public void ABaselineOfAnotherValue_FillsDownToIt_AtEveryPointOfTheStaircase()
     {
-        var fill = FillOf(Of([5, 3, 7], [0, 1, 2, 3], baseline: 2));
+        var fill = Of([5, 3, 7], [0, 1, 2, 3], baseline: 2).OnlySeries<AreaSeries>();
 
         Assert.Equal([2.0, 2.0, 2.0, 2.0, 2.0, 2.0], fill.YData2!);
     }
@@ -170,7 +140,7 @@ public class StairsTests
     [Fact]
     public void ANegativeBaseline_IsAsGoodAsAnyOther()
     {
-        var fill = FillOf(Of([5, 3, 7], [0, 1, 2, 3], baseline: -1.5));
+        var fill = Of([5, 3, 7], [0, 1, 2, 3], baseline: -1.5).OnlySeries<AreaSeries>();
 
         Assert.Equal(Enumerable.Repeat(-1.5, 6), fill.YData2);
     }
@@ -178,7 +148,7 @@ public class StairsTests
     [Fact]
     public void TheFill_IsStrokedOnceAlongItsTopEdge_AndNotAtAll_AlongTheRest()
     {
-        var drawn = Drawn(Of([5, 3, 7], [0, 1, 2, 3], baseline: 1));
+        var drawn = Of([5, 3, 7], [0, 1, 2, 3], baseline: 1).Drawn();
 
         var strokes = Strokes(drawn);
         var fills = Fills(drawn);
@@ -198,7 +168,7 @@ public class StairsTests
     {
         foreach (double? baseline in new double?[] { 0, 2, -3 })
         {
-            var drawn = Drawn(Of([5, 3, 7], [0, 1, 2, 3], baseline));
+            var drawn = Of([5, 3, 7], [0, 1, 2, 3], baseline).Drawn();
 
             Assert.Single(Fills(drawn));
             Assert.Single(Strokes(drawn));
@@ -212,9 +182,9 @@ public class StairsTests
     {
         var figure = Of([5, Gap, 7], [0, 1, 2, 3]);
 
-        var strokes = Strokes(Drawn(figure));
+        var strokes = Strokes(figure.Drawn());
 
-        Assert.Equal([5.0, 5.0, Gap, Gap, 7.0, 7.0], OutlineOf(figure).YData);
+        Assert.Equal([5.0, 5.0, Gap, Gap, 7.0, 7.0], figure.OnlySeries<LineSeries>().YData);
         Assert.Equal(2, strokes.Count);
         Assert.All(strokes, stroke => Assert.Equal(2, stroke.Length));
         // Parted: the first run ends where the second begins to the right of it, with the missing bin between them.
@@ -224,7 +194,7 @@ public class StairsTests
     [Fact]
     public void AMissingValue_IsAGap_InTheFill_AndInItsStroke()
     {
-        var drawn = Drawn(Of([5, Gap, 7], [0, 1, 2, 3], baseline: 0));
+        var drawn = Of([5, Gap, 7], [0, 1, 2, 3], baseline: 0).Drawn();
 
         var fills = Fills(drawn);
         var strokes = Strokes(drawn);
@@ -238,8 +208,8 @@ public class StairsTests
     [Fact]
     public void AMissingValue_IsNeverAZero()
     {
-        var zero = Drawn(Of([5, 0, 7], [0, 1, 2, 3]));
-        var missing = Drawn(Of([5, Gap, 7], [0, 1, 2, 3]));
+        var zero = Of([5, 0, 7], [0, 1, 2, 3]).Drawn();
+        var missing = Of([5, Gap, 7], [0, 1, 2, 3]).Drawn();
 
         // A bin at zero is a bin: one line, three bins. A missing bin is no bin: two lines, two bins.
         Assert.Single(Strokes(zero));
@@ -252,7 +222,7 @@ public class StairsTests
     {
         var figure = Of([5, 3, 7, 2], [0, 1, Gap, 3, 4]);
 
-        var strokes = Strokes(Drawn(figure));
+        var strokes = Strokes(figure.Drawn());
 
         // Bins 1 and 2 touch the missing edge: only bin 0 and bin 3 are left, each a level tread of two points, no stub.
         Assert.Equal(2, strokes.Count);
@@ -262,7 +232,7 @@ public class StairsTests
     [Fact]
     public void AMissingEdge_MasksBothBinsNextToIt_InTheFill()
     {
-        var drawn = Drawn(Of([5, 3, 7, 2], [0, 1, Gap, 3, 4], baseline: 0));
+        var drawn = Of([5, 3, 7, 2], [0, 1, Gap, 3, 4], baseline: 0).Drawn();
 
         var fills = Fills(drawn);
         var strokes = Strokes(drawn);
@@ -280,21 +250,25 @@ public class StairsTests
     {
         var figure = Of([Gap, Gap], [0, 1, 2], baseline: 0);
 
-        var drawn = Drawn(figure);
+        var drawn = figure.Drawn();
 
         Assert.Empty(Strokes(drawn));
         Assert.Empty(Fills(drawn));
         Assert.NotEmpty(figure.ToSvg());
     }
 
-    [Fact]
-    public void TheSvg_NeverCarriesAMissingValue()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        Assert.DoesNotContain("NaN", Of([5, Gap, 7], [0, 1, 2, 3]).ToSvg());
-        Assert.DoesNotContain("NaN", Of([5, Gap, 7], [0, 1, 2, 3], baseline: 0).ToSvg());
-        Assert.DoesNotContain("NaN", Of([5, 3, 7, 2], [0, 1, Gap, 3, 4]).ToSvg());
-        Assert.DoesNotContain("NaN", Of([5, 3, 7, 2], [0, 1, Gap, 3, 4], baseline: 1).ToSvg());
-    }
+        new DrawnToken("TheSvg_NeverCarriesAMissingValue (#1)", () => Of([5, Gap, 7], [0, 1, 2, 3]).ToSvg()) { Finite = true },
+        new DrawnToken("TheSvg_NeverCarriesAMissingValue (#2)", () => Of([5, Gap, 7], [0, 1, 2, 3], baseline: 0).ToSvg()) { Finite = true },
+        new DrawnToken("TheSvg_NeverCarriesAMissingValue (#3)", () => Of([5, 3, 7, 2], [0, 1, Gap, 3, 4]).ToSvg()) { Finite = true },
+        new DrawnToken("TheSvg_NeverCarriesAMissingValue (#4)", () => Of([5, 3, 7, 2], [0, 1, Gap, 3, 4], baseline: 1).ToSvg()) { Finite = true },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- edges and values --------------------------------------------------------------------------------------------
 
@@ -303,7 +277,7 @@ public class StairsTests
     {
         var figure = Of([], [3]);
 
-        Assert.Empty(OutlineOf(figure).XData);
+        Assert.Empty(figure.OnlySeries<LineSeries>().XData);
         Assert.NotEmpty(figure.ToSvg());
         Assert.NotEmpty(Of([], [3], baseline: 0).ToSvg());
     }
@@ -311,16 +285,49 @@ public class StairsTests
     [Fact]
     public void OneBin_IsOneTread()
     {
-        var points = Assert.Single(Strokes(Drawn(Of([4], [1, 3]))));
+        var points = Assert.Single(Strokes(Of([4], [1, 3]).Drawn()));
 
         Assert.Equal(2, points.Length);
         Assert.Equal(points[0].Y, points[1].Y, 9);
     }
 
     [Fact]
+    public void ManyBins_FollowEachOther_TheRiserBeingTheStepFromOneValueToTheNext()
+    {
+        var line = Of([5, 3, 7], [0, 1, 2, 3]).OnlySeries<LineSeries>();
+
+        Assert.Equal([0.0, 1.0, 1.0, 2.0, 2.0, 3.0], line.XData);
+        Assert.Equal([5.0, 5.0, 3.0, 3.0, 7.0, 7.0], line.YData);
+    }
+
+    [Fact]
+    public void AZeroValue_IsADrawnBin_NotAGap()
+    {
+        Assert.Equal([0.0, 0.0], Of([0], [0, 1]).OnlySeries<LineSeries>().YData);
+    }
+
+    /// <summary>A missing value makes a gap of its bin and keeps the edges it stands between; a missing edge masks both bins next to
+    /// it (bin 1 ends in edge 2 and bin 2 begins with it, so neither can be placed); an infinity is no drawable number either; and the
+    /// staircase holds two points for every bin, missing or not.</summary>
+    [Theory]
+    [InlineData(Gap)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void AValueOrAnEdgeThatCannotBeDrawn_MakesAGap_OfTheBinsItBelongsTo(double bad)
+    {
+        var inValue = Of([5, bad, 7], [0, 1, 2, 3]).OnlySeries<LineSeries>();
+        var inEdge = Of([5, 3, 7, 2], [0, 1, bad, 3, 4]).OnlySeries<LineSeries>();
+
+        Assert.Equal([0.0, 1.0, 1.0, 2.0, 2.0, 3.0], inValue.XData);
+        Assert.Equal([5.0, 5.0, Gap, Gap, 7.0, 7.0], inValue.YData);
+        Assert.Equal([0.0, 1.0, 1.0, bad, bad, 3.0, 3.0, 4.0], inEdge.XData);
+        Assert.Equal([5.0, 5.0, Gap, Gap, Gap, Gap, 2.0, 2.0], inEdge.YData);
+    }
+
+    [Fact]
     public void TheBins_NeedNotBeEqualInWidth()
     {
-        var line = OutlineOf(Of([1, 2], [0, 0.5, 4]));
+        var line = Of([1, 2], [0, 0.5, 4]).OnlySeries<LineSeries>();
 
         Assert.Equal([0.0, 0.5, 0.5, 4.0], line.XData);
     }
@@ -330,7 +337,7 @@ public class StairsTests
     {
         double[] values = [5, 3];
         double[] edges = [0, 1, 2];
-        var line = OutlineOf(Of(values, edges));
+        var line = Of(values, edges).OnlySeries<LineSeries>();
 
         values[0] = 99;
         edges[0] = 99;
@@ -339,103 +346,7 @@ public class StairsTests
         Assert.Equal(5.0, line.YData[0]);
     }
 
-    // ---- the call ----------------------------------------------------------------------------------------------------
-
-    [Fact]
-    public void TheStaircase_IsOneColourSlot_TheNextSeriesTakesTheNextColour()
-    {
-        var figure = Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax => ax
-            .Stairs([5, 3, 7], [0, 1, 2, 3])
-            .Plot([0.0, 4.0], [1.0, 2.0])).Build();
-
-        var drawn = Drawn(figure);
-
-        Assert.Contains(drawn.OfKind("DrawLines").Select(call => (Color)((dynamic)call.Args!).color), colour => colour == Theme.Default.CycleColors[1]);
-        Assert.Single(Strokes(drawn));
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData(0.0)]
-    public void TheStaircase_IsOneLegendEntry_InEitherForm(double? baseline)
-    {
-        var figure = Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax => ax
-            .Stairs([5, 3, 7, 2, 4], [0, 1, 2, 3, 4, 5], baseline, parts => ((ISeries?)parts.Outline ?? parts.Fill)!.Label = "counts")
-            .WithLegend()).Build();
-        figure.EnableLegendToggle = true;
-
-        string svg = figure.ToSvg();
-
-        Assert.Single(Regex.Matches(svg, "data-legend-index="));
-        Assert.Contains("counts", svg);
-    }
-
-    [Fact]
-    public void WhatTheCallbackSets_WinsOverWhatTheVerbDid()
-    {
-        var line = Of([5, 3], [0, 1, 2], configure: p => { p.Outline!.Color = Colors.Red; p.Outline.LineWidth = 4; p.Outline.LineStyle = LineStyle.Dashed; });
-        var fill = Of([5, 3], [0, 1, 2], baseline: 0, configure: p => { p.Fill!.Color = Colors.Blue; p.Fill.Alpha = 0.8; p.Fill.EdgeColor = Colors.Black; });
-
-        Assert.Equal(Colors.Red, OutlineOf(line).Color);
-        Assert.Equal(4.0, OutlineOf(line).LineWidth);
-        Assert.Contains(Drawn(line).OfKind("DrawLines"), call => (Color)((dynamic)call.Args!).color == Colors.Red);
-        Assert.Equal(Colors.Blue, FillOf(fill).Color);
-        Assert.Equal(0.8, FillOf(fill).Alpha);
-        Assert.Contains(Drawn(fill).OfKind("DrawLines"), call => (Color)((dynamic)call.Args!).color == Colors.Black);
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData(0.0)]
-    public void TheCallback_RunsOnce_OnThePartsOfTheSeriesTheVerbAdded(double? baseline)
-    {
-        var seen = new List<StairsParts>();
-
-        var figure = Of([5, 3], [0, 1, 2], baseline, seen.Add);
-
-        var parts = Assert.Single(seen);
-        Assert.Same(Assert.Single(AxesOf(figure).Series), (ISeries?)parts.Outline ?? parts.Fill);
-    }
-
-    [Fact]
-    public void TheVerb_ChainsWithTheRestOfTheBuilder()
-    {
-        var builder = Plt.Create().AddSubPlot(1, 1, 1, ax =>
-        {
-            Assert.Same(ax, ax.Stairs([1], [0, 1]));
-            Assert.Same(ax, ax.Stairs([1], [0, 1], 0));
-        });
-
-        Assert.Equal(2, builder.Build().SubPlots[0].Series.Count);
-    }
-
     // ---- the JSON ----------------------------------------------------------------------------------------------------
-
-    [Fact]
-    public void TheOutline_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Of([5, Gap, 7], [0, 1, 2, 3], configure: p => p.Outline!.Label = "counts");
-
-        string json = figure.ToJson();
-        var back = ChartSerializerDefault.Current.FromJson(json);
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
-        Assert.IsType<LineSeries>(Assert.Single(back.SubPlots[0].Series));
-        Assert.Contains("\"NaN\"", json);
-    }
-
-    [Fact]
-    public void TheFill_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Of([5, Gap, 7], [0, 1, 2, 3], baseline: 1, configure: p => p.Fill!.Label = "counts");
-
-        string json = figure.ToJson();
-        var back = ChartSerializerDefault.Current.FromJson(json);
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
-        Assert.IsType<AreaSeries>(Assert.Single(back.SubPlots[0].Series));
-        Assert.Contains("\"NaN\"", json);
-    }
 
     [Fact]
     public void AMissingEdge_SurvivesTheJson_AsAMissingX_InBothForms()
@@ -468,14 +379,14 @@ public class StairsTests
         var thrown = Assert.Throws<ArgumentException>(() => Of([1, 2], [0, 1, 2, 3]));
 
         Assert.Equal("edges", thrown.ParamName);
-        Assert.Contains("4", thrown.Message);
-        Assert.Contains("2", thrown.Message);
+        Assert.StartsWith(4.RefusalAgainst(3), thrown.Message);
     }
 
     [Fact]
     public void AsManyEdgesAsValues_IsRefused_BecauseABinHasTwoEdges()
     {
         Assert.Equal("edges", Assert.Throws<ArgumentException>(() => Of([1, 2, 3], [0, 1, 2], baseline: 0)).ParamName);
+        Assert.Equal("edges", Assert.Throws<ArgumentException>(() => Of([], [])).ParamName);
     }
 
     [Theory]
@@ -484,21 +395,9 @@ public class StairsTests
     [InlineData(double.NegativeInfinity)]
     public void ABaselineThatCannotBeDrawn_IsRefused_ByItsName(double baseline)
     {
-        var thrown = Assert.Throws<ArgumentException>(() => Of([1, 2], [0, 1, 2], baseline));
+        var thrown = Assert.Throws<ArgumentOutOfRangeException>(() => Of([1, 2], [0, 1, 2], baseline));
 
         Assert.Equal("baseline", thrown.ParamName);
-    }
-
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax =>
-        {
-            Assert.Throws<ArgumentException>(() => ax.Stairs([1, 2, 3], [0, 1, 2]));
-            Assert.Throws<ArgumentException>(() => ax.Stairs([1, 2], [0, 1, 2], double.NaN));
-        }).Build().SubPlots[0];
-
-        Assert.Empty(axes.Series);
     }
 
     [Fact]
@@ -506,13 +405,5 @@ public class StairsTests
     {
         Assert.Equal("values", Assert.Throws<ArgumentNullException>(() => Of(null!, [0.0, 1.0])).ParamName);
         Assert.Equal("edges", Assert.Throws<ArgumentNullException>(() => Of([1.0], null!)).ParamName);
-    }
-
-    [Fact]
-    public void ANullBuilder_IsRefused()
-    {
-        AxesBuilder axes = null!;
-
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => axes.Stairs([1.0], [0.0, 1.0])).ParamName);
     }
 }

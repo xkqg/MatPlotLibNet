@@ -18,8 +18,8 @@ what matplotlib draws with the keywords left out:
 
 | Options | Used by | Holds |
 |---|---|---|
-| `SpectralOptions` | `Psd`, `Csd`, `Cohere` | `SampleRate` (2), `Window` (Hann), `Detrend` (none), `SegmentLength` (256), `Overlap` (0), `PadTo` (0, none), `CenterFrequency` (0), `Scaling` (`Density`) |
-| `SpectrumOptions` | `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum` | `SampleRate` (2), `Window` (Hann), `PadTo` (0, none), `CenterFrequency` (0) |
+| `SpectralOptions` | `Psd`, `Csd`, `Cohere` | `SampleRate` (2), `Window` (Hann), `Detrend` (none), `SegmentLength` (256), `Overlap` (0), `PadTo` (0, none), `CenterFrequency` (0), `Scaling` (`Density`), `Sides` (`Default`, one-sided) |
+| `SpectrumOptions` | `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum` | `SampleRate` (2), `Window` (Hann), `PadTo` (0, none), `CenterFrequency` (0), `Sides` (`Default`, one-sided) |
 | `CorrelationOptions` | `Acorr`, `Xcorr` | `MaxLags` (10), `Unnormalised` (false), `Detrend` (none), `Markers` (false) |
 
 A window is a `SpectralWindow` (`Hann`, `Hamming`, `Blackman`, `Rectangular`, or `SpectralWindow.Of` your own weights) and
@@ -27,6 +27,12 @@ a detrend a `SpectralDetrend` (`None`, `Mean`, `Linear`, or `SpectralDetrend.Of`
 `MatPlotLibNet.Numerics`. A setting that cannot be used (a sample rate that is not above zero, a negative overlap) is
 refused by its own name when it is set; one that does not fit the others or the signal (an overlap as long as the segment,
 a segment longer than the signal) is refused by the verb, before it draws anything.
+
+One-sided, every frequency but 0 counts twice, for its mirror image on the other side, and so does the last one unless it is
+exactly half the sample rate, which happens when the length the segments are transformed at is even: the padded length when
+`PadTo` is set. matplotlib takes the segment length for that instead, so when `PadTo` turns an even length odd or an odd one
+even its last value is half or twice what it should be, 3 dB off, and its spectrum no longer adds up to the power of the
+signal. The library's does, padded or not; without padding the two agree.
 
 The examples below use two signals: the vibration of a machine, with tones at 50 and 170 Hz, and a sensor on its casing,
 which picks up the 50 Hz three samples later and a tone of its own at 310 Hz, each with some noise:
@@ -71,6 +77,26 @@ Plt.Create()
 The Y axis is titled "Power Spectral Density (dB/Hz)", or "(dB)" with `Scaling = SpectralScaling.Spectrum` (matplotlib's
 `scale_by_freq=False`). A title of your own set after the call replaces it. What is left at the end of the signal, less
 than a segment, is not used, and a signal shorter than one segment is refused: give a shorter `SegmentLength`.
+
+### Both sides of zero
+
+A real signal has the same power at a frequency and at its negative, so by default the line shows only the frequencies from 0
+up to half the sample rate and doubles the power of each bin to make up for the missing half (matplotlib's `sides='default'`
+for a real signal, which every signal here is). `Sides = SpectralSides.TwoSided` draws every frequency of the transform instead,
+from minus half the sample rate up, each at half the power (matplotlib's `sides='twosided'`): a transform of 256 samples gives
+256 points, the first at -500 Hz here. `SpectrumOptions` takes the same `Sides` for the magnitude, phase and angle spectrum.
+
+```csharp
+Plt.Create()
+    .WithTitle("The vibration's power at negative frequencies too")
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Psd(vibration, options with { Sides = MatPlotLibNet.Numerics.SpectralSides.TwoSided }, line => line.Label = "vibration")
+        .SetXLabel("Frequency (Hz)")
+        .WithLegend())
+    .Save("psd_two_sided.svg");
+```
+
+![The power spectral density of the vibration over negative and positive frequencies, mirrored about zero](../images/psd_two_sided.png)
 
 ## Cross spectral density (csd)
 

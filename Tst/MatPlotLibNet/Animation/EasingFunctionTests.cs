@@ -13,34 +13,42 @@ public class EasingFunctionTests
 
     // ── Linear ────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Linear_Zero_ReturnsZero() => Assert.Equal(0.0, EasingFunction.Linear(0), Eps);
-    [Fact]
-    public void Linear_One_ReturnsOne() => Assert.Equal(1.0, EasingFunction.Linear(1), Eps);
-    [Fact]
-    public void Linear_Half_ReturnsHalf() => Assert.Equal(0.5, EasingFunction.Linear(0.5), Eps);
-    [Fact]
-    public void Linear_IsIdentity() => Assert.Equal(0.75, EasingFunction.Linear(0.75), Eps);
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(1.0)]
+    [InlineData(0.5)]
+    [InlineData(0.75)]
+    public void Linear_IsIdentity(double t) => Assert.Equal(t, EasingFunction.Linear(t), Eps);
+
+    /// <summary>Every eased function starts at 0 and ends at 1, as the straight one does.</summary>
+    [Theory]
+    [InlineData(EasingKind.EaseIn)]
+    [InlineData(EasingKind.EaseOut)]
+    [InlineData(EasingKind.EaseInOut)]
+    [InlineData(EasingKind.Bounce)]
+    [InlineData(EasingKind.Elastic)]
+    public void AnEasedFunction_MapsZeroToZero_AndOneToOne(EasingKind kind)
+    {
+        Assert.Equal(0.0, EasingFunction.Apply(kind, 0), Eps);
+        Assert.Equal(1.0, EasingFunction.Apply(kind, 1), Eps);
+    }
 
     // ── EaseIn ────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void EaseIn_Zero_ReturnsZero() => Assert.Equal(0.0, EasingFunction.EaseIn(0), Eps);
-    [Fact]
-    public void EaseIn_One_ReturnsOne() => Assert.Equal(1.0, EasingFunction.EaseIn(1), Eps);
-    [Fact]
-    public void EaseIn_Half_LessThanHalf()
+    /// <summary>An ease that starts slowly is behind the straight line early on: ease-in (quadratic) at t=0.5 is slower than linear at the
+    /// start, and the first half of ease-in-out behaves like ease-in.</summary>
+    public static TheoryData<Func<double, double>, double> SlowStarts => new()
     {
-        // Ease-in (quadratic) at t=0.5 is slower than linear at start
-        Assert.True(EasingFunction.EaseIn(0.5) < 0.5);
-    }
+        { EasingFunction.EaseIn, 0.5 },
+        { EasingFunction.EaseInOut, 0.25 },
+    };
+
+    [Theory]
+    [MemberData(nameof(SlowStarts))]
+    public void AnEaseThatStartsSlowly_IsBehindTheLine_EarlyOn(Func<double, double> ease, double t) => Assert.True(ease(t) < 0.5);
 
     // ── EaseOut ───────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void EaseOut_Zero_ReturnsZero() => Assert.Equal(0.0, EasingFunction.EaseOut(0), Eps);
-    [Fact]
-    public void EaseOut_One_ReturnsOne() => Assert.Equal(1.0, EasingFunction.EaseOut(1), Eps);
     [Fact]
     public void EaseOut_Half_GreaterThanHalf()
     {
@@ -51,28 +59,14 @@ public class EasingFunctionTests
     // ── EaseInOut ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public void EaseInOut_Zero_ReturnsZero() => Assert.Equal(0.0, EasingFunction.EaseInOut(0), Eps);
-    [Fact]
-    public void EaseInOut_One_ReturnsOne() => Assert.Equal(1.0, EasingFunction.EaseInOut(1), Eps);
-    [Fact]
     public void EaseInOut_Half_ReturnsHalf()
     {
         // S-curve is symmetric: t=0.5 → 0.5
         Assert.Equal(0.5, EasingFunction.EaseInOut(0.5), 1e-6);
     }
-    [Fact]
-    public void EaseInOut_Quarter_LessThanHalf()
-    {
-        // First half behaves like ease-in
-        Assert.True(EasingFunction.EaseInOut(0.25) < 0.5);
-    }
 
     // ── Bounce ────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Bounce_Zero_ReturnsZero() => Assert.Equal(0.0, EasingFunction.Bounce(0), Eps);
-    [Fact]
-    public void Bounce_One_ReturnsOne() => Assert.Equal(1.0, EasingFunction.Bounce(1), Eps);
     [Fact]
     public void Bounce_StaysNonNegative()
     {
@@ -82,10 +76,6 @@ public class EasingFunctionTests
 
     // ── Elastic ───────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Elastic_Zero_ReturnsZero() => Assert.Equal(0.0, EasingFunction.Elastic(0), Eps);
-    [Fact]
-    public void Elastic_One_ReturnsOne() => Assert.Equal(1.0, EasingFunction.Elastic(1), Eps);
     [Fact]
     public void Elastic_Mid_CanExceedOne()
     {
@@ -98,27 +88,27 @@ public class EasingFunctionTests
 
     // ── Apply (dispatch by name) ──────────────────────────────────────────────
 
-    [Fact]
-    public void Apply_Linear_MatchesLinear()
-        => Assert.Equal(EasingFunction.Linear(0.3), EasingFunction.Apply(EasingKind.Linear, 0.3), Eps);
+    /// <summary>Apply runs the function of the kind it is given.</summary>
+    [Theory]
+    [InlineData(EasingKind.Linear)]
+    [InlineData(EasingKind.EaseIn)]
+    [InlineData(EasingKind.EaseOut)]
+    [InlineData(EasingKind.EaseInOut)]
+    [InlineData(EasingKind.Bounce)]
+    [InlineData(EasingKind.Elastic)]
+    public void Apply_RunsTheFunctionOfTheKind(EasingKind kind)
+    {
+        Func<double, double> function = kind switch
+        {
+            EasingKind.Linear => EasingFunction.Linear,
+            EasingKind.EaseIn => EasingFunction.EaseIn,
+            EasingKind.EaseOut => EasingFunction.EaseOut,
+            EasingKind.EaseInOut => EasingFunction.EaseInOut,
+            EasingKind.Bounce => EasingFunction.Bounce,
+            _ => EasingFunction.Elastic,
+        };
 
-    [Fact]
-    public void Apply_EaseIn_MatchesEaseIn()
-        => Assert.Equal(EasingFunction.EaseIn(0.3), EasingFunction.Apply(EasingKind.EaseIn, 0.3), Eps);
+        Assert.Equal(function(0.3), EasingFunction.Apply(kind, 0.3), Eps);
+    }
 
-    [Fact]
-    public void Apply_EaseOut_MatchesEaseOut()
-        => Assert.Equal(EasingFunction.EaseOut(0.3), EasingFunction.Apply(EasingKind.EaseOut, 0.3), Eps);
-
-    [Fact]
-    public void Apply_EaseInOut_MatchesEaseInOut()
-        => Assert.Equal(EasingFunction.EaseInOut(0.3), EasingFunction.Apply(EasingKind.EaseInOut, 0.3), Eps);
-
-    [Fact]
-    public void Apply_Bounce_MatchesBounce()
-        => Assert.Equal(EasingFunction.Bounce(0.3), EasingFunction.Apply(EasingKind.Bounce, 0.3), Eps);
-
-    [Fact]
-    public void Apply_Elastic_MatchesElastic()
-        => Assert.Equal(EasingFunction.Elastic(0.3), EasingFunction.Apply(EasingKind.Elastic, 0.3), Eps);
 }

@@ -5,6 +5,8 @@ using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -12,12 +14,12 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// <see cref="MatPlotLibNet.Rendering.SeriesRenderers.BarSeriesRenderer"/>. Pre-X.9
 /// the renderer was at 71.8%L / 65.4%B because only the simplest path (categorical
 /// vertical, no labels, no edges, no stack) was exercised. This file pins:
-///   - Vertical vs Horizontal orientation (line 65 short-circuit)
-///   - Categorical (Center vs Edge alignment) vs numeric XCoordinate paths (lines 37, 46, 52)
-///   - LineWidth=0+EdgeColor vs LineWidth&gt;0 (line 29-30 ternaries)
-///   - StackBaseline path (line 64)
-///   - ShowLabels=true with vertical AND horizontal (lines 35, 71-77, 85-91)
-///   - LabelLayoutEngine batch placement (lines 95-108) including custom LabelFormat</summary>
+///   - Vertical vs Horizontal orientation
+///   - Categorical (Center vs Edge alignment) vs numeric XCoordinate paths
+///   - LineWidth=0+EdgeColor vs LineWidth&gt;0
+///   - StackBaseline path
+///   - ShowLabels=true with vertical AND horizontal
+///   - LabelLayoutEngine batch placement including custom LabelFormat</summary>
 public class BarSeriesRendererTests
 {
     private static string Render(BarSeries s) =>
@@ -27,98 +29,62 @@ public class BarSeriesRendererTests
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_VerticalCategorical_BasicPath()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new BarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]));
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Horizontal orientation arm of line 65. Bars draw left-to-right;
-    /// LabelCandidates are positioned right-of-bar (line 89-90).</summary>
-    [Fact]
-    public void Render_HorizontalOrientation_WithLabels_DrawsBarsAndLabels()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [1.0, 2.0])
+        new DrawnToken("Render_VerticalCategorical_BasicPath", () => Render(new BarSeries(["A", "B", "C"], [1.0, 2.0, 3.0])), "<rect"),
+        // Horizontal orientation. Bars draw left-to-right; LabelCandidates are positioned right-of-bar.
+        new DrawnToken("Render_HorizontalOrientation_WithLabels_DrawsBarsAndLabels", () => Render(new BarSeries(["A", "B"], [1.0, 2.0])
         {
             Orientation = BarOrientation.Horizontal,
             ShowLabels = true,
-        });
-        Assert.Contains("<rect", svg);
-        Assert.Contains("<text", svg);
-    }
-
-    /// <summary>Numeric XCoordinate path (line 37 useNumericX=true, line 46 inner branch).
-    /// Used by MACD-style histograms that share a real X axis with a line series.</summary>
-    [Fact]
-    public void Render_NumericXCoordinate_PlacesBarAtX()
-    {
-        var svg = Render(new BarSeries([1.0, 2.0, 3.0], [10.0, 20.0, 15.0]));
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Categorical Edge alignment (line 52 false→true arm of useNumericX,
-    /// then line 52 true arm of Align==Edge). Bar starts at the slot edge, not center.</summary>
-    [Fact]
-    public void Render_CategoricalEdgeAlignment_DrawsBarsAtSlotEdge()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [1.0, 2.0])
+        }), "<rect", "<text"),
+        // Numeric XCoordinate path (useNumericX=true). Used by MACD-style histograms that share a real X
+        // axis with a line series.
+        new DrawnToken("Render_NumericXCoordinate_PlacesBarAtX", () => Render(new BarSeries([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])), "<rect"),
+        // Categorical Edge alignment (Align==Edge on a categorical axis). Bar starts at the slot
+        // edge, not center.
+        new DrawnToken("Render_CategoricalEdgeAlignment_DrawsBarsAtSlotEdge", () => Render(new BarSeries(["A", "B"], [1.0, 2.0])
         {
             Align = BarAlignment.Edge,
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>StackBaseline non-null path (line 64 ternary's true arm). Used by
-    /// stacked-bar plots where each series sits on top of the cumulative sum below.</summary>
-    [Fact]
-    public void Render_StackBaseline_OffsetsBarsByBaseline()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [1.0, 2.0])
+        }), "<rect"),
+        // StackBaseline non-null path. Used by stacked-bar plots where each series sits on top of the
+        // cumulative sum below.
+        new DrawnToken("Render_StackBaseline_OffsetsBarsByBaseline", () => Render(new BarSeries(["A", "B"], [1.0, 2.0])
         {
             StackBaseline = new[] { 5.0, 10.0 },
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>LineWidth&gt;0 path (line 29 ternary's true arm + line 30 EdgeColor
-    /// fallback to baseColor). Bars get an explicit border at the requested width.</summary>
-    [Fact]
-    public void Render_LineWidthGreaterThanZero_FallsBackToBaseColorForEdge()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [1.0, 2.0])
+        }), "<rect"),
+        // LineWidth>0 path (EdgeColor falls back to baseColor). Bars get an explicit border at the
+        // requested width.
+        // EdgeColor null → falls back to baseColor
+        new DrawnToken("Render_LineWidthGreaterThanZero_FallsBackToBaseColorForEdge", () => Render(new BarSeries(["A", "B"], [1.0, 2.0])
         {
             LineWidth = 2.0,
-            // EdgeColor null → falls back to baseColor at line 30
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>EdgeColor.HasValue path with LineWidth=0 (line 29 ternary's false arm,
-    /// EdgeColor.HasValue true → edgeWidth=1; line 30 false arm, edgeColor=series.EdgeColor).</summary>
-    [Fact]
-    public void Render_EdgeColorWithoutLineWidth_DefaultsToWidthOne()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [1.0, 2.0])
+            
+        }), "<rect"),
+        // EdgeColor.HasValue path with LineWidth=0 (EdgeColor.HasValue true → edgeWidth=1;
+        // edgeColor=series.EdgeColor).
+        new DrawnToken("Render_EdgeColorWithoutLineWidth_DefaultsToWidthOne", () => Render(new BarSeries(["A", "B"], [1.0, 2.0])
         {
             EdgeColor = Colors.Red,
-        });
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Custom LabelFormat (line 73 + FormatValue line 112-114). Verifies the
-    /// labelFormat-not-null arm and that the formatted text shows up in SVG output.</summary>
-    [Fact]
-    public void Render_ShowLabels_WithCustomLabelFormat_AppliesFormat()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [1.5, 2.5])
+        }), "<rect"),
+        // Custom LabelFormat (the labelFormat-not-null arm). Verifies that the formatted text shows
+        // up in SVG output.
+        // → "1.50", "2.50"
+        new DrawnToken("Render_ShowLabels_WithCustomLabelFormat_AppliesFormat", () => Render(new BarSeries(["A", "B"], [1.5, 2.5])
         {
             ShowLabels = true,
-            LabelFormat = "F2",   // → "1.50", "2.50"
-        });
-        Assert.Contains(">1.50<", svg);
-        Assert.Contains(">2.50<", svg);
-    }
+            LabelFormat = "F2",   
+        }), ">1.50<", ">2.50<"),
+        // End to end, through the figure: a bar of 12345 is labelled 12345, not an exponent, in the SVG.
+        new DrawnToken("ABarOf12345_IsLabelledWithAllItsDigitsInTheSvg", () => Render(new BarSeries(["A", "B"], [12345.0, 6789.0]) { ShowLabels = true }), ">12345<", ">6789<") { Absent = ["E+04"] },
+        // Negative values arm (Math.Min/Max so a negative value renders below baseline). No exception, rect drawn.
+        new DrawnToken("Render_NegativeValues_DrawsBarsBelowBaseline", () => Render(new BarSeries(["A", "B"], [-1.0, -2.0])), "<rect"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── the default value label: up to six significant digits, as matplotlib's bar_label '%g' ──────────────────────
 
@@ -135,7 +101,7 @@ public class BarSeriesRendererTests
         var ctx = new RecordingRenderContext();
         new BarSeriesRenderer(new SeriesRenderContext(transform, ctx, Colors.Tab10Blue, new RenderArea(bounds, ctx)))
             .Render(new BarSeries(["A"], [value]) { Orientation = orientation, ShowLabels = true, LabelFormat = format });
-        return (string)((dynamic)Assert.Single(ctx.OfKind("DrawText")).Args!).text;
+        return (string)Assert.Single(ctx.Of<DrawTextCall>()).Text;
     }
 
     /// <summary>A bar without a <c>LabelFormat</c> is labelled as matplotlib's <c>bar_label</c> labels it by default,
@@ -173,17 +139,6 @@ public class BarSeriesRendererTests
     public void ANamedBarLabelFormat_IsAppliedAsGiven(string format, double value, string expected) =>
         Assert.Equal(expected, LabelOf(value, BarOrientation.Vertical, format));
 
-    /// <summary>End to end, through the figure: a bar of 12345 is labelled <c>12345</c>, not an exponent, in the SVG.</summary>
-    [Fact]
-    public void ABarOf12345_IsLabelledWithAllItsDigitsInTheSvg()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [12345.0, 6789.0]) { ShowLabels = true });
-
-        Assert.Contains(">12345<", svg);
-        Assert.Contains(">6789<", svg);
-        Assert.DoesNotContain("E+04", svg);
-    }
-
     /// <summary>A centred bar and its category's label stand on one x: the renderer draws the bar where
     /// <see cref="CategorySlot"/> puts it and the axis writes the label on the same slot's centre, so a mark placed on
     /// <c>CategorySlot.Of(i).Centre</c> (a Pareto chart's running share) sits on the bar.</summary>
@@ -192,18 +147,13 @@ public class BarSeriesRendererTests
     {
         string svg = Render(new BarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]));
 
-        var barCentres = System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""[0-9.eE+-]+"" width=""([0-9.eE+-]+)"" height=""[0-9.eE+-]+"" fill=""#1F77B4""")
-            .Select(m => Number(m.Groups[1].Value) + Number(m.Groups[2].Value) / 2)
-            .ToArray();
-        var labelXs = new[] { "A", "B", "C" }
-            .Select(name => Number(System.Text.RegularExpressions.Regex.Match(svg, $@"<text[^>]*?x=""([-0-9.]+)""[^>]*>{name}</text>").Groups[1].Value))
-            .ToArray();
+        var barCentres = svg.RectsFilled("#1F77B4").Select(rect => rect.X + rect.Width / 2).ToArray();
+        var labelXs = new[] { "A", "B", "C" }.Select(name => svg.TextReading(name).Number("x")).ToArray();
 
         Assert.Equal(3, barCentres.Length);
         for (int i = 0; i < 3; i++)
         {
-            Assert.Equal(labelXs[i], barCentres[i], 6);
+            Assert.Equal(labelXs[i], barCentres[i], SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -221,20 +171,7 @@ public class BarSeriesRendererTests
     }
 
     private static (double X, double Width)[] BarRects(string svg) =>
-        [.. System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""[0-9.eE+-]+"" width=""([0-9.eE+-]+)"" height=""[0-9.eE+-]+"" fill=""#1F77B4""")
-            .Select(m => (Number(m.Groups[1].Value), Number(m.Groups[2].Value)))];
-
-    private static double Number(string text) => double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
-
-    /// <summary>Negative values arm (lines 67-68 / 81-82 use Math.Min/Max so a negative
-    /// value renders below baseline). No exception, rect drawn.</summary>
-    [Fact]
-    public void Render_NegativeValues_DrawsBarsBelowBaseline()
-    {
-        var svg = Render(new BarSeries(["A", "B"], [-1.0, -2.0]));
-        Assert.Contains("<rect", svg);
-    }
+        [.. svg.RectsFilled("#1F77B4").Select(rect => (rect.X, rect.Width))];
 
     // ── horizontal bars: values along X, categories along Y ─────────────────────────────────────────────────────────
 
@@ -248,23 +185,12 @@ public class BarSeriesRendererTests
 
     /// <summary>The coloured bars, in the order they were drawn (category 0 first).</summary>
     internal static (double X, double Y, double W, double H)[] Bars(string svg) =>
-        [.. System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""([0-9.eE+-]+)"" width=""([0-9.eE+-]+)"" height=""([0-9.eE+-]+)"" fill=""#1F77B4""")
-            .Select(m => (Number(m.Groups[1].Value), Number(m.Groups[2].Value), Number(m.Groups[3].Value), Number(m.Groups[4].Value)))];
-
-    /// <summary>The plot area: the first background-coloured rectangle that is not the figure's.</summary>
-    internal static (double X, double Y, double W, double H) PlotArea(string svg)
-    {
-        var m = System.Text.RegularExpressions.Regex.Match(svg,
-            @"<rect x=""([1-9][0-9.]*)"" y=""([0-9.]+)"" width=""([0-9.]+)"" height=""([0-9.]+)"" fill=""#FFFFFF""");
-        return (Number(m.Groups[1].Value), Number(m.Groups[2].Value), Number(m.Groups[3].Value), Number(m.Groups[4].Value));
-    }
+        [.. svg.RectsFilled("#1F77B4").Select(rect => (rect.X, rect.Y, rect.Width, rect.Height))];
 
     /// <summary>Every text element that reads <paramref name="text"/>: where it stands, how it is anchored, its size.</summary>
     internal static (double X, double Y, string Anchor, double Size)[] Texts(string svg, string text) =>
-        [.. System.Text.RegularExpressions.Regex
-            .Matches(svg, $@"<text x=""([-0-9.eE+]+)"" y=""([-0-9.eE+]+)"" [^>]*?font-size=""([0-9.]+)"" text-anchor=""(\w+)""[^>]*>{System.Text.RegularExpressions.Regex.Escape(text)}</text>")
-            .Select(m => (Number(m.Groups[1].Value), Number(m.Groups[2].Value), m.Groups[4].Value, Number(m.Groups[3].Value)))];
+        [.. svg.Elements("text").Where(element => element.Text == text && element["font-size"] is not null && element["text-anchor"] is not null)
+            .Select(element => (element.Number("x"), element.Number("y"), element["text-anchor"]!, element.Number("font-size")))];
 
     /// <summary>Three horizontal bars of 10, 20 and 30 lie along X, each as long as its value on the X scale and all from
     /// the same x (the value 0); along Y each stands in its category's slot, 0.8 of the slot thick. Measured before the
@@ -274,21 +200,21 @@ public class BarSeriesRendererTests
     {
         string svg = Render(Horizontal(Abc, [10.0, 20.0, 30.0]));
         var bars = Bars(svg);
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.Equal(3, bars.Length);
         Assert.Single(bars.Select(b => Math.Round(b.X, 6)).Distinct());
-        Assert.Equal(2 * bars[0].W, bars[1].W, 6);
-        Assert.Equal(3 * bars[0].W, bars[2].W, 6);
+        Assert.Equal(2 * bars[0].W, bars[1].W, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(3 * bars[0].W, bars[2].W, SvgMarkupExtensions.WrittenPrecision);
         Assert.Single(bars.Select(b => Math.Round(b.H, 6)).Distinct());
         double pitch = bars[0].Y - bars[1].Y;
-        Assert.Equal(0.8 * pitch, bars[0].H, 6);
+        Assert.Equal(0.8 * pitch, bars[0].H, SvgMarkupExtensions.WrittenPrecision);
         Assert.All(bars, b =>
         {
-            Assert.InRange(b.X, plot.X - 1e-6, plot.X + plot.W);
-            Assert.InRange(b.X + b.W, plot.X, plot.X + plot.W + 1e-6);
-            Assert.InRange(b.Y, plot.Y - 1e-6, plot.Y + plot.H);
-            Assert.InRange(b.Y + b.H, plot.Y, plot.Y + plot.H + 1e-6);
+            Assert.InRange(b.X, plot.X - 1e-6, plot.X + plot.Width);
+            Assert.InRange(b.X + b.W, plot.X, plot.X + plot.Width + 1e-6);
+            Assert.InRange(b.Y, plot.Y - 1e-6, plot.Y + plot.Height);
+            Assert.InRange(b.Y + b.H, plot.Y, plot.Y + plot.Height + 1e-6);
         });
     }
 
@@ -300,19 +226,19 @@ public class BarSeriesRendererTests
     {
         string svg = Render(Horizontal(Abc, [10.0, 20.0, 30.0]));
         var bars = Bars(svg);
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.True(bars[0].Y > bars[1].Y && bars[1].Y > bars[2].Y, "the first category stands at the bottom");
         for (int i = 0; i < 3; i++)
         {
             var name = Assert.Single(Texts(svg, Abc[i]));
             double centre = bars[i].Y + bars[i].H / 2;
-            Assert.Equal(centre + 4, name.Y, 6);
+            Assert.Equal(centre + 0.35 * Theme.MatplotlibV2.TickFont().Size, name.Y, SvgMarkupExtensions.WrittenPrecision);   // centred on its tick: 0.35 of the ascent
             Assert.True(name.X < plot.X, $"{Abc[i]} stands left of the Y spine");
             Assert.Equal("end", name.Anchor);
-            Assert.Matches($@"<line x1=""[0-9.]+"" y1=""{Escaped(centre)}"" x2=""[0-9.]+"" y2=""{Escaped(centre)}""", svg);
+            Assert.Contains(svg.Elements("line"), line => line["y1"] == Written(centre) && line["y2"] == Written(centre));
         }
-        Assert.Contains(Texts(svg, "30"), t => t.Y > plot.Y + plot.H);
+        Assert.Contains(Texts(svg, "30"), t => t.Y > plot.Y + plot.Height);
     }
 
     /// <summary>A range set high to low on the category axis turns it over: the first category stands at the top, its
@@ -326,7 +252,7 @@ public class BarSeriesRendererTests
         Assert.True(bars[0].Y < bars[1].Y && bars[1].Y < bars[2].Y, "the first category stands at the top");
         for (int i = 0; i < 3; i++)
         {
-            Assert.Equal(bars[i].Y + bars[i].H / 2 + 4, Assert.Single(Texts(svg, Abc[i])).Y, 6);
+            Assert.Equal(bars[i].Y + bars[i].H / 2 + 0.35 * Theme.MatplotlibV2.TickFont().Size, Assert.Single(Texts(svg, Abc[i])).Y, SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -352,7 +278,7 @@ public class BarSeriesRendererTests
 
     /// <summary>The Y axis title stands clear of the longest name, by the rule a numeric Y axis follows (the names end at
     /// the tick mark and the pad left of the spine): the title's ink that faces the names, its baseline (the title being
-    /// turned a quarter about its anchor), stands the container's 4 px gap past the far side of the widest name.</summary>
+    /// turned a quarter about its anchor), stands the container's gap (4 px, or the matplotlib theme's labelpad) past the far side of the widest name.</summary>
     [Fact]
     public void TheYAxisTitle_StandsClearOfTheLongestName()
     {
@@ -362,13 +288,13 @@ public class BarSeriesRendererTests
             .Build();
         string svg = figure.ToSvg();
         double widest = new MatPlotLibNet.Rendering.Svg.SvgRenderContext()
-            .MeasureText(names[0], MatPlotLibNet.Rendering.ThemedFontProvider.TickFont(figure.Theme)).Width;
+            .MeasureText(names[0], figure.Theme.TickFont()).Width;
         double namesEnd = Assert.Single(Texts(svg, names[0])).X;
 
         var title = Assert.Single(Texts(svg, "Region"));
 
-        Assert.Equal(namesEnd - widest - 4, title.X + MatPlotLibNet.Rendering.FacingInk.TurnedSink * title.Size, 6);
-        Assert.All(names, name => Assert.Equal(namesEnd, Assert.Single(Texts(svg, name)).X, 6));
+        Assert.Equal(namesEnd - widest - figure.SubPlots[0].YAxes.TitleGapUnder(figure.Theme), title.X + MatPlotLibNet.Rendering.FacingInk.TurnedSink * title.Size, SvgMarkupExtensions.WrittenPrecision);
+        Assert.All(names, name => Assert.Equal(namesEnd, Assert.Single(Texts(svg, name)).X, SvgMarkupExtensions.WrittenPrecision));
     }
 
     // ── upright bars: the names on the X axis are its tick labels ───────────────────────────────────────────────────
@@ -396,14 +322,13 @@ public class BarSeriesRendererTests
     {
         string svg = WithXTicks(t => t);
         var bars = Bars(svg);
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var ticks = new MatPlotLibNet.Models.TickConfig();
         // The tick marks under the bottom spine: short vertical lines that start at it.
-        var marks = System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<line x1=""([0-9.eE+-]+)"" y1=""([0-9.eE+-]+)"" x2=""\1"" y2=""([0-9.eE+-]+)""")
-            .Where(m => Number(m.Groups[2].Value) < plot.Y + plot.H + 1 && Number(m.Groups[3].Value) > plot.Y + plot.H + 1
-                        && Number(m.Groups[3].Value) - Number(m.Groups[2].Value) < 20)
-            .Select(m => Number(m.Groups[1].Value))
+        var marks = svg.Elements("line")
+            .Where(line => line["x1"] is not null && line["x1"] == line["x2"] && line.Number("y1") < plot.Y + plot.Height + 1 && line.Number("y2") > plot.Y + plot.Height + 1
+                           && line.Number("y2") - line.Number("y1") < 20)
+            .Select(line => line.Number("x1"))
             .ToArray();
 
         Assert.Equal(3, marks.Length);
@@ -411,10 +336,10 @@ public class BarSeriesRendererTests
         {
             var name = Assert.Single(Texts(svg, Quarters[i]));
             double centre = bars[i].X + bars[i].W / 2;
-            Assert.Equal(centre, name.X, 6);
-            Assert.Equal(centre, marks[i], 6);
+            Assert.Equal(centre, name.X, SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(centre, marks[i], SvgMarkupExtensions.WrittenPrecision);
             Assert.Equal("middle", name.Anchor);
-            Assert.Equal(plot.Y + plot.H + ticks.Length + ticks.Pad + name.Size, name.Y, 6);
+            Assert.Equal(plot.Y + plot.Height + ticks.Length + ticks.Pad + name.Size, name.Y, SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -440,19 +365,19 @@ public class BarSeriesRendererTests
         string sized = WithXTicks(t => t with { LabelSize = 20, LabelColor = red });
         string rotated = WithXTicks(t => t with { LabelRotation = 45 });
         string spaced = WithXTicks(t => t with { Length = 12, Pad = 9 });
-        var plot = PlotArea(spaced);
+        var plot = spaced.PlotArea();
 
         Assert.All(Quarters, name => Assert.Equal(20, Assert.Single(Texts(sized, name)).Size));
-        Assert.All(Quarters, name => Assert.Matches($@"<text [^>]*fill=""{red.ToHex()}""[^>]*>{name}</text>", sized));
+        Assert.All(Quarters, name => Assert.Contains(sized.Elements("text"), text => text.Text == name && text["fill"] == red.ToHex()));
         Assert.All(Quarters, name =>
         {
             Assert.Equal("end", Assert.Single(Texts(rotated, name)).Anchor);
-            Assert.Matches($@"<text [^>]*transform=""rotate\(-45,[^>]*>{name}</text>", rotated);
+            Assert.Contains(rotated.Elements("text"), text => text.Text == name && text["transform"]?.StartsWith("rotate(-45,", StringComparison.Ordinal) == true);
         });
         Assert.All(Quarters, name =>
         {
             var text = Assert.Single(Texts(spaced, name));
-            Assert.Equal(plot.Y + plot.H + 12 + 9 + text.Size, text.Y, 6);
+            Assert.Equal(plot.Y + plot.Height + 12 + 9 + text.Size, text.Y, 6);
         });
     }
 
@@ -462,13 +387,13 @@ public class BarSeriesRendererTests
     public void MirroredXTicks_RepeatTheNamesAboveTheTopSpine()
     {
         string svg = WithXTicks(t => t with { Mirror = true });
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.All(Quarters, name =>
         {
             var texts = Texts(svg, name);
             Assert.Equal(2, texts.Length);
-            Assert.Contains(texts, t => t.Y > plot.Y + plot.H);
+            Assert.Contains(texts, t => t.Y > plot.Y + plot.Height);
             Assert.Contains(texts, t => t.Y < plot.Y);
         });
     }
@@ -480,21 +405,14 @@ public class BarSeriesRendererTests
     public void UnderAGridTheme_TheVerticalGridLinesFallOnTheCategories()
     {
         string svg = WithXTicks(t => t, theme: MatPlotLibNet.Styling.Theme.Ggplot);
-        var bars = System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""[0-9.eE+-]+"" width=""([0-9.eE+-]+)"" height=""[0-9.eE+-]+"" fill=""#E24A33""")
-            .Select(m => Number(m.Groups[1].Value) + Number(m.Groups[2].Value) / 2)
-            .ToArray();
+        var bars = svg.RectsFilled("#E24A33").Select(rect => rect.X + rect.Width / 2).ToArray();
 
         // A vertical grid line runs the height of the plot (over 100 px here) in ggplot's white; a tick mark is a few
         // pixels long and a spine is drawn in the text colour.
-        var verticalGridLines = System.Text.RegularExpressions.Regex
-            .Matches(svg, @"<line x1=""([0-9.eE+-]+)"" y1=""([0-9.eE+-]+)"" x2=""\1"" y2=""([0-9.eE+-]+)""[^>]*stroke=""#FFFFFF""")
-            .Where(m => Math.Abs(Number(m.Groups[3].Value) - Number(m.Groups[2].Value)) > 100)
-            .Select(m => Number(m.Groups[1].Value))
-            .ToArray();
+        var verticalGridLines = svg.VerticalLineXs("#FFFFFF", 100);
 
         Assert.Equal(3, bars.Length);
-        Assert.Equal(bars, verticalGridLines, (a, b) => Math.Abs(a - b) < 1e-6);
+        Assert.Equal(bars, verticalGridLines, (a, b) => Math.Abs(a - b) <= SvgMarkupExtensions.WrittenPrecision);
     }
 
     /// <summary>The X axis title stands clear of the names by the rule a numeric X axis follows: past the mark, the pad
@@ -505,15 +423,15 @@ public class BarSeriesRendererTests
     {
         var figure = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax.Bar(Quarters, [1.0, 2.0, 3.0]).SetXLabel("Quarter")).Build();
         string svg = figure.ToSvg();
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         var ticks = figure.SubPlots[0].XAxis.MajorTicks;
         var name = Assert.Single(Texts(svg, "Q1"));
         double nameHeight = new MatPlotLibNet.Rendering.Svg.SvgRenderContext()
-            .MeasureText("Q1", MatPlotLibNet.Rendering.ThemedFontProvider.TickFont(figure.Theme)).Height;
+            .MeasureText("Q1", figure.Theme.TickFont()).Height;
 
         var title = Assert.Single(Texts(svg, "Quarter"));
 
-        Assert.Equal(plot.Y + plot.H + ticks.Length + ticks.Pad + nameHeight + 6 + 0.8 * title.Size, title.Y, 6);
+        Assert.Equal(plot.Y + plot.Height + ticks.Length + ticks.Pad + nameHeight + figure.Theme.XLabelGapUnder + 0.8 * title.Size, title.Y, SvgMarkupExtensions.WrittenPrecision);
         Assert.True(title.Y - 0.8 * title.Size > name.Y, "the title's top stands below the names' baseline");
     }
 
@@ -545,17 +463,16 @@ public class BarSeriesRendererTests
         });
         string shown = Candles(dates, hide: false);
         string hidden = Candles(dates, hide: true);
-        var plot = PlotArea(shown);
+        var plot = shown.PlotArea();
         var ticks = new MatPlotLibNet.Models.TickConfig();
 
         Assert.All(dates, date => Assert.Empty(Texts(hidden, date)));
         Assert.All(dates, date =>
         {
             var text = Assert.Single(Texts(shown, date));
-            Assert.Equal(plot.Y + plot.H + ticks.Length + ticks.Pad + text.Size, text.Y, 6);
+            Assert.Equal(plot.Y + plot.Height + ticks.Length + ticks.Pad + text.Size, text.Y, SvgMarkupExtensions.WrittenPrecision);
         });
     }
 
-    private static string Escaped(double value) =>
-        System.Text.RegularExpressions.Regex.Escape(value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    private static string Written(double value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }

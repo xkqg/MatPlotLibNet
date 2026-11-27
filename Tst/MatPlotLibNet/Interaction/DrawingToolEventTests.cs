@@ -8,7 +8,8 @@ using MatPlotLibNet.Models.Tools;
 namespace MatPlotLibNet.Tests.Interaction;
 
 /// <summary>Verifies <see cref="AddTrendlineEvent"/>, <see cref="AddHorizontalLevelEvent"/>,
-/// <see cref="AddFibonacciRetracementEvent"/>, and <see cref="RemoveDrawingToolEvent"/>.</summary>
+/// <see cref="AddFibonacciRetracementEvent"/>, and <see cref="RemoveDrawingToolEvent"/>: each kind of tool enters and leaves the list
+/// it names.</summary>
 public class DrawingToolEventTests
 {
     private static Figure MakeFigure()
@@ -19,92 +20,49 @@ public class DrawingToolEventTests
     }
 
     [Fact]
-    public void AddTrendlineEvent_ApplyTo_AppendsTrendline()
+    public void AnAddEvent_PutsItsToolInTheListOfItsKind()
     {
         var fig = MakeFigure();
-        var tool = new Trendline(0.0, 10.0, 5.0, 20.0);
-        var evt = new AddTrendlineEvent("chart-1", AxesIndex: 0, tool);
+        var trendline = new Trendline(0.0, 10.0, 5.0, 20.0);
+        var level = new HorizontalLevel(150.0);
+        var retracement = new FibonacciRetracement(200.0, 100.0);
 
-        evt.ApplyTo(fig);
+        new AddTrendlineEvent("chart-1", AxesIndex: 0, trendline).ApplyTo(fig);
+        new AddHorizontalLevelEvent("chart-1", AxesIndex: 0, level).ApplyTo(fig);
+        new AddFibonacciRetracementEvent("chart-1", AxesIndex: 0, retracement).ApplyTo(fig);
 
-        Assert.Single(fig.SubPlots[0].Trendlines);
-        Assert.Same(tool, fig.SubPlots[0].Trendlines[0]);
+        var axes = fig.SubPlots[0];
+        Assert.Same(trendline, Assert.Single(axes.Trendlines));
+        Assert.Same(level, Assert.Single(axes.HorizontalLevels));
+        Assert.Same(retracement, Assert.Single(axes.FibonacciRetracements));
     }
 
     [Fact]
-    public void AddHorizontalLevelEvent_ApplyTo_AppendsLevel()
+    public void ARemoveEvent_TakesItsToolOutOfTheListOfItsKind()
     {
         var fig = MakeFigure();
-        var tool = new HorizontalLevel(150.0);
-        var evt = new AddHorizontalLevelEvent("chart-1", AxesIndex: 0, tool);
+        var axes = fig.SubPlots[0];
+        object[] tools = [axes.AddTrendline(0.0, 10.0, 5.0, 20.0), axes.AddLevel(100.0), axes.AddFibonacci(200.0, 100.0)];
 
-        evt.ApplyTo(fig);
+        foreach (var tool in tools) new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, tool).ApplyTo(fig);
 
-        Assert.Single(fig.SubPlots[0].HorizontalLevels);
-        Assert.Same(tool, fig.SubPlots[0].HorizontalLevels[0]);
+        Assert.Empty(axes.Trendlines);
+        Assert.Empty(axes.HorizontalLevels);
+        Assert.Empty(axes.FibonacciRetracements);
     }
 
+    /// <summary>Only a drawing tool is taken off: an object that is none changes nothing, and neither does a line that is drawn like a
+    /// tool but is no tool (a reference line strokes as the tools do, and stays).</summary>
     [Fact]
-    public void AddFibonacciRetracementEvent_ApplyTo_AppendsFib()
+    public void RemoveDrawingToolEvent_ApplyTo_WhatIsNoTool_RemovesNothing()
     {
         var fig = MakeFigure();
-        var tool = new FibonacciRetracement(200.0, 100.0);
-        var evt = new AddFibonacciRetracementEvent("chart-1", AxesIndex: 0, tool);
+        var line = fig.SubPlots[0].AxHLine(1.5);
 
-        evt.ApplyTo(fig);
+        var ex = Record.Exception(() => new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, "not-a-drawing-tool").ApplyTo(fig));
+        new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, line).ApplyTo(fig);
 
-        Assert.Single(fig.SubPlots[0].FibonacciRetracements);
-        Assert.Same(tool, fig.SubPlots[0].FibonacciRetracements[0]);
-    }
-
-    [Fact]
-    public void RemoveDrawingToolEvent_ApplyTo_RemovesTrendline()
-    {
-        var fig = MakeFigure();
-        var tool = new Trendline(0.0, 10.0, 5.0, 20.0);
-        fig.SubPlots[0].AddTrendline(tool.X1, tool.Y1, tool.X2, tool.Y2);
-        var actual = fig.SubPlots[0].Trendlines[0];
-        var evt = new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, actual);
-
-        evt.ApplyTo(fig);
-
-        Assert.Empty(fig.SubPlots[0].Trendlines);
-    }
-
-    [Fact]
-    public void RemoveDrawingToolEvent_ApplyTo_RemovesHorizontalLevel()
-    {
-        var fig = MakeFigure();
-        var tool = fig.SubPlots[0].AddLevel(100.0);
-        var evt = new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, tool);
-
-        evt.ApplyTo(fig);
-
-        Assert.Empty(fig.SubPlots[0].HorizontalLevels);
-    }
-
-    [Fact]
-    public void RemoveDrawingToolEvent_ApplyTo_RemovesFibonacci()
-    {
-        var fig = MakeFigure();
-        var tool = fig.SubPlots[0].AddFibonacci(200.0, 100.0);
-        var evt = new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, tool);
-
-        evt.ApplyTo(fig);
-
-        Assert.Empty(fig.SubPlots[0].FibonacciRetracements);
-    }
-
-    [Fact]
-    public void RemoveDrawingToolEvent_ApplyTo_UnknownTool_NoThrow()
-    {
-        var fig = MakeFigure();
-        // Pass an object that is NOT Trendline, HorizontalLevel, or FibonacciRetracement
-        // to hit the switch's implicit-default arm.
-        object unknown = "not-a-drawing-tool";
-        var evt = new RemoveDrawingToolEvent("chart-1", AxesIndex: 0, unknown);
-
-        var ex = Record.Exception(() => evt.ApplyTo(fig));
         Assert.Null(ex);
+        Assert.Same(line, Assert.Single(fig.SubPlots[0].ReferenceLines));
     }
 }

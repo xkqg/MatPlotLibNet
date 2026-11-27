@@ -86,4 +86,53 @@ public class CategorySlotTests
         Assert.Equal(centre, bar.Centre, 12);
         Assert.Equal(right, bar.Right, 12);
     }
+
+    /// <summary>Row k of n counted from the top stands in the slot n - 1 - k: the first row is the highest slot of an axis that
+    /// counts upward, the last row the lowest. The ridgeline, the dot plot, the risk table, a heatmap's rows and a calendar's
+    /// weekdays all stand a row by this one rule.</summary>
+    [Theory]
+    [InlineData(0, 4, 3)]
+    [InlineData(1, 4, 2)]
+    [InlineData(3, 4, 0)]
+    [InlineData(0, 1, 0)]
+    public void RowK_OfN_CountedFromTheTop_StandsInSlotNMinusOneMinusK(int row, int count, int slot)
+    {
+        Assert.Equal(CategorySlot.Of(slot), CategorySlot.FromTop(row, count));
+        Assert.Equal(slot + 0.5, CategorySlot.FromTop(row, count).Centre);
+    }
+
+    /// <summary>The centres of the first n slots, in the order of the slots: where the marks of n categories stand, each on
+    /// the centre of its own slot.</summary>
+    [Theory]
+    [InlineData(1, new[] { 0.5 })]
+    [InlineData(3, new[] { 0.5, 1.5, 2.5 })]
+    public void TheCentres_AreTheMiddlesOfTheFirstNSlots(int count, double[] expected) =>
+        Assert.Equal(expected, CategorySlot.Centres(count));
+
+    /// <summary>No categories have no centres.</summary>
+    [Fact]
+    public void NoCategories_HaveNoCentres() => Assert.Empty(CategorySlot.Centres(0));
+
+    /// <summary>A slot is as wide as it runs from its left edge to its right: one for a whole slot, the bar's width for a bar
+    /// that stands in it or around a number.</summary>
+    [Fact]
+    public void ASlotsWidth_IsTheDistanceFromItsLeftEdgeToItsRight()
+    {
+        Assert.Equal(1.0, CategorySlot.Of(7).Width);
+        Assert.Equal(0.8, CategorySlot.Around(10, 0.8).Width, 12);
+        Assert.Equal(0.6, CategorySlot.Of(2).Bar(0.6, 0.1, BarAlignment.Edge).Width, 12);
+    }
+
+    /// <summary>The centres of the first rows counted from the top: the top row stands in the highest slot, so the centres run
+    /// downward.</summary>
+    [Theory]
+    [InlineData(3, 5, new[] { 4.5, 3.5, 2.5 })]
+    [InlineData(4, 4, new[] { 3.5, 2.5, 1.5, 0.5 })]
+    [InlineData(1, 1, new[] { 0.5 })]
+    public void TheCentresFromTheTop_AreTheCentresOfTheFirstRows_HighestFirst(int count, int rows, double[] expected) =>
+        Assert.Equal(expected, CategorySlot.CentresFromTop(count, rows));
+
+    /// <summary>No rows counted have no centres.</summary>
+    [Fact]
+    public void NoRowsCounted_HaveNoCentresFromTheTop() => Assert.Empty(CategorySlot.CentresFromTop(0, 3));
 }

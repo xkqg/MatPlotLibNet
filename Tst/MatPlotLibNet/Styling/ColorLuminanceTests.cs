@@ -20,23 +20,14 @@ public class ColorLuminanceTests
         Assert.Equal(1.0, Colors.White.Luminance(), precision: 6);
     }
 
-    [Fact]
-    public void Red_LuminanceMatchesRec709Coefficient()
+    /// <summary>Rec. 709: L = 0.2126·R + 0.7152·G + 0.0722·B (channels normalised to [0,1]), so a pure channel is its coefficient.</summary>
+    [Theory]
+    [InlineData(255, 0, 0, 0.2126)]
+    [InlineData(0, 255, 0, 0.7152)]
+    [InlineData(0, 0, 255, 0.0722)]
+    public void APureChannel_LuminanceMatchesRec709Coefficient(byte red, byte green, byte blue, double coefficient)
     {
-        // Rec. 709: L = 0.2126·R + 0.7152·G + 0.0722·B  (channels normalised to [0,1])
-        Assert.Equal(0.2126, new Color(255, 0, 0).Luminance(), precision: 4);
-    }
-
-    [Fact]
-    public void Green_LuminanceMatchesRec709Coefficient()
-    {
-        Assert.Equal(0.7152, new Color(0, 255, 0).Luminance(), precision: 4);
-    }
-
-    [Fact]
-    public void Blue_LuminanceMatchesRec709Coefficient()
-    {
-        Assert.Equal(0.0722, new Color(0, 0, 255).Luminance(), precision: 4);
+        Assert.Equal(coefficient, new Color(red, green, blue).Luminance(), precision: 4);
     }
 
     [Fact]

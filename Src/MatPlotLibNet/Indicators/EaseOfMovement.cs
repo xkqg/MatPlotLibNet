@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -11,59 +12,51 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Volume Cycles in the Stock Market</i>.</summary>
 public sealed class EaseOfMovement : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 14;
+
+    /// <summary>The <c>scale</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultScale = 1_000_000;
+
     private readonly int _period;
     private readonly double _scale;
 
     /// <summary>Creates a new Ease of Movement indicator.</summary>
     /// <param name="bars">High, Low and Volume; built via <see cref="OhlcvBars.Hlv"/>.</param>
-    /// <param name="period">SMA smoothing period for the raw EMV. Default 14. Must be ≥ 2.</param>
+    /// <param name="period">SMA smoothing period for the raw EMV. Default <see cref="DefaultPeriod"/>. Must be ≥ 2.</param>
     /// <param name="scale">Volume-scale divisor — normalises volume to price-move magnitude.
     /// Default 10^6 (suits crypto / intraday). Must be &gt; 0.</param>
-    public EaseOfMovement(OhlcvBars bars, int period = 14, double scale = 1_000_000)
-        : base(bars)
+    public EaseOfMovement(OhlcvBars bars, int period = DefaultPeriod, double scale = DefaultScale)
+        : base(bars, Spec(period, scale))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
-        if (scale <= 0)
-            throw new ArgumentException($"scale must be > 0 (got {scale}).", nameof(scale));
         _period = period;
         _scale = scale;
-        Label = $"EMV({period})";
+    }
+
+    internal static IndicatorSpec Spec(int period, double scale)
+    {
+        period.ThrowIfBelow(2, nameof(period));
+        scale.ThrowIfNotAbove(0, nameof(scale));
+        return IndicatorSpec.OfWindow("EMV", period, period);
     }
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = BarCount;
-        if (n <= _period) return Array.Empty<double>();
-
-        var emv1 = new double[n];
-        for (int i = 1; i < n; i++)
+        // The one-period EMV of each bar after the first, rolled into a mean over _period.
+        return RollingMeanOfPairs(_period, i =>
         {
             double mid = (High[i] + Low[i]) / 2.0;
             double prevMid = (High[i - 1] + Low[i - 1]) / 2.0;
             double move = mid - prevMid;
             double range = High[i] - Low[i];
             // BoxRatio = (Volume / scale) / range. Guard: zero volume or zero range → 0.
-            if (Volume[i] == 0 || range == 0) { emv1[i] = 0; continue; }
+            if (Volume[i] == 0 || range == 0) return 0;
             double boxRatio = (Volume[i] / _scale) / range;
-            emv1[i] = move / boxRatio;
-        }
-
-        int outLen = n - _period;
-        var result = new double[outLen];
-        // Rolling SMA of emv1 over _period, starting at index _period.
-        double sum = 0;
-        for (int i = 1; i <= _period; i++) sum += emv1[i];
-        result[0] = sum / _period;
-        for (int w = 1; w < outLen; w++)
-        {
-            sum += emv1[w + _period] - emv1[w];
-            result[w] = sum / _period;
-        }
-        return result;
+            return move / boxRatio;
+        });
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: _period);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

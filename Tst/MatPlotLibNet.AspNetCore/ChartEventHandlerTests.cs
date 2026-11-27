@@ -13,93 +13,11 @@ namespace MatPlotLibNet.AspNetCore.Tests;
 /// for its kind, and a session survives whatever the handler, or the publisher behind it, throws.</summary>
 public class ChartEventHandlerTests
 {
-    private sealed class RecordingHandler : IChartEventHandler
-    {
-        public ConcurrentQueue<FigureInteractionEvent> Seen { get; } = new();
-        public ConcurrentQueue<string> Order { get; } = new();
-
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            Seen.Enqueue(evt);
-            Order.Enqueue("handler:" + evt.GetType().Name);
-            return default;
-        }
-    }
-
-    private sealed class ThrowingOnZoomHandler : IChartEventHandler
-    {
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context) =>
-            evt is ZoomEvent ? throw new InvalidOperationException("the handler failed") : default;
-    }
-
-    private sealed class Publisher : IChartPublisher
-    {
-        public int Calls;
-        public bool ThrowOnce;
-
-        public Task PublishAsync(string chartId, Figure figure, CancellationToken ct = default) => Task.CompletedTask;
-
-        public Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default)
-        {
-            Interlocked.Increment(ref Calls);
-            if (ThrowOnce)
-            {
-                ThrowOnce = false;
-                throw new InvalidOperationException("the publish failed");
-            }
-
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class Callers : ICallerPublisher
-    {
-        public ConcurrentQueue<(string ConnectionId, string Html)> Sent { get; } = new();
-
-        public Task SendTooltipAsync(string connectionId, string chartId, string html, CancellationToken ct = default)
-        {
-            Sent.Enqueue((connectionId, html));
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class Rig
-    {
-        private TaskCompletionSource _reached = new();
-
-        public Rig(IChartEventHandler? handler, Action<ChartSessionOptions>? configure = null)
-        {
-            var options = new ChartSessionOptions().OnDataCursor(async _ =>
-            {
-                await Task.Yield();
-                _reached.TrySetResult();
-            });
-            if (handler is not null) options.Handle(handler);
-            configure?.Invoke(options);
-            Figure = Plt.Create().Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]).Build();
-            Session = new ChartSession("c1", Figure, Publisher, Callers, options);
-        }
-
-        public Figure Figure { get; }
-        public Publisher Publisher { get; } = new();
-        public Callers Callers { get; } = new();
-        public ChartSession Session { get; }
-
-        public void Send(FigureInteractionEvent evt) => Assert.True(Session.Events.Writer.TryWrite(evt));
-
-        public async Task DrainedAsync()
-        {
-            _reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            Send(new DataCursorEvent("c1", 0, new PinnedAnnotation("marker", 0, 0, 0, 0, 0)));
-            await _reached.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        }
-    }
-
     [Fact]
     public async Task TheHandler_SeesEveryEventOnce_MutationsAndNotificationsAlike()
     {
-        var handler = new RecordingHandler();
-        var rig = new Rig(handler);
+        var handler = new RecordingChartEventHandler();
+        var rig = new SessionRig(handler);
 
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
         rig.Send(new LegendToggleEvent("c1", 0, 0));
@@ -108,37 +26,38 @@ public class ChartEventHandlerTests
         await rig.DrainedAsync();
 
         Assert.Equal(["ZoomEvent", "LegendToggleEvent", "BrushSelectEvent", "ResetEvent", "DataCursorEvent"],
-            handler.Seen.Select(e => e.GetType().Name));
+            handler.Names);
         await rig.Session.DisposeAsync();
     }
 
     [Fact]
     public async Task TheCallbackOfTheKind_RunsBeforeTheHandler()
     {
-        var handler = new RecordingHandler();
-        var rig = new Rig(handler, o => o.OnBrushSelect(_ =>
+        var order = new ConcurrentQueue<string>();
+        var handler = new RecordingChartEventHandler { WhileHandling = () => order.Enqueue("handler") };
+        var rig = new SessionRig(handler, o => o.OnBrushSelect(_ =>
         {
-            handler.Order.Enqueue("callback:BrushSelectEvent");
+            order.Enqueue("callback");
             return default;
         }));
 
         rig.Send(new BrushSelectEvent("c1", 0, 0, 0, 1, 1));
         await rig.DrainedAsync();
 
-        Assert.Equal(["callback:BrushSelectEvent", "handler:BrushSelectEvent"], handler.Order.Take(2));
+        Assert.Equal(["callback", "handler"], order.Take(2));
         await rig.Session.DisposeAsync();
     }
 
     [Fact]
     public async Task AnEventTheFigureCouldNotTake_IsNotPassedToTheHandler()
     {
-        var handler = new RecordingHandler();
-        var rig = new Rig(handler);
+        var handler = new RecordingChartEventHandler();
+        var rig = new SessionRig(handler);
 
         rig.Send(new ZoomEvent("c1", 9, 0, 1, 0, 1));   // names a subplot the figure lacks
         await rig.DrainedAsync();
 
-        Assert.DoesNotContain(handler.Seen, e => e is ZoomEvent);
+        Assert.DoesNotContain(handler.Events, e => e is ZoomEvent);
         Assert.Equal(1, rig.Session.DroppedEventCount);
         await rig.Session.DisposeAsync();
     }
@@ -146,7 +65,7 @@ public class ChartEventHandlerTests
     [Fact]
     public async Task AHandlerThatThrows_IsCounted_AndTheNextEventIsStillTaken()
     {
-        var rig = new Rig(new ThrowingOnZoomHandler());
+        var rig = new SessionRig(new RecordingChartEventHandler { ThrowAtOnce = new InvalidOperationException("the handler failed"), ThrowWhen = e => e is ZoomEvent });
 
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
         rig.Send(new LegendToggleEvent("c1", 0, 0));
@@ -162,46 +81,55 @@ public class ChartEventHandlerTests
     [Fact]
     public async Task AFailedPublish_DoesNotEndTheReader()
     {
-        var rig = new Rig(handler: null);
-        rig.Publisher.ThrowOnce = true;
+        var rig = new SessionRig(handler: null);
+        bool failed = false;
+        rig.Publisher.WhilePublishing = () =>
+        {
+            if (!failed)
+            {
+                failed = true;
+                throw new InvalidOperationException("the publish failed");
+            }
+        };
 
         rig.Send(new ZoomEvent("c1", 0, 0.5, 2.5, 1, 9));
         await rig.DrainedAsync();
-        Assert.Equal(1, rig.Session.FaultedEventCount);   // the publish failure is counted like any other fault
+        // The marker is dealt with before the batch's publish is made, so the fault is awaited, not read at once.
+        await Eventually.HoldsAsync(() => rig.Session.FaultedEventCount == 1);   // the publish failure is counted like any other fault
 
         rig.Send(new ZoomEvent("c1", 0, 1.0, 2.0, 2, 8));
         await rig.DrainedAsync();
 
         Assert.Equal(1.0, rig.Figure.SubPlots[0].XAxis.Min!.Value, 6);
-        Assert.True(rig.Publisher.Calls >= 2);            // the second zoom was published: the reader was still alive
+        await rig.Publisher.WaitForAtLeastAsync(2);            // the second zoom was published: the reader was still alive
         await rig.Session.DisposeAsync();
     }
 
     [Fact]
     public async Task TwoViewersHoveringInOneBurst_EachGetTheirOwnTooltip()
     {
-        var rig = new Rig(handler: null, o => o.OnHover(e => ValueTask.FromResult<string?>($"tip for {e.CallerConnectionId}")));
+        var rig = new SessionRig(handler: null, o => o.OnHover(e => ValueTask.FromResult<string?>($"tip for {e.CallerConnectionId}")));
 
         rig.Send(new HoverEvent("c1", 0, 1, 4, CallerConnectionId: "A"));
         rig.Send(new HoverEvent("c1", 0, 2, 5, CallerConnectionId: "B"));
         await rig.DrainedAsync();
 
-        Assert.Equal(["A", "B"], rig.Callers.Sent.Select(s => s.ConnectionId).Order());
-        Assert.Equal("tip for A", rig.Callers.Sent.Single(s => s.ConnectionId == "A").Html);
+        Assert.Equal(["A", "B"], rig.Callers.Calls.Select(s => s.ConnectionId).Order());
+        Assert.Equal("tip for A", rig.Callers.Calls.Single(s => s.ConnectionId == "A").Html);
         await rig.Session.DisposeAsync();
     }
 
     [Fact]
     public async Task ABurstOfHoversFromOneViewer_IsAnsweredOnce_WithTheLatest()
     {
-        var rig = new Rig(handler: null, o => o.OnHover(e => ValueTask.FromResult<string?>($"x={e.X}")));
+        var rig = new SessionRig(handler: null, o => o.OnHover(e => ValueTask.FromResult<string?>($"x={e.X}")));
 
         rig.Send(new HoverEvent("c1", 0, 1, 4, CallerConnectionId: "A"));
         rig.Send(new HoverEvent("c1", 0, 2, 5, CallerConnectionId: "A"));
         rig.Send(new HoverEvent("c1", 0, 3, 6, CallerConnectionId: "A"));
         await rig.DrainedAsync();
 
-        var only = Assert.Single(rig.Callers.Sent);
+        var only = Assert.Single(rig.Callers.Calls);
         Assert.Equal("x=3", only.Html);
         await rig.Session.DisposeAsync();
     }

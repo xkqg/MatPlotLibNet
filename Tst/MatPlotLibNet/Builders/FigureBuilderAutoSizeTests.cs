@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -16,9 +16,8 @@ public class FigureBuilderAutoSizeTests
 {
     private static (int W, int H) SizeOf(string svg)
     {
-        var w = int.Parse(Regex.Match(svg, "<svg[^>]+width=\"(\\d+)").Groups[1].Value);
-        var h = int.Parse(Regex.Match(svg, "<svg[^>]+height=\"(\\d+)").Groups[1].Value);
-        return (w, h);
+        var root = svg.Elements("svg")[0];
+        return ((int)root.Number("width"), (int)root.Number("height"));
     }
 
     // Realistic ~ 10-char labels at every node so the canvas calculation reflects
@@ -79,5 +78,72 @@ public class FigureBuilderAutoSizeTests
             .AddSubPlot(1,1,1, ax => ax.Treemap(tree).HideAllAxes()).ToSvg());
         var aspect = (double)w / h;
         Assert.InRange(aspect, 1.7, 1.8);   // 16:9 ≈ 1.778
+    }
+
+    private static TreeNode Tree(int groups, int leavesPerGroup, string leafLabel) => new()
+    {
+        Label = "Root",
+        Children = [.. Enumerable.Range(0, groups).Select(g => new TreeNode
+        {
+            Label = "Group " + g,
+            Children = [.. Enumerable.Range(0, leavesPerGroup).Select(l => new TreeNode { Label = leafLabel, Value = l + 1 })],
+        })],
+    };
+
+    private static IEnumerable<TreeNode> Nodes(TreeNode node) => new[] { node }.Concat(node.Children.SelectMany(Nodes));
+
+    /// <summary>The size <see cref="FigureBuilder.WithAutoSize(TreeNode)"/> gives the figure.</summary>
+    private static (int Width, int Height) Canvas(TreeNode root)
+    {
+        var figure = Plt.Create().WithAutoSize(root).Build();
+        return ((int)figure.Width, (int)figure.Height);
+    }
+
+    /// <summary>The canvas as the sizing rule is written down (leaf count, average label length over every node, 16:9, a floor of
+    /// 800 by 600), over the nodes listed out in full.</summary>
+    private static (int Width, int Height) ByTheRule(TreeNode root)
+    {
+        var nodes = Nodes(root).ToList();
+        int leaves = nodes.Count(n => n.Children.Count == 0);
+        double averageChars = nodes.Average(n => (double)n.Label.Length);
+        double canvasArea = leaves * ((averageChars * 7.0 + 16.0) * 22.0) * 1.5;
+        const double aspect = 16.0 / 9.0;
+        int width = (int)Math.Sqrt(canvasArea * aspect);
+        int height = (int)(width / aspect);
+        return (Math.Max(800, width), Math.Max(600, height));
+    }
+
+    [Theory]
+    [InlineData(40, 30, "Leaf-0001")]
+    [InlineData(12, 50, "a longer leaf label")]
+    [InlineData(100, 20, "x")]
+    public void ABigTree_NeedsTheCanvasThatTheRuleSays(int groups, int leavesPerGroup, string leafLabel)
+    {
+        var tree = Tree(groups, leavesPerGroup, leafLabel);
+
+        var canvas = Canvas(tree);
+
+        Assert.Equal(ByTheRule(tree), canvas);
+        Assert.True(canvas.Width > 800, "the case is meant to grow past the floor");
+    }
+
+    [Fact]
+    public void ATinyTree_AndALoneLeaf_StandOnTheFloor()
+    {
+        Assert.Equal((800, 600), Canvas(Tree(2, 2, "a")));
+        Assert.Equal((800, 600), Canvas(new TreeNode { Label = "only", Value = 1 }));
+    }
+
+    [Fact]
+    public void ANodeWithoutALabel_CountsAsNoCharacters()
+    {
+        // 2 000 leaves with a null label each: only the root's four characters are in the average over 2 001 nodes.
+        var leaves = Enumerable.Range(0, 2000).Select(_ => new TreeNode { Label = null!, Value = 1 }).ToList();
+        var tree = new TreeNode { Label = "Root", Children = leaves };
+
+        double averageChars = 4.0 / 2001;
+        double canvasArea = 2000 * ((averageChars * 7.0 + 16.0) * 22.0) * 1.5;
+        int width = (int)Math.Sqrt(canvasArea * (16.0 / 9.0));
+        Assert.Equal((Math.Max(800, width), Math.Max(600, (int)(width / (16.0 / 9.0)))), Canvas(tree));
     }
 }

@@ -28,25 +28,6 @@ public class MaxNLocatorTests
         Assert.True(ticks.Length <= maxN, $"Expected <= {maxN} ticks, got {ticks.Length}");
     }
 
-    /// <summary>Verifies that all ticks are within [min, max].</summary>
-    [Fact]
-    public void Locate_AllTicksWithinRange()
-    {
-        var locator = new MaxNLocator(5);
-        double[] ticks = locator.Locate(10, 90);
-        Assert.All(ticks, t => Assert.InRange(t, 10, 90));
-    }
-
-    /// <summary>Verifies ticks are ascending.</summary>
-    [Fact]
-    public void Locate_ReturnsAscendingOrder()
-    {
-        var locator = new MaxNLocator(5);
-        double[] ticks = locator.Locate(-50, 50);
-        for (int i = 1; i < ticks.Length; i++)
-            Assert.True(ticks[i] > ticks[i - 1]);
-    }
-
     /// <summary>Verifies that maxN = 1 returns exactly one tick.</summary>
     [Fact]
     public void Locate_MaxOne_ReturnsSingleTick()

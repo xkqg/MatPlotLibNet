@@ -17,23 +17,27 @@ public static class InteractiveExtensions
         set => _browserLauncher = value ?? throw new ArgumentNullException(nameof(value));
     }
 
-    /// <summary>Opens the figure in the default browser asynchronously and returns a handle for pushing updates.</summary>
-    /// <remarks>The embedded server is the process-lifetime <see cref="ChartServer.Instance"/> singleton;
-    /// it is intentionally not disposed here and outlives any single call (the returned
-    /// <see cref="InteractiveFigure"/> does not own it). The awaited chain uses
-    /// <c>ConfigureAwait(false)</c> throughout, so this method is safe to block on from a captured
-    /// <see cref="SynchronizationContext"/> — provided any custom <see cref="Browser"/> launcher does
-    /// the same. Prefer awaiting it (<c>await figure.ShowAsync()</c>).</remarks>
-    public static async Task<InteractiveFigure> ShowAsync(this Figure figure, CancellationToken ct = default)
+    /// <param name="figure">The figure to show.</param>
+    extension(Figure figure)
     {
-        var server = ChartServer.Instance;
-        await server.EnsureStartedAsync(ct).ConfigureAwait(false);
+        /// <summary>Opens the figure in the default browser asynchronously and returns a handle for pushing updates.</summary>
+        /// <remarks>The embedded server is the process-lifetime <see cref="ChartServer.Instance"/> singleton;
+        /// it is intentionally not disposed here and outlives any single call (the returned
+        /// <see cref="InteractiveFigure"/> does not own it). The awaited chain uses
+        /// <c>ConfigureAwait(false)</c> throughout, so this method is safe to block on from a captured
+        /// <see cref="SynchronizationContext"/> — provided any custom <see cref="Browser"/> launcher does
+        /// the same. Prefer awaiting it (<c>await figure.ShowAsync()</c>).</remarks>
+        public async Task<InteractiveFigure> ShowAsync(CancellationToken ct = default)
+        {
+            var server = ChartServer.Instance;
+            await server.EnsureStartedAsync(ct).ConfigureAwait(false);
 
-        var chartId = server.RegisterFigure(figure);
-        var url = server.GetFigureUrl(chartId);
+            var chartId = server.RegisterFigure(figure);
+            var url = server.GetFigureUrl(chartId);
 
-        await _browserLauncher.OpenAsync(url).ConfigureAwait(false);
+            await _browserLauncher.OpenAsync(url).ConfigureAwait(false);
 
-        return new InteractiveFigure(chartId, figure);
+            return new InteractiveFigure(chartId, figure);
+        }
     }
 }

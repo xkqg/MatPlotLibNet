@@ -6,39 +6,30 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Interaction;
 
 public class FigureInteractionEventTests
 {
-    [Fact]
-    public void ZoomEvent_ApplyTo_SetsAxisLimits()
+    [Theory]
+    [InlineData("zoom", 0.5, 2.5, 0.0, 10.0)]
+    [InlineData("reset", 1.0, 3.0, 1.0, 9.0)]
+    public void ARangeEvent_ApplyTo_SetsAxisLimits(string kind, double xMin, double xMax, double yMin, double yMax)
     {
         var figure = TestFigures.SingleLine();
-        var evt = new ZoomEvent("chart-1", AxesIndex: 0, XMin: 0.5, XMax: 2.5, YMin: 0, YMax: 10);
+        AxisRangeEvent evt = kind == "zoom"
+            ? new ZoomEvent("chart-1", AxesIndex: 0, XMin: xMin, XMax: xMax, YMin: yMin, YMax: yMax)
+            : new ResetEvent("chart-1", AxesIndex: 0, XMin: xMin, XMax: xMax, YMin: yMin, YMax: yMax);
 
         evt.ApplyTo(figure);
 
         var axes = figure.SubPlots[0];
-        Assert.Equal(0.5, axes.XAxis.Min);
-        Assert.Equal(2.5, axes.XAxis.Max);
-        Assert.Equal(0.0, axes.YAxis.Min);
-        Assert.Equal(10.0, axes.YAxis.Max);
-    }
-
-    [Fact]
-    public void ResetEvent_ApplyTo_SetsAxisLimits()
-    {
-        var figure = TestFigures.SingleLine();
-        var evt = new ResetEvent("chart-1", AxesIndex: 0, XMin: 1, XMax: 3, YMin: 1, YMax: 9);
-
-        evt.ApplyTo(figure);
-
-        var axes = figure.SubPlots[0];
-        Assert.Equal(1.0, axes.XAxis.Min);
-        Assert.Equal(3.0, axes.XAxis.Max);
-        Assert.Equal(1.0, axes.YAxis.Min);
-        Assert.Equal(9.0, axes.YAxis.Max);
+        Assert.Equal(xMin, axes.XAxis.Min);
+        Assert.Equal(xMax, axes.XAxis.Max);
+        Assert.Equal(yMin, axes.YAxis.Min);
+        Assert.Equal(yMax, axes.YAxis.Max);
     }
 
     [Fact]
@@ -56,6 +47,22 @@ public class FigureInteractionEventTests
         Assert.Equal(12.0, axes.XAxis.Max);
         Assert.Equal(-5.0, axes.YAxis.Min);
         Assert.Equal(15.0, axes.YAxis.Max);
+    }
+
+    private static SecondaryAxisRange[] ARangeForAMissingSlotAndOneForTheRightAxis(AxisSide side, int slotIndex, double min, double max) =>
+    [
+        new SecondaryAxisRange(side, slotIndex, new DataRange(0, 1, 1, 2)),
+        new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, min, max)),
+    ];
+
+    private static void AssertTheMissingSlotIsSkipped(Figure figure, FigureInteractionEvent evt, double min, double max)
+    {
+        var thrown = Record.Exception(() => evt.ApplyTo(figure));
+
+        Assert.Null(thrown);
+        var slot = figure.SubPlots[0].YAxes.Right[0];
+        Assert.Equal(min, slot.Axis.Min);
+        Assert.Equal(max, slot.Axis.Max);
     }
 
     /// <summary>ROADMAP.md row 100: zoom/reset must move every outward-stacked secondary axis' own range, not
@@ -129,21 +136,9 @@ public class FigureInteractionEventTests
     public void ZoomEvent_ApplyTo_WithASecondaryRangeForAMissingSlot_SkipsItAndAppliesTheRest(AxisSide side, int slotIndex)
     {
         var figure = OneRightAxisFigure();
-        var evt = new ZoomEvent("chart-1", 0, 0.5, 2.5, 0, 10)
-        {
-            SecondaryRanges =
-            [
-                new SecondaryAxisRange(side, slotIndex, new DataRange(0, 1, 1, 2)),
-                new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, 10, 20)),
-            ],
-        };
+        var evt = new ZoomEvent("chart-1", 0, 0.5, 2.5, 0, 10) { SecondaryRanges = ARangeForAMissingSlotAndOneForTheRightAxis(side, slotIndex, 10, 20) };
 
-        var thrown = Record.Exception(() => evt.ApplyTo(figure));
-
-        Assert.Null(thrown);
-        var slot = figure.SubPlots[0].YAxes.Right[0];
-        Assert.Equal(10.0, slot.Axis.Min);
-        Assert.Equal(20.0, slot.Axis.Max);
+        AssertTheMissingSlotIsSkipped(figure, evt, 10.0, 20.0);
     }
 
     /// <summary>Same wire value, the pan family: <see cref="PanEvent"/> and the zoom/reset events share one
@@ -156,21 +151,9 @@ public class FigureInteractionEventTests
     public void PanEvent_ApplyTo_WithASecondaryRangeForAMissingSlot_SkipsItAndAppliesTheRest(AxisSide side, int slotIndex)
     {
         var figure = OneRightAxisFigure();
-        var evt = new PanEvent("chart-1", 0, 2.0, -5.0)
-        {
-            SecondaryRanges =
-            [
-                new SecondaryAxisRange(side, slotIndex, new DataRange(0, 1, 1, 2)),
-                new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, 30, 70)),
-            ],
-        };
+        var evt = new PanEvent("chart-1", 0, 2.0, -5.0) { SecondaryRanges = ARangeForAMissingSlotAndOneForTheRightAxis(side, slotIndex, 30, 70) };
 
-        var thrown = Record.Exception(() => evt.ApplyTo(figure));
-
-        Assert.Null(thrown);
-        var slot = figure.SubPlots[0].YAxes.Right[0];
-        Assert.Equal(30.0, slot.Axis.Min);
-        Assert.Equal(70.0, slot.Axis.Max);
+        AssertTheMissingSlotIsSkipped(figure, evt, 30.0, 70.0);
     }
 
     /// <summary>A secondary range numbers the axes PAST the primary: (Left, 0) is the first outward left axis, never the
@@ -457,40 +440,28 @@ public class FigureInteractionEventTests
         Assert.All(all, s => Assert.Equal(s.Label != hidden, s.Visible));
     }
 
-    [Fact]
-    public void FigureInteractionEvent_IsAbstract()
-    {
-        Assert.True(typeof(FigureInteractionEvent).IsAbstract);
-    }
+    /// <summary>The three tiers of an event stand abstract: the root, the one that moves an axis range and the one that only
+    /// notifies.</summary>
+    [Theory]
+    [InlineData(typeof(FigureInteractionEvent))]
+    [InlineData(typeof(AxisRangeEvent))]
+    [InlineData(typeof(FigureNotificationEvent))]
+    public void ATierOfEvent_IsAbstract(Type tier) => Assert.True(tier.IsAbstract);
 
-    [Fact]
-    public void AxisRangeEvent_IsAbstract()
+    /// <summary>Each event derives from its tier (a zoom and a reset from the axis-range one, a brush and a hover from the notifying
+    /// one, the notifying tier from the root), and a pan and a legend toggle derive from the root directly.</summary>
+    [Theory]
+    [InlineData(typeof(ZoomEvent), typeof(AxisRangeEvent), false)]
+    [InlineData(typeof(ResetEvent), typeof(AxisRangeEvent), false)]
+    [InlineData(typeof(BrushSelectEvent), typeof(FigureNotificationEvent), false)]
+    [InlineData(typeof(HoverEvent), typeof(FigureNotificationEvent), false)]
+    [InlineData(typeof(FigureNotificationEvent), typeof(FigureInteractionEvent), false)]
+    [InlineData(typeof(PanEvent), typeof(FigureInteractionEvent), true)]
+    [InlineData(typeof(LegendToggleEvent), typeof(FigureInteractionEvent), true)]
+    public void AnEvent_Inherits_ItsTier(Type derived, Type tier, bool directly)
     {
-        Assert.True(typeof(AxisRangeEvent).IsAbstract);
-    }
-
-    [Fact]
-    public void ZoomEvent_Inherits_AxisRangeEvent()
-    {
-        Assert.True(typeof(AxisRangeEvent).IsAssignableFrom(typeof(ZoomEvent)));
-    }
-
-    [Fact]
-    public void ResetEvent_Inherits_AxisRangeEvent()
-    {
-        Assert.True(typeof(AxisRangeEvent).IsAssignableFrom(typeof(ResetEvent)));
-    }
-
-    [Fact]
-    public void PanEvent_Inherits_FigureInteractionEvent_Directly()
-    {
-        Assert.Equal(typeof(FigureInteractionEvent), typeof(PanEvent).BaseType);
-    }
-
-    [Fact]
-    public void LegendToggleEvent_Inherits_FigureInteractionEvent_Directly()
-    {
-        Assert.Equal(typeof(FigureInteractionEvent), typeof(LegendToggleEvent).BaseType);
+        Assert.True(tier.IsAssignableFrom(derived));
+        if (directly) Assert.Equal(tier, derived.BaseType);
     }
 
     [Fact]
@@ -507,5 +478,81 @@ public class FigureInteractionEventTests
         var a = new ZoomEvent("c", 0, 1, 2, 3, 4);
         var b = new ZoomEvent("c", 0, 1, 2, 3, 4);
         Assert.Equal(a, b);
+    }
+
+    /// <summary>LegendToggleEvent.ApplyTo — an index past the last slot (99 on a 1-series figure) and the `SeriesIndex &lt; 0` arm find
+    /// no series.</summary>
+    [Theory]
+    [InlineData(99)]
+    [InlineData(-1)]
+    public void LegendToggleEvent_AnIndexOutsideTheSeries_NoOp(int seriesIndex)
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [3.0, 4.0]))
+            .Build();
+        var evt = new MatPlotLibNet.Interaction.LegendToggleEvent("c1", AxesIndex: 0, SeriesIndex: seriesIndex);
+        evt.ApplyTo(fig);   // must not throw, must not crash
+        Assert.True(fig.SubPlots[0].Series[0].Visible);   // unchanged
+    }
+
+    private static Figure FigureWithNullAxisLimits()
+    {
+        // Build a figure but explicitly null out the axis limits so the `is double` patterns fail.
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [3.0, 4]))
+            .Build();
+        fig.SubPlots[0].XAxis.Min = null;
+        fig.SubPlots[0].XAxis.Max = null;
+        fig.SubPlots[0].YAxis.Min = null;
+        fig.SubPlots[0].YAxis.Max = null;
+        return fig;
+    }
+
+    [Fact]
+    public void PanEvent_BothAxisMinMaxNull_NoOpFigureUnchanged()
+    {
+        var fig = FigureWithNullAxisLimits();
+        var ax = fig.SubPlots[0];
+        var evt = new PanEvent(ChartId: "c", AxesIndex: 0, DxData: 5, DyData: 5);
+        evt.ApplyTo(fig);
+        Assert.Null(ax.XAxis.Min);
+        Assert.Null(ax.YAxis.Min);
+    }
+
+    [Fact]
+    public void PanEvent_OnlyXAxisLimitsSet_PansXNotY()
+    {
+        var fig = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [3.0, 4])).Build();
+        var ax = fig.SubPlots[0];
+        ax.XAxis.Min = 0; ax.XAxis.Max = 10;
+        ax.YAxis.Min = null; ax.YAxis.Max = null;
+        new PanEvent("c", 0, 5, 5).ApplyTo(fig);
+        Assert.Equal(5, ax.XAxis.Min);
+        Assert.Equal(15, ax.XAxis.Max);
+        Assert.Null(ax.YAxis.Min);  // Y was null → no-op
+    }
+
+    [Fact]
+    public void PanEvent_OnlyYAxisLimitsSet_PansYNotX()
+    {
+        var fig = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [3.0, 4])).Build();
+        var ax = fig.SubPlots[0];
+        ax.XAxis.Min = null; ax.XAxis.Max = null;
+        ax.YAxis.Min = 0; ax.YAxis.Max = 10;
+        new PanEvent("c", 0, 5, 5).ApplyTo(fig);
+        Assert.Null(ax.XAxis.Min);
+        Assert.Equal(5, ax.YAxis.Min);
+        Assert.Equal(15, ax.YAxis.Max);
+    }
+
+    [Fact]
+    public void PanEvent_XMinSetButXMaxNull_NoOpForX()
+    {
+        // Tests the && short-circuit: X.Min is double, X.Max is null → second clause false → no-op
+        var fig = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [3.0, 4])).Build();
+        var ax = fig.SubPlots[0];
+        ax.XAxis.Min = 0; ax.XAxis.Max = null;
+        new PanEvent("c", 0, 5, 5).ApplyTo(fig);
+        Assert.Equal(0, ax.XAxis.Min);  // unchanged
     }
 }

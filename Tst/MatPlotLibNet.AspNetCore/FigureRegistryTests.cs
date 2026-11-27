@@ -1,10 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Collections.Concurrent;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
-using MatPlotLibNet.Models.Streaming;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
@@ -20,7 +18,7 @@ public class FigureRegistryTests
     [Fact]
     public async Task Publish_UnknownChart_ReturnsFalse()
     {
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
 
         var ok = registry.Publish("does-not-exist",
@@ -34,7 +32,7 @@ public class FigureRegistryTests
     [Fact]
     public async Task Publish_ZoomEvent_AppliesMutation_AndPublishes()
     {
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
         var figure = NewFigure();
         registry.Register("c1", figure);
@@ -58,7 +56,7 @@ public class FigureRegistryTests
         // 50 events pushed as fast as we can write. The reader drains all that have accumulated
         // in one WaitToReadAsync wake-up and publishes once per drained batch. On a warmed-up
         // channel we expect *far* fewer than 50 publishes — at most 50, but typically 1-5.
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
         var figure = NewFigure();
         registry.Register("burst", figure);
@@ -81,7 +79,7 @@ public class FigureRegistryTests
     [Fact]
     public async Task Publish_MixedEventTypes_AppliesAllInOrder()
     {
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
         var figure = NewFigure();
         figure.SubPlots[0].XAxis.Min = 0;
@@ -108,7 +106,7 @@ public class FigureRegistryTests
     [Fact]
     public async Task UnregisterAsync_CompletesReaderTask_DoesNotHang()
     {
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
         registry.Register("dispose-me", NewFigure());
 
@@ -123,16 +121,20 @@ public class FigureRegistryTests
     [Fact]
     public async Task UnregisterAsync_UnknownChart_IsNoOp()
     {
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
+        registry.Register("kept", NewFigure());
 
-        await registry.UnregisterAsync("never-registered"); // must not throw
+        await registry.UnregisterAsync("never-registered");
+
+        Assert.True(registry.Publish("kept", new ZoomEvent("kept", 0, 0, 1, 0, 1)));
+        await registry.UnregisterAsync("kept");
     }
 
     [Fact]
     public async Task Publish_LegendToggleEvent_FlipsSeriesVisibility()
     {
-        var publisher = new RecordingPublisher();
+        var publisher = new RecordingChartPublisher();
         var registry = new FigureRegistry(publisher);
         var figure = NewFigure();
         registry.Register("toggle", figure);
@@ -146,66 +148,11 @@ public class FigureRegistryTests
         await registry.UnregisterAsync("toggle");
     }
 
-    /// <summary>Test double for <see cref="IChartPublisher"/> that records every publish and
-    /// exposes async helpers to wait for a given call count / quiescence.</summary>
-    private sealed class RecordingPublisher : IChartPublisher
-    {
-        public ConcurrentQueue<(string ChartId, Figure Figure)> Calls { get; } = new();
-        private readonly SemaphoreSlim _signal = new(0);
-
-        public Task PublishAsync(string chartId, Figure figure, CancellationToken ct = default) =>
-            Task.CompletedTask;
-
-        public Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default)
-        {
-            Calls.Enqueue((chartId, figure));
-            _signal.Release();
-            return Task.CompletedTask;
-        }
-
-        public async Task WaitForAtLeastAsync(int n)
-        {
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
-            while (Calls.Count < n && DateTime.UtcNow < deadline)
-                await Task.Delay(10);
-        }
-
-        public async Task WaitForQuiescenceAsync(TimeSpan quiet)
-        {
-            var last = Calls.Count;
-            var stable = DateTime.UtcNow;
-            while (DateTime.UtcNow - stable < quiet)
-            {
-                await Task.Delay(20);
-                if (Calls.Count != last)
-                {
-                    last = Calls.Count;
-                    stable = DateTime.UtcNow;
-                }
-            }
-        }
-    }
-}
-
-// ─── FigureRegistryCoverageTests.cs ──────────────────────────────────────────
-
-/// <summary>
-/// Phase Z.7 (v1.7.2, 2026-04-19) — branch coverage for <see cref="FigureRegistry"/>
-/// arms not exercised by <see cref="FigureRegistryTests"/>: the configure-overload
-/// null-arg guard, RegisterStreaming dispose-during-replace, and UnregisterAsync's
-/// TryRemove false arm. Pre-Z.7: 96.4%L / 87.5%B.
-/// </summary>
-public class FigureRegistryCoverageTests
-{
-    private static Figure NewFigure() => Plt.Create()
-        .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
-        .Build();
-
     /// <summary>Register(chartId, figure, configure) with null configure — `ThrowIfNull` true arm.</summary>
     [Fact]
     public void Register_WithNullConfigure_ThrowsArgumentNullException()
     {
-        var registry = new FigureRegistry(new RecordingPublisher());
+        var registry = new FigureRegistry(new SilentChartPublisher());
         Assert.Throws<ArgumentNullException>(() =>
             registry.Register("c1", NewFigure(), configure: null!));
     }
@@ -215,18 +162,10 @@ public class FigureRegistryCoverageTests
     [Fact]
     public void Register_WithNonNullConfigure_InvokesCallbackOnce()
     {
-        var registry = new FigureRegistry(new RecordingPublisher());
+        var registry = new FigureRegistry(new SilentChartPublisher());
         int callCount = 0;
         registry.Register("c1", NewFigure(), configure: opts => callCount++);
         Assert.Equal(1, callCount);
-    }
-
-    /// <summary>UnregisterAsync with unknown chartId — TryRemove returns false, no exception.</summary>
-    [Fact]
-    public async Task UnregisterAsync_UnknownChartId_NoOp()
-    {
-        var registry = new FigureRegistry(new RecordingPublisher());
-        await registry.UnregisterAsync("never-registered");
     }
 
     /// <summary>Register the same chartId twice — second call disposes the existing session
@@ -234,28 +173,36 @@ public class FigureRegistryCoverageTests
     [Fact]
     public async Task Register_SameChartIdTwice_DisposesPreviousSession()
     {
-        var registry = new FigureRegistry(new RecordingPublisher());
+        var registry = new FigureRegistry(new SilentChartPublisher());
         registry.Register("c1", NewFigure());
         registry.Register("c1", NewFigure());
         Assert.True(registry.Publish("c1", new ZoomEvent("c1", 0, 0, 1, 0, 1)));
         await Task.Delay(20, TestContext.Current.CancellationToken);
     }
 
-    /// <summary>RegisterStreaming over an existing entry disposes the previous streaming session
-    /// (TryRemove true arm at line 74).</summary>
     [Fact]
-    public void RegisterStreaming_SameChartIdTwice_DisposesPreviousStreaming()
+    public async Task NullCallerPublisher_SendTooltipAsync_HitViaHoverEventWithCallerId()
     {
-        var registry = new FigureRegistry(new RecordingPublisher());
-        var sf = new StreamingFigure(NewFigure());
-        registry.RegisterStreaming("s1", sf);
-        var sf2 = new StreamingFigure(NewFigure());
-        registry.RegisterStreaming("s1", sf2);
-    }
+        var publisher = new SilentChartPublisher();
+        // Single-arg ctor → NullCallerPublisher installed (its installation is covered by existing
+        // tests; this test additionally hits the NullCallerPublisher.SendTooltipAsync arm).
+        var registry = new FigureRegistry(publisher);
+        var figure = Plt.Create().Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]).Build();
 
-    private sealed class RecordingPublisher : IChartPublisher
-    {
-        public Task PublishAsync(string chartId, Figure figure, CancellationToken ct = default) => Task.CompletedTask;
-        public Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default) => Task.CompletedTask;
+        registry.Register("c1", figure, opts =>
+            opts.OnHover(_ => ValueTask.FromResult<string?>("<b>tooltip</b>")));
+
+        // CallerConnectionId set → the session captures the tooltipHtml
+        // and calls _callerPublisher.SendTooltipAsync.
+        var ok = registry.Publish("c1", new HoverEvent("c1", 0, 1.5, 4.5, CallerConnectionId: "test-conn-id"));
+        Assert.True(ok);
+
+        // Give the reader task time to drain + dispatch.
+        await Task.Delay(150, TestContext.Current.CancellationToken);
+
+        await registry.UnregisterAsync("c1");
     }
 }
+
+// ─── FigureRegistryCoverageTests.cs ──────────────────────────────────────────
+

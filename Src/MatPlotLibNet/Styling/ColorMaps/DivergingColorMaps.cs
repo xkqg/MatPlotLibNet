@@ -9,138 +9,32 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class DivergingColorMaps
 {
-    /// <summary>Dark red for low values, a pale centre, dark blue for high ones (after matplotlib's <c>RdBu</c>).</summary>
-    public static IColorMap RdBu { get; } = new LinearColorMap("rdbu",
-    [
-        Color.FromHex("#67001F"),
-        Color.FromHex("#B2182B"),
-        Color.FromHex("#D6604D"),
-        Color.FromHex("#F4A582"),
-        Color.FromHex("#FDDBC7"),
-        Color.FromHex("#D1E5F0"),
-        Color.FromHex("#92C5DE"),
-        Color.FromHex("#4393C3"),
-        Color.FromHex("#2166AC"),
-        Color.FromHex("#053061"),
-    ]);
+    internal static ColorMapShelf Shelf { get; } = new();
 
-    /// <summary>Red for low values, yellow in the middle, green for high ones; reads as bad to good (after matplotlib's <c>RdYlGn</c>).</summary>
-    public static IColorMap RdYlGn { get; } = new LinearColorMap("rdylgn",
-    [
-        Color.FromHex("#A50026"),
-        Color.FromHex("#D73027"),
-        Color.FromHex("#F46D43"),
-        Color.FromHex("#FDAE61"),
-        Color.FromHex("#FEE08B"),
-        Color.FromHex("#D9EF8B"),
-        Color.FromHex("#A6D96A"),
-        Color.FromHex("#66BD63"),
-        Color.FromHex("#1A9850"),
-        Color.FromHex("#006837"),
-    ]);
+    /// <summary>Dark red for low values, a pale centre, dark blue for high ones (matplotlib's own table for <c>RdBu</c>).</summary>
+    public static IColorMap RdBu { get; } = Shelf.Add(MatplotlibColorTables.Of("rdbu"));
 
-    /// <summary>Red for low values, yellow in the middle, blue for high ones (after matplotlib's <c>RdYlBu</c>).</summary>
-    public static IColorMap RdYlBu { get; } = new LinearColorMap("rdylbu",
-    [
-        Color.FromHex("#A50026"),
-        Color.FromHex("#D73027"),
-        Color.FromHex("#F46D43"),
-        Color.FromHex("#FDAE61"),
-        Color.FromHex("#FEE090"),
-        Color.FromHex("#E0F3F8"),
-        Color.FromHex("#ABD9E9"),
-        Color.FromHex("#74ADD1"),
-        Color.FromHex("#4575B4"),
-        Color.FromHex("#313695"),
-    ]);
+    /// <summary>Red for low values, yellow in the middle, green for high ones; reads as bad to good (matplotlib's own table for <c>RdYlGn</c>).</summary>
+    public static IColorMap RdYlGn { get; } = Shelf.Add(MatplotlibColorTables.Of("rdylgn"));
 
-    /// <summary>Brown for low values, a pale centre, blue-green for high ones (after matplotlib's <c>BrBG</c>).</summary>
-    public static IColorMap BrBG { get; } = new LinearColorMap("brbg",
-    [
-        Color.FromHex("#543005"),
-        Color.FromHex("#8C510A"),
-        Color.FromHex("#BF812D"),
-        Color.FromHex("#DFC27D"),
-        Color.FromHex("#F6E8C3"),
-        Color.FromHex("#C7EAE5"),
-        Color.FromHex("#80CDC1"),
-        Color.FromHex("#35978F"),
-        Color.FromHex("#01665E"),
-        Color.FromHex("#003C30"),
-    ]);
+    /// <summary>Red for low values, yellow in the middle, blue for high ones (matplotlib's own table for <c>RdYlBu</c>).</summary>
+    public static IColorMap RdYlBu { get; } = Shelf.Add(MatplotlibColorTables.Of("rdylbu"));
 
-    /// <summary>Magenta-pink for low values, a pale centre, green for high ones (after matplotlib's <c>PiYG</c>).</summary>
-    public static IColorMap PiYG { get; } = new LinearColorMap("piyg",
-    [
-        Color.FromHex("#8E0152"),
-        Color.FromHex("#C51B7D"),
-        Color.FromHex("#DE77AE"),
-        Color.FromHex("#F1B6DA"),
-        Color.FromHex("#FDE0EF"),
-        Color.FromHex("#E6F5D0"),
-        Color.FromHex("#B8E186"),
-        Color.FromHex("#7FBC41"),
-        Color.FromHex("#4D9221"),
-        Color.FromHex("#276419"),
-    ]);
+    /// <summary>Brown for low values, a pale centre, blue-green for high ones (matplotlib's own table for <c>BrBG</c>).</summary>
+    public static IColorMap BrBG { get; } = Shelf.Add(MatplotlibColorTables.Of("brbg"));
 
-    /// <summary>Red for low values, then orange, yellow and green, ending in blue and violet for high ones (after matplotlib's <c>Spectral</c>).</summary>
-    public static IColorMap Spectral { get; } = new LinearColorMap("spectral",
-    [
-        Color.FromHex("#9E0142"),
-        Color.FromHex("#D53E4F"),
-        Color.FromHex("#F46D43"),
-        Color.FromHex("#FDAE61"),
-        Color.FromHex("#FEE08B"),
-        Color.FromHex("#E6F598"),
-        Color.FromHex("#ABDDA4"),
-        Color.FromHex("#66C2A5"),
-        Color.FromHex("#3288BD"),
-        Color.FromHex("#5E4FA2"),
-    ]);
+    /// <summary>Magenta-pink for low values, a pale centre, green for high ones (matplotlib's own table for <c>PiYG</c>).</summary>
+    public static IColorMap PiYG { get; } = Shelf.Add(MatplotlibColorTables.Of("piyg"));
+
+    /// <summary>Red for low values, then orange, yellow and green, ending in blue and violet for high ones (matplotlib's own table for <c>Spectral</c>).</summary>
+    public static IColorMap Spectral { get; } = Shelf.Add(MatplotlibColorTables.Of("spectral"));
 
     /// <summary>Dark purple for low values, a pale centre, dark orange-brown for high ones.</summary>
-    public static IColorMap PuOr { get; } = new LinearColorMap("puor",
-    [
-        Color.FromHex("#2D004B"),
-        Color.FromHex("#542788"),
-        Color.FromHex("#8073AC"),
-        Color.FromHex("#B2ABD2"),
-        Color.FromHex("#D8DAEB"),
-        Color.FromHex("#FEE0B6"),
-        Color.FromHex("#FDB863"),
-        Color.FromHex("#E08214"),
-        Color.FromHex("#B35806"),
-        Color.FromHex("#7F3B08"),
-    ]);
+    public static IColorMap PuOr { get; } = Shelf.Add(MatplotlibColorTables.Of("puor"));
 
-    /// <summary>Dark blue for low values, white in the middle, dark red for high ones; suits data centred on zero (after matplotlib's <c>seismic</c>).</summary>
-    public static IColorMap Seismic { get; } = new LinearColorMap("seismic",
-    [
-        Color.FromHex("#00004C"),
-        Color.FromHex("#0000B3"),
-        Color.FromHex("#0000FF"),
-        Color.FromHex("#6666FF"),
-        Color.FromHex("#CCCCFF"),
-        Color.FromHex("#FFFFFF"),
-        Color.FromHex("#FFCCCC"),
-        Color.FromHex("#FF6666"),
-        Color.FromHex("#FF0000"),
-        Color.FromHex("#CC0000"),
-        Color.FromHex("#800000"),
-    ]);
+    /// <summary>Dark blue for low values, white in the middle, dark red for high ones; suits data centred on zero (matplotlib's own table for <c>seismic</c>).</summary>
+    public static IColorMap Seismic { get; } = Shelf.Add(MatplotlibColorTables.Of("seismic"));
 
-    /// <summary>Saturated blue for low values, white in the middle, saturated red for high ones (after matplotlib's <c>bwr</c>).</summary>
-    public static IColorMap Bwr { get; } = new LinearColorMap("bwr",
-    [
-        Color.FromHex("#0000FF"),
-        Color.FromHex("#4444FF"),
-        Color.FromHex("#8888FF"),
-        Color.FromHex("#CCCCFF"),
-        Color.FromHex("#FFFFFF"),
-        Color.FromHex("#FFCCCC"),
-        Color.FromHex("#FF8888"),
-        Color.FromHex("#FF4444"),
-        Color.FromHex("#FF0000"),
-    ]);
+    /// <summary>Saturated blue for low values, white in the middle, saturated red for high ones (matplotlib's own table for <c>bwr</c>).</summary>
+    public static IColorMap Bwr { get; } = Shelf.Add(MatplotlibColorTables.Of("bwr"));
 }

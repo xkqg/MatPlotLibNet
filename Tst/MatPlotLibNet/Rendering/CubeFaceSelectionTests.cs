@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Lighting;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -237,29 +238,26 @@ public class CubeFaceSelectionTests
         _ = backX; _ = backY; _ = backZ;
         var faces = Projection(elevation, azimuth).Faces;
 
-        var xEdge = faces.AxisEdge(CubeAxis.X, Box);
-        Assert.Equal(XMin, Math.Min(xEdge.From.X, xEdge.To.X));
-        Assert.Equal(XMax, Math.Max(xEdge.From.X, xEdge.To.X));
-        Assert.Equal(Coord(CubeAxis.Y, Side(xLineY)), xEdge.From.Y);
-        Assert.Equal(Coord(CubeAxis.Y, Side(xLineY)), xEdge.To.Y);
-        Assert.Equal(Coord(CubeAxis.Z, Side(xLineZ)), xEdge.From.Z);
-        Assert.Equal(Coord(CubeAxis.Z, Side(xLineZ)), xEdge.To.Z);
+        AssertEdge(faces.AxisEdge(CubeAxis.X, Box), CubeAxis.X, XMin, XMax, new(CubeAxis.Y, xLineY), new(CubeAxis.Z, xLineZ));
+        AssertEdge(faces.AxisEdge(CubeAxis.Y, Box), CubeAxis.Y, YMin, YMax, new(CubeAxis.X, yLineX), new(CubeAxis.Z, yLineZ));
+        AssertEdge(faces.AxisEdge(CubeAxis.Z, Box), CubeAxis.Z, ZMin, ZMax, new(CubeAxis.X, zLineX), new(CubeAxis.Y, zLineY));
+    }
 
-        var yEdge = faces.AxisEdge(CubeAxis.Y, Box);
-        Assert.Equal(YMin, Math.Min(yEdge.From.Y, yEdge.To.Y));
-        Assert.Equal(YMax, Math.Max(yEdge.From.Y, yEdge.To.Y));
-        Assert.Equal(Coord(CubeAxis.X, Side(yLineX)), yEdge.From.X);
-        Assert.Equal(Coord(CubeAxis.X, Side(yLineX)), yEdge.To.X);
-        Assert.Equal(Coord(CubeAxis.Z, Side(yLineZ)), yEdge.From.Z);
-        Assert.Equal(Coord(CubeAxis.Z, Side(yLineZ)), yEdge.To.Z);
+    /// <summary>The side of the cube an edge stands on along one axis.</summary>
+    private readonly record struct EdgeSide(CubeAxis Axis, string Side);
 
-        var zEdge = faces.AxisEdge(CubeAxis.Z, Box);
-        Assert.Equal(ZMin, Math.Min(zEdge.From.Z, zEdge.To.Z));
-        Assert.Equal(ZMax, Math.Max(zEdge.From.Z, zEdge.To.Z));
-        Assert.Equal(Coord(CubeAxis.X, Side(zLineX)), zEdge.From.X);
-        Assert.Equal(Coord(CubeAxis.X, Side(zLineX)), zEdge.To.X);
-        Assert.Equal(Coord(CubeAxis.Y, Side(zLineY)), zEdge.From.Y);
-        Assert.Equal(Coord(CubeAxis.Y, Side(zLineY)), zEdge.To.Y);
+    private static double Along(Vec3 point, CubeAxis axis) => axis switch { CubeAxis.X => point.X, CubeAxis.Y => point.Y, _ => point.Z };
+
+    /// <summary>An axis edge runs the whole of its own axis, and stands at one side of the cube along each of the other two.</summary>
+    private static void AssertEdge(AxisEdge3D edge, CubeAxis axis, double min, double max, EdgeSide first, EdgeSide second)
+    {
+        Assert.Equal(min, Math.Min(Along(edge.From, axis), Along(edge.To, axis)));
+        Assert.Equal(max, Math.Max(Along(edge.From, axis), Along(edge.To, axis)));
+        foreach (var other in new[] { first, second })
+        {
+            Assert.Equal(Coord(other.Axis, Side(other.Side)), Along(edge.From, other.Axis));
+            Assert.Equal(Coord(other.Axis, Side(other.Side)), Along(edge.To, other.Axis));
+        }
     }
 
     /// <summary>
@@ -321,8 +319,8 @@ public class CubeFaceSelectionTests
         var faces = proj.Faces;
         var edge = faces.AxisEdge(CubeAxis.X, new Box3D(5, 5, 0, 50, 0, 60));
 
-        Assert.True(double.IsFinite(edge.From.X));
-        Assert.True(double.IsFinite(edge.To.X));
+        edge.From.X.AssertFinite();
+        edge.To.X.AssertFinite();
         Assert.Equal(5, edge.From.X);
     }
 

@@ -5,6 +5,8 @@ using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -16,14 +18,6 @@ public class LabelPlacementTests
 {
     private static readonly double[] X = [1.0, 2.0, 3.0];
     private static readonly double[] Y = [2.0, 3.0, 4.0];
-
-    [Fact]
-    public void ALineSeries_KeepsItsNameInTheLegend_ByDefault()
-    {
-        Assert.Equal(SeriesLabelPlacement.Legend, new LineSeries(X, Y).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.Legend, new StreamingLineSeries().LabelPlacement);
-        Assert.Equal(0, (int)default(SeriesLabelPlacement));
-    }
 
     [Fact]
     public void WithDirectLabel_MarksTheLastLine_AndNoEarlierOne()
@@ -142,7 +136,7 @@ public class LabelPlacementTests
     [Fact]
     public void ALineSeries_HandsTheLabelPartItsOwnPoints()
     {
-        IHasLabelPlacement line = new LineSeries(X, Y);
+        IHasLinePoints line = new LineSeries(X, Y);
         var points = line.LinePoints();
         Assert.Equal(X, points.XData);
         Assert.Equal(Y, points.YData);
@@ -156,7 +150,7 @@ public class LabelPlacementTests
         live.AppendPoint(2, 20);
         live.AppendPoint(3, 30);   // evicts the first point: the label part sees what the next render draws
 
-        var points = ((IHasLabelPlacement)live).LinePoints();
+        var points = ((IHasLinePoints)live).LinePoints();
         Assert.Equal([2.0, 3.0], points.XData);
         Assert.Equal([20.0, 30.0], points.YData);
     }
@@ -164,8 +158,39 @@ public class LabelPlacementTests
     [Fact]
     public void AnEmptyStreamingLine_HandsTheLabelPartNoPoints()
     {
-        var points = ((IHasLabelPlacement)new StreamingLineSeries()).LinePoints();
+        var points = ((IHasLinePoints)new StreamingLineSeries()).LinePoints();
         Assert.Empty(points.XData);
         Assert.Empty(points.YData);
+    }
+
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
+    {
+        //  A series of the caller's that asks for an end label: the library cannot read its line, so no end label is drawn for it, and its
+        // name stays in the legend instead of being lost from both.
+        new DrawnToken("ACallersSeriesThatAsksForAnEndLabel_KeepsItsNameInTheLegend", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+                .Plot(X, Y, s => s.Label = "drawn")
+                .WithLegend()).Build();
+            figure.SubPlots[0].AddSeries(new CallersSeries { Label = "mine", LabelPlacement = SeriesLabelPlacement.LineEnd });
+            return figure.ToSvg();
+        }, ">mine<"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>A series outside the library that carries a label placement and draws nothing.</summary>
+    private sealed class CallersSeries : ChartSeries, IHasLabelPlacement
+    {
+        public SeriesLabelPlacement LabelPlacement { get; set; }
+
+        public override void Accept(ISeriesVisitor visitor, RenderArea area) { }
+
+        public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(1, 3, 2, 4);
+
+        public override SeriesDto ToSeriesDto() => new() { Type = "callers" };
     }
 }

@@ -1,20 +1,15 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Xml.Linq;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series.Streaming;
 
 public sealed class StreamingSignalSeriesTests
 {
-    [Fact]
-    public void Construction_DefaultCapacity_Is100000()
-    {
-        var s = new StreamingSignalSeries();
-        Assert.Equal(100_000, s.Capacity);
-        Assert.Equal(1.0, s.SampleRate);
-        Assert.Equal(0.0, s.XStart);
-    }
 
     [Fact]
     public void Construction_CustomParameters()
@@ -94,11 +89,24 @@ public sealed class StreamingSignalSeriesTests
         Assert.Equal(30.0, range.YMax);
     }
 
+    /// <summary>Once the ring has evicted, the X extent starts at the ordinal of the oldest sample still held, not at the first ever
+    /// appended; and the range is asked of the ring by walking it, so asking copies nothing.</summary>
     [Fact]
-    public void ComputeDataRange_Empty_ReturnsNulls()
+    public void ComputeDataRange_AfterEviction_StartsAtTheOldestHeld_AndCopiesNothing()
     {
-        var s = new StreamingSignalSeries();
-        Assert.Null(s.ComputeDataRange(null!).XMin);
+        var s = new StreamingSignalSeries(capacity: 2, sampleRate: 2.0, xStart: 1.0);
+        s.AppendSamples([10.0, 40.0, 20.0]);
+        _ = s.ComputeDataRange(null!);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var range = s.ComputeDataRange(null!);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(1.5, range.XMin);
+        Assert.Equal(2.0, range.XMax);
+        Assert.Equal(20.0, range.YMin);
+        Assert.Equal(40.0, range.YMax);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]
@@ -117,5 +125,52 @@ public sealed class StreamingSignalSeriesTests
         var s = new StreamingSignalSeries(capacity: 100_000);
         s.AppendSample(1.0);
         Assert.Equal(1, s.Count);
+    }
+
+    // ── the width of its line: given, else the theme's (a SignalSeries' rule), 1 px at rest under the library's own themes ──
+
+    private static string DrawnWidth(Theme theme, Action<StreamingSignalSeries>? configure = null)
+    {
+        var svg = Plt.Create().WithTheme(theme).WithSize(400, 300).AddSubPlot(1, 1, 1, ax =>
+        {
+            var s = ax.StreamingSignal(capacity: 8);
+            s.Color = Colors.Red;
+            configure?.Invoke(s);
+            s.AppendSamples([1.0, 3.0, 2.0]);
+        }).ToSvg();
+        return Assert.Single(svg.Xml().Descendants(), e => (string?)e.Attribute("stroke") == Colors.Red.ToHex())
+            .Attribute("stroke-width")!.Value;
+    }
+
+    /// <summary>A stream given no width is drawn as a line given none (<c>plot</c>'s <c>Line2D</c>): the theme's <c>lines.linewidth</c>
+    /// (matplotlib 3.11.2 prints <c>rcParams['lines.linewidth']</c> 1.5 under the default style and 1.0 under the classic one: 2.08 and
+    /// 1.39 px), and the 1 px it has always rested at under the library's own themes.</summary>
+    [Theory]
+    [InlineData("MatplotlibV2", "2.08")]
+    [InlineData("MatplotlibClassic", "1.39")]
+    [InlineData("Default", "1")]
+    public void AStreamGivenNoWidth_IsDrawnAtItsThemesWidth(string themeName, string expected)
+    {
+        var theme = themeName.AsTheme();
+
+        Assert.Equal(expected, DrawnWidth(theme));
+    }
+
+    [Fact]
+    public void AGivenWidth_WinsOverTheTheme()
+    {
+        Assert.Equal("3", DrawnWidth(Theme.MatplotlibV2, s => s.LineWidth = 3));
+        Assert.Equal("1", DrawnWidth(Theme.MatplotlibV2, s => s.LineWidth = 1));
+    }
+
+    [Fact]
+    public void TheWidth_ReadsItsRestingOne_UntilGiven_AndTheJsonWritesOnlyAGivenOne()
+    {
+        var resting = new StreamingSignalSeries(capacity: 4);
+        var given = new StreamingSignalSeries(capacity: 4) { LineWidth = 1.0 };
+
+        Assert.Equal(1.0, resting.LineWidth);
+        Assert.Null(resting.ToSeriesDto().LineWidth);
+        Assert.Equal(1.0, given.ToSeriesDto().LineWidth);
     }
 }

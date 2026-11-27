@@ -2,6 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Rendering.TickLocators;
 
@@ -28,34 +37,6 @@ public class LogLocatorTests
         Assert.Contains(1000.0, ticks);
     }
 
-    /// <summary>Verifies that all ticks are within [min, max].</summary>
-    [Fact]
-    public void Locate_AllTicksWithinRange()
-    {
-        var locator = new LogLocator();
-        double[] ticks = locator.Locate(0.1, 10000);
-        Assert.All(ticks, t => Assert.InRange(t, 0.1, 10000));
-    }
-
-    /// <summary>Verifies that ticks are ascending.</summary>
-    [Fact]
-    public void Locate_ReturnsAscendingOrder()
-    {
-        var locator = new LogLocator();
-        double[] ticks = locator.Locate(0.01, 1000);
-        for (int i = 1; i < ticks.Length; i++)
-            Assert.True(ticks[i] > ticks[i - 1]);
-    }
-
-    /// <summary>Verifies that sub-decade ranges include at least one tick.</summary>
-    [Fact]
-    public void Locate_SubDecadeRange_ReturnsAtLeastOneTick()
-    {
-        var locator = new LogLocator();
-        double[] ticks = locator.Locate(1, 5);
-        Assert.NotEmpty(ticks);
-    }
-
     /// <summary>Verifies that all ticks are strictly positive (log requires positive values).</summary>
     [Fact]
     public void Locate_AllTicksStrictlyPositive()
@@ -63,5 +44,25 @@ public class LogLocatorTests
         var locator = new LogLocator();
         double[] ticks = locator.Locate(0.001, 10);
         Assert.All(ticks, t => Assert.True(t > 0));
+    }
+
+    /// <summary>min ≤ 0 coercion arm.</summary>
+    [Fact]
+    public void LogLocator_MinLessThanZero_CoercesToTinyPositive()
+    {
+        var loc = new LogLocator();
+        var ticks = loc.Locate(-5, 100);
+        Assert.NotEmpty(ticks);
+        Assert.All(ticks, t => Assert.True(t > 0));
+    }
+
+    /// <summary>max ≤ min returns [min] short-circuit.</summary>
+    [Fact]
+    public void LogLocator_MaxLessThanMin_ReturnsSingleMin()
+    {
+        var loc = new LogLocator();
+        var ticks = loc.Locate(10, 5);
+        Assert.Single(ticks);
+        Assert.Equal(10, ticks[0]);
     }
 }

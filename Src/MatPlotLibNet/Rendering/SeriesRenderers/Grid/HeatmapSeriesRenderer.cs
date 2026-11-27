@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -51,9 +51,8 @@ internal sealed class HeatmapSeriesRenderer : SeriesRenderer<HeatmapSeries>
     {
         int rows = series.Data.GetLength(0), cols = series.Data.GetLength(1);
         if (rows == 0 || cols == 0) return;
-        var (cmap, norm, min, max) = ResolveColormapping(series.Data, series, series);
-        var df = Context.Theme.DefaultFont;
-        var labelFont = new Font { Family = df.Family, Size = df.Size };
+        var scale = series.ColorScaleUnder(Context.Theme);
+        var labelFont = Context.Theme.DataTextFont();
         for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)
         {
@@ -66,16 +65,18 @@ internal sealed class HeatmapSeriesRenderer : SeriesRenderer<HeatmapSeries>
             // A calendar of events lays its days in the theme's neutral grey, light enough to be a ground for the marks on it.
             var color = series.WearsNeutral && !value.IsMissing()
                 ? Context.Theme.Neutral with { A = NeutralCellOpacity }
-                : cmap.ColorOf(value, norm, min, max);
-            Ctx.DrawRectangle(cell, new ShapeStyle(color, null, 0));
+                : scale.ColorOf(value);
+            // On the pixel grid of a raster export under a theme that asks for it, as matplotlib's image of a matrix: no seam.
+            var style = ShapeStyle.Filled(color);
+            Ctx.DrawSnappedRectangle(cell, style);
 
             // A label states the cell's value; a missing cell has none to state.
             if (!series.ShowLabels || value.IsMissing()) continue;
 
-            string text = value.ToString(series.LabelFormat ?? "F2", CultureInfo.InvariantCulture);
+            string text = series.LabelOf(value);
             var textColor = series.CellValueColor ?? color.ContrastingTextColor();
             var labelFontWithColor = labelFont with { Color = textColor };
-            Ctx.DrawText(text, cell.Center, labelFontWithColor, TextAlignment.Center);
+            Ctx.Draw(TextLabel.Of(text), labelFontWithColor, new TextPlacement(cell.Center, TextAlignment.Center) { Vertical = TextVerticalAlignment.Center });
         }
     }
 

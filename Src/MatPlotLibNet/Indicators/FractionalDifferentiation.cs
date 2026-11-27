@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -14,13 +15,17 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Advances in Financial Machine Learning</i>, §5.5.</remarks>
 public sealed class FractionalDifferentiation : PriceIndicator<SignalResult>
 {
-    // Hard cap on weight-series length to prevent unbounded loops for pathological
-    // (d, tolerance) combinations. 100_000 weights covers every practical configuration;
-    // beyond that, switch to FFT-based convolution (TODO for future optimisation).
+    /// <summary>The <c>d</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultD = 0.4;
+
+    /// <summary>The <c>tolerance</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultTolerance = 1e-3;
+
+    // Hard cap on the weight series, so a (d, tolerance) pair that never converges fails with an
+    // exception instead of looping. The convolution costs one multiply per weight per bar, and
+    // 100_000 weights covers every configuration a price series can use.
     internal const int MaxWeights = 100_000;
 
-    private readonly double _d;
-    private readonly double _tolerance;
     private readonly double[] _weights;
 
     /// <summary>Creates a new fractional-differentiation indicator.</summary>
@@ -29,23 +34,23 @@ public sealed class FractionalDifferentiation : PriceIndicator<SignalResult>
     /// <param name="tolerance">Truncation tolerance (stop when <c>|w_k| &lt; tolerance</c>).</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="d"/> ∉ (0,1) or
     /// <paramref name="tolerance"/> ≤ 0.</exception>
-    public FractionalDifferentiation(double[] prices, double d = 0.4, double tolerance = 1e-3)
-        : base(prices)
+    public FractionalDifferentiation(double[] prices, double d = DefaultD, double tolerance = DefaultTolerance)
+        : base(prices, Spec(d, tolerance))
     {
-        _d = d;
-        _tolerance = tolerance;
         _weights = ComputeWeights(d, tolerance);
-        Label = $"FFD(d={d.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
-    /// <summary>Computes the truncated FFD weight series for order <paramref name="d"/>.</summary>
+    internal static IndicatorSpec Spec(double d, double tolerance)
+    {
+        d.ThrowIfNotBetween(0, 1, nameof(d));
+        tolerance.ThrowIfNotAbove(0, nameof(tolerance));
+        return IndicatorSpec.Of(ComputeWeights(d, tolerance).Length - 1, $"FFD(d={d.InvariantText("0.00")})");
+    }
+
+    /// <summary>Computes the truncated FFD weight series for order <paramref name="d"/>, which <see cref="Spec"/> has checked.</summary>
     /// <remarks>Exposed <c>internal</c> for unit testing via <c>InternalsVisibleTo</c>.</remarks>
     internal static double[] ComputeWeights(double d, double tolerance)
     {
-        if (d <= 0 || d >= 1)
-            throw new ArgumentException($"d must be in (0, 1); got {d}.", nameof(d));
-        if (tolerance <= 0)
-            throw new ArgumentException($"tolerance must be > 0; got {tolerance}.", nameof(tolerance));
 
         var buf = new List<double>(capacity: 64) { 1.0 };
         double w = 1.0;
@@ -57,17 +62,14 @@ public sealed class FractionalDifferentiation : PriceIndicator<SignalResult>
             buf.Add(w);
         }
         throw new InvalidOperationException(
-            $"FFD weight series did not converge within {MaxWeights} weights (d={d}, tolerance={tolerance}).");
+            string.Invariant($"FFD weight series did not converge within {MaxWeights} weights (d={d}, tolerance={tolerance})."));
     }
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
         int m = _weights.Length;
-        if (n < m) return Array.Empty<double>();
-
-        int outLen = n - m + 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
         for (int t = 0; t < outLen; t++)
         {
@@ -81,5 +83,5 @@ public sealed class FractionalDifferentiation : PriceIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _weights.Length - 1);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

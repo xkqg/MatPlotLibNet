@@ -8,10 +8,10 @@ namespace MatPlotLibNet.Tests.FluentApi;
 
 /// <summary>Covers the remaining uncovered branch arms in <see cref="FacetedFigure"/> after
 /// JointPlotFigureTests and PairPlotFigureTests provided baseline coverage:
-///   - L51 TRUE: both Width and Height set → fb.WithSize called
-///   - L99 AddLines TRUE: hueLabels null → single Plot series
-///   - L99 AddLines FALSE: hueLabels set → one Plot series per hue group
-///   - L127 TRUE: Palette is { Length: > 0 } → custom colours used in AddHistograms hue path</summary>
+///   - both Width and Height set → fb.WithSize called
+///   - AddLines with hueLabels null → single Plot series
+///   - AddLines with hueLabels set → one Plot series per hue group
+///   - Palette is { Length: > 0 } → custom colours used in AddHistograms hue path</summary>
 public class FacetedFigureTests
 {
     private static readonly double[] X   = [1.0, 2.0, 3.0, 4.0];
@@ -32,9 +32,7 @@ public class FacetedFigureTests
             fb.AddSubPlot(1, 1, 1, ax => AddLines(ax, _x, _y, _hue));
     }
 
-    // ── L51 TRUE arm ────────────────────────────────────────────────────────
-
-    /// <summary>L51 TRUE — both Width and Height set on a FacetedFigure subclass →
+    /// <summary>Both Width and Height set on a FacetedFigure subclass →
     /// FigureBuilder.WithSize is called before BuildCore.</summary>
     [Fact]
     public void Build_WithExplicitSize_CallsWithSize()
@@ -44,9 +42,7 @@ public class FacetedFigureTests
         Assert.Equal(300, fig.Height);
     }
 
-    // ── L99 AddLines arms ───────────────────────────────────────────────────
-
-    /// <summary>L99 TRUE — hueLabels null → AddLines adds a single Plot (LineSeries).</summary>
+    /// <summary>hueLabels null → AddLines adds a single Plot (LineSeries).</summary>
     [Fact]
     public void AddLines_NoHue_AddsSingleLineSeries()
     {
@@ -55,7 +51,7 @@ public class FacetedFigureTests
         Assert.IsType<LineSeries>(fig.SubPlots[0].Series[0]);
     }
 
-    /// <summary>L99 FALSE — hueLabels set → AddLines adds one Plot per unique hue label.</summary>
+    /// <summary>hueLabels set → AddLines adds one Plot per unique hue label.</summary>
     [Fact]
     public void AddLines_WithHue_AddsOneSeriesPerHueGroup()
     {
@@ -65,9 +61,7 @@ public class FacetedFigureTests
         Assert.All(fig.SubPlots[0].Series, s => Assert.IsType<LineSeries>(s));
     }
 
-    // ── L127 Palette TRUE arm ────────────────────────────────────────────────
-
-    /// <summary>L127 TRUE — Palette is { Length: &gt; 0 } → AddHistograms hue path uses the
+    /// <summary>Palette is { Length: &gt; 0 } → AddHistograms hue path uses the
     /// custom palette instead of HueGrouper.DefaultPalette.</summary>
     [Fact]
     public void AddHistograms_WithHue_WithCustomPalette_UsesCustomColors()
@@ -82,5 +76,26 @@ public class FacetedFigureTests
         Assert.Equal(2, fig.SubPlots[0].Series.Count);
         // Both are histograms
         Assert.All(fig.SubPlots[0].Series, s => Assert.IsType<HistogramSeries>(s));
+    }
+
+    /// <summary>A size the caller gave wins over the one a figure's layout picks for itself: the pair plot's 200 pixels a variable
+    /// and the facet grid's 300 by 250 a panel are what a figure told no size is drawn at, as for every other faceted figure.</summary>
+    [Fact]
+    public void AGivenSize_WinsOverTheSizeTheLayoutPicks()
+    {
+        var pairs = new PairPlotFigure([[1.0, 2, 3], [3.0, 1, 2]]) { Width = 500, Height = 400 }.Build().Build();
+        var facets = new FacetGridFigure(X, Y, ["a", "b", "a", "b"], (ax, x, y) => ax.Scatter(x, y)) { Width = 640, Height = 360 }.Build().Build();
+
+        Assert.Equal((500.0, 400.0), (pairs.Width, pairs.Height));
+        Assert.Equal((640.0, 360.0), (facets.Width, facets.Height));
+    }
+
+    /// <summary>Told no size, a faceted figure keeps the one its layout picks.</summary>
+    [Fact]
+    public void NoGivenSize_KeepsTheSizeTheLayoutPicks()
+    {
+        var pairs = new PairPlotFigure([[1.0, 2, 3], [3.0, 1, 2]]).Build().Build();
+
+        Assert.Equal((400.0, 400.0), (pairs.Width, pairs.Height));
     }
 }

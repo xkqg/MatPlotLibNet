@@ -10,44 +10,22 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 /// <summary>Phase 5 Financial-family fidelity tests (OHLC bar variant).</summary>
 public class FinancialChartFidelityTests : FidelityTest
 {
-    private static double NextGaussian(Random rng)
-    {
-        double u1 = 1.0 - rng.NextDouble();
-        double u2 = 1.0 - rng.NextDouble();
-        return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-    }
-
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 70)]   // thin red/green OHLC ticks fall below top-5 pixel count threshold (same pattern as core violin)
+    [FidelityRows]
+    [FidelityTolerance(Rms = 10, Ssim = 0.98, DeltaE = 2, V2Rms = 15, V2Ssim = 0.98, V2DeltaE = 2)]   // the lines are the reference's, on the pixel grid at 1 pt; the ticks are 6 px where the reference's are 0.2 of an X unit, and the text is antialiased
     public void OhlcBar_20Bars_MatchesMatplotlib(string themeId)
     {
-        var rng = new Random(42);
-        int n = 20;
-        double[] close = new double[n];
-        double[] high  = new double[n];
-        double[] low   = new double[n];
-        double[] open  = new double[n];
-        double price = 100;
-        for (int i = 0; i < n; i++)
-        {
-            price += NextGaussian(rng);
-            close[i] = price;
-            high[i]  = price + rng.NextDouble() * 1.5 + 0.5;
-            low[i]   = price - rng.NextDouble() * 1.5 - 0.5;
-            open[i]  = price + NextGaussian(rng) * 0.5;
-        }
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("OHLC bars — 20 bars")
-                .OhlcBar(open, high, low, close)
-                .SetXLabel("bar")
-                .SetYLabel("price"))
-            .Build();
-        AssertFidelity(figure, "ohlc_bar");
+        var bars = ReferenceData.Load("ohlc_bar");
+        double[] open  = bars.Vector("open");
+        double[] high  = bars.Vector("high");
+        double[] low   = bars.Vector("low");
+        double[] close = bars.Vector("close");
+        AssertFidelity(themeId, "ohlc_bar", "OHLC bars — 20 bars", ax => ax
+            .OhlcBar(open, high, low, close, null, s => s.LineWidth = 1.0 * RenderDpi / 72)   // the reference's linewidth=1, in points
+            .SetXLabel("bar")
+            .SetYLabel("price")
+            // The reference's range is its lines' (x from -0.2 to 19.2, padded by the style: get_xlim() is -5 to 20 classic, -1.17 to 20.17
+            // v2); the library's OHLC bars range over their slots (-0.5 to 19.5, no margin), so the check states the reference's.
+            .SetXLim(themeId == "classic" ? -5 : -1.17, themeId == "classic" ? 20 : 20.17));
     }
 }

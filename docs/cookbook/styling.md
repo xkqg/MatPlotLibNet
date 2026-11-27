@@ -112,10 +112,10 @@ Plt.Create()
 
 ## The neutral grey
 
-Reference lines, price levels, Fibonacci lines, trendlines, waterfall connectors, a dumbbell's connector and the outlines of a
+Reference lines, price levels, the levels of `AddFibonacci`, trendlines, waterfall connectors, a dumbbell's connector and the outlines of a
 map wear one grey, `Theme.NeutralColor`. A theme that sets none derives it from its plot: the library's grey where that stands
 at 3 : 1 or more against the plot, otherwise the nearest grey that does, so Nord, Dracula, Monokai, Gruvbox and OpsPanel get one of
-their own. `ThemeBuilder.WithNeutralColor` names one by hand, and a colour set on the line itself always wins:
+their own. `ThemeBuilder.WithNeutralColor` names one by hand, and a colour set on the line itself always wins. The levels of the `FibonacciRetracement` indicator are not among them: they are orange under the library's own themes and matplotlib's `lines.color` under the matplotlib themes:
 
 ```csharp
 using MatPlotLibNet;

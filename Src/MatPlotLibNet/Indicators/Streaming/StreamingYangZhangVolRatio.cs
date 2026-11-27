@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -17,12 +18,11 @@ public sealed class StreamingYangZhangVolRatio : WindowedStreamingIndicator<Ohlc
     /// <param name="shortWindow">The window of the short volatility; at least 2.</param>
     /// <param name="longWindow">The window of the long volatility; above the short one.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingYangZhangVolRatio(int shortWindow = 20, int longWindow = 60, int capacity = 10_000)
-        : base(longWindow + 1, capacity)
+    public StreamingYangZhangVolRatio(int shortWindow = YangZhangVolRatio.DefaultShortWindow, int longWindow = YangZhangVolRatio.DefaultLongWindow, int capacity = StreamingSeries.RestingCapacity)
+        : base(YangZhangVolRatio.Spec(shortWindow, longWindow), capacity)
     {
         _shortWindow = shortWindow;
         _longWindow = longWindow;
-        Label = $"YZRatio({shortWindow}/{longWindow})";
     }
 
     /// <inheritdoc />

@@ -1,0 +1,18 @@
+{
+  "ConstrainedLayout": "false",
+  "FractBottom": "0",
+  "FractLeft": "0",
+  "FractRight": "0",
+  "FractTop": "0",
+  "HorizontalGap": "40",
+  "HorizontalGapFraction": "null",
+  "IsFractional": "false",
+  "LayoutRect": "null",
+  "MarginBottom": "50",
+  "MarginLeft": "60",
+  "MarginRight": "20",
+  "MarginTop": "40",
+  "TightLayout": "false",
+  "VerticalGap": "40",
+  "VerticalGapFraction": "null"
+}

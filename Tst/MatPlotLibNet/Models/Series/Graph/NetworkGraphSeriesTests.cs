@@ -2,32 +2,16 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Tests.Models.Series.Graph;
 
-/// <summary>v1.10 — Verifies <see cref="NetworkGraphSeries"/> construction, default
-/// properties, and <c>ToSeriesDto</c> emission.</summary>
+/// <summary>Verifies <see cref="NetworkGraphSeries"/> construction and its data range. What it starts from and the settings it
+/// stores are held by the resting-value corpus and the drawn-property round trips.</summary>
 public class NetworkGraphSeriesTests
 {
     private static GraphNode N(string id) => new(id);
-    private static GraphEdge E(string from, string to) => new(from, to);
-
-    private static NetworkGraphSeries Sample() => new(
-        [N("a"), N("b"), N("c")],
-        [E("a", "b"), E("b", "c")]);
 
     // ── Construction ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Constructor_StoresNodesAndEdges()
-    {
-        var nodes = new[] { N("a"), N("b") };
-        var edges = new[] { E("a", "b") };
-        var s = new NetworkGraphSeries(nodes, edges);
-        Assert.Equal(2, s.Nodes.Count);
-        Assert.Single(s.Edges);
-    }
 
     [Fact]
     public void Constructor_AcceptsEmptyEdges()
@@ -35,110 +19,6 @@ public class NetworkGraphSeriesTests
         var s = new NetworkGraphSeries([N("a")], []);
         Assert.Single(s.Nodes);
         Assert.Empty(s.Edges);
-    }
-
-    // ── Default properties ────────────────────────────────────────────────────
-
-    [Fact]
-    public void Layout_DefaultsToCircular()
-    {
-        // Circular is the default for PR 1 (deterministic auto-layout). PR 2 may
-        // change this to ForceDirected once that layout is active.
-        var s = Sample();
-        Assert.Equal(GraphLayout.Circular, s.Layout);
-    }
-
-    [Fact]
-    public void ShowNodeLabels_DefaultsToTrue()
-    {
-        Assert.True(Sample().ShowNodeLabels);
-    }
-
-    [Fact]
-    public void ShowEdgeWeights_DefaultsToFalse()
-    {
-        Assert.False(Sample().ShowEdgeWeights);
-    }
-
-    [Fact]
-    public void EdgeThicknessScale_DefaultsToOne()
-    {
-        Assert.Equal(1.0, Sample().EdgeThicknessScale);
-    }
-
-    [Fact]
-    public void NodeRadiusScale_DefaultsToFive()
-    {
-        Assert.Equal(5.0, Sample().NodeRadiusScale);
-    }
-
-    [Fact]
-    public void LayoutSeed_DefaultsToZero()
-    {
-        Assert.Equal(0, Sample().LayoutSeed);
-    }
-
-    [Fact]
-    public void ColorMap_DefaultsToNull()
-    {
-        Assert.Null(Sample().ColorMap);
-    }
-
-    // ── Mutation via init / set ───────────────────────────────────────────────
-
-    [Fact]
-    public void Layout_SetViaInitializer_Stored()
-    {
-        var s = new NetworkGraphSeries([N("a")], []) { Layout = GraphLayout.Hierarchical };
-        Assert.Equal(GraphLayout.Hierarchical, s.Layout);
-    }
-
-    [Fact]
-    public void ColorMap_SetViaInitializer_Stored()
-    {
-        var s = new NetworkGraphSeries([N("a")], []) { ColorMap = ColorMaps.Plasma };
-        Assert.NotNull(s.ColorMap);
-        Assert.Equal("plasma", s.ColorMap!.Name);
-    }
-
-    // ── ToSeriesDto ───────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ToSeriesDto_TypeIsNetworkGraph()
-    {
-        Assert.Equal("networkgraph", Sample().ToSeriesDto().Type);
-    }
-
-    [Fact]
-    public void ToSeriesDto_DefaultProperties_NotEmittedAsNonNull()
-    {
-        var s = Sample();
-        var dto = s.ToSeriesDto();
-        Assert.Null(dto.NetworkGraphLayout);             // default Circular → null
-        Assert.Null(dto.NetworkGraphShowNodeLabels);     // default true     → null
-        Assert.Null(dto.NetworkGraphShowEdgeWeights);    // default false    → null
-        Assert.Null(dto.NetworkGraphEdgeThicknessScale); // default 1.0      → null
-        Assert.Null(dto.NetworkGraphNodeRadiusScale);    // default 5.0      → null
-        Assert.Null(dto.NetworkGraphLayoutSeed);         // default 0        → null
-        Assert.Null(dto.ColorMapName);                   // default null     → null
-    }
-
-    [Fact]
-    public void ToSeriesDto_NonDefaultLayout_EmittedAsString()
-    {
-        var s = Sample();
-        s.Layout = GraphLayout.Manual;
-        Assert.Equal("Manual", s.ToSeriesDto().NetworkGraphLayout);
-    }
-
-    [Fact]
-    public void ToSeriesDto_EmitsNodesAndEdges()
-    {
-        var dto = Sample().ToSeriesDto();
-        Assert.NotNull(dto.GraphNodes);
-        Assert.NotNull(dto.GraphEdges);
-        Assert.Equal(3, dto.GraphNodes!.Count);
-        Assert.Equal(2, dto.GraphEdges!.Count);
     }
 
     // ── ComputeDataRange ─────────────────────────────────────────────────────
@@ -180,5 +60,19 @@ public class NetworkGraphSeriesTests
         var range = s.ComputeDataRange(null!);
         Assert.Null(range.XMin);
         Assert.Null(range.XMax);
+    }
+
+    /// <summary>A span a rounding error wide is flat: it opens by half a unit on each side, as the axis opens a flat range
+    /// (<see cref="MatPlotLibNet.Rendering.Range1D.Normalized"/>), not only a span of exactly nothing.</summary>
+    [Fact]
+    public void ComputeDataRange_ASpanARoundingErrorWide_OpensByHalfAUnitAsTheAxisDoes()
+    {
+        var nodes = new[] { new GraphNode("a", X: 1, Y: 2), new GraphNode("b", X: 1 + 1e-12, Y: 3) };
+        var range = new NetworkGraphSeries(nodes, []) { Layout = GraphLayout.Manual }.ComputeDataRange(null!);
+
+        Assert.Equal(0.5, range.XMin);
+        Assert.Equal(1 + 1e-12 + 0.5, range.XMax);
+        Assert.Equal(2, range.YMin);
+        Assert.Equal(3, range.YMax);
     }
 }

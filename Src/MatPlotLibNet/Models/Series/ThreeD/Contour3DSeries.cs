@@ -9,58 +9,53 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents 3D contour lines projected into three-dimensional space from grid data.</summary>
-public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor
+public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor, ISeriesKind<Contour3DSeries>
 {
-    /// <summary>Number of contour levels to compute. Default 10.</summary>
-    public int Levels { get; set; } = 10;
+    /// <inheritdoc />
+    /// <remarks><c>Axes3D.contour</c> asks neither cycle.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Mesh;
+
+    private const int RestingLevels = GridContourSeries.RestingLevels;
+    /// <summary>Number of contour levels to compute. Default <see cref="RestingLevels"/>.</summary>
+    public int Levels { get; set => Change(ref field, value); } = RestingLevels;
 
     /// <summary>Colormap applied to the contour levels. Each level gets a distinct color from the map.</summary>
-    public IColorMap? ColorMap { get; set; }
+    public IColorMap? ColorMap { get; set => Change(ref field, value); }
 
-    /// <summary>Width of the contour lines in pixels. Default 1.0.</summary>
-    public double LineWidth { get; set; } = 1.0;
+    private const double RestingLineWidth = 1.0;
+    /// <summary>Width of the contour lines in pixels. Default <see cref="RestingLineWidth"/>.</summary>
+    public double LineWidth { get; set => Change(ref field, value); } = RestingLineWidth;
 
     /// <summary>Uniform color for all contour lines. Overridden by <see cref="ColorMap"/> when set.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>Initializes a new 3D contour series with the specified grid data.</summary>
     public Contour3DSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }
 
+    static string ISeriesKind<Contour3DSeries>.Kind => "contour3d";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "contour3d",
+        Type = this.WireKind(),
         XData = X,
         YData = Y,
-        ZGridData = ZToListList(),
+        ZGridData = Z.To2DList(),
         Color = Color,
-        Levels = Levels != 10 ? Levels : null,
-        LineWidth = LineWidth != 1.0 ? LineWidth : null,
-        ColorMapName = ColorMap.NameForJson(),
-        ColorMap = ColorMap.DescriptionForJson(),
+        Levels = Levels.OrNullAtRest(RestingLevels),
+        LineWidth = LineWidth.OrNullAtRest(RestingLineWidth),
+        ColorScale = this.ColorScaleOnTheWire(),
         Label = Label
     };
 
-    /// <summary>Reconstructs a <see cref="Contour3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="Contour3DSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static Contour3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Contour3D(dto.XData ?? [], dto.YData ?? [], dto.ZGridData.From2DList());
-        if (dto.Color.HasValue)
-        {
-            s.Color = dto.Color.Value;
-        }
-        if (dto.Levels.HasValue)
-        {
-            s.Levels = dto.Levels.Value;
-        }
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
-        s.RestoreColorMap(dto);
+        if (dto.Color is { } color) s.Color = color;
+        if (dto.Levels is { } levels) s.Levels = levels;
+        if (dto.LineWidth is { } lineWidth) s.LineWidth = lineWidth;
+        s.RestoreColorScale(dto);
         return s;
     }
 

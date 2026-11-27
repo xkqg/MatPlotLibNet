@@ -45,6 +45,4 @@ public class ExponentialTests
     [InlineData(2.0, double.PositiveInfinity)]
     public void AtTheEnds_TheQuantileSaturates(double p, double expected) => Assert.Equal(expected, Exponential.Quantile(p));
 
-    [Fact]
-    public void AMissingProbability_IsNaN() => Assert.True(double.IsNaN(Exponential.Quantile(double.NaN)));
 }

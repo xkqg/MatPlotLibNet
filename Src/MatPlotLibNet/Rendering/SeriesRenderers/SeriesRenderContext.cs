@@ -27,9 +27,9 @@ public record SeriesRenderContext(
     public CycledProperties? CycledProps { get; init; }
 
     /// <summary>What the theme hands out at this series' slot: its colour and the cycler's set. A renderer asks it how
-    /// its series is stroked (<see cref="SeriesSlot.LineStyleOf"/>, <see cref="SeriesSlot.LineWidthOf"/>,
+    /// its series is stroked (<see cref="SeriesSlot.LineStyleOf"/>, <see cref="SeriesSlot.LineWidthOf(double?, Styling.LineWidthRule)"/>,
     /// <see cref="SeriesSlot.LineMarkerOf"/>, <see cref="SeriesSlot.ScatterMarkerOf"/>), the same owner the legend asks.</summary>
-    internal SeriesSlot Slot => Theme.ThemedSlot(SeriesColor, CycledProps);
+    internal SeriesSlot Slot => new(SeriesColor, CycledProps, Theme);
 
     /// <summary>The projection from 3-D data to pixels of the 3-D axes the series is drawn on; <see langword="null"/> on any other axes.</summary>
     public Projection3D? Projection3D { get; init; }
@@ -47,6 +47,10 @@ public record SeriesRenderContext(
     /// </summary>
     public DepthQueue3D? DepthQueue { get; init; }
 
+    /// <summary>The group of the series in the 3-D scene it hands its marks to (<see cref="DepthQueue"/>), which the queue opens around
+    /// each run of its marks; <see langword="null"/> where the series is drawn in a group the pass opened, or in none.</summary>
+    internal SeriesGroup? SceneGroup { get; init; }
+
     /// <summary>The active visual theme, used by renderers for theme-specific defaults (e.g. matplotlib patch edge color).</summary>
     public Styling.Theme Theme { get; init; } = Styling.Theme.Default;
 
@@ -54,8 +58,18 @@ public record SeriesRenderContext(
     /// other axes, and none when a renderer is invoked directly (a polar series then scales itself, alone).</summary>
     internal RadialScale? RadialScale { get; init; }
 
+    /// <summary>The series of the axes this one is drawn on, in drawing order, for a series that stands for another one drawn with
+    /// it (a quiver key is the length of an arrow of the quiver before it); <see langword="null"/> for a renderer invoked on its
+    /// own, which then stands for none.</summary>
+    internal IReadOnlyList<ISeries>? AxesSeries { get; init; }
+
     /// <summary>The first colour slot the series holds (<see cref="SeriesSlotExtensions.ColorSlots"/>): a series that colours
     /// its own parts takes the slots from here on, one for each part, so the parts of a series drawn after another wear the
     /// colours past the ones before it. 0 for a renderer invoked on its own.</summary>
     internal int FirstColorSlot { get; init; }
+
+    /// <summary>How far a layout stretched the axes the series is drawn on from where the figure's subplot parameters put it
+    /// (<see cref="AxesRenderer.Stretch"/>), which a table's rows follow (<see cref="Styling.TableLook.CellHeightOver"/>); 1 for a renderer
+    /// invoked on its own.</summary>
+    internal double Stretch { get; init; } = 1;
 }

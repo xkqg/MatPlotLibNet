@@ -28,8 +28,9 @@ var figure = Plt.Create()
 
 ## With axis labels
 
-The diagonal cells show the variable names. Set `Labels` to replace the default
-placeholders `"v0"`, `"v1"`, and so on. The array length must equal `Variables.Length`.
+Set `Labels` to name the variables, one name each: a variable's name is drawn under its column in the bottom row and, turned
+a quarter, beside its row in the left column, as seaborn's `pairplot` names them. Without `Labels` no name is drawn, and a
+variable past the end of a shorter list goes unnamed.
 
 ```csharp
 Plt.Create()
@@ -80,7 +81,7 @@ off-diagonal-only view.
 
 Above roughly **1000 points** per cell, the scatter dots overlap so much that the density
 is no longer visible: every cell becomes one uniform blob of dots. Switch the off-diagonal
-kind to `Hexbin` instead. It draws a grid of flat-top hexagons, and the colour of each
+kind to `Hexbin` instead. It draws a grid of hexagons, with a vertex up and down as matplotlib's hexbin draws them, and the colour of each
 hexagon shows how many points fall in it:
 
 ```csharp
@@ -126,7 +127,7 @@ Plt.Create()
 
 ## From a DataFrame
 
-`MatPlotLibNet.DataFrame.PairGrid(...)` takes the names of numeric columns, plus the name
+The DataFrame package's `df.PairGrid(...)` takes the names of numeric columns, plus the name
 of an optional hue column. It reads the hue column as strings. The distinct values become
 the `HueLabels`, and their lexicographically sorted order becomes the integer group IDs.
 
@@ -143,20 +144,30 @@ string svg = df.PairGrid(
     .ToSvg();
 ```
 
+## The pair plot template
+
+`FigureTemplates.PairPlot(columns, columnNames, bins)` and `new PairPlotFigure(columns) { ColumnNames = …, Hue = … }` draw this
+same series on a figure 200 pixels a variable square: the column names are its `Labels`, the bins its `DiagonalBins`, and a hue
+label per observation splits it into hue groups, numbered in the order the labels are first seen and named by them.
+
+```csharp
+string svg = FigureTemplates.PairPlot(vars, ["Petal L", "Petal W", "Sepal L", "Sepal W"]).ToSvg();
+```
+
 ## Configuration reference
 
 | Property | Type | Default | Effect |
 |---|---|---|---|
 | `Variables` | `double[][]` | (constructor arg) | The N variables. All sub-arrays must have equal length. |
-| `Labels` | `string[]?` | `null` → `"v0"`, `"v1"`, … | Diagonal axis labels. |
+| `Labels` | `string[]?` | `null` (no names) | The variables' names, under the bottom row and beside the left column. |
 | `HueGroups` | `int[]?` | `null` | One group ID per sample. |
 | `HueLabels` | `string[]?` | `null` (legend shows IDs) | Human-readable labels indexed by group ID. |
-| `HuePalette` | `Color[]?` | `null` → Tab10 | Optional explicit palette. |
+| `HuePalette` | `Color[]?` | `null` → the theme's cycle | Optional explicit palette. |
 | `DiagonalKind` | `PairGridDiagonalKind` | `Histogram` | `Histogram` / `Kde` / `None`. |
 | `OffDiagonalKind` | `PairGridOffDiagonalKind` | `Scatter` | `Scatter` / `None` / `Hexbin` (high-cardinality density). |
 | `Triangular` | `PairGridTriangle` | `Both` | `Both` / `LowerOnly` / `UpperOnly`. |
 | `DiagonalBins` | `int` | `20` | Histogram bin count per diagonal cell. |
-| `MarkerSize` | `double` | `3.0` | Off-diagonal scatter dot radius (px). Note: not pt² (differs from `ScatterSeries.MarkerSize`). |
+| `MarkerSize` | `double` | `3.0` | Off-diagonal scatter dot radius (px). Note: not pt² (differs from `ScatterSeries.MarkerSize`). Left alone, the matplotlib themes draw the dot at the size `Axes.scatter` draws where it is given none (6 points across under v2, 4.47 under classic), as seaborn's `pairplot` does, and the library's own themes at 3 px; a radius you set is drawn as pixels. |
 | `CellSpacing` | `double` | `0.02` | Gutter between cells, clamped `[0, 0.2]`. |
 | `HexbinGridSize` | `int` | `15` | Hex tiling resolution per cell when `OffDiagonalKind = Hexbin`. |
 | `OffDiagonalColorMap` | `IColorMap?` | `null` → Viridis | Colormap for off-diagonal density when Hexbin is active. |

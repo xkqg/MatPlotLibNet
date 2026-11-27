@@ -11,8 +11,8 @@ namespace MatPlotLibNet.Models.Patches;
 /// <remarks>The circle is round in data units, so it is drawn as an ellipse wherever the two axes give a unit different lengths, as in
 /// matplotlib. Its outline is matplotlib's: the unit circle's eight cubic Bézier curves (26 vertices), scaled and moved, every
 /// control point in data units. On a log axis each point moves through the scale on its own: the curves bend and the side towards
-/// the smaller values stretches, the shape matplotlib draws there. A radius of 0 or less, or a number that is not finite, draws
-/// nothing.</remarks>
+/// the smaller values stretches, the shape matplotlib draws there. A radius of 0, or a number that is not finite, draws
+/// nothing; a negative radius mirrors the circle through its centre, as matplotlib's scale does.</remarks>
 /// <example>
 /// <code>
 /// ax.AddPatch(new Circle(new(3, 2), 1.5) { EdgeColor = Colors.Black, Alpha = 0.6 });
@@ -30,10 +30,10 @@ public sealed class Circle : FilledPatch
     }
 
     /// <summary>The centre, in data units (matplotlib's <c>xy</c>).</summary>
-    public DataPoint Center { get; set; }
+    public DataPoint Center { get; set => Change(ref field, value); }
 
-    /// <summary>The radius, in data units; 0 or less draws nothing.</summary>
-    public double Radius { get; set; }
+    /// <summary>The radius, in data units; 0 draws nothing, and a negative radius mirrors the circle through its centre.</summary>
+    public double Radius { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
     internal override IReadOnlyList<PathSegment> Outline() =>

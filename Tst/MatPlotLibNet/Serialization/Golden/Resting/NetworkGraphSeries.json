@@ -1,0 +1,15 @@
+{
+  "ColorMap": "null",
+  "ConvergenceThreshold": "null",
+  "EdgeThicknessScale": "1",
+  "Label": "null",
+  "Layout": "Circular",
+  "LayoutIterations": "50",
+  "LayoutSeed": "0",
+  "NodeRadiusScale": "5",
+  "ShowEdgeWeights": "false",
+  "ShowNodeLabels": "true",
+  "Visible": "true",
+  "WeightFontSize": "9",
+  "ZOrder": "0"
+}

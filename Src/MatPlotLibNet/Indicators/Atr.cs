@@ -11,33 +11,25 @@ namespace MatPlotLibNet.Indicators;
 /// <remarks>True range = max(H-L, |H-prevC|, |L-prevC|). Best placed in a separate subplot below the price chart.</remarks>
 public sealed class Atr : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 14;
+
     private readonly int _period;
 
     /// <summary>Creates a new ATR indicator.</summary>
     /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
-    /// <param name="period">Averaging period (default 14).</param>
-    public Atr(OhlcvBars bars, int period = 14)
-        : base(bars)
+    /// <param name="period">Averaging period (default <see cref="DefaultPeriod"/>).</param>
+    public Atr(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
         _period = period;
-        Label = $"ATR({period})";
     }
 
-    /// <inheritdoc />
-    public override SignalResult Compute()
-    {
-        int n = BarCount;
-        if (n <= _period) return Array.Empty<double>();
-        var result = new double[n - _period];
-        var step = new AtrStep(_period);
-        for (int i = 0; i < n; i++)
-        {
-            double value = step.Next(High[i], Low[i], Close[i]);
-            if (i >= _period) result[i - _period] = value;
-        }
-        return result;
-    }
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfWindow("ATR", period, period);
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period);
+    public override SignalResult Compute() => FoldHlc(new AtrStep(_period));
+
+    /// <inheritdoc />
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

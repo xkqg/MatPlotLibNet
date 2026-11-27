@@ -17,8 +17,8 @@ builder.Services.AddMatPlotLibNetSignalR();
 
 var app = builder.Build();
 
-app.MapChartEndpoint();    // GET /chart?id=... -> JSON
-app.MapChartSvgEndpoint(); // GET /chart/svg?id=... -> SVG
+app.MapChartEndpoint("/chart", ctx => BuildChart());        // GET /chart -> JSON
+app.MapChartSvgEndpoint("/chart/svg", ctx => BuildChart()); // GET /chart/svg -> SVG
 app.MapChartHub();         // SignalR hub at /charts-hub
 
 app.Run();
@@ -71,7 +71,7 @@ app.MapChartHub();
 
 ### How the round-trip works
 
-1. The browser loads the initial SVG. Because `ServerInteraction = true`, the SVG embeds `SvgSignalRInteractionScript`. That script is a single IIFE, and it wires listeners for `wheel`, `pointerdown`, `keydown` and `click`.
+1. The browser loads the initial SVG. Because `ServerInteraction = true`, the SVG embeds the server-interaction script. That script is a single IIFE, and it wires listeners for `wheel`, `pointerdown`, `keydown` and `click`.
 2. The script finds the `HubConnection` the chart's host element carries (an `MplLiveChart` gives its chart the connection its client holds), else the one on `window.__mpl_signalr_connection`, which the host page sets. It then invokes `OnZoom`, `OnPan`, `OnReset` or `OnLegendToggle`. The payload carries the new axis limits, or the index of the toggled series.
 3. `ChartHub` calls `FigureRegistry.Publish`, which writes the event to the per-chart `Channel<FigureInteractionEvent>`, and then returns. The hub method never blocks on rendering.
 4. One background reader task per chart (`ChartSession`) drains the channel in order. It applies each event with `FigureInteractionEvent.ApplyTo(figure)` and calls `IChartPublisher.PublishSvgAsync` once per drained batch. Bursts therefore coalesce: 50 wheel events over one frame produce exactly one re-render. One event costs the chart only itself: an event that names a subplot the figure does not have (the figure changed after the page drew, or the index was crafted) is dropped and changes nothing, and one that throws, such as an application event that fails in its `ApplyTo` or a registered handler that fails, is counted and skipped. The reader goes on with the next event and keeps answering; only cancelling the session or closing the channel ends it.
@@ -95,17 +95,17 @@ The tree shows the first events; the others (`BrushSelectEvent`, `HoverEvent`, `
 ### `FigureBuilder.WithServerInteraction`
 
 ```csharp
-.WithServerInteraction("chart-id", i => i
+figure.WithServerInteraction("chart-id", i => i
     .EnableZoom()
     .EnablePan()
     .EnableReset()
-    .EnableLegendToggle())
+    .EnableLegendToggle());
 
 // or:
-.WithServerInteraction("chart-id", i => i.All())
+figure.WithServerInteraction("chart-id", i => i.All());
 ```
 
-Opting in sets `Figure.ChartId` and `Figure.ServerInteraction = true`. It also turns on the matching existing `EnableZoomPan` / `EnableLegendToggle` flags. `SvgTransform` then emits `SvgSignalRInteractionScript` instead of the local `SvgInteractivityScript` + `SvgLegendToggleScript`. An SVG carries one of the two scripts, never both.
+Opting in sets `Figure.ChartId` and `Figure.ServerInteraction = true`. It also turns on the matching existing `EnableZoomPan` / `EnableLegendToggle` flags. `SvgTransform` then emits the server-interaction script instead of the local zoom-and-pan and legend-toggle scripts. An SVG carries one of the two scripts, never both.
 
 ### Frontend hookup
 
@@ -160,6 +160,13 @@ The interaction script travels inside the SVG, and a browser never runs a `<scri
 
 The script runs again on every mount and wires the new SVG; the hover tooltip and its handler on the connection are kept once per chart.
 
+A page subscribed with `Subscribe`, as above, is sent the whole SVG each time the chart changed, and nothing while it does not.
+To be sent only the parts that changed, subscribe with `SubscribeToParts` instead: the server sends the whole document once,
+every drawn part in a `<g data-mpl-part="…">` group, and then `UpdateChartParts(chartId, parts)` with only what changed —
+`parts.rootTag` (the root's new attributes), `parts.background`, `parts.overlay` and `parts.axes[i].markup`, each the whole
+element to put in place of the part of the same `data-mpl-part` name. The Blazor client, the React, Vue and Angular packages
+and the Interactive popup do this for you.
+
 For Blazor, see `MplLiveChart` in `MatPlotLibNet.Blazor` and the `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor` example.
 
 ## API reference
@@ -168,8 +175,8 @@ For Blazor, see `MplLiveChart` in `MatPlotLibNet.Blazor` and the `Samples/MatPlo
 |------|-------------|
 | `SignalRExtensions.AddMatPlotLibNetSignalR()` | Registers SignalR + renderer + `IChartPublisher` + `FigureRegistry` + `IChartSubscriptions` |
 | `SignalRExtensions.MapChartHub()` | Maps the `ChartHub` SignalR endpoint |
-| `MatPlotLibNetEndpoints.MapChartEndpoint()` | Maps a JSON chart endpoint |
-| `MatPlotLibNetEndpoints.MapChartSvgEndpoint()` | Maps an SVG chart endpoint |
+| `MatPlotLibNetEndpoints.MapChartEndpoint(pattern, figureFactory)` | Maps a JSON chart endpoint |
+| `MatPlotLibNetEndpoints.MapChartSvgEndpoint(pattern, figureFactory)` | Maps an SVG chart endpoint |
 | `IChartPublisher` | Service for broadcasting chart updates (`PublishAsync`, `PublishSvgAsync`) |
 | `IChartSubscriptions` | The hub's record of subscriptions per chart: `HasSubscribers(chartId)` / `Count(chartId)`. Ask it before rendering a frame that no client has subscribed to, because a SignalR group does not report how many members it has |
 | `ChartHub` | SignalR hub: `Subscribe` / `Unsubscribe` / `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` |

@@ -1,8 +1,293 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [1.30.0]
+
+**1.30.0 cleans up, speeds up and makes the library object-oriented again.** The releases before it (1.24.0 to 1.29.0) added verbs,
+themes, legends, maps and indicators faster than the structure under them grew: a theme held sixty-one settings and twenty-four switches
+that every copy repeated, the width of a line was worked out from twenty literals in two orders of precedence, and a class did the work of
+several. This release gives each rule one owner that every reader asks. Every step was measured before and after by the processor time of
+the process and the bytes it allocates, not by the wall clock, and nothing takes more CPU than in 1.29.0 beyond the spread of the
+measurement apart from one call: the parse of a label that holds math (`MathTextParser.Parse`, five labels in 0.78 µs against 0.46, 14 %
+fewer bytes), which now builds the boxes matplotlib's layout places; a figure parses each label once for as long as it draws it.
+
+The speed is greatest in a live chart. A figure drawn again draws only the axes that changed, so a round of a live wall takes 57 % less
+CPU and a 3-D surface turned beside three panels costs 0.9 to 1.0 ms of CPU a frame in SVG (5.1 ms in 1.29.0). Over SignalR a viewer can be sent
+only the parts that changed, and nobody is sent anything when nothing changed.
+
+The SVG a figure writes changes only where an entry below says so: coordinates are written to two decimals of a pixel, and the matplotlib
+themes are brought closer to matplotlib 3.11.2. Text in the default family is drawn in the bundled DejaVu Sans on every machine, a figure
+built under a style (`Plt.Style`) now wears it, and on Windows the SVG ends its lines with a line feed, as it always did on Linux.
+
+Every call a program writes compiles unchanged where `using MatPlotLibNet;` is in scope, except the members listed under Removed. A
+program compiled against 1.29.0 is compiled again: the verbs of `AxesBuilder` and `FigureBuilder` moved to extension classes, and package
+validation records every such move in each package's `CompatibilitySuppressions.xml`.
+
+### Added
+
+- **Tables and series texts.** `TableSeries.Location` (`TableLocation.InPlot`, `TableLocation.BelowAxes`, matplotlib's `ax.table` place),
+  JSON `tableLocation`. `FontSize` on progress bars, state timelines, stat tiles, donuts, gauges, icicles, treemaps, relative rotation
+  graphs and Sankey diagrams, and `WeightFontSize` on network graphs; `LabelCandidate` and `LabelPlacement` carry a `VerticalAlignment`.
+- **Indicator defaults are public constants** on each indicator (`Rsi.DefaultPeriod`, `BollingerBands.DefaultStdDevMultiplier`,
+  `Macd.DefaultFastPeriod`, ...); the streaming form, the DataFrame call and the verbs take their defaults from them (values unchanged).
+  `Cci.Levels` and `WilliamsR.Levels` (`IndicatorLevels`) restyle or remove the two guide lines those indicators draw.
+- **`Dendrogram.ToTree(leafLabels)`** turns the merges of `HierarchicalClustering.Cluster` into the `TreeNode` a `ClustermapSeries` orders
+  its rows or columns by.
+- **Math text knows every name matplotlib's mathtext knows**: all 634 symbol names (124 before), 32 function names (10), 23 accents (9) and
+  12 spaces, read from matplotlib 3.11.2 into one generated table; `\|`, `\left\langle`, `\left.` and the other named delimiters are drawn.
+- **Axes.** `InvertXAxis()` and `InvertYAxis()` (matplotlib's `invert_xaxis()`, a toggle the axis holds as `Axis.Inverted`);
+  `TickConfig.LabelsOnOwnSide` with `WithXTickLabelsOnTop()` and `WithYTickLabelsOnRight()`; `SetAspectAuto()`; a polar origin of its own
+  (`AxesBuilder.SetROrigin`, `Axes.ROrigin`, matplotlib's `set_rorigin`); a polar axes rings itself at the ticks of the locator its radial
+  axis is given; a colour bar takes a locator of its own (`ColorBar.Locator`).
+- **Maps.** `H3Bins(latitudes, longitudes, resolution)` and `H3Cells(values, colorMap)` draw the cells of Uber's H3 index;
+  `ContiguousCartogram(values)` resizes countries so they still meet at their borders (the flow-based method of Gastner, Seguy and More);
+  `GeoGeometry.PositionRings` and a `GeoClipping.SplitAtDateline` overload over `GeoPosition` rings. The MCP server draws maps
+  (`geo_polygon`, a projection by name with its PROJ parameters, built-in or GeoJSON features).
+- **Spectra on both sides of zero.** `SpectralOptions.Sides` and `SpectrumOptions.Sides` (`SpectralSides.Default`, `OneSided`, `TwoSided`),
+  matplotlib's `sides`.
+- **Figure title and legends.** `WithTitle(title, style => ...)` and `Figure.TitleStyle` (size, weight, family, slant, colour, `Pad`), and a
+  rectangle for the tight layout, as `fig.suptitle(...)` and `tight_layout(rect=...)`. `Figure.Legends`, `AddLegend` and `RemoveLegend`:
+  each `FigLegend` adds a legend, and the constrained layout keeps room for one outside the axes.
+- **Patches.** A polar, ternary or 3-D axes draws its patches, and a polar or ternary parent its inset's zoom indicator; a click on a
+  patch's legend row hides and shows it (`Patch.Visible`); `Patch.ZOrder`; `Rectangle.RotationPoint` (`Anchor`, `Center`, `At(point)`).
+- **Live charts.** `ChartHub.SubscribeToParts` sends a viewer the whole document once and then only the parts that changed
+  (`IChartHubClient.UpdateChartParts`, `ChartSvgParts`); the Blazor, React, Vue and Angular clients and the Interactive popup subscribe
+  this way and fall back against an older server. The WPF, Avalonia and Uno streaming controls raise `DataPointClicked`; every native
+  control (MAUI included, `ServerInteractionExtensions`) can send its gestures to a server; `MplChartElement.AnimationSource` (Uno).
+- **Smaller additions.** `AnimationBuilder.SaveFrames` (Skia); `InteractiveFigure` is disposable; `QuiverKeySeries.LabelPosition`
+  (matplotlib's `labelpos`); `InteractionModifier`, an abstract base for interaction modifiers; `HubMethodNames` holds the chart hub's
+  method names as constants.
+- **Licences in the packages** that carry someone else's files: Skia packs the DejaVu licence, Interactive the SignalR client's MIT
+  notice, and the MCP tool a `THIRD-PARTY-NOTICES.md` for every assembly it carries.
+
+### Changed
+
+- **The builders are split by concern.** `AxesBuilder` held 238 public methods and `FigureBuilder` 107; each now declares the builder itself
+  and every verb is an extension member of the class its concern names (`AxesBuilderLabelVerbs`, `AxesBuilderTickVerbs`,
+  `AxesBuilderLegendVerbs`, `FigureBuilderLayoutVerbs`, `FigureBuilderExportVerbs`, the series verbs beside their family, ...). Calls are
+  written as before; building a figure costs what it did (about forty builder calls in 0.0135 ms against 0.0142 ms, the same bytes).
+- **One owner per rule.** Each rule the library applies is worked out in one place that every reader asks: the colour scale of a chart, the
+  ticks of every kind of axis (2-D, 3-D, polar rings, colour bar), the room each axes takes in a layout, where a colour bar stands, the edge
+  and opacity of a patch-like shape, the size and jitter of a dot, a line's width and dash (one value for every kind of line), the label,
+  first value and warm-up of an indicator (for its batch and its streaming form), the samples of a streaming series, the way a text is
+  measured and drawn, a theme's settings (one look per concern instead of sixty settings, each look reading and writing its own JSON keys),
+  and what a setting starts from. Nothing drawn changed by it except where Fixed says so.
+- **Refusals.** A value outside its range, a number the library refuses, an opacity outside 0 to 1 (36 settings, as matplotlib's
+  `set_alpha`), data too short for a parameter and a value that is no member of its enum are refused where they are set, in one sentence
+  and as one kind of exception.
+- **Theme and style.** A style now dresses the figure (`Plt.Style.Use` and `Context` changed parameters nothing read). The seaborn and
+  ggplot style sheets are the seaborn and ggplot themes (white figure, their text sizes and line widths). `ColorMaps.Viridis` and every map
+  the library ships under a matplotlib name are matplotlib's own tables. A legend under the library's own themes is drawn from a look of
+  values.
+- **Math.** Math is laid out as matplotlib lays it out on every surface (fractions, roots, nested scripts, grown delimiters, limits,
+  matrices; MAUI drew it as plain text), spaced as matplotlib spaces it, set in matplotlib's math fonts under its themes (STIX for a
+  character a font set lacks), and five symbols are the characters matplotlib sets. A math label reads its arguments as TeX does.
+- **Matplotlib themes, closer to matplotlib 3.11.2** (each a measured move toward matplotlib's picture; the library's own themes keep
+  their look): text measured as the Agg backend measures it; spine, grid, line, minor-tick, error-bar cap and wireframe widths; the polar
+  axes (its square, eight spokes, closing spine, ranging and rings); the colour bar (frame, tick marks and names, triangles, one step per
+  colour, room taken from its axes); contours (levels for a count, log levels, bands to the grid's edges, no iso-lines under `contourf`,
+  colours through the theme's map); hexbin's grid; a 3-D surface opaque and outlined, a 3-D box bounded by three axis lines; markers,
+  bubbles, strip and swarm dots as matplotlib and seaborn draw them; scientific notation, offsets and the true minus sign in tick labels;
+  tables, treemaps, legends, titles, the tight layout's pad and the gap between subplots.
+- **The fidelity suite** compares the library with matplotlib 3.11.2 drawing the same thing (references redrawn, cartopy 0.26.0 for maps),
+  reads a colour distance the same on Windows and Linux, and holds every limit to what its row measures (90 limits were 2 to 6 times too
+  wide; none was widened).
+- **Behaviour you may notice.** A donut lays its slices clockwise from the top unless told `CounterClockwise`, as a pie does. One notch of
+  the wheel zooms by matplotlib's factor (0.85) everywhere. `Right` and `CenterRight` are one legend rule. A second `FigLegend` adds a
+  legend instead of replacing the first. A quiver key's arrow is centred on its point. A bubble's size is an area in points squared.
+  `FigureRegistry` holds one session per chart id, still or streaming. The lists a figure and an axes expose are read-only underneath, so
+  a cast back to `List<T>` fails. Every change to a figure reports itself, so a live chart never misses one. An exception thrown while a
+  subplot is drawn reaches the caller as itself, not inside an `AggregateException`.
+- **Packaging.** `IAnimationTransform` lives in the core package; `FigureTransform` holds its renderer as an `IChartRenderer`; a package
+  that reads the internals of another depends on it at exactly this version; the extensions of every package are written as C# 14 blocks;
+  every type and member this release added or changed is documented.
+
+#### Speed (processor time and bytes of the process, measured back to back on one machine, three rounds in each order)
+
+- **Live charts.** A figure drawn again as SVG draws only the axes that changed (a 3-D surface turned beside three panels: 0.94 to
+  1.02 ms of CPU a frame, 4.5 to 5.7 ms in 1.29.0; with Skia's glyph outlines 0.99 to 1.17 ms against 8.4 to 9.6 ms). `ChartPublisher` sends
+  nothing for a figure published again unchanged, and a GraphQL publish draws the figure once. The WPF, Avalonia and Uno controls replay
+  the subplots that did not change (a drag beside three panels on a Skia canvas: 4.9 to 5.0 ms of CPU a frame against 7.8 to 8.0 ms).
+- **The SVG writer** formats numbers straight into the document and writes coordinates to two decimals: the live wall takes 9.8 ms of CPU
+  a round against 22.8 ms in 1.29.0 (57 % less) and writes 42 % less SVG; drawing the subplots one after another instead of on the thread
+  pool saves 6.5 ms of CPU a round. Paths, colours and labels are written without a string of their own (a pie allocates 32 % less), and
+  a glyph outline is written to two decimals (14 tick labels outlined in 75 µs against 432 µs; a small labelled figure's SVG 28 % shorter).
+- **Text with the Skia package.** Each label is shaped once and kept (seven stacked panels 47 % less time a draw), a left-to-right label is
+  shaped without the full bidirectional algorithm (14 labels 19.6 µs against 27.5 µs, 13,880 bytes against 47,080), and a PNG, a PDF and
+  the native controls paint from the shaping the layout measured (a PNG of a line chart: 92,968 bytes against 145,096, then 69,048
+  against 92,440).
+- **A draw does each thing once**: the data range of a subplot (3.6 to 11.4 % fewer bytes), the marks a legend at `Best` scores (686 µs
+  against 839 µs for seven panels), the stack of a stacked bar chart (ten layers 2.47 ms against 4.36 ms), the measurement of each
+  subplot's edges in a layout, and nothing for an axes part the axes does not have (a line drawn again 7 % fewer bytes).
+- **Series that compute.** An axis with breaks maps 1,000 points in 6.3 µs against 84.8 µs; a force-directed graph of 500 nodes draws in
+  24 ms against 118 ms; four violins drawn again 40 µs against 778 µs and a density curve 17 µs against 200 µs; a pair grid keeps its
+  diagonal curves (218 µs against 521 µs); a Kagi chart of 10,000 closes builds in 64 µs against 4,487 µs; `MatShow` of 1,000 rows 3.7 µs
+  against 67.3 µs; sorting 100,000 observations for a ridgeline, a Q-Q plot or a stem-and-leaf 4.2 to 4.9 ms against 6.5 to 7.6 ms; a
+  streamplot draws in a twentieth of the time; 5,000 map bubbles 95 µs against 222 µs.
+- **Reading and building.** `FromJson` allocates half as much (a 3 x 3 grid 158,515 bytes against 312,942); building a figure no longer
+  reads the style parameters on every build, and a build allocates 16 to 26 % less than in 1.29.0 (a line with a title 3.03 KB against
+  4.07; 10,000 vertical lines the same) and takes as long or less (the tile row of eleven stat tiles 3.04 µs against 3.06, 10,000
+  vertical lines 25.8 µs against 25.4, within the spread of the rounds); `AutoLocator.Locate` and the 3-D tick walk allocate only the
+  array they return (37 ns a call against 61); the MCP server writes a normalised document once; a 3-D surface redrawn after a change
+  takes 36.2 µs against 39.3 to 68.8 µs.
+
+### Removed
+
+Each of these had a replacement or no use; package validation records the break against 1.29.0 in each package's
+`CompatibilitySuppressions.xml`.
+
+- `AxesBuilder.WithSecondaryYAxis(...)` -> `WithAddRightYAxis(...)`.
+- `AxesBuilder.WithOutwardYAxis(side, ...)` -> `WithAddRightYAxis(...)` or `WithAddLeftYAxis(...)`.
+- `SecondaryAxisBuilder` and `OutwardYAxisBuilder` -> `YAxisSlotBuilder`.
+- `Axes.SecondaryYAxis` and `Axes.SecondarySeries` -> `Axes.YAxes.Right[0].Axis` and `Axes.YAxes.Right[0].Series`.
+- `Axes.RightYAxes` and `Axes.LeftYAxes` -> `Axes.YAxes.Right` and `Axes.YAxes.Left` (slot 0 of the left side is the primary axis).
+- `Axes.TwinX()` -> `Axes.YAxes.Right.FirstOrAdd()`.
+- `Axes.AddOutwardYAxis(side)` -> `Axes.YAxes.Right.Add()` or `Axes.YAxes.Left.Add()`.
+- `Axes.AddSecondarySeries(series)` -> `Axes.YAxes.Right.FirstOrAdd().AddSeries(series)`.
+- `SecondaryAxisSlot` -> `YAxisSlot`.
+- `Axes.PlotSecondary(x, y)` and `Axes.ScatterSecondary(x, y)` -> `WithAddRightYAxis(right => right.Plot(x, y))` and
+  `right.Scatter(x, y)`.
+- `LegacyAnimationAdapter` -> `AnimationBuilder`, which is an `IAnimation<int>` itself.
+- `FuncAnimation` (MatPlotLibNet.Skia) -> `AnimationBuilder` with `SaveGif`, `ToGif`, `SaveStepThroughSvg`,
+  `ToStepThroughSvg` and `SaveFrames`.
+- `DoubleRingBuffer` -> `RingBuffer<double>`; its `Min` and `Max` are `MinOrNaN()` and `MaxOrNaN()`.
+- `FigureTemplates.SparklineDashboard((string Label, double[] Values)[], title)` -> `SparklineDashboard(IReadOnlyList<NamedSample>,
+  title)`.
+- `Figure.Legend` -> `Figure.Legends` and `AddLegend`.
+- `ColorBarRenderer.TickCount`, `ExtendFrac`, `ExtendMin` and `ExtendMax` (protected) -> nothing: the bar's tick locator and its
+  strip decide the ticks and the wedges.
+- `AxesRenderer.UpdateRange` (protected) -> `Range1D` (`Range1D.Empty`, `Merge`, `Normalized`).
+- `SvgRenderContext.DefineLinearGradient` and `DrawPathWithGradientFill` -> a shape drawn with a `ShapeStyle.Gradient`.
+- `DataRange3D` -> `Box3D`.
+- `FigureTransform.Renderer` (protected) -> `FigureRenderer`.
+- `SeriesRegistry.ResetForTests` -> nothing public: it was a reset for test suites.
+- `GeoGeometry.Rings` (MatPlotLibNet.Geo) -> `PositionRings`.
+- `GeoClipping.SplitAtDateline(List<(double Lon, double Lat)>)` (MatPlotLibNet.Geo) -> `SplitAtDateline(IReadOnlyList<GeoPosition>)`.
+- `IColormappable.GetColorMapOrDefault(fallback)` -> `source.ColorMap ?? fallback`.
+- `SvgRenderContext.OutputLength` -> `GetOutput()`.
+- `ToolbarState` -> `InteractionToolbar.Buttons` and `ActiveToolId`; nothing in the library made or took one.
+- `CrosshairState.SnappedPoint` -> nothing: the library never set it.
+- The `figure` parameter of the `TrendlineDrawingModifier`, `LevelDrawingModifier` and `FibonacciDrawingModifier` constructors,
+  and the `figure` and `toolbar` parameters of the `DrawingToolSelectionModifier` constructor -> nothing: none of them read it.
+- The 51 indicator calls of `DataFrameIndicatorExtensions` (MatPlotLibNet.DataFrame: `df.Sma(...)` to `df.TransferEntropy(...)`)
+  -> the indicator's own class over the bars read from the columns: `new Sma(df.Values("close"), 20).Compute()`,
+  `new Atr(df.Hlc("high", "low", "close")).Compute()`. The package reads the bars of every shape by one call each (`Hlc`, `Hlcv`,
+  `Ohlc`, `Cv`, `Hl`, `Hlv`) and one column by `Values`.
+- `df.AdxFull(...)` (MatPlotLibNet.DataFrame) -> `new Adx(df.Hlc("high", "low", "close")).ComputeFull()`, the ADX with its +DI
+  and -DI.
+- The non-generic `StreamingIndicator` (with its protected `ComputeNext`, `SetOutput` and `AppendToOutput`) ->
+  `StreamingIndicator<TInput>`, the root every other form already stood on (a subclass writes its outputs in `Step`).
+  `StreamingSma`, `StreamingEma`, `StreamingRsi`, `StreamingBollinger` and `StreamingMacd` are `StreamingIndicator<double>`;
+  `StreamingAtr`, `StreamingCci`, `StreamingStochastic`, `StreamingWilliamsR` and `StreamingObv` are
+  `StreamingIndicator<OhlcvBar>`, so a price reaches them through `IStreamingIndicator.Append`; `StreamingVwap` is
+  `StreamingIndicator<TradedPrice>` (a price with its volume; `AppendWithVolume` stays).
+- `GridSeries3D.ZToListList()` (protected) -> nothing: the surface, the wireframe and the 3-D contour write their heights to JSON through
+  the one conversion every grid-shaped series uses.
+- `InteractionHost.InvalidateRequested` -> the repaint given to the host when it is made, `new InteractionHost(repaint)`.
+
+### Fixed
+
+- **Documents.** Every call the README, docs, cookbook and wiki write compiles against the packages, and every matplotlib call beside one
+  is matplotlib's; the code the Playground shows names the theme by its property; the documentation of a font size and of a line width
+  states its unit.
+- **Drawing no longer changes the figure**: drawing writes nothing into it, a streaming control no longer changes it while it paints, two
+  figures built from one builder no longer share the default axes, and a mosaic built twice draws each panel once.
+- **Determinism.** The same figure writes the same bytes on Windows and on Linux; a number written as text reads the same in every
+  culture and on every machine; a point lands on one pixel whichever processor draws it; PDFs made at the same moment are whole; saving
+  over a longer file leaves nothing of it, and a failed save leaves the old file.
+- **Layout.** The tight and the constrained layout no longer cut a colour bar or an outside legend at the cap of a margin, keep room for a
+  colour bar's labels below its axes, for a styled or math title and for an axes title that holds math; an outside legend no longer
+  stands over a colour bar; a figure legend at an outside place is drawn inside the picture; axes added without a grid get the room they
+  need between them; the figure's colour bar no longer covers the subplots' labels; under the matplotlib themes the tight layout keeps no
+  floor or cap on its margins, the constrained layout stands a colour bar as matplotlib's does, and the classic theme lays axes out on
+  matplotlib's classic subplot parameters.
+- **Axes and ticks.** An axis with no data, or one value, is ranged as matplotlib ranges it; a tick a rounding put just inside an end is
+  drawn; the minor ticks no longer drift, and the minor grid stands on them (only where the axis has minor ticks under the matplotlib
+  themes); a 2-D axis draws no tick outside the plot; a date axis past 9999-12-31 is drawn, a date axis given another locator keeps writing
+  dates, and the tick at its end keeps its grid line; a moved bottom spine takes the X title along; an X axis with hidden major ticks
+  still draws its minor ones; under the matplotlib themes the ticks are placed as matplotlib's `AutoLocator` places them (default and
+  classic) and the classic theme rounds a range out to its ticks.
+- **Log, symmetric-log and logit axes.** A line, a bar, an error bar, a stem, a patch or a trendline through 0 or a negative value stops
+  or is cut at the edge of the plot, as matplotlib draws it; a logit axis masks a bar or fill on 0 and is drawn on matplotlib's logit
+  scale; a log axis over many decades names every second, third or fifth power; minor ticks stand at 2 to 9 times each power; a
+  symmetric-log axis maps, pads and labels its values as matplotlib's does, draws no minor tick and is linear within 2 of zero when given
+  no threshold; an axis given a locator of another kind keeps its scale's labels; a secondary Y axis on a log scale pans by decades.
+- **Axis breaks.** Overlapping breaks are cut out once, a break on an axis drawn high to low is cut out, the mark stands where the data
+  jumps, a break on a log or symlog axis hides the values inside it, a pan carries across a break, and a pointer reads the value under it.
+- **Secondary axes.** A series on a Y axis stacked past the primary or on the top X axis is ranged on its own scale and keeps its z-order;
+  a polar, ternary or 3-D series added there (or through `Axes.AddSeries`) puts the axes in its coordinate system; a stacked Y axis
+  stands at the plot's edge, not at a moved right spine; the top and the linked X axes keep their tick labels off their own side when
+  told to; a second Y axis and the top X axis start the colour cycle again under the matplotlib themes; a link set on a primary axis is
+  reported.
+- **Legends.** A legend stands where its theme says by one rule; it lists the series and patches in the order they were added, a pie,
+  donut and funnel a row per named slice, a figure legend every row of every subplot; a line's handle shows the marker the plot draws, no
+  larger than the handle; a polar line, 3-D line, unfilled KDE, streaming line and polar or 3-D scatter have a handle; a long title fits
+  its box; under the matplotlib themes the box and frame are laid out as matplotlib's `Legend`.
+- **Colour.** A series given the colour none is no longer filled black; spans, patches, hue groups, dendrogram clusters, indicators and
+  cyclers that name no colour take the theme's cycle (one cycle for lines, one for patches under the matplotlib themes); a chart whose
+  values are all one is coloured and its bar named by one rule; a pcolormesh's bar leaves an infinity out; a hexbin's bar covers its
+  hexagons' range; a two-slope scale whose upper half has no width maps a missing value to the middle; the classic theme draws an unnamed colour map in jet;
+  `Color.FromHex` reads `#rgb` and `#rgba`; under the matplotlib themes a `LogNormalizer` is coloured as matplotlib's `LogNorm`.
+- **Lines, edges and hatches.** A width, dash pattern, marker size or shape you give is drawn as given, even when it is the default;
+  every polyline and collection edge is joined as its theme joins it, with round corners under the matplotlib themes; a broken line is as
+  long in PNG and MAUI as in SVG; a patch added with `AddPatch` is edged at the theme's `patch.linewidth` (black under classic); a hatch
+  is drawn by one rule for a bar, a fill and a patch; the edge and hatch of a bar, histogram and fill take the series' opacity; a
+  patch's `Alpha` replaces its colours' opacity; a patch of negative size is drawn mirrored; under the matplotlib themes tick marks, grid
+  lines, bars, reference lines, OHLC bars, event lines and legend frames stand on the pixel grid of a PNG as matplotlib's Agg draws them.
+- **Z-order and clipping.** The grid, patches and series stand in matplotlib's z-order under the matplotlib themes (polar and ternary
+  too); a patch past the plot is clipped to it, and the marks of a series are cut at the plot while a label never is; a mark past a polar
+  axes' outer ring is cut at the circle; a patch of a ternary axes is cut at the triangle; a contour's labels are cut at the axes; an
+  inset's zoom indicator is drawn under the inset.
+- **Polar and radar.** A polar axes fills its background on its circle, centres its spoke labels, rings itself at its tick spacing, and a
+  radius below zero is drawn; a dotted ring runs from the east counter-clockwise; several radars share one web; a dial's band and a polar
+  heat map's cell are as smooth as a pie's slice.
+- **3-D.** Every series is drawn back to front with the others, and a turned chart in the browser restores depth order; a voxel is drawn at
+  its opacity, shaded by the light, with only the faces between filled and empty cells; a 3-D bar, voxel and planar bar are edged as a
+  patch; a 3-D contour traces lines as a 2-D contour does; the box is matplotlib's size, each subplot stands in the square of its cell,
+  the panes and wall grid wear matplotlib's shades and grid; a 3-D axis draws every tick in view, its marks, labels and grid at the same
+  places, and is drawn the other way round when its limits are set high to low; one set limit with all data beyond no longer inverts the
+  box; a surface with a stride draws one patch per block and spans its colour map from its lowest patch to its highest.
+- **Charts.** Box plots (whiskers stop at the most extreme observation inside the reach), violins, pies and donuts, stem plots, wind barbs,
+  streamplots, quivers and their keys, point, count, strip, swarm, rug, density and residual plots, step histograms, fills between curves,
+  stacked areas, eventplots, broken bars, Gantt charts, images (`imshow` placement, square cells, no seams, `image.interpolation`),
+  spectrograms, 2-D histograms, filled contours and broken axes are drawn as matplotlib or seaborn draw them under the matplotlib themes.
+  A pie of slices that total nothing draws nothing; a Sankey keeps the order of equal nodes; a treemap leaves out children that do not add
+  up to a finite number; a funnel's names and a painted tile's name are read against their bars; a renderer of your own stands stacked bars
+  on the stack.
+- **Maps.** Borders between countries are drawn on land only, as cartopy's `BORDERS`; a map has the outline of its projection, keeps its
+  shape and its limits; a globe is cut at its horizon and fills its box; Transverse Mercator, Robinson, stereographic, Albers and Lambert
+  maps are framed and proportioned as cartopy draws them; coastlines and borders have a legend handle; `GeoClipping.SplitAtDateline` cuts a
+  ring where it crosses the antimeridian; the built-in data sets are read once under concurrent callers.
+- **Indicators.** The MACD signal is the exponential mean of the MACD line and its histogram moves with it; the stochastic is the slow
+  stochastic of pandas-ta and TA-Lib; the ADX is Wilder's smoothing; `ParabolicSar` is TA-Lib's; an Ichimoku draws its five lines where
+  they are; the decycler, super smoother, roofing filter and equity curve stand at the bars they are computed at; a line's label is the same
+  in its batch and streaming form and in every culture; a streaming indicator refuses what its batch indicator refuses, pins its pane the
+  same way and reads a price as the bar of that price; `CandleIndicator.ComputeTrueRange` gives nothing over no bars; an indicator's lines
+  are as thick as its `LineWidth` says.
+- **Text and math.** A math label is a glyph outline in an SVG drawn with Skia, like other text; every text reads math between dollar
+  signs; a font switch in math is drawn; a fraction's numerator is raised and every math span stands at the same height in SVG and PNG; a
+  label with math and right-to-left words is painted in reading order in the PNG; an oblique font is drawn slanted; a MAUI text draws in
+  the colour, face and place of the other surfaces; a rich text takes its attributes; a series text follows the theme's size and family
+  and is written in a colour a dark theme can read.
+- **Streaming and live charts.** A streaming figure draws again when any stream (on any axis or inset) gets data and scales for every kind
+  of series; a render that throws no longer ends the process, a slow render no longer runs beside the next, and unregistering a chart ends
+  it; what the server keeps for a chart and a shown figure are let go of; restarting an animation while a frame is published keeps it
+  playing, and a paused animation raises no frame after `Pause` returns; an Interactive server disposed while it starts is stopped; the
+  popup reaches its hub on the address it was opened at; the GraphQL publisher passes on who moved the view.
+- **Interaction and controls.** Every setting of `InteractionTheme` reaches its script; the scripts of a chart work where the page does
+  not lay it out or refuses a pointer, point at members that exist and hold no comments; a server-interactive chart keeps every digit of
+  its range; a 3-D chart with a camera distance under 2 no longer jumps at the first drag; the MAUI control turns rotated text; the Uno
+  controls pass key modifiers and count a double click; every public interface can be implemented, proxied and mocked again.
+- **Reading, writing and checking.** A value a series cannot be drawn with, a triangle list it cannot draw and a series added to the axes
+  are refused at the call, not at the draw; a series whose data cannot be read is reported as unreadable with the reason; an enum field
+  refuses a number, an undefined value and a list, and a text that names no member is reported and left out; a map that names a number
+  its projection does not take is left out; a reference line, a span, a bar mode and a spine position read their name in any case; a donut
+  writes its start angle and hole only when given; the MCP server checks a patch's `zDir` and names a key's label position.
+- **Packages.** Calling `FigureSkiaExtensions.Initialize` again changes nothing; the package asks for the `System.Numerics.Tensors` it is
+  built with; the package icon is the picture the library draws now.
 
 ## [1.29.0]
 
@@ -132,6 +417,12 @@ change with what a reader sees, and each place where the new shapes and axes dif
   is drawn when a Cartesian subplot (or an inset with bounds) holds an annotation, a reference line, a span, a patch, a
   trendline, a level, a Fibonacci retracement or a signal, where it was refused as having nothing to draw; a legend, a colour
   bar, an axis break or a link alone still describe series that are not there, and the refusal names what would do.
+- **A canvas that follows arcs with curves ends the last curve on the point the arc is drawn to.** The MAUI canvas has a path
+  builder with lines and curves and no arcs, so an arc is cut into quarter-turn curves, and the last curve ended on the sum
+  of the steps instead of on the arc's own end angle: for a sweep from -39.97 to -393.43 degrees it stopped one bit short of
+  the point the SVG `A` command and the sampled outline of the arc end on (x 141.72797588979694 against
+  141.72797588979697). The end of an arc is now worked out in one place and the last curve ends on it, to the last bit. On the
+  canvas the difference is below a float, so no picture moved; the SVG and Skia drawing of an arc did not change.
 
 ### Changed
 

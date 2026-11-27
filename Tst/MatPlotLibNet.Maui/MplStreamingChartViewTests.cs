@@ -4,6 +4,7 @@
 using System.Reflection;
 using Microsoft.Maui;
 using NSubstitute;
+using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Streaming;
 
@@ -51,6 +52,42 @@ public class MplStreamingChartViewTests
 
         Assert.Equal(0, SubscriberCount(sf1));
         Assert.Equal(1, SubscriberCount(sf2));
+    }
+
+    [Fact]
+    public void StreamingFigureCleared_LetsGoOfTheFigure_AndLeavesTheLastPicture()
+    {
+        using var sf = NewStreamingFigure();
+        var view = new MplStreamingChartView { StreamingFigure = sf };
+        Assert.Same(sf.Figure, view.Figure);
+
+        view.StreamingFigure = null;
+
+        Assert.Equal(0, SubscriberCount(sf));
+        Assert.Same(sf.Figure, view.Figure);
+    }
+
+    /// <summary>The streaming view repaints after a gesture through its follower: the limits follow the data that arrived since the
+    /// last draw before the view is drawn, so Home hands the axes back to the scale mode that follows the data at once.</summary>
+    [Fact]
+    public void AGesture_SetsTheLimitsFromTheData_BeforeTheViewIsDrawnAgain()
+    {
+        var figure = new Figure { ChartId = "c" };
+        var series = figure.AddSubPlot().AddSeries(new MatPlotLibNet.Models.Series.Streaming.StreamingLineSeries(100));
+        for (int i = 0; i < 10; i++) series.AppendPoint(i, i * 2.0);
+        using var sf = new StreamingFigure(figure)
+        {
+            DefaultConfig = new StreamingAxesConfig(new AxisScaleMode.AutoScale(), new AxisScaleMode.AutoScale()),
+        };
+        var view = new MplStreamingChartView { IsInteractive = true, StreamingFigure = sf };
+        view.Host.Update(figure, ChartLayout.Create(figure, [new MatPlotLibNet.Rendering.Rect(10, 10, 200, 100)]));
+
+        // A zoom moves the axes; Home hands it back to its scale mode, and the limits follow the data that is there then.
+        view.Host.HandleScroll(new ScrollInputArgs(110, 60, 0, -3.0));
+        for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
+        view.Host.HandleKeyDown(new KeyInputArgs("Home"));
+
+        Assert.Equal(19.0, figure.SubPlots[0].XAxis.Max);
     }
 
     /// <summary>The repro for B3: simulate the view being attached to a platform handler and

@@ -20,21 +20,10 @@ public class TernaryAxesRendererTests
 
     private static Axes NewAxes() => new() { CoordinateSystem = CoordinateSystem.Ternary };
 
-    private static RecordingRenderContext Draw(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        AxesRenderer.Create(axes, Box, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     /// <summary>A pixel as the position it stands for in the frame one unit wide.</summary>
     private static Point InFrame(Point pixel) => new((pixel.X - Box.X) / Box.Width, (Box.Y + Box.Height - pixel.Y) / Box.Width);
 
-    private static (Point From, Point To) LineOf(CallRecord call)
-    {
-        dynamic args = call.Args!;
-        return (InFrame((Point)args.p1), InFrame((Point)args.p2));
-    }
+    private static (Point From, Point To) LineOf(DrawLineCall line) => (InFrame(line.P1), InFrame(line.P2));
 
     private static bool Joins((Point From, Point To) line, (double X, double Y) one, (double X, double Y) other)
     {
@@ -78,10 +67,10 @@ public class TernaryAxesRendererTests
     [Fact]
     public void TheBackground_IsTheTriangle_OnThreeCorners()
     {
-        var ctx = Draw(NewAxes());
+        var ctx = NewAxes().Drawn(Box);
 
-        dynamic polygon = ctx.OfKind("DrawPolygon").First(c => ((dynamic)c.Args!).fill is not null).Args!;
-        Point[] corners = polygon.points;
+        var polygon = ctx.Of<DrawPolygonCall>().First(c => c.Fill is not null);
+        Point[] corners = polygon.Points;
 
         Assert.Equal(3, corners.Length);
         Assert.Contains(corners, c => Math.Abs(c.X - Box.X) < 1e-9 && Math.Abs(c.Y - (Box.Y + Box.Height)) < 1e-9);      // bottom left
@@ -92,7 +81,7 @@ public class TernaryAxesRendererTests
     [Fact]
     public void TheGrid_IsFourLinesForEachPart_AtTheFifths()
     {
-        var lines = Draw(NewAxes()).OfKind("DrawLine").Select(LineOf).ToArray();
+        var lines = NewAxes().Drawn(Box).Of<DrawLineCall>().Select(LineOf).ToArray();
 
         Assert.Equal(12, lines.Length);   // 0.2, 0.4, 0.6 and 0.8 of Top, Left and Right
         // T5: the lines at 0.2.
@@ -107,16 +96,16 @@ public class TernaryAxesRendererTests
         var axes = NewAxes();
         axes.GridChange = new GridChange(Visible: false);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Box);
 
-        Assert.Equal(0, ctx.CountOf("DrawLine"));
-        Assert.True(ctx.CountOf("DrawPolygon") >= 2);   // the background and the outline
+        Assert.Equal(0, ctx.Count<DrawLineCall>());
+        Assert.True(ctx.Count<DrawPolygonCall>() >= 2);   // the background and the outline
     }
 
     [Fact]
     public void TheTicks_AreTheFifths_OnEachOfTheThreeEdges()
     {
-        var texts = Draw(NewAxes()).OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text).ToArray();
+        var texts = NewAxes().Drawn(Box).Of<DrawTextCall>().Select(c => c.Text).ToArray();
 
         foreach (string tick in new[] { "0.2", "0.4", "0.6", "0.8" })
         {
@@ -127,9 +116,9 @@ public class TernaryAxesRendererTests
     [Fact]
     public void TheTicksRunCounterClockwise_RightAlongTheBase_TopUpTheRightEdge_LeftDownTheLeftEdge()
     {
-        var ticks = Draw(NewAxes()).OfKind("DrawText")
-            .Where(c => (string)((dynamic)c.Args!).text == "0.2")
-            .Select(c => InFrame((Point)((dynamic)c.Args!).position))
+        var ticks = NewAxes().Drawn(Box).Of<DrawTextCall>()
+            .Where(c => c.Text == "0.2")
+            .Select(c => InFrame(c.Position))
             .ToArray();
 
         // Right = 0.2 on the base, 0.2 from the bottom left; Top = 0.2 on the right edge, near the bottom right; Left = 0.2 on the
@@ -147,7 +136,7 @@ public class TernaryAxesRendererTests
         axes.YAxis.Label = "Clay";   // Top
         axes.ZAxis.Label = "Silt";   // Left
 
-        var texts = Draw(axes).OfKind("DrawText").Select(c => (Text: (string)((dynamic)c.Args!).text, At: InFrame((Point)((dynamic)c.Args!).position))).ToArray();
+        var texts = axes.Drawn(Box).Of<DrawTextCall>().Select(c => (Text: c.Text, At: InFrame(c.Position))).ToArray();
 
         var clay = Assert.Single(texts, t => t.Text == "Clay");
         var silt = Assert.Single(texts, t => t.Text == "Silt");
@@ -167,24 +156,28 @@ public class TernaryAxesRendererTests
         axes.Title = "Soil";
         axes.YAxis.Label = "Clay";
 
-        var texts = Draw(axes).OfKind("DrawText").Select(c => (Text: (string)((dynamic)c.Args!).text, At: (Point)((dynamic)c.Args!).position)).ToArray();
+        var texts = axes.Drawn(Box).Of<DrawTextCall>().Select(c => (Text: c.Text, At: c.Position)).ToArray();
 
         var title = Assert.Single(texts, t => t.Text == "Soil");
         var clay = Assert.Single(texts, t => t.Text == "Clay");
         Assert.True(title.At.Y < clay.At.Y - 5, $"title at {title.At.Y} collides with the top label at {clay.At.Y}");
     }
 
-    [Fact]
-    public void ATernaryFigure_RendersToSvg_WithoutASeries()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot(1, 1, 1);
-        axes.CoordinateSystem = CoordinateSystem.Ternary;
+        new DrawnToken("ATernaryFigure_RendersToSvg_WithoutASeries", () =>
+        {
+            var figure = new Figure();
+            var axes = figure.AddSubPlot(1, 1, 1);
+            axes.CoordinateSystem = CoordinateSystem.Ternary;
+            return figure.ToSvg();
+        }, "<polygon"),
+    };
 
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<polygon", svg, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── the box the triangle is drawn in ────────────────────────────────────────
 
@@ -223,20 +216,21 @@ public class TernaryAxesRendererTests
         var axes = figure.AddSubPlot(1, 1, 1);
         axes.CoordinateSystem = CoordinateSystem.Ternary;
 
-        var plotArea = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plotArea = figure.FirstPlotArea();
 
         Assert.Equal(Height, plotArea.Height / plotArea.Width, 9);
     }
 
     [Fact]
-    public void ANameThatContainsMath_IsDrawnAsRichText()
+    public void ANameThatContainsMath_IsDrawnAsTheRunsOfItsLayout()
     {
         var axes = NewAxes();
-        axes.YAxis.Label = @"$lpha$ part";
+        axes.YAxis.Label = @"$\alpha$ part";
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Box);
 
-        Assert.NotEmpty(ctx.OfKind("DrawRichText"));
+        Assert.Contains(ctx.Of<DrawTextCall>(), call => call.Text == "\u03B1");
+        Assert.DoesNotContain(ctx.Of<DrawTextCall>(), call => call.Text.Contains('$'));
     }
 
     [Fact]
@@ -246,8 +240,8 @@ public class TernaryAxesRendererTests
         axes.XAxis.Label = "Sand";
         axes.XAxis.LabelStyle = new TextStyle { FontSize = 23 };
 
-        var name = Draw(axes).OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Sand");
+        var name = axes.Drawn(Box).Of<DrawTextCall>().Single(a => a.Text == "Sand");
 
-        Assert.Equal(23.0, (double)name.font.Size, 6);
+        Assert.Equal(23.0, (double)name.Font.Size, 6);
     }
 }

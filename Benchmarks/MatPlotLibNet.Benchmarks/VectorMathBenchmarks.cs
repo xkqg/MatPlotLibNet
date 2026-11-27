@@ -7,9 +7,9 @@ using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Benchmarks;
 
-/// <summary>Benchmarks for SIMD-accelerated Vec public API and indicator proxies for internal VectorMath.</summary>
+/// <summary>Benchmarks for the SIMD-accelerated Vec public API, and indicators that read the rolling windows.</summary>
 /// <remarks>Vec operators/reductions are SIMD-accelerated via TensorPrimitives.
-/// Indicator benchmarks proxy the internal VectorMath domain algorithms (RollingMean, RollingStdDev, RollingMin/Max).</remarks>
+/// The indicator benchmarks read the internal rolling windows (RollingMean, RollingStdDev, RollingMin/Max).</remarks>
 [MemoryDiagnoser]
 public class VectorMathBenchmarks
 {
@@ -80,7 +80,7 @@ public class VectorMathBenchmarks
     public Vec Vec_Where_Lambda() => _x.Where(v => v > 0);
 
     // --- Domain algorithms via indicator proxies ---
-    // These exercise VectorMath.RollingMean, RollingStdDev, RollingMin/Max
+    // These exercise RollingWindowExtensions: RollingMean, RollingStdDev, RollingMin/Max
 
     [Benchmark]
     public double[] RollingMean_via_Sma() => new Sma(_close, 20).Compute();

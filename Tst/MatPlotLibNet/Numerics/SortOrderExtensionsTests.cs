@@ -71,4 +71,25 @@ public class SortOrderExtensionsTests
 
         Assert.Equal("values", error.ParamName);
     }
+
+    /// <summary>An order reads every parallel array the same way: the names and the counts of a Pareto chart come out side by
+    /// side, the largest count first.</summary>
+    [Fact]
+    public void Pick_ReadsTheValuesInTheOrder()
+    {
+        double[] counts = [45, 142, 9, 98, 67];
+        string[] names = ["a", "b", "c", "d", "e"];
+
+        int[] order = counts.DescendingOrder();
+
+        Assert.Equal([142.0, 98, 67, 45, 9], order.Pick(counts));
+        Assert.Equal(["b", "d", "e", "a", "c"], order.Pick(names));
+    }
+
+    /// <summary>An empty order picks nothing.</summary>
+    [Fact]
+    public void Pick_FromAnEmptyOrder_IsEmpty()
+    {
+        Assert.Empty(Array.Empty<int>().Pick(Array.Empty<string>()));
+    }
 }

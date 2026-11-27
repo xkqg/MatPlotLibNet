@@ -18,6 +18,15 @@ public class SankeyLayoutEngineTests
     private static readonly Rect Bounds = new(0, 0, 400, 200);
     private readonly SankeyLayoutEngine _engine = new();
 
+    /// <summary>The layout of a Sankey series of the given nodes and links in the bounds of this class, after the caller has set what else
+    /// the series carries.</summary>
+    private SankeyLayout? LayoutOf(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null)
+    {
+        var series = new SankeySeries(nodes, links);
+        configure?.Invoke(series);
+        return _engine.Compute(series, Bounds);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Compute — degenerate inputs
     // ──────────────────────────────────────────────────────────────────────────
@@ -25,16 +34,14 @@ public class SankeyLayoutEngineTests
     [Fact]
     public void Compute_EmptyNodes_ReturnsNull()
     {
-        var series = new SankeySeries(Array.Empty<SankeyNode>(), Array.Empty<SankeyLink>());
-        var layout = _engine.Compute(series, Bounds);
+        var layout = LayoutOf(Array.Empty<SankeyNode>(), Array.Empty<SankeyLink>());
         Assert.Null(layout);
     }
 
     [Fact]
     public void Compute_SingleNode_NoLinks_ReturnsLayout()
     {
-        var series = new SankeySeries([new("A")], Array.Empty<SankeyLink>());
-        var layout = _engine.Compute(series, Bounds);
+        var layout = LayoutOf([new("A")], Array.Empty<SankeyLink>());
         Assert.NotNull(layout);
         Assert.Single(layout!.Columns);
         Assert.Equal(0, layout.Columns[0]);
@@ -44,8 +51,7 @@ public class SankeyLayoutEngineTests
     [Fact]
     public void Compute_SingleNode_HasNodeValuesArray()
     {
-        var series = new SankeySeries([new("A")], Array.Empty<SankeyLink>());
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A")], Array.Empty<SankeyLink>())!;
         Assert.Single(layout.NodeValues);
         Assert.Equal(0.0, layout.NodeValues[0]);
     }
@@ -58,13 +64,8 @@ public class SankeyLayoutEngineTests
     public void Compute_LinearChain_AssignsSequentialColumns()
     {
         // A → B → C
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 10), new(1, 2, 10)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(1, layout.Columns[1]);
-        Assert.Equal(2, layout.Columns[2]);
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 10), new(1, 2, 10)])!;
+        Assert.Equal([0, 1, 2], layout.Columns[..3]);
         Assert.Equal(2, layout.MaxCol);
     }
 
@@ -72,39 +73,24 @@ public class SankeyLayoutEngineTests
     public void Compute_FanOut_AllTargetsInColumn1()
     {
         // A → B, A → C, A → D
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C"), new("D")],
-            [new(0, 1, 5), new(0, 2, 5), new(0, 3, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(1, layout.Columns[1]);
-        Assert.Equal(1, layout.Columns[2]);
-        Assert.Equal(1, layout.Columns[3]);
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("D")], [new(0, 1, 5), new(0, 2, 5), new(0, 3, 5)])!;
+        Assert.Equal([0, 1, 1, 1], layout.Columns[..4]);
     }
 
     [Fact]
     public void Compute_FanIn_SharesTargetColumn()
     {
         // A → C, B → C  — both sources at col 0, target at col 1
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 2, 5), new(1, 2, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(0, layout.Columns[1]);
-        Assert.Equal(1, layout.Columns[2]);
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 2, 5), new(1, 2, 5)])!;
+        Assert.Equal([0, 0, 1], layout.Columns[..3]);
     }
 
     [Fact]
     public void Compute_ExplicitColumnOverride_OverridesBfs()
     {
         // A → B, but B has explicit Column=5 — BFS must not overwrite
-        var series = new SankeySeries(
-            [new("A"), new("B", Column: 5)],
-            [new(0, 1, 10)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(5, layout.Columns[1]);
+        var layout = LayoutOf([new("A"), new("B", Column: 5)], [new(0, 1, 10)])!;
+        Assert.Equal([0, 5], layout.Columns[..2]);
         Assert.Equal(5, layout.MaxCol);
     }
 
@@ -113,10 +99,7 @@ public class SankeyLayoutEngineTests
     {
         // B has explicit Column=2 and is a target — should still enter queue
         // via the override path, propagating through links that source from it.
-        var series = new SankeySeries(
-            [new("A"), new("B", Column: 2), new("C")],
-            [new(0, 1, 10), new(1, 2, 10)]);
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B", Column: 2), new("C")], [new(0, 1, 10), new(1, 2, 10)])!;
         Assert.Equal(2, layout.Columns[1]);
         Assert.Equal(3, layout.Columns[2]);
     }
@@ -125,10 +108,7 @@ public class SankeyLayoutEngineTests
     public void Compute_BfsSkipsTargetWhenOverrideSet()
     {
         // A → B, with B override=9 — BFS would set B to 1, but override wins.
-        var series = new SankeySeries(
-            [new("A"), new("B", Column: 9)],
-            [new(0, 1, 10)]);
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B", Column: 9)], [new(0, 1, 10)])!;
         Assert.Equal(9, layout.Columns[1]);
     }
 
@@ -137,13 +117,8 @@ public class SankeyLayoutEngineTests
     {
         // A → C and A → B → C. BFS visiting A→C first gives cols[C]=1, then
         // via B must not decrease (cols[tgt] < nextCol guard).
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 2, 5), new(0, 1, 5), new(1, 2, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(1, layout.Columns[1]);
-        Assert.Equal(2, layout.Columns[2]);
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 2, 5), new(0, 1, 5), new(1, 2, 5)])!;
+        Assert.Equal([0, 1, 2], layout.Columns[..3]);
     }
 
     [Fact]
@@ -151,22 +126,16 @@ public class SankeyLayoutEngineTests
     {
         // A ↔ B — neither is a source (both are targets), BFS queue stays empty.
         // Clamp at the end forces -1 → 0.
-        var series = new SankeySeries(
-            [new("A"), new("B")],
-            [new(0, 1, 5), new(1, 0, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(0, layout.Columns[1]);
+        var layout = LayoutOf([new("A"), new("B")], [new(0, 1, 5), new(1, 0, 5)])!;
+        Assert.Equal([0, 0], layout.Columns[..2]);
     }
 
     [Fact]
     public void Compute_IsolatedNode_GetsColumnZero()
     {
         // A, B isolated — not a target, so source-path sets cols=0.
-        var series = new SankeySeries([new("A"), new("B")], Array.Empty<SankeyLink>());
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(0, layout.Columns[1]);
+        var layout = LayoutOf([new("A"), new("B")], Array.Empty<SankeyLink>())!;
+        Assert.Equal([0, 0], layout.Columns[..2]);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -177,14 +146,8 @@ public class SankeyLayoutEngineTests
     public void Compute_JustifyAlignment_PreservesBfsColumns()
     {
         // A → C and B → C. BFS: A=0, B=0, C=1. Justify leaves as-is.
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 2, 5), new(1, 2, 5)])
-        { NodeAlignment = SankeyNodeAlignment.Justify };
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(0, layout.Columns[1]);
-        Assert.Equal(1, layout.Columns[2]);
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 2, 5), new(1, 2, 5)], s => s.NodeAlignment = SankeyNodeAlignment.Justify)!;
+        Assert.Equal([0, 0, 1], layout.Columns[..3]);
     }
 
     [Fact]
@@ -192,15 +155,8 @@ public class SankeyLayoutEngineTests
     {
         // Left mode hits the default arm of the switch and does not change columns[i],
         // but still runs the "latest" computation (branch coverage).
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C"), new("D")],
-            [new(0, 1, 5), new(1, 3, 5), new(2, 3, 5)])
-        { NodeAlignment = SankeyNodeAlignment.Left };
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(1, layout.Columns[1]);
-        Assert.Equal(0, layout.Columns[2]);
-        Assert.Equal(2, layout.Columns[3]);
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("D")], [new(0, 1, 5), new(1, 3, 5), new(2, 3, 5)], s => s.NodeAlignment = SankeyNodeAlignment.Left)!;
+        Assert.Equal([0, 1, 0, 2], layout.Columns[..4]);
     }
 
     [Fact]
@@ -208,11 +164,7 @@ public class SankeyLayoutEngineTests
     {
         // A → B → D, C → D. Under Justify: A=0, B=1, C=0, D=2.
         // Under Right: C gets pulled to col 1 (latest just before D).
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C"), new("D")],
-            [new(0, 1, 5), new(1, 3, 5), new(2, 3, 5)])
-        { NodeAlignment = SankeyNodeAlignment.Right };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("D")], [new(0, 1, 5), new(1, 3, 5), new(2, 3, 5)], s => s.NodeAlignment = SankeyNodeAlignment.Right)!;
         Assert.Equal(2, layout.MaxCol);
         Assert.Equal(1, layout.Columns[2]); // C pulled right
         Assert.Equal(2, layout.Columns[3]); // D stays
@@ -224,15 +176,8 @@ public class SankeyLayoutEngineTests
         // A → B → D (3 cols) and C → D.
         // Left: A=0, B=1, C=0, D=2.  Right (latest):  A=0, B=1, C=1, D=2.
         // Center = (left+right)/2 = A=0, B=1, C=0, D=2 (C averages (0+1)/2=0 via integer div).
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C"), new("D")],
-            [new(0, 1, 5), new(1, 3, 5), new(2, 3, 5)])
-        { NodeAlignment = SankeyNodeAlignment.Center };
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(0, layout.Columns[0]);
-        Assert.Equal(1, layout.Columns[1]);
-        Assert.Equal(0, layout.Columns[2]);
-        Assert.Equal(2, layout.Columns[3]);
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("D")], [new(0, 1, 5), new(1, 3, 5), new(2, 3, 5)], s => s.NodeAlignment = SankeyNodeAlignment.Center)!;
+        Assert.Equal([0, 1, 0, 2], layout.Columns[..4]);
     }
 
     [Fact]
@@ -242,13 +187,8 @@ public class SankeyLayoutEngineTests
         // `latest[A] = latest[B] - 1 = 1` during the alignment sweep.
         // The post-sweep clamp `if (latest[i] < columns[i])` must restore
         // latest[A] = 2 so Right-alignment does not pull A backwards.
-        var series = new SankeySeries(
-            [new("A", Column: 2), new("B", Column: 2)],
-            [new(0, 1, 5)])
-        { NodeAlignment = SankeyNodeAlignment.Right };
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(2, layout.Columns[0]);
-        Assert.Equal(2, layout.Columns[1]);
+        var layout = LayoutOf([new("A", Column: 2), new("B", Column: 2)], [new(0, 1, 5)], s => s.NodeAlignment = SankeyNodeAlignment.Right)!;
+        Assert.Equal([2, 2], layout.Columns[..2]);
     }
 
     [Fact]
@@ -256,11 +196,7 @@ public class SankeyLayoutEngineTests
     {
         // Fully linear chain — the "latest" sweep converges in one pass, triggering
         // the `if (!changed) break;` branch on pass 2.
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 5), new(1, 2, 5)])
-        { NodeAlignment = SankeyNodeAlignment.Right };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 5), new(1, 2, 5)], s => s.NodeAlignment = SankeyNodeAlignment.Right)!;
         Assert.Equal(2, layout.MaxCol);
     }
 
@@ -268,36 +204,25 @@ public class SankeyLayoutEngineTests
     // Node values — out/in max
     // ──────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Compute_NodeValues_UsesOutwardWhenLargerThanInward()
+    public static TheoryData<SankeyNode[], SankeyLink[], int, double> NodeValues => new()
     {
-        // A receives 10, sends 20 → value = 20 (outward wins).
-        var series = new SankeySeries(
-            [new("Src"), new("A"), new("T1"), new("T2")],
-            [new(0, 1, 10), new(1, 2, 12), new(1, 3, 8)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(20, layout.NodeValues[1]);
-    }
+        { [new("Src"), new("A"), new("T1"), new("T2")], [new(0, 1, 10), new(1, 2, 12), new(1, 3, 8)], 1, 20 }, // A receives 10, sends 20 → value = 20 (outward wins)
+        { [new("S1"), new("S2"), new("A"), new("T")], [new(0, 2, 20), new(1, 2, 10), new(2, 3, 5)], 2, 30 },   // A receives 30 (20+10), sends 5 → value = 30 (inward wins)
+    };
 
-    [Fact]
-    public void Compute_NodeValues_UsesInwardWhenLargerThanOutward()
+    [Theory]
+    [MemberData(nameof(NodeValues))]
+    public void Compute_NodeValues_UsesTheLargerOfOutwardAndInward(SankeyNode[] nodes, SankeyLink[] links, int node, double expected)
     {
-        // A receives 30 (20+10), sends 5 → value = 30.
-        var series = new SankeySeries(
-            [new("S1"), new("S2"), new("A"), new("T")],
-            [new(0, 2, 20), new(1, 2, 10), new(2, 3, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
-        Assert.Equal(30, layout.NodeValues[2]);
+        var layout = LayoutOf(nodes, links)!;
+        Assert.Equal(expected, layout.NodeValues[node]);
     }
 
     [Fact]
     public void Compute_ZeroValueLinks_PositiveNodeSizeFloor()
     {
         // All links have value 0 → valueScale = 0 path; each node must still get size≥1.
-        var series = new SankeySeries(
-            [new("A"), new("B")],
-            [new(0, 1, 0)]);
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B")], [new(0, 1, 0)])!;
         Assert.True(layout.NodeRects[0].Height >= 1);
         Assert.True(layout.NodeRects[1].Height >= 1);
     }
@@ -336,13 +261,21 @@ public class SankeyLayoutEngineTests
     public void Compute_SingleColumn_ColStepIsZero()
     {
         // Only sources, no links — all nodes fall into col 0, MaxCol=0 → colStep=0 branch.
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            Array.Empty<SankeyLink>());
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], Array.Empty<SankeyLink>())!;
         Assert.Equal(0, layout.MaxCol);
         // All nodes share the same primary-axis position
         Assert.Equal(layout.NodeRects[0].X, layout.NodeRects[1].X);
+    }
+
+    /// <summary>A column is stacked from its largest node down, and two nodes of one value keep the order they are given in: the
+    /// later of the two never goes first.</summary>
+    [Fact]
+    public void AColumn_StacksItsLargestNodeFirst_AndTwoEqualNodesInTheOrderGiven()
+    {
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("T")], [new(0, 3, 1), new(1, 3, 1), new(2, 3, 2)], s => s.Iterations = 0)!;
+
+        double[] tops = [.. layout.NodeRects.Take(3).Select(rect => rect.Y)];
+        Assert.True(tops[2] < tops[0] && tops[0] < tops[1], $"tops of A, B, C: {string.Join(", ", tops)}");
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -353,11 +286,7 @@ public class SankeyLayoutEngineTests
     public void Compute_ZeroIterations_SkipsRelaxation()
     {
         // Iterations = 0 → Relax returns immediately. Layout must still be valid.
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 5), new(1, 2, 5)])
-        { Iterations = 0 };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 5), new(1, 2, 5)], s => s.Iterations = 0)!;
         Assert.Equal(3, layout.NodeRects.Length);
     }
 
@@ -366,11 +295,7 @@ public class SankeyLayoutEngineTests
     {
         // Crossing scenario that benefits from relaxation:
         // S1→T2, S2→T1 — relaxation should pull S1/S2 toward their targets' centres.
-        var series = new SankeySeries(
-            [new("S1"), new("S2"), new("T1"), new("T2")],
-            [new(0, 3, 10), new(1, 2, 10)])
-        { Iterations = 6 };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("S1"), new("S2"), new("T1"), new("T2")], [new(0, 3, 10), new(1, 2, 10)], s => s.Iterations = 6)!;
         Assert.Equal(4, layout.NodeRects.Length);
     }
 
@@ -378,11 +303,7 @@ public class SankeyLayoutEngineTests
     public void Compute_NodeWithNoLinks_SkipsRelaxShift()
     {
         // C is isolated (no links touching it) — weightTotal stays 0, relax branch skips it.
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 5)])
-        { Iterations = 3 };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 5)], s => s.Iterations = 3)!;
         Assert.Equal(3, layout.NodeRects.Length);
     }
 
@@ -391,11 +312,7 @@ public class SankeyLayoutEngineTests
     {
         // 3-column layout exercises both upstream (targets pulled toward sources)
         // and downstream (sources pulled toward targets) passes.
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C"), new("D")],
-            [new(0, 1, 10), new(0, 2, 10), new(1, 3, 5), new(2, 3, 5)])
-        { Iterations = 6 };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("D")], [new(0, 1, 10), new(0, 2, 10), new(1, 3, 5), new(2, 3, 5)], s => s.Iterations = 6)!;
         Assert.Equal(4, layout.NodeRects.Length);
     }
 
@@ -432,10 +349,7 @@ public class SankeyLayoutEngineTests
     public void Compute_LayoutFitsInsideBounds_NoOvershoot()
     {
         // Small, comfortably-sized scenario — overshoot <= 0 branch.
-        var series = new SankeySeries(
-            [new("A"), new("B")],
-            [new(0, 1, 10)]);
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B")], [new(0, 1, 10)])!;
 
         double crossMax = Bounds.Y + Bounds.Height;
         foreach (var rect in layout.NodeRects)
@@ -471,10 +385,7 @@ public class SankeyLayoutEngineTests
     [Fact]
     public void Compute_LayoutHasCorrectArrayLengths()
     {
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 5), new(1, 2, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 5), new(1, 2, 5)])!;
         Assert.Equal(3, layout.Columns.Length);
         Assert.Equal(3, layout.NodeRects.Length);
         Assert.Equal(3, layout.NodeValues.Length);
@@ -483,10 +394,7 @@ public class SankeyLayoutEngineTests
     [Fact]
     public void Compute_AllNodeRectsWithinPrimaryBounds()
     {
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C"), new("D")],
-            [new(0, 1, 5), new(1, 2, 5), new(2, 3, 5)]);
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C"), new("D")], [new(0, 1, 5), new(1, 2, 5), new(2, 3, 5)])!;
 
         double primaryMin = Bounds.X;
         double primaryMax = Bounds.X + Bounds.Width;
@@ -513,11 +421,7 @@ public class SankeyLayoutEngineTests
     [Fact]
     public void Compute_VerticalWithMultipleColumns_NodeYProgresses()
     {
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 5), new(1, 2, 5)])
-        { Orient = SankeyOrientation.Vertical };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 5), new(1, 2, 5)], s => s.Orient = SankeyOrientation.Vertical)!;
         // In vertical mode, primary axis is Y — consecutive columns have increasing Y.
         Assert.True(layout.NodeRects[0].Y < layout.NodeRects[1].Y);
         Assert.True(layout.NodeRects[1].Y < layout.NodeRects[2].Y);
@@ -526,11 +430,7 @@ public class SankeyLayoutEngineTests
     [Fact]
     public void Compute_HorizontalWithMultipleColumns_NodeXProgresses()
     {
-        var series = new SankeySeries(
-            [new("A"), new("B"), new("C")],
-            [new(0, 1, 5), new(1, 2, 5)])
-        { Orient = SankeyOrientation.Horizontal };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("A"), new("B"), new("C")], [new(0, 1, 5), new(1, 2, 5)], s => s.Orient = SankeyOrientation.Horizontal)!;
         Assert.True(layout.NodeRects[0].X < layout.NodeRects[1].X);
         Assert.True(layout.NodeRects[1].X < layout.NodeRects[2].X);
     }
@@ -540,11 +440,7 @@ public class SankeyLayoutEngineTests
     {
         // S fans out to three targets of different values. They share col 1 and
         // must be sorted by total value descending (largest first).
-        var series = new SankeySeries(
-            [new("S"), new("Small"), new("Big"), new("Mid")],
-            [new(0, 1, 3), new(0, 2, 20), new(0, 3, 10)])
-        { Iterations = 0 };
-        var layout = _engine.Compute(series, Bounds)!;
+        var layout = LayoutOf([new("S"), new("Small"), new("Big"), new("Mid")], [new(0, 1, 3), new(0, 2, 20), new(0, 3, 10)], s => s.Iterations = 0)!;
 
         // Big (idx=2) should have smaller Y than Mid (idx=3), which should be smaller than Small (idx=1)
         // in horizontal mode (crossAxis = Y).

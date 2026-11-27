@@ -8,15 +8,22 @@ namespace MatPlotLibNet.Transforms;
 
 /// <summary>Base class for figure transforms that convert a <see cref="Figure"/> into a specific output format.</summary>
 /// <remarks>Concrete implementations (<see cref="SvgTransform"/>, <c>PngTransform</c>, <c>PdfTransform</c>) each
-/// create a format-specific <see cref="IRenderContext"/>, pass it through the shared <see cref="ChartRenderer"/> pipeline,
-/// and encode the result to the target format. The renderer is held as a shared dependency in this base class.</remarks>
+/// create a format-specific <see cref="IRenderContext"/>, draw the figure onto it with the <see cref="IChartRenderer"/> the
+/// transform was made with (<see cref="FigureRenderer"/>), and encode the result to the target format. Any renderer will do: the
+/// library's <see cref="ChartRenderer"/>, the default, or one of the caller's.</remarks>
 public abstract class FigureTransform : IFigureTransform
 {
-    /// <summary>The shared chart renderer that lays out and draws the figure onto the format-specific render context.</summary>
-    protected ChartRenderer Renderer { get; }
+    /// <summary>The chart renderer that lays out and draws the figure onto the format-specific render context: the one the
+    /// transform was made with.</summary>
+    protected IChartRenderer FigureRenderer { get; }
 
-    /// <summary>Creates a new figure transform with the specified chart renderer.</summary>
-    protected FigureTransform(IChartRenderer renderer) => Renderer = (ChartRenderer)renderer;
+    /// <summary>Creates a new figure transform that draws with <paramref name="renderer"/>.</summary>
+    /// <param name="renderer">The renderer that draws the figure: the library's or one of the caller's.</param>
+    protected FigureTransform(IChartRenderer renderer)
+    {
+        ArgumentNullException.ThrowIfNull(renderer);
+        FigureRenderer = renderer;
+    }
 
     /// <summary>Creates a new figure transform with the default chart renderer.</summary>
     protected FigureTransform() : this(new ChartRenderer()) { }

@@ -27,7 +27,7 @@ public static class AxesGridVerbs
         /// <param name="y">The Y-axis data values.</param>
         /// <param name="bins">The number of bins along both axes.</param>
         /// <returns>The newly created <see cref="Histogram2DSeries"/> for further configuration.</returns>
-        public Histogram2DSeries Histogram2D(double[] x, double[] y, int bins = 20)
+        public Histogram2DSeries Histogram2D(double[] x, double[] y, int bins = Histogram2DSeries.RestingBins)
         {
             x.Length.ThrowIfMisaligned(y.Length);
             return axes.AddSeries(new Histogram2DSeries(x, y, bins, bins));
@@ -90,7 +90,7 @@ public static class AxesGridVerbs
         /// <param name="signal">The input signal values.</param>
         /// <param name="sampleRate">The sample rate in Hz.</param>
         /// <returns>The newly created <see cref="SpectrogramSeries"/> for further configuration.</returns>
-        public SpectrogramSeries Spectrogram(Numerics.Vec signal, int sampleRate = 1) => axes.AddSeries(new SpectrogramSeries(signal) { SampleRate = sampleRate });
+        public SpectrogramSeries Spectrogram(Numerics.Vec signal, int sampleRate = SpectrogramSeries.RestingSampleRate) => axes.AddSeries(new SpectrogramSeries(signal) { SampleRate = sampleRate });
 
         /// <summary>Adds a contour series on an unstructured triangular mesh.</summary>
         public TricontourSeries Tricontour(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)

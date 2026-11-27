@@ -27,8 +27,6 @@ public class LinkedAxisSerializationTests
     private static readonly double[] Y = [2, 4, 3, 5, 4];
     private static readonly double[] Other = [10, 30, 20, 40, 25];
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     /// <summary>The four transforms the JSON names, each made with a value that is not what its factory defaults to, over a primary
     /// range (1..5) every one of them can place.</summary>
     private static readonly IReadOnlyDictionary<string, AxisTransform> Named = new Dictionary<string, AxisTransform>(StringComparer.Ordinal)
@@ -113,23 +111,6 @@ public class LinkedAxisSerializationTests
         };
     }
 
-    private static List<ChartDiagnostic> Announced(Action act)
-    {
-        var seen = new List<ChartDiagnostic>();
-        void Collect(ChartDiagnostic d) => seen.Add(d);
-        ChartDiagnostics.Emitted += Collect;
-        try
-        {
-            act();
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Collect;
-        }
-
-        return [.. seen.Where(d => d.Message.Contains("link", StringComparison.OrdinalIgnoreCase))];
-    }
-
     // ---- a named link, at every seat ------------------------------------------------------------------------------
 
     /// <summary>Each named transform on the top axis and on a Y axis of either side draws the same picture after a round trip, and
@@ -141,7 +122,7 @@ public class LinkedAxisSerializationTests
         var figure = Draw(seat, Named[kind]);
         string drawn = figure.ToSvg();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.NotNull(AxisAt(read, seat).Link);
         Assert.True(DrawnSeriesFixtures.SameValue(Named[kind], AxisAt(read, seat).Link),
@@ -155,7 +136,7 @@ public class LinkedAxisSerializationTests
     [MemberData(nameof(SeatNames))]
     public void ALinkAtOneSeat_IsReadBackAtThatSeatOnly(string seat)
     {
-        var read = RoundTrip(Draw(seat, Named["linear"]));
+        var read = Draw(seat, Named["linear"]).RoundTripped();
         var axes = read.SubPlots[0];
 
         var others = new List<Axis> { axes.XAxis, axes.YAxis };
@@ -222,17 +203,23 @@ public class LinkedAxisSerializationTests
         Assert.DoesNotContain("\"link\"", json, StringComparison.Ordinal);
     }
 
-    /// <summary>An axis whose link is unset writes none, whatever else it holds.</summary>
-    [Fact]
-    public void AnAxisThatHoldsSeriesAndNoLink_WritesNoLinkField()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
-            .Plot(X, Y)
-            .WithSecondaryXAxis(top => top.PlotXSecondary(X, Other))
-            .WithAddRightYAxis(right => right.Plot(X, Other))).Build();
+        //  An axis whose link is unset writes none, whatever else it holds.
+        new DrawnToken("AnAxisThatHoldsSeriesAndNoLink_WritesNoLinkField", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+                .Plot(X, Y)
+                .WithSecondaryXAxis(top => top.PlotXSecondary(X, Other))
+                .WithAddRightYAxis(right => right.Plot(X, Other))).Build();
+            return Serializer.ToJson(figure);
+        }) { Absent = ["\"link\""] },
+    };
 
-        Assert.DoesNotContain("\"link\"", Serializer.ToJson(figure), StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- a transform of your own is code ---------------------------------------------------------------------------
 
@@ -275,7 +262,7 @@ public class LinkedAxisSerializationTests
         """;
 
         Figure? read = null;
-        var seen = Announced(() => read = Serializer.FromJson(json));
+        var seen = DiagnosticsCapture.During(() => read = Serializer.FromJson(json));
 
         Assert.Single(read!.SubPlots[0].Series);
         Assert.Equal("kept", AxisAt(read, seat).Label);
@@ -356,7 +343,7 @@ public class LinkedAxisSerializationTests
         figure.SubPlots[0].YAxes.Right[0].Axis.Link = Named["power"];
         string drawn = figure.ToSvg();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.True(DrawnSeriesFixtures.SameValue(Named["linear"], read.SubPlots[0].SecondaryXAxis!.Link));
         Assert.True(DrawnSeriesFixtures.SameValue(Named["power"], read.SubPlots[0].YAxes.Right[0].Axis.Link));
@@ -372,7 +359,7 @@ public class LinkedAxisSerializationTests
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         foreach (var seat in DrawnAxesFixtures.Parts.Where(part => part.Type == typeof(Axis)))
         {

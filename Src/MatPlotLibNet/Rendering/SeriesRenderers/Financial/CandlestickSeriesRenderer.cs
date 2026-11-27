@@ -46,12 +46,13 @@ internal sealed class CandlestickSeriesRenderer : SeriesRenderer<CandlestickSeri
     /// <inheritdoc />
     public override void Render(CandlestickSeries series)
     {
+        double outline = Slot.LineWidthOf(LineWidthRule.OwnPixel);
         foreach (var candle in Candles(series))
         {
             if (candle.Low.CanDrawLineTo(candle.High))
-                Ctx.DrawLine(candle.Low, candle.High, new StrokeStyle(candle.Colour, 1, LineStyle.Solid));
+                Ctx.DrawLine(candle.Low, candle.High, StrokeStyle.Solid(candle.Colour, outline));
             if (candle.Body.IsDrawable())
-                Ctx.DrawRectangle(candle.Body, new ShapeStyle(candle.Colour, candle.Colour, 1));
+                Ctx.DrawRectangle(candle.Body, ShapeStyle.Edged(candle.Colour, candle.Colour, outline));
         }
     }
 }

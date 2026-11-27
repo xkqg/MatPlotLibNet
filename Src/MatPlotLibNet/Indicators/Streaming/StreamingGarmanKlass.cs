@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -15,11 +16,10 @@ public sealed class StreamingGarmanKlass : WindowedStreamingIndicator<OhlcvBar>
     /// <summary>Creates a streaming GarmanKlass.</summary>
     /// <param name="period">How many bars the volatility is taken over; prices above 0.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingGarmanKlass(int period = 20, int capacity = 10_000)
-        : base(period, capacity)
+    public StreamingGarmanKlass(int period = GarmanKlass.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(GarmanKlass.Spec(period), capacity)
     {
         _period = period;
-        Label = $"GK({period})";
     }
 
     /// <inheritdoc />

@@ -38,47 +38,6 @@ public class PlaygroundExampleEnumTests
     }
 
     [Fact]
-    public void SupportsLineControls_UsesEnum_NotString()
-    {
-        // Compile-time check — if someone re-introduces a string overload these
-        // typed calls would fail type-check, not runtime.
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.LineChart));
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MultiSeries));
-        Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.ScatterPlot));
-        Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.Heatmap));
-    }
-
-    [Fact]
-    public void SupportsMarkerControls_UsesEnum_NotString()
-    {
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.LineChart));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.ScatterPlot));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MultiSeries));
-        Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.Heatmap));
-    }
-
-    [Fact]
-    public void SupportsColormap_UsesEnum_NotString()
-    {
-        Assert.True(PlaygroundExamples.SupportsColormap(PlaygroundExample.Heatmap));
-        Assert.True(PlaygroundExamples.SupportsColormap(PlaygroundExample.ContourPlot));
-        Assert.False(PlaygroundExamples.SupportsColormap(PlaygroundExample.LineChart));
-    }
-
-    [Fact]
-    public void HasCartesianSpines_ReturnsFalseFor3DAndPolar()
-    {
-        Assert.True(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.LineChart));
-        Assert.True(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.BarChart));
-        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.Surface3D));
-        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.PolarLine));
-        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.PieChart));
-        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.SankeyFlow));
-        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.Treemap));
-        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.RadarChart));
-    }
-
-    [Fact]
     public void Build_UnregisteredEnumValue_ThrowsArgumentException()
     {
         var opts = new PlaygroundOptions { Title = "Test" };

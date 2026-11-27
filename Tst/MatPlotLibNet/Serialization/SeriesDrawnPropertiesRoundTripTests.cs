@@ -12,52 +12,32 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// changes the moment a figure is sent over the wire, handed to the MCP server or saved and opened again: the marker
 /// that vanishes from a line, the stem that turns from the colour it was given to the cycle colour, the connector
 /// that jumps from behind the dots to in front of them.
-/// <para>One row per series type and property, the properties reflected off the type: set to a value that is not its
-/// default, the property must come back with that value. And a property left alone must come back at its default,
-/// which is what a JSON written before the field existed reads as.</para></summary>
+/// <para>One case per series type (and seat), the properties reflected off the type, every property it finds wrong named at once:
+/// set to a value that is not its default, a property must come back with that value. And a property left alone must come back
+/// at its default, which is what a JSON written before the field existed reads as.</para></summary>
 public class SeriesDrawnPropertiesRoundTripTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     [Theory]
-    [MemberData(nameof(DrawnSeriesFixtures.Rows), MemberType = typeof(DrawnSeriesFixtures))]
-    public void ADrawnProperty_ComesBackFromJson_WithTheValueItWasGiven(string type, string property)
-    {
-        var figure = DrawnSeriesFixtures.Build(type, everyPropertySet: true);
-        object? written = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(figure), property);
-
-        object? read = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(RoundTrip(figure)), property);
-
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read),
-            $"{type}.{property}: set to {DrawnSeriesFixtures.Show(written)}, read back from JSON as {DrawnSeriesFixtures.Show(read)}.");
-    }
-
-    [Theory]
-    [MemberData(nameof(DrawnSeriesFixtures.Rows), MemberType = typeof(DrawnSeriesFixtures))]
-    public void ADrawnPropertyLeftAlone_ComesBackFromJson_AtItsDefault(string type, string property)
-    {
-        var figure = DrawnSeriesFixtures.Build(type, everyPropertySet: false);
-        object? atRest = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(figure), property);
-
-        object? read = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(RoundTrip(figure)), property);
-
-        Assert.True(DrawnSeriesFixtures.SameValue(atRest, read),
-            $"{type}.{property}: at rest {DrawnSeriesFixtures.Show(atRest)}, read back from JSON as {DrawnSeriesFixtures.Show(read)}.");
-    }
-
-    [Theory]
-    [MemberData(nameof(DrawnSeriesFixtures.SecondaryRows), MemberType = typeof(DrawnSeriesFixtures))]
-    public void ADrawnPropertyOfASecondaryAxisSeries_ComesBackFromJson_WithTheValueItWasGiven(string type, string property, SeriesSeat seat)
+    [MemberData(nameof(DrawnSeriesFixtures.Seats), MemberType = typeof(DrawnSeriesFixtures))]
+    public void EveryDrawnProperty_ComesBackFromJson_WithTheValueItWasGiven(string type, SeriesSeat seat)
     {
         var figure = DrawnSeriesFixtures.Build(type, everyPropertySet: true, seat);
-        object? written = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(figure, seat), property);
 
-        object? read = DrawnSeriesFixtures.ValueOf(DrawnSeriesFixtures.TheSeries(RoundTrip(figure), seat), property);
+        DrawnSeriesFixtures.AssertKept(seat is SeriesSeat.Primary ? type : $"{type} on {seat}",
+            DrawnSeriesFixtures.ValuesOf(DrawnSeriesFixtures.TheSeries(figure, seat)),
+            DrawnSeriesFixtures.ValuesOf(DrawnSeriesFixtures.TheSeries(figure.RoundTripped(), seat)), "from JSON");
+    }
 
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read),
-            $"{type}.{property} on {seat}: set to {DrawnSeriesFixtures.Show(written)}, read back from JSON as {DrawnSeriesFixtures.Show(read)}.");
+    [Theory]
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void EveryDrawnPropertyLeftAlone_ComesBackFromJson_AtItsDefault(string type)
+    {
+        var figure = DrawnSeriesFixtures.Build(type, everyPropertySet: false);
+
+        DrawnSeriesFixtures.AssertKept(type, DrawnSeriesFixtures.ValuesOf(DrawnSeriesFixtures.TheSeries(figure)),
+            DrawnSeriesFixtures.ValuesOf(DrawnSeriesFixtures.TheSeries(figure.RoundTripped())), "from JSON");
     }
 
     /// <summary>Every row of the exemption list names a property that exists, so the list cannot outlive the property
@@ -74,14 +54,29 @@ public class SeriesDrawnPropertiesRoundTripTests
         }
     }
 
+    /// <summary>Only code is not carried: a property named in <see cref="DrawnSeriesFixtures.NotCarried"/> is a delegate, which no JSON
+    /// document can hold. Any other property has a way into the document, so it is a row of the contract above, and a row that
+    /// excuses a hierarchy, a number or a colour turns this red the day it is written.</summary>
+    [Fact]
+    public void APropertyNamedAsNotCarried_IsADelegate_BecauseOnlyCodeIsNotCarried()
+    {
+        foreach (var name in DrawnSeriesFixtures.NotCarried.Keys)
+        {
+            string[] parts = name.Split('.');
+            var property = DrawnSeriesFixtures.DrawnTypes.Single(t => t.Name == parts[0]).GetProperty(parts[1])!;
+
+            Assert.True(typeof(Delegate).IsAssignableFrom(property.PropertyType),
+                $"{name} is named as not carried but is a {property.PropertyType.Name}, not code: carry it in the DTO and take the row out.");
+        }
+    }
+
     /// <summary>Every series type the library ships is under the contract or named in the exemption list with the
     /// reason it is not. A series added tomorrow turns this red until it is one or the other: the omission the contract
     /// exists to catch cannot start with the contract not knowing the type.</summary>
     [Fact]
     public void EverySeriesTypeTheLibraryShips_IsUnderTheContract_OrNamedWithTheReasonItIsNot()
     {
-        var shipped = typeof(ISeries).Assembly.GetExportedTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ISeries).IsAssignableFrom(t));
+        var shipped = typeof(ISeries).Assembly.ConcretePublicSubtypesOf(typeof(ISeries));
 
         var unaccounted = shipped.Except(DrawnSeriesFixtures.DrawnTypes).Except(DrawnSeriesFixtures.NotUnderContract.Keys)
             .Select(t => t.Name).Order(StringComparer.Ordinal).ToList();
@@ -101,6 +96,21 @@ public class SeriesDrawnPropertiesRoundTripTests
         Assert.True(unexplained.Count == 0, $"Exempt without a reason: {string.Join(", ", unexplained)}.");
     }
 
+    /// <summary>Every series type the library ships comes back from JSON as its own type: the registry has a reader for each
+    /// discriminator a series writes, a live series included, so no type is left out of the contract and the exemption list stays
+    /// empty. A type that cannot come back would be named there with the reason; this row turns red the day one is.</summary>
+    [Fact]
+    public void EverySeriesTypeTheLibraryShips_ComesBackFromJsonAsItsOwnType_SoNoneIsExempt()
+    {
+        Assert.Empty(DrawnSeriesFixtures.NotUnderContract);
+        foreach (var type in DrawnSeriesFixtures.DrawnTypes)
+        {
+            var figure = DrawnSeriesFixtures.Build(type.Name, everyPropertySet: false);
+
+            Assert.IsType(type, DrawnSeriesFixtures.TheSeries(figure.RoundTripped()));
+        }
+    }
+
     /// <summary>The fixture asks for a seat only a line or a scatter can take.</summary>
     [Fact]
     public void ASeriesTypeWithoutASecondarySeat_IsRefusedByTheFixture()
@@ -118,22 +128,24 @@ public class SeriesDrawnPropertiesRoundTripTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2], [1.0, 2], null, s => s.ZOrder = 0)).Build();
 
-        var read = RoundTrip(figure).SubPlots[0].Series.Single();
+        var read = figure.RoundTripped().SubPlots[0].Series.Single();
 
         Assert.Equal(0, read.ZOrder);
     }
 
-    /// <summary>A series at its resting z-order writes no z-order at all, whatever that rest is: 0 for a line, -1 for an
-    /// area. That is what keeps every JSON written before the field existed byte-identical.</summary>
-    [Fact]
-    public void ASeriesAtItsRestingZOrder_WritesNoZOrder()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Serializer.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+        //  A series at its resting z-order writes no z-order at all, whatever that rest is: 0 for a line, -1 for an area. That is what
+        // keeps every JSON written before the field existed byte-identical.
+        new DrawnToken("ASeriesAtItsRestingZOrder_WritesNoZOrder", () => Serializer.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2], [1.0, 2])
-            .FillBetween([1.0, 2], [1.0, 2])).Build());
+            .FillBetween([1.0, 2], [1.0, 2])).Build())) { Absent = ["zOrder"] },
+    };
 
-        Assert.DoesNotContain("zOrder", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>A series that is not a <see cref="ChartSeries"/> rests at z-order 0, which <see cref="ISeries"/> itself
     /// defaults to: 0 is left out, anything else is written.</summary>
@@ -143,7 +155,7 @@ public class SeriesDrawnPropertiesRoundTripTests
     public void ASeriesOutsideTheChartSeriesFamily_WritesItsZOrderAgainstZero(int zOrder, bool written)
     {
         var figure = new Figure();
-        figure.AddSubPlot().AddSeries(new ForeignSeries { ZOrder = zOrder });
+        figure.AddSubPlot().AddSeries(new ForeignSeries(new(0, 1, 0, 1)) { ZOrder = zOrder });
 
         string json = Serializer.ToJson(figure);
 
@@ -152,32 +164,18 @@ public class SeriesDrawnPropertiesRoundTripTests
     }
 
     /// <summary>A bar on numeric x positions (the MACD histogram is one) comes back on those positions; positions that
-    /// do not pair up with the values are refused rather than drawn out of range.</summary>
+    /// do not pair up with the values are refused rather than drawn out of range, in the length owner's sentence, naming the array
+    /// that does not pair up: the positions, or the categories.</summary>
     [Theory]
-    [InlineData("""["a","b"]""", "[1,2]", "[1,2,3]")]
-    [InlineData("""["a","b","c"]""", "[1,2]", "[1,2]")]
-    public void ABarWhosePositionsDoNotPairWithItsValues_IsRefused(string categories, string values, string positions)
+    [InlineData("""["a","b"]""", "[1,2]", "[1,2,3]", "XCoordinate", 3)]
+    [InlineData("""["a","b","c"]""", "[1,2]", "[1,2]", "categories", 3)]
+    public void ABarWhosePositionsDoNotPairWithItsValues_IsRefused(string categories, string values, string positions, string blamed, int length)
     {
         string json = $$"""{"width":400,"height":300,"subPlots":[{"series":[{"type":"bar","categories":{{categories}},"values":{{values}},"xCoordinate":{{positions}}}]}]}""";
 
         var refusal = Assert.Throws<ArgumentException>(() => Serializer.FromJson(json));
 
-        Assert.Contains("xCoordinate", refusal.Message);
-    }
-
-    /// <summary>A series type the library does not know, implementing <see cref="ISeries"/> directly.</summary>
-    private sealed class ForeignSeries : ISeries
-    {
-        public string? Label { get; set; }
-
-        public bool Visible { get; set; } = true;
-
-        public int ZOrder { get; set; }
-
-        public void Accept(ISeriesVisitor visitor, RenderArea area) { }
-
-        public DataRangeContribution ComputeDataRange(IAxesContext context) => new(0, 1, 0, 1);
-
-        public SeriesDto ToSeriesDto() => new() { Type = "foreign" };
+        Assert.Equal(blamed, refusal.ParamName);
+        Assert.StartsWith(length.RefusalAgainst(2), refusal.Message);
     }
 }

@@ -1,66 +1,40 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Bollinger Bands. O(1) per append via rolling SMA + Welford's variance.</summary>
-public sealed class StreamingBollinger : StreamingIndicator
+/// <summary>Streaming Bollinger Bands. The mean is the step the batch bands' moving average adds up, O(1) per
+/// append; the spread is the population standard deviation of the step's window about that mean, as
+/// the batch bands take it.</summary>
+public sealed class StreamingBollinger : StreamingIndicator<double>
 {
-    private readonly int _period;
     private readonly double _numStdDev;
-    private readonly double[] _window;
-    private int _windowIndex;
-    private double _sum;
+    private RollingMeanStep _mean;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => _period;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates streaming Bollinger Bands. Three output series: middle, upper, lower.</summary>
-    public StreamingBollinger(int period = 20, double numStdDev = 2.0, int capacity = 10_000)
-        : base([
-            new StreamingLineSeries(capacity) { Label = $"BB({period}) Mid" },
-            new StreamingLineSeries(capacity) { Label = $"BB({period}) Upper" },
-            new StreamingLineSeries(capacity) { Label = $"BB({period}) Lower" },
-        ])
+    public StreamingBollinger(int period = BollingerBands.DefaultPeriod, double numStdDev = BollingerBands.DefaultStdDevMultiplier, int capacity = StreamingSeries.RestingCapacity)
+        : base(BollingerBands.Spec(period, numStdDev), capacity)
     {
-        _period = period;
         _numStdDev = numStdDev;
-        _window = new double[period];
-        Label = $"BB({period})";
+        _mean = new RollingMeanStep(period);
     }
 
     /// <inheritdoc />
-    protected override double ComputeNext(double price)
+    protected override void Step(double input, int index, Span<double> outputs)
     {
-        if (ProcessedCount <= _period)
-            _sum += price;
-        else
-            _sum += price - _window[_windowIndex];
+        double mean = _mean.Next(input);
+        if (!_mean.IsFull) return;
 
-        _window[_windowIndex] = price;
-        _windowIndex = (_windowIndex + 1) % _period;
-
-        if (ProcessedCount < _period)
-            return double.NaN;
-
-        double mean = _sum / _period;
-        double variance = 0;
-        for (int i = 0; i < _period; i++)
-        {
-            double diff = _window[i] - mean;
-            variance += diff * diff;
-        }
-        variance /= _period;
-        double stdDev = Math.Sqrt(variance);
-
-        double upper = mean + _numStdDev * stdDev;
-        double lower = mean - _numStdDev * stdDev;
-
-        SetOutput(1, upper);
-        SetOutput(2, lower);
-
-        return mean; // base class appends this to output[0]
+        double stdDev = _mean.Window.StdDev(mean);
+        outputs[0] = mean;
+        outputs[1] = mean + _numStdDev * stdDev;
+        outputs[2] = mean - _numStdDev * stdDev;
     }
 }

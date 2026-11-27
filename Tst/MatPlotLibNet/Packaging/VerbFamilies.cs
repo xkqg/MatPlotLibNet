@@ -11,12 +11,14 @@ namespace MatPlotLibNet.Tests.Packaging;
 /// Mcp test project links this very file.</summary>
 public static class VerbFamilies
 {
-    /// <summary>Every public static class of the library that holds at least one public extension method on the axes builder,
-    /// ordered by name.</summary>
+    /// <summary>Every public static class of the library named for a family of composed charts (<c>XYAxesExtensions</c>) that holds
+    /// at least one public extension method on the axes builder, ordered by name. The verbs of the builder that are not composed
+    /// charts (a series verb, a setting) stand in <c>AxesBuilder*Verbs</c> classes, beside what they forward to.</summary>
     public static IReadOnlyList<Type> All { get; } =
     [
         .. typeof(AxesBuilder).Assembly.GetExportedTypes()
-            .Where(type => type.IsAbstract && type.IsSealed && ExtensionsOf(type).Any(method => method.GetParameters()[0].ParameterType == typeof(AxesBuilder)))
+            .Where(type => type.IsAbstract && type.IsSealed && type.Name.EndsWith("AxesExtensions", StringComparison.Ordinal)
+                && ExtensionsOf(type).Any(method => method.GetParameters()[0].ParameterType == typeof(AxesBuilder)))
             .OrderBy(type => type.Name, StringComparer.Ordinal),
     ];
 

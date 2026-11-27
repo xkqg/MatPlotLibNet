@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.TickLocators;
 
@@ -14,148 +17,31 @@ public class AutoDateLocatorTests
 
     // --- Interval detection ---
 
-    [Fact]
-    public void Locate_11YearRange_ChoosesYears()
+    /// <summary>Every granularity the locator picks, one row each: the window it is picked for, and the one boundary every tick of it lies
+    /// on (the format reads the instant down to the field the interval steps by and holds the rest at its start). A member drawn by another
+    /// member's walk puts a tick off that boundary or leaves the window with fewer than two.</summary>
+    [Theory]
+    [InlineData(DateInterval.Years, "2010-01-01T00:00:00", "2021-01-01T00:00:00", "MM-dd HH:mm:ss.fff", "01-01 00:00:00.000")]
+    [InlineData(DateInterval.Months, "2024-06-01T00:00:00", "2026-01-01T00:00:00", "dd HH:mm:ss.fff", "01 00:00:00.000")]
+    [InlineData(DateInterval.Weeks, "2026-01-01T00:00:00", "2026-04-01T00:00:00", "dddd HH:mm:ss.fff", "Monday 00:00:00.000")]
+    [InlineData(DateInterval.Days, "2026-01-01T00:00:00", "2026-01-11T00:00:00", "HH:mm:ss.fff", "00:00:00.000")]
+    [InlineData(DateInterval.Hours, "2026-01-01T00:00:00", "2026-01-01T06:00:00", "mm:ss.fff", "00:00.000")]
+    [InlineData(DateInterval.Minutes, "2026-01-01T12:00:00", "2026-01-01T12:10:00", "ss.fff", "00.000")]
+    [InlineData(DateInterval.Seconds, "2026-01-01T12:00:00", "2026-01-01T12:00:30", "fff", "000")]
+    public void EveryInterval_TicksItsWindowOnItsOwnBoundary(DateInterval interval, string first, string last, string boundaryFormat, string boundary)
     {
         var locator = new AutoDateLocator();
-        locator.Locate(OA(2010), OA(2021));
-        Assert.Equal(DateInterval.Years, locator.ChosenInterval);
-    }
+        double min = DateTime.Parse(first, System.Globalization.CultureInfo.InvariantCulture).ToOADate();
+        double max = DateTime.Parse(last, System.Globalization.CultureInfo.InvariantCulture).ToOADate();
 
-    [Fact]
-    public void Locate_2YearRange_ChoosesMonths()
-    {
-        var locator = new AutoDateLocator();
-        locator.Locate(OA(2024, 1, 1), OA(2026, 1, 1));
-        Assert.Equal(DateInterval.Months, locator.ChosenInterval);
-    }
+        double[] ticks = locator.Locate(min, max);
 
-    [Fact]
-    public void Locate_90DayRange_ChoosesWeeks()
-    {
-        var locator = new AutoDateLocator();
-        locator.Locate(OA(2026, 1, 1), OA(2026, 4, 1));
-        Assert.Equal(DateInterval.Weeks, locator.ChosenInterval);
-    }
-
-    [Fact]
-    public void Locate_10DayRange_ChoosesDays()
-    {
-        var locator = new AutoDateLocator();
-        locator.Locate(OA(2026, 1, 1), OA(2026, 1, 11));
-        Assert.Equal(DateInterval.Days, locator.ChosenInterval);
-    }
-
-    [Fact]
-    public void Locate_6HourRange_ChoosesHours()
-    {
-        var locator = new AutoDateLocator();
-        locator.Locate(OA(2026, 1, 1, 0, 0, 0), OA(2026, 1, 1, 6, 0, 0));
-        Assert.Equal(DateInterval.Hours, locator.ChosenInterval);
-    }
-
-    [Fact]
-    public void Locate_10MinuteRange_ChoosesMinutes()
-    {
-        var locator = new AutoDateLocator();
-        locator.Locate(OA(2026, 1, 1, 12, 0, 0), OA(2026, 1, 1, 12, 10, 0));
-        Assert.Equal(DateInterval.Minutes, locator.ChosenInterval);
-    }
-
-    [Fact]
-    public void Locate_30SecondRange_ChoosesSeconds()
-    {
-        var locator = new AutoDateLocator();
-        locator.Locate(OA(2026, 1, 1, 12, 0, 0), OA(2026, 1, 1, 12, 0, 30));
-        Assert.Equal(DateInterval.Seconds, locator.ChosenInterval);
-    }
-
-    // --- Year tick alignment ---
-
-    [Fact]
-    public void Locate_YearRange_TicksAreJanFirst()
-    {
-        var locator = new AutoDateLocator();
-        var ticks = locator.Locate(OA(2010), OA(2020));
+        Assert.Equal(interval, locator.ChosenInterval);
+        Assert.True(ticks.Length >= 2, $"{interval}: {ticks.Length} ticks");
         Assert.All(ticks, t =>
         {
-            var dt = DateTime.FromOADate(t);
-            Assert.Equal(1,  dt.Month);
-            Assert.Equal(1,  dt.Day);
-            Assert.Equal(0,  dt.Hour);
-        });
-    }
-
-    [Fact]
-    public void Locate_YearRange_TicksWithinRange()
-    {
-        var locator = new AutoDateLocator();
-        double min = OA(2010);
-        double max = OA(2020);
-        var ticks = locator.Locate(min, max);
-        Assert.All(ticks, t => Assert.InRange(t, min, max));
-    }
-
-    // --- Month tick alignment ---
-
-    [Fact]
-    public void Locate_MonthRange_TicksAreFirstOfMonth()
-    {
-        var locator = new AutoDateLocator();
-        // ~18 months (>365 days, <3650) → Months interval
-        var ticks = locator.Locate(OA(2024, 6, 1), OA(2026, 1, 1));
-        Assert.Equal(DateInterval.Months, locator.ChosenInterval);
-        Assert.All(ticks, t =>
-        {
-            var dt = DateTime.FromOADate(t);
-            Assert.Equal(1, dt.Day);
-            Assert.Equal(0, dt.Hour);
-        });
-    }
-
-    // --- Week tick alignment ---
-
-    [Fact]
-    public void Locate_WeekRange_TicksAreMondays()
-    {
-        var locator = new AutoDateLocator();
-        var ticks = locator.Locate(OA(2026, 1, 1), OA(2026, 3, 31));
-        Assert.All(ticks, t =>
-        {
-            var dt = DateTime.FromOADate(t);
-            Assert.Equal(DayOfWeek.Monday, dt.DayOfWeek);
-            Assert.Equal(0, dt.Hour);
-        });
-    }
-
-    // --- Day tick alignment ---
-
-    [Fact]
-    public void Locate_DayRange_TicksAreMidnight()
-    {
-        var locator = new AutoDateLocator();
-        var ticks = locator.Locate(OA(2026, 1, 1), OA(2026, 1, 10));
-        Assert.All(ticks, t =>
-        {
-            var dt = DateTime.FromOADate(t);
-            Assert.Equal(0, dt.Hour);
-            Assert.Equal(0, dt.Minute);
-            Assert.Equal(0, dt.Second);
-        });
-    }
-
-    // --- Hour tick alignment ---
-
-    [Fact]
-    public void Locate_HourRange_TicksAreHourBoundaries()
-    {
-        var locator = new AutoDateLocator();
-        var ticks = locator.Locate(OA(2026, 1, 1, 0, 0, 0), OA(2026, 1, 1, 6, 0, 0));
-        Assert.All(ticks, t =>
-        {
-            var dt = DateTime.FromOADate(t);
-            Assert.Equal(0, dt.Minute);
-            Assert.Equal(0, dt.Second);
+            Assert.InRange(t, min, max);
+            Assert.Equal(boundary, DateTime.FromOADate(t).ToString(boundaryFormat, System.Globalization.CultureInfo.InvariantCulture));
         });
     }
 
@@ -177,4 +63,90 @@ public class AutoDateLocatorTests
         for (int i = 1; i < ticks.Length; i++)
             Assert.True(ticks[i] > ticks[i - 1]);
     }
+
+    private static readonly double LastDay = new DateTime(9999, 12, 31).ToOADate();
+
+    [Theory]
+    [InlineData(4000.0)]                 // years
+    [InlineData(400.0)]                  // months
+    [InlineData(100.0)]                  // weeks
+    [InlineData(10.0)]                   // days
+    [InlineData(10.0 / 24)]              // hours
+    [InlineData(10.0 / 1440)]            // minutes
+    [InlineData(10.0 / 86400)]           // seconds
+    public void AWindowRunningPastTheLastDate_HasTicksOnlyOnDates(double span)
+    {
+        double min = LastDay + 1.0 - span;            // a span before the end of 9999-12-31
+        double max = LastDay + 1.0 + span / 2;        // and half a span past it: the granularity of the span
+
+        double[] ticks = new AutoDateLocator().Locate(min, max);
+
+        Assert.NotEmpty(ticks);
+        Assert.All(ticks, tick => Assert.True(tick.IsOleDate));
+    }
+
+    [Theory]
+    [InlineData(4000.0)]
+    [InlineData(10.0)]
+    public void AWindowRunningPastTheFirstDate_HasTicksOnlyOnDates(double span)
+    {
+        double first = new DateTime(1, 1, 1).ToOADate();
+        double[] ticks = new AutoDateLocator().Locate(first - 50, first + span);
+
+        Assert.NotEmpty(ticks);
+        Assert.All(ticks, tick => Assert.True(tick.IsOleDate));
+    }
+
+    [Theory]
+    [InlineData(3_000_000.0, 3_000_010.0)]   // wholly after the calendar
+    [InlineData(-700_010.0, -700_000.0)]     // wholly before it
+    [InlineData(double.NaN, 1.0)]
+    [InlineData(5.0, 1.0)]                   // a window turned round
+    public void AWindowWithNoDateInIt_HasNoTicks(double min, double max)
+    {
+        Assert.Empty(new AutoDateLocator().Locate(min, max));
+    }
+
+    /// <summary>A span so long that the step runs off the end of the human ladder still produces round ticks —
+    /// it rounds up to whole minutes rather than picking an arbitrary number.</summary>
+    [Fact]
+    public void AVeryLongSecondSpan_RoundsTheStepUpToWholeMinutes()
+    {
+        var locator = new AutoDateLocator();
+        var start = new DateTime(2026, 7, 12, 14, 0, 0).ToOADate();
+        var end = new DateTime(2026, 7, 12, 14, 1, 59).ToOADate();   // 119 s — 6 labels wants a ~20 s step
+
+        double[] ticks = locator.Locate(start, end);
+
+        Assert.NotEmpty(ticks);
+        foreach (double tick in ticks)
+        {
+            Assert.True(DateTime.FromOADate(tick).Millisecond < 2);
+        }
+    }
+
+    /// <summary>A window with only a handful of ticks is left alone — nothing to thin.</summary>
+    [Fact]
+    public void AShortWindow_KeepsEveryTick()
+    {
+        var locator = new AutoDateLocator();
+        var start = new DateTime(2026, 7, 12, 14, 0, 0).ToOADate();
+        var end = new DateTime(2026, 7, 12, 14, 0, 4).ToOADate();
+
+        Assert.NotEmpty(locator.Locate(start, end));
+    }
+
+    /// <summary>A window of a few seconds that starts inside a second ticks on the whole seconds in it, the first being the next one.</summary>
+    [Fact]
+    public void AWindowOfSecondsStartingInsideASecond_TicksFromTheNextWholeSecond()
+    {
+        var locator = new AutoDateLocator();
+        var start = new DateTime(2026, 7, 12, 12, 0, 0, 300);
+
+        double[] ticks = locator.Locate(start.ToOADate(), start.AddSeconds(4).ToOADate());
+
+        Assert.Equal(DateInterval.Seconds, locator.ChosenInterval);
+        Assert.Equal("12:00:01", DateTime.FromOADate(ticks[0]).ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture));
+    }
 }
+

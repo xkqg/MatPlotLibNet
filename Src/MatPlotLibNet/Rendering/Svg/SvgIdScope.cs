@@ -11,14 +11,14 @@ namespace MatPlotLibNet.Rendering.Svg;
 internal readonly record struct SvgIdScope(string? Prefix)
 {
     /// <summary>The scope of the subplot at <paramref name="index"/>: none for the first, <c>s{index}-</c> for the others.</summary>
-    internal static SvgIdScope ForSubplot(int index) => new(index == 0 ? null : $"s{index}-");
+    internal static SvgIdScope ForSubplot(int index) => new(index == 0 ? null : string.Invariant($"s{index}-"));
 
     /// <summary>The id of clip path number <paramref name="number"/>.</summary>
-    internal string Clip(int number) => $"{Prefix}clip-{number}";
+    internal string Clip(int number) => string.Invariant($"{Prefix}clip-{number}");
 
     /// <summary>The id of hatch pattern number <paramref name="number"/>.</summary>
-    internal string Hatch(int number) => $"{Prefix}hatch-{number}";
+    internal string Hatch(int number) => string.Invariant($"{Prefix}hatch-{number}");
 
     /// <summary>The id of gradient number <paramref name="number"/>.</summary>
-    internal string Gradient(int number) => $"{Prefix}grad-{number}";
+    internal string Gradient(int number) => string.Invariant($"{Prefix}grad-{number}");
 }

@@ -15,12 +15,9 @@ public sealed record TransformResult(Figure Figure, IFigureTransform Transform)
     /// <summary>Writes the transformed output to the given stream.</summary>
     public void ToStream(Stream output) => Transform.Transform(Figure, output);
 
-    /// <summary>Saves the transformed output to a file at the given path.</summary>
-    public void ToFile(string path)
-    {
-        using var stream = File.Create(path);
-        ToStream(stream);
-    }
+    /// <summary>Saves the transformed output to a file at the given path. The file is replaced only once the output is
+    /// complete, so a transform that fails leaves the file that was there.</summary>
+    public void ToFile(string path) => path.ReplaceFileWith(ToStream);
 
     /// <summary>Returns the transformed output as a byte array.</summary>
     public byte[] ToBytes()

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -10,13 +11,14 @@ namespace MatPlotLibNet.Indicators.Streaming;
 /// so far; a value the batch does not have yet is NaN.</summary>
 public sealed class StreamingVolumeIndicator : WindowedStreamingIndicator<OhlcvBar>
 {
+    /// <inheritdoc />
+    internal override PaneRange? PinnedRange => VolumeIndicator.Pane;
 
     /// <summary>Creates a streaming VolumeIndicator.</summary>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingVolumeIndicator(int capacity = 10_000)
-        : base(1, capacity)
+    public StreamingVolumeIndicator(int capacity = StreamingSeries.RestingCapacity)
+        : base(VolumeIndicator.Spec(), capacity)
     {
-        Label = "Volume";
     }
 
     /// <inheritdoc />

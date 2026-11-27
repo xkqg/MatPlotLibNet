@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -25,77 +23,45 @@ public class LogAxisDownsamplingTests
     /// <summary>The number of coordinate pairs in the first polyline of the document.</summary>
     private static int PolylinePoints(string svg)
     {
-        var m = Regex.Match(svg, @"<polyline points=""([^""]*)""");
-        return m.Success ? m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length : 0;
+        var lines = svg.Elements("polyline");
+        return lines.Count > 0 ? lines[0]["points"]!.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length : 0;
     }
 
-    private static int MarkerCount(string svg) => Regex.Matches(svg, "<circle").Count;
+    private static int MarkerCount(string svg) => svg.Elements("circle").Count;
 
     /// <summary>The marker areas the document actually carries, in draw order. The renderer writes a radius of
-    /// <c>sqrt(size / PI) * 100 / 72</c>, so the size is recoverable from it.</summary>
+    /// <c>sqrt(size) / 2 * 100 / 72</c> (a marker is sqrt(size) points across), so the size is recoverable from it.</summary>
     private static double[] MarkerSizes(string svg)
     {
         const double dpiScale = 100.0 / 72.0;
-        return [.. Regex.Matches(svg, @"<circle[^>]*\br=""([0-9.eE+-]+)""")
-            .Select(m => double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
-            .Select(r => r * r * Math.PI / (dpiScale * dpiScale))];
+        return [.. svg.Elements("circle").Where(circle => circle["r"] is not null).Select(circle => Math.Pow(2 * circle.Number("r") / dpiScale, 2))];
     }
 
-    [Fact]
-    public void ALineOnALogAxis_DrawsTheBudgetItWasGiven()
+    public static TheoryData<string, Action<AxesBuilder>, AxisScale, int> Budgets => new()
     {
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(Decades, Ys, s => s.MaxDisplayPoints = 4)
-                .SetXScale(AxisScale.Log))
-            .Build().ToSvg();
-
-        Assert.Equal(4, PolylinePoints(svg));
-    }
-
-    [Fact]
-    public void ALineOnALinearAxis_IsUnchangedByTheFix()
-    {
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(Decades, Ys, s => s.MaxDisplayPoints = 4))
-            .Build().ToSvg();
-
-        Assert.Equal(4, PolylinePoints(svg));
-    }
-
-    [Fact]
-    public void ALineOnALogAxis_WithNoBudget_DrawsEveryPoint()
-    {
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(Decades, Ys).SetXScale(AxisScale.Log))
-            .Build().ToSvg();
-
-        Assert.Equal(6, PolylinePoints(svg));
-    }
-
-    [Fact]
-    public void AStepSeriesOnALogAxis_DrawsTheBudgetItWasGiven()
-    {
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Step(Decades, Ys, s => s.MaxDisplayPoints = 4)
-                .SetXScale(AxisScale.Log))
-            .Build().ToSvg();
-
+        { "a line on a log axis", ax => ax.Plot(Decades, Ys, s => s.MaxDisplayPoints = 4), AxisScale.Log, 4 },
+        { "a line on a linear axis, unchanged by the fix", ax => ax.Plot(Decades, Ys, s => s.MaxDisplayPoints = 4), AxisScale.Linear, 4 },
+        { "a line on a log axis with no budget, every point", ax => ax.Plot(Decades, Ys), AxisScale.Log, 6 },
         // A step series emits 2n-1 points for n samples: the budget of 4 becomes 7 drawn coordinates.
-        Assert.Equal(7, PolylinePoints(svg));
-    }
+        { "a step series on a log axis", ax => ax.Step(Decades, Ys, s => s.MaxDisplayPoints = 4), AxisScale.Log, 7 },
+        // Its top line counts the points; the library's own theme draws one (a matplotlib theme's fill has none).
+        { "an area on a log axis", ax => ax.FillBetween(Decades, Ys, configure: s => s.MaxDisplayPoints = 4), AxisScale.Log, 4 },
+        // The monotonic path slices by index instead of scanning, and it was handed the same scaled bounds.
+        { "a signal on a log axis", ax => ax.SignalXY(Decades, Ys, s => s.MaxDisplayPoints = 4), AxisScale.Log, 4 },
+        { "a line on a symlog axis", ax => ax.Plot([-1_000, -10, -1, 0, 1, 10, 1_000], [1, 2, 3, 4, 5, 6, 7], s => s.MaxDisplayPoints = 5), AxisScale.SymLog, 5 },
+    };
 
-    [Fact]
-    public void AnAreaSeriesOnALogAxis_KeepsItsPoints()
+    /// <summary>A series drawn as one line draws the number of points its budget gives it, on every scale, under the library's own
+    /// theme.</summary>
+    [Theory]
+    [MemberData(nameof(Budgets))]
+    public void ASeriesDrawnAsALine_DrawsTheBudgetItWasGiven(string series, Action<AxesBuilder> draw, AxisScale scale, int points)
     {
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .FillBetween(Decades, Ys, configure: s => s.MaxDisplayPoints = 4)
-                .SetXScale(AxisScale.Log))
+        string svg = Plt.Create().WithTheme(Theme.Default).WithSize(800, 600)
+            .AddSubPlot(1, 1, 1, ax => draw(ax.SetXScale(scale)))
             .Build().ToSvg();
 
-        Assert.Equal(4, PolylinePoints(svg));
+        Assert.True(PolylinePoints(svg) == points, $"{series} drew {PolylinePoints(svg)} points, not {points}");
     }
 
     [Fact]
@@ -108,34 +74,6 @@ public class LogAxisDownsamplingTests
             .Build().ToSvg();
 
         Assert.Equal(6, MarkerCount(svg));
-    }
-
-    [Fact]
-    public void ALineOnASymLogAxis_DrawsTheBudgetItWasGiven()
-    {
-        double[] x = [-1_000, -10, -1, 0, 1, 10, 1_000];
-        double[] y = [1, 2, 3, 4, 5, 6, 7];
-
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot(x, y, s => s.MaxDisplayPoints = 5)
-                .SetXScale(AxisScale.SymLog))
-            .Build().ToSvg();
-
-        Assert.Equal(5, PolylinePoints(svg));
-    }
-
-    [Fact]
-    public void ASignalSeriesOnALogAxis_KeepsItsPoints()
-    {
-        // The monotonic path slices by index instead of scanning, and it was handed the same scaled bounds.
-        string svg = Plt.Create().WithSize(800, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .SignalXY(Decades, Ys, s => s.MaxDisplayPoints = 4)
-                .SetXScale(AxisScale.Log))
-            .Build().ToSvg();
-
-        Assert.Equal(4, PolylinePoints(svg));
     }
 
     [Fact]
@@ -163,9 +101,7 @@ public class LogAxisDownsamplingTests
                 .SetXScale(AxisScale.Log))
             .Build().ToSvg();
 
-        var drawn = Regex.Matches(svg, @"<circle[^>]*\bfill=""(#[0-9A-Fa-f]{6})""")
-            .Select(m => m.Groups[1].Value.ToUpperInvariant())
-            .ToArray();
+        var drawn = svg.Elements("circle").Select(circle => circle["fill"]).OfType<string>().Where(fill => fill.StartsWith('#')).Select(fill => fill.ToUpperInvariant()).ToArray();
 
         Assert.Equal(colours.Select(c => c.ToHex().ToUpperInvariant()).ToArray(), drawn);
     }

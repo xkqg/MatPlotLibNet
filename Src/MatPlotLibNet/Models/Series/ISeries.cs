@@ -18,6 +18,9 @@ public interface ISeries
 
     /// <summary>The stacking order among the series of one axes: a series with a higher value is drawn on top of one
     /// with a lower value.</summary>
+    /// <remarks>Under the matplotlib themes a value given is matplotlib's <c>zorder</c>, placed among the grid (1.5 under the default
+    /// style, 2.5 under the classic one), the patches and spans (1) and the reference lines (2); a series of the library given none is
+    /// drawn at the zorder matplotlib gives its kind of artist (a line 2, a bar, fill or scatter 1, an image 0).</remarks>
     int ZOrder { get; set; }
 
     /// <summary>Accepts a visitor for rendering this series within the specified area.</summary>

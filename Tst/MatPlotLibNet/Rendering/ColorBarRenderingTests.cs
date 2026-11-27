@@ -9,44 +9,32 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies color bar rendering in SVG output.</summary>
 public class ColorBarRenderingTests
 {
-    /// <summary>Verifies that a visible color bar renders gradient rectangles in SVG.</summary>
-    [Fact]
-    public void ColorBar_Visible_RendersGradientRects()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Verifies that a visible color bar renders gradient rectangles in SVG.
+        // ColorBar renders as multiple small rects forming a gradient
+        new DrawnToken("ColorBar_Visible_RendersGradientRects", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })
                 .WithColorBar())
-            .ToSvg();
-
-        // ColorBar renders as multiple small rects forming a gradient
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Verifies that a color bar with a label renders the label text.</summary>
-    [Fact]
-    public void ColorBar_WithLabel_RendersLabel()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<rect"),
+        // Verifies that a color bar with a label renders the label text.
+        new DrawnToken("ColorBar_WithLabel_RendersLabel", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })
                 .WithColorBar(cb => cb with { Label = "Temperature" }))
-            .ToSvg();
-
-        Assert.Contains("Temperature", svg);
-    }
-
-    /// <summary>Verifies that no color bar renders when not configured.</summary>
-    [Fact]
-    public void NoColorBar_NoExtraElements()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "Temperature"),
+        // Verifies that no color bar renders when not configured.
+        new DrawnToken("NoColorBar_NoExtraElements", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Heatmap(new double[,] { { 1, 2 }, { 3, 4 } }))
-            .ToSvg();
+            .ToSvg()) { Absent = ["class=\"colorbar\""] },
+    };
 
-        Assert.DoesNotContain("class=\"colorbar\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that WithColorBar fluent method sets the property.</summary>
     [Fact]

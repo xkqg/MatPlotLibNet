@@ -6,45 +6,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="EhlersSineWave"/>. Covers all 8 branches in
-/// docs/contrib/indicator-tier-2c.md §3.</summary>
+/// <summary>Verifies <see cref="EhlersSineWave"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class EhlersSineWaveTests
 {
-    // ── Branch 1 — Empty input → all arrays empty ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var r = new EhlersSineWave([]).Compute();
-        Assert.Empty(r.SineWave);
-        Assert.Empty(r.LeadSine);
-        Assert.Empty(r.IsCyclic);
-    }
-
-    // ── Branch 2 — Length < 7 → empty (Hilbert needs 6 warmup) ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(5)]
-    [InlineData(6)]
-    public void Compute_LengthBelowSeven_ReturnsEmpty(int n)
-    {
-        var prices = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
-        var r = new EhlersSineWave(prices).Compute();
-        Assert.Empty(r.SineWave);
-        Assert.Empty(r.LeadSine);
-        Assert.Empty(r.IsCyclic);
-    }
-
-    // ── Branch 3 — Length == 7 → single output ──
-    [Fact]
-    public void Compute_LengthSeven_ReturnsSingleRow()
-    {
-        var prices = Enumerable.Range(0, 7).Select(i => 100.0 + i).ToArray();
-        var r = new EhlersSineWave(prices).Compute();
-        Assert.Single(r.SineWave);
-        Assert.Single(r.LeadSine);
-        Assert.Single(r.IsCyclic);
-    }
-
     // ── Branch 4 — Flat prices — output finite, typically small; isCyclic stays false ──
     [Fact]
     public void Compute_FlatPrices_OutputsStayFinite()
@@ -53,16 +18,8 @@ public class EhlersSineWaveTests
         var r = new EhlersSineWave(prices).Compute();
         // Flat input yields FP-noise phase — IsCyclic classification is unreliable here
         // (the heuristic needs real phase dynamics). We only require finite, bounded output.
-        Assert.All(r.SineWave, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.InRange(v, -1.0, 1.0);
-        });
-        Assert.All(r.LeadSine, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.InRange(v, -1.0, 1.0);
-        });
+        Assert.All(r.SineWave, v => Assert.InRange(v, -1.0, 1.0));
+        Assert.All(r.LeadSine, v => Assert.InRange(v, -1.0, 1.0));
     }
 
     // ── Branch 5 — Pure sinusoid — isCyclic true in settled tail; sineWave oscillates ──
@@ -76,8 +33,8 @@ public class EhlersSineWaveTests
 
         var r = new EhlersSineWave(prices).Compute();
         // Sine-wave amplitude bounded by [-1, 1] by construction.
-        Assert.All(r.SineWave, v => { Assert.False(double.IsNaN(v)); Assert.InRange(v, -1.0, 1.0); });
-        Assert.All(r.LeadSine, v => { Assert.False(double.IsNaN(v)); Assert.InRange(v, -1.0, 1.0); });
+        Assert.All(r.SineWave, v => Assert.InRange(v, -1.0, 1.0));
+        Assert.All(r.LeadSine, v => Assert.InRange(v, -1.0, 1.0));
 
         // After settling (~200 bars), sineWave must oscillate (have both + and - values).
         bool sawPositive = false, sawNegative = false;
@@ -119,20 +76,16 @@ public class EhlersSineWaveTests
     {
         var prices = Enumerable.Repeat(50.0, 20).ToArray();
         var r = new EhlersSineWave(prices).Compute();
-        Assert.All(r.SineWave, v => Assert.False(double.IsNaN(v)));
-        Assert.All(r.LeadSine, v => Assert.False(double.IsNaN(v)));
+        r.SineWave.AssertAllFinite();
+        r.LeadSine.AssertAllFinite();
     }
 
     // ── Branch 8 — Normal multi-bar path — output lengths consistent, all finite ──
     [Fact]
     public void Compute_RandomWalk_ProducesConsistentLengthsAndFiniteOutputs()
     {
-        var rng = new Random(42);
         int n = 200;
-        var prices = new double[n];
-        prices[0] = 100;
-        for (int i = 1; i < n; i++)
-            prices[i] = prices[i - 1] * (1 + (rng.NextDouble() - 0.5) * 0.02);
+        double[] prices = SampleSeries.RandomWalk(n, 0.02);
 
         var r = new EhlersSineWave(prices).Compute();
         Assert.Equal(n - 6, r.SineWave.Length);
@@ -140,49 +93,10 @@ public class EhlersSineWaveTests
         Assert.Equal(r.SineWave.Length, r.IsCyclic.Length);
     }
 
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsTwoLineSeries()
-    {
-        var axes = new Axes();
-        var prices = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
-        new EhlersSineWave(prices).Apply(axes);
-        Assert.Equal(2, axes.Series.Count);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabels()
-    {
-        var axes = new Axes();
-        var prices = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
-        new EhlersSineWave(prices).Apply(axes);
-        Assert.Equal("SineWave", axes.Series[0].Label);
-        Assert.Equal("LeadSine", axes.Series[1].Label);
-    }
-
-    [Fact]
-    public void Apply_SetsYAxisRange()
-    {
-        var axes = new Axes();
-        var prices = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
-        new EhlersSineWave(prices).Apply(axes);
-        Assert.Equal(-1.2, axes.YAxis.Min);
-        Assert.Equal(1.2, axes.YAxis.Max);
-    }
-
     [Fact]
     public void ConstructorLabel_IsSineWave()
     {
         var r = new EhlersSineWave([1.0, 2, 3, 4, 5, 6, 7]);
         Assert.Equal("SineWave", r.Label);
-    }
-
-    // ── Type system ──
-    [Fact]
-    public void InheritsPriceIndicator()
-    {
-        var r = new EhlersSineWave([1.0, 2, 3, 4, 5, 6, 7]);
-        Assert.IsAssignableFrom<PriceIndicator<SineWaveResult>>(r);
-        Assert.IsAssignableFrom<IIndicator>(r);
     }
 }

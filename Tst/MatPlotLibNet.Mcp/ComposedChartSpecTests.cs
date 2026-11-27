@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Tests.Rendering;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -10,7 +11,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// agent can send back.</summary>
 public class ComposedChartSpecTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     [Theory]
     [MemberData(nameof(ComposedChartShapes.Names), MemberType = typeof(ComposedChartShapes))]

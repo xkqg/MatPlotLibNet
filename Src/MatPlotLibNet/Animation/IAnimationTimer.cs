@@ -3,8 +3,8 @@
 
 namespace MatPlotLibNet.Animation;
 
-/// <summary>Platform-neutral animation tick source. Platform controls implement this
-/// with their native timer (DispatcherTimer, requestAnimationFrame, etc.).</summary>
+/// <summary>Platform-neutral animation tick source. The library's timers are the sealed classes of <see cref="AnimationTimer"/>,
+/// each ticking with its platform's timer (the thread pool, the dispatcher of WPF or Avalonia).</summary>
 public interface IAnimationTimer : IDisposable
 {
     /// <summary>Desired tick interval. Implementations should honour this on the

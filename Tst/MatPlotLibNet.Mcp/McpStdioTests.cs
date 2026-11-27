@@ -18,14 +18,7 @@ public class McpStdioTests
 
     private static string ServerDll()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        var candidates = new DirectoryInfo(Path.Combine(dir!.FullName, "Src", "MatPlotLibNet.Mcp", "bin"))
+        var candidates = new DirectoryInfo(Path.Combine(RepositoryRoot.Folder, "Src", "MatPlotLibNet.Mcp", "bin"))
             .EnumerateFiles("MatPlotLibNet.Mcp.dll", SearchOption.AllDirectories)
             .OrderByDescending(f => f.LastWriteTimeUtc)
             .ToArray();
@@ -72,18 +65,13 @@ public class McpStdioTests
         }
         server.StandardInput.Flush();
 
-        var deadline = DateTime.UtcNow + Budget;
-        while (DateTime.UtcNow < deadline)
+        SpinWait.SpinUntil(() =>
         {
             lock (lines)
             {
-                if (lines.Count >= expectedResponses)
-                {
-                    break;
-                }
+                return lines.Count >= expectedResponses;
             }
-            Thread.Sleep(25);
-        }
+        }, Budget);
 
         server.StandardInput.Close();
         Assert.True(server.WaitForExit((int)Budget.TotalMilliseconds), "The server did not exit when stdin closed.");

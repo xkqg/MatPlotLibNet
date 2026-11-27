@@ -1,0 +1,12 @@
+# The analyzer rules the packages are built with. A rule set to warning fails the build, because CI builds with
+# -warnaserror; Directory.Build.props turns the code-style rules on for the build of every project under Src.
+
+[*.cs]
+# A private field or property that is written but never read is dead state: delete it, keep any public
+# constructor parameter that fed it.
+dotnet_diagnostic.IDE0052.severity = warning
+
+# A number, a date or a time becomes text, and text a number, in the invariant culture, through InvariantTextExtensions (InvariantText,
+# FormatInvariant, ReadInvariant, string.Invariant): a ToString(), Parse, string.Format or Convert without a culture reads the culture of
+# the machine. NumberTextContractTests holds the spellings this analyzer does not see (interpolation holes, joins, appends).
+dotnet_diagnostic.CA1305.severity = warning

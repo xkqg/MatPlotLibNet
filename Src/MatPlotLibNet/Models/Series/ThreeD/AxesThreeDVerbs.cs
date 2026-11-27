@@ -17,7 +17,6 @@ public static class AxesThreeDVerbs
         public SurfaceSeries Surface(double[] x, double[] y, double[,] z)
         {
             z.ThrowIfMisaligned(y.Length, x.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new SurfaceSeries(x, y, z));
         }
 
@@ -25,7 +24,6 @@ public static class AxesThreeDVerbs
         public WireframeSeries Wireframe(double[] x, double[] y, double[,] z)
         {
             z.ThrowIfMisaligned(y.Length, x.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new WireframeSeries(x, y, z));
         }
 
@@ -34,7 +32,6 @@ public static class AxesThreeDVerbs
         {
             x.Length.ThrowIfMisaligned(y.Length);
             x.Length.ThrowIfMisaligned(z.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Scatter3DSeries(x, y, z));
         }
 
@@ -43,7 +40,6 @@ public static class AxesThreeDVerbs
         {
             x.Length.ThrowIfMisaligned(y.Length);
             x.Length.ThrowIfMisaligned(z.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Stem3DSeries(x, y, z));
         }
 
@@ -52,7 +48,6 @@ public static class AxesThreeDVerbs
         {
             x.Length.ThrowIfMisaligned(y.Length);
             x.Length.ThrowIfMisaligned(z.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Bar3DSeries(x, y, z));
         }
 
@@ -62,7 +57,6 @@ public static class AxesThreeDVerbs
         {
             x.Length.ThrowIfMisaligned(y.Length);
             x.Length.ThrowIfMisaligned(z.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new PlanarBar3DSeries(x, y, z));
         }
 
@@ -71,7 +65,6 @@ public static class AxesThreeDVerbs
         {
             x.Length.ThrowIfMisaligned(y.Length);
             x.Length.ThrowIfMisaligned(z.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Line3DSeries(x, y, z));
         }
 
@@ -80,7 +73,6 @@ public static class AxesThreeDVerbs
         {
             x.Length.ThrowIfMisaligned(y.Length);
             x.Length.ThrowIfMisaligned(z.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Trisurf3DSeries(x, y, z));
         }
 
@@ -88,7 +80,6 @@ public static class AxesThreeDVerbs
         public Contour3DSeries Contour3D(double[] x, double[] y, double[,] z)
         {
             z.ThrowIfMisaligned(y.Length, x.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Contour3DSeries(x, y, z));
         }
 
@@ -100,21 +91,18 @@ public static class AxesThreeDVerbs
             x.Length.ThrowIfMisaligned(u.Length);
             x.Length.ThrowIfMisaligned(v.Length);
             x.Length.ThrowIfMisaligned(w.Length);
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Quiver3DSeries(x, y, z, u, v, w));
         }
 
         /// <summary>Adds a voxel series and sets coordinate system to ThreeD.</summary>
         public VoxelSeries Voxels(bool[,,] filled)
         {
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new VoxelSeries(filled));
         }
 
         /// <summary>Adds a single 3D text annotation and sets coordinate system to ThreeD.</summary>
         public Text3DSeries Text3D(double x, double y, double z, string text)
         {
-            axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Text3DSeries([new Text3DAnnotation(x, y, z, text)]));
         }
     }

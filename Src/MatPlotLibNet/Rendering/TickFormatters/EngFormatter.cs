@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickFormatters;
@@ -12,8 +13,15 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// the default single-space separator between the number and the unit prefix
 /// (e.g. <c>"30 k"</c>, matching <c>matplotlib.ticker.EngFormatter().format_eng</c>).
 /// </summary>
-public sealed class EngFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
+public sealed class EngFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>, IChangeTracked
 {
+    private long _stamp;
+
+    /// <summary>Stores <paramref name="value"/> and marks this formatter changed, unless it already holds an equal value.</summary>
+    private void Change<T>(ref T slot, T value) => ChangeClock.Change(ref slot, value, ref _stamp);
+
+    long IChangeTracked.LatestChange => _stamp;
+
     private readonly record struct SiPrefix(double Factor, string Prefix);
 
     private static readonly SiPrefix[] Prefixes =
@@ -31,7 +39,7 @@ public sealed class EngFormatter : ITickFormatter, IJsonDescribed<TickFormatterD
     /// <summary>Separator inserted between the number and the prefix. Defaults to a single space
     /// to match matplotlib's <c>EngFormatter(sep=" ")</c>. Set to <see cref="string.Empty"/> for
     /// the compact form (e.g. <c>"30k"</c>).</summary>
-    public string Sep { get; set; } = " ";
+    public string Sep { get; set => Change(ref field, value); } = " ";
 
     /// <inheritdoc />
     TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new EngTickFormatterDto(Sep);
@@ -58,16 +66,16 @@ public sealed class EngFormatter : ITickFormatter, IJsonDescribed<TickFormatterD
         }
 
         // Fallback for very small values (< 1e-9)
-        return value.ToString("G3", CultureInfo.InvariantCulture);
+        return value.InvariantText("G3");
     }
 
     private static string FormatScaled(double scaled)
     {
         // Use up to 3 significant figures, strip trailing zeros
         if (scaled == Math.Floor(scaled))
-            return ((long)scaled).ToString(CultureInfo.InvariantCulture);
+            return ((long)scaled).InvariantText();
 
-        string s = scaled.ToString("G3", CultureInfo.InvariantCulture);
+        string s = scaled.InvariantText("G3");
         return s;
     }
 }

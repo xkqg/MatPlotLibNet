@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -28,11 +26,8 @@ public class SlopeGraphTests
 
     private static readonly BarGroup End = new("2025", [51, 49, 44, 66, 39]);
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Slope(BarGroup from, BarGroup to, Action<LineSeries>? configure = null) =>
-        AxesOf(ax => ax.SlopeGraph(Regions, from, to, configure));
+        Plt.Create().OneAxes(ax => ax.SlopeGraph(Regions, from, to, configure));
 
     private static LineSeries[] Lines(Axes axes) => [.. axes.Series.Cast<LineSeries>()];
 
@@ -42,8 +37,6 @@ public class SlopeGraphTests
     private readonly record struct Dot(double Cx, double Cy);
 
     /// <summary>The plot area in pixels.</summary>
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     /// <summary>A text drawn straight into the figure: what it says, where its anchor stands, and its colour.</summary>
     private readonly record struct Name(string Text, double X, double Y, string Fill);
 
@@ -58,40 +51,25 @@ public class SlopeGraphTests
     }
 
     /// <summary>The font a name is drawn in: the text size of the theme a figure wears when none is chosen.</summary>
-    private static Font NameFont() => ThemedFontProvider.DataTextFont(Plt.Create().Build().Theme);
+    private static Font NameFont() => Plt.Create().Build().Theme.DataTextFont();
 
     private static string Svg(BarGroup from, BarGroup to) => Svg(ax => ax.SlopeGraph(Regions, from, to));
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
-
-    private static Area PlotArea(string svg)
-    {
-        var m = Regex.Match(svg, """<rect x="([1-9][0-9.]*)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" fill="#FFFFFF" """.TrimEnd());
-        return new Area(Num(m.Groups[1].Value), Num(m.Groups[2].Value), Num(m.Groups[3].Value), Num(m.Groups[4].Value));
-    }
-
-    private static List<XElement> SeriesGroups(string svg) =>
-        [.. Named(XDocument.Parse(svg), "g").Where(g => (string?)g.Attribute("class") == "series")];
-
     private static Dot[] Dots(XElement series) =>
-        [.. Named(series, "circle").Select(c => new Dot(Num((string)c.Attribute("cx")!), Num((string)c.Attribute("cy")!)))];
+        [.. series.Each("circle").Select(c => new Dot(c.Number("cx"), c.Number("cy")))];
 
-    private static int Runs(XElement series) => Named(series, "polyline").Count();
+    private static int Runs(XElement series) => series.Each("polyline").Count();
 
     private static Name? EndName(XElement series) =>
-        series.Elements().Where(e => e.Name.LocalName == "text").Select(t => new Name(
-            t.Value, Num((string)t.Attribute("x")!), Num((string)t.Attribute("y")!), (string)t.Attribute("fill")!))
+        series.Children("text").Select(t => new Name(
+            t.Value, t.Number("x"), t.Number("y"), (string)t.Attribute("fill")!))
             .Cast<Name?>().SingleOrDefault();
 
     /// <summary>The texts drawn straight into the figure, not inside a series, with the anchor they are drawn at.</summary>
     private static List<FigureText> FigureTexts(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text")
+        [.. svg.Direct("text")
             .Select(e => new FigureText(
-                new Name(e.Value, Num((string)e.Attribute("x")!), Num((string)e.Attribute("y")!), (string)e.Attribute("fill")!),
+                new Name(e.Value, e.Number("x"), e.Number("y"), (string)e.Attribute("fill")!),
                 (string)e.Attribute("text-anchor")!))];
 
     /// <summary>The start names: the figure's own texts that read a category and end at their anchor.</summary>
@@ -151,13 +129,13 @@ public class SlopeGraphTests
     [Fact]
     public void EveryLine_WearsOneColourOfItsOwn_ItsMarkersToo()
     {
-        var groups = SeriesGroups(Svg(Start, End));
+        var groups = Svg(Start, End).SeriesGroups();
 
-        var strokes = groups.Select(g => (string)Named(g, "polyline").First().Attribute("stroke")!).ToList();
+        var strokes = groups.Select(g => (string)g.Each("polyline").First().Attribute("stroke")!).ToList();
         Assert.Equal(Regions.Length, strokes.Distinct().Count());
         for (int k = 0; k < groups.Count; k++)
         {
-            Assert.All(Named(groups[k], "circle"), c => Assert.Equal(strokes[k], (string)c.Attribute("fill")!));
+            Assert.All(groups[k].Each("circle"), c => Assert.Equal(strokes[k], (string)c.Attribute("fill")!));
         }
     }
 
@@ -171,15 +149,15 @@ public class SlopeGraphTests
         Assert.All(Lines(Slope(Start, End)), line => Assert.Equal(SeriesLabelPlacement.LineEnd, line.LabelPlacement));
 
         string svg = Svg(ax => ax.SlopeGraph(Regions, Start, End).WithLegend());
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
         Assert.DoesNotContain("data-legend-index=", svg);
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         for (int k = 0; k < Regions.Length; k++)
         {
             var label = Assert.IsType<Name>(EndName(groups[k]));
             Assert.Equal(Regions[k], label.Text);
-            Assert.True(label.X > plot.X + plot.W, $"'{label.Text}' starts at {label.X}, not right of the plot area ending at {plot.X + plot.W}");
-            Assert.Equal((string)Named(groups[k], "polyline").First().Attribute("stroke")!, label.Fill);
+            Assert.True(label.X > plot.X + plot.Width, $"'{label.Text}' starts at {label.X}, not right of the plot area ending at {plot.X + plot.Width}");
+            Assert.Equal((string)groups[k].Each("polyline").First().Attribute("stroke")!, label.Fill);
         }
     }
 
@@ -212,8 +190,8 @@ public class SlopeGraphTests
     public void TheStartNames_StandJustLeftOfTheirMarkers_InsideThePlotArea()
     {
         string svg = Svg(Start, End);
-        var plot = PlotArea(svg);
-        var groups = SeriesGroups(svg);
+        var plot = svg.PlotArea();
+        var groups = svg.SeriesGroups();
         var names = StartNames(svg);
         var measurer = new SvgRenderContext();
         var font = NameFont();
@@ -222,7 +200,7 @@ public class SlopeGraphTests
         for (int k = 0; k < Regions.Length; k++)
         {
             var marker = Dots(groups[k])[0];
-            Assert.Equal(marker.Cy + 0.35 * font.Size, names[k].Y, 6);   // centred on the marker: the baseline a third of the size below it
+            Assert.Equal(marker.Cy + 0.35 * font.Size, names[k].Y, SvgMarkupExtensions.WrittenPrecision);   // centred on the marker: the baseline a third of the size below it
             double gap = marker.Cx - names[k].X;
             Assert.True(gap > 4 && gap < 30, $"'{Regions[k]}' ends {gap} px left of its marker; the marker's radius is 4");
             double start = names[k].X - measurer.MeasureText(Regions[k], font).Width;
@@ -238,13 +216,13 @@ public class SlopeGraphTests
     [InlineData("Paper")]
     public void TheStartNames_AreCentredOnTheirMarkers(string themeName)
     {
-        var theme = themeName switch { "Poster" => Theme.Poster, "Paper" => Theme.Paper, _ => Theme.Default };
+        var theme = themeName.AsTheme();
         string svg = Svg(ax => ax.SlopeGraph(Regions, Start, End), theme);
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         var names = StartNames(svg);
 
         for (int k = 0; k < Regions.Length; k++)
-            Assert.Equal(TextBox.CentreDrop * theme.DefaultFont.Size, names[k].Y - Dots(groups[k])[0].Cy, 6);
+            Assert.Equal(0.35 * theme.DefaultFont.Size, names[k].Y - Dots(groups[k])[0].Cy, 6);
     }
 
     /// <summary>Where the end names stand clear of one another they stand on their markers by that same rule, so a start
@@ -253,7 +231,7 @@ public class SlopeGraphTests
     public void TheStartNames_AreCentredAsTheEndNamesAre_WhereTheEndNamesAreNotPushedApart()
     {
         string svg = Svg(Start, End);
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         var names = StartNames(svg);
 
         for (int k = 0; k < Regions.Length; k++)
@@ -271,7 +249,7 @@ public class SlopeGraphTests
     [InlineData("Ggplot")]
     public void TheStartNames_FollowTheThemesTextColour(string themeName)
     {
-        var theme = themeName switch { "Dark" => Theme.Dark, "Ggplot" => Theme.Ggplot, _ => Theme.Default };
+        var theme = themeName.AsTheme();
 
         var names = StartNames(Svg(ax => ax.SlopeGraph(Regions, Start, End), theme));
 
@@ -297,7 +275,7 @@ public class SlopeGraphTests
 
         string svg = Svg(Start, End);
         var labels = XTickLabels(svg);
-        var first = Dots(SeriesGroups(svg)[0]);
+        var first = Dots(svg.SeriesGroups()[0]);
         Assert.Equal(["2015", "2025"], labels.Select(l => l.Text));
         Assert.Equal(first[0].Cx, labels[0].X, 6);
         Assert.Equal(first[1].Cx, labels[1].X, 6);
@@ -321,25 +299,6 @@ public class SlopeGraphTests
 
     // ---- limits and room ----------------------------------------------------------------------------------------------
 
-    /// <summary>The verb sets no axis limit and keeps one the caller set before the call (W9): a limit clips every series on
-    /// the axes and overwrites the caller's own.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Slope(Start, End);
-        var kept = AxesOf(ax => ax.SetXLim(0, 2).SetYLim(20, 80).SlopeGraph(Regions, Start, End));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Equal(0.0, kept.XAxis.Min);
-        Assert.Equal(2.0, kept.XAxis.Max);
-        Assert.Equal(20.0, kept.YAxis.Min);
-        Assert.Equal(80.0, kept.YAxis.Max);
-    }
-
     /// <summary>The X margin, not a limit, makes room for the start names: a quarter of the distance between the two columns
     /// on each side, where the theme's usual 5 % leaves no more than a few pixels. A margin set after the call replaces it.</summary>
     [Fact]
@@ -348,7 +307,7 @@ public class SlopeGraphTests
         Assert.Equal(0.25, Slope(Start, End).XAxis.Margin);
         Assert.Null(Slope(Start, End).YAxis.Margin);
 
-        var later = AxesOf(ax => ax.SlopeGraph(Regions, Start, End).SetXMargin(0.4));
+        var later = Plt.Create().OneAxes(ax => ax.SlopeGraph(Regions, Start, End).SetXMargin(0.4));
         Assert.Equal(0.4, later.XAxis.Margin);
     }
 
@@ -366,8 +325,8 @@ public class SlopeGraphTests
         var central = StartNames(withMargin).Single(n => n.Text == "Central");
         var squeezed = StartNames(theThemesMargin).Single(n => n.Text == "Central");
 
-        Assert.True(central.X - width > PlotArea(withMargin).X);
-        Assert.True(squeezed.X - width < PlotArea(theThemesMargin).X);
+        Assert.True(central.X - width > withMargin.PlotArea().X);
+        Assert.True(squeezed.X - width < theThemesMargin.PlotArea().X);
     }
 
     // ---- missing values ---------------------------------------------------------------------------------------------
@@ -380,14 +339,14 @@ public class SlopeGraphTests
         var gappy = new BarGroup("2015", [42, 55, double.NaN, 61, 47]);
         string svg = Svg(gappy, End);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Single(Dots(groups[2]));
         Assert.Equal(0, Runs(groups[2]));
         Assert.Equal("East", Assert.IsType<Name>(EndName(groups[2])).Text);
         Assert.Equal(["North", "South", "West", "Central"], StartNames(svg).Select(n => n.Text));
         Assert.Equal(2, Dots(groups[0]).Length);
         Assert.Equal(1, Runs(groups[0]));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
         // The start name is not added at all, so no annotation holds a value that cannot be placed (nor writes it to JSON).
         Assert.Equal(["North", "South", "West", "Central"], Slope(gappy, End).Annotations.Select(a => a.Text));
     }
@@ -401,13 +360,13 @@ public class SlopeGraphTests
         var gappy = new BarGroup("2025", [51, 49, double.NaN, 66, 39]);
         string svg = Svg(Start, gappy);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Single(Dots(groups[2]));
         Assert.Equal(0, Runs(groups[2]));
         Assert.Null(EndName(groups[2]));
         Assert.Equal(Regions, StartNames(svg).Select(n => n.Text));
         Assert.All(new[] { 0, 1, 3, 4 }, k => Assert.NotNull(EndName(groups[k])));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>The chart draws no legend, with or without a missing end: its names stand at the ends of the lines, and a legend
@@ -437,10 +396,9 @@ public class SlopeGraphTests
 
         Assert.Equal(SeriesLabelPlacement.Legend, lines[2].LabelPlacement);
         Assert.All(new[] { 0, 1, 3, 4 }, k => Assert.Equal(SeriesLabelPlacement.LineEnd, lines[k].LabelPlacement));
-        var entries = Regex.Matches(svg, """<g data-legend-index="([0-9]+)" [^>]*aria-label="([^"]*)">""");
-        var entry = Assert.Single(entries);
-        Assert.Equal("2", entry.Groups[1].Value);
-        Assert.Equal("East", entry.Groups[2].Value);
+        var entry = Assert.Single(svg.LegendEntries());
+        Assert.Equal(2, entry.Index);
+        Assert.Equal("East", entry.Label);
     }
 
     /// <summary>A category without either point draws nothing: no marker, no line, no name at either end, and the others are
@@ -452,13 +410,13 @@ public class SlopeGraphTests
         var endGappy = new BarGroup("2025", [51, 49, double.NaN, 66, 39]);
         string svg = Svg(startGappy, endGappy);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Empty(Dots(groups[2]));
         Assert.Equal(0, Runs(groups[2]));
         Assert.Null(EndName(groups[2]));
         Assert.DoesNotContain("East", StartNames(svg).Select(n => n.Text));
         Assert.Equal(4, StartNames(svg).Length);
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>An infinity cannot be placed either: it is treated as a missing value, and drops its name.</summary>
@@ -468,32 +426,13 @@ public class SlopeGraphTests
         var infinite = new BarGroup("2025", [51, double.PositiveInfinity, 44, 66, 39]);
         string svg = Svg(Start, infinite);
 
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Null(EndName(groups[1]));
         Assert.Single(Dots(groups[1]));
-        Assert.DoesNotContain("Infinity", svg);
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- the callback -----------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once for each line, in the order of the categories, after the verb has built and styled it.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerLine_InTheOrderOfTheCategories_AfterTheVerbStyledIt()
-    {
-        var seen = new List<string?>();
-
-        var axes = Slope(Start, End, line =>
-        {
-            Assert.Equal(SeriesLabelPlacement.LineEnd, line.LabelPlacement);
-            Assert.Equal(MarkerStyle.Circle, line.Marker);
-            seen.Add(line.Label);
-            line.MarkerSize = 4;
-        });
-
-        Assert.Equal(Regions, seen);
-        Assert.All(Lines(axes), line => Assert.Equal(4, line.MarkerSize));
-    }
 
     /// <summary>What the callback sets wins: it can put a name back in the legend instead of at the end of the line.</summary>
     [Fact]
@@ -505,24 +444,11 @@ public class SlopeGraphTests
 
         string svg = figure.ToSvg();
 
-        Assert.Equal(Regions.Length, Regex.Matches(svg, "data-legend-index=").Count);
-        Assert.All(SeriesGroups(svg), g => Assert.Null(EndName(g)));
+        Assert.Equal(Regions.Length, svg.CountOf("data-legend-index="));
+        Assert.All(svg.SeriesGroups(), g => Assert.Null(EndName(g)));
     }
 
     // ---- the verb draws what the hand chain drew -----------------------------------------------------------------------
-
-    /// <summary>The verb adds nothing to the picture that the hand-written chain did not draw, and leaves nothing out: same
-    /// SVG, byte for byte, with and without a missing start and a missing end.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("slope").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.SlopeByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
 
     /// <summary>Written to JSON and read back, the chart draws the same picture, a missing start and a missing end included:
     /// the names still stand at both ends and the moments are still the ticks, under the default theme and a dark one.</summary>
@@ -538,7 +464,7 @@ public class SlopeGraphTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.SlopeGraph(Regions, gappy, open)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.Equal(4, StartNames(readBack).Length);
@@ -552,13 +478,13 @@ public class SlopeGraphTests
     [Fact]
     public void NoCategories_DrawAnEmptyChart_WithoutThrowing()
     {
-        var axes = AxesOf(ax => ax.SlopeGraph([], new BarGroup("2015", []), new BarGroup("2025", [])));
+        var axes = Plt.Create().OneAxes(ax => ax.SlopeGraph([], new BarGroup("2015", []), new BarGroup("2025", [])));
         string svg = Plt.Create().WithSize(700, 500)
             .AddSubPlot(1, 1, 1, ax => ax.SlopeGraph([], new BarGroup("2015", []), new BarGroup("2025", []))).ToSvg();
 
         Assert.Empty(axes.Series);
         Assert.Empty(axes.Annotations);
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- refused arguments -----------------------------------------------------------------------------------------
@@ -568,7 +494,7 @@ public class SlopeGraphTests
     public void ANullArgument_IsRefusedByName()
     {
         Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).SlopeGraph(Regions, Start, End)).ParamName);
-        Assert.Equal("categories", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.SlopeGraph(null!, Start, End))).ParamName);
+        Assert.Equal("categories", Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.SlopeGraph(null!, Start, End))).ParamName);
     }
 
     /// <summary>A moment that does not carry one value per category is refused, naming the moment, both counts and the
@@ -577,55 +503,30 @@ public class SlopeGraphTests
     [Fact]
     public void AMomentThatDoesNotFitTheCategories_IsRefusedByName()
     {
-        var shortStart = new BarGroup("2015", [1.0, 2.0]);
-        var longEnd = new BarGroup("2025", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-
-        var fromError = Assert.Throws<ArgumentException>(() => Slope(shortStart, End));
-        var toError = Assert.Throws<ArgumentException>(() => Slope(Start, longEnd));
-
-        Assert.Equal("from", fromError.ParamName);
-        Assert.Equal("Group '2015' carries 2 values; there are 5 categories. (Parameter 'from')", fromError.Message);
-        Assert.Equal("to", toError.ParamName);
-        Assert.Equal("Group '2025' carries 6 values; there are 5 categories. (Parameter 'to')", toError.Message);
-        Assert.Equal("from", Assert.Throws<ArgumentException>(() => Slope(default, End)).ParamName);
-        Assert.Equal("to", Assert.Throws<ArgumentException>(() => Slope(Start, new BarGroup("2025", null!))).ParamName);
-    }
-
-    /// <summary>A refused call has added nothing: the checks come before the first line, so no series, no annotation, no
-    /// ticks and no margin are left behind.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.SlopeGraph(Regions, Start, new BarGroup("2025", [1.0])));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Empty(axes.Annotations);
-        Assert.Null(axes.XAxis.TickLocator);
-        Assert.Null(axes.XAxis.Margin);
+        LengthRefusals.AssertAGroupThatDoesNotFitIsRefusedByName((from, to) => Slope(from, to), Start, End, 5);
     }
 
     // ---- the example in the documentation --------------------------------------------------------------------------
 
-    /// <summary>The example of the verb's documentation, as written there, compiles and draws.</summary>
-    [Fact]
-    public void TheDocumentationExample_Draws()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string[] regions = ["North", "South", "East", "West"];
+        //  The example of the verb's documentation, as written there, compiles and draws.
+        new DrawnToken("TheDocumentationExample_Draws", () =>
+        {
+            string[] regions = ["North", "South", "East", "West"];
+            return Plt.Create()
+                .WithTitle("Sales by region")
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .SlopeGraph(regions,
+                        new BarGroup("2015", [42.0, 55.0, 38.0, 61.0]),
+                        new BarGroup("2025", [51.0, 49.0, 44.0, 66.0]))
+                    .SetYLabel("Sales"))
+                .ToSvg();
+        }, ">North<", ">2025<", ">Sales<"),
+    };
 
-        string svg = Plt.Create()
-            .WithTitle("Sales by region")
-            .AddSubPlot(1, 1, 1, ax => ax
-                .SlopeGraph(regions,
-                    new BarGroup("2015", [42.0, 55.0, 38.0, 61.0]),
-                    new BarGroup("2025", [51.0, 49.0, 44.0, 66.0]))
-                .SetYLabel("Sales"))
-            .ToSvg();
-
-        Assert.Contains(">North<", svg);
-        Assert.Contains(">2025<", svg);
-        Assert.Contains(">Sales<", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

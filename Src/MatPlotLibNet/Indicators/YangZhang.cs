@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -14,40 +15,29 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Journal of Business</i> 73(3).</remarks>
 public sealed class YangZhang : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 20;
+
     private readonly int _period;
 
     /// <summary>Creates a new Yang-Zhang volatility indicator.</summary>
     /// <param name="bars">Open, High, Low and Close (all strictly positive); built via <see cref="OhlcvBars.Ohlc"/>.</param>
     /// <param name="period">Rolling window length. Must be ≥ 2 (k formula has (N−1) in denominator).</param>
     /// <exception cref="ArgumentException">Thrown when period &lt; 2 or any input bar has a non-positive price.</exception>
-    public YangZhang(OhlcvBars bars, int period = 20)
-        : base(bars)
+    public YangZhang(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"YangZhang period must be >= 2 (got {period}); k formula has (N-1) in denominator.", nameof(period));
-        GuardPositive(bars.Open, bars.High, bars.Low, bars.Close);
+        bars.ThrowIfNotPositiveOhlc(nameof(YangZhang));
         _period = period;
-        Label = $"YZ({period})";
     }
 
-    private static void GuardPositive(double[] o, double[] h, double[] l, double[] c)
-    {
-        int n = Math.Min(Math.Min(o.Length, h.Length), Math.Min(l.Length, c.Length));
-        for (int i = 0; i < n; i++)
-        {
-            if (o[i] <= 0 || h[i] <= 0 || l[i] <= 0 || c[i] <= 0)
-                throw new ArgumentException(
-                    $"YangZhang requires strictly positive OHLC; bar {i} has non-positive value.");
-        }
-    }
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("YZ", period, 2, period);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
         int n = BarCount;
-        if (n <= _period) return Array.Empty<double>();
-
-        int outLen = n - _period;
+        int outLen = ValueCount;
         var result = new double[outLen];
 
         // k constant for this period
@@ -75,10 +65,10 @@ public sealed class YangZhang : CandleIndicator<SignalResult>
         {
             // Window covers bars [w+1 .. w+_period], inclusive — first bar uses C_{w} as prevClose.
             int start = w + 1;
-            int end = w + _period; // inclusive
 
+            // The three window means in one pass (three independent sums side by side), the two sample variances about them.
             double meanOC = 0, meanCO = 0, meanRS = 0;
-            for (int i = start; i <= end; i++)
+            for (int i = start; i < start + _period; i++)
             {
                 meanOC += lnOC[i];
                 meanCO += lnCO[i];
@@ -88,16 +78,8 @@ public sealed class YangZhang : CandleIndicator<SignalResult>
             meanCO /= _period;
             meanRS /= _period;
 
-            double varOC = 0, varCO = 0;
-            for (int i = start; i <= end; i++)
-            {
-                double dOC = lnOC[i] - meanOC;
-                double dCO = lnCO[i] - meanCO;
-                varOC += dOC * dOC;
-                varCO += dCO * dCO;
-            }
-            varOC /= (_period - 1); // sample variance (ddof=1)
-            varCO /= (_period - 1);
+            double varOC = lnOC.AsSpan(start, _period).Variance(meanOC, ddof: 1);
+            double varCO = lnCO.AsSpan(start, _period).Variance(meanCO, ddof: 1);
 
             double sigma2 = varOC + k * varCO + (1 - k) * meanRS;
             result[w] = Math.Sqrt(Math.Max(0, sigma2));
@@ -107,5 +89,5 @@ public sealed class YangZhang : CandleIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

@@ -5,9 +5,10 @@ using System.Reflection;
 
 namespace MatPlotLibNet.Tests.Packaging;
 
-/// <summary>The budget of parameters for a method of a fluent builder. A verb (an extension method of <c>AxesBuilder</c>) is
-/// held to four parameters besides the builder by <c>VerbPlacementContractTests</c>; this holds the instance methods of the
-/// builders themselves to the same four, so a new <c>AddXxx</c> or <c>WithXxx</c> takes a value that groups its inputs (a
+/// <summary>The budget of parameters for a method of a fluent builder. A composed-chart verb (an extension method of
+/// <c>AxesBuilder</c> in a family class) is held to four parameters besides the builder by <c>VerbPlacementContractTests</c>; this
+/// holds every other call of the builders to the same four, the methods they declare and the extension members the library adds
+/// to them (<see cref="BuilderCallExtensions"/>), so a new <c>AddXxx</c> or <c>WithXxx</c> takes a value that groups its inputs (a
 /// <c>DataPoint</c>, an options value, the object itself) instead of a fifth and sixth loose argument. A signature that
 /// shipped is permanent (package validation rejects a changed one), so the older methods over the limit are named in
 /// <see cref="PublishedExceptions"/> with the reason, and the list is pinned both ways: a method over the limit that is not
@@ -18,19 +19,7 @@ public class InstanceMethodBudgetContractTests
     /// number, and a test below holds it to it.</summary>
     private const int ParameterBudget = 4;
 
-    private static readonly string Root = RepoRoot();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static readonly string Root = RepositoryRoot.Folder;
 
     private static string Architecture => File.ReadAllText(Path.Combine(Root, "Src", "MatPlotLibNet", "ARCHITECTURE.md"));
 
@@ -90,6 +79,63 @@ public class InstanceMethodBudgetContractTests
     ];
 
     private static IReadOnlyList<BudgetOffender> Offenders { get; } = [.. Builders.SelectMany(builder => builder.MethodsOverTheBudget(ParameterBudget))];
+
+    /// <summary>The public constructors and static factories that shipped over the limit, each with the number of parameters it was
+    /// published with. The budget holds every new one: a constructor of a class or a struct that is not a record (a record's positional
+    /// constructor is its shape, one parameter per value it holds), and a static factory (a static method that makes its own type, a
+    /// builder, or the product of a <c>*Factory</c>). Nothing is added to this list for a new one.</summary>
+    private static readonly PublishedException[] PublishedConstructorsAndFactories =
+    [
+        new("AxesRenderer", "Create", 5, Published("axes, plot area, context, theme, layout")),
+        new("ColorBarRendererFactory", "Create", 8, Published("the colour bar, its range, map, normaliser, plot area, context, theme and orientation")),
+        new("DataCursorModifier", ".ctor", 5, Published("chart id, layout, figure, sink, pan")),
+        new("DataTransform", ".ctor", 5, Published("the data limits as four numbers and the plot bounds")),
+        new("DataTransform", ".ctor", 11, Published("the data limits, the plot bounds, the breaks and the full limits")),
+        new("DataTransform", ".ctor", 15, Published("the data limits, the plot bounds, the breaks, the full limits, the scales and the symlog thresholds")),
+        new("EasedFigureAnimation", ".ctor", 5, Published("frame count, frame generator, easing, interval, loop")),
+        new("FigureTemplates", "FacetGrid", 5, Published("x, y, groups, the panel's configure, cols")),
+        new("FigureTemplates", "FinancialDashboard", 9, Published("open, high, low, close, volume, title, and the three panels' configure")),
+        new("FigureTemplates", "ScientificPaper", 6, Published("rows, cols, the panels' configure, title, width, height")),
+        new("Ichimoku", ".ctor", 5, Published("bars and the four periods")),
+        new("Projection3D", ".ctor", 10, Published("elevation, azimuth, plot bounds, the data box as six numbers, distance")),
+        new("Quiver3DSeries", ".ctor", 6, Published("x, y, z, u, v, w")),
+        new("SubPlotSpacing", "FromFractions", 6, Published("the four margins and the two gaps as fractions")),
+    ];
+
+    /// <summary>The public types of the core library.</summary>
+    private static IReadOnlyList<Type> PublicTypes { get; } =
+        [.. typeof(AxesBuilder).Assembly.GetExportedTypes().OrderBy(type => type.FullName, StringComparer.Ordinal)];
+
+    private static IReadOnlyList<BudgetOffender> MakersOverTheBudget { get; } =
+        [.. PublicTypes.SelectMany(type => type.ConstructorsAndFactoriesOverTheBudget(ParameterBudget))];
+
+    [Fact]
+    public void EveryPublicConstructorAndStaticFactory_TakesAtMostTheBudget_OrIsAPublishedException()
+    {
+        var named = PublishedConstructorsAndFactories.Select(published => published.Key).ToList();
+        var unnamed = MakersOverTheBudget.Where(offender => !named.Remove(offender.Key)).Select(offender => offender.Key).ToList();
+
+        Assert.True(unnamed.Count == 0,
+            $"A constructor or a static factory takes at most {ParameterBudget} parameters; take a value that groups the inputs. Over the limit and not a published exception: {Show(unnamed)}.");
+    }
+
+    [Fact]
+    public void EveryPublishedConstructorOrFactory_StillExists_WithTheNumberOfParametersItNames()
+    {
+        var found = MakersOverTheBudget.Select(offender => offender.Key).ToList();
+        var gone = PublishedConstructorsAndFactories.Where(published => !found.Remove(published.Key)).Select(published => published.Key).ToList();
+
+        Assert.True(gone.Count == 0, $"These published exceptions name a constructor or a factory that is not over the limit any more or no longer exists: {Show(gone)}.");
+        Assert.All(PublishedConstructorsAndFactories, published => Assert.True(published.ParameterCount > ParameterBudget, $"{published.Key} is within the budget."));
+    }
+
+    [Fact]
+    public void AConstructorAndAFactoryOverTheBudget_AreNamedByTheCheck_ARecordsShapeAndAMethodThatMakesNothingAreNot()
+    {
+        Assert.Equal(["BudgetViolators..ctor(5)", "BudgetViolators.Make(5)"],
+            typeof(BudgetViolators).ConstructorsAndFactoriesOverTheBudget(ParameterBudget).Select(offender => offender.Key).Order(StringComparer.Ordinal));
+        Assert.Empty(typeof(BudgetRecord).ConstructorsAndFactoriesOverTheBudget(ParameterBudget));
+    }
 
     private static string Show(IEnumerable<string> names) => names.Any() ? string.Join(", ", names) : "(none)";
 
@@ -156,20 +202,11 @@ public class InstanceMethodBudgetContractTests
     [Fact]
     public void Architecture_StatesTheBudgetOfABuilderMethod_AndNamesTheTestThatHoldsIt()
     {
-        string section = SectionOf(Architecture, "Where a verb lives");
+        string section = SourceFile.SectionOf(Architecture, "Where a verb lives");
         string[] words = ["zero", "one", "two", "three", "four", "five", "six"];
 
         Assert.Contains($"at most {words[ParameterBudget]} parameters", section, StringComparison.Ordinal);
         Assert.Contains($"`{nameof(InstanceMethodBudgetContractTests)}`", section, StringComparison.Ordinal);
-    }
-
-    /// <summary>The text of a "## heading" section of a Markdown document, up to the next "## " heading.</summary>
-    private static string SectionOf(string markdown, string heading)
-    {
-        int start = markdown.IndexOf($"\n## {heading}", StringComparison.Ordinal);
-        Assert.True(start >= 0, $"The document has no section \"## {heading}\".");
-        int next = markdown.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
-        return next < 0 ? markdown[start..] : markdown[start..next];
     }
 
     // ---- the check itself ---------------------------------------------------------------------------------------------
@@ -211,21 +248,51 @@ internal static class BuilderBudgetExtensions
 {
     extension(Type builder)
     {
-        /// <summary>Every public instance method the class declares itself (not an accessor, not one it inherits) with more than
-        /// <paramref name="parameterBudget"/> parameters.</summary>
+        /// <summary>Every call of the builder (<see cref="BuilderCallExtensions"/>: a public instance method it declares itself, not an
+        /// accessor, or an extension member the library adds to it) with more than <paramref name="parameterBudget"/> parameters
+        /// besides the builder.</summary>
         internal IReadOnlyList<BudgetOffender> MethodsOverTheBudget(int parameterBudget) =>
         [
-            .. builder.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                .Where(method => !method.IsSpecialName && method.GetParameters().Length > parameterBudget)
-                .Select(method => new BudgetOffender(builder.Name, method.Name, method.GetParameters().Length)),
+            .. builder.Calls()
+                .Where(call => call.Parameters.Length > parameterBudget)
+                .Select(call => new BudgetOffender(builder.Name, call.Method.Name, call.Parameters.Length)),
         ];
+
+        /// <summary>Every public constructor of the type, when it is not a record (a record's positional constructor is its shape), and
+        /// every public static method that makes something (its own type, a builder, or anything a <c>*Factory</c> makes), with more
+        /// than <paramref name="parameterBudget"/> parameters.</summary>
+        internal IReadOnlyList<BudgetOffender> ConstructorsAndFactoriesOverTheBudget(int parameterBudget)
+        {
+            bool isRecord = builder.GetMethod("PrintMembers", BindingFlags.NonPublic | BindingFlags.Instance) is not null;
+            var constructors = isRecord ? [] : builder.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+                .Where(constructor => constructor.GetParameters().Length > parameterBudget)
+                .Select(constructor => new BudgetOffender(builder.Name, ".ctor", constructor.GetParameters().Length));
+            var factories = builder.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Where(method => !method.IsSpecialName && !method.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), inherit: false)
+                    && method.GetParameters().Length > parameterBudget
+                    && (method.ReturnType == builder || method.ReturnType.Name.EndsWith("Builder", StringComparison.Ordinal)
+                        || builder.Name.EndsWith("Factory", StringComparison.Ordinal)))
+                .Select(method => new BudgetOffender(builder.Name, method.Name, method.GetParameters().Length));
+            return [.. constructors, .. factories];
+        }
     }
 }
+
+/// <summary>A record whose positional constructor takes more values than the budget: its shape, not a parameter list.</summary>
+internal sealed record BudgetRecord(int A, int B, int C, int D, int E);
 
 /// <summary>Methods that each stand on one side of the rule, so the check that names the rule is shown to fire. Not builders:
 /// nothing in the library calls them.</summary>
 internal sealed class BudgetViolators
 {
+    public BudgetViolators() { }
+
+    public BudgetViolators(int a, int b, int c, int d, int e) { }
+
+    public static BudgetViolators Make(int a, int b, int c, int d, int e) => new(a, b, c, d, e);
+
+    public static int Sum(int a, int b, int c, int d, int e) => a + b + c + d + e;
+
     public void Fine(int a, int b, int c, int d) { }
 
     public void TooMany(int a, int b, int c, int d, int e) { }

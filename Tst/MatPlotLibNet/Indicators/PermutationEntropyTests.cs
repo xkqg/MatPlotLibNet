@@ -7,75 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="PermutationEntropy"/>. Covers all 10 branches in
-/// docs/contrib/indicator-tier-2b.md §1.</summary>
+/// <summary>Verifies <see cref="PermutationEntropy"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class PermutationEntropyTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var pe = new PermutationEntropy([], order: 3, window: 10);
-        Assert.Empty(pe.Compute().Values);
-    }
-
-    // ── Branch 2 — prices.Length < window → empty ──
-    [Fact]
-    public void Compute_LengthBelowWindow_ReturnsEmpty()
-    {
-        var pe = new PermutationEntropy([1.0, 2, 3, 4, 5], order: 3, window: 10);
-        Assert.Empty(pe.Compute().Values);
-    }
-
-    // ── Branch 3 — prices.Length == window → single output ──
-    [Fact]
-    public void Compute_LengthEqualsWindow_ReturnsSingleValue()
-    {
-        var pe = new PermutationEntropy([1.0, 2, 3, 4, 5, 4, 3, 2, 1, 2], order: 3, window: 10);
-        Assert.Single(pe.Compute().Values);
-    }
-
-    // ── Branch 4 — order < 2 throws ──
-    [Theory]
-    [InlineData(1)]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_OrderBelowTwo_Throws(int order)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new PermutationEntropy([1.0, 2, 3, 4, 5], order, window: 4));
-    }
-
-    // ── Branch 5 — order > 7 throws ──
-    [Theory]
-    [InlineData(8)]
-    [InlineData(10)]
-    public void Constructor_OrderAboveSeven_Throws(int order)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new PermutationEntropy([1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10], order, window: 20));
-    }
-
-    // ── Branch 6 — window <= order throws ──
-    [Theory]
-    [InlineData(3, 3)]
-    [InlineData(3, 2)]
-    public void Constructor_WindowNotGreaterThanOrder_Throws(int order, int window)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new PermutationEntropy([1.0, 2, 3, 4, 5], order, window));
-    }
-
-    // ── Branch 7 — Constant signal → entropy 0 ──
-    [Fact]
-    public void Compute_ConstantSignal_ReturnsZero()
-    {
-        var flat = Enumerable.Repeat(100.0, 50).ToArray();
-        var pe = new PermutationEntropy(flat, order: 3, window: 20).Compute().Values;
-        Assert.NotEmpty(pe);
-        Assert.All(pe, v => Assert.Equal(0.0, v, precision: 12));
-    }
-
     // ── Branch 8 — Strictly monotonic rising → entropy 0 ──
     [Fact]
     public void Compute_MonotonicRising_ReturnsZero()
@@ -125,53 +60,5 @@ public class PermutationEntropyTests
         var pe = new PermutationEntropy(prices, order: 3, window: 5).Compute().Values;
         Assert.Single(pe);
         Assert.Equal(Math.Log(3) / Math.Log(6), pe[0], precision: 10);
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
-        new PermutationEntropy(prices, order: 3, window: 20).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsYAxisZeroToOne()
-    {
-        var axes = new Axes();
-        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
-        new PermutationEntropy(prices, order: 3, window: 20).Apply(axes);
-        Assert.Equal(0, axes.YAxis.Min);
-        Assert.Equal(1, axes.YAxis.Max);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
-        new PermutationEntropy(prices, order: 4, window: 25).Apply(axes);
-        Assert.Equal("PE(d=4,W=25)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultOrderAndWindow()
-    {
-        var prices = new double[120];
-        for (int i = 0; i < 120; i++) prices[i] = i;
-        var pe = new PermutationEntropy(prices);
-        Assert.Equal("PE(d=4,W=100)", pe.Label);
-    }
-
-    // ── Type system ──
-    [Fact]
-    public void InheritsPriceIndicator()
-    {
-        var pe = new PermutationEntropy([1.0, 2, 3, 4, 5], order: 3, window: 5);
-        Assert.IsAssignableFrom<PriceIndicator<SignalResult>>(pe);
-        Assert.IsAssignableFrom<IIndicator>(pe);
     }
 }

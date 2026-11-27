@@ -18,21 +18,13 @@ public static class AxesXYVerbs
         /// <param name="x">The X-axis data values.</param>
         /// <param name="y">The Y-axis data values.</param>
         /// <returns>The newly created <see cref="LineSeries"/> for further configuration.</returns>
-        public LineSeries Plot(double[] x, double[] y)
-        {
-            x.Length.ThrowIfMisaligned(y.Length);
-            return axes.AddSeries(new LineSeries(x, y));
-        }
+        public LineSeries Plot(double[] x, double[] y) => axes.YAxes.Left[0].Plot(x, y);
 
         /// <summary>Adds a scatter series from the given X and Y data arrays.</summary>
         /// <param name="x">The X-axis data values.</param>
         /// <param name="y">The Y-axis data values.</param>
         /// <returns>The newly created <see cref="ScatterSeries"/> for further configuration.</returns>
-        public ScatterSeries Scatter(double[] x, double[] y)
-        {
-            x.Length.ThrowIfMisaligned(y.Length);
-            return axes.AddSeries(new ScatterSeries(x, y));
-        }
+        public ScatterSeries Scatter(double[] x, double[] y) => axes.YAxes.Left[0].Scatter(x, y);
 
         /// <summary>Adds a stacked area (stackplot) series from the given shared X values and multiple Y datasets.</summary>
         /// <param name="x">The shared X-axis data values.</param>
@@ -61,8 +53,7 @@ public static class AxesXYVerbs
         /// <returns>The newly created <see cref="AreaSeries"/> for further configuration.</returns>
         public AreaSeries FillBetween(double[] x, double[] y, double[]? y2 = null)
         {
-            x.Length.ThrowIfMisaligned(y.Length);
-            if (y2 is not null) x.Length.ThrowIfMisaligned(y2.Length);
+            // The setter refuses curves that do not pair (AreaSeries.YData2).
             return axes.AddSeries(new AreaSeries(x, y) { YData2 = y2 });
         }
 
@@ -75,12 +66,11 @@ public static class AxesXYVerbs
         /// <returns>The newly created <see cref="AreaSeries"/> for further configuration.</returns>
         public AreaSeries FillBetweenX(double[] y, double[] x1, double[]? x2 = null)
         {
-            y.Length.ThrowIfMisaligned(x1.Length);
-            if (x2 is not null) y.Length.ThrowIfMisaligned(x2.Length);
-            return axes.AddSeries(new AreaSeries(x1, y) { XData2 = x2, Orientation = BarOrientation.Horizontal });
+            // Laid down, the fill refuses curves that do not pair (AreaSeries.Orientation).
+            return axes.AddSeries(new AreaSeries(x1, y) { Orientation = BarOrientation.Horizontal, XData2 = x2 });
         }
 
-        /// <summary>Adds a bubble chart series from X, Y, and size arrays.</summary>
+        /// <summary>Adds a bubble chart series from X, Y, and size arrays; a size is an area in points squared, as a scatter's is.</summary>
         public BubbleSeries Bubble(double[] x, double[] y, double[] sizes)
         {
             x.Length.ThrowIfMisaligned(y.Length);
@@ -140,34 +130,12 @@ public static class AxesXYVerbs
 
         /// <summary>Adds a <see cref="SignalSeries"/> with uniform sample rate.</summary>
         /// <param name="y">Y values sampled at <paramref name="sampleRate"/> Hz starting at <paramref name="xStart"/>.</param>
-        /// <param name="sampleRate">Samples per X-unit (e.g., Hz for time-domain data). Defaults to 1.</param>
-        /// <param name="xStart">X value of the first sample. Defaults to 0.</param>
-        public SignalSeries Signal(double[] y, double sampleRate = 1.0, double xStart = 0.0) => axes.AddSeries(new SignalSeries(y, sampleRate, xStart));
+        /// <param name="sampleRate">Samples per X-unit (e.g., Hz for time-domain data). Defaults to <see cref="SignalSeries.RestingSampleRate"/>.</param>
+        /// <param name="xStart">X value of the first sample. Defaults to <see cref="SignalSeries.RestingXStart"/>.</param>
+        public SignalSeries Signal(double[] y, double sampleRate = SignalSeries.RestingSampleRate, double xStart = SignalSeries.RestingXStart) => axes.AddSeries(new SignalSeries(y, sampleRate, xStart));
 
         /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
         public SparklineSeries Sparkline(double[] values) => axes.AddSeries(new SparklineSeries(values));
-
-        /// <summary>Adds a line series plotted against the first right-hand Y axis.</summary>
-        /// <remarks>Obsolete: use <c>WithAddRightYAxis(right => right.Plot(x, y))</c> on the builder, or
-        /// <c>Axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y))</c> when you need the series back. Creates that
-        /// axis when there is none, as <c>YAxes.Right.FirstOrAdd()</c> does; it never stacks another.</remarks>
-        [Obsolete("Use WithAddRightYAxis(right => right.Plot(x, y)), or Axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y)) when you need the series back.")]
-        public LineSeries PlotSecondary(double[] x, double[] y)
-        {
-            x.Length.ThrowIfMisaligned(y.Length);
-            return axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y));
-        }
-
-        /// <summary>Adds a scatter series plotted against the first right-hand Y axis.</summary>
-        /// <remarks>Obsolete: use <c>WithAddRightYAxis(right => right.Scatter(x, y))</c> on the builder, or
-        /// <c>Axes.YAxes.Right.FirstOrAdd().AddSeries(new ScatterSeries(x, y))</c> when you need the series back. Creates
-        /// that axis when there is none, as <c>YAxes.Right.FirstOrAdd()</c> does; it never stacks another.</remarks>
-        [Obsolete("Use WithAddRightYAxis(right => right.Scatter(x, y)), or Axes.YAxes.Right.FirstOrAdd().AddSeries(new ScatterSeries(x, y)) when you need the series back.")]
-        public ScatterSeries ScatterSecondary(double[] x, double[] y)
-        {
-            x.Length.ThrowIfMisaligned(y.Length);
-            return axes.YAxes.Right.FirstOrAdd().AddSeries(new ScatterSeries(x, y));
-        }
 
         /// <summary>Adds a line series plotted against the secondary X-axis.</summary>
         /// <remarks>Implicitly calls <see cref="Axes.TwinY"/> to ensure the secondary axis exists.</remarks>

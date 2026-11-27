@@ -1,10 +1,9 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Tests.TestFixtures;
 
@@ -13,228 +12,123 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies that annotation rendering emits the correct SVG for each connection and arrow style.</summary>
 public class AnnotationRenderTests
 {
-    /// <summary>Verifies that an annotation with Arc3 connection renders an SVG path element.</summary>
-    [Fact]
-    public void Annotation_Arc3Connection_RendersSvgPath()
+    /// <summary>The markup of a diagonal line with one annotation, as the caller styles it.</summary>
+    private static string AnnotationSvg(string text, double x, double y, Action<Annotation> style)
     {
         var figure = new Figure();
         var ax = figure.AddSubPlot();
         ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.ArrowTargetX = 2.0;
-        ann.ArrowTargetY = 2.0;
-        ann.ConnectionStyle = ConnectionStyle.Arc3;
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<path", svg);
+        style(ax.Annotate(text, x, y));
+        return figure.ToSvg();
     }
 
-    /// <summary>Verifies that an annotation with Angle connection renders an SVG path element.</summary>
-    [Fact]
-    public void Annotation_AngleConnection_RendersSvgPath()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.ArrowTargetX = 2.5;
-        ann.ArrowTargetY = 0.5;
-        ann.ConnectionStyle = ConnectionStyle.Angle;
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Verifies that a Wedge arrow style renders a filled polygon element.</summary>
-    [Fact]
-    public void Annotation_WedgeArrow_RendersFilledPolygon()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.ArrowTargetX = 2.0;
-        ann.ArrowTargetY = 2.0;
-        ann.ArrowStyle = ArrowStyle.Wedge;
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Verifies that a BracketB arrow style renders SVG path elements.</summary>
-    [Fact]
-    public void Annotation_BracketArrow_RendersLines()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.ArrowTargetX = 2.0;
-        ann.ArrowTargetY = 2.0;
-        ann.ArrowStyle = ArrowStyle.BracketB;
-
-        string svg = figure.ToSvg();
-
+        // matplotlib draws an annotation in data coordinates only where the axes show the point it annotates (Annotation._check_xy,
+        // annotation_clip left at None, Axes.contains_point): its point, or the point its arrow targets when it has one (matplotlib's xy,
+        // the text standing at xytext). An annotation whose point lies past the limits is not drawn, its text or its arrow; one placed in
+        // fractions of the panel is always drawn.
+        new DrawnToken("AnAnnotationWhosePointTheAxesDoNotShow_IsNotDrawn_ItsTextOrItsArrow", () => Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([0.0, 1.0], [0.0, 1.0]).SetXLim(0, 1).SetYLim(0, 1)
+            .Annotate("inside", 0.5, 0.5)
+            .Annotate("outside", 5, 5)
+            .Annotate("arrow out", 0.5, 0.5, 5, 5)
+            .Annotate("arrow in", 5, 5, 0.5, 0.5)
+            .Annotate("panel", 1.2, 0.5, a => a.Coordinates = AnnotationCoordinates.AxesFraction)).ToSvg(), ">inside</text>", ">arrow in</text>", ">panel</text>") { Absent = [">outside</text>", ">arrow out</text>"] },
+        // Verifies that an annotation with Arc3 connection renders an SVG path element.
+        new DrawnToken("Annotation_Arc3Connection_RendersSvgPath", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.ArrowTargetX = 2.0;
+            ann.ArrowTargetY = 2.0;
+            ann.ConnectionStyle = ConnectionStyle.Arc3;
+        }), "<path"),
+        // Verifies that an annotation with Angle connection renders an SVG path element.
+        new DrawnToken("Annotation_AngleConnection_RendersSvgPath", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.ArrowTargetX = 2.5;
+            ann.ArrowTargetY = 0.5;
+            ann.ConnectionStyle = ConnectionStyle.Angle;
+        }), "<path"),
+        // Verifies that a Wedge arrow style renders a filled polygon element.
+        new DrawnToken("Annotation_WedgeArrow_RendersFilledPolygon", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.ArrowTargetX = 2.0;
+            ann.ArrowTargetY = 2.0;
+            ann.ArrowStyle = ArrowStyle.Wedge;
+        }), "<polygon"),
+        // Verifies that a BracketB arrow style renders SVG path elements.
         // BracketB adds a path (bracket line) at the target end
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Verifies that Straight connection backward-compatibility: still renders a path for existing charts.</summary>
-    [Fact]
-    public void Annotation_StraightConnection_BackwardCompat()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.ArrowTargetX = 2.0;
-        ann.ArrowTargetY = 2.0;
-        ann.ArrowStyle = ArrowStyle.FancyArrow;
+        new DrawnToken("Annotation_BracketArrow_RendersLines", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.ArrowTargetX = 2.0;
+            ann.ArrowTargetY = 2.0;
+            ann.ArrowStyle = ArrowStyle.BracketB;
+        }), "<path"),
+        // Verifies that Straight connection backward-compatibility: still renders a path for existing charts.
         // ConnectionStyle defaults to Straight
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<path", svg);
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Verifies that an annotation with ArrowStyle.None and no target renders no path or polygon.</summary>
-    [Fact]
-    public void Annotation_NoArrow_NoPathElement()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        ax.Annotate("label", 1.0, 1.0); // no ArrowTargetX/Y
-
-        string svg = figure.ToSvg();
-
+        new DrawnToken("Annotation_StraightConnection_BackwardCompat", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.ArrowTargetX = 2.0;
+            ann.ArrowTargetY = 2.0;
+            ann.ArrowStyle = ArrowStyle.FancyArrow;
+        }), "<path", "<polygon"),
+        // Verifies that an annotation with ArrowStyle.None and no target renders no path or polygon.
         // No arrow target means no path drawn for the annotation
         // (There may be paths elsewhere, but no polygon from annotation)
-        Assert.Contains("<text", svg); // at minimum the label text
-    }
-
-    /// <summary>Verifies that a Round callout box renders an SVG path with bezier curves.</summary>
-    [Fact]
-    public void Annotation_RoundCallout_RendersSvgPath()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("boxed", 1.5, 1.5);
-        ann.BoxStyle = BoxStyle.Round;
-        ann.BoxFaceColor = MatPlotLibNet.Styling.Colors.White;
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<path", svg);
-        Assert.Contains(" C ", svg);
-    }
-
-    /// <summary>Verifies that a Square callout box renders an SVG rect element.</summary>
-    [Fact]
-    public void Annotation_SquareCallout_RendersRect()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("boxed", 1.5, 1.5);
-        ann.BoxStyle = BoxStyle.Square;
-        ann.BoxEdgeColor = MatPlotLibNet.Styling.Colors.Black;
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Verifies that a callout with pointer target renders connection path.</summary>
-    [Fact]
-    public void Annotation_CalloutWithPointer_RendersPointerPath()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("boxed", 1.0, 1.0);
-        ann.BoxStyle = BoxStyle.Square;
-        ann.ArrowTargetX = 2.5;
-        ann.ArrowTargetY = 2.5;
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Verifies that BackgroundColor still works when BoxStyle is None (backward compat).</summary>
-    [Fact]
-    public void Annotation_NoBox_BackgroundColorStillWorks()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("labeled", 1.5, 1.5);
-        ann.BackgroundColor = MatPlotLibNet.Styling.Colors.Yellow;
-        // BoxStyle is None by default
-
-        string svg = figure.ToSvg();
-
+        // no ArrowTargetX/Y
+        new DrawnToken("Annotation_NoArrow_NoPathElement", () => AnnotationSvg("label", 1.0, 1.0, _ => { }), "<text"),
+        // Verifies that a Round callout box renders an SVG path with bezier curves.
+        new DrawnToken("Annotation_RoundCallout_RendersSvgPath", () => AnnotationSvg("boxed", 1.5, 1.5, ann =>
+        {
+            ann.BoxStyle = BoxStyle.Round;
+            ann.BoxFaceColor = MatPlotLibNet.Styling.Colors.White;
+        }), "<path", " C "),
+        // Verifies that a Square callout box renders an SVG rect element.
+        new DrawnToken("Annotation_SquareCallout_RendersRect", () => AnnotationSvg("boxed", 1.5, 1.5, ann =>
+        {
+            ann.BoxStyle = BoxStyle.Square;
+            ann.BoxEdgeColor = MatPlotLibNet.Styling.Colors.Black;
+        }), "<rect"),
+        // Verifies that a callout with pointer target renders connection path.
+        new DrawnToken("Annotation_CalloutWithPointer_RendersPointerPath", () => AnnotationSvg("boxed", 1.0, 1.0, ann =>
+        {
+            ann.BoxStyle = BoxStyle.Square;
+            ann.ArrowTargetX = 2.5;
+            ann.ArrowTargetY = 2.5;
+        }), "<path"),
+        // Verifies that BackgroundColor still works when BoxStyle is None (backward compat).
         // Background color draws a rect — check it exists
-        Assert.Contains("<rect", svg);
-        Assert.Contains("<text", svg);
-    }
+        // BoxStyle is None by default
+        new DrawnToken("Annotation_NoBox_BackgroundColorStillWorks", () => AnnotationSvg("labeled", 1.5, 1.5, ann =>
+        {
+            ann.BackgroundColor = MatPlotLibNet.Styling.Colors.Yellow;
+        }), "<rect", "<text"),
+        // An annotation is drawn in the colour it was given, whether or not a font came with it.
+        new DrawnToken("Annotation_GivenItsOwnFont_IsStillDrawnInItsOwnColour", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            // Measured while drawing a 1200x630 card: an annotation with Font and Color set rendered black. The
+            // font a caller supplies carries no colour of its own, and the colour they set beside it was only ever
+            // read when no font was supplied at all — so asking for bigger text silently threw the colour away.
+            ann.Color = MatPlotLibNet.Styling.Color.FromHex("#FF00AA");
+            ann.Font = new MatPlotLibNet.Styling.Font { Family = "sans-serif", Size = 24 };
+        }), "#FF00AA") { Comparison = StringComparison.OrdinalIgnoreCase },
+        // A colour written on the font itself is the more specific instruction, and it wins.
+        new DrawnToken("Annotation_WhoseFontCarriesAColour_KeepsTheFontsColour", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.Color = MatPlotLibNet.Styling.Color.FromHex("#FF00AA");
+            ann.Font = new MatPlotLibNet.Styling.Font { Size = 24, Color = MatPlotLibNet.Styling.Color.FromHex("#0044FF") };
+        }), "#0044FF") { Absent = ["#FF00AA"], Comparison = StringComparison.OrdinalIgnoreCase },
+        // A font with no colour and an annotation with no colour fall back to the theme's text colour.
+        new DrawnToken("Annotation_WithNeitherColour_IsDrawnInTheThemesTextColour", () => AnnotationSvg("label", 1.0, 1.0, ann =>
+        {
+            ann.Font = new MatPlotLibNet.Styling.Font { Size = 24 };
+        }), $"fill=\"{new Figure().Theme.ForegroundText.ToHex()}\"") { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-    /// <summary>An annotation is drawn in the colour it was given, whether or not a font came with it.</summary>
-    [Fact]
-    public void Annotation_GivenItsOwnFont_IsStillDrawnInItsOwnColour()
-    {
-        // Measured while drawing a 1200x630 card: an annotation with Font and Color set rendered black. The
-        // font a caller supplies carries no colour of its own, and the colour they set beside it was only ever
-        // read when no font was supplied at all — so asking for bigger text silently threw the colour away.
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.Color = MatPlotLibNet.Styling.Color.FromHex("#FF00AA");
-        ann.Font = new MatPlotLibNet.Styling.Font { Family = "sans-serif", Size = 24 };
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("#FF00AA", svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>A colour written on the font itself is the more specific instruction, and it wins.</summary>
-    [Fact]
-    public void Annotation_WhoseFontCarriesAColour_KeepsTheFontsColour()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.Color = MatPlotLibNet.Styling.Color.FromHex("#FF00AA");
-        ann.Font = new MatPlotLibNet.Styling.Font { Size = 24, Color = MatPlotLibNet.Styling.Color.FromHex("#0044FF") };
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains("#0044FF", svg, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("#FF00AA", svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>A font with no colour and an annotation with no colour fall back to the theme's text colour.</summary>
-    [Fact]
-    public void Annotation_WithNeitherColour_IsDrawnInTheThemesTextColour()
-    {
-        var figure = new Figure();
-        var ax = figure.AddSubPlot();
-        ax.Plot([0.0, 3.0], [0.0, 3.0]);
-        var ann = ax.Annotate("label", 1.0, 1.0);
-        ann.Font = new MatPlotLibNet.Styling.Font { Size = 24 };
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains($"fill=\"{figure.Theme.ForegroundText.ToHex()}\"", svg, StringComparison.OrdinalIgnoreCase);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- annotations that move out of the way ----------------------------------------------------------------------
 
@@ -248,12 +142,10 @@ public class AnnotationRenderTests
     /// <summary>The box a drawn text stands in, from its element in the picture.</summary>
     private static Rect TextBoxOf(string svg, string text)
     {
-        var tag = Regex.Match(svg, "<text x=\"([\\d.]+)\" y=\"([\\d.]+)\"[^>]*font-size=\"([\\d.]+)\"[^>]*>" + Regex.Escape(text) + "</text>");
-        Assert.True(tag.Success, $"no text '{text}' in the picture");
-        double x = double.Parse(tag.Groups[1].Value, CultureInfo.InvariantCulture), y = double.Parse(tag.Groups[2].Value, CultureInfo.InvariantCulture);
-        double size = double.Parse(tag.Groups[3].Value, CultureInfo.InvariantCulture);
+        var tag = svg.TextReading(text);
+        double size = tag.Number("font-size");
         var font = new MatPlotLibNet.Styling.Font { Size = size };
-        return new TextBox(new Point(x, y), new SvgRenderContext().MeasureText(text, font), size, TextAlignment.Left, TextVerticalAlignment.Baseline, 0).Bounds();
+        return new TextBox(new TextPlacement(new Point(tag.Number("x"), tag.Number("y")), TextAlignment.Left), TextExtent.Of(new SvgRenderContext().MeasureText(text, font), size)).Bounds();
     }
 
     [Fact]

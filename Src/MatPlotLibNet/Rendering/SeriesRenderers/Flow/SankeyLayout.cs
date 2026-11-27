@@ -7,8 +7,8 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers.Flow;
 /// Immutable result of <see cref="SankeyLayoutEngine.Compute"/>. Captures
 /// the per-node column assignment, rectangles (after packing + relaxation),
 /// per-node flow values, and orientation flag. The rendering side
-/// (<see cref="SankeySeriesRenderer.DrawLinks"/> /
-/// <see cref="SankeySeriesRenderer.DrawNodesAndLabels"/>) consumes this
+/// (the drawing of the links and
+/// of the nodes and labels) consumes this
 /// record; it knows nothing about how the layout was computed.
 /// </summary>
 /// <remarks>

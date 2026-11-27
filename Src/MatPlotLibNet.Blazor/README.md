@@ -116,9 +116,14 @@ On a page of your own, as above, the dispatcher script looks up `window.__mpl_si
 
 A runnable version ships in `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor`, on route `/interactive`; it is one `MplLiveChart`.
 
+`ChartSubscriptionClient` (and with it `MplLiveChart`) subscribes with `SubscribeToParts`: the server sends a chart's whole
+document once and afterwards only the parts that changed, which the client puts in place in the last whole document before it
+hands your component the SVG, so a component always gets the whole picture, as `ToSvg` writes it. A page of your own, as above,
+can keep `Subscribe`: it is sent the whole SVG each time the chart changed, and nothing while it does not.
+
 ### Extension method
 
-```csharp
+```razor
 @((MarkupString)figure.ToMarkupString())
 ```
 

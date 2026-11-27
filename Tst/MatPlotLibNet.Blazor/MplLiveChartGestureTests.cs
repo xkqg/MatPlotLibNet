@@ -17,7 +17,7 @@ public class MplLiveChartGestureTests : BunitContext
     private const string Module = "./_content/MatPlotLibNet.Blazor/mplLiveChart.js";
 
     /// <summary>A client that also sends gestures and hands on messages: what the Blazor client is.</summary>
-    private sealed class LiveClient : IChartSubscriptionClient, IChartGestureSender, IChartMessageSource
+    private sealed class LiveClient : RecordingSubscriptionClient, IChartSubscriptionClient, IChartGestureSender, IChartMessageSource
     {
         private readonly List<Func<string, string, Task>> _svg = [];
         private readonly List<Func<string, JsonElement, Task>> _messages = [];
@@ -25,14 +25,6 @@ public class MplLiveChartGestureTests : BunitContext
         public List<(string Method, string Payload)> Sent { get; } = [];
         public int SvgSubscribers => _svg.Count;
         public int MessageSubscribers => _messages.Count;
-        public bool Disposed { get; private set; }
-        public bool IsConnected => true;
-
-        public Task ConnectAsync(string hubUrl, CancellationToken ct = default) => Task.CompletedTask;
-        public Task SubscribeAsync(string chartId, CancellationToken ct = default) => Task.CompletedTask;
-        public Task UnsubscribeAsync(string chartId, CancellationToken ct = default) => Task.CompletedTask;
-        public void OnSvgUpdated(Func<string, string, Task> handler) { }
-        public void OnChartUpdated(Func<string, string, Task> handler) { }
 
         public IDisposable SubscribeSvgUpdates(Func<string, string, Task> handler)
         {
@@ -59,8 +51,6 @@ public class MplLiveChartGestureTests : BunitContext
             var args = doc.RootElement.Clone();
             return Task.WhenAll(_messages.ToArray().Select(h => h(method, args)));
         }
-
-        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
 
         private sealed class Token(Action remove) : IDisposable { public void Dispose() => remove(); }
     }
@@ -163,7 +153,7 @@ public class MplLiveChartGestureTests : BunitContext
     [Fact]
     public async Task WhenTheComponentGoesAway_ItLeavesNothingBehindOnTheSharedClient()
     {
-        var (cut, client, _, js, _) = Mount();
+        var (cut, client, _, _, _) = Mount();
         Assert.Equal(1, client.SvgSubscribers);
         Assert.Equal(1, client.MessageSubscribers);
 
@@ -185,11 +175,23 @@ public class MplLiveChartGestureTests : BunitContext
         Assert.Null(thrown);
     }
 
-    [Fact]
-    public async Task APictureForAPageThatIsGone_IsMountedAnyway()
+    /// <summary>The three ways the interop says a page is gone: the circuit closed, the call was cancelled, or the runtime is no longer
+    /// there to call.</summary>
+    public static TheoryData<string> GoneWays => ["disconnected", "cancelled", "no runtime"];
+
+    private static Exception Gone(string way) => way switch
+    {
+        "disconnected" => new JSDisconnectedException("the circuit closed"),
+        "cancelled" => new TaskCanceledException(),
+        _ => new InvalidOperationException("no runtime"),
+    };
+
+    [Theory]
+    [MemberData(nameof(GoneWays))]
+    public async Task APictureForAPageThatIsGone_IsMountedAnyway(string way)
     {
         var (cut, client, _, js, _) = Mount();
-        js.Setup<bool>("isBusy", _ => true).SetException(new JSDisconnectedException("the circuit closed"));
+        js.Setup<bool>("isBusy", _ => true).SetException(Gone(way));
 
         await client.PushSvgAsync("chart-1", "<svg data-test=\"late\"/>");
         cut.Render();
@@ -197,21 +199,24 @@ public class MplLiveChartGestureTests : BunitContext
         Assert.Contains("data-test=\"late\"", cut.Markup);
     }
 
-    [Fact]
-    public async Task AMessageForAPageThatIsGone_IsDropped()
+    [Theory]
+    [MemberData(nameof(GoneWays))]
+    public async Task AMessageForAPageThatIsGone_IsDropped(string way)
     {
         var (_, client, _, js, _) = Mount();
-        js.SetupVoid("deliver", _ => true).SetException(new JSDisconnectedException("the circuit closed"));
+        js.SetupVoid("deliver", _ => true).SetException(Gone(way));
 
         var thrown = await Record.ExceptionAsync(() => client.PushMessageAsync("ViewerLeft", "[\"chart-1\",\"v2\"]"));
 
         Assert.Null(thrown);
     }
 
-    [Fact]
-    public async Task ACircuitThatClosesBeforeTheModuleIsDisposed_DoesNotMakeTheDisposeThrow()
+    [Theory]
+    [InlineData("disconnected")]
+    [InlineData("cancelled")]
+    public async Task ACircuitThatClosesBeforeTheModuleIsDisposed_DoesNotMakeTheDisposeThrow(string way)
     {
-        Services.AddSingleton<IJSRuntime>(new GoneAtTeardownRuntime());
+        Services.AddSingleton<IJSRuntime>(new GoneAtTeardownRuntime(Gone(way)));
         var client = new LiveClient();
         var cut = Render<MplLiveChart>(p => p.Add(c => c.ChartId, "chart-1").Add(c => c.Client, client));
         cut.WaitForAssertion(() => Assert.Equal(1, client.MessageSubscribers));
@@ -224,7 +229,7 @@ public class MplLiveChartGestureTests : BunitContext
     [Fact]
     public async Task AModuleThatLetsGoLater_IsWaitedFor()
     {
-        Services.AddSingleton<IJSRuntime>(new GoneAtTeardownRuntime(slow: true));
+        Services.AddSingleton<IJSRuntime>(new GoneAtTeardownRuntime(null));
         var client = new LiveClient();
         var cut = Render<MplLiveChart>(p => p.Add(c => c.ChartId, "chart-1").Add(c => c.Client, client));
         cut.WaitForAssertion(() => Assert.Equal(1, client.MessageSubscribers));
@@ -243,22 +248,22 @@ public class MplLiveChartGestureTests : BunitContext
     }
 
     /// <summary>A page whose module imports and attaches, and whose circuit is gone by the time the component lets the module go.</summary>
-    private sealed class GoneAtTeardownRuntime(bool slow = false) : IJSRuntime
+    /// <summary>A runtime whose module, at teardown, fails as <paramref name="gone"/> says, or takes a while to let go when that is null.</summary>
+    private sealed class GoneAtTeardownRuntime(Exception? gone) : IJSRuntime
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
-            new((TValue)(object)new GoneAtTeardownModule(slow));
+            new((TValue)(object)new GoneAtTeardownModule(gone));
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
             InvokeAsync<TValue>(identifier, args);
     }
 
-    private sealed class GoneAtTeardownModule(bool slow) : IJSObjectReference
+    private sealed class GoneAtTeardownModule(Exception? gone) : IJSObjectReference
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => default;
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) => default;
 
-        public ValueTask DisposeAsync() =>
-            slow ? new ValueTask(Task.Delay(20)) : throw new JSDisconnectedException("the circuit closed");
+        public ValueTask DisposeAsync() => gone is null ? new ValueTask(Task.Delay(20)) : throw gone;
     }
 }

@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
@@ -29,66 +27,14 @@ public class MissingValueGeometryTests
     private const double NaN = double.NaN;
     private static readonly Rect Bounds = new(0, 0, 400, 300);
 
-    private static DataTransform Linear() => new(0, 10, 0, 10, Bounds);
-
-    /// <summary>A log Y axis from 1 to 100 (scaled 0..2): it cannot place 0 or a negative value.</summary>
-    private static DataTransform LogY() =>
-        new(0, 10, 0, 2, Bounds, null, null, 0, 10, 1, 100, AxisScale.Linear, AxisScale.Log, 1, 1);
-
     private static RecordingRenderContext Render(Action<SeriesRenderContext> draw, DataTransform? transform = null)
     {
         var ctx = new RecordingRenderContext();
-        draw(new SeriesRenderContext(transform ?? Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx)));
+        draw(new SeriesRenderContext(transform ?? Bounds.Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx)));
         return ctx;
     }
 
     // ---- what a render context was handed ---------------------------------------------------------------------------
-
-    private static IEnumerable<double> Numbers(object? value) => value switch
-    {
-        double d => [d],
-        Point p => [p.X, p.Y],
-        Rect r => [r.X, r.Y, r.Width, r.Height],
-        Point[] points => points.SelectMany(p => Numbers(p)),
-        PathSegment[] segments => segments.SelectMany(s => s.GetType().GetProperties().SelectMany(p => Numbers(p.GetValue(s)))),
-        _ => [],
-    };
-
-    /// <summary>No call on the context carried a coordinate, size or radius that is not finite, nor a text that says
-    /// NaN.</summary>
-    private static void AssertNothingUndrawableReached(RecordingRenderContext ctx)
-    {
-        foreach (var call in ctx.Calls.Where(c => c.Args is not null))
-        {
-            foreach (var property in call.Args!.GetType().GetProperties())
-            {
-                object? value = property.GetValue(call.Args);
-                foreach (double number in Numbers(value))
-                    Assert.True(double.IsFinite(number), $"{call.Kind}.{property.Name} was handed {number}");
-                if (value is string text) Assert.DoesNotContain("NaN", text);
-            }
-        }
-    }
-
-    private static string Describe(object? value) => value switch
-    {
-        Point[] points => string.Join(" ", points),
-        PathSegment[] segments => string.Join(" ", segments.Select(s => s.ToSvgPathData())),
-        _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "",
-    };
-
-    /// <summary>Every call, in order, with every argument: two drawings with the same signature are the same drawing.</summary>
-    private static List<string> Signature(RecordingRenderContext ctx, string? kind = null) =>
-        [.. ctx.Calls.Where(c => kind is null || c.Kind == kind)
-            .Select(c => c.Kind + "(" + string.Join("; ", c.Args?.GetType().GetProperties().Select(p => Describe(p.GetValue(c.Args))) ?? []) + ")")];
-
-    /// <summary>The NaN and Infinity tokens of an SVG, in an attribute or between tags; the scripts (which test
-    /// <c>isNaN</c>) are left out.</summary>
-    private static List<string> NonFiniteTokens(string svg)
-    {
-        string body = Regex.Replace(svg, "<script[\\s\\S]*?</script>", "");
-        return [.. Regex.Matches(body, "[^\"<>]*(?:NaN|Infinity)[^\"<>]*").Select(m => m.Value)];
-    }
 
     // ---- markers ------------------------------------------------------------------------------------------------------
 
@@ -101,8 +47,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ScatterSeriesRenderer(c).Render(new ScatterSeries([1.0, 2, 3, 4], [1, NaN, 3, 4]) { Marker = marker }));
         var without = Render(c => new ScatterSeriesRenderer(c).Render(new ScatterSeries([1.0, 3, 4], [1, 3, 4]) { Marker = marker }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     [Theory]
@@ -115,8 +61,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ScatterSeriesRenderer(c).Render(new ScatterSeries([1.0, x, 3], [1, y, 3])));
         var without = Render(c => new ScatterSeriesRenderer(c).Render(new ScatterSeries([1.0, 3], [1, 3])));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     /// <summary>matplotlib's scatter drops a point whose size is not a number with the point (<c>delete_masked_points</c>
@@ -127,21 +73,21 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ScatterSeriesRenderer(c).Render(new ScatterSeries([1.0, 2, 3], [1, 2, 3]) { Sizes = [20, NaN, 40] }));
         var without = Render(c => new ScatterSeriesRenderer(c).Render(new ScatterSeries([1.0, 3], [1, 3]) { Sizes = [20, 40] }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     [Fact]
     public void ASkippedScatterPoint_WritesNoTooltip()
     {
         var svg = new SvgRenderContext();
-        var context = new SeriesRenderContext(Linear(), svg, Colors.Tab10Blue, new RenderArea(Bounds, svg)) { TooltipsEnabled = true };
+        var context = new SeriesRenderContext(Bounds.Linear(), svg, Colors.Tab10Blue, new RenderArea(Bounds, svg)) { TooltipsEnabled = true };
 
         new ScatterSeriesRenderer(context).Render(new ScatterSeries([1.0, 2, 3], [1, NaN, 3]));
 
         string output = svg.GetOutput();
-        Assert.Equal(2, Regex.Matches(output, "<title>").Count);
-        Assert.Empty(NonFiniteTokens(output));
+        Assert.Equal(2, output.Elements("title").Count);
+        output.AssertNoNonFiniteNumber();
     }
 
     [Theory]
@@ -152,8 +98,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new LineSeriesRenderer(c).Render(new LineSeries([1.0, 2, 3, 4], [1, NaN, 3, 4]) { Marker = MarkerStyle.Circle, DrawStyle = style }));
         var without = Render(c => new LineSeriesRenderer(c).Render(new LineSeries([1.0, 3, 4], [1, 3, 4]) { Marker = MarkerStyle.Circle, DrawStyle = style }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without, "DrawCircle"), Signature(withGap, "DrawCircle"));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature<DrawCircleCall>(), withGap.Signature<DrawCircleCall>());
     }
 
     // ---- stems --------------------------------------------------------------------------------------------------------
@@ -166,24 +112,26 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new StemSeriesRenderer(c).Render(new StemSeries([1.0, x, 3, 4], [1, y, 3, 4])));
         var without = Render(c => new StemSeriesRenderer(c).Render(new StemSeries([1.0, 3, 4], [1, 3, 4])));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     [Fact]
     public void StemsWithNoDrawableX_DrawNothing_NotEvenABaseline() =>
         Assert.Empty(Render(c => new StemSeriesRenderer(c).Render(new StemSeries([NaN, NaN], [1, 2]))).Calls);
 
-    /// <summary>A log axis cannot place the stems' baseline at 0: the heads are drawn, a stem and a baseline that would
-    /// run to 0 are not.</summary>
+    /// <summary>A log axis puts the stems' baseline at 0 a thousand decades below it, as matplotlib's log scale clips it
+    /// (<c>ax.stem([1, 2, 3], [1, 0, 10])</c> printed with matplotlib 3.11.2: each stem from <c>-279942</c> up to its head): the
+    /// heads are drawn and each stem rises to its head from the bottom edge, where the plot cuts it; the baseline lies wholly below
+    /// the plot and is not drawn.</summary>
     [Fact]
-    public void OnALogAxis_TheStemHeadsAreDrawn_TheStemsAndBaselineToZeroAreNot()
+    public void OnALogAxis_TheStemsRiseFromTheBottomEdge_TheBaselineAtZeroIsNotDrawn()
     {
-        var ctx = Render(c => new StemSeriesRenderer(c).Render(new StemSeries([1.0, 2], [10, 50])), LogY());
+        var ctx = Render(c => new StemSeriesRenderer(c).Render(new StemSeries([1.0, 2], [10, 50])), Bounds.LogY());
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(2, ctx.CountOf("DrawCircle"));
-        Assert.Equal(0, ctx.CountOf("DrawLine"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(2, ctx.Count<DrawCircleCall>());
+        Assert.Equal(2, ctx.Count<DrawLineCall>());
     }
 
     // ---- error bars ---------------------------------------------------------------------------------------------------
@@ -196,8 +144,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ErrorBarSeriesRenderer(c).Render(new ErrorBarSeries([1.0, x, 3], [1, y, 3], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5])));
         var without = Render(c => new ErrorBarSeriesRenderer(c).Render(new ErrorBarSeries([1.0, 3], [1, 3], [0.5, 0.5], [0.5, 0.5])));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     /// <summary>matplotlib draws an error bar's line and its two caps as separate marks, each masked on its own: a missing
@@ -209,9 +157,9 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new ErrorBarSeriesRenderer(c).Render(new ErrorBarSeries([1.0, 2, 3], [1, 2, 3], [0.5, low, 0.5], [0.5, high, 0.5])));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(3, ctx.CountOf("DrawCircle"));
-        Assert.Equal(3 + 1 + 3, ctx.CountOf("DrawLine"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(3, ctx.Count<DrawCircleCall>());
+        Assert.Equal(3 + 1 + 3, ctx.Count<DrawLineCall>());
     }
 
     [Theory]
@@ -224,9 +172,9 @@ public class MissingValueGeometryTests
             XErrorLow = [0.2, low, 0.2], XErrorHigh = [0.2, high, 0.2],
         }));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(3, ctx.CountOf("DrawCircle"));
-        Assert.Equal(6 + (3 + 1) + 6, ctx.CountOf("DrawLine"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(3, ctx.Count<DrawCircleCall>());
+        Assert.Equal(6 + (3 + 1) + 6, ctx.Count<DrawLineCall>());
     }
 
     // ---- bars ---------------------------------------------------------------------------------------------------------
@@ -238,9 +186,9 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new BarSeriesRenderer(c).Render(new BarSeries(["a", "b", "c"], [1, NaN, 3]) { Orientation = orientation, ShowLabels = true }));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(2, ctx.CountOf("DrawRectangle"));
-        Assert.Equal(2, ctx.CountOf("DrawText"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(2, ctx.Count<DrawRectangleCall>());
+        Assert.Equal(2, ctx.Count<DrawTextCall>());
     }
 
     [Fact]
@@ -248,8 +196,8 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new BarSeriesRenderer(c).Render(new BarSeries([1.0, NaN, 3], [1, 2, 3])));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(2, ctx.CountOf("DrawRectangle"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(2, ctx.Count<DrawRectangleCall>());
     }
 
     /// <summary>A waterfall step is drawn at the running total, and a total that has met a missing step is not known:
@@ -260,9 +208,9 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new WaterfallSeriesRenderer(c).Render(new WaterfallSeries(["a", "b", "c", "d"], [4, 2, NaN, 1])));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(2, ctx.CountOf("DrawRectangle"));
-        Assert.Equal(2, ctx.CountOf("DrawLine"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(2, ctx.Count<DrawRectangleCall>());
+        Assert.Equal(2, ctx.Count<DrawLineCall>());
     }
 
     // ---- a sample: box and violin -------------------------------------------------------------------------------------
@@ -275,8 +223,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new BoxSeriesRenderer(c).Render(new BoxSeries([[1.0, 2, NaN, 4, 9, double.PositiveInfinity], [NaN, NaN]]) { Vert = vertical, ShowMeans = true }));
         var without = Render(c => new BoxSeriesRenderer(c).Render(new BoxSeries([[1.0, 2, 4, 9], []]) { Vert = vertical, ShowMeans = true }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     [Fact]
@@ -285,8 +233,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ViolinSeriesRenderer(c).Render(new ViolinSeries([[1.0, 2, NaN, 4, 9, double.NegativeInfinity], [NaN]]) { ShowExtrema = true, ShowMedians = true, ShowMeans = true }));
         var without = Render(c => new ViolinSeriesRenderer(c).Render(new ViolinSeries([[1.0, 2, 4, 9], []]) { ShowExtrema = true, ShowMedians = true, ShowMeans = true }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     /// <summary>A density curve is estimated from the observations that are there: one NaN in the sample made the
@@ -297,8 +245,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new KdeSeriesRenderer(c).Render(new KdeSeries([1.0, NaN, 3, 4, double.PositiveInfinity])));
         var without = Render(c => new KdeSeriesRenderer(c).Render(new KdeSeries([1.0, 3, 4])));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     [Fact]
@@ -325,8 +273,8 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new StackedAreaSeriesRenderer(c).Render(new StackedAreaSeries([0.0, 1, 2, 3], [[1, 2, NaN, 1], [1, 1, 1, 1]])));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(4, ctx.CountOf("DrawPolygon"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(4, ctx.Count<DrawPolygonCall>());
     }
 
     [Fact]
@@ -334,13 +282,13 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new StackedAreaSeriesRenderer(c).Render(new StackedAreaSeries([0.0, NaN, 2, 3], [[1, 2, 3, 1], [1, 1, 1, 1]])));
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(4, ctx.CountOf("DrawPolygon"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(4, ctx.Count<DrawPolygonCall>());
     }
 
     [Fact]
     public void AStackedAreaWithoutAGap_IsOnePolygonPerLayer() =>
-        Assert.Equal(2, Render(c => new StackedAreaSeriesRenderer(c).Render(new StackedAreaSeries([0.0, 1, 2], [[1, 2, 1], [1, 1, 1]]))).CountOf("DrawPolygon"));
+        Assert.Equal(2, Render(c => new StackedAreaSeriesRenderer(c).Render(new StackedAreaSeries([0.0, 1, 2], [[1, 2, 1], [1, 1, 1]]))).Count<DrawPolygonCall>());
 
     // ---- the overlays of an axes --------------------------------------------------------------------------------------
 
@@ -355,11 +303,11 @@ public class MissingValueGeometryTests
         axes.AxHLine(5).Label = "drawn";
         var ctx = new RecordingRenderContext();
 
-        new CartesianReferenceLinesPart(axes, Bounds, ctx, Theme.Default, Linear(), Range).Render();
+        CartesianParts.PartFactory.ReferenceLines(axes, Bounds, ctx, Theme.Default, Bounds.Linear(), Range).Render();
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(1, ctx.CountOf("DrawLine"));
-        Assert.Equal("drawn", ((dynamic)Assert.Single(ctx.OfKind("DrawText")).Args!).text);
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(1, ctx.Count<DrawLineCall>());
+        Assert.Equal("drawn", Assert.Single(ctx.Of<DrawTextCall>()).Text);
     }
 
     [Fact]
@@ -373,12 +321,12 @@ public class MissingValueGeometryTests
         }
         var ctx = new RecordingRenderContext();
 
-        new CartesianSpansPart(axes, Bounds, ctx, Theme.Default, Linear(), Range).Render();
+        CartesianParts.PartFactory.Spans(axes, Bounds, ctx, Theme.Default, Bounds.Linear(), Range).Render();
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(1, ctx.CountOf("DrawRectangle"));
-        Assert.Equal(4, ctx.CountOf("DrawLine"));
-        Assert.Equal(1, ctx.CountOf("DrawText"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(1, ctx.Count<DrawRectangleCall>());
+        Assert.Equal(4, ctx.Count<DrawLineCall>());
+        Assert.Equal(1, ctx.Count<DrawTextCall>());
     }
 
     [Fact]
@@ -394,11 +342,11 @@ public class MissingValueGeometryTests
         axes.AddTrendline(0, 1, 5, 6);
         var ctx = new RecordingRenderContext();
 
-        new CartesianToolsPart(axes, Bounds, ctx, Theme.Default, Linear()).Render();
+        CartesianParts.PartFactory.Tools(axes, Bounds, ctx, Theme.Default, Bounds.Linear()).Render();
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(1, ctx.CountOf("DrawLine"));
-        Assert.Equal(0, ctx.CountOf("DrawText"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(1, ctx.Count<DrawLineCall>());
+        Assert.Equal(0, ctx.Count<DrawTextCall>());
     }
 
     [Fact]
@@ -410,16 +358,17 @@ public class MissingValueGeometryTests
         axes.AddSignal(2, 3, SignalDirection.Buy);
         var ctx = new RecordingRenderContext();
 
-        new CartesianSignalsPart(axes, Bounds, ctx, Theme.Default, Linear()).Render();
+        CartesianParts.PartFactory.Signals(axes, Bounds, ctx, Theme.Default, Bounds.Linear()).Render();
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(1, ctx.CountOf("DrawPolygon"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(1, ctx.Count<DrawPolygonCall>());
     }
 
     /// <summary>An annotation stands at its text position: there it is skipped whole (text, box and arrow, which starts
-    /// at the text). An arrow pointing at a coordinate that cannot be drawn is skipped, its text stays.</summary>
+    /// at the text). One whose arrow points at a coordinate that cannot be drawn annotates a point the axes do not show, and is
+    /// skipped whole too, as matplotlib draws no annotation whose <c>xy</c> the axes do not contain (<c>Annotation._check_xy</c>).</summary>
     [Fact]
-    public void AnAnnotationAtAMissingValue_IsSkipped_AnArrowToOneLosesOnlyTheArrow()
+    public void AnAnnotationAtAMissingValue_IsSkipped_AsIsOneWhoseArrowPointsAtOne()
     {
         var axes = new Axes();
         axes.Annotate("a", 2, NaN).BackgroundColor = Colors.White;
@@ -434,11 +383,11 @@ public class MissingValueGeometryTests
         axes.Annotate("d", 4, 4);
         var ctx = new RecordingRenderContext();
 
-        new CartesianAnnotationsPart(axes, Bounds, ctx, Theme.Default, Linear()).Render();
+        CartesianParts.PartFactory.Annotations(axes, Bounds, ctx, Theme.Default, Bounds.Linear()).Render();
 
-        AssertNothingUndrawableReached(ctx);
-        Assert.Equal(["c", "d"], ctx.OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text));
-        Assert.Equal(0, ctx.CountOf("DrawPath") + ctx.CountOf("DrawPolygon") + ctx.CountOf("DrawRectangle"));
+        ctx.AssertNothingUndrawableReached();
+        Assert.Equal(["d"], ctx.Of<DrawTextCall>().Select(c => c.Text));
+        Assert.Equal(0, ctx.Count<DrawPathCall>() + ctx.Count<DrawPolygonCall>() + ctx.Count<DrawRectangleCall>());
     }
 
     /// <summary>A patch with a coordinate that is not a number is skipped whole; one with a vertex a log axis cannot place is
@@ -454,14 +403,14 @@ public class MissingValueGeometryTests
         var onLog = new RecordingRenderContext();
         var onBreak = new RecordingRenderContext();
 
-        new CartesianPatchesPart(axes, Bounds, onLog, Theme.Default, LogY()).Render();
-        new CartesianPatchesPart(axes, Bounds, onBreak, Theme.Default,
-            new DataTransform(0, 10, 0, 80, Bounds, null, [new AxisBreak(40, 60)], 0, 10, 0, 100)).Render();
+        CartesianParts.PartFactory.Patches(axes, Bounds, onLog, Theme.Default, Bounds.LogY(), axes.RangeOf(Theme.Default).PatchesMayReachPastPlot).Render();
+        CartesianParts.PartFactory.Patches(axes, Bounds, onBreak, Theme.Default,
+            new DataTransform(0, 10, 0, 80, Bounds, null, [new AxisBreak(40, 60)], 0, 10, 0, 100), axes.RangeOf(Theme.Default).PatchesMayReachPastPlot).Render();
 
-        AssertNothingUndrawableReached(onLog);
-        AssertNothingUndrawableReached(onBreak);
-        Assert.Equal(2, onLog.CountOf("DrawPath"));
-        Assert.Equal(2, onBreak.CountOf("DrawPath"));
+        onLog.AssertNothingUndrawableReached();
+        onBreak.AssertNothingUndrawableReached();
+        Assert.Equal(2, onLog.Count<DrawPathCall>());
+        Assert.Equal(2, onBreak.Count<DrawPathCall>());
     }
 
     // ---- the legend ---------------------------------------------------------------------------------------------------
@@ -478,7 +427,7 @@ public class MissingValueGeometryTests
         axes.Legend = axes.Legend with { LegendValues = true };
         axes.Plot(x, y).Label = "a";
 
-        Assert.Equal(expected, Assert.Single(axes.LegendEntries(directLabelsDrawn: false)).Label);
+        Assert.Equal(expected, Assert.Single(axes.LegendEntries(Theme.Default, directLabelsDrawn: false)).Label);
     }
 
     // ---- contour: a cell with a missing corner is masked, the levels come from the values that are there --------------
@@ -502,9 +451,9 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(TwoCellsX, [0, 1], z) { Levels = 4, ShowLabels = true }));
         var without = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(RightCellX, [0, 1], RightCell) { Levels = 4, ShowLabels = true }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.NotEmpty(Signature(withGap, "DrawLines"));
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.NotEmpty(withGap.Signature<DrawLinesCall>());
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     /// <summary>A grid line that cannot be placed masks the cells on both sides of it.</summary>
@@ -514,8 +463,8 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries([NaN, 1, 2], [0, 1], new double[,] { { 3, 1, 2 }, { 1.5, 3, 4 } }) { Levels = 4 }));
         var without = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(RightCellX, [0, 1], RightCell) { Levels = 4 }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     /// <summary>A filled contour traces the same lines as unfilled, and its missing cell is left empty: the fill is painted over
@@ -526,11 +475,10 @@ public class MissingValueGeometryTests
         var filled = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(TwoCellsX, [0, 1], TwoCellsWithAMissingCorner) { Levels = 4, Filled = true }));
         var lines = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(TwoCellsX, [0, 1], TwoCellsWithAMissingCorner) { Levels = 4 }));
 
-        AssertNothingUndrawableReached(filled);
-        Assert.Equal(Signature(lines, "DrawLines"), Signature(filled, "DrawLines"));
+        filled.AssertNothingUndrawableReached();
+        Assert.Equal(lines.Signature<DrawLinesCall>(), filled.Signature<DrawLinesCall>());
         // Of the two cells of the grid the left one has the missing corner: the lowest band is painted over the right one alone.
-        var cell = (Rect)Assert.Single(filled.Calls, c => c.Kind == "DrawRectangle").Args!.GetType().GetProperty("rect")!.GetValue(
-            Assert.Single(filled.Calls, c => c.Kind == "DrawRectangle").Args)!;
+        var cell = Assert.Single(filled.Rects());
         Assert.True(cell.X >= 40 - 1e-9, "the lowest band reaches the masked cell on the left");
     }
 
@@ -546,13 +494,12 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new ContourfSeriesRenderer(c).Render(new ContourfSeries(TwoCellsX, [0, 1], TwoCellsWithAMissingCorner) { Levels = 4 }));
         var without = Render(c => new ContourfSeriesRenderer(c).Render(new ContourfSeries(RightCellX, [0, 1], RightCell) { Levels = 4 }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without, "DrawPolygon"), Signature(withGap, "DrawPolygon"));
-        Assert.Equal(Signature(without, "DrawLines"), Signature(withGap, "DrawLines"));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature<DrawPolygonCall>(), withGap.Signature<DrawPolygonCall>());
+        Assert.Equal(without.Signature<DrawLinesCall>(), withGap.Signature<DrawLinesCall>());
 
         // the lowest band covers the right cell, x 1..2 (pixels 40..80), and nothing of the masked left cell, x 0..1
-        var bottom = Assert.Single(withGap.Calls, c => c.Kind == "DrawRectangle").Args!;
-        var rect = (Rect)bottom.GetType().GetProperty("rect")!.GetValue(bottom)!;
+        var rect = Assert.Single(withGap.Rects());
         Assert.Equal(40, rect.X, 9);
         Assert.Equal(40, rect.Width, 9);
     }
@@ -563,8 +510,7 @@ public class MissingValueGeometryTests
         var ctx = Render(c => new ContourfSeriesRenderer(c).Render(new ContourfSeries(RightCellX, [0, 1], RightCell) { Levels = 4 }));
 
         // The grid is the cell x 1..2, y 0..1: pixels 40..80 across and 270..300 down, where the plot is 0..400 and 0..300.
-        var bottom = Assert.Single(ctx.Calls, c => c.Kind == "DrawRectangle").Args!;
-        Assert.Equal(new Rect(40, 270, 40, 30), (Rect)bottom.GetType().GetProperty("rect")!.GetValue(bottom)!);
+        Assert.Equal(new Rect(40, 270, 40, 30), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>A triangle with a vertex that is missing (in z, or in x or y) is masked; the levels come from the values
@@ -581,19 +527,11 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new TricontourSeriesRenderer(c).Render(new TricontourSeries(new double[] { 0, 1, 1, dx }, new double[] { 0, 1, -1, dy }, new double[] { 1, 4, 2, dz }) { Levels = 5 }));
         var without = Render(c => new TricontourSeriesRenderer(c).Render(new TricontourSeries(new double[] { 0, 1, 1 }, new double[] { 0, 1, -1 }, new double[] { 1, 4, 2 }) { Levels = 5 }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.NotEmpty(Signature(withGap, "DrawLine"));
+        withGap.AssertNothingUndrawableReached();
+        Assert.NotEmpty(withGap.Signature<DrawLineCall>());
         // the triangulation nudges near-collinear points by 1e-10 of the extent, which D widens: equal to 6 decimals
-        Assert.Equal(RoundedSignature(without), RoundedSignature(withGap));
+        Assert.Equal(without.Signature(6), withGap.Signature(6));
     }
-
-    /// <summary><see cref="Signature"/> with every coordinate rounded to 6 decimals.</summary>
-    private static List<string> RoundedSignature(RecordingRenderContext ctx) =>
-        [.. ctx.Calls.Select(c => c.Kind + "(" + string.Join("; ", c.Args?.GetType().GetProperties().Select(p => p.GetValue(c.Args) switch
-        {
-            Point pt => Math.Round(pt.X, 6).ToString(CultureInfo.InvariantCulture) + "," + Math.Round(pt.Y, 6).ToString(CultureInfo.InvariantCulture),
-            var v => Describe(v),
-        }) ?? []) + ")")];
 
     /// <summary>A point that cannot be placed is no vertex: the others are triangulated as without it (before, one NaN
     /// coordinate made the bounding super-triangle NaN and the whole mesh empty).</summary>
@@ -620,8 +558,10 @@ public class MissingValueGeometryTests
             c => new PcolormeshSeriesRenderer(c).Render(new PcolormeshSeries(new double[] { 2, 3, 4 }, new double[] { 0, 1 }, new double[,] { { 3, 1 } }))),
         ["eventplot"] = new(c => new EventplotSeriesRenderer(c).Render(new EventplotSeries([[1, NaN, 3, double.PositiveInfinity]])),
             c => new EventplotSeriesRenderer(c).Render(new EventplotSeries([[1, 3]]))),
-        ["gantt"] = new(c => new GanttSeriesRenderer(c).Render(new GanttSeries(["a", "b"], [0, NaN], [1, 4])),
-            c => new GanttSeriesRenderer(c).Render(new GanttSeries(["a"], [0], [1]))),
+        // a task that cannot be placed keeps its row (its name stays on the axis) and its colour of the cycle, so the case skips the first
+        // task, the top row, whose slot no other row is counted past, and the chart wears one colour: the other task stands where it stands alone
+        ["gantt"] = new(c => new GanttSeriesRenderer(c).Render(new GanttSeries(["a", "b"], [NaN, 0], [4, 1]) { Color = Colors.Teal }),
+            c => new GanttSeriesRenderer(c).Render(new GanttSeries(["b"], [0], [1]) { Color = Colors.Teal })),
         ["rugplot"] = new(c => new RugplotSeriesRenderer(c).Render(new RugplotSeries(new double[] { 1, NaN, 5 })),
             c => new RugplotSeriesRenderer(c).Render(new RugplotSeries(new double[] { 1, 5 }))),
         // a barb at a position or a direction that cannot be placed is skipped with its flags and barbs
@@ -670,9 +610,9 @@ public class MissingValueGeometryTests
         var withGap = Render(MarkCases[kind].WithGap);
         var without = Render(MarkCases[kind].Twin);
 
-        AssertNothingUndrawableReached(withGap);
+        withGap.AssertNothingUndrawableReached();
         Assert.NotEmpty(withGap.Calls);
-        Assert.Equal(Signature(without), Signature(withGap));
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     /// <summary>A grid's colours and its colour bar span the values a colour scale can place, as an image's and a scatter's
@@ -684,7 +624,7 @@ public class MissingValueGeometryTests
         var withInfinity = Render(c => new HeatmapSeriesRenderer(c).Render(new HeatmapSeries(new double[,] { { 1, 2 }, { 3, double.PositiveInfinity } })));
         var finite = Render(c => new HeatmapSeriesRenderer(c).Render(new HeatmapSeries(new double[,] { { 1, 2 }, { 3, 3 } })));
 
-        Assert.Equal(Signature(finite, "DrawRectangle"), Signature(withInfinity, "DrawRectangle"));
+        Assert.Equal(finite.Signature<DrawRectangleCall>(), withInfinity.Signature<DrawRectangleCall>());
         Assert.Equal(new MatPlotLibNet.Numerics.MinMaxRange(1, 3), new HeatmapSeries(new double[,] { { 1, double.NegativeInfinity }, { 3, NaN } }).GetColorBarRange());
     }
 
@@ -695,8 +635,8 @@ public class MissingValueGeometryTests
     {
         var ctx = Render(c => new SparklineSeriesRenderer(c).Render(new SparklineSeries([1, NaN, 3, 2])));
 
-        AssertNothingUndrawableReached(ctx);
-        var run = (Point[])Assert.Single(ctx.Calls, c => c.Kind == "DrawLines").Args!.GetType().GetProperty("points")!.GetValue(Assert.Single(ctx.Calls, c => c.Kind == "DrawLines").Args)!;
+        ctx.AssertNothingUndrawableReached();
+        var run = Assert.Single(ctx.Polylines());
         Assert.Equal(2, run.Length);           // the run after the gap; the lone first point draws no line
         Assert.Equal(Bounds.Y, run[0].Y, 9);   // 3, the highest value that is there, at the top
     }
@@ -745,7 +685,7 @@ public class MissingValueGeometryTests
     [Theory]
     [MemberData(nameof(NothingDrawable2DKinds))]
     public void ASeriesWithNothingDrawable_DrawsNothingItCannotPlace(string kind) =>
-        AssertNothingUndrawableReached(Render(c => DrawNothingDrawable2D(kind, c)));
+        Render(c => DrawNothingDrawable2D(kind, c)).AssertNothingUndrawableReached();
 
     /// <summary>A candle's wick (low to high) and body (open to close) are marks of their own, as an error bar's bar and
     /// caps are: a missing high skips the wick and keeps the body, a missing open skips the body and keeps the wick. An
@@ -757,11 +697,11 @@ public class MissingValueGeometryTests
         var candles = Render(c => new CandlestickSeriesRenderer(c).Render(new CandlestickSeries(open, high, low, close)));
         var ohlc = Render(c => new OhlcBarSeriesRenderer(c).Render(new OhlcBarSeries(open, high, low, close)));
 
-        AssertNothingUndrawableReached(candles);
-        AssertNothingUndrawableReached(ohlc);
-        Assert.Equal(2, candles.CountOf("DrawLine"));       // wicks of candles 0 and 1
-        Assert.Equal(2, candles.CountOf("DrawRectangle"));  // bodies of candles 0 and 2
-        Assert.Equal(2 + 2 + 3, ohlc.CountOf("DrawLine"));  // lines 0, 1; open ticks 0, 2; close ticks 0, 1, 2
+        candles.AssertNothingUndrawableReached();
+        ohlc.AssertNothingUndrawableReached();
+        Assert.Equal(2, candles.Count<DrawLineCall>());       // wicks of candles 0 and 1
+        Assert.Equal(2, candles.Count<DrawRectangleCall>());  // bodies of candles 0 and 2
+        Assert.Equal(2 + 2 + 3, ohlc.Count<DrawLineCall>());  // lines 0, 1; open ticks 0, 2; close ticks 0, 1, 2
     }
 
     // ---- 3-D: a vertex that cannot be placed is skipped with every face, segment and mark that needs it -----------------
@@ -774,7 +714,7 @@ public class MissingValueGeometryTests
     private static RecordingRenderContext Render3D(Action<SeriesRenderContext> draw, bool axesProjection)
     {
         var ctx = new RecordingRenderContext();
-        draw(new SeriesRenderContext(Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx)) { Projection3D = axesProjection ? Box10 : null });
+        draw(new SeriesRenderContext(Bounds.Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx)) { Projection3D = axesProjection ? Box10 : null });
         return ctx;
     }
 
@@ -832,7 +772,7 @@ public class MissingValueGeometryTests
 
     /// <summary>The number of points of each polyline drawn, in order.</summary>
     private static List<int> PolylineLengths(RecordingRenderContext ctx) =>
-        [.. ctx.Calls.Where(c => c.Kind == "DrawLines").Select(c => ((Point[])c.Args!.GetType().GetProperty("points")!.GetValue(c.Args)!).Length)];
+        [.. ctx.Of<DrawLinesCall>().Select(c => c.Points.Length)];
 
     /// <summary>Before, every 3-D renderer projected a missing value: NaN corners, segments, markers and labels, and on 2-D
     /// axes a projection fitted with LINQ Min over the NaN made every coordinate NaN (a surface wrote 8 NaN tokens, a 3-D
@@ -844,9 +784,9 @@ public class MissingValueGeometryTests
         var withGap = Render3D(ThreeDCases[kind].WithGap, axesProjection);
         var without = Render3D(ThreeDCases[kind].Twin, axesProjection);
 
-        AssertNothingUndrawableReached(withGap);
+        withGap.AssertNothingUndrawableReached();
         Assert.NotEmpty(withGap.Calls);
-        Assert.Equal(Signature(without), Signature(withGap));
+        Assert.Equal(without.Signature(), withGap.Signature());
     }
 
     private static readonly double[] TwoMissing = [NaN, NaN];
@@ -882,7 +822,7 @@ public class MissingValueGeometryTests
         foreach (bool axesProjection in new[] { true, false })
         {
             var ctx = Render3D(c => DrawNothingDrawable(kind, c), axesProjection);
-            Assert.DoesNotContain(ctx.Calls, c => c.Kind is "DrawPolygon" or "DrawLine" or "DrawLines" or "DrawCircle" or "DrawText");
+            Assert.DoesNotContain(ctx.Calls, c => c is DrawPolygonCall or DrawLineCall or DrawLinesCall or DrawCircleCall or DrawTextCall);
         }
     }
 
@@ -896,7 +836,7 @@ public class MissingValueGeometryTests
     {
         var ctx = Render3D(c => new WireframeSeriesRenderer(c).Render(new WireframeSeries([0, 1, 2], [0, 1], SurfaceWithAMissingCorner)), axesProjection);
 
-        AssertNothingUndrawableReached(ctx);
+        ctx.AssertNothingUndrawableReached();
         Assert.Equal([2, 3, 2, 2], PolylineLengths(ctx));
     }
 
@@ -910,43 +850,42 @@ public class MissingValueGeometryTests
         var missingHeight = Render3D(c => new Stem3DSeriesRenderer(c).Render(new Stem3DSeries(new double[] { 1, 2, 3 }, new double[] { 1, 2, 3 }, new double[] { 1, NaN, 3 })), axesProjection);
         var missingFoot = Render3D(c => new Stem3DSeriesRenderer(c).Render(new Stem3DSeries(new double[] { 1, NaN, 3, 4 }, new double[] { 1, 2, 3, 4 }, new double[] { 1, 2, 3, 4 })), axesProjection);
 
-        AssertNothingUndrawableReached(missingHeight);
-        AssertNothingUndrawableReached(missingFoot);
-        Assert.Equal(2, missingHeight.CountOf("DrawLine"));
-        Assert.Equal(2, missingHeight.CountOf("DrawCircle"));
+        missingHeight.AssertNothingUndrawableReached();
+        missingFoot.AssertNothingUndrawableReached();
+        Assert.Equal(2, missingHeight.Count<DrawLineCall>());
+        Assert.Equal(2, missingHeight.Count<DrawCircleCall>());
         Assert.Equal([3], PolylineLengths(missingHeight));
-        Assert.Equal(3, missingFoot.CountOf("DrawLine"));
+        Assert.Equal(3, missingFoot.Count<DrawLineCall>());
         Assert.Equal([2], PolylineLengths(missingFoot));
     }
 
     /// <summary>The 3-D axes range over the values that can be placed: one infinity took the whole range with it, so the
     /// projection divided by an infinite width and every vertex of the figure came out NaN.</summary>
-    [Fact]
-    public void A3DAxes_RangesOverTheValuesThatCanBePlaced()
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create().WithSize(500, 400).AddSubPlot(1, 1, 1, ax => ax
+        new DrawnToken("A3DAxes_RangesOverTheValuesThatCanBePlaced", () => Plt.Create().WithSize(500, 400).AddSubPlot(1, 1, 1, ax => ax
             .Surface([0, 1, 2], [0, 1], new double[,] { { 1, double.PositiveInfinity, 2 }, { 1.5, 3, 4 } })
             .Scatter3D([0, 1, double.NegativeInfinity], [0, 1, 1], [1, 2, 3])
-            .Quiver3D([0], [0], [1], [1], [1], [double.PositiveInfinity])).ToSvg();
+            .Quiver3D([0], [0], [1], [1], [1], [double.PositiveInfinity])).ToSvg(), "<polygon", "<circle") { Finite = true },
+    };
 
-        Assert.Empty(NonFiniteTokens(svg));
-        Assert.Contains("<polygon", svg);
-        Assert.Contains("<circle", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>A grid with nothing drawable adds nothing to the 3-D axes' range: the axes span the other grid, exactly as
     /// without it.</summary>
     [Fact]
     public void A3DAxes_LeavesAGridWithNothingDrawableOutOfItsRange()
     {
-        static string Ticks(string svg) => string.Join("|", Regex.Matches(svg, ">([-0-9.]+)</text>").Select(m => m.Groups[1].Value));
+        static string Ticks(string svg) => string.Join("|", svg.Elements("text").Where(text => text.Text.Length > 0 && text.Text.All(c => c is '-' or '.' || char.IsAsciiDigit(c))).Select(text => text.Text));
         string withEmpty = Plt.Create().WithSize(500, 400).AddSubPlot(1, 1, 1, ax => ax
             .Surface([NaN, NaN], [NaN, NaN], new double[,] { { NaN, NaN }, { NaN, NaN } })
             .Surface([0, 1], [0, 1], new double[,] { { 1, 2 }, { 3, 4 } })).ToSvg();
         string alone = Plt.Create().WithSize(500, 400).AddSubPlot(1, 1, 1, ax => ax
             .Surface([0, 1], [0, 1], new double[,] { { 1, 2 }, { 3, 4 } })).ToSvg();
 
-        Assert.Empty(NonFiniteTokens(withEmpty));
+        withEmpty.AssertNoNonFiniteNumber();
         Assert.NotEmpty(Ticks(alone));
         Assert.Equal(Ticks(alone), Ticks(withEmpty));
     }
@@ -954,10 +893,7 @@ public class MissingValueGeometryTests
     // ---- a whole made of parts (pie, donut, funnel), a radar's vertices, the polar grid, a series with no data ---------
 
     private static List<string> Texts(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawText").Select(c => (string)c.Args!.GetType().GetProperty("text")!.GetValue(c.Args)!)];
-
-    private static Point[] PolygonPoints(CallRecord call) =>
-        (Point[])call.Args!.GetType().GetProperty("points")!.GetValue(call.Args)!;
+        [.. ctx.Of<DrawTextCall>().Select(c => c.Text)];
 
     /// <summary>A pie's total is the sum of the slices that are there. A missing slice (NaN, or an infinity, which no
     /// angle can hold) counts as 0 and draws nothing of its own: no wedge, no shadow, no percentage, no label. Before, the
@@ -980,8 +916,8 @@ public class MissingValueGeometryTests
             Labels = ["a", "c"], Colors = [Colors.Red, Colors.Blue], Explode = [0.1, 0], Shadow = true, AutoPct = "{0:F1}%",
         }));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
         Assert.Equal(["30.0%", "70.0%"], Texts(withGap).Where(t => t.EndsWith('%')));
     }
 
@@ -996,10 +932,10 @@ public class MissingValueGeometryTests
         var without = Render(c => new DonutSeriesRenderer(c).Render(new DonutSeries([30, 70]) { Colors = [Colors.Red, Colors.Blue], CenterText = "total" }));
         var cycled = Render(c => new DonutSeriesRenderer(c).Render(new DonutSeries([30, missing, 70])));
 
-        AssertNothingUndrawableReached(withGap);
-        Assert.Equal(Signature(without), Signature(withGap));
+        withGap.AssertNothingUndrawableReached();
+        Assert.Equal(without.Signature(), withGap.Signature());
         Assert.Equal([Theme.Default.CycleColors[0], Theme.Default.CycleColors[2]],
-            cycled.OfKind("DrawPath").Select(c => (Color)c.Args!.GetType().GetProperty("fill")!.GetValue(c.Args)!));
+            cycled.Of<DrawPathCall>().Select(c => c.Fill!.Value));
     }
 
     /// <summary>A missing stage of a funnel is skipped with its label; the stages around it keep their rows and their
@@ -1012,10 +948,10 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new FunnelSeriesRenderer(c).Render(new FunnelSeries(["a", "b", "c"], [10, missing, 5])));
         var full = Render(c => new FunnelSeriesRenderer(c).Render(new FunnelSeries(["a", "b", "c"], [10, 7, 5])));
 
-        AssertNothingUndrawableReached(withGap);
-        var expected = Signature(full);
+        withGap.AssertNothingUndrawableReached();
+        var expected = full.Signature();
         expected.RemoveRange(2, 2);   // stage b: its bar and its label
-        Assert.Equal(expected, Signature(withGap));
+        Assert.Equal(expected, withGap.Signature());
     }
 
     /// <summary>An empty funnel draws an empty plot, as a series of every other type does with no data: it scaled its
@@ -1027,7 +963,8 @@ public class MissingValueGeometryTests
         Assert.Contains("</svg>", Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Funnel([], [])).ToSvg());
     }
 
-    /// <summary>Every registered type, read from JSON with no data at all, renders an empty plot. Measured before: the
+    /// <summary>Every registered type, read from JSON with no data at all, loads as one series and renders an empty plot: the reader
+    /// gives each missing data column its empty start. Measured before: the
     /// funnel was the one of 78 that threw. The pair grid is not here: its constructor refuses a grid with no variable
     /// (an invariant of the model, refused when the JSON is read).</summary>
     /// <remarks>The series of this library: a package that ships its own series (the map of <c>MatPlotLibNet.Geo</c>) registers its
@@ -1041,7 +978,8 @@ public class MissingValueGeometryTests
     {
         var figure = ChartSerializerDefault.Current.FromJson($$"""{"width":300,"height":200,"subPlots":[{"series":[{"type":"{{type}}"}]}]}""");
 
-        Assert.Empty(NonFiniteTokens(figure.ToSvg()));
+        Assert.Single(figure.SubPlots[0].Series);
+        figure.ToSvg().AssertNoNonFiniteNumber();
     }
 
     /// <summary>A radar value that is missing, or infinite (no ring holds it), is a skipped vertex: the polygon closes
@@ -1059,14 +997,14 @@ public class MissingValueGeometryTests
         var withGap = Render(c => new RadarSeriesRenderer(c).Render(new RadarSeries(spokes, [3, missing, 2, 4, 5])));
         var full = Render(c => new RadarSeriesRenderer(c).Render(new RadarSeries(spokes, [3, 1, 2, 4, 5])));
 
-        AssertNothingUndrawableReached(withGap);
-        var web = Signature(full);
+        withGap.AssertNothingUndrawableReached();
+        var web = full.Signature();
         web.RemoveAt(web.Count - 1);
-        var gapWeb = Signature(withGap);
+        var gapWeb = withGap.Signature();
         gapWeb.RemoveAt(gapWeb.Count - 1);
         Assert.Equal(web, gapWeb);
-        var vertices = PolygonPoints(full.Calls[^1]);
-        Assert.Equal([vertices[0], vertices[2], vertices[3], vertices[4]], PolygonPoints(withGap.Calls[^1]));
+        var vertices = ((DrawPolygonCall)full.Calls[^1]).Points;
+        Assert.Equal([vertices[0], vertices[2], vertices[3], vertices[4]], ((DrawPolygonCall)withGap.Calls[^1]).Points);
     }
 
     /// <summary>The polar grid spans the radii that can be placed: one infinite radius made every ring infinite and every
@@ -1076,7 +1014,7 @@ public class MissingValueGeometryTests
     {
         string Svg(double r) => Plt.Create().WithSize(400, 400).AddSubPlot(1, 1, 1, ax => ax.PolarScatter([1.0, 2, r], [0.0, 1, 2])).ToSvg();
 
-        Assert.Empty(NonFiniteTokens(Svg(double.PositiveInfinity)));
+        Svg(double.PositiveInfinity).AssertNoNonFiniteNumber();
         Assert.Equal(Svg(NaN), Svg(double.PositiveInfinity));
     }
 
@@ -1097,7 +1035,7 @@ public class MissingValueGeometryTests
             .AddSubPlot(2, 4, 8, ax => ax.Bubble([1.0, NaN, 3], [1.0, 2, 3], [10.0, 20, NaN]))
             .ToSvg();
 
-        Assert.Empty(NonFiniteTokens(svg));
+        svg.AssertNoNonFiniteNumber();
     }
 
     [Fact]
@@ -1113,7 +1051,7 @@ public class MissingValueGeometryTests
             .Annotate("peak", 2, NaN)
             .WithLegend().WithLegendValues()).ToSvg();
 
-        Assert.Empty(NonFiniteTokens(svg));
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>A Best legend looks at the marks a chart drew, and a mark at a value the axes cannot place is no mark: the
@@ -1128,6 +1066,6 @@ public class MissingValueGeometryTests
             .Bar(["a", "b", "c"], [1.0, NaN, 3.0], s => s.Label = "bars")
             .WithLegend()).ToSvg();
 
-        Assert.Empty(NonFiniteTokens(svg));
+        svg.AssertNoNonFiniteNumber();
     }
 }

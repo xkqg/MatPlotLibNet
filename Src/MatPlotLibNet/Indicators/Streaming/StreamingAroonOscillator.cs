@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
@@ -12,14 +13,16 @@ public sealed class StreamingAroonOscillator : WindowedStreamingIndicator<OhlcvB
 {
     private readonly int _period;
 
+    /// <inheritdoc />
+    internal override PaneRange? PinnedRange => AroonOscillator.Pane;
+
     /// <summary>Creates a streaming AroonOscillator.</summary>
     /// <param name="period">How many bars back the highest high and the lowest low are looked for; at least 2.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingAroonOscillator(int period = 25, int capacity = 10_000)
-        : base(period + 1, capacity)
+    public StreamingAroonOscillator(int period = AroonOscillator.DefaultPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(AroonOscillator.Spec(period), capacity)
     {
         _period = period;
-        Label = $"Aroon({period})";
     }
 
     /// <inheritdoc />

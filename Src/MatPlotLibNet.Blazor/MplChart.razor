@@ -41,6 +41,7 @@ else
 }
 
 @using MatPlotLibNet.Animation
+@using MatPlotLibNet.Interaction
 
 @code {
     [Parameter] public Figure? Figure { get; set; }
@@ -57,34 +58,24 @@ else
 
     private string _svgContent = string.Empty;
     private bool _expanded;
-    private IAnimationSource? _subscribedSource;
+    private AnimationSourceFollower? _animation;
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_subscribedSource, AnimationSource))
-        {
-            if (_subscribedSource is not null)
-                _subscribedSource.FrameReady -= OnAnimationFrameReady;
-            _subscribedSource = AnimationSource;
-            if (_subscribedSource is not null)
-                _subscribedSource.FrameReady += OnAnimationFrameReady;
-        }
+        _animation ??= new AnimationSourceFollower(work => _ = InvokeAsync(work), ShowFrame);
+        _animation.Follow(AnimationSource);
 
         _svgContent = Figure is not null ? SvgRendererDefault.Current.Render(Figure) : string.Empty;
     }
 
-    private void OnAnimationFrameReady(object? sender, Figure fig)
+    private void ShowFrame(Figure fig)
     {
         Figure = fig;
         _svgContent = SvgRendererDefault.Current.Render(fig);
-        InvokeAsync(StateHasChanged);
+        StateHasChanged();
     }
 
-    public void Dispose()
-    {
-        if (_subscribedSource is not null)
-            _subscribedSource.FrameReady -= OnAnimationFrameReady;
-    }
+    public void Dispose() => _animation?.Follow(null);
 
     /// <summary>The disclosure holding the figure's data table, or nothing at all when the parameter is off or
     /// the figure has nothing tabular to say - an empty disclosure is a control that promises data and has none.</summary>

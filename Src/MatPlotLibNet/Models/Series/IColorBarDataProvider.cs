@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Contract for series that back a color bar. Exposes the value range used for the
 /// gradient and the colormap applied to it. Implemented by grid / image / density series
-/// (heatmap, contourf, hexbin, histogram2D, image, pcolormesh, spectrogram, tripcolor,
+/// (heatmap, contour, contourf, tricontour, hexbin, histogram2D, image, pcolormesh, spectrogram, tripcolor,
 /// polar heatmap).</summary>
 public interface IColorBarDataProvider
 {

@@ -97,7 +97,7 @@ public class SaveWithoutAnExporterTests
     public void ATransformRegisteredForPng_ReplacesTheRefusal()
     {
         string path = TempPath("a.png");
-        var recorder = new RecordingTransform();
+        var recorder = new RecordingFigureTransform("recorded");
         FigureExtensions.RegisterTransform(".png", recorder);
         try
         {
@@ -113,17 +113,6 @@ public class SaveWithoutAnExporterTests
         }
     }
 
-    private sealed class RecordingTransform : IFigureTransform
-    {
-        public int Calls { get; private set; }
-
-        public void Transform(Figure figure, Stream output)
-        {
-            Calls++;
-            output.Write("recorded"u8);
-        }
-    }
-
     // ── what stays as it was ─────────────────────────────────────────────────────────────────────────
 
     [Theory]
@@ -135,9 +124,10 @@ public class SaveWithoutAnExporterTests
         string path = TempPath(fileName);
         try
         {
-            Chart().Save(path);
+            var figure = Chart();
+            figure.Save(path);
 
-            Assert.StartsWith("<svg", File.ReadAllText(path));
+            Assert.Equal(figure.ToSvg(), File.ReadAllText(path));
         }
         finally { Cleanup(path); }
     }
@@ -148,9 +138,10 @@ public class SaveWithoutAnExporterTests
         string path = TempPath("noextension");
         try
         {
-            Chart().Save(path);
+            var figure = Chart();
+            figure.Save(path);
 
-            Assert.StartsWith("<svg", File.ReadAllText(path + ".svg"));
+            Assert.Equal(figure.ToSvg(), File.ReadAllText(path + ".svg"));
         }
         finally { Cleanup(path); Cleanup(path + ".svg"); }
     }
@@ -175,10 +166,13 @@ public class SaveWithoutAnExporterTests
         string path = TempPath("a.xyz");
         try
         {
-            Chart().Save(path, new SaveOptions { Dpi = 300, Title = "T" });
+            var figure = Chart();
+            var options = new SaveOptions { Dpi = 300, Title = "T" };
+            figure.Save(path, options);
+            figure.Save(path + ".svg", options);
 
-            Assert.StartsWith("<svg", File.ReadAllText(path));
+            Assert.Equal(File.ReadAllText(path + ".svg"), File.ReadAllText(path));
         }
-        finally { Cleanup(path); }
+        finally { Cleanup(path); Cleanup(path + ".svg"); }
     }
 }

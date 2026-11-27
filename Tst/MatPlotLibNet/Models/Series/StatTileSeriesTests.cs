@@ -14,19 +14,9 @@ namespace MatPlotLibNet.Tests.Models.Series;
 public class StatTileSeriesTests
 {
     [Fact]
-    public void Ctor_StoresValue() => Assert.Equal(12, new StatTileSeries(12).Value);
-
-    [Fact]
-    public void AccentColor_IsSettable()
+    public void TheValue_IsFormattedToTwoDecimals_UntilAFormatIsGiven()
     {
-        var s = new StatTileSeries(1) { AccentColor = Colors.Tab10Blue };
-        Assert.Equal(Colors.Tab10Blue, s.AccentColor);
-    }
-
-    [Fact]
-    public void Format_DefaultsToTwoDecimals_AndIsHonoured()
-    {
-        Assert.Equal("0.##", new StatTileSeries(1).Format);
+        Assert.Equal("1.23", new StatTileSeries(1.234).FormattedValue);
         Assert.Equal("42", new StatTileSeries(42) { Format = "0" }.FormattedValue);
     }
 
@@ -38,36 +28,15 @@ public class StatTileSeriesTests
         Assert.False(r.YMax.HasValue);
     }
 
-    [Fact]
-    public void ToSeriesDto_CarriesTypeValueAndColor()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var dto = new StatTileSeries(7) { AccentColor = Colors.Tab10Blue }.ToSeriesDto();
-        Assert.Equal("stattile", dto.Type);
-        Assert.Equal(7, dto.GaugeValue);
-        Assert.Equal(Colors.Tab10Blue, dto.Color);
-    }
+        new DrawnToken("Render_DrawsTheValueAndLabel_AsText", () => Plt.Create().StatTile(42, t => t.Label = "Participants").ToSvg(), "42", "Participants"),
+        //  no Label set — the label branch is skipped, no crash
+        new DrawnToken("Render_WithoutALabel_DrawsOnlyTheValue", () => Plt.Create().StatTile(7).ToSvg(), "7"),
+    };
 
-    [Fact]
-    public void Render_DrawsTheValueAndLabel_AsText()
-    {
-        var svg = Plt.Create().StatTile(42, t => t.Label = "Participants").ToSvg();
-        Assert.Contains("42", svg);
-        Assert.Contains("Participants", svg);
-    }
-
-    [Fact]
-    public void Render_WithoutALabel_DrawsOnlyTheValue()
-    {
-        var svg = Plt.Create().StatTile(7).ToSvg(); // no Label set — the label branch is skipped, no crash
-        Assert.Contains("7", svg);
-    }
-
-    [Fact]
-    public void Registry_DeserializesFromDto_RestoringValueAndColor()
-    {
-        var dto = new StatTileSeries(9) { AccentColor = Colors.Tab10Blue }.ToSeriesDto();
-        var s = (StatTileSeries)SeriesRegistry.Create("stattile", new Axes(), dto)!;
-        Assert.Equal(9, s.Value);
-        Assert.Equal(Colors.Tab10Blue, s.AccentColor);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

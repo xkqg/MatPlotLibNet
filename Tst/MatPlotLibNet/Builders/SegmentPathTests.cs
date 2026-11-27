@@ -11,12 +11,12 @@ public class SegmentPathTests
     private const double Gap = double.NaN;
 
     [Fact]
-    public void OneSegment_IsItsTwoEnds_AndAGap()
+    public void OneSegment_IsItsTwoEnds_AndNoSeparator()
     {
         var path = SegmentPath.Of([1.0], [0.0], [1.0], [5.0]);
 
-        Assert.Equal([1.0, 1.0, Gap], path.X);
-        Assert.Equal([0.0, 5.0, Gap], path.Y);
+        Assert.Equal([1.0, 1.0], path.X);
+        Assert.Equal([0.0, 5.0], path.Y);
     }
 
     [Fact]
@@ -24,8 +24,8 @@ public class SegmentPathTests
     {
         var path = SegmentPath.Of([1.0, 2.0], [0.0, 10.0], [4.0, 3.0], [5.0, 20.0]);
 
-        Assert.Equal([1.0, 4.0, Gap, 2.0, 3.0, Gap], path.X);
-        Assert.Equal([0.0, 5.0, Gap, 10.0, 20.0, Gap], path.Y);
+        Assert.Equal([1.0, 4.0, Gap, 2.0, 3.0], path.X);
+        Assert.Equal([0.0, 5.0, Gap, 10.0, 20.0], path.Y);
     }
 
     [Theory]
@@ -45,11 +45,11 @@ public class SegmentPathTests
 
         var path = SegmentPath.Of(bounds[0], bounds[1], bounds[2], bounds[3]);
 
-        // The first and the third survive, with their own separator each; the second leaves no point at all, not even a stub.
-        Assert.Equal(6, path.X.Length);
-        Assert.Equal(6, path.Y.Length);
-        Assert.Equal([1.0, 1.0, Gap, 3.0, 3.0, Gap], path.X);
-        Assert.Equal([0.0, 9.0, Gap, 0.0, 9.0, Gap], path.Y);
+        // The first and the third survive, parted by one separator; the second leaves no point at all, not even a stub.
+        Assert.Equal(5, path.X.Length);
+        Assert.Equal(5, path.Y.Length);
+        Assert.Equal([1.0, 1.0, Gap, 3.0, 3.0], path.X);
+        Assert.Equal([0.0, 9.0, Gap, 0.0, 9.0], path.Y);
     }
 
     [Fact]
@@ -84,8 +84,8 @@ public class SegmentPathTests
     {
         var path = SegmentPath.Of([1.0, 2.0, 3.0], [0.0], [1.0, 2.0, 3.0], [5.0]);
 
-        Assert.Equal([1.0, 1.0, Gap, 2.0, 2.0, Gap, 3.0, 3.0, Gap], path.X);
-        Assert.Equal([0.0, 5.0, Gap, 0.0, 5.0, Gap, 0.0, 5.0, Gap], path.Y);
+        Assert.Equal([1.0, 1.0, Gap, 2.0, 2.0, Gap, 3.0, 3.0], path.X);
+        Assert.Equal([0.0, 5.0, Gap, 0.0, 5.0, Gap, 0.0, 5.0], path.Y);
     }
 
     [Fact]
@@ -94,8 +94,8 @@ public class SegmentPathTests
         // The same x for three segments of different heights: what VLines(x: 4, ...) means with one position.
         var path = SegmentPath.Of([4.0], [0.0, 1.0, 2.0], [4.0], [5.0, 6.0, 7.0]);
 
-        Assert.Equal([4.0, 4.0, Gap, 4.0, 4.0, Gap, 4.0, 4.0, Gap], path.X);
-        Assert.Equal([0.0, 5.0, Gap, 1.0, 6.0, Gap, 2.0, 7.0, Gap], path.Y);
+        Assert.Equal([4.0, 4.0, Gap, 4.0, 4.0, Gap, 4.0, 4.0], path.X);
+        Assert.Equal([0.0, 5.0, Gap, 1.0, 6.0, Gap, 2.0, 7.0], path.Y);
     }
 
     [Fact]
@@ -103,8 +103,8 @@ public class SegmentPathTests
     {
         var path = SegmentPath.Of([1.0], [2.0], [3.0], [4.0]);
 
-        Assert.Equal([1.0, 3.0, Gap], path.X);
-        Assert.Equal([2.0, 4.0, Gap], path.Y);
+        Assert.Equal([1.0, 3.0], path.X);
+        Assert.Equal([2.0, 4.0], path.Y);
     }
 
     [Fact]

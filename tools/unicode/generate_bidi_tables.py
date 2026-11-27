@@ -118,16 +118,11 @@ def emit_classes(version: str, ranges: list[tuple[int, int, str]], out: Path) ->
     lines.append("{")
     lines.append(f'    /// <summary>The Unicode Character Database version these ranges were generated from.</summary>')
     lines.append(f'    public const string UnicodeVersion = "{version}";\n')
-    lines.append(f"    /// <summary>{len(ranges)} sorted, non-overlapping ranges covering U+0000..U+10FFFF: start, end, class.</summary>")
+    lines.append(f"    /// <summary>{len(ranges)} sorted, non-overlapping ranges covering U+0000..U+10FFFF, each running to the start of the next: start, class.</summary>")
     lines.append("    private static readonly int[] Starts =")
     lines.append("    [")
     for i in range(0, len(ranges), 8):
         lines.append("        " + ", ".join(f"0x{lo:05X}" for lo, _, _ in ranges[i:i + 8]) + ",")
-    lines.append("    ];\n")
-    lines.append("    private static readonly int[] Ends =")
-    lines.append("    [")
-    for i in range(0, len(ranges), 8):
-        lines.append("        " + ", ".join(f"0x{hi:05X}" for _, hi, _ in ranges[i:i + 8]) + ",")
     lines.append("    ];\n")
     lines.append("    private static readonly BidiClass[] Classes =")
     lines.append("    [")

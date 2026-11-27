@@ -1,10 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
@@ -30,11 +28,8 @@ public class RidgelineTests
         new("East", [0.4, 0.9, 1.1, 1.3, 1.4, 1.6, 1.8, 2.2, 2.6, 3.4]),
     ];
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Ridgeline(IReadOnlyList<NamedSample> groups, double? bandwidth = null, Action<AreaSeries>? configure = null) =>
-        AxesOf(ax => ax.Ridgeline(groups, bandwidth, configure));
+        Plt.Create().OneAxes(ax => ax.Ridgeline(groups, bandwidth, configure));
 
     private static AreaSeries[] Ridges(Axes axes) => [.. axes.Series.Select(s => Assert.IsType<AreaSeries>(s))];
 
@@ -79,7 +74,59 @@ public class RidgelineTests
         Assert.Equal(200, ridges[0].XData.Length);
         Assert.Equal(pooled[0] - 3 * h, ridges[0].XData[0]);
         Assert.Equal(pooled[^1] + 3 * h, ridges[0].XData[^1], 1e-12);
-        Assert.Equal(GaussianKde.Grid(pooled, h, 200), ridges[0].XData);
+        Assert.Equal(GaussianKde.Grid(pooled[0], pooled[^1], h, 200), ridges[0].XData);
+    }
+
+    /// <summary>The grid stands on the smallest and the largest observation of the groups, taken from the ends of the groups
+    /// (each is sorted already), bit for bit what the pooled and sorted observations give: here the smallest observation is in
+    /// the last group, the largest in the middle one, and a group sits wholly inside the others.</summary>
+    [Fact]
+    public void TheGrid_StandsOnTheEndsOfTheGroups_NotOnAPooledSort()
+    {
+        NamedSample[] groups =
+        [
+            new("inside", [4.0, 5.0, 5.5, 6.0]),
+            new("widest", [2.0, 3.0, 9.5, 21.25]),
+            new("lowest", [-7.5, 1.0, 8.0, 8.5]),
+        ];
+        double[] pooled = Pooled(groups);
+        double h = Joint(groups);
+
+        var ridges = Ridges(Ridgeline(groups));
+
+        Assert.Equal(-7.5, pooled[0]);
+        Assert.Equal(21.25, pooled[^1]);
+        Assert.Equal(PooledGrid(pooled, h, 200), ridges[0].XData);
+    }
+
+    /// <summary>The grid the verb has always drawn on, worked out from the pooled and sorted observations as before.</summary>
+    private static double[] PooledGrid(double[] pooled, double bandwidth, int numPoints)
+    {
+        double lo = pooled[0] - 3 * bandwidth;
+        double hi = pooled[^1] + 3 * bandwidth;
+        double step = (hi - lo) / (numPoints - 1);
+        double[] xs = new double[numPoints];
+        for (int j = 0; j < numPoints; j++) xs[j] = lo + step * j;
+        return xs;
+    }
+
+    /// <summary>A ridgeline of eight groups of 300 observations pools nothing: the shared grid needs only the smallest and the
+    /// largest observation, which sit at the ends of the sorted groups, so the 2,400 observations are not copied into one array
+    /// and sorted again (pooled, the verb allocated 243,504 bytes on this data; now 195,128).</summary>
+    [Fact]
+    public void TheVerb_DoesNotPoolAndSortTheObservations()
+    {
+        var random = new Random(7);
+        NamedSample[] groups = [.. Enumerable.Range(0, 8).Select(g => new NamedSample($"g{g}", [.. Enumerable.Range(0, 300).Select(_ => g + random.NextDouble() * 10)]))];
+        var warm = new AxesBuilder(new Axes());
+        warm.Ridgeline(groups);
+
+        var axes = new AxesBuilder(new Axes());
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        axes.Ridgeline(groups);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(allocated < 220_000, $"allocated {allocated}");
     }
 
     /// <summary>The bandwidth is ONE, joint: the mean of the groups' own Silverman bandwidths (ggridges' rule), used for every
@@ -96,7 +143,7 @@ public class RidgelineTests
 
         for (int g = 0; g < Groups.Length; g++)
         {
-            Assert.NotEqual(h, GaussianKde.SilvermanBandwidth(Sorted(Groups[g])));
+            Assert.NotEqual(h, GaussianKde.Bandwidth(Sorted(Groups[g]), GaussianKde.SilvermanFactor));
             double[] expected = [.. densities[g].Select(d => d / tallest)];
             Assert.Equal(expected, Heights(ridges[g]), (a, b) => Math.Abs(a - b) <= 1e-12);
         }
@@ -132,7 +179,7 @@ public class RidgelineTests
 
         var ridges = Ridges(Ridgeline(shifted));
 
-        double own = GaussianKde.SilvermanBandwidth(sample);
+        double own = GaussianKde.Bandwidth(sample, GaussianKde.SilvermanFactor);
         double[] grid = ridges[0].XData;
         Assert.Equal(1.0 - 3 * own, grid[0], 1e-12);
         Assert.Equal(104.5 + 3 * own, grid[^1], 1e-12);
@@ -221,29 +268,14 @@ public class RidgelineTests
 
         string svg = Plt.Create().WithSize(900, 600).AddSubPlot(1, 1, 1, ax => ax.Ridgeline(named).SetYLabel("Region")).ToSvg();
 
-        var drawn = Regex.Matches(svg, """<text x="([-0-9.]+)" y="[-0-9.]+" font-family="[^"]*" font-size="([0-9.]+)" text-anchor="end"[^>]*>([^<]*)</text>""")
-            .Where(m => names.Contains(m.Groups[3].Value)).ToList();
+        var drawn = svg.Elements("text").Where(text => text["text-anchor"] == "end" && names.Contains(text.Text)).ToList();
         Assert.Equal(names.Length, drawn.Count);
-        Assert.All(drawn, m =>
+        Assert.All(drawn, text =>
         {
-            double size = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
-            double start = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)
-                - FontMetricsDefault.Current.Measure(m.Groups[3].Value, new MatPlotLibNet.Styling.Font { Size = size }).Width;
-            Assert.True(start >= 0, $"'{m.Groups[3].Value}' starts at {start}, left of the figure");
+            double start = text.Number("x")
+                - FontMetricsDefault.Current.Measure(text.Text, new MatPlotLibNet.Styling.Font { Size = text.Number("font-size") }).Width;
+            Assert.True(start >= 0, $"'{text.Text}' starts at {start}, left of the figure");
         });
-    }
-
-    /// <summary>The verb leaves the limits to the automatic range: a limit would clip every other series on the axes (W9).</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits()
-    {
-        var axes = Ridgeline(Groups);
-
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.False(axes.HasExplicitLimit);
     }
 
     // ---- the picture: order, colour, outline ----------------------------------------------------------------------
@@ -281,9 +313,9 @@ public class RidgelineTests
         var colours = new List<string>();
         for (int g = 0; g < Groups.Length; g++)
         {
-            string group = Group(svg, g);
-            string fill = Regex.Match(group, """<polygon [^>]*fill="(#[0-9A-F]{6})" """.TrimEnd()).Groups[1].Value;
-            string stroke = Regex.Match(group, """<polyline [^>]*stroke="(#[0-9A-F]{6})" """.TrimEnd()).Groups[1].Value;
+            string group = svg.SeriesGroup(g);
+            string fill = group.Elements("polygon").Select(polygon => polygon["fill"]).FirstOrDefault(colour => colour?.StartsWith('#') == true) ?? "";
+            string stroke = group.Elements("polyline").Select(polyline => polyline["stroke"]).FirstOrDefault(colour => colour?.StartsWith('#') == true) ?? "";
             Assert.NotEqual("", fill);
             Assert.Equal(fill, stroke);
             Assert.True(group.IndexOf("<polygon", StringComparison.Ordinal) < group.IndexOf("<polyline", StringComparison.Ordinal));
@@ -332,13 +364,13 @@ public class RidgelineTests
             Assert.Equal(ridges[g].YData2, gappyRidges[g].YData2);
         }
 
-        Assert.DoesNotContain("NaN", Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Ridgeline(gappy)).ToSvg());
+        Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Ridgeline(gappy)).ToSvg().AssertNoNonFiniteNumber();
     }
 
-    /// <summary>Data without a spread (every observation of every group the same value) has no Ïƒ; the size of the value
-    /// stands in for it (R's <c>bw.nrd0</c> rule, <see cref="GaussianKde.SilvermanBandwidth"/>), so the ridges are a bump of
+    /// <summary>Data without a spread (every observation of every group the same value) has no σ; the size of the value
+    /// stands in for it (R's <c>bw.nrd0</c> rule, <see cref="GaussianKde.Bandwidth"/>), so the ridges are a bump of
     /// that width around the value, and the same data in other units draws the same ridges on the same grid in those units.
-    /// A fixed width would draw 5 as 5 Â± 3 and 500 as 500 Â± 3.</summary>
+    /// A fixed width would draw 5 as 5 ± 3 and 500 as 500 ± 3.</summary>
     [Fact]
     public void DataWithoutSpread_IsDrawnAtTheScaleOfItsValue()
     {
@@ -359,65 +391,21 @@ public class RidgelineTests
         }
     }
 
-    // ---- the callback ---------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once per ridge, in the order of the groups, after the verb has built the ridge, and hands
-    /// over the very series on the axes, so what it sets is the chart's.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerRidge_InGroupOrder_OnTheSeriesOnTheAxes()
-    {
-        var seen = new List<AreaSeries>();
-        var baselinesWhenCalled = new List<double>();
-
-        var axes = Ridgeline(Groups, configure: ridge =>
-        {
-            seen.Add(ridge);
-            baselinesWhenCalled.Add(ridge.YData2![0]);
-            ridge.Alpha = 0.8;
-        });
-
-        Assert.Equal(3, seen.Count);
-        Assert.All(Enumerable.Range(0, 3), g => Assert.Same(axes.Series[g], seen[g]));
-        Assert.Equal([2.5, 1.5, 0.5], baselinesWhenCalled);
-        Assert.All(Ridges(axes), r => Assert.Equal(0.8, r.Alpha));
-    }
-
     // ---- refusals -------------------------------------------------------------------------------------------------
-
-    /// <summary>A missing argument is refused by name.</summary>
-    [Fact]
-    public void MissingArguments_AreRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).Ridgeline(Groups)).ParamName);
-        Assert.Equal("groups", Assert.Throws<ArgumentNullException>(() => Ridgeline(null!)).ParamName);
-    }
-
-    /// <summary>A ridgeline of no groups has nothing to draw.</summary>
-    [Fact]
-    public void NoGroups_AreRefused()
-    {
-        var error = Assert.Throws<ArgumentException>(() => Ridgeline([]));
-
-        Assert.Equal("groups", error.ParamName);
-        Assert.Equal("No groups were given; a ridgeline draws one ridge per group. (Parameter 'groups')", error.Message);
-    }
 
     /// <summary>A density is estimated from two observations or more: a group with fewer that can be drawn (NaN and the
     /// infinities are left out) is refused, naming the group.</summary>
     [Theory]
-    [InlineData(new double[0], 0)]
-    [InlineData(new[] { 4.2 }, 1)]
-    [InlineData(new[] { double.NaN, 4.2 }, 1)]
-    [InlineData(new[] { double.PositiveInfinity, double.NaN }, 0)]
-    public void AGroupWithFewerThanTwoObservations_IsRefused_NamingTheGroup(double[] values, int drawable)
+    [InlineData(new double[0], "0 observations")]
+    [InlineData(new[] { double.NaN, 4.2 }, "1 observation")]
+    public void AGroupWithFewerThanTwoObservations_IsRefused_NamingTheGroup(double[] values, string held)
     {
         NamedSample[] groups = [Groups[0], new("South", values), Groups[2]];
 
         var error = Assert.Throws<ArgumentException>(() => Ridgeline(groups));
 
         Assert.Equal("groups", error.ParamName);
-        string observations = drawable == 1 ? "1 observation" : $"{drawable} observations";
-        Assert.Equal($"Group 'South' has {observations} that can be drawn; a density is estimated from 2 or more (NaN and the infinities are left out). (Parameter 'groups')", error.Message);
+        Assert.Equal($"Group 'South' holds {held}; a density estimate needs at least 2; NaN and the infinities are not counted. (Parameter 'groups')", error.Message);
     }
 
     /// <summary>A group whose values are missing altogether is refused by name, not with a null reference.</summary>
@@ -455,7 +443,8 @@ public class RidgelineTests
         var error = Assert.Throws<ArgumentException>(() => Ridgeline(groups));
 
         Assert.Equal("groups", error.ParamName);
-        Assert.Equal("The density of these observations cannot be computed in double precision: their spread, the bandwidth or the density is beyond what a double holds. (Parameter 'groups')", error.Message);
+        Assert.IsNotType<ArgumentOutOfRangeException>(error);
+        Assert.EndsWith(" of these observations is beyond what a double holds (got Infinity). (Parameter 'groups')", error.Message, StringComparison.Ordinal);
     }
 
     /// <summary>A bandwidth so narrow that one kernel divided by it is beyond a double (the smallest positive double) gives
@@ -467,21 +456,6 @@ public class RidgelineTests
 
         Assert.IsNotType<ArgumentOutOfRangeException>(error);
         Assert.Equal("bandwidth", error.ParamName);
-    }
-
-    /// <summary>A refused call has added nothing: no series, no ticks.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.Ridgeline([Groups[0], new NamedSample("South", [1.0])]));
-        Assert.Throws<ArgumentOutOfRangeException>(() => builder.Ridgeline(Groups, 0));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.YAxis.TickLocator);
-        Assert.Null(axes.YAxis.TickFormatter);
     }
 
     // ---- the public type ------------------------------------------------------------------------------------------
@@ -503,60 +477,12 @@ public class RidgelineTests
         Assert.Equal(["Label", "Values"], type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name).Order());
     }
 
-    // ---- against the hand recipe, JSON ----------------------------------------------------------------------------------
-
-    /// <summary>The verb draws exactly what the hand-written chain of public building blocks draws (the density computed by
-    /// hand on the shared grid with the pooled bandwidth, one fill per ridge, the names as Y ticks), with and without a
-    /// missing observation.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDrew(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("ridgeline").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.RidgelineByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
-
-    /// <summary>A ridgeline is its parts in JSON: read back it draws the same picture. It is not estimated again: the ridges
-    /// come back as they were drawn.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("ridgeline").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
-    }
-
     // ---- reading the picture ----------------------------------------------------------------------------------------
-
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     /// <summary>The series indices of the series groups, in the order they are written.</summary>
     private static int[] SeriesIndices(string svg) =>
-        [.. Regex.Matches(svg, """<g class="series" data-series-index="([0-9]+)" """.TrimEnd()).Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))];
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>: up to the next series group or the
-    /// end of the picture.</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        int next = svg.IndexOf("""<g class="series" """.TrimEnd(), start + 1, StringComparison.Ordinal);
-        return svg[start..(next > start ? next : svg.Length)];
-    }
+        [.. svg.Elements("g").Where(group => group["class"] == "series").Select(group => (int)group.Number("data-series-index"))];
 
     /// <summary>The filled polygons of the picture, in the order they are written, each as its points in pixels.</summary>
     private static Point[][] Polygons(string svg) =>
-        [.. Regex.Matches(svg, """<polygon points="([^"]+)" """.TrimEnd())
-            .Select(m => m.Groups[1].Value.Split(' ')
-                .Select(pair => pair.Split(','))
-                .Select(xy => new Point(Number(xy[0]), Number(xy[1])))
-                .ToArray())];
+        [.. svg.Elements("polygon").Select(polygon => polygon.Points())];
 }

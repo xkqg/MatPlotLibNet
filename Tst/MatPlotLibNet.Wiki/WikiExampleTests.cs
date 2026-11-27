@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace MatPlotLibNet.Wiki.Tests;
 
@@ -15,8 +14,9 @@ namespace MatPlotLibNet.Wiki.Tests;
 /// <c>&lt;!-- a C# cell of a notebook --&gt;</c> is a notebook's cell (a <c>#r "nuget:"</c> line is no C#), and
 /// <c>&lt;!-- needs: Wpf --&gt;</c> (or Uno, or Maui) is a block for a head the ubuntu runner cannot build, and
 /// <c>&lt;!-- needs: Tests --&gt;</c> a block that belongs to the repository's own test project, whose types this suite
-/// cannot reference. The last two kinds are counted, not compiled, and the count of the blocks that need another head is
-/// held under a ceiling. Any other comment is refused.
+/// cannot reference. Cells and the last two kinds are counted here, not compiled as programs (their calls of the packages are
+/// compiled by <see cref="WrittenCallsTests"/>), and the count of the blocks that need another head is held under a ceiling.
+/// Any other comment is refused.
 /// </summary>
 public sealed class WikiExampleTests
 {
@@ -77,11 +77,11 @@ public sealed class WikiExampleTests
     [Fact]
     public void EveryCSharpFenceOfAPage_IsReadAsExactlyOneBlock()
     {
-        // Counted apart from the scanner, line by line: a scanner that ends a block at the wrong fence swallows the
-        // block after it, and a page then shows code that no test ever compiled.
+        // Counted from the fences of the page, before any block is classified: a classifier that drops or merges a block
+        // leaves a page showing code that no test ever compiled.
         var wiki = Wiki.BesideTheRepository;
         var swallowed = wiki.Pages()
-            .Select(page => (page.Name, Fences: Regex.Count(wiki.Text(page.Name), @"^\s*```csharp\s*$", RegexOptions.Multiline), Read: page.BlockCount))
+            .Select(page => (page.Name, Fences: SourceFile.FenceBlocksOf(wiki.Text(page.Name)).Count(block => block.Open.Info == "csharp"), Read: page.BlockCount))
             .Where(each => each.Fences != each.Read)
             .Select(each => $"{each.Name}: {each.Fences} csharp fences, {each.Read} blocks read")
             .ToArray();

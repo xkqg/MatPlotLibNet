@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Data;
 
@@ -32,48 +33,65 @@ public static class HueGrouper
         Color[]? palette = null) where TKey : notnull
     {
         var colors    = palette is { Length: > 0 } ? palette : DefaultPalette;
-        var buckets   = new Dictionary<TKey, (List<double> X, List<double> Y)>();
+        var xsOf      = new Dictionary<TKey, List<double>>();
+        var ysOf      = new Dictionary<TKey, List<double>>();
         var keyOrder  = new List<TKey>();
 
         foreach (var item in data)
         {
             var key = keySelector(item);
-            if (!buckets.TryGetValue(key, out var lists))
+            if (!xsOf.TryGetValue(key, out var xs))
             {
-                lists = (new List<double>(), new List<double>());
-                buckets[key] = lists;
+                xsOf[key] = xs = [];
+                ysOf[key] = [];
                 keyOrder.Add(key);
             }
-            lists.X.Add(xSelector(item));
-            lists.Y.Add(ySelector(item));
+            xs.Add(xSelector(item));
+            ysOf[key].Add(ySelector(item));
         }
 
         var result = new HueGroup[keyOrder.Count];
         for (int i = 0; i < keyOrder.Count; i++)
         {
             var key         = keyOrder[i];
-            var (xs, ys)    = buckets[key];
             result[i]       = new HueGroup(
                 Label: key.ToString() ?? string.Empty,
                 Color: colors[i % colors.Length],
-                X:     [.. xs],
-                Y:     [.. ys]);
+                X:     [.. xsOf[key]],
+                Y:     [.. ysOf[key]]);
         }
         return result;
     }
 
+    /// <summary>The hue label of each observation as the number of its group: the groups numbered in the order their labels are
+    /// first seen, as <see cref="GroupBy"/> orders them, and the label of each group by its number.</summary>
+    /// <param name="hue">The hue label of each observation.</param>
+    /// <returns>The group of each observation and the label of each group.</returns>
+    internal static HueCodes Codes(IReadOnlyList<string> hue)
+    {
+        var numbers = new Dictionary<string, int>(StringComparer.Ordinal);
+        var labels = new List<string>();
+        var groups = new int[hue.Count];
+        for (int i = 0; i < groups.Length; i++)
+        {
+            if (!numbers.TryGetValue(hue[i], out int group))
+            {
+                group = labels.Count;
+                numbers[hue[i]] = group;
+                labels.Add(hue[i]);
+            }
+
+            groups[i] = group;
+        }
+
+        return new HueCodes(groups, [.. labels]);
+    }
+
     /// <summary>Matplotlib Tab10 cycle — the default palette when none is supplied.</summary>
-    internal static readonly Color[] DefaultPalette =
-    [
-        Color.FromHex("#1f77b4"), // blue
-        Color.FromHex("#ff7f0e"), // orange
-        Color.FromHex("#2ca02c"), // green
-        Color.FromHex("#d62728"), // red
-        Color.FromHex("#9467bd"), // purple
-        Color.FromHex("#8c564b"), // brown
-        Color.FromHex("#e377c2"), // pink
-        Color.FromHex("#7f7f7f"), // gray
-        Color.FromHex("#bcbd22"), // olive
-        Color.FromHex("#17becf"), // cyan
-    ];
+    internal static readonly Color[] DefaultPalette = QualitativeColorMaps.Tab10Cycle();
 }
+
+/// <summary>Hue labels as group numbers (<see cref="HueGrouper.Codes"/>): what a series split by hue by number takes.</summary>
+/// <param name="Groups">The group of each observation, numbered in the order its label was first seen.</param>
+/// <param name="Labels">The label of each group, by its number.</param>
+internal readonly record struct HueCodes(int[] Groups, string[] Labels);

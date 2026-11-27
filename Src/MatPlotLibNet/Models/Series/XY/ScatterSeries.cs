@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
@@ -9,67 +10,87 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
-public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHasColor, IHasAlpha, IHasMarkerStyle
+public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IColorScaled, IHasColor, IHasAlpha, IHasMarkerStyle, ISeriesKind<ScatterSeries>
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Marker, Marker: Marker, MarkerSize: MarkerSize);
+    /// <remarks>A scatter asks as matplotlib's <c>scatter</c> does; one coloured by values (<see cref="C"/>) or given a colour for each point (<see cref="Colors"/>) asks for none, as <c>scatter(c=...)</c> takes its colour map's or the colours it is given.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Scatter.NamingItsColours(C is not null || Colors is not null);
 
-    /// <summary>The size of each marker as an area in points squared, by position in the data. It replaces
-    /// <see cref="MarkerSize"/> for every point it covers; null (the default) draws every marker at <see cref="MarkerSize"/>.
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Scatter, Marker: GivenMarker, MarkerSize: GivenMarkerSize?.AreaAcrossInPoints);
+
+    /// <summary>The size of each marker as an area in points squared, by position in the data, one for each point. It replaces
+    /// <see cref="MarkerSize"/>; null (the default) draws every marker at <see cref="MarkerSize"/>.
     /// A point whose size is not a number is not drawn.</summary>
-    public double[]? Sizes { get; set; }
+    /// <exception cref="ArgumentException">The array does not hold one size for each point; the sizes the scatter had are kept.</exception>
+    public double[]? Sizes { get; set => Change(ref field, value.ThrowIfNotOnePer(XData.Length, nameof(Sizes))); }
 
     /// <summary>The fill colour of each marker, by position in the data. It wins over <see cref="C"/> and <see cref="Color"/>
     /// for every point it covers; null (the default), or a point past the end of the array, falls back to them.</summary>
-    public Color[]? Colors { get; set; }
+    public Color[]? Colors { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
-    /// <summary>The shape of every marker. Default circle.</summary>
-    public MarkerStyle Marker { get; set; } = RestingMarker;
+    /// <summary>The shape of every marker. Default circle. Given none, the marker is its slot's when the theme's cycler names one; a
+    /// shape that is given, a circle included, is drawn as given.</summary>
+    public MarkerStyle Marker { get => GivenMarker ?? RestingMarker; set => GivenMarker = value; }
+
+    /// <summary>The marker that was given, <see langword="null"/> when none was and the marker is its slot's.</summary>
+    internal MarkerStyle? GivenMarker { get; private set => Change(ref field, value); }
 
     /// <inheritdoc />
     MarkerStyle IHasMarkerStyle.MarkerStyle { get => Marker; set => Marker = value; }
 
-    /// <summary>The size of every marker as an area in points squared, so 36, the default, is a marker about 6 points
-    /// across. <see cref="Sizes"/> replaces it per point.</summary>
-    public double MarkerSize { get; set; } = 36;
+    /// <summary>The size of every marker as an area in points squared, so the default, <see cref="RestingMarkerSize"/>, is a marker about 6 points
+    /// across. <see cref="Sizes"/> replaces it per point. Given no size, the marker is the size its theme says (20 points squared
+    /// under the classic theme, as matplotlib's classic <c>scatter</c>); a size that is given, the default included, is drawn as
+    /// given.</summary>
+    public double MarkerSize { get => GivenMarkerSize ?? RestingMarkerSize; set => GivenMarkerSize = value; }
 
-    /// <summary>Opacity of the markers' fill, 0 (invisible) to 1 (opaque, the default). It replaces the alpha of the colours,
+    private const double RestingMarkerSize = 36;
+    /// <summary>The marker size that was given, <see langword="null"/> when none was and the marker is the size its theme says.</summary>
+    internal double? GivenMarkerSize { get; private set => Change(ref field, value); }
+
+    /// <summary>Opacity of the markers' fill, 0 (invisible) to 1 (opaque; the default, <see cref="RestingAlpha"/>). It replaces the alpha of the colours,
     /// as matplotlib's <c>alpha</c> does, except for a fully transparent colour (a colour map's bad colour), which stays
     /// transparent. An edge keeps the colour it was given.</summary>
-    public double Alpha { get; set; } = RestingAlpha;
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double Alpha { get; set => Change(ref field, value.ThrowIfNotOpacity(nameof(Alpha))); } = RestingAlpha;
 
     private const MarkerStyle RestingMarker = MarkerStyle.Circle;
     private const double RestingAlpha = 1.0;
 
     /// <inheritdoc />
-    public IColorMap? ColorMap { get; set; }
+    public IColorMap? ColorMap { get; set => Change(ref field, value); }
 
     /// <summary>The outline colour of each marker, by position in the data; null (the default), or a point past the end of
     /// the array, draws no outline.</summary>
-    public Color[]? EdgeColors { get; set; }
+    public Color[]? EdgeColors { get; set => Change(ref field, value); }
 
     /// <summary>The outline thickness of each marker, in pixels, by position in the data; null (the default), or a point
     /// past the end of the array, draws no outline. A thickness shows only where <see cref="EdgeColors"/> names a colour.</summary>
-    public double[]? LineWidths { get; set; }
+    public double[]? LineWidths { get; set => Change(ref field, value); }
 
-    /// <summary>A value for each point that colours its marker through <see cref="ColorMap"/>, so a third variable shows as
-    /// colour. It is used only when a colour map is set and <see cref="Colors"/> does not name the point's colour; the
-    /// range it spans on the map is <see cref="VMin"/> to <see cref="VMax"/>.</summary>
-    public double[]? C { get; set; }
+    /// <summary>A value for each point that colours its marker, so a third variable shows as colour. The values go through
+    /// <see cref="ColorMap"/>, or through the theme's map when none is set, for every point whose colour <see cref="Colors"/>
+    /// does not name; the range they span on the map is <see cref="VMin"/> to <see cref="VMax"/>.</summary>
+    public double[]? C { get; set => Change(ref field, value); }
 
     /// <summary>The value of <see cref="C"/> that gets the first colour of the colour map; null (the default) uses the lowest
     /// value that can be drawn.</summary>
-    public double? VMin { get; set; }
+    public double? VMin { get; set => Change(ref field, value); }
 
     /// <summary>The value of <see cref="C"/> that gets the last colour of the colour map; null (the default) uses the highest
     /// value that can be drawn.</summary>
-    public double? VMax { get; set; }
+    public double? VMax { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
-    public INormalizer? Normalizer { get; set; }
+    /// <remarks>The values of <see cref="C"/> between the ends given (<see cref="VMin"/>, <see cref="VMax"/>).</remarks>
+    MinMaxRange IColorScaled.ColourRangeOver(ColorMapping mapping) => mapping.RangeOf(C, VMin, VMax);
+
+    /// <inheritdoc />
+    public INormalizer? Normalizer { get; set => Change(ref field, value); }
 
 
     /// <summary>Initializes a new instance of <see cref="ScatterSeries"/> with the specified data.</summary>
@@ -77,30 +98,27 @@ public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHa
     /// <param name="yData">The Y-axis data values.</param>
     public ScatterSeries(double[] xData, double[] yData) : base(xData, yData) { }
 
+    static string ISeriesKind<ScatterSeries>.Kind => "scatter";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "scatter",
+        Type = this.WireKind(),
         XData = XData, YData = YData, Color = Color,
-        MarkerSize = MarkerSize,
-        Marker = Marker.OrNullAtRest(RestingMarker),
+        MarkerSize = GivenMarkerSize,
+        Marker = GivenMarker,
         Alpha = Alpha.OrNullAtRest(RestingAlpha),
         Sizes = Sizes,
         Colors = Colors is null ? null : [.. Colors],
         EdgeColors = EdgeColors is null ? null : [.. EdgeColors],
         LineWidths = LineWidths,
         C = C,
-        ColorMapName = ColorMap.NameForJson(),
-        ColorMap = ColorMap.DescriptionForJson(),
+        ColorScale = this.ColorScaleOnTheWire(),
         VMin = VMin,
         VMax = VMax,
-        Normalizer = this.DescribeNormalizer(),
     };
 
-    /// <summary>Reconstructs a <see cref="ScatterSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="ScatterSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static ScatterSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Scatter(dto.XData ?? [], dto.YData ?? []);
@@ -111,22 +129,21 @@ public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHa
     /// <summary>Takes every drawn property <see cref="ToSeriesDto"/> writes back from <paramref name="dto"/>; an absent
     /// one leaves the value the scatter was created with. The one reader of a scatter's fields, whichever axis the
     /// scatter is on.</summary>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <exception cref="ArgumentException">The DTO's colour map description cannot make a map; the exception names the field.</exception>
     internal void RestoreFrom(SeriesDto dto)
     {
         Color = dto.Color;
-        MarkerSize = dto.MarkerSize ?? MarkerSize;
-        Marker = dto.Marker ?? RestingMarker;
-        Alpha = dto.Alpha ?? RestingAlpha;
+        if (dto.MarkerSize is { } size) MarkerSize = size;
+        if (dto.Marker is { } marker) Marker = marker;
+        if (dto.Alpha is { } alpha) Alpha = alpha;
         Sizes = dto.Sizes;
         Colors = dto.Colors?.ToArray();
         EdgeColors = dto.EdgeColors?.ToArray();
         LineWidths = dto.LineWidths;
         C = dto.C;
-        this.RestoreColorMap(dto);
+        this.RestoreColorScale(dto);
         VMin = dto.VMin;
         VMax = dto.VMax;
-        this.RestoreNormalizer(dto);
     }
 
     /// <inheritdoc />

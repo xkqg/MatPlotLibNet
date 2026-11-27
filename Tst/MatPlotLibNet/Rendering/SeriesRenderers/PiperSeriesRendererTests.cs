@@ -19,15 +19,8 @@ public class PiperSeriesRendererTests
 
     private static WaterSample Seawater => new() { Cl = 19350, Na = 10760, SO4 = 2710, Mg = 1290, Ca = 411, K = 399, HCO3 = 142 };
 
-    private static RecordingRenderContext Draw(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        AxesRenderer.Create(axes, Box, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     private static Point[][] Outlines(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawPolygon").Select(c => (dynamic)c.Args!).Where(a => a.fill is null).Select(a => (Point[])a.points)];
+        [.. ctx.Of<DrawPolygonCall>().Where(a => a.Fill is null).Select(a => a.Points)];
 
     private static (Point[] Cations, Point[] Anions, Point[] Diamond) Panels(RecordingRenderContext ctx)
     {
@@ -36,24 +29,22 @@ public class PiperSeriesRendererTests
         return (triangles[0], triangles[1], outlines.Single(o => o.Length == 4));
     }
 
-    private static double Distance(Point a, Point b) => Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
-
     [Fact]
     public void TheThreePanels_AreTwoEquilateralTrianglesAndADiamond_AtOneScale()
     {
         var axes = new Axes();
         axes.Piper([OneEach]);
 
-        var (cations, anions, diamond) = Panels(Draw(axes));
+        var (cations, anions, diamond) = Panels(axes.Drawn(Box));
 
-        double side = Distance(cations[0], cations[1]);
-        Assert.Equal(side, Distance(cations[1], cations[2]), 6);
-        Assert.Equal(side, Distance(cations[0], cations[2]), 6);
-        Assert.Equal(side, Distance(anions[0], anions[1]), 6);
-        Assert.Equal(side, Distance(anions[1], anions[2]), 6);
+        double side = cations[0].DistanceTo(cations[1]);
+        Assert.Equal(side, cations[1].DistanceTo(cations[2]), 6);
+        Assert.Equal(side, cations[0].DistanceTo(cations[2]), 6);
+        Assert.Equal(side, anions[0].DistanceTo(anions[1]), 6);
+        Assert.Equal(side, anions[1].DistanceTo(anions[2]), 6);
         // The diamond's four sides are one triangle's side too.
         for (int i = 0; i < 4; i++)
-            Assert.Equal(side, Distance(diamond[i], diamond[(i + 1) % 4]), 6);
+            Assert.Equal(side, diamond[i].DistanceTo(diamond[(i + 1) % 4]), 6);
     }
 
     [Fact]
@@ -62,7 +53,7 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach]);
 
-        var (cations, anions, _) = Panels(Draw(axes));
+        var (cations, anions, _) = Panels(axes.Drawn(Box));
 
         double side = cations.Max(p => p.X) - cations.Min(p => p.X);
         Assert.Equal(1.2 * side, anions.Min(p => p.X) - cations.Min(p => p.X), 6);
@@ -75,7 +66,7 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach]);
 
-        var (cations, anions, diamond) = Panels(Draw(axes));
+        var (cations, anions, diamond) = Panels(axes.Drawn(Box));
 
         var all = cations.Concat(anions).Concat(diamond).ToArray();
         double left = all.Min(p => p.X), right = all.Max(p => p.X), top = all.Min(p => p.Y), bottom = all.Max(p => p.Y);
@@ -91,20 +82,20 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach]).MarkerSize = 10;
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Box);
         var (cations, anions, diamond) = Panels(ctx);
-        var circles = ctx.OfKind("DrawCircle").Select(c => (dynamic)c.Args!).ToArray();
+        var circles = ctx.Of<DrawCircleCall>().ToArray();
 
         Assert.Equal(3, circles.Length);
-        Assert.All(circles, c => Assert.Equal(5.0, (double)c.radius));
-        Assert.Single(circles.Select(c => (Color?)c.fill).Distinct());
+        Assert.All(circles, c => Assert.Equal(10 * (100.0 / 72.0) / 2, c.Radius, 9));   // 10 points across
+        Assert.Single(circles.Select(c => c.Fill).Distinct());
 
         double unit = cations.Max(p => p.X) - cations.Min(p => p.X);
         double baseY = cations.Max(p => p.Y);
         double cationLeft = cations.Min(p => p.X);
-        var cationMarker = (Point)circles[0].center;
-        var anionMarker = (Point)circles[1].center;
-        var diamondMarker = (Point)circles[2].center;
+        var cationMarker = circles[0].Center;
+        var anionMarker = circles[1].Center;
+        var diamondMarker = circles[2].Center;
 
         // P3 stands at (0.5, 0.288675) and (1.7, 0.288675) of the frame, and the diamond at (1.1, 1.327906).
         Assert.Equal(cationLeft + 0.5 * unit, cationMarker.X, 6);
@@ -122,12 +113,12 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach, Seawater]);
 
-        var circles = Draw(axes).OfKind("DrawCircle").Select(c => (dynamic)c.Args!).ToArray();
+        var circles = axes.Drawn(Box).Of<DrawCircleCall>().ToArray();
 
         Assert.Equal(6, circles.Length);
-        Assert.Single(circles.Take(3).Select(c => (Color?)c.fill).Distinct());
-        Assert.Single(circles.Skip(3).Select(c => (Color?)c.fill).Distinct());
-        Assert.NotEqual((Color?)circles[0].fill, (Color?)circles[3].fill);
+        Assert.Single(circles.Take(3).Select(c => c.Fill).Distinct());
+        Assert.Single(circles.Skip(3).Select(c => c.Fill).Distinct());
+        Assert.NotEqual(circles[0].Fill, circles[3].Fill);
     }
 
     [Fact]
@@ -136,9 +127,9 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach, Seawater]).Colors = [Color.FromHex("#C03030")];
 
-        var circles = Draw(axes).OfKind("DrawCircle").Select(c => (dynamic)c.Args!).ToArray();
+        var circles = axes.Drawn(Box).Of<DrawCircleCall>().ToArray();
 
-        Assert.All(circles.Take(3), c => Assert.Equal(Color.FromHex("#C03030"), (Color?)c.fill));
+        Assert.All(circles.Take(3), c => Assert.Equal(Color.FromHex("#C03030"), c.Fill));
     }
 
     [Fact]
@@ -147,7 +138,7 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach]);
 
-        Assert.Equal(32, Draw(axes).CountOf("DrawLine"));
+        Assert.Equal(32, axes.Drawn(Box).Count<DrawLineCall>());
     }
 
     [Fact]
@@ -156,7 +147,7 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach]);
 
-        var texts = Draw(axes).OfKind("DrawText").Select(c => (string)((dynamic)c.Args!).text).ToArray();
+        var texts = axes.Drawn(Box).Of<DrawTextCall>().Select(c => c.Text).ToArray();
 
         foreach (string name in new[] { "Ca", "Mg", "Na+K", "HCO3+CO3", "SO4", "Cl" })
             Assert.Contains(name, texts);
@@ -173,13 +164,13 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([OneEach]);
 
-        var names = Draw(axes).OfKind("DrawText").Select(c => (dynamic)c.Args!).ToArray();
-        var cationSide = names.Single(t => (string)t.text == "Na+K");
-        var anionSide = names.Single(t => (string)t.text == "HCO3+CO3");
+        var names = axes.Drawn(Box).Of<DrawTextCall>().ToArray();
+        var cationSide = names.Single(t => t.Text == "Na+K");
+        var anionSide = names.Single(t => t.Text == "HCO3+CO3");
 
-        Assert.Equal(TextAlignment.Right, (TextAlignment)cationSide.alignment);
-        Assert.Equal(TextAlignment.Left, (TextAlignment)anionSide.alignment);
-        Assert.True(cationSide.position.X < anionSide.position.X, "the sodium corner is left of the bicarbonate corner");
+        Assert.Equal(TextAlignment.Right, cationSide.Alignment);
+        Assert.Equal(TextAlignment.Left, anionSide.Alignment);
+        Assert.True(cationSide.Position.X < anionSide.Position.X, "the sodium corner is left of the bicarbonate corner");
     }
 
     [Fact]
@@ -188,9 +179,9 @@ public class PiperSeriesRendererTests
         var axes = new Axes();
         axes.Piper([]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Box);
 
-        Assert.Equal(0, ctx.CountOf("DrawCircle"));
+        Assert.Equal(0, ctx.Count<DrawCircleCall>());
         Assert.Equal(3, Outlines(ctx).Length);
     }
 
@@ -202,7 +193,7 @@ public class PiperSeriesRendererTests
 
         string svg = figure.ToSvg();
 
-        Assert.Equal(6, System.Text.RegularExpressions.Regex.Matches(svg, "<circle").Count);
+        Assert.Equal(6, svg.Elements("circle").Count);
     }
 
     [Fact]
@@ -215,6 +206,6 @@ public class PiperSeriesRendererTests
         var thrown = Record.Exception(() => AxesRenderer.Create(axes, new Rect(0, 0, 20, 20), ctx, Theme.Default).Render());
 
         Assert.Null(thrown);
-        Assert.Empty(ctx.OfKind("DrawPolygon"));
+        Assert.Empty(ctx.Of<DrawPolygonCall>());
     }
 }

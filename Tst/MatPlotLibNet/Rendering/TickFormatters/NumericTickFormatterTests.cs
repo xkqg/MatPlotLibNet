@@ -8,11 +8,13 @@ namespace MatPlotLibNet.Tests.Rendering.TickFormatters;
 /// <summary>Verifies <see cref="NumericTickFormatter"/> behavior.</summary>
 public class NumericTickFormatterTests
 {
-    /// <summary>Verifies that zero formats as "0".</summary>
-    [Fact]
-    public void Format_Zero_ReturnsZero()
+    /// <summary>Verifies that zero formats as "0", by the numeric formatter and by the engineering one.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Format_Zero_ReturnsZero(bool numeric)
     {
-        var formatter = new NumericTickFormatter();
+        ITickFormatter formatter = numeric ? new NumericTickFormatter() : new EngFormatter();
         Assert.Equal("0", formatter.Format(0));
     }
 
@@ -24,14 +26,20 @@ public class NumericTickFormatterTests
         Assert.Equal("42.5", formatter.Format(42.5));
     }
 
-    /// <summary>Verifies that large values use scientific notation.</summary>
-    [Fact]
-    public void Format_LargeValue_UsesScientific()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var formatter = new NumericTickFormatter();
-        string result = formatter.Format(1_500_000);
-        Assert.Contains("E", result, StringComparison.OrdinalIgnoreCase);
-    }
+        // Verifies that large values use scientific notation.
+        new DrawnToken("Format_LargeValue_UsesScientific", () =>
+        {
+            var formatter = new NumericTickFormatter();
+            return formatter.Format(1_500_000);
+        }, "E") { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that the formatter implements ITickFormatter.</summary>
     [Fact]
@@ -53,13 +61,41 @@ public class NumericTickFormatterTests
     public void Format_TinyNonZero_ReturnsNonEmpty(double v)
         => Assert.False(string.IsNullOrEmpty(new NumericTickFormatter().Format(v)));
 
-    /// <summary>Very small values that exceed double's negative exponent go scientific.</summary>
-    [Fact]
-    public void Format_VerySmall_UsesScientific()
-        => Assert.Contains("E", new NumericTickFormatter().Format(1e-7), StringComparison.OrdinalIgnoreCase);
+    /// <summary>Very small values that exceed double's negative exponent go scientific, and so do negative large ones.</summary>
+    [Theory]
+    [InlineData(1e-7)]
+    [InlineData(-2_500_000)]
+    public void Format_VerySmallOrLargeNegative_UsesScientific(double value)
+        => Assert.Contains("E", new NumericTickFormatter().Format(value), StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Negative large values also take the scientific branch.</summary>
-    [Fact]
-    public void Format_LargeNegative_UsesScientific()
-        => Assert.Contains("E", new NumericTickFormatter().Format(-2_500_000), StringComparison.OrdinalIgnoreCase);
+    /// <summary>The one plain number format of a tick writes what the axes renderer's own tick format wrote, on both sides of
+    /// every edge it has: zero below a ten-billionth, three significant digits below a hundredth and from a million up,
+    /// five otherwise.</summary>
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(5e-11)]
+    [InlineData(-5e-11)]
+    [InlineData(1e-10)]
+    [InlineData(0.0099)]
+    [InlineData(-0.0099)]
+    [InlineData(0.01)]
+    [InlineData(42.5)]
+    [InlineData(123456.789)]
+    [InlineData(999999.5)]
+    [InlineData(1e6)]
+    [InlineData(-1e6)]
+    public void FormatValue_WritesWhatTheAxesTickFormatWrote(double value)
+    {
+        Assert.Equal(OldAxesTickFormat(value), NumericTickFormatter.FormatValue(value));
+        Assert.Equal(NumericTickFormatter.FormatValue(value), new NumericTickFormatter().Format(value));
+    }
+
+    /// <summary>The body the axes renderer formatted a tick with before the formatter held it, kept here as the oracle.</summary>
+    private static string OldAxesTickFormat(double value)
+    {
+        if (Math.Abs(value) < 1e-10) return "0";
+        if (Math.Abs(value) >= 1e6 || (Math.Abs(value) < 0.01 && value != 0))
+            return value.ToString("G3", System.Globalization.CultureInfo.InvariantCulture);
+        return value.ToString("G5", System.Globalization.CultureInfo.InvariantCulture);
+    }
 }

@@ -3,6 +3,7 @@
 
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.Packaging;
 
 namespace MatPlotLibNet.Tests.Models;
 
@@ -201,15 +202,16 @@ public class ChartDataTableTests
         Assert.Equal(["2026-03-15", "2026-03-15 14:30"], cells);
     }
 
+    /// <summary>A value <see cref="DateTime.FromOADate"/> refuses (far below the OLE Automation range, either of its two edges, a
+    /// missing value) prints as the number: the table prints what it has rather than dying on one cell.</summary>
     [Fact]
     public void ADateColumn_BoundaryValue_OutsideTheOleRange_PrintsTheNumber()
     {
-        // FromOADate throws below -657435; the table prints what it has rather than dying on one cell.
         var table = new ChartDataTable("t", [Col("when", DataColumnKind.Date)],
-            [[DataCell.FromNumber(-1e9)], [DataCell.FromNumber(double.NaN)]]);
+            [[DataCell.FromNumber(-1e9)], [DataCell.FromNumber(-657435)], [DataCell.FromNumber(2958466)], [DataCell.FromNumber(double.NaN)]]);
 
         var cells = XElement.Parse(table.ToHtml()).Descendants("th").Skip(1).Select(c => c.Value).ToArray();
-        Assert.Equal(["-1000000000", "NaN"], cells);
+        Assert.Equal(["-1000000000", "-657435", "2958466", "NaN"], cells);
     }
 
     [Fact]
@@ -229,12 +231,12 @@ public class ChartDataTableTests
         var table = new ChartDataTable("t", [Col("i")], rows);
 
         string csv = table.ToCsv();
-        var lines = csv.Split("\r\n");
+        var lines = SourceFile.CrlfLinesOf(csv);
 
         Assert.Equal("i", lines[0]);
         Assert.Equal("1199", lines[1200]);
         Assert.Equal("", lines[^1]);
-        Assert.DoesNotContain("\n", csv.Replace("\r\n", ""));
+        Assert.All(lines, line => Assert.DoesNotContain("\n", line));
     }
 
     [Fact]
@@ -242,7 +244,7 @@ public class ChartDataTableTests
     {
         var table = new ChartDataTable("t", [Col("Q1, \"net\"", DataColumnKind.Text)], [[DataCell.FromText("a\r\nb")]]);
 
-        var lines = table.ToCsv().Split("\r\n");
+        var lines = SourceFile.CrlfLinesOf(table.ToCsv());
 
         Assert.Equal("\"Q1, \"\"net\"\"\"", lines[0]);
         // A field carrying a line break is quoted and keeps its break, so the record is one field over two lines.
@@ -268,7 +270,7 @@ public class ChartDataTableTests
     public void ToMarkdown_IsAPipeTableUnderABoldCaption()
     {
         string md = Revenue().ToMarkdown();
-        var lines = md.Split('\n');
+        var lines = SourceFile.LinesOf(md);
 
         Assert.Equal("**Revenue**", lines[0]);
         Assert.Equal("", lines[1]);
@@ -286,16 +288,19 @@ public class ChartDataTableTests
         Assert.StartsWith("| a |", table.ToMarkdown());
     }
 
-    [Fact]
-    public void ToMarkdown_BoundaryValue_APipeInACell_IsEscaped()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var table = new ChartDataTable("t", [Col("a|b", DataColumnKind.Text)], [[DataCell.FromText("x|y")]]);
+        new DrawnToken("ToMarkdown_BoundaryValue_APipeInACell_IsEscaped", () =>
+        {
+            var table = new ChartDataTable("t", [Col("a|b", DataColumnKind.Text)], [[DataCell.FromText("x|y")]]);
+            return table.ToMarkdown();
+        }, "| a\\|b |", "| x\\|y |"),
+    };
 
-        string md = table.ToMarkdown();
-
-        Assert.Contains("| a\\|b |", md);
-        Assert.Contains("| x\\|y |", md);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ToMarkdown_VeryLarge_CapsTheRowsAndSaysHowManyItLeftOut()
@@ -303,9 +308,156 @@ public class ChartDataTableTests
         var rows = Enumerable.Range(0, 1005).Select(i => (IReadOnlyList<DataCell>)[DataCell.FromNumber(i)]).ToArray();
         var table = new ChartDataTable("t", [Col("i")], rows);
 
-        var lines = table.ToMarkdown(maxRows: 1000).Split('\n');
+        var lines = SourceFile.LinesOf(table.ToMarkdown(maxRows: 1000));
 
         Assert.Equal("| 999 |", lines[^2]);
         Assert.Equal("| … 5 more rows |", lines[^1]);
+    }
+
+    [Fact]
+    public void FromIndexedValues_IsOneRowPerValue_ItsIndexThenTheValue()
+    {
+        var table = ChartDataTable.FromIndexedValues(new("value", Axis: DataAxis.X), [2.5, -1.0]);
+
+        Assert.Equal(["index", "value"], table.Columns.Select(column => column.Header));
+        Assert.Equal(DataAxis.X, table.Columns[1].Axis);
+        Assert.Equal([[0.0, 2.5], [1.0, -1.0]], table.Rows.Select(row => row.Select(cell => cell.Number).ToArray()));
+    }
+
+    /// <summary>A series that stands on categories tabulates them as text under the one header <c>category</c>, then each value column
+    /// under its own header, one row for each category the shortest column reaches.</summary>
+    [Fact]
+    public void ATableOfCategories_IsTheCategoryAsText_ThenEachColumnOfNumbers_ForTheShortestColumn()
+    {
+        var table = ChartDataTable.ByCategory(["a", "b", "c"], new NumberColumn("value", [1.5, 2.5, 3.5]), new NumberColumn("cells", [7.0, 8.0]));
+
+        Assert.Equal(["category", "value", "cells"], table.Columns.Select(c => c.Header));
+        Assert.Equal(DataColumnKind.Text, table.Columns[0].Kind);
+        Assert.Equal(2, table.RowCount);
+        Assert.Equal("b", table.Rows[1][0].Text);
+        Assert.Equal([2.5, 8.0], table.Rows[1].Skip(1).Select(cell => cell.Number));
+        Assert.Null(table.Caption);
+    }
+
+    /// <summary>Samples that belong to groups are tabulated in the long form: a row for each sample, the name of its group as text first
+    /// (the name it was given, else its place counted from 1 behind the word the caller gives), then what the caller says of the sample.</summary>
+    [Fact]
+    public void ATableOfGroupedSamples_IsARowPerSample_UnderTheNameOfItsGroup()
+    {
+        double[][] groups = [[1.5, 2.5], [], [9.0]];
+
+        var table = ChartDataTable.OfGroups([Col("group", DataColumnKind.Text), Col("value")], ["first"], "set ", groups, value => [DataCell.FromNumber(value)]);
+
+        Assert.Equal(["group", "value"], table.Columns.Select(c => c.Header));
+        Assert.Equal(3, table.RowCount);
+        Assert.Equal(["first", "first", "set 3"], table.Rows.Select(row => row[0].Text));
+        Assert.Equal([1.5, 2.5, 9.0], table.Rows.Select(row => row[1].Number));
+        Assert.Null(table.Caption);
+    }
+
+    /// <summary>The long form of a grid is a row per cell, the rows of the grid in order and the cells of each row in order, each row
+    /// what the caller says of its cell.</summary>
+    [Fact]
+    public void ATableOfTheCellsOfAGrid_HasARowPerCellInRowOrder()
+    {
+        var table = ChartDataTable.PerCell(2, 3, [Col("row"), Col("column")], (r, c) => [DataCell.FromNumber(r), DataCell.FromNumber(c)]);
+
+        Assert.Equal([0.0, 0, 0, 1, 1, 1], table.Rows.Select(row => row[0].Number));
+        Assert.Equal([0.0, 1, 2, 0, 1, 2], table.Rows.Select(row => row[1].Number));
+        Assert.Null(table.Caption);
+    }
+
+    /// <summary>The values of a grid placed at x and y: each cell's x and y (the index of its column or row where the grid names no
+    /// coordinate), then its value in each grid, under the headers the caller gives.</summary>
+    [Fact]
+    public void ATableOverAGrid_PlacesEachCellAtItsXAndYAndListsEachValue()
+    {
+        double[,] u = { { 1, 2 }, { 3, 4 } }, v = { { 5, 6 }, { 7, 8 } };
+
+        var table = ChartDataTable.OverGrid([10.0], [20.0, 30.0], new("u", u), new("v", v));
+
+        Assert.Equal(["x", "y", "u", "v"], table.Columns.Select(c => c.Header));
+        Assert.Equal([DataAxis.X, DataAxis.Y, DataAxis.None, DataAxis.None], table.Columns.Select(c => c.Axis));
+        Assert.Equal([10.0, 20, 1, 5], table.Rows[0].Select(cell => cell.Number));
+        Assert.Equal([1.0, 30, 4, 8], table.Rows[3].Select(cell => cell.Number));
+    }
+
+    /// <summary>A series whose table opens with its point says so with the one pair of headers: x on the X axis, then y (or the series'
+    /// own name for it) on the Y axis, then whatever else the series carries, one number column read by index each.</summary>
+    [Fact]
+    public void ATableOfAPoint_IsXThenY_ThenTheColumnsAfterIt()
+    {
+        var table = ChartDataTable.XY("height", [1.0, 2.0], [3.0, 4.0], new NumberColumn("size", [5.0, 6.0]), new NumberColumn("lag", [7.0, 8.0], DataAxis.X));
+
+        Assert.Equal(["x", "height", "size", "lag"], table.Columns.Select(c => c.Header));
+        Assert.Equal([DataAxis.X, DataAxis.Y, DataAxis.None, DataAxis.X], table.Columns.Select(c => c.Axis));
+        Assert.Equal([2.0, 4, 6, 8], table.Rows[1].Select(cell => cell.Number));
+    }
+
+    /// <summary>Points that stand over a plane and carry a height are tabulated as x, y and the height under the name the series gives its
+    /// heights, then the columns after it that are given.</summary>
+    [Fact]
+    public void ATableOfPointsWithAHeight_IsXAndYThenTheHeightUnderItsName_ThenTheColumnsAfterIt()
+    {
+        var table = ChartDataTable.XYZ([1.0, 2.0], [3.0, 4.0], [5.0, 6.0], "depth", new NumberColumn("u", [7.0, 8.0]), null);
+
+        Assert.Equal(["x", "y", "depth", "u"], table.Columns.Select(c => c.Header));
+        Assert.Equal([2.0, 4, 6, 8], table.Rows[1].Select(cell => cell.Number));
+        Assert.Null(table.Caption);
+    }
+
+    /// <summary>A column given as none (an error arm the series was not given, or given as an empty array) adds no column, and the table
+    /// is still the point.</summary>
+    [Fact]
+    public void AColumnThatHoldsNoNumber_AddsNoColumnToTheTableOfAPoint()
+    {
+        var table = ChartDataTable.XY("y", [1.0], [2.0], NumberColumn.IfAny("low", DataAxis.Y, null), NumberColumn.IfAny("high", DataAxis.Y, []), NumberColumn.IfAny("up", DataAxis.Y, [3.0]));
+
+        Assert.Equal(["x", "y", "up"], table.Columns.Select(c => c.Header));
+    }
+
+    /// <summary>The row count of a table of numbers is the shortest column's, so a series whose arrays disagree in length reports the
+    /// pairs it has.</summary>
+    [Fact]
+    public void ATableOfAPoint_HasTheRowsOfItsShortestColumn() =>
+        Assert.Equal(1, ChartDataTable.XY("y", [1.0, 2.0], [3.0, 4.0], new NumberColumn("z", [5.0])).RowCount);
+
+    [Fact]
+    public void TheHeadersOfAPoint_AreXOnTheXAxis_AndYOnTheYAxisUnderTheNameGiven()
+    {
+        Assert.Equal(new ChartDataColumn("x", Axis: DataAxis.X), ChartDataColumn.Position(DataAxis.X));
+        Assert.Equal(new ChartDataColumn("x1", Axis: DataAxis.X), ChartDataColumn.Position(DataAxis.X, "x1"));
+        Assert.Equal(new ChartDataColumn("y", Axis: DataAxis.Y), ChartDataColumn.Position(DataAxis.Y));
+        Assert.Equal(new ChartDataColumn("height", Axis: DataAxis.Y), ChartDataColumn.Position(DataAxis.Y, "height"));
+    }
+
+    [Fact]
+    public void ThePositionOfAColumnNotOnAnAxis_IsRefused() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => ChartDataColumn.Position(DataAxis.None));
+
+    private static string Text(DateTime when) => ChartDataTable.CellText(DataCell.FromNumber(when.ToOADate()), DataColumnKind.Date);
+
+    [Fact]
+    public void AMidnight_PrintsAsADate() => Assert.Equal("2026-03-15", Text(new DateTime(2026, 3, 15)));
+
+    [Fact]
+    public void AWholeMinute_PrintsToTheMinute() => Assert.Equal("2026-03-15 14:30", Text(new DateTime(2026, 3, 15, 14, 30, 0)));
+
+    [Fact]
+    public void AWholeSecond_PrintsToTheSecond() => Assert.Equal("2026-03-15 14:30:30", Text(new DateTime(2026, 3, 15, 14, 30, 30)));
+
+    [Fact]
+    public void AMillisecond_PrintsToTheMillisecond() =>
+        Assert.Equal("2026-03-15 14:30:30.250", Text(new DateTime(2026, 3, 15, 14, 30, 30, 250)));
+
+    /// <summary>The same rule in every emitter: CSV is the form a machine reads, and it is the one where a
+    /// silently rounded timestamp does the most damage.</summary>
+    [Fact]
+    public void ToCsv_KeepsTheSeconds()
+    {
+        var table = new ChartDataTable(null, [new("time", DataColumnKind.Date)],
+            [[DataCell.FromNumber(new DateTime(2026, 3, 15, 14, 30, 30).ToOADate())]]);
+
+        Assert.Equal("time\r\n2026-03-15 14:30:30\r\n", table.ToCsv());
     }
 }

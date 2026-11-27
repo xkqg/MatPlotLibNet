@@ -122,11 +122,11 @@ lists their fields.
 
 ### A spec with no series
 
-A spec with no series is drawn when it has something of its own to show: a text or an image on the figure, or an overlay
-on a Cartesian subplot (an annotation, a reference line, a span, a patch, a trendline, a level, a Fibonacci retracement
-or a buy or sell signal), an inset with bounds asked in turn. A figure legend, a colour bar, an axis break or a linked
-axis alone describes series that are not there, so such a spec, and a polar, 3-D or ternary subplot with overlays and no
-series, is refused as having nothing to draw, and the refusal names what would do.
+A spec with no series is drawn when it has something of its own to show: a text or an image on the figure, a patch on any
+subplot, or an overlay on a Cartesian subplot (an annotation, a reference line, a span, a trendline, a level, a Fibonacci
+retracement or a buy or sell signal), an inset with bounds asked in turn. A figure legend, a colour bar, an axis break or a
+linked axis alone describes series that are not there, so such a spec, and a polar, 3-D or ternary subplot whose only
+overlays are not patches, is refused as having nothing to draw, and the refusal names what would do.
 
 ### Shapes and an axis in another unit
 
@@ -160,10 +160,43 @@ figure's grid has more than one cell, and its buy and sell markers as `signals`.
 signal, an axes' `coordinateSystem`, the `position` of a spine (in any case: `"DATA"` is read as `data`), a theme's
 `defaultLegendPosition` and the `hatch` of a node of a tree by name, where a misspelt one used to be ignored.
 
+### A map
+
+The server carries the Geo package, so a spec can draw a map (see [Maps](geographic.md)). A map is a `geo_polygon` series
+whose `packageData` names the projection and the features: a built-in Natural Earth set by its `source`
+(`ne_110m_admin_0_countries` for the countries, `ne_110m_coastline` for the coastlines, `ne_110m_admin_0_boundary_lines_land`
+for the borders between countries on land), or a GeoJSON `FeatureCollection` of
+your own as `features`. A projection that takes numbers gets them by their PROJ names, in degrees:
+`{"name": "Orthographic", "parameters": {"lat_0": 50, "lon_0": 10}}`. The fill is `color`, the outline `edgeColor` and
+`lineWidth`, and a choropleth's `values` (one per feature) go through `colorMapName`. A projection, a source or a number the
+Geo package does not know is refused with its place and the names it accepts, where the library would leave the map out.
+`describe_chart_schema` for `geo_polygon` lists them all. This spec draws the countries and the coastlines on a Robinson map,
+without the axes' frame and ticks, as `WithProjection` leaves a map in code:
+
+```json
+{
+  "width": 800, "height": 420,
+  "title": "Countries",
+  "subPlots": [
+    {
+      "xAxis": { "majorTicks": { "visible": false } },
+      "yAxis": { "majorTicks": { "visible": false } },
+      "spines": { "top": { "visible": false }, "bottom": { "visible": false }, "left": { "visible": false }, "right": { "visible": false } },
+      "series": [
+        { "type": "geo_polygon", "label": "Land", "color": "#2d5a27", "edgeColor": "white", "lineWidth": 0.3,
+          "packageData": { "projection": { "name": "Robinson" }, "source": "ne_110m_admin_0_countries" } },
+        { "type": "geo_polygon", "label": "Coastlines", "edgeColor": "navy",
+          "packageData": { "projection": { "name": "Robinson" }, "source": "ne_110m_coastline" } }
+      ]
+    }
+  ]
+}
+```
+
 ## It refuses before it renders
 
 `FromJson` is a round-trip reader for the library's own writer. It drops an unknown series type, skips an unknown
-property and ignores a misspelled enum value, because a newer document must still load in an older build. When a
+property and leaves out a misspelled enum value with only a diagnostic, because a newer document must still load in an older build. When a
 model wrote the document, that lenience turns every typo into a blank chart that is reported as a success. So the
 server validates the document before it renders, and the error message names the field:
 
@@ -247,7 +280,7 @@ model's context.
 process, and it installs a glyph-path provider, so text is drawn with the library's own embedded font everywhere.
 The SVG is self-contained and identical to the PNG, but it is not machine-readable as text.
 
-No chart types are not available through the spec.
+Every chart type is available through the spec.
 
 `list_chart_types` lists every registered type. A type lands in a second, "not available" section again only on the
 day its JSON reader builds a placeholder instead of reading the document — the way several used to, until the

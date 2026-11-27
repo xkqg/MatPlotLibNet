@@ -9,81 +9,21 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Verifies <see cref="SpanRegion"/> behavior.</summary>
 public class SpanRegionTests
 {
-    /// <summary>Verifies that a span region stores its min, max, and orientation.</summary>
-    [Fact]
-    public void SpanRegion_StoresMinMaxOrientation()
+    /// <summary>Verifies that AxHSpan adds a horizontal span region and AxVSpan a vertical one.</summary>
+    public static TheoryData<Func<Axes, SpanRegion>, Orientation> TheSpanVerbs => new()
     {
-        var span = new SpanRegion(2.0, 5.0, Orientation.Horizontal);
-        Assert.Equal(2.0, span.Min);
-        Assert.Equal(5.0, span.Max);
-        Assert.Equal(Orientation.Horizontal, span.Orientation);
-    }
+        { axes => axes.AxHSpan(1.0, 3.0), Orientation.Horizontal },
+        { axes => axes.AxVSpan(2.0, 4.0), Orientation.Vertical },
+    };
 
-    /// <summary>Verifies that the default alpha is 0.2.</summary>
-    [Fact]
-    public void DefaultAlpha_Is0Point2()
-    {
-        var span = new SpanRegion(1.0, 3.0, Orientation.Vertical);
-        Assert.Equal(0.2, span.Alpha);
-    }
-
-    /// <summary>Verifies that AxHSpan adds a horizontal span region.</summary>
-    [Fact]
-    public void Axes_AxHSpan_AddsSpan()
+    [Theory]
+    [MemberData(nameof(TheSpanVerbs))]
+    public void Axes_AnAxSpanVerb_AddsSpan(Func<Axes, SpanRegion> verb, Orientation orientation)
     {
         var axes = new Axes();
-        var span = axes.AxHSpan(1.0, 3.0);
+        var span = verb(axes);
         Assert.Single(axes.Spans);
-        Assert.Equal(Orientation.Horizontal, span.Orientation);
+        Assert.Equal(orientation, span.Orientation);
     }
 
-    /// <summary>Verifies that AxVSpan adds a vertical span region.</summary>
-    [Fact]
-    public void Axes_AxVSpan_AddsSpan()
-    {
-        var axes = new Axes();
-        var span = axes.AxVSpan(2.0, 4.0);
-        Assert.Single(axes.Spans);
-        Assert.Equal(Orientation.Vertical, span.Orientation);
-    }
-
-    /// <summary>Verifies that LineStyle defaults to None.</summary>
-    [Fact]
-    public void SpanRegion_LineStyle_DefaultsToNone()
-    {
-        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
-        Assert.Equal(LineStyle.None, span.LineStyle);
-    }
-
-    /// <summary>Verifies that LineWidth defaults to 1.</summary>
-    [Fact]
-    public void SpanRegion_LineWidth_DefaultsTo1()
-    {
-        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
-        Assert.Equal(1.0, span.LineWidth);
-    }
-
-    /// <summary>Verifies that EdgeColor defaults to null.</summary>
-    [Fact]
-    public void SpanRegion_EdgeColor_DefaultsToNull()
-    {
-        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
-        Assert.Null(span.EdgeColor);
-    }
-
-    /// <summary>Verifies that Label defaults to null.</summary>
-    [Fact]
-    public void SpanRegion_Label_DefaultsToNull()
-    {
-        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
-        Assert.Null(span.Label);
-    }
-
-    /// <summary>Verifies that Label can be set.</summary>
-    [Fact]
-    public void SpanRegion_Label_CanBeSet()
-    {
-        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal) { Label = "zone" };
-        Assert.Equal("zone", span.Label);
-    }
 }

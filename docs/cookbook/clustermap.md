@@ -92,9 +92,10 @@ Plt.Create()
 
 ## Names beside the rows and columns
 
-`FigureTemplates.Clustermap` clusters the rows and the columns itself and takes a name for each. The names go with the rows
-and columns they were given for, wherever the clustering draws them: a name is never left standing at the place its row
-stood in the data.
+`FigureTemplates.Clustermap` clusters the rows and the columns itself (Ward's method over their Euclidean distances) and takes a
+name for each; it draws the same `ClustermapSeries`, its trees made from the two clusterings. The names go with the rows and
+columns they were given for, wherever the clustering draws them: a row's name right of the matrix, a column's under it, never
+left standing at the place its row stood in the data.
 
 ```csharp
 double[,] expression =
@@ -118,7 +119,8 @@ Either list may be left out. A list with another length than the matrix has is r
 
 Leaf `TreeNode.Value` must be the **zero-based original index** of the row or column in the
 data matrix (e.g. `0`, `1`, `2` for a 3-row matrix). Internal nodes carry the **merge
-distance** (any positive double). If the tree is malformed (out-of-range indices, duplicates,
+distance** (any positive double). A leaf's `Label` names its row (right of the matrix) or its column (under it); an empty label
+names nothing. A clustering of your own becomes such a tree with `HierarchicalClustering.Cluster(distances).ToTree(names)`. If the tree is malformed (out-of-range indices, duplicates,
 or wrong count) `ResolveLeafOrder` falls back to the identity order silently.
 
 ```csharp

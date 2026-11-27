@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -13,11 +15,6 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// one rule every hierarchical layout partitions by). The rows share the plot area's height equally, and a cell is as tall as one row.</summary>
 internal sealed class IcicleSeriesRenderer : SeriesRenderer<IcicleSeries>
 {
-    /// <summary>The point size of a cell's label.</summary>
-    private const double LabelSize = 12;
-
-    /// <summary>The pixels between a cell's edge and its label.</summary>
-    private const double LabelPad = 4;
 
     /// <inheritdoc />
     public IcicleSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -34,8 +31,7 @@ internal sealed class IcicleSeriesRenderer : SeriesRenderer<IcicleSeries>
         int levels = series.Root.Levels();
         if (levels == 0 || !(bounds.Width > 0) || !(bounds.Height > 0)) yield break;
 
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var range = series.ColorRange();
+        var scale = series.ColorScaleUnder(Context.Theme);
         double rowHeight = bounds.Height / levels;
         foreach (var cell in Under(series.Root, bounds.X, bounds.Width, 0)) yield return cell;
 
@@ -46,9 +42,7 @@ internal sealed class IcicleSeriesRenderer : SeriesRenderer<IcicleSeries>
             {
                 var (child, share) = shares[i];
                 double cellWidth = width * share;
-                var colour = child.Color
-                    ?? series.ColorFromValue(child, cmap, range.Lo, range.Hi)
-                    ?? cmap.GetColor(i.ColormapFraction(shares.Count));
+                var colour = HierarchicalSeries.ColourOf(child, scale, i, shares.Count);
                 yield return new IcicleCell(child, new Rect(x, bounds.Y + depth * rowHeight, cellWidth, rowHeight), colour);
                 foreach (var below in Under(child, x, cellWidth, depth + 1)) yield return below;
                 x += cellWidth;
@@ -59,17 +53,21 @@ internal sealed class IcicleSeriesRenderer : SeriesRenderer<IcicleSeries>
     /// <inheritdoc />
     public override void Render(IcicleSeries series)
     {
-        var font = new Font { Size = LabelSize, Color = Colors.White };
+        double labelSize = series.TextSizeUnder(Context.Theme);
         foreach (var cell in Cells(series))
         {
-            Ctx.DrawRectangle(cell.Box, new ShapeStyle(cell.Color, Colors.White, 1) { Hatch = cell.Node.Hatch, HatchColor = cell.Node.HatchColor });
+            Ctx.DrawRectangle(cell.Box, PatchEdge.WhitePixel.StyleOf(cell.Color, cell.Node.Hatching.IsDrawn).WithHatch(cell.Node.Hatching));
 
-            // A label is drawn where it fits its cell; a cell too narrow to hold its name stays unnamed.
+            // A label is drawn where it fits its cell, in the ink that reads against the cell's colour; a cell too narrow to hold
+            // its name stays unnamed.
             if (series.ShowLabels && !string.IsNullOrEmpty(cell.Node.Label)
-                && cell.Box.Height >= LabelSize + 2 * LabelPad
-                && Ctx.MeasureText(cell.Node.Label, font).Width <= cell.Box.Width - 2 * LabelPad)
+                && cell.Box.Height >= CellLabel.Standard.HeightFor(labelSize))
             {
-                Ctx.DrawText(cell.Node.Label, new Point(cell.Box.X + LabelPad, cell.Box.Y + LabelSize + 2), font, TextAlignment.Left);
+                var font = Context.Theme.DataTextFontOn(cell.Color, labelSize, GroundInk.Readable);
+                if (Ctx.ExtentOf(TextLabel.Of(cell.Node.Label), font).Width <= CellLabel.Standard.RoomIn(cell.Box))
+                {
+                    Ctx.Draw(TextLabel.Of(cell.Node.Label), font, CellLabel.Standard.Name(cell.Box));
+                }
             }
         }
     }

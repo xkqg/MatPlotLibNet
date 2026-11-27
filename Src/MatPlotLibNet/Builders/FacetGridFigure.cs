@@ -39,8 +39,12 @@ public sealed class FacetGridFigure : FacetedFigure
         _plotFunc = plotFunc;
     }
 
-    /// <summary>Maximum number of columns in the grid (default 3).</summary>
-    public int MaxCols { get; init; } = 3;
+    /// <summary>How many columns the grid has at most when told no number: the default of <see cref="MaxCols"/> and of the
+    /// <c>cols</c> argument of <c>FigureTemplates.FacetGrid</c>.</summary>
+    internal const int RestingMaxCols = 3;
+
+    /// <summary>Maximum number of columns in the grid (default <see cref="RestingMaxCols"/>).</summary>
+    public int MaxCols { get; init; } = RestingMaxCols;
 
     /// <summary>
     /// Optional hue labels per observation. They are accepted and kept but not used: the
@@ -60,23 +64,19 @@ public sealed class FacetGridFigure : FacetedFigure
         {
             throw new InvalidOperationException("A facet grid needs at least one category; the input carried none.");
         }
-        int numCols  = Math.Min(MaxCols, numCats);
-        int numRows  = (numCats + numCols - 1) / numCols;
+        var wrap = PanelWrap.Filled(numCats, MaxCols);
 
-        fb.WithSize(300 * numCols, 250 * numRows)
-          .WithGridSpec(numRows, numCols);
+        fb.WithSize(300 * wrap.Columns, 250 * wrap.Rows)
+          .WithGridSpec(wrap.Rows, wrap.Columns);
 
         for (int i = 0; i < numCats; i++)
         {
-            int    idx = i;
-            string cat = categories[idx];
-            int    row = idx / numCols;
-            int    col = idx % numCols;
+            string cat = categories[i];
 
             var filteredX = _x.Where((_, j) => _category[j] == cat).ToArray();
             var filteredY = _y.Where((_, j) => _category[j] == cat).ToArray();
 
-            fb.AddSubPlot(GridPosition.Single(row, col), ax =>
+            fb.AddSubPlot(wrap.At(i), ax =>
             {
                 _plotFunc(ax, filteredX, filteredY);
                 ax.WithTitle(cat);

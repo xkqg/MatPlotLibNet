@@ -8,13 +8,19 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a funnel chart showing progressive reduction through stages (e.g., sales pipeline).</summary>
-public sealed class FunnelSeries : ChartSeries
+public sealed class FunnelSeries : ChartSeries, ISeriesKind<FunnelSeries>
 {
     /// <inheritdoc />
     internal override int ColorSlotSpan => Math.Max(1, Values.Length);
 
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
+
+    /// <inheritdoc />
+    /// <remarks>An entry for each stage that has a name (<see cref="Labels"/>), in the colour its bar is drawn in; a stage with no name
+    /// has none, and the ones after it keep their colours. A funnel whose stages are all unnamed has the series' own name as its entry.</remarks>
+    internal override IReadOnlyList<LegendPart> LegendPartsUnder(Theme theme) =>
+        Labels.Take(Values.Length).AsLegendParts(Colors) is { Count: > 0 } parts ? parts : base.LegendPartsUnder(theme);
 
     /// <summary>The name of each stage, drawn centred on its bar, from the top stage to the bottom one.</summary>
     public string[] Labels { get; }
@@ -23,7 +29,7 @@ public sealed class FunnelSeries : ChartSeries
     public double[] Values { get; }
     /// <summary>The colour of each stage's bar, by position; a stage past the end of the array, or every stage when
     /// this is <see langword="null"/>, takes the colour the figure's theme hands out at its position.</summary>
-    public Color[]? Colors { get; set; }
+    public Color[]? Colors { get; set => Change(ref field, value); }
 
     /// <summary>Initializes a new <see cref="FunnelSeries"/> with the given stage labels and values.</summary>
     /// <param name="labels">Stage label for each slice.</param>
@@ -34,21 +40,19 @@ public sealed class FunnelSeries : ChartSeries
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
+
+    static string ISeriesKind<FunnelSeries>.Kind => "funnel";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "funnel",
+        Type = this.WireKind(),
         PieLabels = Labels, Values = Values,
         Colors = Colors?.ToList(),
     };
 
-    /// <summary>Reconstructs a <see cref="FunnelSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="FunnelSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static FunnelSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Funnel(dto.PieLabels ?? [], dto.Values ?? []);
@@ -59,17 +63,7 @@ public sealed class FunnelSeries : ChartSeries
 
     /// <inheritdoc />
     /// <remarks>The categories as text, then the values under the series' own label.</remarks>
-    public override ChartDataTable? ToDataTable()
-    {
-        int count = Math.Min(Labels.Length, Values.Length);
-        var rows = new IReadOnlyList<DataCell>[count];
-        for (int i = 0; i < count; i++)
-        {
-            rows[i] = [DataCell.FromText(Labels[i]), DataCell.FromNumber(Values[i])];
-        }
-
-        return new ChartDataTable(null, [new("category", DataColumnKind.Text), new(Label ?? "value")], rows);
-    }
+    public override ChartDataTable? ToDataTable() => ChartDataTable.ByCategory(Labels, new NumberColumn(Label ?? "value", Values));
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

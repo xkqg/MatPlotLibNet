@@ -21,19 +21,12 @@ public sealed class FontDirectoryTests : IDisposable
         return path;
     }
 
-    [Fact]
-    public void Expand_Nothing_IsEmpty()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ;  ")]
+    public void Expand_NothingOrBlank_IsEmpty(string? variable)
     {
-        var expanded = FontDirectory.Expand(null);
-
-        Assert.Empty(expanded.Files);
-        Assert.Empty(expanded.Problems);
-    }
-
-    [Fact]
-    public void Expand_Blank_IsEmpty()
-    {
-        var expanded = FontDirectory.Expand("  ;  ");
+        var expanded = FontDirectory.Expand(variable);
 
         Assert.Empty(expanded.Files);
         Assert.Empty(expanded.Problems);

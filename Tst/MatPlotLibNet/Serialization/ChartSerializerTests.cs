@@ -53,54 +53,11 @@ public class ChartSerializerTests
         curve.ColorGroup = band.ColorGroup = 3;
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => { ax.AddSeries(curve); ax.AddSeries(band); }).Build();
 
-        var readBack = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var readBack = figure.RoundTripped();
 
         var series = readBack.SubPlots[0].Series;
         Assert.Equal(3, ((ChartSeries)series[0]).ColorGroup);
         Assert.Equal(3, ((ChartSeries)series[1]).ColorGroup);
-    }
-
-    /// <summary>A series with no <see cref="ChartSeries.ColorGroup"/> writes no field for it at all — the golden-corpus
-    /// guarantee: a figure built before this field existed writes the same bytes after.</summary>
-    [Fact]
-    public void AnUngroupedSeries_WritesNoColorGroupField()
-    {
-        var figure = Plt.Create().Plot([0.0, 1], [0.0, 1]).Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-
-        Assert.DoesNotContain("colorGroup", json, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>Verifies that ToJson includes a type discriminator for series.</summary>
-    [Fact]
-    public void ToJson_IncludesSeriesTypeDiscriminator()
-    {
-        var figure = Plt.Create()
-            .Scatter([1.0], [2.0])
-            .Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        Assert.Contains("\"type\"", json);
-        Assert.Contains("scatter", json);
-    }
-
-    /// <summary>Verifies that ToJson includes line series data and label.</summary>
-    [Fact]
-    public void ToJson_IncludesLineSeries()
-    {
-        var figure = Plt.Create()
-            .Plot([1.0, 2.0], [3.0, 4.0], line =>
-            {
-                line.Color = Colors.Red;
-                line.LineWidth = 2.5;
-                line.Label = "My Line";
-            })
-            .Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        Assert.Contains("line", json);
-        Assert.Contains("My Line", json);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves the figure title.</summary>
@@ -111,8 +68,7 @@ public class ChartSerializerTests
             .WithTitle("Round Trip")
             .Build();
 
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = original.RoundTripped();
 
         Assert.Equal("Round Trip", restored.Title);
     }
@@ -126,70 +82,11 @@ public class ChartSerializerTests
             .WithDpi(150)
             .Build();
 
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = original.RoundTripped();
 
         Assert.Equal(1024, restored.Width);
         Assert.Equal(768, restored.Height);
         Assert.Equal(150, restored.Dpi);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves LineSeries properties.</summary>
-    [Fact]
-    public void RoundTrip_PreservesLineSeries()
-    {
-        var original = Plt.Create()
-            .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], line =>
-            {
-                line.Color = Colors.Red;
-                line.LineWidth = 2.5;
-                line.Label = "My Line";
-                line.LineStyle = LineStyle.Dashed;
-            })
-            .Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
-
-        Assert.Single(restored.SubPlots);
-        var series = Assert.IsType<LineSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Colors.Red, series.Color);
-        Assert.Equal(2.5, series.LineWidth);
-        Assert.Equal("My Line", series.Label);
-        Assert.Equal(LineStyle.Dashed, series.LineStyle);
-        Assert.Equal([1.0, 2.0, 3.0], series.XData);
-        Assert.Equal([4.0, 5.0, 6.0], series.YData);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves ScatterSeries color.</summary>
-    [Fact]
-    public void RoundTrip_PreservesScatterSeries()
-    {
-        var original = Plt.Create()
-            .Scatter([1.0, 2.0], [3.0, 4.0], s => s.Color = Colors.Blue)
-            .Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
-
-        var series = Assert.IsType<ScatterSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Colors.Blue, series.Color);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves BarSeries categories and values.</summary>
-    [Fact]
-    public void RoundTrip_PreservesBarSeries()
-    {
-        var original = Plt.Create()
-            .Bar(["A", "B"], [10.0, 20.0])
-            .Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
-
-        var series = Assert.IsType<BarSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(["A", "B"], series.Categories);
-        Assert.Equal([10.0, 20.0], series.Values);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves multiple subplots with distinct series types.</summary>
@@ -201,8 +98,7 @@ public class ChartSerializerTests
             .AddSubPlot(1, 2, 2, ax => ax.WithTitle("Right").Scatter([3.0], [4.0]))
             .Build();
 
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = original.RoundTripped();
 
         Assert.Equal(2, restored.SubPlots.Count);
         Assert.Equal("Left", restored.SubPlots[0].Title);
@@ -226,103 +122,12 @@ public class ChartSerializerTests
             })
             .Build();
 
-        string json = ChartSerializerDefault.Current.ToJson(original);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = original.RoundTripped();
 
         Assert.Equal("Time", restored.SubPlots[0].XAxis.Label);
         Assert.Equal("Value", restored.SubPlots[0].YAxis.Label);
         Assert.Equal(0, restored.SubPlots[0].XAxis.Min);
         Assert.Equal(100, restored.SubPlots[0].XAxis.Max);
-    }
-
-    /// <summary>Verifies that ToJson with indentation produces multi-line output.</summary>
-    [Fact]
-    public void ToJson_Indented_IsReadable()
-    {
-        var figure = Plt.Create().WithTitle("Test").Build();
-        string json = ChartSerializerDefault.Current.ToJson(figure, indented: true);
-        Assert.Contains("\n", json);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves HistogramSeries bin count.</summary>
-    [Fact]
-    public void RoundTrip_PreservesHistogramSeries()
-    {
-        var figure = Plt.Create().Hist([1.0, 2.0, 3.0, 4.0, 5.0], 5).Build();
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<HistogramSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(5, series.Bins);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves PieSeries sizes and labels.</summary>
-    [Fact]
-    public void RoundTrip_PreservesPieSeries()
-    {
-        var figure = Plt.Create().Pie([30.0, 70.0], ["A", "B"]).Build();
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<PieSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([30.0, 70.0], series.Sizes);
-        Assert.Equal(["A", "B"], series.Labels!);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves BoxSeries label and datasets.</summary>
-    [Fact]
-    public void RoundTrip_PreservesBoxSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var box = axes.BoxPlot([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
-        box.Label = "BoxTest";
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<BoxSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal("BoxTest", series.Label);
-        Assert.Equal(2, series.Datasets.Length);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves ViolinSeries type.</summary>
-    [Fact]
-    public void RoundTrip_PreservesViolinSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Violin([[1.0, 2.0, 3.0]]);
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        Assert.IsType<ViolinSeries>(restored.SubPlots[0].Series[0]);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves StemSeries X and Y data.</summary>
-    [Fact]
-    public void RoundTrip_PreservesStemSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Stem([1.0, 2.0], [3.0, 4.0]);
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<StemSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([1.0, 2.0], series.XData);
-        Assert.Equal([3.0, 4.0], series.YData);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves ContourSeries type.</summary>
-    [Fact]
-    public void RoundTrip_PreservesContourSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Contour([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } });
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        Assert.IsType<ContourSeries>(restored.SubPlots[0].Series[0]);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves HeatmapSeries type.</summary>
-    [Fact]
-    public void RoundTrip_PreservesHeatmapSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        Assert.IsType<HeatmapSeries>(restored.SubPlots[0].Series[0]);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves the right Y axis and its series.</summary>
@@ -336,7 +141,7 @@ public class ChartSerializerTests
         right.Axis.Label = "Right";
         right.AddSeries(new LineSeries([1.0, 2.0], [100.0, 200.0]));
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.NotEmpty(restored.SubPlots[0].YAxes.Right);
         Assert.Equal("Right", restored.SubPlots[0].YAxes.Right[0].Axis.Label);
         Assert.Single(restored.SubPlots[0].YAxes.Right[0].Series);
@@ -353,7 +158,7 @@ public class ChartSerializerTests
         ann.ArrowTargetX = 1.5;
         ann.ArrowTargetY = 3.5;
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.Single(restored.SubPlots[0].Annotations);
         Assert.Equal("peak", restored.SubPlots[0].Annotations[0].Text);
         Assert.Equal(1.5, restored.SubPlots[0].Annotations[0].ArrowTargetX);
@@ -369,7 +174,7 @@ public class ChartSerializerTests
         axes.AxHLine(3.5);
         axes.AxVLine(1.5);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.Equal(2, restored.SubPlots[0].ReferenceLines.Count);
     }
 
@@ -383,24 +188,8 @@ public class ChartSerializerTests
         axes.AxHSpan(3.0, 3.5);
         axes.AxVSpan(1.2, 1.8);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.Equal(2, restored.SubPlots[0].Spans.Count);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves RadarSeries categories, values, and alpha.</summary>
-    [Fact]
-    public void RoundTrip_PreservesRadarSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var radar = axes.Radar(["Speed", "Power", "Range"], [8.0, 6.0, 9.0]);
-        radar.Alpha = 0.5;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<RadarSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(["Speed", "Power", "Range"], series.Categories);
-        Assert.Equal([8.0, 6.0, 9.0], series.Values);
-        Assert.Equal(0.5, series.Alpha);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves the subplot bar mode.</summary>
@@ -413,264 +202,8 @@ public class ChartSerializerTests
                 .Bar(["A", "B"], [10.0, 20.0]))
             .Build();
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.Equal(BarMode.Stacked, restored.SubPlots[0].BarMode);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves QuiverSeries vector data.</summary>
-    [Fact]
-    public void RoundTrip_PreservesQuiverSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Quiver([1.0, 2.0], [3.0, 4.0], [0.5, -0.5], [0.5, 0.5]);
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<QuiverSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([0.5, -0.5], series.UData);
-        Assert.Equal([0.5, 0.5], series.VData);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves CandlestickSeries OHLC data and date labels.</summary>
-    [Fact]
-    public void RoundTrip_PreservesCandlestickSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Candlestick([10.0, 12.0], [15.0, 14.0], [8.0, 10.0], [13.0, 11.0], ["Mon", "Tue"]);
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<CandlestickSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([10.0, 12.0], series.Open);
-        Assert.Equal(["Mon", "Tue"], series.DateLabels!);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves ErrorBarSeries color, cap size, and error ranges.</summary>
-    [Fact]
-    public void RoundTrip_PreservesErrorBarSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var eb = axes.ErrorBar([1.0, 2.0], [3.0, 4.0], [0.5, 0.5], [1.0, 1.0]);
-        eb.CapSize = 8.0;
-        eb.Color = Colors.Red;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<ErrorBarSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Colors.Red, series.Color);
-        Assert.Equal(8.0, series.CapSize);
-        Assert.Equal([0.5, 0.5], series.YErrorLow);
-        Assert.Equal([1.0, 1.0], series.YErrorHigh);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves StepSeries position and data.</summary>
-    [Fact]
-    public void RoundTrip_PreservesStepSeries()
-    {
-        var figure = Plt.Create()
-            .Step([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], s => s.StepPosition = StepPosition.Pre)
-            .Build();
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<StepSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(StepPosition.Pre, series.StepPosition);
-        Assert.Equal([1.0, 2.0, 3.0], series.XData);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves AreaSeries color, alpha, and fill data.</summary>
-    [Fact]
-    public void RoundTrip_PreservesAreaSeries()
-    {
-        var figure = Plt.Create()
-            .FillBetween([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [1.0, 2.0, 3.0], s =>
-            {
-                s.Color = Colors.Blue;
-                s.Alpha = 0.5;
-            })
-            .Build();
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<AreaSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Colors.Blue, series.Color);
-        Assert.Equal(0.5, series.Alpha);
-        Assert.Equal([1.0, 2.0, 3.0], series.XData);
-        Assert.Equal([4.0, 5.0, 6.0], series.YData);
-        Assert.Equal([1.0, 2.0, 3.0], series.YData2!);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves the label on any series type.</summary>
-    [Fact]
-    public void RoundTrip_PreservesLabelAcrossAllTypes()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var line = axes.Plot([1.0], [2.0]);
-        line.Label = "shared-label";
-        var json = ChartSerializerDefault.Current.ToJson(figure);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
-        Assert.Equal("shared-label", restored.SubPlots[0].Series[0].Label);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves DonutSeries properties including inner radius and center text.</summary>
-    [Fact]
-    public void RoundTrip_PreservesDonutSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var donut = axes.Donut([30.0, 70.0], ["A", "B"]);
-        donut.InnerRadius = 0.5;
-        donut.CenterText = "Total";
-        donut.StartAngle = 45;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<DonutSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([30.0, 70.0], series.Sizes);
-        Assert.Equal(["A", "B"], series.Labels!);
-        Assert.Equal(0.5, series.InnerRadius);
-        Assert.Equal("Total", series.CenterText);
-        Assert.Equal(45, series.StartAngle);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves BubbleSeries positions, sizes, and styling.</summary>
-    [Fact]
-    public void RoundTrip_PreservesBubbleSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var bubble = axes.Bubble([1.0, 2.0], [3.0, 4.0], [10.0, 20.0]);
-        bubble.Color = Colors.Blue;
-        bubble.Alpha = 0.8;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<BubbleSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([1.0, 2.0], series.XData);
-        Assert.Equal([3.0, 4.0], series.YData);
-        Assert.Equal([10.0, 20.0], series.Sizes);
-        Assert.Equal(Colors.Blue, series.Color);
-        Assert.Equal(0.8, series.Alpha);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves OhlcBarSeries OHLC data and tick width.</summary>
-    [Fact]
-    public void RoundTrip_PreservesOhlcBarSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var ohlc = axes.OhlcBar([10.0, 12.0], [15.0, 14.0], [8.0, 10.0], [13.0, 11.0], ["Mon", "Tue"]);
-        ohlc.TickWidth = 0.5;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<OhlcBarSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([10.0, 12.0], series.Open);
-        Assert.Equal([15.0, 14.0], series.High);
-        Assert.Equal([8.0, 10.0], series.Low);
-        Assert.Equal([13.0, 11.0], series.Close);
-        Assert.Equal(["Mon", "Tue"], series.DateLabels!);
-        Assert.Equal(0.5, series.TickWidth);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves WaterfallSeries categories, values, and bar width.</summary>
-    [Fact]
-    public void RoundTrip_PreservesWaterfallSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var wf = axes.Waterfall(["Start", "Add", "Total"], [100.0, 50.0, 150.0]);
-        wf.BarWidth = 0.8;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<WaterfallSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(["Start", "Add", "Total"], series.Categories);
-        Assert.Equal([100.0, 50.0, 150.0], series.Values);
-        Assert.Equal(0.8, series.BarWidth);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves FunnelSeries labels and values.</summary>
-    [Fact]
-    public void RoundTrip_PreservesFunnelSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        axes.Funnel(["Leads", "Qualified", "Won"], [1000.0, 500.0, 100.0]);
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<FunnelSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(["Leads", "Qualified", "Won"], series.Labels);
-        Assert.Equal([1000.0, 500.0, 100.0], series.Values);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves GanttSeries tasks, timing, and styling.</summary>
-    [Fact]
-    public void RoundTrip_PreservesGanttSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var gantt = axes.Gantt(["Task A", "Task B"], [0.0, 2.0], [3.0, 5.0]);
-        gantt.Color = Colors.Green;
-        gantt.BarHeight = 0.8;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<GanttSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(["Task A", "Task B"], series.Tasks);
-        Assert.Equal([0.0, 2.0], series.Starts);
-        Assert.Equal([3.0, 5.0], series.Ends);
-        Assert.Equal(Colors.Green, series.Color);
-        Assert.Equal(0.8, series.BarHeight);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves GaugeSeries value, range, and needle color.</summary>
-    [Fact]
-    public void RoundTrip_PreservesGaugeSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var gauge = axes.Gauge(75.0);
-        gauge.Min = 0;
-        gauge.Max = 150;
-        gauge.NeedleColor = Colors.Red;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<GaugeSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(75.0, series.Value);
-        Assert.Equal(0, series.Min);
-        Assert.Equal(150, series.Max);
-        Assert.Equal(Colors.Red, series.NeedleColor);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves ProgressBarSeries value, colors, and bar height.</summary>
-    [Fact]
-    public void RoundTrip_PreservesProgressBarSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var pb = axes.ProgressBar(0.75);
-        pb.FillColor = Colors.Green;
-        pb.TrackColor = Color.FromHex("#CCCCCC");
-        pb.BarHeight = 0.5;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<ProgressBarSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(0.75, series.Value);
-        Assert.Equal(Colors.Green, series.FillColor);
-        Assert.Equal(Color.FromHex("#CCCCCC"), series.TrackColor);
-        Assert.Equal(0.5, series.BarHeight);
-    }
-
-    /// <summary>Verifies that a round-trip serialization preserves SparklineSeries values, color, and line width.</summary>
-    [Fact]
-    public void RoundTrip_PreservesSparklineSeries()
-    {
-        var figure = new Figure();
-        var axes = figure.AddSubPlot();
-        var sparkline = axes.Sparkline([1.0, 3.0, 2.0, 5.0, 4.0]);
-        sparkline.Color = Colors.Blue;
-        sparkline.LineWidth = 2.0;
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        var series = Assert.IsType<SparklineSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal([1.0, 3.0, 2.0, 5.0, 4.0], series.Values);
-        Assert.Equal(Colors.Blue, series.Color);
-        Assert.Equal(2.0, series.LineWidth);
     }
 
     // --- GridSpec serialization ---
@@ -683,7 +216,7 @@ public class ChartSerializerTests
         var gs = figure.GridSpec;
         figure.AddSubPlot(gs, GridPosition.Single(0, 0)).Plot([1.0], [2.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
 
         Assert.NotNull(restored.GridSpec);
         Assert.Equal(3, restored.GridSpec.Rows);
@@ -700,7 +233,7 @@ public class ChartSerializerTests
         var gs = figure.GridSpec;
         figure.AddSubPlot(gs, GridPosition.Single(0, 1)).Plot([1.0], [2.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
 
         Assert.NotNull(restored.SubPlots[0].GridPosition);
         var pos = restored.SubPlots[0].GridPosition!.Value;
@@ -718,23 +251,13 @@ public class ChartSerializerTests
         var gs = figure.GridSpec;
         figure.AddSubPlot(gs, new GridPosition(0, 2, 0, 3)).Plot([1.0], [2.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
 
         var pos = restored.SubPlots[0].GridPosition!.Value;
         Assert.Equal(0, pos.RowStart);
         Assert.Equal(2, pos.RowEnd);
         Assert.Equal(0, pos.ColStart);
         Assert.Equal(3, pos.ColEnd);
-    }
-
-    /// <summary>Verifies that a figure without GridSpec omits the gridSpec field from JSON.</summary>
-    [Fact]
-    public void RoundTrip_NoGridSpec_OmitsFromJson()
-    {
-        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        Assert.DoesNotContain("gridSpec", json);
     }
 
     // --- Spines serialization ---
@@ -752,7 +275,7 @@ public class ChartSerializerTests
         };
         ax.Plot([1.0], [2.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.False(restored.SubPlots[0].Spines.Top.Visible);
         Assert.False(restored.SubPlots[0].Spines.Right.Visible);
         Assert.True(restored.SubPlots[0].Spines.Bottom.Visible);
@@ -771,72 +294,33 @@ public class ChartSerializerTests
         };
         ax.Plot([1.0], [2.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         Assert.Equal(SpinePosition.Data, restored.SubPlots[0].Spines.Bottom.Position);
         Assert.Equal(0.0, restored.SubPlots[0].Spines.Bottom.PositionValue);
     }
 
-    /// <summary>Verifies that default spines are omitted from JSON.</summary>
-    [Fact]
-    public void RoundTrip_DefaultSpines_OmitsFromJson()
-    {
-        var figure = new Figure();
-        figure.AddSubPlot().Plot([1.0], [2.0]);
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        Assert.DoesNotContain("spines", json);
-    }
-
     // --- Shared axes serialization ---
 
-    /// <summary>Verifies that shared X axis survives JSON round-trip via keys.</summary>
-    [Fact]
-    public void RoundTrip_PreservesSharedXAxis()
+    /// <summary>Verifies that a shared X or Y axis survives JSON round-trip via keys.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RoundTrip_PreservesASharedAxis(bool shareX)
     {
         var figure = new Figure();
-        var ax1 = figure.AddSubPlot(2, 1, 1);
-        ax1.Key = "price";
+        var ax1 = shareX ? figure.AddSubPlot(2, 1, 1) : figure.AddSubPlot(1, 2, 1);
+        ax1.Key = shareX ? "price" : "main";
         ax1.Plot([1.0, 2.0], [3.0, 4.0]);
 
-        var ax2 = figure.AddSubPlot(2, 1, 2, sharex: ax1);
-        ax2.Key = "volume";
+        var ax2 = shareX ? figure.AddSubPlot(2, 1, 2, sharex: ax1) : figure.AddSubPlot(1, 2, 2, sharey: ax1);
+        ax2.Key = shareX ? "volume" : "side";
         ax2.Plot([1.0, 2.0], [5.0, 6.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
 
-        Assert.NotNull(restored.SubPlots[1].ShareXWith);
-        Assert.Same(restored.SubPlots[0], restored.SubPlots[1].ShareXWith);
-    }
-
-    /// <summary>Verifies that shared Y axis survives JSON round-trip via keys.</summary>
-    [Fact]
-    public void RoundTrip_PreservesSharedYAxis()
-    {
-        var figure = new Figure();
-        var ax1 = figure.AddSubPlot(1, 2, 1);
-        ax1.Key = "main";
-        ax1.Plot([1.0, 2.0], [3.0, 4.0]);
-
-        var ax2 = figure.AddSubPlot(1, 2, 2, sharey: ax1);
-        ax2.Key = "side";
-        ax2.Plot([1.0, 2.0], [5.0, 6.0]);
-
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-
-        Assert.NotNull(restored.SubPlots[1].ShareYWith);
-        Assert.Same(restored.SubPlots[0], restored.SubPlots[1].ShareYWith);
-    }
-
-    /// <summary>Verifies that no sharing keys are emitted when not configured.</summary>
-    [Fact]
-    public void RoundTrip_NoSharing_OmitsKeys()
-    {
-        var figure = new Figure();
-        figure.AddSubPlot().Plot([1.0], [2.0]);
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        Assert.DoesNotContain("shareXKey", json);
-        Assert.DoesNotContain("shareYKey", json);
+        var shared = shareX ? restored.SubPlots[1].ShareXWith : restored.SubPlots[1].ShareYWith;
+        Assert.NotNull(shared);
+        Assert.Same(restored.SubPlots[0], shared);
     }
 
     // --- Inset axes serialization ---
@@ -851,7 +335,7 @@ public class ChartSerializerTests
         var inset = ax.AddInset(0.6, 0.1, 0.35, 0.35);
         inset.Plot([1.5, 2.0], [3.5, 4.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
 
         Assert.Single(restored.SubPlots[0].Insets);
         Assert.Single(restored.SubPlots[0].Insets[0].Series);
@@ -866,7 +350,7 @@ public class ChartSerializerTests
         ax.Plot([1.0], [2.0]);
         ax.AddInset(0.6, 0.1, 0.35, 0.35).Plot([1.0], [2.0]);
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
 
         var bounds = restored.SubPlots[0].Insets[0].InsetBounds!.Value;
         Assert.Equal(0.6, bounds.X);
@@ -884,22 +368,10 @@ public class ChartSerializerTests
         var hs = ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
         hs.ColorMap = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Plasma;
 
-        var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
+        var restored = figure.RoundTripped();
         var restoredHs = (HeatmapSeries)restored.SubPlots[0].Series[0];
         Assert.NotNull(restoredHs.ColorMap);
         Assert.Equal("plasma", restoredHs.ColorMap!.Name);
-    }
-
-    /// <summary>Verifies that no insets field is emitted when not configured.</summary>
-    [Fact]
-    public void RoundTrip_NoInsets_OmitsFromJson()
-    {
-        var figure = new Figure();
-        figure.AddSubPlot().Plot([1.0], [2.0]);
-
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        Assert.DoesNotContain("insets", json);
-        Assert.DoesNotContain("insetBounds", json);
     }
 
     /// <summary>Verifies that annotation ConnectionStyle round-trips through serialization.</summary>
@@ -915,8 +387,7 @@ public class ChartSerializerTests
         ann.ConnectionStyle = MatPlotLibNet.Models.ConnectionStyle.Arc3;
         ann.ConnectionRad = 0.5;
 
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = figure.RoundTripped();
 
         var restoredAnn = restored.SubPlots[0].Annotations[0];
         Assert.Equal(MatPlotLibNet.Models.ConnectionStyle.Arc3, restoredAnn.ConnectionStyle);
@@ -935,8 +406,7 @@ public class ChartSerializerTests
         ann.BoxPadding = 6;
         ann.BoxCornerRadius = 8;
 
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = figure.RoundTripped();
 
         var restoredAnn = restored.SubPlots[0].Annotations[0];
         Assert.Equal(MatPlotLibNet.Models.BoxStyle.Round, restoredAnn.BoxStyle);
@@ -956,32 +426,15 @@ public class ChartSerializerTests
         span.LineWidth = 2.0;
         span.Label = "support";
 
-        string json = ChartSerializerDefault.Current.ToJson(figure);
-        var restored = ChartSerializerDefault.Current.FromJson(json);
+        var restored = figure.RoundTripped();
 
         var restoredSpan = restored.SubPlots[0].Spans[0];
         Assert.Equal(LineStyle.Dashed, restoredSpan.LineStyle);
         Assert.Equal(2.0, restoredSpan.LineWidth);
         Assert.Equal("support", restoredSpan.Label);
     }
-}
 
-// ─── ChartSerializerCoverageTests.cs ─────────────────────────────────────────
-
-/// <summary>Phase Y.5 (v1.7.2, 2026-04-19) — branch coverage for the
-/// <see cref="ChartSerializer"/> arms left at 50–75% by the existing
-/// <see cref="ChartSerializerTests"/>. Pre-Y.5: 95.9%L / 76.2%B (complexity 478).
-///
-/// Each fact pins a specific cobertura <c>condition-coverage</c> marker:
-/// - line 45: FromJson `?? throw` true arm (malformed JSON)
-/// - line 163: DtoToSpine null-arg vs non-null
-/// - line 169: SpinePosition switch default arm (unrecognized position string)
-/// - line 196: Enable3DRotation true arm
-/// - line 205: SubPlots null-coalescing both arms
-/// - line 230, 233: DirectionalLight parts.Length / TryParse arms (malformed light)</summary>
-public class ChartSerializerCoverageTests
-{
-    /// <summary>FromJson line 45 — `?? throw` true arm: empty/whitespace input.</summary>
+    /// <summary>FromJson — `?? throw` true arm: empty/whitespace input.</summary>
     [Fact]
     public void FromJson_NullJson_ThrowsJsonException()
     {
@@ -996,7 +449,7 @@ public class ChartSerializerCoverageTests
         Assert.ThrowsAny<JsonException>(() => s.FromJson("{not valid"));
     }
 
-    /// <summary>FromJson minimal-valid JSON with no SubPlots — line 205 `?? []` empty arm.
+    /// <summary>FromJson minimal-valid JSON with no SubPlots — `?? []` empty arm.
     /// SubPlots may be null in the wire DTO; deserialiser must handle gracefully.</summary>
     [Fact]
     public void FromJson_MinimalValidNoSubPlots_RoundTripsToEmptyFigure()
@@ -1008,30 +461,28 @@ public class ChartSerializerCoverageTests
         Assert.Empty(fig.SubPlots);
     }
 
-    /// <summary>Round-trip with Enable3DRotation=true — line 196 true arm of
+    /// <summary>Round-trip with Enable3DRotation=true — true arm of
     /// `dto.Enable3DRotation is true`.</summary>
     [Fact]
     public void RoundTrip_With3DRotation_PreservesFlag()
     {
         var fig = Plt.Create().Plot([1.0], [2.0]).Build();
         fig.Enable3DRotation = true;
-        var s = new ChartSerializer();
-        var rt = s.FromJson(s.ToJson(fig));
+        var rt = fig.RoundTripped();
         Assert.True(rt.Enable3DRotation);
     }
 
-    /// <summary>Round-trip without Enable3DRotation — line 196 false arm (null in DTO).</summary>
+    /// <summary>Round-trip without Enable3DRotation — false arm (null in DTO).</summary>
     [Fact]
     public void RoundTrip_Without3DRotation_DefaultsFalse()
     {
         var fig = Plt.Create().Plot([1.0], [2.0]).Build();
-        var s = new ChartSerializer();
-        var rt = s.FromJson(s.ToJson(fig));
+        var rt = fig.RoundTripped();
         Assert.False(rt.Enable3DRotation);
     }
 
     /// <summary>Round-trip with custom Spines — exercises DtoToSpine non-null arm
-    /// (line 163 false arm) + serialisation of a non-default spine config.</summary>
+    /// (false arm) + serialisation of a non-default spine config.</summary>
     [Fact]
     public void RoundTrip_WithCustomSpines_PreservesConfig()
     {
@@ -1043,15 +494,13 @@ public class ChartSerializerCoverageTests
                 ax.HideRightSpine();
             })
             .Build();
-        var s = new ChartSerializer();
-        var json = s.ToJson(fig);
-        var rt = s.FromJson(json);
+        var rt = fig.RoundTripped();
         Assert.False(rt.SubPlots[0].Spines.Top.Visible);
         Assert.False(rt.SubPlots[0].Spines.Right.Visible);
     }
 
     /// <summary>Round-trip with 3D camera config (Elevation, Azimuth, CameraDistance) —
-    /// lines 227-229 true arms.</summary>
+    /// true arms.</summary>
     [Fact]
     public void RoundTrip_WithCameraConfig_PreservesValues()
     {
@@ -1062,14 +511,13 @@ public class ChartSerializerCoverageTests
         fig.SubPlots[0].Azimuth = -45;
         fig.SubPlots[0].CameraDistance = 12.5;
 
-        var s = new ChartSerializer();
-        var rt = s.FromJson(s.ToJson(fig));
+        var rt = fig.RoundTripped();
         Assert.Equal(25.0, rt.SubPlots[0].Elevation);
         Assert.Equal(-45.0, rt.SubPlots[0].Azimuth);
         Assert.Equal(12.5, rt.SubPlots[0].CameraDistance);
     }
 
-    /// <summary>Round-trip with stacked BarMode — line 224 + 83 true arms.</summary>
+    /// <summary>Round-trip with stacked BarMode — true arms.</summary>
     [Fact]
     public void RoundTrip_WithStackedBarMode_PreservesMode()
     {
@@ -1080,8 +528,7 @@ public class ChartSerializerCoverageTests
                 ax.SetBarMode(BarMode.Stacked);
             })
             .Build();
-        var s = new ChartSerializer();
-        var rt = s.FromJson(s.ToJson(fig));
+        var rt = fig.RoundTripped();
         Assert.Equal(BarMode.Stacked, rt.SubPlots[0].BarMode);
     }
 
@@ -1102,8 +549,346 @@ public class ChartSerializerCoverageTests
                     Top = new SpineConfig { Position = position, PositionValue = 0.5, Visible = false }
                 }))
             .Build();
-        var s = new ChartSerializer();
-        var rt = s.FromJson(s.ToJson(fig));
+        var rt = fig.RoundTripped();
         Assert.Equal(position, rt.SubPlots[0].Spines.Top.Position);
     }
+
+    private static readonly ChartSerializer S = new();
+
+    // ── ToJson indented arm ──────────────────────────────────────────────────
+
+    // ── Annotation TryParse failure arms ─────────────────────────────────────
+
+    /// <summary>A style the reader cannot parse (a name that is none, or null) leaves the member at the default of its kind: an annotation's
+    /// connection and box style, a reference line's and a span's line style, a break's style (the break itself is still read).</summary>
+    public static TheoryData<string, Func<Figure, object>, object> StylesThatAreNone { get; } = new()
+    {
+        { """" "annotations":[{"text":"hi","x":1,"y":1,"connectionStyle":"notAStyle"}] """", fig => fig.SubPlots[0].Annotations[0].ConnectionStyle, ConnectionStyle.Straight },
+        { """" "annotations":[{"text":"hi","x":1,"y":1,"boxStyle":"notABoxStyle"}] """", fig => fig.SubPlots[0].Annotations[0].BoxStyle, BoxStyle.None },
+        { """" "referenceLines":[{"value":5.0,"orientation":"horizontal","lineStyle":"notAStyle","lineWidth":1.0}] """", fig => fig.SubPlots[0].ReferenceLines[0].LineStyle, LineStyle.Dashed },
+        { """" "spans":[{"min":1,"max":3,"orientation":"horizontal","alpha":0.3,"lineStyle":"notAStyle"}] """", fig => fig.SubPlots[0].Spans[0].LineStyle, LineStyle.None },
+        { """" "xBreaks":[{"from":10,"to":20,"style":null}] """", fig => fig.SubPlots[0].XBreaks.Single().Style, BreakStyle.Zigzag },
+        { """" "yBreaks":[{"from":5,"to":15,"style":"notAStyle"}] """", fig => fig.SubPlots[0].YBreaks.Single().Style, BreakStyle.Zigzag },
+    };
+
+    [Theory]
+    [MemberData(nameof(StylesThatAreNone))]
+    public void FromJson_AStyleThatIsNone_LeavesTheDefaultOfItsKind(string subPlotMembers, Func<Figure, object> read, object expected)
+    {
+        var fig = S.FromJson("{\"width\":800,\"height\":600,\"subPlots\":[{" + subPlotMembers + "}]}");
+
+        Assert.Equal(expected, read(fig));
+    }
+
+    // ── ReferenceLines TryParse failure arm ──────────────────────────────────
+
+    // ── right slot 0: unknown series type arm ─────────────────────────────────
+
+    /// <summary>The right slot 0 axis is present but its series has an unknown type —
+    /// switch default arm (`_ => null`) + `if (sec is not null)` false arm.</summary>
+    [Fact]
+    public void FromJson_ARightSlotZeroSeriesOfAnUnknownType_SkipsGracefully()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "secondaryYAxis":{"label":"right"},
+                "secondarySeries":[{"type":"futureType","label":"skip"}]
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.NotEmpty(fig.SubPlots[0].YAxes.Right);
+        Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
+    }
+
+    // ── Spans TryParse failure arm ────────────────────────────────────────────
+
+    // ── BreakStyle null / invalid arms ───────────────────────────────────────
+
+    // ── ShareX/Y key not found arm ────────────────────────────────────────────
+
+    /// <summary>ShareXKey pointing to a non-existent key → TryGetValue false,
+    /// ShareXWith stays null.</summary>
+    [Fact]
+    public void FromJson_ShareXKeyNotFound_ShareXWithStaysNull()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[
+                {"key":"ax1"},
+                {"shareXKey":"doesNotExist"}
+            ]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.Null(fig.SubPlots[1].ShareXWith);
+    }
+
+    /// <summary>A place no subplot holds joins nothing.</summary>
+    [Theory]
+    [InlineData("shareXSubplot", 7)]
+    [InlineData("shareYSubplot", -1)]
+    public void FromJson_ASharePlaceNoSubplotHolds_JoinsNothing(string field, int place)
+    {
+        string json = $$"""{"width":800,"height":600,"subPlots":[{},{"{{field}}":{{place}}}]}""";
+
+        var fig = S.FromJson(json);
+
+        Assert.Null(fig.SubPlots[1].ShareXWith);
+        Assert.Null(fig.SubPlots[1].ShareYWith);
+    }
+
+    // ── ApplyAxis invalid scale string ────────────────────────────────────────
+
+    /// <summary>XAxis with an unrecognised scale string → TryParse false,
+    /// Scale stays at default Linear.</summary>
+    [Fact]
+    public void FromJson_AxisWithInvalidScale_DefaultsLinear()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "xAxis":{"scale":"notAScale"}
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.Equal(AxisScale.Linear, fig.SubPlots[0].XAxis.Scale);
+    }
+
+    // ── Inset without InsetBounds — defensive continue arm ───────────────────
+
+    /// <summary>Inset DTO missing InsetBounds → `continue` arm fires,
+    /// no inset is added to the figure.</summary>
+    [Fact]
+    public void FromJson_InsetWithoutInsetBounds_SkipsInset()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "insets":[{"series":[]}]
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.Empty(fig.SubPlots[0].Insets);
+    }
+
+    // ── ShareY key found — TRUE arm ──────────────────────────────────────────
+
+    /// <summary>ShareYKey pointing to an existing key → TryGetValue TRUE arm,
+    /// ShareYWith is resolved.</summary>
+    [Fact]
+    public void FromJson_ShareYKeyFound_ShareYWithResolved()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[
+                {"key":"ax1"},
+                {"shareYKey":"ax1"}
+            ]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.NotNull(fig.SubPlots[1].ShareYWith);
+        Assert.Same(fig.SubPlots[0], fig.SubPlots[1].ShareYWith);
+    }
+
+    // ── right slot 0 "scatter" type arm ──────────────────────────────────────
+
+    /// <summary>The right slot 0 with a "scatter" series → restored through the registry, like the primary axis.</summary>
+    [Fact]
+    public void FromJson_ARightSlotZeroScatterSeries_CreatesScatterSeries()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "secondaryYAxis":{"label":"right"},
+                "secondarySeries":[{
+                    "type":"scatter","xData":[1,2],"yData":[10,20],"label":"sec-scatter"
+                }]
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.NotEmpty(fig.SubPlots[0].YAxes.Right);
+        Assert.Single(fig.SubPlots[0].YAxes.Right[0].Series);
+        Assert.IsType<MatPlotLibNet.Models.Series.ScatterSeries>(fig.SubPlots[0].YAxes.Right[0].Series[0]);
+    }
+
+    /// <summary>A line or scatter on either secondary axis with no xData/yData loads as an empty series of that kind,
+    /// on that axis (LineSeries.FromSeriesDto / ScatterSeries.FromSeriesDto, reached through
+    /// ChartSerializer.CreateOnSecondarySeat on both axes now, both <c>?? []</c> arms each), the same leniency the
+    /// primary line and scatter have.</summary>
+    [Theory]
+    [InlineData("secondaryYAxis", "secondarySeries", "line")]
+    [InlineData("secondaryYAxis", "secondarySeries", "scatter")]
+    [InlineData("secondaryXAxis", "xSecondarySeries", "line")]
+    [InlineData("secondaryXAxis", "xSecondarySeries", "scatter")]
+    public void FromJson_SecondaryAxisSeriesWithNoXYData_LoadsAnEmptySeriesOnThatAxis(
+        string axisField, string seriesField, string type)
+    {
+        string json = $$"""
+            {"width":800,"height":600,"subPlots":[{
+              "{{axisField}}":{"label":"other"},
+              "{{seriesField}}":[{"type":"{{type}}","label":"empty"}]}]}
+            """;
+
+        var axes = S.FromJson(json).SubPlots[0];
+
+        var list = axisField == "secondaryYAxis" ? axes.YAxes.Right[0].Series : axes.XSecondarySeries;
+        var series = Assert.Single(list);
+        Assert.Equal("empty", series.Label);
+        var xy = Assert.IsAssignableFrom<MatPlotLibNet.Models.Series.XYSeries>(series);
+        Assert.Equal(type == "line", xy is MatPlotLibNet.Models.Series.LineSeries);
+        Assert.Empty(xy.XData);
+        Assert.Empty(xy.YData);
+    }
+
+    public static TheoryData<string, Func<ISeries, object?>> SeriesWithAColorMapName => new()
+    {
+        {
+            """
+            {
+              "width":800,"height":600,
+              "subPlots":[{"series":[{
+                "type":"contour3d",
+                "xData":[0,1],"yData":[0,1],"zGridData":[[0,1],[1,0]],
+                "colorMapName":"viridis"
+              }]}]
+            }
+            """,
+            series => Assert.IsType<MatPlotLibNet.Models.Series.Contour3DSeries>(series).ColorMap
+        },
+        {
+            """
+            {
+              "width":800,"height":600,
+              "subPlots":[{"series":[{
+                "type":"trisurf",
+                "xData":[0,1,2],"yData":[0,1,2],"zData":[0,1,4],
+                "colorMapName":"plasma"
+              }]}]
+            }
+            """,
+            series => Assert.IsType<MatPlotLibNet.Models.Series.Trisurf3DSeries>(series).ColorMap
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(SeriesWithAColorMapName))]
+    public void FromJson_ASeriesWithAColorMapName_SetsColorMap(string json, Func<ISeries, object?> colorMapOf)
+    {
+        var fig = S.FromJson(json);
+        Assert.NotNull(colorMapOf(fig.SubPlots[0].Series[0]));
+    }
+
+    /// <summary>QuiverKey with no quiverKeyLabel field → QuiverKeySeries.FromSeriesDto
+    /// <c>dto.QuiverKeyLabel ?? ""</c> TRUE (null) arm fires; the round-trip idiom always
+    /// carries an explicit label, so only a raw/minimal JSON omitting it reaches this arm.</summary>
+    [Fact]
+    public void FromJson_QuiverKeyWithNoLabel_UsesDefaultEmptyLabel()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"quiverkey"}]}]}""";
+        var fig = S.FromJson(json);
+        var qk = Assert.IsType<MatPlotLibNet.Models.Series.QuiverKeySeries>(fig.SubPlots[0].Series[0]);
+        Assert.Equal("", qk.Label);
+    }
+
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
+    {
+        //  A series with no ColorGroup writes no field for it at all — the golden-corpus guarantee: a figure built before this field
+        // existed writes the same bytes after.
+        new DrawnToken("AnUngroupedSeries_WritesNoColorGroupField", () =>
+        {
+            var figure = Plt.Create().Plot([0.0, 1], [0.0, 1]).Build();
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }) { Absent = ["colorGroup"], Comparison = StringComparison.OrdinalIgnoreCase },
+        //  Verifies that ToJson includes a type discriminator for series.
+        new DrawnToken("ToJson_IncludesSeriesTypeDiscriminator", () =>
+        {
+            var figure = Plt.Create()
+                .Scatter([1.0], [2.0])
+                .Build();
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }, "\"type\"", "scatter"),
+        //  Verifies that ToJson includes line series data and label.
+        new DrawnToken("ToJson_IncludesLineSeries", () =>
+        {
+            var figure = Plt.Create()
+                .Plot([1.0, 2.0], [3.0, 4.0], line =>
+                {
+                    line.Color = Colors.Red;
+                    line.LineWidth = 2.5;
+                    line.Label = "My Line";
+                })
+                .Build();
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }, "line", "My Line"),
+        //  Verifies that ToJson with indentation produces multi-line output.
+        new DrawnToken("ToJson_Indented_IsReadable", () =>
+        {
+            var figure = Plt.Create().WithTitle("Test").Build();
+            return ChartSerializerDefault.Current.ToJson(figure, indented: true);
+        }, "\n"),
+        //  Verifies that a figure without GridSpec omits the gridSpec field from JSON.
+        new DrawnToken("RoundTrip_NoGridSpec_OmitsFromJson", () =>
+        {
+            var figure = Plt.Create().Plot([1.0], [2.0]).Build();
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }) { Absent = ["gridSpec"] },
+        //  Verifies that default spines are omitted from JSON.
+        new DrawnToken("RoundTrip_DefaultSpines_OmitsFromJson", () =>
+        {
+            var figure = new Figure();
+            figure.AddSubPlot().Plot([1.0], [2.0]);
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }) { Absent = ["spines"] },
+        //  Verifies that no sharing keys are emitted when not configured.
+        new DrawnToken("RoundTrip_NoSharing_OmitsKeys", () =>
+        {
+            var figure = new Figure();
+            figure.AddSubPlot().Plot([1.0], [2.0]);
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }) { Absent = ["shareXKey", "shareYKey", "Subplot\""] },
+        //  A partner with a key is named by it, not by its place; a partner that is not a subplot of the figure has no name the JSON can
+        // write, so neither is written.
+        new DrawnToken("AShare_IsWrittenByKeyWhenThePartnerHasOne_AndNotAtAllWhenItIsNotASubplot", () =>
+        {
+            var figure = new Figure();
+            var keyed = figure.AddSubPlot(1, 3, 1);
+            keyed.Key = "left";
+            figure.AddSubPlot(1, 3, 2, sharex: keyed);
+            figure.AddSubPlot(1, 3, 3, sharey: new Figure().AddSubPlot());
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }, "shareXKey") { Absent = ["shareXSubplot", "shareYSubplot", "shareYKey"] },
+        //  Verifies that no insets field is emitted when not configured.
+        new DrawnToken("RoundTrip_NoInsets_OmitsFromJson", () =>
+        {
+            var figure = new Figure();
+            figure.AddSubPlot().Plot([1.0], [2.0]);
+            return ChartSerializerDefault.Current.ToJson(figure);
+        }) { Absent = ["insets", "insetBounds"] },
+        //  ToJson(indented: true) — true arm.
+        new DrawnToken("ToJson_Indented_ContainsNewlines", () =>
+        {
+            var fig = Plt.Create().Plot([1.0], [1.0]).Build();
+            return S.ToJson(fig, indented: true);
+        }, "\n"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }
+
+// ─── ChartSerializerCoverageTests.cs ─────────────────────────────────────────
+

@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -44,7 +45,7 @@ public class DensityScatterTests
     }
 
     [Fact]
-    public void ItArrivesWithAColourMap_BecauseAValuePerPointWithoutOneShowsNothing()
+    public void ItArrivesWithAColourMap_ThatIsPerceptuallyUniform_WhateverTheThemeDraws()
     {
         Assert.NotNull(Built().ColorMap);
     }
@@ -74,9 +75,7 @@ public class DensityScatterTests
             .AddSubPlot(1, 1, 1, ax => ax.DensityScatter(X, Y))
             .ToSvg();
 
-        var fills = System.Text.RegularExpressions.Regex.Matches(svg, @"<circle[^>]*fill=""(#[0-9A-Fa-f]{6})""")
-            .Select(m => m.Groups[1].Value)
-            .ToArray();
+        var fills = svg.Elements("circle").Select(circle => circle["fill"]).OfType<string>().Where(fill => fill.StartsWith('#')).ToArray();
 
         Assert.Equal(X.Length, fills.Length);
         Assert.True(fills.Distinct().Count() > 1, "a density scatter that draws one colour has said nothing");
@@ -119,17 +118,14 @@ public class DensityScatterTests
         Assert.Equal(1.0, twoCells[4]);
     }
 
-    [Fact]
-    public void NoXAtAll_IsRefusedByName()
+    [Theory]
+    [InlineData("x")]
+    [InlineData("y")]
+    public void AMissingArray_IsRefusedByItsName(string missing)
     {
-        Assert.Throws<ArgumentNullException>(() =>
-            Plt.Create().AddSubPlot(1, 1, 1, ax => ax.DensityScatter(null!, Y)).Build());
-    }
+        var refused = Assert.Throws<ArgumentNullException>(() =>
+            Plt.Create().AddSubPlot(1, 1, 1, ax => ax.DensityScatter(missing == "x" ? null! : X, missing == "y" ? null! : Y)).Build());
 
-    [Fact]
-    public void NoYAtAll_IsRefusedByName()
-    {
-        Assert.Throws<ArgumentNullException>(() =>
-            Plt.Create().AddSubPlot(1, 1, 1, ax => ax.DensityScatter(X, null!)).Build());
+        Assert.Equal(missing, refused.ParamName);
     }
 }

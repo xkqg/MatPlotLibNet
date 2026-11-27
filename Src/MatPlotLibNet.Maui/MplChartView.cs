@@ -8,6 +8,7 @@ using MatPlotLibNet.Animation;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Frames;
 
 namespace MatPlotLibNet.Maui;
 
@@ -16,7 +17,7 @@ namespace MatPlotLibNet.Maui;
 /// <see cref="DragAction"/> says (a pan unless told otherwise), a pinch zooms, a tap picks the point under it, a double tap
 /// goes Home, and a pointer over the chart shows the tooltip of the point under it. The gestures reach the figure through the
 /// same <see cref="InteractionHost"/> the other heads use, by way of <see cref="TouchGestureTranslator"/>.</summary>
-public class MplChartView : GraphicsView
+public class MplChartView : GraphicsView, IServerInteractive
 {
     /// <summary>Identifies the <see cref="Figure"/> bindable property.</summary>
     public static readonly BindableProperty FigureProperty =
@@ -59,17 +60,14 @@ public class MplChartView : GraphicsView
         set => SetValue(IsInteractiveProperty, value);
     }
 
-    /// <summary>Told of every gesture of the reader once it has reached the figure (or the server sink), whichever kind it
-    /// is: the same <see cref="IChartEventHandler"/> a server session takes, so one class reacts to a chart wherever it is
-    /// shown. It needs <see cref="IsInteractive"/>.</summary>
+    /// <inheritdoc cref="InteractionHost.Handler"/>
     public IChartEventHandler? ChartEventHandler
     {
         get => _host.Handler;
         set => _host.Handler = value;
     }
 
-    /// <summary>Raised when <see cref="ChartEventHandler"/> fails. The gesture has been applied and the next one is taken as
-    /// usual, so the failure is reported here and never thrown into the control.</summary>
+    /// <inheritdoc cref="InteractionHost.HandlerFaulted"/>
     public event Action<Exception>? ChartEventHandlerFaulted;
 
     /// <summary>Gets or sets what a one-finger drag does: pan, zoom into a rectangle, select a band or a span, or turn a 3-D
@@ -80,8 +78,7 @@ public class MplChartView : GraphicsView
         set => SetValue(DragActionProperty, value);
     }
 
-    /// <summary>Raised when the reader taps a data point, with the point they tapped: the series it belongs to, its place in
-    /// that series and its data position.</summary>
+    /// <inheritdoc cref="InteractionHost.DataPointClicked"/>
     public event Action<PinnedAnnotation>? DataPointClicked;
 
     private static void OnFigureChanged(BindableObject bindable, object oldValue, object newValue)
@@ -96,34 +93,31 @@ public class MplChartView : GraphicsView
             view._touch.DragAction = (DragGestureAction)newValue;
     }
 
-    private IAnimationSource? _animationSource;
+    private readonly AnimationSourceFollower _animation;
 
-    /// <summary>Gets or sets the animation source whose <see cref="IAnimationSource.FrameReady"/>
-    /// event drives figure updates and visual invalidation.</summary>
+    /// <summary>Gets or sets the <see cref="IAnimationSource"/> whose frames the view shows.</summary>
     public IAnimationSource? AnimationSource
     {
-        get => _animationSource;
-        set
-        {
-            if (_animationSource is not null)
-                _animationSource.FrameReady -= OnAnimationFrameReady;
-            _animationSource = value;
-            if (_animationSource is not null)
-                _animationSource.FrameReady += OnAnimationFrameReady;
-        }
+        get => _animation.Source;
+        set => _animation.Follow(value);
     }
+
+    /// <summary>How the view is painted again after a gesture changed the figure: the repaint it gives its host. A streaming view
+    /// sets the limits from the data first.</summary>
+    private protected virtual void Repaint() => Invalidate();
+
+    /// <summary>A frame arrives on the animation's own thread: the view is changed on MAUI's main thread.</summary>
+    [ExcludeFromCodeCoverage(Justification = "Runs on MAUI's main thread, which a unit test has no loop for; what it does there is held through the figure and the view it calls.")]
+    internal static void PostToMainThread(Action work) => MainThread.BeginInvokeOnMainThread(work);
 
     [ExcludeFromCodeCoverage(Justification = "Runs on MAUI's main thread, which a unit test has no loop for; what it does there is held through the figure and the view it calls.")]
-    private void OnAnimationFrameReady(object? sender, Figure fig)
+    private void ShowFrame(Figure fig)
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            Figure = fig;
-            Invalidate();
-        });
+        Figure = fig;
+        Invalidate();
     }
 
-    private readonly InteractionHost _host = new();
+    private readonly InteractionHost _host;
     private readonly TouchGestureTranslator _touch;
     private PointF? _fingerDown;
     private bool _dragging;
@@ -134,12 +128,16 @@ public class MplChartView : GraphicsView
     /// <summary>The host that the drawable gives each paint's layout to, and that the gestures act through.</summary>
     internal InteractionHost Host => _host;
 
+    /// <inheritdoc />
+    InteractionHost IServerInteractive.Host => Host;
+
     /// <summary>Initializes a new chart view with the default drawable.</summary>
     public MplChartView()
     {
+        _host = new InteractionHost(() => IsInteractive, Repaint);
+        _animation = new AnimationSourceFollower(PostToMainThread, ShowFrame);
         _touch = new TouchGestureTranslator(_host);
         Drawable = new MplChartDrawable(this);
-        _host.InvalidateRequested += Invalidate;
         _host.HandlerFaulted += failure => ChartEventHandlerFaulted?.Invoke(failure);
         _host.DataPointClicked += point => DataPointClicked?.Invoke(point);
 
@@ -165,9 +163,6 @@ public class MplChartView : GraphicsView
         EndHoverInteraction += OnPointerLeft;
     }
 
-    /// <summary>Whether a gesture can act: the view is interactive and a paint has given the host a figure.</summary>
-    private bool Listening => IsInteractive && _host.IsAttached;
-
     /// <summary>The pan recognizer reports how far the finger has gone, not where it began, and the graphics view reports
     /// where it went down; the two together are the drag the translator takes. A pan the view saw no finger go down for is
     /// not one it can place.</summary>
@@ -176,7 +171,7 @@ public class MplChartView : GraphicsView
 
     private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
     {
-        if (!Listening) return;
+        if (!_host.Listening) return;
 
         switch (e.StatusType)
         {
@@ -208,7 +203,7 @@ public class MplChartView : GraphicsView
 
     private void OnPinchUpdated(object? sender, PinchGestureUpdatedEventArgs e)
     {
-        if (!Listening) return;
+        if (!_host.Listening) return;
 
         switch (e.Status)
         {
@@ -226,19 +221,19 @@ public class MplChartView : GraphicsView
 
     private void OnTapped(object? sender, TappedEventArgs e)
     {
-        if (Listening && e.GetPosition(this) is { } at)
+        if (_host.Listening && e.GetPosition(this) is { } at)
             _touch.Tapped(at.X, at.Y);
     }
 
     private void OnDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (Listening && e.GetPosition(this) is { } at)
+        if (_host.Listening && e.GetPosition(this) is { } at)
             _touch.DoubleTapped(at.X, at.Y);
     }
 
     private void OnPointerMoved(object? sender, TouchEventArgs e)
     {
-        if (!Listening || e.Touches.Length == 0) return;
+        if (!_host.Listening || e.Touches.Length == 0) return;
 
         _touch.Hovered(e.Touches[0].X, e.Touches[0].Y);
         ShowTooltip(_host.ActiveTooltip?.Text);
@@ -254,28 +249,22 @@ public class MplChartView : GraphicsView
         else
             ToolTipProperties.SetText(this, text);
     }
-}
 
-internal sealed class MplChartDrawable : IDrawable
-{
-    private readonly MplChartView _view;
-
-    public MplChartDrawable(MplChartView view) => _view = view;
-
-    public void Draw(ICanvas canvas, RectF dirtyRect)
+    private sealed class MplChartDrawable : IDrawable
     {
-        if (_view.Figure is not { } figure) return;
+        private readonly MplChartView _view;
 
-        var context = new MauiGraphicsRenderContext(canvas);
-        ChartRendererDefault.Current.Render(figure, context);
+        public MplChartDrawable(MplChartView view) => _view = view;
 
-        if (!_view.IsInteractive) return;
+        /// <summary>Paints the figure onto <paramref name="canvas"/> through the library's one paint: drawn and laid out in one pass,
+        /// with the band of a brush-select drag in progress over it. What this paint drew is what the next gesture acts on, so the
+        /// host aims at the figure and reads the layout.</summary>
+        public void Draw(ICanvas canvas, RectF dirtyRect)
+        {
+            if (_view.Figure is not { } figure) return;
 
-        // What this paint drew is what the next gesture acts on; the host aims at the figure and reads the layout.
-        var layout = ChartRendererDefault.Current.ComputeLayout(figure, context);
-        _view.Host.Update(figure, ChartLayout.Create(figure, layout));
-
-        if (_view.Host.ActiveBrushSelect is { } band)
-            canvas.DrawBrushSelect(band);
+            var target = new DirectFrameTarget(new MauiGraphicsRenderContext(canvas));
+            _view.Host.Painted(figure, target.Paint(figure, _view.Host.ActiveBrushSelect));
+        }
     }
 }

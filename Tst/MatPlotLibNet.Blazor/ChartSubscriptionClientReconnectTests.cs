@@ -20,24 +20,17 @@ public class ChartSubscriptionClientReconnectTests : IClassFixture<StreamingHost
     public async Task ASubscribeThatFailsAfterAReconnect_IsReportedOnTheDiagnosticsChannel()
     {
         var ct = TestContext.Current.CancellationToken;
-        HubConnection? built = null;
-        await using var client = new ChartSubscriptionClient(
-            url => built = ChartSubscriptionClient.BuildHubConnection(url),
-            ChartSubscriptionClient.RegisterHandler);
+        var connector = new RecordingHubConnector();
+        await using var client = new ChartSubscriptionClient(connector);
         await client.ConnectAsync(_fixture.HubUrl, ct);
         await client.SubscribeAsync("live-8", ct);
 
-        var reports = new List<ChartDiagnostic>();
-        void Collect(ChartDiagnostic report) => reports.Add(report);
-        ChartDiagnostics.Emitted += Collect;
-        try
+        IReadOnlyList<ChartDiagnostic> reports;
+        using (var capture = new DiagnosticsCapture())
         {
-            await built!.StopAsync(ct);   // the connection is gone, so the invocation fails
+            await connector.Built[^1].StopAsync(ct);   // the connection is gone, so the invocation fails
             await client.HandleReconnectedAsync();
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Collect;
+            reports = capture.Seen;
         }
 
         var report = Assert.Single(reports, r => r.Source == nameof(ChartSubscriptionClient));

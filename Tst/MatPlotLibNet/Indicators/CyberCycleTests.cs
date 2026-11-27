@@ -7,71 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="CyberCycle"/>. Covers all 8 branches in
-/// docs/contrib/indicator-tier-2c.md §1.</summary>
+/// <summary>Verifies <see cref="CyberCycle"/>. Its arithmetic is held here against reference values; what it keeps with every indicator
+/// (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class CyberCycleTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var cc = new CyberCycle([]);
-        Assert.Empty(cc.Compute().Values);
-    }
-
-    // ── Branch 2 — Length < 4 → empty ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    public void Compute_LengthBelowFour_ReturnsEmpty(int n)
-    {
-        var prices = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
-        var cc = new CyberCycle(prices);
-        Assert.Empty(cc.Compute().Values);
-    }
-
-    // ── Branch 3 — Length == 4 → single output ──
-    [Fact]
-    public void Compute_LengthFour_ReturnsSingleValue()
-    {
-        var cc = new CyberCycle([100.0, 101, 102, 103]);
-        Assert.Single(cc.Compute().Values);
-    }
-
-    // ── Branch 4 — alpha <= 0 throws ──
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-0.1)]
-    public void Constructor_NonPositiveAlpha_Throws(double alpha)
-    {
-        Assert.Throws<ArgumentException>(() => new CyberCycle([1.0, 2, 3, 4], alpha));
-    }
-
-    // ── Branch 5 — alpha >= 1 throws ──
-    [Theory]
-    [InlineData(1.0)]
-    [InlineData(1.5)]
-    public void Constructor_AlphaAtOrAboveOne_Throws(double alpha)
-    {
-        Assert.Throws<ArgumentException>(() => new CyberCycle([1.0, 2, 3, 4], alpha));
-    }
-
-    // ── Branch 6 — Constant prices → CC = 0 everywhere ──
-    [Fact]
-    public void Compute_ConstantPrices_ReturnsZero()
-    {
-        var prices = Enumerable.Repeat(100.0, 30).ToArray();
-        var cc = new CyberCycle(prices).Compute().Values;
-        Assert.Equal(27, cc.Length); // 30 - 3
-        Assert.All(cc, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.Equal(0.0, v, precision: 10);
-        });
-    }
-
     // ── Branch 7 — Pure sinusoid — CC produces non-trivial cycle output ──
     [Fact]
     public void Compute_Sinusoid_HasSignificantAmplitude()
@@ -102,39 +41,6 @@ public class CyberCycleTests
         var prices = new[] { 1.0, 2, 3, 5, 4, 6, 8, 7 };
         var cc = new CyberCycle(prices, alpha: 0.2).Compute().Values;
         Assert.Equal(5, cc.Length); // 8 - 3
-        Assert.All(cc, v => Assert.False(double.IsNaN(v)));
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        new CyberCycle([100.0, 101, 102, 103, 104]).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        new CyberCycle([100.0, 101, 102, 103, 104], alpha: 0.15).Apply(axes);
-        Assert.Equal("CC(0.15)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultAlpha_IsPointZeroSeven()
-    {
-        var cc = new CyberCycle([1.0, 2, 3, 4]);
-        Assert.Equal("CC(0.07)", cc.Label);
-    }
-
-    [Fact]
-    public void InheritsPriceIndicator()
-    {
-        var cc = new CyberCycle([1.0, 2, 3, 4]);
-        Assert.IsAssignableFrom<PriceIndicator<SignalResult>>(cc);
-        Assert.IsAssignableFrom<IIndicator>(cc);
+        cc.AssertAllFinite();
     }
 }

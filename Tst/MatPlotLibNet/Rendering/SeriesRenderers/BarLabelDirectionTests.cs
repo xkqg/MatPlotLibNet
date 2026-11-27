@@ -34,14 +34,48 @@ public class BarLabelDirectionTests
     {
         var ctx = new RecordingRenderContext();
         series.Accept(new SvgSeriesRenderer(transform, ctx, Colors.Blue, Theme.Default, plotArea: Plot), new RenderArea(Plot, ctx));
-        return [.. ctx.OfKind("DrawText").Select(c =>
+        return [.. ctx.Of<DrawTextCall>().Select(c =>
         {
-            dynamic args = c.Args!;
-            return new Drawn((Point)args.position, (TextAlignment)args.alignment);
+            return new Drawn(c.Position, c.Alignment);
         })];
     }
 
-    private static double FontSize => ThemedFontProvider.DataTextFont(Theme.Default).Size;
+    private static double FontSize => Theme.Default.DataTextFont().Size;
+
+    private static List<string> TextsOf(BarSeries series, DataTransform transform)
+    {
+        var ctx = new RecordingRenderContext();
+        series.Accept(new SvgSeriesRenderer(transform, ctx, Colors.Blue, Theme.Default, plotArea: Plot), new RenderArea(Plot, ctx));
+        return [.. ctx.Of<DrawTextCall>().Select(c => c.Text)];
+    }
+
+    /// <summary>matplotlib's <c>bar_label</c> annotates the end of each bar (<c>xy</c> in data coordinates), and an annotation whose point
+    /// the axes do not show is not drawn (<c>Annotation._check_xy</c>: <c>Axes.contains_point</c>, the axes patch with a radius of 1.0,
+    /// half a pixel past each edge). Bars of 1 and 3 on a value axis that shows 0 to 2: only the first is labelled, upright or lying
+    /// down.</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ALabelWhoseBarEndsPastTheAxes_IsNotDrawn(bool horizontal)
+    {
+        var transform = horizontal ? new DataTransform(0, 2, 0, 10, Plot) : new DataTransform(0, 10, 0, 2, Plot);
+        var bars = new BarSeries(["a", "b"], [1.0, 3.0]) { ShowLabels = true, Orientation = horizontal ? BarOrientation.Horizontal : BarOrientation.Vertical };
+
+        Assert.Equal(["1"], TextsOf(bars, transform));
+    }
+
+    /// <summary>The edge of the axes holds half a pixel either side, as matplotlib's does (a bar of 2.002 on 0 to 2 over 462 px, 0.46 px
+    /// past, is labelled; one of 2.0025, 0.58 px past, is not). Here a pixel is 1/150 of a unit: 0.4 px past is shown, 0.6 px is not.</summary>
+    [Theory]
+    [InlineData(2.0, true)]
+    [InlineData(2.0 + 0.4 / 150, true)]
+    [InlineData(2.0 + 0.6 / 150, false)]
+    public void TheEdgeOfTheAxes_ShowsAPointWithinHalfAPixel(double value, bool labelled)
+    {
+        var bars = new BarSeries(["a"], [value]) { ShowLabels = true };
+
+        Assert.Equal(labelled ? 1 : 0, TextsOf(bars, new DataTransform(0, 10, 0, 2, Plot)).Count);
+    }
 
     private static BarSeries Bars(BarOrientation orientation) =>
         new(["a", "b", "c"], Values) { ShowLabels = true, Orientation = orientation };
@@ -57,7 +91,7 @@ public class BarLabelDirectionTests
     {
         var orientation = horizontal ? BarOrientation.Horizontal : BarOrientation.Vertical;
 
-        Assert.Equal(expected, Axis(backwards, horizontal).ValueRunsBackwards(orientation));
+        Assert.Equal(expected, BarSeriesRenderer.ValueRunsBackwards(Axis(backwards, horizontal), orientation));
     }
 
     // ---- vertical bars --------------------------------------------------------------------------------------------
@@ -73,25 +107,17 @@ public class BarLabelDirectionTests
         Assert.Equal(TextAlignment.Center, label.Alignment);
     }
 
-    [Fact]
-    public void AFallingBar_OnAnAxisThatRunsUp_HasItsLabelBelowItsEnd()
+    [Theory]
+    [InlineData(false, 1, -2)]
+    [InlineData(true, 0, 3)]
+    public void AVerticalBar_EndingTowardsTheBottom_HasItsLabelBelowItsEnd(bool valueAxisRunsBackwards, int bar, double end)
     {
-        var transform = Axis(valueAxisRunsBackwards: false, horizontal: false);
+        var transform = Axis(valueAxisRunsBackwards, horizontal: false);
 
-        var label = LabelsOf(Bars(BarOrientation.Vertical), transform)[1];
+        var label = LabelsOf(Bars(BarOrientation.Vertical), transform)[bar];
 
         // Below the end: the pad, then the height the letters rise above their baseline.
-        Assert.Equal(transform.DataToPixel(0, -2).Y + Pad + FontSize, label.Position.Y, 6);
-    }
-
-    [Fact]
-    public void ARisingBar_OnAnAxisThatRunsDown_HasItsLabelBelowItsEnd()
-    {
-        var transform = Axis(valueAxisRunsBackwards: true, horizontal: false);
-
-        var label = LabelsOf(Bars(BarOrientation.Vertical), transform)[0];
-
-        Assert.Equal(transform.DataToPixel(0, 3).Y + Pad + FontSize, label.Position.Y, 6);
+        Assert.Equal(transform.DataToPixel(0, end).Y + Pad + FontSize, label.Position.Y, 6);
     }
 
     [Fact]
@@ -119,48 +145,21 @@ public class BarLabelDirectionTests
 
     // ---- horizontal bars ------------------------------------------------------------------------------------------
 
-    [Fact]
-    public void ARisingHorizontalBar_OnAnAxisThatRunsRight_HasItsLabelRightOfItsEnd()
+    /// <summary>A horizontal bar's label stands a pad past its end, on the side the bar ends towards: right of a rising bar on an axis that
+    /// runs right and of a falling one on an axis that runs left, left of the other two, aligned to the end.</summary>
+    [Theory]
+    [InlineData(false, 0, 3, 1, TextAlignment.Left)]
+    [InlineData(false, 1, -2, -1, TextAlignment.Right)]
+    [InlineData(true, 0, 3, -1, TextAlignment.Right)]
+    [InlineData(true, 1, -2, 1, TextAlignment.Left)]
+    public void AHorizontalBar_HasItsLabelBesideItsEnd(bool valueAxisRunsBackwards, int bar, double end, int side, TextAlignment alignment)
     {
-        var transform = Axis(valueAxisRunsBackwards: false, horizontal: true);
+        var transform = Axis(valueAxisRunsBackwards, horizontal: true);
 
-        var label = LabelsOf(Bars(BarOrientation.Horizontal), transform)[0];
+        var label = LabelsOf(Bars(BarOrientation.Horizontal), transform)[bar];
 
-        Assert.Equal(transform.DataToPixel(3, 0).X + Pad, label.Position.X, 6);
-        Assert.Equal(TextAlignment.Left, label.Alignment);
-    }
-
-    [Fact]
-    public void AFallingHorizontalBar_OnAnAxisThatRunsRight_HasItsLabelLeftOfItsEnd_AlignedToIt()
-    {
-        var transform = Axis(valueAxisRunsBackwards: false, horizontal: true);
-
-        var label = LabelsOf(Bars(BarOrientation.Horizontal), transform)[1];
-
-        Assert.Equal(transform.DataToPixel(-2, 0).X - Pad, label.Position.X, 6);
-        Assert.Equal(TextAlignment.Right, label.Alignment);
-    }
-
-    [Fact]
-    public void ARisingHorizontalBar_OnAnAxisThatRunsLeft_HasItsLabelLeftOfItsEnd()
-    {
-        var transform = Axis(valueAxisRunsBackwards: true, horizontal: true);
-
-        var label = LabelsOf(Bars(BarOrientation.Horizontal), transform)[0];
-
-        Assert.Equal(transform.DataToPixel(3, 0).X - Pad, label.Position.X, 6);
-        Assert.Equal(TextAlignment.Right, label.Alignment);
-    }
-
-    [Fact]
-    public void AFallingHorizontalBar_OnAnAxisThatRunsLeft_HasItsLabelRightOfItsEnd()
-    {
-        var transform = Axis(valueAxisRunsBackwards: true, horizontal: true);
-
-        var label = LabelsOf(Bars(BarOrientation.Horizontal), transform)[1];
-
-        Assert.Equal(transform.DataToPixel(-2, 0).X + Pad, label.Position.X, 6);
-        Assert.Equal(TextAlignment.Left, label.Alignment);
+        Assert.Equal(transform.DataToPixel(end, 0).X + side * Pad, label.Position.X, 6);
+        Assert.Equal(alignment, label.Alignment);
     }
 
     // ---- what does not change --------------------------------------------------------------------------------------
@@ -168,7 +167,7 @@ public class BarLabelDirectionTests
     [Fact]
     public void OnALogAxis_ARisingBarsLabelStaysPadAboveItsEnd()
     {
-        var transform = new DataTransform(0, 10, 0, 2, Plot, null, null, 0, 10, 1, 100, AxisScale.Linear, AxisScale.Log, 1, 1);
+        var transform = Plot.LogY();
         var series = new BarSeries(["a", "b"], [10.0, 50.0]) { ShowLabels = true };
 
         var labels = LabelsOf(series, transform);

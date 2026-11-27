@@ -33,51 +33,41 @@ public class TickLabelRotationTests
             $"expected SVG to contain rotate transform with ±{degrees}°; full svg:\n{svg[..Math.Min(svg.Length, 400)]}");
     }
 
-    [Fact]
-    public void WithYTickLabelRotation_ManualAngle_AppliesToYAxisTickLabels()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("WithYTickLabelRotation_ManualAngle_AppliesToYAxisTickLabels", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0, 3.0], [1.0, 2.0, 3.0])
                 .WithYTickLabelRotation(45))
-            .ToSvg();
-
-        Assert.Contains("rotate(", svg);
-    }
-
-    [Fact]
-    public void XAxis_DenseLabels_AutoRotateTo30Degrees()
-    {
-        // 31 daily date labels in a narrow plot ensures the tick spacing < label
-        // width and triggers the auto-rotate heuristic.
-        var dates = Enumerable.Range(0, 31)
-            .Select(i => new DateTime(2026, 1, 1).AddDays(i))
-            .ToArray();
-        var values = Enumerable.Range(0, 31).Select(i => (double)i).ToArray();
-
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(dates, values))
-            .ToSvg();
-
-        Assert.Contains("rotate(", svg);
-    }
-
-    [Fact]
-    public void XAxis_SparseLabels_NoAutoRotation()
-    {
+            .ToSvg(), "rotate("),
         // Wide plot + few ticks — labels have plenty of room, stay horizontal.
-        string svg = Plt.Create()
-            .WithSize(1200, 500)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 50.0, 100.0], [0.0, 50.0, 100.0]))
-            .ToSvg();
-
         // No rotation transform expected on the X-tick labels.
         // We can't assert "no rotate at all" (a grid might rotate something else),
         // but we can assert the tick-label text nodes stay at their default
         // orientation by checking for at least one tick label without rotate.
-        Assert.Contains("text", svg);
-    }
+        new DrawnToken("XAxis_SparseLabels_NoAutoRotation", () => Plt.Create()
+            .WithSize(1200, 500)
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 50.0, 100.0], [0.0, 50.0, 100.0]))
+            .ToSvg(), "text"),
+        new DrawnToken("XAxis_DenseLabels_AutoRotateTo30Degrees", () =>
+        {
+            // 31 daily date labels in a narrow plot ensures the tick spacing < label
+            // width and triggers the auto-rotate heuristic.
+            var dates = Enumerable.Range(0, 31)
+                .Select(i => new DateTime(2026, 1, 1).AddDays(i))
+                .ToArray();
+            var values = Enumerable.Range(0, 31).Select(i => (double)i).ToArray();
+            return Plt.Create()
+                .WithSize(400, 300)
+                .AddSubPlot(1, 1, 1, ax => ax.Plot(dates, values))
+                .ToSvg();
+        }, "rotate("),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void Manual_Rotation_Wins_Over_Auto()

@@ -7,118 +7,35 @@ using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
-/// <summary>Phase X.10.b (v1.7.2, 2026-04-19) — drives every fluent indicator
-/// attachment in <see cref="StreamingIndicatorExtensions"/>. Pre-X.10.b the class
-/// was at 53%L / 56%B because only ~4 of the 9 extensions were exercised. Each
-/// fact pins one extension method:
-///   - Subscribes the indicator to BarAppended
-///   - Adds the indicator's OutputSeries to the axes
-///   - Appending bars must propagate to the indicator's output series
-/// 9 extension methods × 1 fact each = 9 facts; at least 1 OHLC append per fact
-/// triggers the lambda body so the for-each at line N is fully covered.</summary>
+/// <summary>Each fluent attachment of <see cref="StreamingIndicatorExtensions"/> subscribes its indicator to the candles, adds the
+/// indicator's output to the axes, and keeps it fed as bars arrive.</summary>
 public class StreamingIndicatorExtensionsTests
 {
-    private static (StreamingCandlestickSeries candles, Axes axes) Make(int capacity = 100)
+    public static TheoryData<string, Func<StreamingCandlestickSeries, Axes, object>, int> Attachments => new()
     {
-        var candles = new StreamingCandlestickSeries(capacity);
-        var fig = new Figure();
-        var axes = fig.AddSubPlot();
-        return (candles, axes);
-    }
+        { "sma", (candles, axes) => candles.WithStreamingSma(axes, period: 5), 10 },
+        { "ema", (candles, axes) => candles.WithStreamingEma(axes, period: 5), 10 },
+        { "rsi", (candles, axes) => candles.WithStreamingRsi(axes, period: 14), 20 },
+        { "bollinger", (candles, axes) => candles.WithStreamingBollinger(axes, period: 20, numStdDev: 2.0), 25 },
+        { "macd", (candles, axes) => candles.WithStreamingMacd(axes, fast: 12, slow: 26, signal: 9), 30 },
+        { "atr", (candles, axes) => candles.WithStreamingAtr(axes, period: 14), 20 },
+        { "stochastic", (candles, axes) => candles.WithStreamingStochastic(axes, kPeriod: 14, dPeriod: 3), 20 },
+        { "williams %r", (candles, axes) => candles.WithStreamingWilliamsR(axes, period: 14), 20 },
+        { "cci", (candles, axes) => candles.WithStreamingCci(axes, period: 20), 25 },
+    };
 
-    private static void AppendBars(StreamingCandlestickSeries c, int count)
+    [Theory]
+    [MemberData(nameof(Attachments))]
+    public void AnAttachedIndicator_AddsItsOutputToTheAxes_AndIsFedAsBarsArrive(string indicator,
+        Func<StreamingCandlestickSeries, Axes, object> attach, int bars)
     {
-        for (int i = 0; i < count; i++)
-            c.AppendBar(100 + i, 110 + i, 95 + i, 105 + i);
-    }
+        var candles = new StreamingCandlestickSeries(100);
+        var axes = new Figure().AddSubPlot();
 
-    [Fact]
-    public void WithStreamingSma_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingSma(axes, period: 5);
-        AppendBars(candles, 10);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
+        Assert.NotNull(attach(candles, axes));
+        for (int i = 0; i < bars; i++)
+            candles.AppendBar(100 + i, 110 + i, 95 + i, 105 + i);
 
-    [Fact]
-    public void WithStreamingEma_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingEma(axes, period: 5);
-        AppendBars(candles, 10);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingRsi_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingRsi(axes, period: 14);
-        AppendBars(candles, 20);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingBollinger_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingBollinger(axes, period: 20, numStdDev: 2.0);
-        AppendBars(candles, 25);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingMacd_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingMacd(axes, fast: 12, slow: 26, signal: 9);
-        AppendBars(candles, 30);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingAtr_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingAtr(axes, period: 14);
-        AppendBars(candles, 20);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingStochastic_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingStochastic(axes, kPeriod: 14, dPeriod: 3);
-        AppendBars(candles, 20);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingWilliamsR_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingWilliamsR(axes, period: 14);
-        AppendBars(candles, 20);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
-    }
-
-    [Fact]
-    public void WithStreamingCci_AttachesAndAppendsOutputSeries()
-    {
-        var (candles, axes) = Make();
-        var ind = candles.WithStreamingCci(axes, period: 20);
-        AppendBars(candles, 25);
-        Assert.NotNull(ind);
-        Assert.NotEmpty(axes.Series);
+        Assert.True(axes.Series.Count > 0, $"the {indicator} added no series to the axes");
     }
 }

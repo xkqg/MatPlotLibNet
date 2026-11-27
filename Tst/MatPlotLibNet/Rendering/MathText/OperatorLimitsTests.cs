@@ -7,73 +7,56 @@ namespace MatPlotLibNet.Tests.Rendering.MathText;
 
 public sealed class OperatorLimitsTests
 {
-    [Fact]
-    public void Sum_ParsesAsLargeOperator()
+    [Theory]
+    [InlineData(@"$\sum$", "\u2211")] // Sum_ParsesAsLargeOperator
+    [InlineData(@"$\int$", "\u222B")] // Int_ParsesAsLargeOperator
+    [InlineData(@"$\prod$", "\u220F")] // Prod_ParsesAsLargeOperator
+    [InlineData(@"$\lim$", "lim")] // Lim_ParsesAsLargeOperator
+    public void AnOperator_ParsesAsALargeOperator(string source, string symbol)
     {
-        var rt = MathTextParser.Parse(@"$\sum$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == "\u2211");
+        var rt = MathTextParser.Parse(source);
+        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == symbol);
     }
 
-    [Fact]
-    public void Int_ParsesAsLargeOperator()
+    private static void Has(RichText rt, TextSpanKind kind, string? text = null) =>
+        Assert.Contains(rt.Spans, s => s.Kind == kind && (text is null || s.Text == text));
+
+    [Theory]
+    [InlineData(@"$\sum_{i=0}$", null)]
+    [InlineData(@"$\sum_{i=0}^{n}$", "n")]
+    public void Sum_WithLimits_EmitsOperatorSubscript_AndTheSuperscriptItWasGiven(string math, string? superscript)
     {
-        var rt = MathTextParser.Parse(@"$\int$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == "\u222B");
+        var rt = MathTextParser.Parse(math);
+        Has(rt, TextSpanKind.LargeOperator);
+        Has(rt, TextSpanKind.OperatorSubscript, "i = 0");
+        if (superscript is not null) Has(rt, TextSpanKind.OperatorSuperscript, superscript);
     }
 
+    /// <summary>An integral's scripts stand beside it, not above and below: matplotlib 3.11.2 sets the scripts of its
+    /// <c>Parser._dropsub_symbols</c> (\int \oint \iint \oiint \iiint \oiiint \iiiint) as scripts, and limits only on its
+    /// <c>Parser._overunder_symbols</c> (\sum \prod \coprod and the big operators).</summary>
     [Fact]
-    public void Prod_ParsesAsLargeOperator()
-    {
-        var rt = MathTextParser.Parse(@"$\prod$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == "\u220F");
-    }
-
-    [Fact]
-    public void Lim_ParsesAsLargeOperator()
-    {
-        var rt = MathTextParser.Parse(@"$\lim$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == "lim");
-    }
-
-    [Fact]
-    public void Sum_WithSubscript_EmitsOperatorSubscript()
-    {
-        var rt = MathTextParser.Parse(@"$\sum_{i=0}$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator);
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.OperatorSubscript && s.Text == "i=0");
-    }
-
-    [Fact]
-    public void Sum_WithBothLimits_EmitsOperatorSubAndSuper()
-    {
-        var rt = MathTextParser.Parse(@"$\sum_{i=0}^{n}$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator);
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.OperatorSubscript && s.Text == "i=0");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.OperatorSuperscript && s.Text == "n");
-    }
-
-    [Fact]
-    public void Int_WithLimits_Works()
+    public void Int_TakesItsScriptsBesideIt()
     {
         var rt = MathTextParser.Parse(@"$\int_a^b$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator);
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.OperatorSubscript && s.Text == "a");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.OperatorSuperscript && s.Text == "b");
+        Has(rt, TextSpanKind.LargeOperator);
+        Has(rt, TextSpanKind.Subscript, "a");
+        Has(rt, TextSpanKind.Superscript, "b");
     }
 
     [Fact]
     public void Lim_WithSubscript_Works()
     {
         var rt = MathTextParser.Parse(@"$\lim_{x \to 0}$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == "lim");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.OperatorSubscript);
+        Has(rt, TextSpanKind.LargeOperator, "lim");
+        Has(rt, TextSpanKind.OperatorSubscript);
     }
 
     [Fact]
     public void RegularSubscript_NotAffected()
     {
         var rt = MathTextParser.Parse(@"$x_i$");
-        Assert.Contains(rt.Spans, s => s.Kind == TextSpanKind.Subscript && s.Text == "i");
+        Has(rt, TextSpanKind.Subscript, "i");
         Assert.DoesNotContain(rt.Spans, s => s.Kind == TextSpanKind.OperatorSubscript);
     }
 

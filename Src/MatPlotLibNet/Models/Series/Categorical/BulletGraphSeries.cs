@@ -24,7 +24,7 @@ namespace MatPlotLibNet.Models.Series;
 /// Roughly eight percent of men cannot separate red from green, and a background that encodes meaning in those
 /// two hues excludes them. And on an operations display colour is a scarce alarm signal — spending red on a
 /// permanent backdrop leaves nothing for the thing that is actually wrong.</para></summary>
-public sealed class BulletGraphSeries : ChartSeries
+public sealed class BulletGraphSeries : ChartSeries, ISeriesKind<BulletGraphSeries>
 {
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
@@ -35,27 +35,34 @@ public sealed class BulletGraphSeries : ChartSeries
     /// <summary>The comparative, drawn as a perpendicular tick across the bar, or <see langword="null"/> for
     /// no target. A measure without a comparative cannot be judged: the reader has to supply the missing
     /// context from memory, and mostly does not.</summary>
-    public double? Target { get; set; }
+    public double? Target { get; set => Change(ref field, value); }
 
     /// <summary>The qualitative ranges behind the bar, in ascending order of threshold, or
     /// <see langword="null"/> for none. Each band spans from its predecessor's threshold up to its own.</summary>
     /// <remarks>Deliberately the same <see cref="GaugeBand"/> the gauge uses: a (threshold, colour) pair is a
     /// (threshold, colour) pair, and minting a second type for the same shape is how a codebase acquires two
-    /// band models that drift apart.</remarks>
-    public IReadOnlyList<GaugeBand>? Bands { get; set; }
+    /// band models that drift apart.
+    /// <para>To say that the last band covers everything above the one before it, give it the threshold
+    /// <see cref="double.PositiveInfinity"/>: that band is kept and runs to the end of the strip. An infinite
+    /// threshold sizes nothing, though. The strip is as long as the furthest of the value, the target and the last
+    /// band's threshold when that is a finite number, so with an infinite last threshold the strip ends where the
+    /// value or the target asks, and the band fills what is left of it. A band whose threshold is missing
+    /// (<see cref="double.NaN"/>) is left out.</para></remarks>
+    public IReadOnlyList<GaugeBand>? Bands { get; set => Change(ref field, value); }
 
     /// <summary>The bar's colour, or <see langword="null"/> for the theme's foreground. The bar is the
     /// measure, not an alarm — colouring it by default would spend a signal that has nowhere else to come from.</summary>
-    public Color? BarColor { get; set; }
+    public Color? BarColor { get; set => Change(ref field, value); }
 
     /// <summary>The colour of the target tick, or <see langword="null"/> for the theme's foreground.</summary>
-    public Color? TargetColor { get; set; }
+    public Color? TargetColor { get; set => Change(ref field, value); }
 
+    private const Orientation RestingOrientation = Orientation.Horizontal;
     /// <summary>Horizontal (default) draws the strip left-to-right; vertical draws it bottom-up.</summary>
     /// <remarks>Reuses the library's shared <see cref="Models.Orientation"/> (Horizontal = 0), not
     /// <see cref="BarOrientation"/> — whose ordinals are the other way round, so reusing it would silently flip
     /// this default.</remarks>
-    public Orientation Orientation { get; set; } = Orientation.Horizontal;
+    public Orientation Orientation { get; set => Change(ref field, value); } = RestingOrientation;
 
     /// <summary>Creates a bullet graph for <paramref name="value"/>.</summary>
     /// <param name="value">The measure.</param>
@@ -68,8 +75,11 @@ public sealed class BulletGraphSeries : ChartSeries
     {
         get
         {
-            double max = Math.Max(Value, Target ?? Value);
-            if (Bands is { Count: > 0 })
+            // Only what can be placed bounds the strip: a missing or infinite value, target or threshold is not on it.
+            double max = double.NegativeInfinity;
+            if (Value.IsDrawable()) max = Value;
+            if (Target is { } target && target.IsDrawable()) max = Math.Max(max, target);
+            if (Bands is { Count: > 0 } && Bands[^1].Threshold.IsDrawable())
             {
                 max = Math.Max(max, Bands[^1].Threshold);
             }
@@ -80,28 +90,24 @@ public sealed class BulletGraphSeries : ChartSeries
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        Orientation == Orientation.Horizontal
-            ? new(0, UpperBound, null, null)
-            : new(null, null, 0, UpperBound);
+        DataRangeContribution.Along(Orientation.RunsAlongX, 0, UpperBound);
+
+    static string ISeriesKind<BulletGraphSeries>.Kind => "bulletgraph";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "bulletgraph",
+        Type = this.WireKind(),
         GaugeValue = Value,
         BulletTarget = Target,
         BandThresholds = Bands?.Select(b => b.Threshold).ToArray(),
         BandColors = Bands?.Select(b => b.Color).ToList(),
         Color = BarColor,
         TrackColor = TargetColor,
-        Orientation = Orientation != Orientation.Horizontal ? Orientation.ToString().ToLowerInvariant() : null,
+        Orientation = Orientation.OrNullAtRest(RestingOrientation)?.ToWireName(),
     };
 
-    /// <summary>Reconstructs a <see cref="BulletGraphSeries"/> from its serialization DTO, restoring the
-    /// measure, the target, the qualitative bands, the colours and the orientation, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="BulletGraphSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries the measure, the target, the qualitative bands, the colours and the orientation.</summary>
     internal static BulletGraphSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Bullet(dto.GaugeValue ?? 0);
@@ -121,7 +127,7 @@ public sealed class BulletGraphSeries : ChartSeries
             s.Bands = bands;
         }
 
-        dto.Orientation.ApplyEnum<Orientation>(v => s.Orientation = v);
+        if (dto.Orientation.WireEnum<Orientation>() is { } orientation) s.Orientation = orientation;
         return s;
     }
 

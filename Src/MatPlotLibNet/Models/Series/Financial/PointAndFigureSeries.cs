@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Models.Series;
 /// next box in its direction and gives way to a column the other way once the price has come back <see cref="Reversal"/>
 /// boxes from the last box drawn (3 is the classic). Column <c>k</c> stands in the slot from <c>k</c> to <c>k + 1</c> of the
 /// X axis, and the box with index <c>j</c> covers the prices from <c>j * BoxSize</c> up to the next box.</summary>
-public sealed class PointAndFigureSeries : ChartSeries
+public sealed class PointAndFigureSeries : ChartSeries, ISeriesKind<PointAndFigureSeries>
 {
     /// <summary>The fraction of a box's width and height left clear between its edge and the X or O drawn in it.</summary>
     internal const double MarkInset = 0.12;
@@ -24,39 +24,33 @@ public sealed class PointAndFigureSeries : ChartSeries
     /// <summary>The price one box covers.</summary>
     public double BoxSize { get; }
 
-    /// <summary>How many boxes back from the last box drawn the price has to come to start a column the other way; 3 unless
+    /// <summary>How many boxes back from the last box drawn the price has to come to start a column the other way; <see cref="RestingReversal"/> unless
     /// said otherwise.</summary>
     public int Reversal { get; }
 
     /// <summary>The colour of a column of Xs, which marks a rise; green unless said otherwise.</summary>
-    public Color UpColor { get; set; } = Colors.Green;
+    public Color UpColor { get; set => Change(ref field, value); } = UpDownColors.Standard.Up;
 
     /// <summary>The colour of a column of Os, which marks a fall; red unless said otherwise.</summary>
-    public Color DownColor { get; set; } = Colors.Red;
+    public Color DownColor { get; set => Change(ref field, value); } = UpDownColors.Standard.Down;
 
-    /// <summary>The width of the stroke an X or an O is drawn with, in points.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <summary>The width of the stroke an X or an O is drawn with, in pixels.</summary>
+    public double LineWidth { get; set => Change(ref field, value); } = LineWidthRule.Line.Resting;
 
     /// <summary>Initializes a Point and Figure chart of the given closing prices.</summary>
     /// <param name="prices">The closing prices, oldest first.</param>
     /// <param name="boxSize">The price one box covers; a finite number above zero.</param>
-    /// <param name="reversal">The boxes a price has to come back to start a column the other way; 1 or more, and 3 unless said otherwise.</param>
+    /// <param name="reversal">The boxes a price has to come back to start a column the other way; 1 or more, and <see cref="RestingReversal"/> unless said otherwise.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="boxSize"/> is not a finite number above zero, or <paramref name="reversal"/> is below 1.</exception>
     public PointAndFigureSeries(double[] prices, double boxSize, int reversal = RestingReversal)
     {
-        if (!(double.IsFinite(boxSize) && boxSize > 0))
-        {
-            throw new ArgumentOutOfRangeException(nameof(boxSize), boxSize, "A box covers a price above zero.");
-        }
-
-        ArgumentOutOfRangeException.ThrowIfLessThan(reversal, 1);
         Prices = prices;
-        BoxSize = boxSize;
-        Reversal = reversal;
+        BoxSize = boxSize.ThrowIfNotFinite(nameof(boxSize)).ThrowIfNotAbove(0, nameof(boxSize));
+        Reversal = reversal.ThrowIfBelow(1, nameof(reversal));
     }
 
-    private const int RestingReversal = 3;
-    private const double RestingLineWidth = 1.5;
+    internal const int RestingReversal = 3;
+    private const double UnnamedBoxSize = 1;
 
     /// <summary>The columns the prices draw, left to right.</summary>
     internal IReadOnlyList<PointAndFigureColumn> Columns() => Prices.PointAndFigureColumns(BoxSize, Reversal);
@@ -69,43 +63,35 @@ public sealed class PointAndFigureSeries : ChartSeries
         var columns = Columns();
         if (columns.Count == 0)
         {
-            return new(null, null, null, null);
+            return default;
         }
 
         int lowest = columns.Min(c => Math.Min(c.From, c.To)), highest = columns.Max(c => Math.Max(c.From, c.To));
         double yMin = lowest.LevelFrom(0, BoxSize), yMax = (highest + 1).LevelFrom(0, BoxSize);
         double xMax = CategorySlot.Of(columns.Count - 1).Right;
-        return new(CategorySlot.Of(0).Left, xMax, yMin, yMax,
-            StickyXMin: CategorySlot.Of(0).Left, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
+        return DataRangeContribution.Pinned(new(CategorySlot.Of(0).Left, xMax), new(yMin, yMax));
     }
+
+    static string ISeriesKind<PointAndFigureSeries>.Kind => "pointandfigure";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "pointandfigure",
+        Type = this.WireKind(),
         Values = Prices, BoxSize = BoxSize, Reversal = Reversal.OrNullAtRest(RestingReversal),
         UpColor = UpColor, DownColor = DownColor,
-        LineWidth = LineWidth.OrNullAtRest(RestingLineWidth),
+        LineWidth = LineWidth.OrNullAtRest(LineWidthRule.Line.Resting),
     };
 
-    /// <summary>Reconstructs a <see cref="PointAndFigureSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="PointAndFigureSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static PointAndFigureSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.PointAndFigure(dto.Values ?? [], dto.BoxSize ?? 1, dto.Reversal ?? RestingReversal);
-        if (dto.UpColor.HasValue)
-        {
-            s.UpColor = dto.UpColor.Value;
-        }
+        var s = axes.PointAndFigure(dto.Values ?? [], dto.BoxSize ?? UnnamedBoxSize, dto.Reversal ?? RestingReversal);
+        if (dto.UpColor is { } upColor) s.UpColor = upColor;
 
-        if (dto.DownColor.HasValue)
-        {
-            s.DownColor = dto.DownColor.Value;
-        }
+        if (dto.DownColor is { } downColor) s.DownColor = downColor;
 
-        s.LineWidth = dto.LineWidth ?? RestingLineWidth;
+        if (dto.LineWidth is { } lineWidth) s.LineWidth = lineWidth;
         return s;
     }
 
@@ -127,7 +113,7 @@ public sealed class PointAndFigureSeries : ChartSeries
         }
 
         return new ChartDataTable(null,
-            [new("column", Axis: DataAxis.X), new("mark", DataColumnKind.Text), new("from", Axis: DataAxis.Y), new("to", Axis: DataAxis.Y)], rows);
+            [ChartDataColumn.Position(DataAxis.X, "column"), new("mark", DataColumnKind.Text), ChartDataColumn.Position(DataAxis.Y, "from"), ChartDataColumn.Position(DataAxis.Y, "to")], rows);
     }
 
     /// <inheritdoc />

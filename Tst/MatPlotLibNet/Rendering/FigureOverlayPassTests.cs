@@ -1,8 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
+using MatPlotLibNet.Tests.Packaging;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
@@ -11,36 +10,23 @@ using MatPlotLibNet.Tests.Rendering.Text;
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>What a figure draws on itself rather than in a subplot is drawn by one pass that both orchestrators call: the
-/// SVG writer (<c>ToSvg</c>, which lays the subplots out in parallel) and <see cref="ChartRenderer.Render"/> (PNG, PDF and
+/// SVG writer (<c>ToSvg</c>, which lays the subplots out in its own loop) and <see cref="ChartRenderer.Render"/> (PNG, PDF and
 /// the native controls). So the two pictures carry the same overlays at the same places, a figure without subplots still
 /// draws them, the colour bar is drawn from one site, and the overlays stand above the subplots.</summary>
 public class FigureOverlayPassTests
 {
     private static readonly double[,] Cells = { { 1, 2 }, { 3, 4 } };
 
-    private static RecordingRenderContext Record(Figure figure)
-    {
-        var ctx = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, ctx);
-        return ctx;
-    }
-
     private static int IndexOfText(RecordingRenderContext ctx, string text) =>
-        ctx.Calls.FindIndex(c => c.Kind == "DrawText" && (string)((dynamic)c.Args!).text == text);
+        ctx.Calls.FindIndex(c => c is DrawTextCall k && k.Text == text);
 
-    private static dynamic DrawnText(RecordingRenderContext ctx, string text) =>
-        ctx.Calls[IndexOfText(ctx, text)].Args!;
+    private static DrawTextCall DrawnText(RecordingRenderContext ctx, string text) => (DrawTextCall)ctx.Calls[IndexOfText(ctx, text)];
 
     private static Point SvgTextPosition(string svg, string text)
     {
-        var match = Regex.Match(svg, "<text x=\"([^\"]+)\" y=\"([^\"]+)\"[^>]*>" + Regex.Escape(text) + "</text>");
-        Assert.True(match.Success, $"no <text> reading '{text}' in the picture");
-        return new Point(double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture),
-            double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture));
+        var match = svg.TextReading(text);
+        return new Point(match.Number("x"), match.Number("y"));
     }
-
-    private static int Occurrences(string haystack, string needle) =>
-        Regex.Matches(haystack, Regex.Escape(needle)).Count;
 
     [Theory]
     [InlineData(TextVerticalAlignment.Baseline)]
@@ -54,7 +40,7 @@ public class FigureOverlayPassTests
             .Build();
 
         var inSvg = SvgTextPosition(figure.ToSvg(), "Figure note");
-        Point recorded = DrawnText(Record(figure), "Figure note").position;
+        Point recorded = DrawnText(figure.Drawn(), "Figure note").Position;
 
         Assert.Equal(recorded.X, inSvg.X, 0.01);
         Assert.Equal(recorded.Y, inSvg.Y, 0.01);
@@ -68,7 +54,7 @@ public class FigureOverlayPassTests
         Assert.Empty(figure.SubPlots);
 
         var inSvg = SvgTextPosition(figure.ToSvg(), "Alone");
-        Point recorded = DrawnText(Record(figure), "Alone").position;
+        Point recorded = DrawnText(figure.Drawn(), "Alone").Position;
 
         Assert.Equal(new Point(400, 300), inSvg);
         Assert.Equal(new Point(400, 300), recorded);
@@ -80,7 +66,7 @@ public class FigureOverlayPassTests
         var figure = Plt.Create().WithSize(800, 600).Plot([0.0, 1.0], [0.0, 1.0]).FigText("Top", 0.5, 0.97).Build();
 
         var inSvg = SvgTextPosition(figure.ToSvg(), "Top");
-        Point recorded = DrawnText(Record(figure), "Top").position;
+        Point recorded = DrawnText(figure.Drawn(), "Top").Position;
 
         Assert.Equal(18, inSvg.Y, 9);
         Assert.Equal(18, recorded.Y, 9);
@@ -97,7 +83,7 @@ public class FigureOverlayPassTests
             .Build();
 
         string svg = figure.ToSvg();
-        var ctx = Record(figure);
+        var ctx = figure.Drawn();
 
         Assert.DoesNotContain(">Outside<", svg);
         Assert.DoesNotContain(">Missing<", svg);
@@ -115,14 +101,14 @@ public class FigureOverlayPassTests
             .FigText("Turned", 0.05, 0.5, t => { t.Color = Colors.Red; t.Rotation = 90; })
             .Build();
 
-        var drawn = DrawnText(Record(figure), "Turned");
-        Font font = drawn.font;
+        var drawn = DrawnText(figure.Drawn(), "Turned");
+        Font font = drawn.Font;
 
-        Assert.Equal(ThemedFontProvider.DataTextFont(theme).Family, font.Family);
-        Assert.Equal(ThemedFontProvider.DataTextFont(theme).Size, font.Size);
+        Assert.Equal(theme.DataTextFont().Family, font.Family);
+        Assert.Equal(theme.DataTextFont().Size, font.Size);
         Assert.Equal(Colors.Red, font.Color);
-        Assert.Equal(90.0, (double)drawn.rotation);
-        Assert.Equal(TextAlignment.Left, (TextAlignment)drawn.alignment);
+        Assert.Equal(90.0, drawn.Rotation);
+        Assert.Equal(TextAlignment.Left, drawn.Alignment);
     }
 
     [Fact]
@@ -140,9 +126,9 @@ public class FigureOverlayPassTests
         int note = svg.IndexOf(">Note<", StringComparison.Ordinal);
         Assert.True(panel >= 0 && panel < colourBar && colourBar < note, $"panel {panel}, colour bar {colourBar}, note {note}");
 
-        var ctx = Record(figure);
+        var ctx = figure.Drawn();
         int recordedPanel = IndexOfText(ctx, "Panel");
-        int recordedBar = ctx.Calls.FindIndex(c => c.Kind == "BeginGroup" && (string)((dynamic)c.Args!).cssClass == "figure-colorbar");
+        int recordedBar = ctx.Calls.FindIndex(c => c is BeginGroupCall { CssClass: "figure-colorbar" });
         int recordedNote = IndexOfText(ctx, "Note");
         Assert.True(recordedPanel >= 0 && recordedPanel < recordedBar && recordedBar < recordedNote,
             $"panel {recordedPanel}, colour bar {recordedBar}, note {recordedNote}");
@@ -156,8 +142,8 @@ public class FigureOverlayPassTests
             .AddSubPlot(1, 2, 2, ax => ax.Heatmap(Cells))
             .Build();
 
-        Assert.Equal(1, Occurrences(figure.ToSvg(), "<g class=\"figure-colorbar\">"));
-        Assert.Equal(1, Record(figure).Calls.Count(c => c.Kind == "BeginGroup" && (string)((dynamic)c.Args!).cssClass == "figure-colorbar"));
+        Assert.Equal(1, figure.ToSvg().CountOf("<g class=\"figure-colorbar\">"));
+        Assert.Equal(1, figure.Drawn().Of<BeginGroupCall>().Count(c => c.CssClass == "figure-colorbar"));
     }
 
     [Fact]
@@ -166,32 +152,35 @@ public class FigureOverlayPassTests
         var figure = new Figure { FigureColorBar = new ColorBar { Visible = true, Label = "Level" } };
 
         string svg = figure.ToSvg();
-        var ctx = Record(figure);
+        var ctx = figure.Drawn();
 
-        Assert.Equal(1, Occurrences(svg, "<g class=\"figure-colorbar\">"));
+        Assert.Equal(1, svg.CountOf("<g class=\"figure-colorbar\">"));
         Assert.Contains(">Level<", svg);
         Assert.NotEqual(-1, IndexOfText(ctx, "Level"));
     }
 
-    /// <summary>The colour bar has one drawing site, the overlay pass, and both orchestrators reach the figure-level
-    /// passes through the same two methods: a second hand-wired call would let the two pictures drift apart again.</summary>
+    /// <summary>The colour bar has one drawing site, the overlay pass, and there is one drawing sequence: the SVG writer draws
+    /// through the renderer's (onto a target of its own) and calls none of the figure-level passes itself, so the SVG and every
+    /// raster or native picture cannot drift apart again.</summary>
     [Fact]
-    public void TheFigureLevelPasses_HaveOneSite_ReachedFromBothOrchestrators()
+    public void TheFigureLevelPasses_HaveOneSite_ReachedFromTheOneDrawingSequence()
     {
-        string src = Path.Combine(BidiClassTableTests.RepoRoot(), "Src", "MatPlotLibNet");
+        string src = Path.Combine(RepositoryRoot.Folder, "Src", "MatPlotLibNet");
         string chartRenderer = File.ReadAllText(Path.Combine(src, "Rendering", "ChartRenderer.cs"));
         string svgTransform = File.ReadAllText(Path.Combine(src, "Transforms", "SvgTransform.cs"));
-        int colourBarCallsInSrc = Directory.EnumerateFiles(src, "*.cs", SearchOption.AllDirectories)
-            .Sum(file => Occurrences(File.ReadAllText(file), "RenderFigureColorBar("));
+        int colourBarCallsInSrc = RepositoryTree.Files("Src/MatPlotLibNet", "*.cs")
+            .Sum(file => file.Text.CountOf("RenderFigureColorBar("));
 
         // The declaration and the one call inside the overlay pass.
         Assert.Equal(2, colourBarCallsInSrc);
-        Assert.Equal(2, Occurrences(chartRenderer, "RenderFigureColorBar("));
-        Assert.Equal(0, Occurrences(svgTransform, "RenderFigureColorBar("));
-        // The declaration and the call from Render; one call from the SVG writer.
-        Assert.Equal(2, Occurrences(chartRenderer, "RenderFigureOverlays("));
-        Assert.Equal(1, Occurrences(svgTransform, "RenderFigureOverlays("));
-        Assert.Equal(2, Occurrences(chartRenderer, "RenderFigureUnderlays("));
-        Assert.Equal(1, Occurrences(svgTransform, "RenderFigureUnderlays("));
+        Assert.Equal(2, chartRenderer.CountOf("RenderFigureColorBar("));
+        Assert.Equal(0, svgTransform.CountOf("RenderFigureColorBar("));
+        // The declaration and the call from the one drawing sequence; none from the SVG writer, which draws through it.
+        Assert.Equal(2, chartRenderer.CountOf("RenderFigureOverlays("));
+        Assert.Equal(0, svgTransform.CountOf("RenderFigureOverlays("));
+        Assert.Equal(2, chartRenderer.CountOf("RenderFigureUnderlays("));
+        Assert.Equal(0, svgTransform.CountOf("RenderFigureUnderlays("));
+        Assert.Equal(0, svgTransform.CountOf("RenderAxes("));
+        Assert.Equal(1, svgTransform.CountOf("Renderer.Draw("));
     }
 }

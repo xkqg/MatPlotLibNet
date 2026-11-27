@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Numerics;
 
@@ -15,7 +16,7 @@ public class GaussianKdeTests
     public void SilvermanBandwidth_PositiveResult_ForTypicalData()
     {
         double[] data = [1.0, 2.0, 3.0, 4.0, 5.0];
-        double bw = GaussianKde.SilvermanBandwidth(data);
+        double bw = GaussianKde.Bandwidth(data, MatPlotLibNet.Numerics.GaussianKde.SilvermanFactor);
         Assert.True(bw > 0);
     }
 
@@ -27,7 +28,7 @@ public class GaussianKdeTests
         double[] data = [1.0, 2.0, 3.0, 4.0, 5.0];
         double sigma = Math.Sqrt(2.5);
         double expected = 1.06 * sigma * Math.Pow(5, -0.2);
-        double actual = GaussianKde.SilvermanBandwidth(data);
+        double actual = GaussianKde.Bandwidth(data, MatPlotLibNet.Numerics.GaussianKde.SilvermanFactor);
         Assert.Equal(expected, actual, precision: 10);
     }
 
@@ -41,7 +42,7 @@ public class GaussianKdeTests
     [InlineData(new[] { 0.001, 0.001, 0.001 }, 0.001)]
     public void SilvermanBandwidth_DataWithoutSpread_TakesTheSizeOfItsValueAsItsSpread(double[] data, double size)
     {
-        double bw = GaussianKde.SilvermanBandwidth(data);
+        double bw = GaussianKde.Bandwidth(data, MatPlotLibNet.Numerics.GaussianKde.SilvermanFactor);
 
         Assert.Equal(1.06 * size * Math.Pow(data.Length, -0.2), bw, 1e-15);
     }
@@ -50,8 +51,8 @@ public class GaussianKdeTests
     [Fact]
     public void SilvermanBandwidth_DataThatIsAllZero_Takes1AsItsSpread()
     {
-        Assert.Equal(1.06 * Math.Pow(3, -0.2), GaussianKde.SilvermanBandwidth([0.0, 0.0, 0.0]), 1e-15);
-        Assert.Equal(1.06, GaussianKde.SilvermanBandwidth([0.0]), 1e-15);
+        Assert.Equal(1.06 * Math.Pow(3, -0.2), GaussianKde.Bandwidth([0.0, 0.0, 0.0], GaussianKde.SilvermanFactor), 1e-15);
+        Assert.Equal(1.06, GaussianKde.Bandwidth([0.0], GaussianKde.SilvermanFactor), 1e-15);
     }
 
     /// <summary>Three times 0.1 has no spread, though its mean (0.30000000000000004 / 3) is not 0.1: the deviations from that
@@ -60,7 +61,7 @@ public class GaussianKdeTests
     [Fact]
     public void SilvermanBandwidth_EqualValuesWhoseMeanRoundsAway_HaveNoSpread()
     {
-        double bw = GaussianKde.SilvermanBandwidth([0.1, 0.1, 0.1]);
+        double bw = GaussianKde.Bandwidth([0.1, 0.1, 0.1], GaussianKde.SilvermanFactor);
 
         Assert.Equal(1.06 * 0.1 * Math.Pow(3, -0.2), bw, 1e-15);
     }
@@ -73,8 +74,8 @@ public class GaussianKdeTests
     [InlineData(new[] { 42.0 })]
     public void SilvermanBandwidth_ScalesWithTheData(double[] data)
     {
-        double bw = GaussianKde.SilvermanBandwidth(data);
-        double scaled = GaussianKde.SilvermanBandwidth([.. data.Select(v => v * 100)]);
+        double bw = GaussianKde.Bandwidth(data, MatPlotLibNet.Numerics.GaussianKde.SilvermanFactor);
+        double scaled = GaussianKde.Bandwidth([.. data.Select(v => v * 100)], GaussianKde.SilvermanFactor);
 
         Assert.Equal(1.0, scaled / (bw * 100), 1e-12);
     }
@@ -83,7 +84,7 @@ public class GaussianKdeTests
     [Fact]
     public void SilvermanBandwidth_NoData_Is1()
     {
-        Assert.Equal(1.0, GaussianKde.SilvermanBandwidth([]));
+        Assert.Equal(1.0, GaussianKde.Bandwidth([], GaussianKde.SilvermanFactor));
     }
 
     // --- JointBandwidth: one bandwidth for several groups (ggridges' joint bandwidth) ---
@@ -98,7 +99,7 @@ public class GaussianKdeTests
 
         double joint = GaussianKde.JointBandwidth([a, b]);
 
-        Assert.Equal((GaussianKde.SilvermanBandwidth(a) + GaussianKde.SilvermanBandwidth(b)) / 2, joint, 1e-15);
+        Assert.Equal((GaussianKde.Bandwidth(a, GaussianKde.SilvermanFactor) + GaussianKde.Bandwidth(b, GaussianKde.SilvermanFactor)) / 2, joint, 1e-15);
     }
 
     /// <summary>The shift between groups is not spread: the same sample at 0, 50 and 100 has the joint bandwidth of the one
@@ -111,9 +112,9 @@ public class GaussianKdeTests
         double[][] shifted = [a, [.. a.Select(v => v + 50)], [.. a.Select(v => v + 100)]];
 
         double joint = GaussianKde.JointBandwidth(shifted);
-        double pooled = GaussianKde.SilvermanBandwidth([.. shifted.SelectMany(s => s).Order()]);
+        double pooled = GaussianKde.Bandwidth([.. shifted.SelectMany(s => s).Order()], GaussianKde.SilvermanFactor);
 
-        Assert.Equal(GaussianKde.SilvermanBandwidth(a), joint, 1e-12);
+        Assert.Equal(GaussianKde.Bandwidth(a, GaussianKde.SilvermanFactor), joint, 1e-12);
         Assert.True(pooled > 10 * joint, $"pooled {pooled} against joint {joint}");
     }
 
@@ -125,7 +126,7 @@ public class GaussianKdeTests
     {
         double[] spread = [999.0, 1000.0, 1000.5, 1001.0, 1002.0];
 
-        Assert.Equal(GaussianKde.SilvermanBandwidth(spread), GaussianKde.JointBandwidth([[1000.0, 1000.0, 1000.0], spread]), 1e-15);
+        Assert.Equal(GaussianKde.Bandwidth(spread, GaussianKde.SilvermanFactor), GaussianKde.JointBandwidth([[1000.0, 1000.0, 1000.0], spread]), 1e-15);
     }
 
     /// <summary>When no group spreads, the groups pooled are the only scale there is: Silverman over them, which takes the
@@ -133,7 +134,7 @@ public class GaussianKdeTests
     [Fact]
     public void JointBandwidth_WhenNoGroupSpreads_IsSilvermanOverTheGroupsPooled()
     {
-        Assert.Equal(GaussianKde.SilvermanBandwidth([5.0, 5.0, 7.0, 7.0, 7.0]), GaussianKde.JointBandwidth([[5.0, 5.0], [7.0, 7.0, 7.0]]), 1e-15);
+        Assert.Equal(GaussianKde.Bandwidth([5.0, 5.0, 7.0, 7.0, 7.0], GaussianKde.SilvermanFactor), GaussianKde.JointBandwidth([[5.0, 5.0], [7.0, 7.0, 7.0]]), 1e-15);
         Assert.Equal(1.06 * 5 * Math.Pow(5, -0.2), GaussianKde.JointBandwidth([[5.0, 5.0], [5.0, 5.0, 5.0]]), 1e-15);
     }
 
@@ -163,11 +164,25 @@ public class GaussianKdeTests
     {
         double[] sorted = [-1.5, 0.25, 0.5, 3.0];
 
-        double[] grid = GaussianKde.Grid(sorted, 0.7, numPoints);
+        double[] grid = GaussianKde.Grid(sorted[0], sorted[^1], 0.7, numPoints);
 
         Assert.Equal(GaussianKde.Evaluate(sorted, 0.7, numPoints).X, grid);
         Assert.Equal(-1.5 - 3 * 0.7, grid[0]);
+        Assert.Equal(3.0 + 3 * 0.7, grid[^1], 1e-12);
         Assert.Equal(numPoints, grid.Length);
+    }
+
+    /// <summary>The grid steps evenly from the first value to the last, each value worked out as the first plus the step times
+    /// its index, as it always was: the same bits for the same ends.</summary>
+    [Fact]
+    public void Grid_IsTheFirstValuePlusTheStepTimesTheIndex()
+    {
+        const double min = 0.1, max = 7.3, h = 0.37;
+        double lo = min - 3 * h, step = (max + 3 * h - lo) / 199;
+
+        double[] grid = GaussianKde.Grid(min, max, h, 200);
+
+        for (int j = 0; j < 200; j++) Assert.Equal(lo + step * j, grid[j]);
     }
 
     /// <summary>The density Evaluate returns is <c>DensityAt</c> on that grid, bit for bit: one formula.</summary>
@@ -175,7 +190,7 @@ public class GaussianKdeTests
     public void DensityAt_OnEvaluatesGrid_IsEvaluatesDensity()
     {
         double[] sorted = [-1.5, 0.25, 0.5, 3.0];
-        var curve = GaussianKde.Evaluate(sorted, 0.7);
+        var curve = GaussianKde.Evaluate(sorted, 0.7, 100);
 
         Assert.Equal(curve.Y, GaussianKde.DensityAt(sorted, 0.7, curve.X));
     }
@@ -210,7 +225,7 @@ public class GaussianKdeTests
     public void Evaluate_DefaultNumPoints_Is100()
     {
         double[] sorted = [1.0, 2.0, 3.0];
-        var (xs, density) = GaussianKde.Evaluate(sorted, 0.5);
+        var (xs, _) = GaussianKde.Evaluate(sorted, 0.5, 100);
         Assert.Equal(100, xs.Length);
     }
 
@@ -219,8 +234,8 @@ public class GaussianKdeTests
     public void Evaluate_PeakNearMean_ForSymmetricData()
     {
         double[] sorted = [-2.0, -1.0, 0.0, 1.0, 2.0];
-        double bw = GaussianKde.SilvermanBandwidth(sorted);
-        var (xs, density) = GaussianKde.Evaluate(sorted, bw);
+        double bw = GaussianKde.Bandwidth(sorted, GaussianKde.SilvermanFactor);
+        var (xs, density) = GaussianKde.Evaluate(sorted, bw, 100);
         int peakIdx = Array.IndexOf(density, density.Max());
         double peakX = xs[peakIdx];
         Assert.True(Math.Abs(peakX) < 0.5, $"Peak at {peakX}, expected near 0");
@@ -231,8 +246,8 @@ public class GaussianKdeTests
     public void Evaluate_AllDensitiesNonNegative()
     {
         double[] sorted = [1.0, 2.0, 3.0, 4.0, 5.0];
-        double bw = GaussianKde.SilvermanBandwidth(sorted);
-        var (_, density) = GaussianKde.Evaluate(sorted, bw);
+        double bw = GaussianKde.Bandwidth(sorted, GaussianKde.SilvermanFactor);
+        var (_, density) = GaussianKde.Evaluate(sorted, bw, 100);
         Assert.All(density, d => Assert.True(d >= 0));
     }
 
@@ -241,7 +256,7 @@ public class GaussianKdeTests
     public void Evaluate_IntegratesApproximatelyToOne()
     {
         double[] sorted = [1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 5.5, 6.0];
-        double bw = GaussianKde.SilvermanBandwidth(sorted);
+        double bw = GaussianKde.Bandwidth(sorted, GaussianKde.SilvermanFactor);
         var (xs, density) = GaussianKde.Evaluate(sorted, bw, numPoints: 500);
         double integral = 0;
         for (int i = 1; i < xs.Length; i++)
@@ -253,7 +268,7 @@ public class GaussianKdeTests
     [Fact]
     public void Evaluate_EmptyData_ReturnsEmpty()
     {
-        var (xs, density) = GaussianKde.Evaluate([], 1.0);
+        var (xs, density) = GaussianKde.Evaluate([], 1.0, 100);
         Assert.Empty(xs);
         Assert.Empty(density);
     }
@@ -264,8 +279,69 @@ public class GaussianKdeTests
     {
         double[] sorted = [2.0, 3.0, 4.0];
         double bw = 0.5;
-        var (xs, _) = GaussianKde.Evaluate(sorted, bw);
+        var (xs, _) = GaussianKde.Evaluate(sorted, bw, 100);
         Assert.Equal(sorted[0] - 3 * bw, xs[0], precision: 10);
         Assert.Equal(sorted[^1] + 3 * bw, xs[^1], precision: 10);
     }
+
+    // ── DensityCurve ──────────────────────────────────────────────────────────
+
+    /// <summary>The density curve of a sample is estimated from its drawable observations, ascending, with Silverman's
+    /// bandwidth: a missing value and an infinity are not observations.</summary>
+    [Fact]
+    public void DensityCurve_IsTheDensityOfTheDrawableObservationsSorted_WithSilvermansBandwidth()
+    {
+        double[] sorted = [1.0, 2, 2.5, 3, 7];
+        var expected = GaussianKde.Evaluate(sorted, GaussianKde.Bandwidth(sorted, GaussianKde.SilvermanFactor), 100);
+
+        var curve = new[] { 7.0, double.NaN, 2.5, 1, double.PositiveInfinity, 3, 2 }.DensityCurve(null, ThemeLooks.Library.DensityCurveRule)!.Value;
+
+        Assert.Equal(expected.X, curve.X);
+        Assert.Equal(expected.Y, curve.Y);
+    }
+
+    /// <summary>A bandwidth given is used when it is a positive finite number; any other falls back to Silverman's.</summary>
+    [Theory]
+    [InlineData(0.4, 0.4)]
+    [InlineData(0.0, double.NaN)]
+    [InlineData(-1.0, double.NaN)]
+    [InlineData(double.PositiveInfinity, double.NaN)]
+    [InlineData(double.NaN, double.NaN)]
+    public void DensityCurve_TakesTheBandwidthGiven_OnlyWhenItIsAPositiveFiniteNumber(double given, double used)
+    {
+        double[] sorted = [1.0, 2, 2.5, 3, 7];
+        double bandwidth = double.IsNaN(used) ? GaussianKde.Bandwidth(sorted, GaussianKde.SilvermanFactor) : used;
+
+        var curve = sorted.DensityCurve(given, ThemeLooks.Library.DensityCurveRule)!.Value;
+
+        Assert.Equal(GaussianKde.Evaluate(sorted, bandwidth, 100).Y, curve.Y);
+    }
+
+    /// <summary>A sample with no drawable observation has no density curve.</summary>
+    [Fact]
+    public void DensityCurve_OfNothingDrawable_IsNothing()
+    {
+        Assert.Null(Array.Empty<double>().DensityCurve(null, ThemeLooks.Library.DensityCurveRule));
+        Assert.Null(new[] { double.NaN, double.NegativeInfinity }.DensityCurve(null, ThemeLooks.Library.DensityCurveRule));
+    }
+
+    /// <summary>The densities of several groups on one grid are each the density of the group alone: the same bandwidth and the
+    /// same grid for all of them, in the order of the groups.</summary>
+    [Fact]
+    public void JointDensities_AreTheDensityOfEachGroupOnTheSharedGrid()
+    {
+        double[][] groups = [[1.0, 2.0, 2.5, 4.0], [3.0, 3.5, 7.0]];
+        double[] grid = GaussianKde.Grid(1.0, 7.0, 0.8, 25);
+
+        double[][] densities = GaussianKde.JointDensities(groups, 0.8, grid);
+
+        Assert.Equal(2, densities.Length);
+        Assert.Equal(GaussianKde.DensityAt(groups[0], 0.8, grid), densities[0]);
+        Assert.Equal(GaussianKde.DensityAt(groups[1], 0.8, grid), densities[1]);
+    }
+
+    /// <summary>No groups have no densities.</summary>
+    [Fact]
+    public void JointDensities_OfNoGroups_AreNone() =>
+        Assert.Empty(GaussianKde.JointDensities([], 1.0, [0.0, 1.0]));
 }

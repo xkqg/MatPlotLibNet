@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -13,60 +14,60 @@ namespace MatPlotLibNet.Indicators;
 /// Kaufman, P. J. (1995). <i>Smarter Trading</i>.</remarks>
 public sealed class KaufmanEfficiencyRatio : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 10;
+
     private readonly int _period;
 
     /// <summary>Creates a new Kaufman Efficiency Ratio indicator.</summary>
     /// <param name="prices">Price data (typically close prices).</param>
-    /// <param name="period">Lookback window length (default 10). Must be ≥ 1.</param>
+    /// <param name="period">Lookback window length (default <see cref="DefaultPeriod"/>). Must be ≥ 1.</param>
     /// <exception cref="ArgumentException">Thrown when period &lt; 1.</exception>
-    public KaufmanEfficiencyRatio(double[] prices, int period = 10) : base(prices)
+    public KaufmanEfficiencyRatio(double[] prices, int period = DefaultPeriod) : base(prices, Spec(period))
     {
-        if (period < 1)
-            throw new ArgumentException($"KaufmanEfficiencyRatio period must be >= 1 (got {period}).", nameof(period));
         _period = period;
-        Label = $"ER({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("ER", period, 1, period);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
-        if (n <= _period) return Array.Empty<double>();
-
-        int outLen = n - _period;
+        int outLen = ValueCount;
         var result = new double[outLen];
 
-        // Precompute absolute first-differences once (length n-1).
-        var absDiff = new double[n - 1];
-        for (int i = 0; i < n - 1; i++)
+        // Precompute absolute first-differences once (one per pair of bars).
+        var absDiff = new double[PairsIn];
+        for (int i = 0; i < absDiff.Length; i++)
             absDiff[i] = Math.Abs(Prices[i + 1] - Prices[i]);
 
-        // Initial volatility window = sum of absDiff[0.._period-1] (covers bars 1.._period).
         double volatility = 0;
-        for (int i = 0; i < _period; i++) volatility += absDiff[i];
-
         for (int w = 0; w < outLen; w++)
         {
             // At output index w, bar t = w + _period:
             //   change     = |C_t − C_{t-N}|
-            //   volatility = Σ absDiff[i] for i ∈ [t-N .. t-1]  (= [w .. w+_period-1])
+            //   volatility = Σ absDiff[i] for i ∈ [t-N .. t-1]  (= [w .. w+_period-1]): summed over the first window (bars
+            //   1.._period), then rolled forward a bar at a time.
             int t = w + _period;
+            if (w == 0)
+                for (int i = 0; i < _period; i++) volatility += absDiff[i];
+            else
+                volatility += absDiff[t - 1] - absDiff[w - 1];
+
             double change = Math.Abs(Prices[t] - Prices[t - _period]);
             result[w] = volatility == 0 ? 0.0 : change / volatility;
-
-            // Roll the window forward for the next iteration (skip on last).
-            if (w + 1 < outLen)
-                volatility += absDiff[t] - absDiff[w];
         }
 
         return result;
     }
 
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingKaufmanEfficiencyRatio"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Unit;
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), _period);
-        axes.YAxis.Min = 0;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

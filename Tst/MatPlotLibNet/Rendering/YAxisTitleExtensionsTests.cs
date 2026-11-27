@@ -14,14 +14,32 @@ public class YAxisTitleExtensionsTests
 {
     private static readonly Font LabelFont = new() { Size = 10 };
 
-    private static Axis Titled(TextStyle? style = null) => new() { Label = "Rate", LabelStyle = style };
+    private const string Title = "Rate";
+
+    private static Axis Titled(TextStyle? style = null) => new() { Label = Title, LabelStyle = style };
+
+    /// <summary>The input of a Y title's band is made in one place for the drawing and the layout: the band given, the side, the
+    /// container's gap under the theme (its own when it was given one, the theme's label pad else) and the theme's label font.</summary>
+    [Theory]
+    [InlineData("Left")]
+    [InlineData("Right")]
+    public void TheInputOfAYTitlesBand_IsTheBandTheSideTheContainersGapAndTheThemesLabelFont(string side)
+    {
+        var container = new Axes().YAxes;
+        var axisSide = Enum.Parse<AxisSide>(side);
+
+        Assert.Equal(new YAxisTitleExtensions.YAxisTitleInput(27, axisSide, container.TitleGapUnder(Theme.MatplotlibV2), Theme.MatplotlibV2.LabelFont()),
+            container.TitleInputUnder(Theme.MatplotlibV2, axisSide, 27));
+        container.TitleGap = 9;
+        Assert.Equal(9, container.TitleInputUnder(Theme.Default, axisSide, 27).TitleGap);
+    }
 
     [Theory]
     [InlineData("Left")]
     [InlineData("Right")]
     public void YTitleExtent_WithoutATitle_IsTheTickLabelBandAlone(string side)
     {
-        var extent = new Axis().YTitleExtent(new YAxisTitleInput(30, Enum.Parse<AxisSide>(side), 4, LabelFont));
+        var extent = new Axis().YTitleExtent(null, new YAxisTitleExtensions.YAxisTitleInput(30, Enum.Parse<AxisSide>(side), 4, LabelFont));
 
         Assert.Equal(new YAxisTitleExtent(0, 30), extent);
     }
@@ -31,7 +49,7 @@ public class YAxisTitleExtensionsTests
     [Fact]
     public void YTitleExtent_Left_PutsTheBaselineTheGapPastTheBand_AndReachesTheAscentPastTheAnchor()
     {
-        var extent = Titled().YTitleExtent(new YAxisTitleInput(30, AxisSide.Left, 4, LabelFont));
+        var extent = Titled().YTitleExtent(Title, new YAxisTitleExtensions.YAxisTitleInput(30, AxisSide.Left, 4, LabelFont));
 
         Assert.Equal(34, extent.TitleOffset, 9);
         Assert.Equal(42, extent.Band, 9);
@@ -42,7 +60,7 @@ public class YAxisTitleExtensionsTests
     [Fact]
     public void YTitleExtent_Right_PutsTheTextBodyTheGapPastTheBand_AndReachesTheDescentPastTheAnchor()
     {
-        var extent = Titled().YTitleExtent(new YAxisTitleInput(30, AxisSide.Right, 4, LabelFont));
+        var extent = Titled().YTitleExtent(Title, new YAxisTitleExtensions.YAxisTitleInput(30, AxisSide.Right, 4, LabelFont));
 
         Assert.Equal(40, extent.TitleOffset, 9);
         Assert.Equal(42, extent.Band, 9);
@@ -57,7 +75,7 @@ public class YAxisTitleExtensionsTests
     public void YTitleExtent_ThePadAndTheStylesSize_MoveTheTitleAndTheBand(string side, double offset, double band)
     {
         var extent = Titled(new TextStyle { Pad = 3, FontSize = 20 })
-            .YTitleExtent(new YAxisTitleInput(30, Enum.Parse<AxisSide>(side), 4, LabelFont));
+            .YTitleExtent(Title, new YAxisTitleExtensions.YAxisTitleInput(30, Enum.Parse<AxisSide>(side), 4, LabelFont));
 
         Assert.Equal(offset, extent.TitleOffset, 9);
         Assert.Equal(band, extent.Band, 9);
@@ -70,16 +88,9 @@ public class YAxisTitleExtensionsTests
     [InlineData("Right", 45 + 2 + 2)]
     public void YTitleExtent_WithNoTickLabelDrawn_KeepsTheFixedOffset(string side, double band)
     {
-        var extent = Titled(new TextStyle { Pad = 2 }).YTitleExtent(new YAxisTitleInput(0, Enum.Parse<AxisSide>(side), 4, LabelFont));
+        var extent = Titled(new TextStyle { Pad = 2 }).YTitleExtent(Title, new YAxisTitleExtensions.YAxisTitleInput(0, Enum.Parse<AxisSide>(side), 4, LabelFont));
 
         Assert.Equal(45 + 2, extent.TitleOffset, 9);
         Assert.Equal(band, extent.Band, 9);
-    }
-
-    [Fact]
-    public void TitleFont_IsTheBaseFontWithTheLabelStyleApplied()
-    {
-        Assert.Equal(LabelFont, new Axis().TitleFont(LabelFont));
-        Assert.Equal(17, Titled(new TextStyle { FontSize = 17 }).TitleFont(LabelFont).Size);
     }
 }

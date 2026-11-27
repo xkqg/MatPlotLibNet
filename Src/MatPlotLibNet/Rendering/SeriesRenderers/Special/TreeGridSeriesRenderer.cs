@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -38,18 +39,18 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
         double valuesWidth = columns * series.ColumnWidth;
         double nameWidth = Math.Max(60, bounds.Width - valuesWidth);
         var ink = Context.Theme.ForegroundText;
-        var font = new Font { Size = series.FontSize, Color = ink };
+        double fontSize = series.TextSizeUnder(Context.Theme);
         double y = bounds.Y + series.RowHeight;
 
         if (series.ColumnHeaders is { Length: > 0 } headers)
         {
-            var headerFont = new Font { Size = series.FontSize, Weight = FontWeight.Bold, Color = ink };
+            var headerFont = Context.Theme.DataTextFont(fontSize, ink, FontWeight.Bold);
             for (int c = 0; c < headers.Length && c < columns; c++)
             {
-                Ctx.DrawText(headers[c], new Point(ColumnRight(bounds, nameWidth, series, c), y), headerFont, TextAlignment.Right);
+                Ctx.Draw(TextLabel.Of(headers[c]), headerFont, new TextPlacement(new Point(ColumnRight(bounds, nameWidth, series, c), y), TextAlignment.Right));
             }
             Ctx.DrawLine(new Point(bounds.X, y + 4), new Point(bounds.X + bounds.Width, y + 4),
-                new StrokeStyle(Context.Theme.DefaultGrid.Color, 1, LineStyle.Solid));
+                Slot.StrokeOf(Context.Theme.DefaultGrid.Stroke.Color, LineWidthRule.OwnPixel));
             y += series.RowHeight;
         }
 
@@ -59,27 +60,27 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
             {
                 break;  // the region is what it is; a row drawn past its edge is a row on top of the next panel
             }
-            RenderRow(series, row, bounds, nameWidth, y, ink);
+            RenderRow(series, row, bounds, nameWidth, y, ink, fontSize);
             y += series.RowHeight;
         }
     }
 
-    private void RenderRow(TreeGridSeries series, TreeGridRow row, Rect bounds, double nameWidth, double y, Color ink)
+    private void RenderRow(TreeGridSeries series, TreeGridRow row, Rect bounds, double nameWidth, double y, Color ink, double fontSize)
     {
         bool linked = !string.IsNullOrEmpty(row.Url);
         if (linked)
         {
             Ctx.BeginHyperlink(row.Url!, row.Label, row.Expanded);
         }
-        Ctx.SetNextElementData("treegrid-level", (row.Depth + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Ctx.SetNextElementData("treegrid-level", (row.Depth + 1).InvariantText());
 
         double x = bounds.X + (row.Depth * series.IndentWidth);
         if (row.Expanded is { } expanded)
         {
-            DrawChevron(x + 2, y, series.FontSize, expanded, ink);
+            DrawChevron(x + 2, y, fontSize, expanded, ink);
         }
-        var rowFont = new Font { Size = series.FontSize, Color = row.Accent ?? ink };
-        Ctx.DrawTextWithLevel(row.Label, new Point(x + ChevronColumn, y), rowFont, row.Depth + 1);
+        var rowFont = Context.Theme.DataTextFont(fontSize, row.Accent ?? ink);
+        Ctx.Draw(TextLabel.Of(row.Label), rowFont, new TextPlacement(new Point(x + ChevronColumn, y), TextAlignment.Left) { Level = row.Depth + 1 });
 
         for (int c = 0; c < (row.Cells?.Count ?? 0); c++)
         {
@@ -87,7 +88,7 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
             {
                 continue;
             }
-            Ctx.DrawText(row.Cells[c], new Point(ColumnRight(bounds, nameWidth, series, c), y), rowFont, TextAlignment.Right);
+            Ctx.Draw(TextLabel.Of(row.Cells[c]), rowFont, new TextPlacement(new Point(ColumnRight(bounds, nameWidth, series, c), y), TextAlignment.Right));
         }
 
         if (linked)
@@ -109,7 +110,7 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
             : [new(x, top), new(x + side, top + (side / 2)), new(x, top + side)];
 
         Ctx.BeginGroup("mpl-treegrid-chevron");
-        Ctx.DrawPolygon(points, new ShapeStyle(ink, null, 0));
+        Ctx.DrawPolygon(points, ShapeStyle.Filled(ink));
         Ctx.EndGroup();
     }
 }

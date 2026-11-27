@@ -7,27 +7,40 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
+using System.Runtime.CompilerServices;
 
 namespace MatPlotLibNet.Rendering.Svg;
 
 /// <summary>An <see cref="IRenderContext"/> implementation that emits SVG markup for each drawing operation.</summary>
-public sealed class SvgRenderContext : IRenderContext
+/// <remarks>The public entry of the SVG surface: each member hands its work to the type that owns it. The markup, what is asked of the
+/// next element, the clips and the paint servers are the element buffer's (the one envelope of every
+/// element); the marks are the mark writer's, the texts the text writer's and
+/// what is written for the browser the markup writer's. What the draw told the surface is its
+/// themed surface. A clip cuts the marks drawn under it, never a text.</remarks>
+public sealed partial class SvgRenderContext : IRenderContext, IMarkupRenderContext, IOutlineClipRenderContext, ISurfaceRenderContext,
+    ITextClipRenderContext
 {
-    private readonly record struct DataAttr(string Key, string Value);
+    /// <summary>The markup and the envelope every element is written in.</summary>
+    private readonly SvgElementBuffer _buffer;
 
-    private readonly StringBuilder _sb = new();
-    private int _clipId;
-    private readonly SvgIdScope _ids;
-    private List<DataAttr>? _pendingData;
-    private string? _pendingClass;
-    private double? _pendingTextLength;
+    /// <summary>The writer of the marks.</summary>
+    private readonly SvgMarkWriter _marks;
 
-    /// <summary>Hatch-pattern defs, created on first hatched shape. Most figures carry no hatch at all,
-    /// so the registry stays unallocated and the output byte-identical to before hatching existed.</summary>
-    private SvgHatchRegistry? _hatches;
+    /// <summary>The writer of the texts.</summary>
+    private readonly SvgTextWriter _texts;
 
-    /// <summary>Default constructor: wires the gradient registry to the internal buffer
-    /// so gradient defs land inline at the point of <see cref="DefineLinearGradient"/>.</summary>
+    /// <summary>The writer of what is written for the browser; a field of its own, not read-only: it keeps whether an opacity
+    /// wrapper is open.</summary>
+    private SvgMarkupWriter _markup;
+
+    /// <summary>What the surface was told: the looks of the theme the marks drawn next are drawn under (their dashes and joins, and how a
+    /// text is measured), the math texts of the figure and the opacity of the marks.</summary>
+    private ThemedSurface _surface = new();
+
+    /// <inheritdoc />
+    ref ThemedSurface ISurfaceRenderContext.Surface => ref _surface;
+
+    /// <summary>Default constructor: a context whose clip, hatch and gradient ids carry no prefix.</summary>
     public SvgRenderContext() : this(default)
     {
     }
@@ -37,352 +50,101 @@ public sealed class SvgRenderContext : IRenderContext
     /// <param name="ids">The scope that names the ids this context writes.</param>
     internal SvgRenderContext(SvgIdScope ids)
     {
-        _ids = ids;
-        _gradients = new SvgGradientRegistry(_sb, ids);
+        _buffer = new SvgElementBuffer(ids);
+        _marks = new SvgMarkWriter(_buffer);
+        _texts = new SvgTextWriter(_buffer);
+        _markup = new SvgMarkupWriter(_buffer);
     }
+
+    /// <summary>What the figure asks the subplot drawn into this context to write for the browser (<see cref="SvgEmit"/>); none
+    /// for a context made outside a figure's draw.</summary>
+    internal SvgEmit Emit { get; init; }
+
+    /// <inheritdoc />
+    SvgEmit IMarkupRenderContext.Emit => Emit;
 
     /// <summary>Returns the accumulated SVG markup as a string.</summary>
-    public string GetOutput() => _sb.ToString();
-
-    /// <summary>Gets the current length of the accumulated SVG output.</summary>
-    public int OutputLength => _sb.Length;
+    public string GetOutput() => _buffer.Markup.ToString();
 
     /// <summary>Appends the accumulated SVG markup to an existing StringBuilder (avoids extra string allocation).</summary>
-    public void WriteTo(StringBuilder target) => target.Append(_sb);
+    public void WriteTo(StringBuilder target) => target.Append(_buffer.Markup);
+
+    /// <summary>The markup written so far, for the document that is made from it (<see cref="Rendering.Svg.SvgFigureDocument.SvgDocumentParts"/>) to
+    /// read without a copy.</summary>
+    internal StringBuilder Markup => _buffer.Markup;
 
     /// <inheritdoc />
-    public void SetNextElementData(string key, string value)
+    bool ITextClipRenderContext.CutsTexts
     {
-        _pendingData ??= [];
-        _pendingData.Add(new(key, value));
+        get => _buffer.CutsTexts;
+        set => _buffer.CutsTexts = value;
     }
 
     /// <inheritdoc />
-    public void SetNextTextLength(double width) =>
-        _pendingTextLength = width > 0 && double.IsFinite(width) ? width : null;
+    public void SetNextElementData(string key, string value) => _buffer.SetNextData(key, value);
 
-    private void FlushPendingData()
-    {
-        if (_pendingAriaLevel is { } level)
-        {
-            _sb.Append(" aria-level=\"").Append(level.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append('"');
-            _pendingAriaLevel = null;
-        }
-        if (_pendingClass is not null)
-        {
-            _sb.Append(" class=\"").Append(_pendingClass).Append('"');
-            _pendingClass = null;
-        }
-        if (_pendingData is null || _pendingData.Count == 0) return;
-        foreach (var attr in _pendingData)
-            _sb.Append(" data-").Append(attr.Key).Append("=\"").Append(attr.Value.EscapeForXml()).Append('"');
-        _pendingData.Clear();
-    }
+    /// <inheritdoc />
+    public void SetNextTextLength(double width) => _buffer.SetNextTextLength(width);
 
-    /// <summary>Applies a <c>class</c> attribute
-    /// to the next drawn element. Used by <c>ThreeDAxesRenderer.Render3DPanes</c> to
-    /// tag panes with <c>class="mpl-pane"</c> so the JS depth-sort skips them and the
-    /// behavioural test can assert DOM order.</summary>
-    internal void SetNextElementClass(string className) => _pendingClass = className;
+    /// <summary>Applies a <c>class</c> attribute to the next drawn element: <c>CubeFrame.DrawPanes</c> tags the panes with
+    /// <c>class="mpl-pane"</c>, so the script's depth sort skips them.</summary>
+    /// <param name="className">The class.</param>
+    void IMarkupRenderContext.SetNextElementClass(string className) => _buffer.SetNextClass(className);
+
+    /// <inheritdoc />
+    void IMarkupRenderContext.SetNextTextLevel(int? level) => _buffer.SetNextTextLevel(level);
 
     /// <inheritdoc />
     /// <remarks>The stroke is written by the one writer of a stroke drawn from a colour, so a translucent colour writes its
     /// alpha as <c>stroke-opacity</c>, as the PNG paints it.</remarks>
-    public void DrawLine(Point p1, Point p2, StrokeStyle stroke)
-    {
-        _sb.Append("<line x1=\"").Append(p1.X.ToSvgNumber()).Append("\" y1=\"").Append(p1.Y.ToSvgNumber())
-           .Append("\" x2=\"").Append(p2.X.ToSvgNumber()).Append("\" y2=\"").Append(p2.Y.ToSvgNumber()).Append('"');
-        _sb.AppendStroke(stroke);
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    public void DrawLine(Point p1, Point p2, StrokeStyle stroke) => _marks.Line(p1, p2, stroke, _surface.Looks.Strokes);
 
     /// <inheritdoc />
     /// <remarks>The stroke is written as a line's is: a translucent colour writes its alpha as <c>stroke-opacity</c>.</remarks>
-    public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke)
-    {
-        if (points.Count < 2) return;
-        // A point the transform could not place (a non-positive value on a log axis, a value inside an axis
-        // break) is MASKED — left out of the polyline — never written as the literal "NaN" that breaks the
-        // whole element. matplotlib's nonpositive='mask'.
-        int written = 0;
-        _sb.Append("<polyline points=\"");
-        for (int i = 0; i < points.Count; i++)
-        {
-            if (double.IsNaN(points[i].X) || double.IsNaN(points[i].Y)) continue;
-            if (written++ > 0) _sb.Append(' ');
-            _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
-        }
-        _sb.Append("\" fill=\"none\"");
-        _sb.AppendStroke(stroke);
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
-
-    /// <summary>The id of the paint server the shape is filled with: its gradient, its hatch pattern, or none for a flat
-    /// fill. A shape with both is drawn in two layers (<see cref="ShapeStyleLayers"/>) before it gets here.
-    /// <para>Called BEFORE the element's opening tag is written, as <see cref="ResolveHatch"/> is.</para></summary>
-    private string? ResolvePaintServer(ShapeStyle shape) =>
-        shape.HasVisibleGradient ? _gradients.RegisterShared(shape.Gradient!.Value) : ResolveHatch(shape);
-
-    /// <summary>Registers the shape's hatch (if any) and returns the pattern id to fill with.
-    /// <para>Called BEFORE the element's opening tag is written: the registry appends its
-    /// <c>&lt;defs&gt;&lt;pattern&gt;</c> block to the same buffer, and a defs block emitted halfway through a
-    /// <c>&lt;rect …</c> would corrupt the document.</para>
-    /// <para>Without an explicit <see cref="ShapeStyle.HatchColor"/> the strokes fall back to a contrasting
-    /// shade of the fill, so one property is enough to get a visible hatch.</para></summary>
-    private string? ResolveHatch(ShapeStyle shape)
-    {
-        if (!shape.HasVisibleHatch)
-        {
-            return null;
-        }
-
-        Color fill = shape.Fill!.Value;
-
-        // ContrastingTextColor is the existing "highest-contrast colour against this fill" primitive
-        // (black on a light fill, white on a dark one). Its name says text, its job is contrast — reuse it
-        // rather than mint a second one that computes the same luminance test.
-        Color strokes = shape.HatchColor ?? fill.ContrastingTextColor();
-
-        return (_hatches ??= new SvgHatchRegistry(_sb, _ids)).Register(shape.Hatch, fill, strokes);
-    }
+    public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) => _marks.Polyline(points, stroke, _surface.Looks.Strokes);
 
     /// <inheritdoc />
-    public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape)
-    {
-        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
-        {
-            DrawPolygon(points, shape.UnderTheHatch);
-            DrawPolygon(points, shape.HatchLayer);
-            return;
-        }
-
-        string? hatch = ResolvePaintServer(shape);
-        _sb.Append("<polygon points=\"");
-        for (int i = 0; i < points.Count; i++)
-        {
-            if (i > 0) _sb.Append(' ');
-            _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
-        }
-        _sb.Append('"');
-        _sb.AppendFillStroke(shape, hatch);
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) =>
+        _marks.Shape(new PolygonGeometry(points), shape, _surface.Looks.Strokes);
 
     /// <inheritdoc />
-    public void DrawCircle(Point center, double radius, ShapeStyle shape)
-    {
-        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
-        {
-            DrawCircle(center, radius, shape.UnderTheHatch);
-            DrawCircle(center, radius, shape.HatchLayer);
-            return;
-        }
-
-        string? hatch = ResolvePaintServer(shape);
-        _sb.Append("<circle cx=\"").Append(center.X.ToSvgNumber()).Append("\" cy=\"").Append(center.Y.ToSvgNumber())
-           .Append("\" r=\"").Append(radius.ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(shape, hatch);
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    public void DrawCircle(Point center, double radius, ShapeStyle shape) =>
+        _marks.Shape(new CircleGeometry(center, radius), shape, _surface.Looks.Strokes);
 
     /// <inheritdoc />
-    public void DrawRectangle(Rect rect, ShapeStyle shape)
-    {
-        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
-        {
-            DrawRectangle(rect, shape.UnderTheHatch);
-            DrawRectangle(rect, shape.HatchLayer);
-            return;
-        }
-
-        string? hatch = ResolvePaintServer(shape);
-        _sb.Append("<rect x=\"").Append(rect.X.ToSvgNumber()).Append("\" y=\"").Append(rect.Y.ToSvgNumber())
-           .Append("\" width=\"").Append(rect.Width.ToSvgNumber()).Append("\" height=\"").Append(rect.Height.ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(shape, hatch);
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    public void DrawRectangle(Rect rect, ShapeStyle shape) => _marks.Shape(new RectGeometry(rect), shape, _surface.Looks.Strokes);
 
     /// <inheritdoc />
-    public void DrawEllipse(Rect bounds, ShapeStyle shape)
-    {
-        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
-        {
-            DrawEllipse(bounds, shape.UnderTheHatch);
-            DrawEllipse(bounds, shape.HatchLayer);
-            return;
-        }
+    public void DrawEllipse(Rect bounds, ShapeStyle shape) => _marks.Shape(new EllipseGeometry(bounds), shape, _surface.Looks.Strokes);
 
-        string? hatch = ResolvePaintServer(shape);
-        double cx = bounds.X + bounds.Width / 2;
-        double cy = bounds.Y + bounds.Height / 2;
-        _sb.Append("<ellipse cx=\"").Append(cx.ToSvgNumber()).Append("\" cy=\"").Append(cy.ToSvgNumber())
-           .Append("\" rx=\"").Append((bounds.Width / 2).ToSvgNumber()).Append("\" ry=\"").Append((bounds.Height / 2).ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(shape, hatch);
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    /// <inheritdoc />
+    public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) =>
+        _marks.Shape(new PathGeometry(segments), shape, _surface.Looks.Strokes);
 
     /// <inheritdoc />
     public void DrawText(string text, Point position, Font font, TextAlignment alignment)
         => DrawText(text, position, font, alignment, rotation: 0);
 
     /// <inheritdoc />
-    public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
-    {
-        // Path mode (preferred): when a glyph path provider is registered (happens
-        // automatically when MatPlotLibNet.Skia loads), emit the text as vector glyph
-        // outlines rather than <text> elements. That makes the SVG self-contained —
-        // it renders identically in any viewer regardless of installed fonts, and the
-        // layout matches the PNG pipeline byte-for-byte because both backends use the
-        // same DejaVu Sans glyph metrics.
-        var provider = GlyphPathProviderDefault.Current;
-        if (provider is not null)
-        {
-            string? d = provider.GetPathData(text, font);
-            if (d is not null)
-            {
-                EmitGlyphPath(d, text, position, font, alignment, rotation);
-                return;
-            }
-        }
-
-        // Legacy <text> fallback: used when no glyph path provider is installed (pure-
-        // managed consumers without the Skia package). The browser draws the glyphs
-        // using whichever font it can resolve from the font-family stack; layout may
-        // not match PNG exactly in that configuration.
-        EmitTextElement(text, position, font, alignment, rotation);
-    }
-
-    private void EmitTextElement(string text, Point position, Font font, TextAlignment alignment, double rotation)
-    {
-        bool rightToLeft = ReadsRightToLeft(text);
-        _sb.Append("<text x=\"").Append(position.X.ToSvgNumber()).Append("\" y=\"").Append(position.Y.ToSvgNumber())
-           .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(font.Size.ToSvgNumber())
-           .Append("\" text-anchor=\"").Append(ResolveAnchor(alignment, rightToLeft)).Append('"');
-        if (rightToLeft) _sb.Append(" direction=\"rtl\"");
-        if (rotation != 0)
-        {
-            // SVG rotation: negative because SVG y-axis is flipped vs. mathematical convention
-            _sb.Append(" transform=\"rotate(").Append((-rotation).ToSvgNumber()).Append(',')
-               .Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(")\"");
-        }
-        if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
-        if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
-        AppendTextFill(font);
-        if (_pendingTextLength is { } length)
-        {
-            _sb.Append(" textLength=\"").Append(length.ToSvgNumber()).Append("\" lengthAdjust=\"spacingAndGlyphs\"");
-            _pendingTextLength = null;
-        }
-
-        FlushPendingData();
-        _sb.Append('>').Append(text.EscapeForXml()).AppendLine("</text>");
-    }
-
-    /// <summary>The fill of a text, when its font names a colour: the hex colour and, when the colour is translucent, its alpha
-    /// as <c>fill-opacity</c> (<see cref="SvgWriterExtensions.AppendAlpha"/>), as Skia paints the text. The one writer of a
-    /// text's fill for the <c>&lt;text&gt;</c> element, the glyph outlines and the rich text.</summary>
-    private void AppendTextFill(Font font)
-    {
-        if (font.Color is { } color)
-        {
-            _sb.Append(" fill=\"").Append(color.ToHex()).Append('"').AppendAlpha("fill-opacity", color);
-        }
-    }
-
-
-    /// <summary>Whether a label reads right to left: its first strong character is Hebrew, Arabic or another
-    /// right-to-left script (rules P2 and P3 of the bidi algorithm). The browser reorders the characters inside a
-    /// <c>&lt;text&gt;</c> element on its own; what it cannot know is the paragraph direction, which decides where
-    /// the punctuation at the end of a Hebrew title lands and which edge <c>text-anchor="start"</c> names.</summary>
-    private static bool ReadsRightToLeft(string text) =>
-        text.Length > 0 && Text.BidiAlgorithm.Resolve(text).IsRightToLeft;
-
-    /// <summary>The <c>text-anchor</c> keyword for an alignment. The alignment is geometric — Left means the left
-    /// edge — while SVG's <c>start</c> and <c>end</c> follow the reading direction, so under <c>direction="rtl"</c>
-    /// the two swap.</summary>
-    private static string ResolveAnchor(TextAlignment alignment, bool rightToLeft) => alignment switch
-    {
-        TextAlignment.Center => "middle",
-        TextAlignment.Right  => rightToLeft ? "start" : "end",
-        _                    => rightToLeft ? "end" : "start",
-    };
-
-    private void EmitGlyphPath(string d, string textForMeasure, Point position, Font font, TextAlignment alignment, double rotation)
-    {
-        // Outlines have no font to be substituted, so there is nothing to fit.
-        _pendingTextLength = null;
-        // Compute the horizontal offset needed to realise the requested alignment.
-        // We measure width via FontMetricsDefault.Current — same source Skia used when
-        // it generated the glyph path, so the alignment math matches the glyph layout.
-        double width = FontMetricsDefault.Current.Measure(textForMeasure, font).Width;
-        double alignOffset = alignment switch
-        {
-            TextAlignment.Center => -width / 2.0,
-            TextAlignment.Right  => -width,
-            _                    => 0.0,
-        };
-
-        _sb.Append("<path d=\"").Append(d).Append('"');
-        AppendTextFill(font);
-        // Transform composition is applied right-to-left: first move the glyph origin
-        // by the alignment offset along the UNROTATED baseline, then rotate around the
-        // anchor, then translate to the anchor itself. Gives the correct result for
-        // rotated text with any alignment (e.g. Y-axis labels rotated 90° and centred).
-        _sb.Append(" transform=\"translate(").Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(')');
-        if (rotation != 0)
-            _sb.Append(" rotate(").Append((-rotation).ToSvgNumber()).Append(')');
-        if (alignOffset != 0)
-            _sb.Append(" translate(").Append(alignOffset.ToSvgNumber()).Append(",0)");
-        _sb.Append('"');
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    /// <remarks>Written outside every clip pushed: a clip cuts marks, never a text. With a glyph source
+    /// installed (the Skia package installs one when it loads) the text is its glyph outline, else a <c>&lt;text&gt;</c> element.</remarks>
+    public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation) =>
+        _texts.Write(text, position, font, alignment, rotation);
 
     /// <inheritdoc />
-    public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
-    {
-        if (shape.HasVisibleGradient && shape.HasVisibleHatch)
-        {
-            DrawPath(segments, shape.UnderTheHatch);
-            DrawPath(segments, shape.HatchLayer);
-            return;
-        }
-
-        string? hatch = ResolvePaintServer(shape);
-        _sb.Append("<path d=\"");
-        foreach (var seg in segments)
-            _sb.Append(seg.ToSvgPathData());
-        _sb.Append('"');
-        _sb.AppendFillStroke(shape, hatch);
-        // Phase G.7 of v1.7.2 follow-on plan — missing flush here caused
-        // SetNextElementData pushes to leak across iterations (e.g. Sankey's
-        // per-link data-* attributes stacked onto every subsequent node).
-        FlushPendingData();
-        _sb.AppendLine(" />");
-    }
+    public void PushClip(Rect clipRect) => _buffer.PushClip(new RectGeometry(clipRect));
 
     /// <inheritdoc />
-    public void PushClip(Rect clipRect)
-    {
-        string id = _ids.Clip(_clipId++);
-        _sb.Append("<defs><clipPath id=\"").Append(id)
-           .Append("\"><rect x=\"").Append(clipRect.X.ToSvgNumber()).Append("\" y=\"").Append(clipRect.Y.ToSvgNumber())
-           .Append("\" width=\"").Append(clipRect.Width.ToSvgNumber()).Append("\" height=\"").Append(clipRect.Height.ToSvgNumber())
-           .AppendLine("\" /></clipPath></defs>");
-        _sb.Append("<g clip-path=\"url(#").Append(id).AppendLine(")\">");
-    }
+    void IOutlineClipRenderContext.PushClip(IReadOnlyList<PathSegment> outline) => _buffer.PushClip(new PathGeometry(outline));
 
     /// <inheritdoc />
-    public void PopClip()
-    {
-        _sb.AppendLine("</g>");
-    }
+    public void PopClip() => _buffer.PopClip();
+
+    /// <inheritdoc />
+    /// <remarks>The set of the looks the surface was told while the installed glyph source outlines text from the package's own fonts
+    /// (<see cref="Rendering.Svg.SvgRenderContext.SvgTextWriter.OutlinesInPackageFaces"/>, which carry every face of every set); the library's own while text is written
+    /// for the viewer's fonts, which may hold none of them.</remarks>
+    MathFontSet IThemedRenderContext.MathFonts => _surface.MathFontsFor(inPackageFonts: SvgTextWriter.OutlinesInPackageFaces);
 
     /// <inheritdoc />
     public Size MeasureText(string text, Font font) => FontMetricsDefault.Current.Measure(text, font);
@@ -392,335 +154,298 @@ public sealed class SvgRenderContext : IRenderContext
         => DrawRichText(richText, position, font, alignment, rotation: 0);
 
     /// <inheritdoc />
-    public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment, double rotation)
-    {
-        // Shortcut: no super/subscript spans → emit plain text element
-        bool hasSpecial = richText.Spans.Any(s => s.Kind != TextSpanKind.Normal);
-        if (!hasSpecial)
-        {
-            var plain = string.Concat(richText.Spans.Select(s => s.Text));
-            DrawText(plain, position, font, alignment, rotation);
-            return;
-        }
-
-        bool rightToLeft = ReadsRightToLeft(string.Concat(richText.Spans.Select(s => s.Text)));
-        _sb.Append("<text x=\"").Append(position.X.ToSvgNumber()).Append("\" y=\"").Append(position.Y.ToSvgNumber())
-           .Append("\" font-family=\"").Append(font.Family)
-           .Append("\" font-size=\"").Append(font.Size.ToSvgNumber())
-           .Append("\" text-anchor=\"").Append(ResolveAnchor(alignment, rightToLeft)).Append('"');
-        if (rightToLeft) _sb.Append(" direction=\"rtl\"");
-        if (rotation != 0)
-            _sb.Append(" transform=\"rotate(").Append((-rotation).ToSvgNumber()).Append(',')
-               .Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(")\"");
-        if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
-        if (font.Weight == FontWeight.Bold)  _sb.Append(" font-weight=\"bold\"");
-        AppendTextFill(font);
-        _sb.Append('>');
-
-        foreach (var span in richText.Spans)
-        {
-            if (span.Kind == TextSpanKind.Normal)
-            {
-                _sb.Append(span.Text.EscapeForXml());
-            }
-            else
-            {
-                string shift = span.Kind == TextSpanKind.Superscript ? "super" : "sub";
-                _sb.Append("<tspan baseline-shift=\"").Append(shift)
-                   .Append("\" font-size=\"").Append((span.FontSizeScale * 100).ToSvgNumber()).Append("%\">")
-                   .Append(span.Text.EscapeForXml())
-                   .Append("</tspan>");
-            }
-        }
-
-        _sb.AppendLine("</text>");
-    }
-
-    // Tracks whether SetOpacity has currently opened an <g opacity="..."> wrapper.
-    // SetOpacity is called PAIRWISE by renderers: once with the series alpha, then
-    // again with 1.0 to "reset". The Skia backend treats this as a state variable
-    // and does not need a wrapper. The SVG backend used to OPEN a fresh <g> on each
-    // call -- producing two unclosed wrappers and a malformed SVG that broke the
-    // browser XML parser (and silently disabled embedded interactivity scripts).
-    private bool _opacityGroupOpen;
+    /// <remarks>Laid out once in core and drawn by the one verb of a text: each run as a text (its glyph outline when the Skia package's
+    /// glyph source is installed), each rule as a rectangle.</remarks>
+    public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment, double rotation) =>
+        this.Draw(TextLabel.OfRich(richText), font, new TextPlacement(position, alignment) { Rotation = rotation });
 
     /// <inheritdoc />
-    public void SetOpacity(double opacity)
-    {
-        // Close any previously open opacity wrapper so the SVG stays balanced.
-        if (_opacityGroupOpen)
-        {
-            _sb.AppendLine("</g>");
-            _opacityGroupOpen = false;
-        }
-        // Only open a new wrapper when opacity actually differs from full opacity.
-        // Calling SetOpacity(1.0) acts as a clean RESET with no extra DOM noise.
-        if (opacity < 1.0)
-        {
-            _sb.Append("<g opacity=\"").Append(opacity.ToSvgNumber()).AppendLine("\">");
-            _opacityGroupOpen = true;
-        }
-    }
+    /// <remarks>SVG wraps what is drawn next in a group of the opacity held; full opacity
+    /// closes the wrapper and opens none.</remarks>
+    public void SetOpacity(double opacity) => _markup.WrapInOpacity(_surface.HoldOpacity(opacity));
 
-    /// <summary>Opens an SVG group element with a CSS class attribute.</summary>
-    public void BeginGroup(string cssClass)
-    {
-        _sb.Append("<g class=\"").Append(cssClass).AppendLine("\">");
-    }
+    /// <summary>Opens an SVG group element with a CSS class attribute, outside every clip.</summary>
+    public void BeginGroup(string cssClass) => _markup.BeginGroup(cssClass);
 
     /// <summary>Opens an SVG group with a CSS class and <c>aria-label</c> for accessibility.</summary>
-    internal void BeginAccessibleGroup(string cssClass, string ariaLabel)
-    {
-        _sb.Append("<g class=\"").Append(cssClass)
-           .Append("\" aria-label=\"").Append(ariaLabel.EscapeForXml()).AppendLine("\">");
-    }
+    /// <param name="cssClass">The group's class.</param>
+    /// <param name="ariaLabel">The group's accessible name.</param>
+    void IMarkupRenderContext.BeginAccessibleGroup(string cssClass, string ariaLabel) => _markup.BeginAccessibleGroup(cssClass, ariaLabel);
 
-    /// <summary>Closes the current SVG group element.</summary>
-    public void EndGroup()
-    {
-        _sb.AppendLine("</g>");
-    }
+    /// <summary>Closes the current SVG group element. The one writer of a group's end tag: an opacity wrapper, a 3-D subgroup and a
+    /// tooltip group close through it; a group drawn in a clip is closed first.</summary>
+    public void EndGroup() => _markup.EndGroup();
 
     /// <summary>Opens an SVG hyperlink: <c>&lt;a href="…" style="cursor:pointer" aria-label="…"&gt;</c>.
     /// <c>href</c> (SVG 2), not <c>xlink:href</c>: every browser the library targets resolves it, inline in HTML
     /// and as a standalone file alike, and it needs no extra namespace on the root.</summary>
-    public void BeginHyperlink(string url, string? ariaLabel, bool? expanded = null)
-    {
-        _sb.Append("<a href=\"").Append(url.EscapeForXml()).Append("\" style=\"cursor:pointer\"");
-        if (!string.IsNullOrEmpty(ariaLabel))
-        {
-            _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
-        }
-        if (expanded is { } state)
-        {
-            _sb.Append(" aria-expanded=\"").Append(state ? "true" : "false").Append('"');
-        }
-        _sb.AppendLine(">");
-    }
+    public void BeginHyperlink(string url, string? ariaLabel, bool? expanded = null) => _markup.BeginHyperlink(url, ariaLabel, expanded);
 
     /// <summary>Closes the current SVG hyperlink.</summary>
-    public void EndHyperlink()
-    {
-        _sb.AppendLine("</a>");
-    }
+    public void EndHyperlink() => _markup.EndHyperlink();
 
     /// <summary>Text carrying its <c>aria-level</c> — a tree grid's row depth (ARIA <c>treegrid</c>), which is
     /// what makes an indented list navigable rather than merely visible.</summary>
     public void DrawTextWithLevel(string text, Point position, Font font, int level)
     {
-        _pendingAriaLevel = level;
+        _buffer.SetNextTextLevel(level);
         DrawText(text, position, font, TextAlignment.Left);
-        _pendingAriaLevel = null;
+        _buffer.SetNextTextLevel(null);
     }
 
-    private int? _pendingAriaLevel;
+    /// <inheritdoc />
+    /// <remarks>With interactive attributes the group carries the series' slot and, with the data cursor on, its mapping; without them
+    /// a labelled series gets an accessible group and an unlabelled one none.</remarks>
+    bool IMarkupRenderContext.OpenSeriesGroup(SvgEmit emit, string? label, int slotIndex, DataTransform? drawnWith) =>
+        _markup.OpenSeriesGroup(emit, label, slotIndex, drawnWith);
 
+    /// <inheritdoc />
+    void IMarkupRenderContext.OpenPatchGroup(int index, string label) => _markup.OpenPatchGroup(index, label);
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Linear gradient defs — used by SankeySeriesRenderer for source→target link
-    // colour blends. Gradients are SVG-specific so there's no IRenderContext surface;
-    // the Sankey renderer checks `if (Ctx is SvgRenderContext svg)` before calling these.
-    // ──────────────────────────────────────────────────────────────────────────
+    /// <inheritdoc />
+    void IMarkupRenderContext.WriteAxesView(int axesIndex, Rect plotArea, DataTransform? drawnWith,
+        IReadOnlyList<SecondaryAxisTransform>? secondary) => _markup.WriteAxesView(axesIndex, plotArea, drawnWith, secondary);
 
-    // Gradient-defs emission delegated to SvgGradientRegistry (Phase F.2.d, 2026-04-20).
-    // Composition over inheritance: the registry writes directly to _sb so output byte-
-    // order is preserved; the render context keeps only the DefineLinearGradient public
-    // surface as a thin forwarder.
-    private readonly SvgGradientRegistry _gradients;
-
-    /// <summary>Emits a <c>&lt;linearGradient&gt;</c> into the SVG <c>&lt;defs&gt;</c> stream
-    /// with two stops (<paramref name="from"/> at 0 %, <paramref name="to"/> at 100 %) and
-    /// returns a unique gradient ID suitable for <c>fill="url(#id)"</c> references. The
-    /// gradient direction is controlled by <paramref name="x1"/>/<paramref name="y1"/>/
-    /// <paramref name="x2"/>/<paramref name="y2"/> in user space units (SVG
-    /// <c>gradientUnits="userSpaceOnUse"</c>), so Sankey links can anchor the gradient to
-    /// the link's bounding box without the browser re-applying a percentage-based transform.</summary>
-    [Obsolete("Give the shape a ShapeStyle.Gradient instead: every backend paints it, and the SVG one defines and shares the gradient itself.")]
-    public string DefineLinearGradient(Color from, Color to,
-        double x1, double y1, double x2, double y2)
-        => _gradients.Register(from, to, x1, y1, x2, y2);
-
-    /// <summary>Draws a filled path whose fill references a previously-defined gradient
-    /// (see <see cref="DefineLinearGradient"/>). Used by the Sankey renderer to emit
-    /// source→target colour blends for every link.</summary>
-    [Obsolete("Draw the path with a ShapeStyle.Gradient instead: every backend paints it, and the SVG one defines and shares the gradient itself.")]
-    public void DrawPathWithGradientFill(IReadOnlyList<PathSegment> segments, string gradientId,
-        Color? stroke, double strokeThickness)
+    /// <inheritdoc />
+    /// <returns><see langword="true"/>: the scene is always opened here.</returns>
+    bool IMarkupRenderContext.Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds,
+        CubeFaceSelection faces)
     {
-        _sb.Append("<path d=\"");
-        foreach (var seg in segments) _sb.Append(seg.ToSvgPathData());
-        _sb.Append("\" fill=\"url(#").Append(gradientId).Append(")\"");
-        if (stroke.HasValue)
-            _sb.AppendStroke(new StrokeStyle(stroke.Value, strokeThickness, LineStyle.Solid));
-        // Phase G.7 of v1.7.2 follow-on plan — flush pending data (e.g. Sankey's
-        // data-sankey-link-source/target) onto the gradient-filled path too.
-        FlushPendingData();
-        _sb.AppendLine(" />");
+        _markup.Begin3DSceneGroup(elevation, azimuth, distance, plotBounds, faces);
+        return true;
     }
 
-    /// <summary>Opens an SVG group with a CSS class and <c>data-series-index</c> attribute for JS interactivity, with optional <c>aria-label</c>.</summary>
-    /// <param name="cssClass">The group's class.</param>
-    /// <param name="seriesIndex">The value of <c>data-series-index</c>.</param>
-    /// <param name="ariaLabel">The accessible name; none when empty.</param>
-    /// <param name="mapping">The transform the series inside is drawn with. When given, the group also carries it as
-    /// <c>data-plot-x/y/w/h</c> (the plot area) and <c>data-xmin/xmax/ymin/ymax</c> (the data range), the inverse of
-    /// which is <see cref="DataTransform.PixelToData"/> — what the data cursor converts a click with.</param>
-    internal void BeginDataGroup(string cssClass, int seriesIndex, string? ariaLabel = null, DataTransform? mapping = null)
+    /// <inheritdoc />
+    void IMarkupRenderContext.Begin3DSubgroup(string className) => _markup.Begin3DSubgroup(className);
+
+    /// <inheritdoc />
+    void IMarkupRenderContext.End3DSubgroup() => EndGroup();
+
+    /// <inheritdoc />
+    /// <returns><see langword="true"/>: the group is always opened here.</returns>
+    bool IMarkupRenderContext.BeginLegendItemGroup(int legendIndex, string? ariaLabel)
     {
-        _sb.Append("<g class=\"").Append(cssClass)
-           .Append("\" data-series-index=\"").Append(seriesIndex).Append('"');
-        if (!string.IsNullOrEmpty(ariaLabel))
-            _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
-        if (mapping is not null)
-            AppendView(mapping.PlotBounds, mapping);
-        _sb.AppendLine(">");
+        _markup.BeginLegendItemGroup(legendIndex, ariaLabel);
+        return true;
     }
 
-    /// <summary>Writes the view of one axes for the server-interaction script: an empty group carrying
-    /// <c>data-axes-index</c>, the plot area (<c>data-plot-x/y/w/h</c>) and, when the axes drew a Cartesian range, that
-    /// range (<c>data-xmin/xmax/ymin/ymax</c>) — the same attributes, written by the same code, as a series group's
-    /// mapping. The script finds the axes under the pointer by its plot area and converts with its range; an axes
-    /// without a range (polar, 3-D) is still found, and the script falls back to the limits cached on the root.</summary>
-    /// <param name="axesIndex">The axes' index in the figure's subplots — what the script sends as <c>axesIndex</c>.</param>
-    /// <param name="plotArea">The axes' plot area, used when <paramref name="drawnWith"/> is <see langword="null"/>.</param>
-    /// <param name="drawnWith">The transform the axes drew its primary series with, or <see langword="null"/>.</param>
-    /// <param name="secondary">The own transform of every Y axis stacked past the primary, right
-    /// slots then left slots — empty for axes with none, or a renderer that draws no Y axis of this kind.</param>
-    internal void WriteAxesView(int axesIndex, Rect plotArea, DataTransform? drawnWith,
-        IReadOnlyList<SecondaryAxisTransform>? secondary = null)
-    {
-        _sb.Append("<g data-axes-index=\"").Append(axesIndex).Append('"');
-        AppendView(drawnWith?.PlotBounds ?? plotArea, drawnWith);
-        AppendSecondaryViews(secondary);
-        _sb.AppendLine(" />");
-    }
+    /// <inheritdoc />
+    /// <remarks>Browsers display <c>&lt;title&gt;</c> content as a tooltip when hovering over any child element.</remarks>
+    void IMarkupRenderContext.BeginTooltipGroup(string tooltipText) => _markup.BeginTooltipGroup(tooltipText);
 
-    /// <summary>Writes the own range (and scale, when not linear) of every Y axis stacked past the primary as attributes
-    /// prefixed by its side and slot — <c>data-sec-right-0-ymin</c>, <c>data-sec-left-1-yscale</c>, and so on — plus
-    /// a count per side (<c>data-sec-right-count</c>/<c>data-sec-left-count</c>) so the script knows how many to
-    /// read without having to probe. The script converts a gesture through a specific slot's own range the same way
-    /// <see cref="AppendView"/>'s primary range is converted. The numbering is OUTWARD only (the primary Y axis has no
-    /// index here) and stays so: a browser tab that holds an older drawing sends it back.</summary>
-    private void AppendSecondaryViews(IReadOnlyList<SecondaryAxisTransform>? secondary)
-    {
-        if (secondary is not { Count: > 0 }) return;
+    /// <inheritdoc />
+    void IMarkupRenderContext.EndTooltipGroup() => EndGroup();
 
-        int rightCount = 0, leftCount = 0;
-        foreach (var s in secondary)
+    /// <summary>The texts of an SVG drawing surface. With a glyph source installed (the Skia package installs one when it loads) a text is
+    /// written as its glyph outline, which every viewer draws alike and which matches the PNG, both being set in the same faces; without one
+    /// it is a <c>&lt;text&gt;</c> element the browser sets in whichever face it finds for the family. Either is one element of the buffer's
+    /// envelope, written as a text (<see cref="SvgElementBuffer.WriteText{TElement}"/>): outside every clip, as a clip cuts marks and not a
+    /// text, except the texts a series has the surface cut (a contour's labels). A value over the buffer, held by the surface, so it allocates
+    /// nothing.</summary>
+    /// <param name="buffer">The buffer the texts are written into.</param>
+    internal readonly struct SvgTextWriter(SvgElementBuffer buffer)
+    {
+        /// <summary>Whether the installed glyph source outlines text in the package's own faces (a shaping one: the Skia package's): the one
+        /// test of whether a rich text is outlined, and so set in the faces of the math font set of the looks.</summary>
+        internal static bool OutlinesInPackageFaces => GlyphPathProviderDefault.Current is IShapedGlyphPathProvider;
+
+        /// <summary>Writes a text whose <paramref name="alignment"/> edge stands at <paramref name="position"/>, turned
+        /// <paramref name="rotation"/> degrees counter-clockwise about it.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Write(string text, Point position, Font font, TextAlignment alignment, double rotation)
         {
-            string side = s.Side == AxisSide.Right ? "right" : "left";
-            if (s.Side == AxisSide.Right) rightCount++; else leftCount++;
-            string prefix = $"data-sec-{side}-{s.SlotIndex}-";
-            _sb.Append(' ').Append(prefix).Append("ymin=\"").Append(s.Transform.DataYMin.ToSvgNumber())
-               .Append("\" ").Append(prefix).Append("ymax=\"").Append(s.Transform.DataYMax.ToSvgNumber()).Append('"');
-            if (s.Transform.YScale.ViewName() is { } name)
+            if (GlyphPathProviderDefault.Current?.OutlineOf(text, font, alignment) is { } outline)
             {
-                _sb.Append(' ').Append(prefix).Append("yscale=\"").Append(name).Append('"');
-                if (s.Transform.YScale == AxisScale.SymLog)
-                    _sb.Append(' ').Append(prefix).Append("ylinthresh=\"").Append(s.Transform.YLinThresh.ToSvgNumber()).Append('"');
+                buffer.WriteText(new OutlineElement(outline, position, font, alignment.StartOffset(outline.Advance), rotation));
+                return;
+            }
+
+            buffer.WriteText(new TextElement(text, position, font, alignment, rotation));
+        }
+
+        /// <summary>The fill of a text, when its font names a colour: the hex colour and, when the colour is translucent, its alpha as
+        /// <c>fill-opacity</c> (<see cref="SvgWriterExtensions.AppendAlpha"/>), as Skia paints the text. The one writer of a text's fill for
+        /// the <c>&lt;text&gt;</c> element and the glyph outline.</summary>
+        private static void AppendFill(StringBuilder markup, Font font)
+        {
+            if (font.Color is { } color)
+            {
+                markup.Append(" fill=\"").AppendHex(color).Append('"').AppendAlpha("fill-opacity", color);
             }
         }
 
-        if (rightCount > 0) _sb.Append(" data-sec-right-count=\"").Append(rightCount).Append('"');
-        if (leftCount > 0) _sb.Append(" data-sec-left-count=\"").Append(leftCount).Append('"');
+        /// <summary>The <c>text-anchor</c> keyword for an alignment. The alignment is geometric (Left means the left edge) while SVG's
+        /// <c>start</c> and <c>end</c> follow the reading direction, so under <c>direction="rtl"</c> the two swap.</summary>
+        private static string AnchorOf(TextAlignment alignment, bool rightToLeft) => alignment switch
+        {
+            TextAlignment.Center => "middle",
+            TextAlignment.Right  => rightToLeft ? "start" : "end",
+            _                    => rightToLeft ? "end" : "start",
+        };
+
+        /// <summary>A <c>&lt;text&gt;</c> element: position, family and size, the anchor, the direction of a right-to-left text (its first
+        /// strong character is Hebrew, Arabic or another right-to-left script, rules P2 and P3 of the bidi algorithm: the browser reorders the
+        /// characters on its own, but not the paragraph direction, which decides where the punctuation at the end of a Hebrew title lands),
+        /// the turn about the position, italic, bold, the fill, and the width asked of the text (it fits the glyphs to it).</summary>
+        private readonly record struct TextElement(string Text, Point Position, Font Font, TextAlignment Alignment, double Rotation) : ISvgElement
+        {
+            public void WriteOpening(SvgElementBuffer buffer)
+            {
+                var markup = buffer.Markup;
+                bool rightToLeft = MatPlotLibNet.Rendering.Text.BidiAlgorithm.IsRightToLeftParagraph(Text);
+                markup.Append("<text x=\"").AppendSvgNumber(Position.X).Append("\" y=\"").AppendSvgNumber(Position.Y)
+                      .Append("\" font-family=\"").Append(Font.Family).Append("\" font-size=\"").AppendSvgNumber(Font.Size)
+                      .Append("\" text-anchor=\"").Append(AnchorOf(Alignment, rightToLeft)).Append('"');
+                if (rightToLeft) markup.Append(" direction=\"rtl\"");
+                if (Rotation != 0)
+                {
+                    // SVG turns clockwise, the library counter-clockwise (the y axis is flipped against the mathematical one).
+                    markup.Append(" transform=\"rotate(").AppendSvgNumber(Rotation.ToClockwise()).Append(',')
+                          .AppendSvgNumber(Position.X).Append(',').AppendSvgNumber(Position.Y).Append(")\"");
+                }
+                if (Font.IsItalic) markup.Append(" font-style=\"italic\"");
+                if (Font.IsBold) markup.Append(" font-weight=\"bold\"");
+                AppendFill(markup, Font);
+                if (buffer.TakeTextLength() is { } length)
+                {
+                    markup.Append(" textLength=\"").AppendSvgNumber(length).Append("\" lengthAdjust=\"spacingAndGlyphs\"");
+                }
+            }
+
+            public void WriteClosing(StringBuilder markup) => markup.Append('>').Append(Text.EscapeForXml()).AppendLineLf("</text>");
+        }
+
+        /// <summary>A text's glyph outline, started where its alignment puts it by the outline's own advance
+        /// (<see cref="GlyphPathProviderExtensions.OutlineOf"/>), so the text is not measured again here. The transform is applied right to
+        /// left: the glyph origin moves by the alignment offset along the unturned baseline, turns about the anchor, then moves to the anchor,
+        /// which is right for a turned text of any alignment (a Y-axis label turned 90 degrees and centred).</summary>
+        private readonly record struct OutlineElement(ShapedOutline Outline, Point Position, Font Font, double AlignOffset, double Rotation) : ISvgElement
+        {
+            public void WriteOpening(SvgElementBuffer buffer)
+            {
+                // An outline has no font a viewer could substitute, so there is no width to fit it to: the width asked is dropped.
+                _ = buffer.TakeTextLength();
+                var markup = buffer.Markup;
+                markup.Append("<path d=\"").Append(Outline.PathData).Append('"');
+                AppendFill(markup, Font);
+                markup.Append(" transform=\"translate(").AppendSvgNumber(Position.X).Append(',').AppendSvgNumber(Position.Y).Append(')');
+                if (Rotation != 0)
+                    markup.Append(" rotate(").AppendSvgNumber(Rotation.ToClockwise()).Append(')');
+                if (AlignOffset != 0)
+                    markup.Append(" translate(").AppendSvgNumber(AlignOffset).Append(",0)");
+                markup.Append('"');
+            }
+
+            public void WriteClosing(StringBuilder markup) => markup.AppendLineLf(" />");
+        }
     }
 
-    /// <summary>The one writer of a view: the plot area, then the data range of <paramref name="range"/> when given. The
-    /// range is in the space the axis is drawn in; a log or symlog axis also writes its scale (<c>data-xscale</c> /
-    /// <c>data-yscale</c>, and the symlog threshold as <c>data-xlinthresh</c> / <c>data-ylinthresh</c>), so the script
-    /// can invert it. The inverse of the whole is <see cref="DataTransform.PixelToData"/>, the rule the script converts
-    /// the pointer by. A linear axis writes no scale, so its bytes are unchanged.</summary>
-    private void AppendView(Rect plot, DataTransform? range)
+    /// <summary>The marks of an SVG drawing surface: a line, a polyline and a shape over its geometry, each one element of the buffer's
+    /// envelope (<see cref="SvgElementBuffer.WriteMark{TMark}"/>), stroked by the one writer of a stroke and joined by the theme's looks. A
+    /// value over the buffer, held by the surface, so it allocates nothing; its members are inlined into the surface's, so a mark costs the
+    /// calls it cost before the surface was split.</summary>
+    /// <param name="buffer">The buffer the marks are written into.</param>
+    internal readonly struct SvgMarkWriter(SvgElementBuffer buffer)
     {
-        _sb.Append(" data-plot-x=\"").Append(plot.X.ToSvgNumber())
-           .Append("\" data-plot-y=\"").Append(plot.Y.ToSvgNumber())
-           .Append("\" data-plot-w=\"").Append(plot.Width.ToSvgNumber())
-           .Append("\" data-plot-h=\"").Append(plot.Height.ToSvgNumber()).Append('"');
-        if (range is null) return;
-        _sb.Append(" data-xmin=\"").Append(range.DataXMin.ToSvgNumber())
-           .Append("\" data-xmax=\"").Append(range.DataXMax.ToSvgNumber())
-           .Append("\" data-ymin=\"").Append(range.DataYMin.ToSvgNumber())
-           .Append("\" data-ymax=\"").Append(range.DataYMax.ToSvgNumber()).Append('"');
-        AppendViewScale('x', range.XScale, range.XLinThresh);
-        AppendViewScale('y', range.YScale, range.YLinThresh);
+        /// <summary>Writes a line between two points. Two points have no corner, so it writes no join.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Line(Point p1, Point p2, StrokeStyle stroke, StrokeLook looks) =>
+            buffer.WriteMark(new LineElement(p1, p2, StrokeOf(stroke, 2, looks), looks.Dashes));
+
+        /// <summary>Writes a polyline through <paramref name="points"/>, or nothing when they form no line. A point the transform could
+        /// not place (a non-positive value on a log axis, a value inside an axis break) is left out of the polyline, never written as the
+        /// literal <c>NaN</c> that breaks the whole element: matplotlib's <c>nonpositive='mask'</c>.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Polyline(IReadOnlyList<Point> points, StrokeStyle stroke, StrokeLook looks)
+        {
+            if (!points.FormsALine) return;
+            buffer.WriteMark(new PolylineElement(points, StrokeOf(stroke, points.Count, looks), looks.Dashes));
+        }
+
+        /// <summary>Writes a shape: one with both a gradient and a hatch in two layers (the gradient under the hatch,
+        /// <see cref="ShapeStyleLayers"/>), any other as one element filled by its paint server.</summary>
+        /// <typeparam name="TGeometry">The kind of shape: polygon, circle, rectangle, ellipse or path.</typeparam>
+        /// <param name="geometry">Where the shape stands.</param>
+        /// <param name="shape">The fill, stroke, gradient and hatch it is painted with; read where it stands, not copied.</param>
+        /// <param name="looks">The stroke looks of the theme it is drawn under.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Shape<TGeometry>(TGeometry geometry, in ShapeStyle shape, StrokeLook looks) where TGeometry : struct, ISvgGeometry
+        {
+            if (shape.HasVisibleGradient && shape.HasVisibleHatch)
+            {
+                InTwoLayers(geometry, shape, looks);
+                return;
+            }
+
+            buffer.WriteMark(new ShapeElement<TGeometry>(geometry, shape, looks.Dashes));
+        }
+
+        /// <summary>Writes a shape with both a gradient and a hatch as two: the gradient under the hatch.</summary>
+        private void InTwoLayers<TGeometry>(TGeometry geometry, in ShapeStyle shape, StrokeLook looks) where TGeometry : struct, ISvgGeometry
+        {
+            Shape(geometry, shape.UnderTheHatch, looks);
+            Shape(geometry, shape.HatchLayer, looks);
+        }
+
+        /// <summary>The stroke of a line of <paramref name="points"/> points: joined by the look the surface was told
+        /// (<see cref="StrokeLook.JoinOf"/>), the one place a line of any kind is joined. A stroke of fewer than three points has no corner
+        /// to join, so it writes no join.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static StrokeStyle StrokeOf(StrokeStyle stroke, int points, StrokeLook looks) =>
+            stroke with { Join = points < 3 ? JoinStyle.Miter : looks.JoinOf(stroke) };
+
+        /// <summary>A <c>&lt;line&gt;</c>.</summary>
+        private readonly record struct LineElement(Point P1, Point P2, StrokeStyle Stroke, DashLook Dashes) : ISvgElement
+        {
+            public void WriteOpening(SvgElementBuffer buffer) =>
+                buffer.Markup.Append("<line x1=\"").AppendSvgNumber(P1.X).Append("\" y1=\"").AppendSvgNumber(P1.Y)
+                    .Append("\" x2=\"").AppendSvgNumber(P2.X).Append("\" y2=\"").AppendSvgNumber(P2.Y).Append('"')
+                    .AppendStroke(Stroke, Dashes);
+
+            public void WriteClosing(StringBuilder markup) => markup.AppendLineLf(" />");
+        }
+
+        /// <summary>A <c>&lt;polyline&gt;</c> through the points that can be placed.</summary>
+        private readonly record struct PolylineElement(IReadOnlyList<Point> Points, StrokeStyle Stroke, DashLook Dashes) : ISvgElement
+        {
+            public void WriteOpening(SvgElementBuffer buffer)
+            {
+                var markup = buffer.Markup;
+                int written = 0;
+                markup.Append("<polyline points=\"");
+                for (int i = 0; i < Points.Count; i++)
+                {
+                    if (double.IsNaN(Points[i].X) || double.IsNaN(Points[i].Y)) continue;
+                    if (written++ > 0) markup.Append(' ');
+                    markup.AppendSvgPoint(Points[i]);
+                }
+                markup.Append("\" fill=\"none\"").AppendStroke(Stroke, Dashes);
+            }
+
+            public void WriteClosing(StringBuilder markup) => markup.AppendLineLf(" />");
+        }
+
+        /// <summary>A shape filled and stroked: its paint server is defined before its tag. A circle and an ellipse have no corner for a
+        /// join to show on, so they write none, as a line of two points writes none. The style is held in a field and read where it stands
+        /// (a style is the largest value a mark carries).</summary>
+        private readonly struct ShapeElement<TGeometry>(TGeometry geometry, in ShapeStyle shape, DashLook dashes) : ISvgElement
+            where TGeometry : struct, ISvgGeometry
+        {
+            private readonly TGeometry _geometry = geometry;
+            private readonly ShapeStyle _shape = shape;
+            private readonly DashLook _dashes = dashes;
+
+            public void WriteOpening(SvgElementBuffer buffer)
+            {
+                string? paintServer = buffer.PaintServerOf(in _shape);
+                _geometry.WriteGeometry(buffer.Markup);
+                if (_geometry.HasCorners || _shape.StrokeJoin == JoinStyle.Miter)
+                    buffer.Markup.AppendFillStroke(in _shape, _dashes, paintServer);
+                else
+                    buffer.Markup.AppendFillStroke(_shape with { StrokeJoin = JoinStyle.Miter }, _dashes, paintServer);
+            }
+
+            public void WriteClosing(StringBuilder markup) => markup.AppendLineLf(" />");
+        }
     }
-
-    /// <summary>Writes one axis' scale into a view, when it is drawn in a space other than the data's own.</summary>
-    private void AppendViewScale(char axis, AxisScale scale, double linthresh)
-    {
-        if (scale.ViewName() is not { } name) return;
-        _sb.Append(" data-").Append(axis).Append("scale=\"").Append(name).Append('"');
-        if (scale == AxisScale.SymLog)
-            _sb.Append(" data-").Append(axis).Append("linthresh=\"").Append(linthresh.ToSvgNumber()).Append('"');
-    }
-
-    /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation. The light is not
-    /// among them: a face is shaded in data space, which a rotation does not change, so nothing recomputes it.</summary>
-    internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds,
-        CubeFaceSelection faces)
-    {
-        _sb.Append("<g class=\"mpl-3d-scene\"")
-           .Append(" data-elevation=\"").Append(elevation.ToSvgNumber()).Append('"')
-           .Append(" data-azimuth=\"").Append(azimuth.ToSvgNumber()).Append('"');
-        // Which side of each axis the SERVER put at the back, as x,y,z of 0 (min) / 1 (max). The JS
-        // re-runs the same selection every frame and mirrors the elements whose axis flipped, so a
-        // drag past ±90° moves the panes, edges and tick rows instead of leaving them behind.
-        _sb.Append(" data-faces=\"")
-           .Append(faces.X.Back == CubeSide.Max ? '1' : '0')
-           .Append(faces.Y.Back == CubeSide.Max ? '1' : '0')
-           .Append(faces.Z.Back == CubeSide.Max ? '1' : '0').Append('"');
-        // Phase F.3 of v1.7.2 follow-on plan — always emit data-distance so JS and server
-        // stay in lockstep. Projection3D always runs perspective with `dist = distance ?? 10`;
-        // without the attribute JS bailed on wheel zoom whenever the caller omitted
-        // `distance:` in WithCamera, producing the user-reported "zoom does not work in 3D"
-        // symptom. 10 matches Projection3D.DefaultDist.
-        _sb.Append(" data-distance=\"").Append((distance ?? 10.0).ToSvgNumber()).Append('"');
-        _sb.Append(" data-plot-x=\"").Append(plotBounds.X.ToSvgNumber()).Append('"')
-           .Append(" data-plot-y=\"").Append(plotBounds.Y.ToSvgNumber()).Append('"')
-           .Append(" data-plot-w=\"").Append(plotBounds.Width.ToSvgNumber()).Append('"')
-           .Append(" data-plot-h=\"").Append(plotBounds.Height.ToSvgNumber()).Append('"');
-        _sb.AppendLine(">");
-    }
-
-    /// <summary>Subgroup wrapper inside the 3D scene
-    /// group. Three tiers mirror matplotlib's draw order (axes3d.py:458-470):
-    /// <c>mpl-3d-back</c> (panes, edges, grid, axis labels), <c>mpl-3d-data</c> (series
-    /// quads; depth-sorted by JS in place), <c>mpl-3d-front</c> (tick marks + labels).
-    /// Keeps axis-infrastructure OUT of the depth-sort pool so panes never paint over
-    /// back-corner surface quads on interactive rotation.</summary>
-    internal void Begin3DSubgroup(string className)
-    {
-        _sb.Append("<g class=\"").Append(className).AppendLine("\">");
-    }
-
-    /// <summary>Closes a subgroup opened by <see cref="Begin3DSubgroup"/>.</summary>
-    internal void End3DSubgroup()
-    {
-        _sb.AppendLine("</g>");
-    }
-
-    /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute and optional <c>aria-label</c>.</summary>
-    internal void BeginLegendItemGroup(int legendIndex, string? ariaLabel = null)
-    {
-        _sb.Append("<g data-legend-index=\"").Append(legendIndex).Append("\" style=\"cursor:pointer\"");
-        if (!string.IsNullOrEmpty(ariaLabel))
-            _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
-        _sb.AppendLine(">");
-    }
-
-    /// <summary>Opens an SVG group containing a <c>&lt;title&gt;</c> element for native browser hover tooltips.</summary>
-    /// <remarks>Browsers display <c>&lt;title&gt;</c> content as a tooltip when hovering over any child element.
-    /// Must be paired with a matching <see cref="EndTooltipGroup"/> call.</remarks>
-    internal void BeginTooltipGroup(string tooltipText)
-    {
-        _sb.Append("<g><title>").Append(tooltipText.EscapeForXml()).AppendLine("</title>");
-    }
-
-    /// <summary>Closes the SVG group opened by <see cref="BeginTooltipGroup"/>.</summary>
-    internal void EndTooltipGroup()
-    {
-        _sb.AppendLine("</g>");
-    }
-
-
 }

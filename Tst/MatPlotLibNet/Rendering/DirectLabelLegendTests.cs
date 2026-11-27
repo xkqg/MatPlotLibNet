@@ -5,6 +5,7 @@ using System.Xml.Linq;
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Svg;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -22,9 +23,8 @@ public class DirectLabelLegendTests
 
     /// <summary>The text of every entry inside <c>&lt;g class="legend"&gt;</c>; empty when no legend was drawn.</summary>
     private static List<string> LegendTexts(string svg) =>
-        XDocument.Parse(svg).Descendants()
-            .Where(e => e.Name.LocalName == "g" && (string?)e.Attribute("class") == "legend")
-            .SelectMany(g => g.Descendants().Where(t => t.Name.LocalName == "text"))
+        svg.Each("g").Where(e => (string?)e.Attribute("class") == "legend")
+            .SelectMany(g => g.Each("text"))
             .Select(t => t.Value)
             .ToList();
 
@@ -44,15 +44,17 @@ public class DirectLabelLegendTests
         Assert.Equal(["kept"], LegendTexts(svg));
     }
 
-    [Fact]
-    public void OnCartesianAxes_WhenEveryLabelIsDirect_NoLegendIsDrawn()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+        new DrawnToken("OnCartesianAxes_WhenEveryLabelIsDirect_NoLegendIsDrawn", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [2.0, 3.0, 4.0], s => Flagged(s, "one"))
-            .Plot(X, [4.0, 5.0, 6.0], s => Flagged(s, "two"))).ToSvg();
+            .Plot(X, [4.0, 5.0, 6.0], s => Flagged(s, "two"))).ToSvg()) { Absent = ["class=\"legend\""] },
+    };
 
-        Assert.DoesNotContain("class=\"legend\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void OnCartesianAxes_ADirectlyLabelledStreamingLine_IsNotALegendEntry()
@@ -108,8 +110,8 @@ public class DirectLabelLegendTests
         var plain = Polar(false).Build();
         var ctx = new SvgRenderContext();
 
-        Assert.Equal(LegendMeasurer.MeasureBox(plain.SubPlots[0], ctx, plain.Theme),
-                     LegendMeasurer.MeasureBox(flagged.SubPlots[0], ctx, flagged.Theme));
+        Assert.Equal(LegendLayoutCalculator.MeasureLegendBox(plain.SubPlots[0], ctx, plain.Theme),
+                     LegendLayoutCalculator.MeasureLegendBox(flagged.SubPlots[0], ctx, flagged.Theme));
     }
 
     [Fact]
@@ -123,7 +125,7 @@ public class DirectLabelLegendTests
         var only = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [2.0, 3.0, 4.0], s => s.Label = "short")).Build();
         var ctx = new SvgRenderContext();
 
-        Assert.Equal(LegendMeasurer.MeasureBox(only.SubPlots[0], ctx, only.Theme),
-                     LegendMeasurer.MeasureBox(flagged.SubPlots[0], ctx, flagged.Theme));
+        Assert.Equal(LegendLayoutCalculator.MeasureLegendBox(only.SubPlots[0], ctx, only.Theme),
+                     LegendLayoutCalculator.MeasureLegendBox(flagged.SubPlots[0], ctx, flagged.Theme));
     }
 }

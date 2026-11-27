@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming transfer entropy: the Kraskov transfer entropy of the last <see cref="TransferEntropyOptions.Window"/> samples,
@@ -12,7 +14,6 @@ namespace MatPlotLibNet.Indicators.Streaming;
 public sealed class StreamingTransferEntropy : WindowedStreamingIndicator<TransferEntropySample>
 {
     private readonly TransferEntropyOptions _options;
-    private readonly bool _conditioned;
     private readonly double[] _source;
     private readonly double[] _target;
     private readonly double[]? _condition;
@@ -24,27 +25,24 @@ public sealed class StreamingTransferEntropy : WindowedStreamingIndicator<Transf
     /// <param name="capacity">How many points the line keeps.</param>
     /// <exception cref="ArgumentException">The options have no window, are not Kraskov, carry a condition array, or are otherwise refused
     /// by <see cref="TransferEntropy"/> (the window too short for the neighbours, a stride below 1).</exception>
-    public StreamingTransferEntropy(TransferEntropyOptions options, bool conditioned = false, int capacity = 10_000)
-        : base(WidthOf(options), capacity)
+    public StreamingTransferEntropy(TransferEntropyOptions options, bool conditioned = false, int capacity = StreamingSeries.RestingCapacity)
+        : base(TransferEntropy.Spec(Streamable(options)), capacity)
     {
         _options = options;
-        _conditioned = conditioned;
         _source = new double[Width];
         _target = new double[Width];
         _condition = conditioned ? new double[Width] : null;
-        Label = TransferEntropy.LabelOf(options);
     }
 
-    /// <summary>The window of the options, after the same checks the batch indicator makes.</summary>
-    private static int WidthOf(TransferEntropyOptions options)
+    /// <summary>The options, refused when a stream cannot take them: it keeps a window, and is given the condition in each sample. The
+    /// batch indicator's <see cref="TransferEntropy.Spec"/> checks the rest, and its first value makes the width of the window.</summary>
+    private static TransferEntropyOptions Streamable(TransferEntropyOptions options)
     {
-        if (options.Window is not int window)
+        if (options.Window is null)
             throw new ArgumentException("A streaming transfer entropy keeps a window of samples: give the options a Window.", nameof(options.Window));
         if (options.Condition is not null)
             throw new ArgumentException("Give the condition in each sample, not as an array in the options.", nameof(options.Condition));
-
-        _ = new TransferEntropy(new double[window], new double[window], options);
-        return window;
+        return options;
     }
 
     /// <inheritdoc />

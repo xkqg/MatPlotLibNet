@@ -3,49 +3,32 @@
 
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming On-Balance Volume: the running sum of <see cref="ObvStep"/>, the same step the batch <see cref="Obv"/>
+/// <summary>Streaming On-Balance Volume: the running sum of the step the batch <see cref="Obv"/>
 /// folds over its bars. The first bar opens the sum with its volume; a close above the one before adds the volume, a close
 /// below subtracts it, an equal close keeps the sum. A bar that comes without a volume (NaN) makes the sum NaN from the first
 /// bar that adds or subtracts it, and it stays NaN: the sum cannot be known, and a guess would be a number that was never
 /// traded.</summary>
-public sealed class StreamingObv : StreamingIndicator
+public sealed class StreamingObv : StreamingIndicator<OhlcvBar>
 {
     private ObvStep _step;
-    private double _volume = double.NaN;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => 1;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming OBV indicator.</summary>
-    public StreamingObv(int capacity = 10_000) : base(capacity)
+    public StreamingObv(int capacity = StreamingSeries.RestingCapacity) : base(Obv.Spec(), capacity)
     {
-        Label = "OBV";
     }
 
-    /// <summary>Appends a close price + volume pair.</summary>
-    public void AppendWithVolume(double close, double volume)
-    {
-        _volume = volume;
-        try
-        {
-            Append(close);
-        }
-        finally
-        {
-            _volume = double.NaN;
-        }
-    }
+    /// <summary>Appends a close price + volume pair: the bar whose four prices are the close.</summary>
+    /// <param name="close">The close.</param>
+    /// <param name="volume">The volume traded.</param>
+    public void AppendWithVolume(double close, double volume) => Append(new OhlcvBar(close, close, close, close, volume));
 
     /// <inheritdoc />
-    /// <remarks>A candle carries no volume, so it counts as a bar without one.</remarks>
-    public override void AppendCandle(OhlcBar bar) => Append(bar.Close);
-
-    /// <inheritdoc />
-    public override void AppendBar(OhlcvBar bar) => AppendWithVolume(bar.Close, bar.Volume);
-
-    /// <inheritdoc />
-    protected override double ComputeNext(double price) => _step.Next(price, _volume);
+    protected override void Step(OhlcvBar input, int index, Span<double> outputs) => outputs[0] = _step.Next(input.Close, input.Volume);
 }

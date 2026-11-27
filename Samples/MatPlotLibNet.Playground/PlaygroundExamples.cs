@@ -218,7 +218,7 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .Pie(sizes, labels, s =>
             {
-                s.AutoPct = "%.0f%%";
+                s.AutoPct = "{0:F0}%";
                 s.Shadow = true;
             });
 
@@ -706,7 +706,7 @@ public static class PlaygroundExamples
         // Snippet shows the active toggles so the user can copy a working repro.
         var lines = new List<string> { "Plt.Create()" };
         lines.Add($"    .WithTitle(\"{opts.Title}\")");
-        lines.Add($"    .WithTheme(Theme.{opts.Theme.Name})");
+        lines.Add($"    .WithTheme(Theme.{ThemeChoices.CodeNameOf(opts.Theme)})");
         lines.Add($"    .WithSize({opts.Width}, {opts.Height})");
         if (opts.BrowserInteraction) lines.Add("    .WithBrowserInteraction()");
 
@@ -720,7 +720,7 @@ public static class PlaygroundExamples
             PlaygroundExample.ScatterPlot  => "    .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y))",
             PlaygroundExample.MultiSeries  => "    .AddSubPlot(1, 1, 1, ax => { ax.Plot(x, sin); ax.Plot(x, cos); ax.Plot(x, sincos); ax.WithLegend(); })",
             PlaygroundExample.Heatmap      => $"    .AddSubPlot(1, 1, 1, ax => ax.Heatmap(m).WithColorMap(ColorMaps.{ColorMapName(opts.ColorMap)}){(opts.ShowColorBar ? ".WithColorBar()" : string.Empty)})",
-            PlaygroundExample.PieChart     => "    .Pie(sizes, labels, s => { s.AutoPct = \"%.0f%%\"; s.Shadow = true; })",
+            PlaygroundExample.PieChart     => "    .Pie(sizes, labels, s => { s.AutoPct = \"{0:F0}%\"; s.Shadow = true; })",
             PlaygroundExample.Histogram    => "    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20))",
             PlaygroundExample.ContourPlot  => $"    .AddSubPlot(1, 1, 1, ax => ax.Contour(x, y, z, s => s.ColorMap = ColorMaps.{ColorMapName(opts.ColorMap)}){(opts.ShowColorBar ? ".WithColorBar()" : string.Empty)})",
             PlaygroundExample.Surface3D    => "    .AddSubPlot(1, 1, 1, ax => ax.WithCamera(35, -50).Surface(x, y, z, s => s.ColorMap = ColorMaps.Plasma))",

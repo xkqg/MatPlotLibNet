@@ -25,14 +25,6 @@ public class AnimationBuilderTests
         Assert.Equal(TimeSpan.FromMilliseconds(50), anim.Interval);
     }
 
-    /// <summary>Verifies that Loop defaults to true.</summary>
-    [Fact]
-    public void Loop_DefaultsToTrue()
-    {
-        var anim = new AnimationBuilder(5, i => new Figure());
-        Assert.True(anim.Loop);
-    }
-
     /// <summary>Verifies that GenerateFrames produces the correct number of frames.</summary>
     [Fact]
     public void GenerateFrames_ProducesCorrectCount()
@@ -67,5 +59,54 @@ public class AnimationBuilderTests
     {
         var anim = new AnimationBuilder(1, i => new Figure()) { Loop = false };
         Assert.False(anim.Loop);
+    }
+
+    /// <summary>A builder is an animation of frame indexes itself: a controller, an interactive figure and a host play it as it is,
+    /// with no adapter between them.</summary>
+    [Fact]
+    public void ABuilder_IsAnAnimationOfFrameIndexes() =>
+        Assert.True(typeof(IAnimation<int>).IsAssignableFrom(typeof(AnimationBuilder)));
+
+    /// <summary>As an animation, a builder's state is the frame index: it starts at 0, a step is the index asked for whatever the
+    /// state was, and a frame is the figure its generator makes for the index.</summary>
+    [Fact]
+    public void AsAnAnimation_TheStateIsTheFrameIndex()
+    {
+        var figures = new[] { new Figure { Title = "F0" }, new Figure { Title = "F1" }, new Figure { Title = "F2" } };
+        var animation = (IAnimation<int>)(object)new AnimationBuilder(3, i => figures[i]);
+
+        Assert.Equal(0, animation.CreateInitialState());
+        Assert.Equal(7, animation.Advance(999, 7));
+        Assert.Same(figures[1], animation.GenerateFrame(0, 1));
+        Assert.Same(figures[2], animation.GenerateFrame(999, 2));
+    }
+
+    /// <summary>The pace and the loop an animation is played by are the builder's own: one value, read and written through either
+    /// face.</summary>
+    [Fact]
+    public void AsAnAnimation_ThePaceAndTheLoopAreTheBuilders()
+    {
+        var builder = new AnimationBuilder(4, _ => new Figure());
+        var animation = (IAnimation<int>)(object)builder;
+
+        animation.Interval = TimeSpan.FromSeconds(1);
+        animation.Loop = false;
+
+        Assert.Equal(4, animation.FrameCount);
+        Assert.Equal(TimeSpan.FromSeconds(1), builder.Interval);
+        Assert.False(builder.Loop);
+    }
+
+    /// <summary>A controller plays a builder itself, every frame of it.</summary>
+    [Fact]
+    public async Task AController_PlaysEveryFrameOfTheBuilder()
+    {
+        int frames = 0;
+        var builder = new AnimationBuilder(3, _ => new Figure()) { Interval = TimeSpan.FromMilliseconds(1), Loop = false };
+        var controller = new AnimationController<int>((IAnimation<int>)(object)builder, (_, _) => { frames++; return Task.CompletedTask; });
+
+        await controller.PlayAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, frames);
     }
 }

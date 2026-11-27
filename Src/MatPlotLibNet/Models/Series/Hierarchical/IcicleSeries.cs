@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
@@ -14,24 +15,39 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>The cells are coloured as a treemap's are: a node's own <see cref="TreeNode.Color"/>, otherwise its
 /// <see cref="TreeNode.ColorValue"/> through the series' colour map, otherwise the colour map at the node's place among its
 /// siblings. The series fills its plot area and has no axes of its own.</remarks>
-public sealed class IcicleSeries : HierarchicalSeries
+public sealed class IcicleSeries : HierarchicalSeries, ISeriesKind<IcicleSeries>, IGivenTextSize
 {
     /// <summary>Initializes an icicle chart of the hierarchy under <paramref name="root"/>.</summary>
     /// <param name="root">The root of the hierarchy; it is not drawn, its children are the first row.</param>
     public IcicleSeries(TreeNode root) : base(root) { }
 
-    /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => this.DescribeSharedSettings(new() { Type = "icicle" });
+    static string ISeriesKind<IcicleSeries>.Kind => "icicle";
 
-    /// <summary>Reconstructs an <see cref="IcicleSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The size of the name in each cell, in pixels (the unit of <see cref="Font.Size"/>). Default <see cref="RestingFontSize"/>. Given no size, the name in each cell
+    /// is the size of the theme's text under the matplotlib themes, as matplotlib draws the text it writes beside its data
+    /// (<c>font.size</c>), and <see cref="RestingFontSize"/> under every other theme; a size that is given, the default included, is drawn as given.</summary>
+    public double FontSize { get => GivenFontSize ?? RestingFontSize; set => GivenFontSize = value; }
+
+    /// <summary>The size a cell's name takes under a theme that names none.</summary>
+    private const double RestingFontSize = 12;
+
+    /// <summary>The size that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenFontSize { get; private set => Change(ref field, value); }
+
+    double? IGivenTextSize.GivenTextSize => GivenFontSize;
+
+    double IGivenTextSize.RestingTextSize => RestingFontSize;
+
+    /// <inheritdoc />
+    public override SeriesDto ToSeriesDto() => this.DescribeSharedSettings(new() { Type = this.WireKind(), FontSize = GivenFontSize });
+
+    /// <summary>The reader of a <see cref="IcicleSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static IcicleSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var root = dto.TreeRoot is { } treeRoot ? treeRoot.DtoToTreeNode() : new TreeNode { Label = "Root" };
+        var root = dto.TreeRoot.TreeOrBareRoot();
         var s = axes.Icicle(root);
         s.RestoreSharedSettings(dto);
+        if (dto.FontSize is { } fontSize) s.FontSize = fontSize;
         return s;
     }
 

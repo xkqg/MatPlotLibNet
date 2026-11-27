@@ -40,27 +40,31 @@ internal record PatchDto
     /// <param name="rest">A new patch of the same kind.</param>
     private protected PatchDto(Patch patch, Patch rest)
     {
-        EdgeColor = patch.EdgeColor.OrNullAtRest(rest.EdgeColor);
-        EdgeWidth = patch.EdgeWidth.OrNullAtRest(rest.EdgeWidth);
+        EdgeColor = patch.GivenEdgeColor.OrNullAtRest(rest.GivenEdgeColor);
+        EdgeWidth = patch.GivenEdgeWidth;
         EdgeLineStyle = patch.EdgeLineStyle.OrNullAtRest(rest.EdgeLineStyle);
-        Alpha = patch.Alpha.OrNullAtRest(rest.Alpha);
+        Alpha = patch.GivenAlpha;
         Label = patch.Label;
-        Hatch = patch.Hatch.OrNullAtRest(rest.Hatch);
-        HatchColor = patch.HatchColor;
+        Hatching = patch.Hatching;
+        ZOrder = patch.GivenZOrder;
+        Visible = patch.Visible.OrNullAtRest(rest.Visible);
+        Z = patch.Z.OrNullAtRest(rest.Z);
+        ZDir = patch.ZDir.OrNullAtRest(rest.ZDir);
     }
 
-    /// <summary>The colour of the outline; absent for the one a new patch of the kind has (none, and black for an arrow and an
-    /// arc).</summary>
+    /// <summary>The colour of the outline; absent while none was given (a new patch of the kind has none, and black for an arrow and an
+    /// arc), so a colour given as none is written, and reads back as none under every theme.</summary>
     public Color? EdgeColor { get; init; }
 
-    /// <summary>The width of the outline in pixels; absent for 1.</summary>
+    /// <summary>The width of the outline in pixels; absent while none was given (the theme's <c>patch.linewidth</c> is drawn), so a
+    /// width given is written even where it equals the one a new patch reads.</summary>
     public double? EdgeWidth { get; init; }
 
     /// <summary>The dash pattern of the outline; absent for solid.</summary>
     public LineStyle? EdgeLineStyle { get; init; }
 
-    /// <summary>The opacity of the whole patch, 0 to 1; absent for 1. A value outside that range is refused when it is read, as
-    /// the patch refuses it.</summary>
+    /// <summary>The opacity of the whole patch, 0 to 1, which replaces the opacity of its colours; absent while none was given
+    /// (each colour keeps its own). A value outside that range is refused when it is read, as the patch refuses it.</summary>
     public double? Alpha { get; init; }
 
     /// <summary>The name a legend lists the patch under; absent for none.</summary>
@@ -69,8 +73,37 @@ internal record PatchDto
     /// <summary>The pattern drawn over the face; absent for none.</summary>
     public HatchPattern? Hatch { get; init; }
 
-    /// <summary>The colour of the hatch; absent for the edge colour.</summary>
+    /// <summary>The colour of the hatch; absent while none was named, the theme's rule then deciding it.</summary>
     public Color? HatchColor { get; init; }
+
+    /// <summary>The pattern and the colour of the hatch as the one value a patch holds. Setting it writes no pattern for none, so an
+    /// unhatched patch writes no hatch bytes.</summary>
+    internal HatchFill Hatching
+    {
+        get => HatchFill.FromTheWire(Hatch, HatchColor);
+        init
+        {
+            Hatch = value.PatternOnTheWire;
+            HatchColor = value.Color;
+        }
+    }
+
+    /// <summary>Where the patch is drawn among the series and the other patches; absent while none was given.</summary>
+    public int? ZOrder { get; init; }
+
+    /// <summary>Whether the patch is drawn; absent for a patch that is (the default), <see langword="false"/> for a hidden one.</summary>
+    public bool? Visible { get; init; }
+
+    /// <summary>On a 3-D axes, where along <see cref="ZDir"/> the patch's plane stands; absent for 0.</summary>
+    public double? Z { get; init; }
+
+    /// <summary>On a 3-D axes, the axis the patch's plane stands across; absent for Z.</summary>
+    public ZDirection? ZDir { get; init; }
+
+    /// <summary>How many of its axes' own series were added before the patch, which places its row among theirs in the legend;
+    /// absent for a patch added after every series of its axes, which a file of an earlier release reads as too. Written by the
+    /// axes (<see cref="AxesDto"/>), since the place is the axes' to know, not the patch's.</summary>
+    public int? SeriesBefore { get; init; }
 
     /// <summary>Adds the patch this record describes to <paramref name="axes"/>. The base record describes no patch: it is what a
     /// kind this build does not know reads as, so it adds nothing and says so.</summary>
@@ -79,19 +112,23 @@ internal record PatchDto
         ChartDiagnostics.Emit(new ChartDiagnostic(nameof(ChartSerializer),
             "A patch of a kind this build does not know was skipped during deserialization.", null));
 
-    /// <summary>Sets the style this record carries on <paramref name="patch"/>, which keeps what it was made with for a field
-    /// that is absent.</summary>
+    /// <summary>Sets the style this record carries on <paramref name="patch"/>, a patch just made from the geometry: a field that is
+    /// present replaces the patch's value, an absent edge colour, edge width, dash, opacity, z-order, visibility, z and direction leave
+    /// the value it was made with, and the label and the hatch are set as read (absent being none, as a patch made has).</summary>
     /// <param name="patch">The patch just made from the geometry.</param>
     /// <typeparam name="TPatch">The kind of patch.</typeparam>
     private protected TPatch Style<TPatch>(TPatch patch) where TPatch : Patch
     {
-        patch.EdgeColor = EdgeColor ?? patch.EdgeColor;
-        patch.EdgeWidth = EdgeWidth ?? patch.EdgeWidth;
-        patch.EdgeLineStyle = EdgeLineStyle ?? patch.EdgeLineStyle;
-        patch.Alpha = Alpha ?? patch.Alpha;
+        if (EdgeColor is { } edgeColor) patch.EdgeColor = edgeColor;
+        if (EdgeWidth is { } edgeWidth) patch.EdgeWidth = edgeWidth;
+        if (EdgeLineStyle is { } edgeLineStyle) patch.EdgeLineStyle = edgeLineStyle;
+        if (Alpha is { } alpha) patch.Alpha = alpha;
         patch.Label = Label;
-        patch.Hatch = Hatch ?? patch.Hatch;
-        patch.HatchColor = HatchColor;
+        patch.LayHatching(Hatching);
+        if (ZOrder is { } zOrder) patch.ZOrder = zOrder;
+        if (Visible is { } visible) patch.Visible = visible;
+        if (Z is { } z) patch.Z = z;
+        if (ZDir is { } zDir) patch.ZDir = zDir;
         return patch;
     }
 }
@@ -107,10 +144,10 @@ internal abstract record FilledPatchDto : PatchDto
     /// <param name="rest">A new patch of the same kind.</param>
     private protected FilledPatchDto(FilledPatch patch, FilledPatch rest) : base(patch, rest)
     {
-        FaceColor = patch.FaceColor.OrNullAtRest(rest.FaceColor);
+        FaceColor = patch.GivenFaceColor;
     }
 
-    /// <summary>The colour of the face; absent for the first colour of the cycle.</summary>
+    /// <summary>The colour of the face; absent for a patch given none, which is filled in the first colour of its theme's cycle.</summary>
     public Color? FaceColor { get; init; }
 
     /// <summary>Sets the face this record carries and then the style on <paramref name="patch"/>.</summary>
@@ -118,7 +155,7 @@ internal abstract record FilledPatchDto : PatchDto
     /// <typeparam name="TPatch">The kind of patch.</typeparam>
     private protected TPatch Fill<TPatch>(TPatch patch) where TPatch : FilledPatch
     {
-        patch.FaceColor = FaceColor ?? patch.FaceColor;
+        if (FaceColor is { } face) patch.FaceColor = face;
         return Style(patch);
     }
 }
@@ -139,6 +176,8 @@ internal sealed record RectangleDto : FilledPatchDto
         Width = rectangle.Width;
         Height = rectangle.Height;
         Angle = rectangle.Angle.OrNullAtRest(Rest.Angle);
+        RotationCenter = rectangle.RotationPoint.IsCenter.OrNullAtRest(false);
+        RotationPoint = rectangle.RotationPoint.Point;
     }
 
     /// <summary>The corner the rectangle is measured from, in data units.</summary>
@@ -150,11 +189,26 @@ internal sealed record RectangleDto : FilledPatchDto
     /// <summary>The height along Y, in data units.</summary>
     public double Height { get; init; }
 
-    /// <summary>The angle the rectangle is turned through about its anchor, in degrees; absent for 0.</summary>
+    /// <summary>The angle the rectangle is turned through about its rotation point, in degrees; absent for 0.</summary>
     public double? Angle { get; init; }
 
+    /// <summary>True when the rectangle is turned about its centre; absent for the anchor (or for the point of
+    /// <see cref="RotationPoint"/>).</summary>
+    public bool? RotationCenter { get; init; }
+
+    /// <summary>The point, in data units, the rectangle is turned about; absent for the anchor (or for the centre). A document
+    /// that names both reads the point.</summary>
+    public DataPoint? RotationPoint { get; init; }
+
     /// <inheritdoc />
-    internal override void AddTo(Axes axes) => axes.AddPatch(Fill(new Rectangle(Anchor, Width, Height) { Angle = Angle ?? Rest.Angle }));
+    internal override void AddTo(Axes axes) => axes.AddPatch(Fill(new Rectangle(Anchor, Width, Height) { Angle = Angle ?? Rest.Angle, RotationPoint = RotationPointRead }));
+
+    /// <summary>The rotation point the document names: the point when it gives one, else the centre when it says so, else the
+    /// anchor.</summary>
+    private Models.Patches.RotationPoint RotationPointRead =>
+        RotationPoint is { } point ? Models.Patches.RotationPoint.At(point)
+        : RotationCenter == true ? Models.Patches.RotationPoint.Center
+        : Models.Patches.RotationPoint.Anchor;
 }
 
 /// <summary>Describes a <see cref="Polygon"/>.</summary>
@@ -176,7 +230,7 @@ internal sealed record PolygonDto : FilledPatchDto
     /// <summary>The vertices in order, in data units; absent reads as none.</summary>
     public List<DataPoint>? Vertices { get; init; }
 
-    /// <summary>Whether the outline closes back to its first vertex; absent for true.</summary>
+    /// <summary>Whether the outline closes back to its first vertex; absent for what a new <see cref="Polygon"/> holds.</summary>
     public bool? Closed { get; init; }
 
     /// <inheritdoc />
@@ -216,7 +270,7 @@ internal sealed record ArrowDto : FilledPatchDto
     /// <summary>How far the shaft runs along Y, in data units.</summary>
     public double Dy { get; init; }
 
-    /// <summary>The width of the shaft, in data units; absent for 0.001.</summary>
+    /// <summary>The width of the shaft, in data units; absent for what a new <see cref="Arrow"/> holds.</summary>
     public double? Width { get; init; }
 
     /// <summary>The width of the head, in data units; absent for three times the width of the shaft.</summary>
@@ -380,7 +434,7 @@ internal sealed record ArcDto : PatchDto
     /// <summary>The direction the arc starts in, in degrees; absent for 0.</summary>
     public double? Theta1 { get; init; }
 
-    /// <summary>The direction the arc ends in, in degrees; absent for 360.</summary>
+    /// <summary>The direction the arc ends in, in degrees; absent for what a new <see cref="Arc"/> holds.</summary>
     public double? Theta2 { get; init; }
 
     /// <inheritdoc />

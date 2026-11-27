@@ -3,8 +3,10 @@
 
 namespace MatPlotLibNet.Models.Series;
 
-/// <summary>How far out a series reaches on a polar axes.</summary>
+/// <summary>The radii a series reaches on a polar axes: the data limits of its radial axis, matplotlib's <c>dataLim.intervaly</c>.</summary>
+/// <param name="Min">The smallest radius the series draws.</param>
 /// <param name="Max">The largest radius the series draws.</param>
-/// <param name="Sticky">Whether the series fills out to <paramref name="Max"/> exactly (a polar heatmap, whose cells end
-/// there), so the scale reaches at least that far without the margin it leaves beyond a series of marks.</param>
-internal readonly record struct RadialExtent(double Max, bool Sticky);
+/// <param name="Sticky">Whether the series fills from <paramref name="Min"/> to <paramref name="Max"/> exactly (a polar heatmap, whose
+/// cells start at the centre and end there, matplotlib's sticky edges of a <c>pcolormesh</c>), so the scale reaches at least that far
+/// without the margin it leaves beyond a series of marks.</param>
+internal readonly record struct RadialExtent(double Min, double Max, bool Sticky);

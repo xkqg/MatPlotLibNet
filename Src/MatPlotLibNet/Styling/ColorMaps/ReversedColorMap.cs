@@ -21,6 +21,9 @@ public sealed class ReversedColorMap : IColorMap, IJsonDescribed<ColorMapDto>
 
     private readonly IColorMap _inner;
 
+    /// <summary>The map this one reverses.</summary>
+    internal IColorMap Inner => _inner;
+
     /// <inheritdoc />
     public string Name { get; }
 
@@ -32,7 +35,7 @@ public sealed class ReversedColorMap : IColorMap, IJsonDescribed<ColorMapDto>
     }
 
     /// <inheritdoc />
-    public Color GetColor(double value) => _inner.GetColor(1.0 - Math.Clamp(value, 0, 1));
+    public Color GetColor(double value) => _inner.GetColor(1.0 - value.Saturate());
 
     /// <inheritdoc />
     /// <remarks>When reversed, the under-range corresponds to the inner map's over-range.</remarks>

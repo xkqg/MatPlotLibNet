@@ -13,11 +13,18 @@ public sealed class NumericTickFormatter : ITickFormatter, IJsonDescribed<TickFo
     TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new NumericTickFormatterDto();
 
     /// <inheritdoc />
-    public string Format(double value)
+    public string Format(double value) => FormatValue(value);
+
+    /// <summary>The one plain number format of a tick, which the formatter writes and an axis falls back to when its ticks
+    /// have no step to measure: "0" for a value within a ten-billionth of 0, three significant digits below a hundredth and
+    /// from a million up, five otherwise.</summary>
+    /// <param name="value">The tick value.</param>
+    /// <returns>The value written.</returns>
+    internal static string FormatValue(double value)
     {
         if (Math.Abs(value) < 1e-10) return "0";
         if (Math.Abs(value) >= 1e6 || (Math.Abs(value) < 0.01 && value != 0))
-            return value.ToString("G3", CultureInfo.InvariantCulture);
-        return value.ToString("G5", CultureInfo.InvariantCulture);
+            return value.InvariantText("G3");
+        return value.InvariantText("G5");
     }
 }

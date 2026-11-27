@@ -83,7 +83,7 @@ public class SvgIdUniquenessTests
         AssertEveryIdOnce_AndEveryReferenceResolves(svg);
         Assert.All(svg.Ids(), id => Assert.StartsWith("fig1-", id, StringComparison.Ordinal));
         Assert.Contains("aria-labelledby=\"fig1-chart-title\"", svg, StringComparison.Ordinal);
-        Assert.NotNull(XDocument.Parse(svg));
+        Assert.NotNull(svg.Xml());
     }
 
     [Fact]

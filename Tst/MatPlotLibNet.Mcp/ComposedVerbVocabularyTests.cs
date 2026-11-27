@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
-using MatPlotLibNet.Tests.Packaging;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -61,7 +61,7 @@ public class ComposedVerbVocabularyTests
         var tools = new ChartTools(new ChartRendering(reader, new ChartSummarizer()), new ChartTabulation(reader, RenderLimits.Default),
             catalog, new ChartSchemaDescription(catalog), new OutputPathResolver(output.Path));
 
-        var lines = tools.ListChartTypes().Split('\n').Select(line => line.Trim().Split(' ')[0]).Where(word => word.Length > 0);
+        var lines = SourceFile.LinesOf(tools.ListChartTypes()).Select(line => line.Trim().Split(' ')[0]).Where(word => word.Length > 0);
 
         var verbsServed = lines.Where(word => VerbKeys.Contains(Key(word))).ToArray();
         Assert.True(verbsServed.Length == 0, "list_chart_types names a verb: " + string.Join(", ", verbsServed));
@@ -71,8 +71,8 @@ public class ComposedVerbVocabularyTests
     [Fact]
     public void TheVocabulary_NamesNoVerbAsAFieldOrAValue()
     {
-        var rules = (IReadOnlyDictionary<(SpecNodeKind Kind, string Field), SpecVocabulary.Rule>)
-            typeof(SpecVocabulary).GetField("Rules", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+        var rules = (IReadOnlyDictionary<ChartSpecReader.SpecVocabulary.KindField, ChartSpecReader.SpecVocabulary.Rule>)
+            typeof(ChartSpecReader.SpecVocabulary).GetField("Rules", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
 
         Assert.NotEmpty(rules);
         var named = rules
@@ -88,10 +88,9 @@ public class ComposedVerbVocabularyTests
     [MemberData(nameof(VerbNames))]
     public void ASpecThatNamesAVerbAsASeriesType_IsRefused(string verb)
     {
-        var reader = new ChartSpecReader(new ChartTypeCatalog(), RenderLimits.Default);
         string spec = $$"""{"width":400,"height":300,"subPlots":[{"series":[{"type":"{{verb.ToLowerInvariant()}}","xData":[1],"yData":[1]}]}]}""";
 
-        var refusal = Assert.ThrowsAny<Exception>(() => reader.Read(new ChartSpec(spec)));
+        var refusal = Assert.ThrowsAny<Exception>(() => Reader.Read(new ChartSpec(spec)));
 
         Assert.Contains("is not a chart type this server lists", refusal.Message);
     }

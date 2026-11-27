@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>A name and one value per place: the named-values type of every verb that draws several named series over the
-/// same places. <see cref="AxesBuilder.GroupedBar"/> takes its groups this way (three regions over four quarters is three
+/// same places. <see cref="AxesBuilderCategoricalVerbs.GroupedBar"/> takes its groups this way (three regions over four quarters is three
 /// groups of four values, and the name is what the legend shows). So do <see cref="CategoricalAxesExtensions.Dumbbell"/>,
 /// <see cref="CategoricalAxesExtensions.SlopeGraph"/>, <see cref="CategoricalAxesExtensions.DotPlot"/>,
 /// <see cref="CategoricalAxesExtensions.ParallelCoordinates"/> and <see cref="CategoricalAxesExtensions.Marimekko"/>, over

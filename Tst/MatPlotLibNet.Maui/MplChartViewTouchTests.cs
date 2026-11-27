@@ -49,7 +49,7 @@ public class MplChartViewTouchTests
 
     private static MauiRect PlotAreaOf(Figure figure)
     {
-        var layout = ChartRendererDefault.Current.ComputeLayout(figure, new MauiGraphicsRenderContext(Substitute.For<ICanvas>()));
+        var layout = ChartRendererDefault.Current.ComputeLayout(figure, MauiRig.Fresh().Context);
         var area = ChartLayout.Create(figure, layout).GetPlotArea(0);
         return new MauiRect(area.X, area.Y, area.Width, area.Height);
     }

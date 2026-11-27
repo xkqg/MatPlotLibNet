@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 
@@ -30,83 +29,54 @@ public class TreemapLinkTests
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root))
             .ToSvg();
 
-    [Fact]
-    public void ANodeWithAUrl_IsAnAnchorAroundItsCell()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Render(Fleet());
-
-        Assert.Contains("<a href=\"/?process=Svc.Billing\"", svg);
-        Assert.Contains("cursor:pointer", svg);
-        Assert.Contains("aria-label=\"Svc.Billing\"", svg);
-        Assert.Contains("</a>", svg);
-    }
-
-    [Fact]
-    public void TheAnchorWrapsTheRectAndItsLabel()
-    {
-        string svg = Render(Fleet());
-
-        int open = svg.IndexOf("<a href", StringComparison.Ordinal);
-        int close = svg.IndexOf("</a>", StringComparison.Ordinal);
-        string inside = svg[open..close];
-        Assert.Contains("<rect", inside);
-        Assert.Contains("Svc.Billing", inside);
-    }
-
-    [Fact]
-    public void ANodeWithoutAUrl_IsNotAnAnchor()
-    {
-        string svg = Render(Fleet(url: null));
-
-        Assert.DoesNotContain("<a href", svg);
-    }
-
-    [Fact]
-    public void AnExpandableNode_SaysWhetherItIsOpen()
-    {
-        Assert.Contains("aria-expanded=\"false\"", Render(Fleet(expanded: false)));
-        Assert.Contains("aria-expanded=\"true\"", Render(Fleet(expanded: true)));
-        Assert.DoesNotContain("aria-expanded", Render(Fleet()));
-    }
-
-    /// <summary>An INTERIOR node links too — that is the whole point of a drill-down: its frame, its header and
-    /// everything nested inside it belong to the same anchor.</summary>
-    [Fact]
-    public void AnInteriorNodeLinks_AndItsChildrenSitInsideThatAnchor()
-    {
-        var nested = new TreeNode
+        new DrawnToken("ANodeWithAUrl_IsAnAnchorAroundItsCell", () => Render(Fleet()), "<a href=\"/?process=Svc.Billing\"", "cursor:pointer", "aria-label=\"Svc.Billing\"", "</a>"),
+        new DrawnToken("ANodeWithoutAUrl_IsNotAnAnchor", () => Render(Fleet(url: null))) { Absent = ["<a href"] },
+        new DrawnToken("TheUrl_IsEscapedForXml", () => Render(new TreeNode { Children = [new() { Label = "a", Value = 1, Url = "/?p=x&q=y" }] }), "href=\"/?p=x&amp;q=y\""),
+        new DrawnToken("TheAnchorWrapsTheRectAndItsLabel", () =>
         {
-            Label = "Svc",
-            Children =
-            [
-                new()
-                {
-                    Label = "Svc.Billing", Url = "/?process=", Expanded = true,
-                    Children = [new() { Label = "BillingCycle", Value = 10 }],
-                },
-            ],
-        };
+            string svg = Render(Fleet());
+            int open = svg.IndexOf("<a href", StringComparison.Ordinal);
+            int close = svg.IndexOf("</a>", StringComparison.Ordinal);
+            return svg[open..close];
+        }, "<rect", "Svc.Billing"),
+        new DrawnToken("AnExpandableNode_SaysWhetherItIsOpen (#1)", () => Render(Fleet(expanded: false)), "aria-expanded=\"false\""),
+        new DrawnToken("AnExpandableNode_SaysWhetherItIsOpen (#2)", () => Render(Fleet(expanded: true)), "aria-expanded=\"true\""),
+        new DrawnToken("AnExpandableNode_SaysWhetherItIsOpen (#3)", () => Render(Fleet())) { Absent = ["aria-expanded"] },
+        // An INTERIOR node links too — that is the whole point of a drill-down: its frame, its header and everything nested inside it
+        // belong to the same anchor.
+        new DrawnToken("AnInteriorNodeLinks_AndItsChildrenSitInsideThatAnchor", () =>
+        {
+            var nested = new TreeNode
+            {
+                Label = "Svc",
+                Children =
+                [
+                    new()
+                    {
+                        Label = "Svc.Billing", Url = "/?process=", Expanded = true,
+                        Children = [new() { Label = "BillingCycle", Value = 10 }],
+                    },
+                ],
+            };
+            string svg = Render(nested);
+            int open = svg.IndexOf("<a href", StringComparison.Ordinal);
+            int close = svg.IndexOf("</a>", StringComparison.Ordinal);
+            return svg[open..close];
+        }, "BillingCycle"),
+    };
 
-        string svg = Render(nested);
-
-        int open = svg.IndexOf("<a href", StringComparison.Ordinal);
-        int close = svg.IndexOf("</a>", StringComparison.Ordinal);
-        Assert.Contains("BillingCycle", svg[open..close]);
-    }
-
-    [Fact]
-    public void TheUrl_IsEscapedForXml()
-    {
-        string svg = Render(new TreeNode { Children = [new() { Label = "a", Value = 1, Url = "/?p=x&q=y" }] });
-
-        Assert.Contains("href=\"/?p=x&amp;q=y\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void TheTreemapsOwnDataAttributes_SurviveTheAnchor()
     {
         string svg = Render(Fleet());
 
-        Assert.Equal(4, Regex.Matches(svg, "data-treemap-node=\"0\\.[01]\"").Count);
+        Assert.Equal(4, svg.AttributeValues("data-treemap-node").Count(node => node is "0.0" or "0.1"));
     }
 }

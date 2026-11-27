@@ -1,10 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -19,9 +19,9 @@ public class AxisColorTests
 {
     private static readonly Color Mark = Color.FromHex("#E4007C");
     private const string MarkHex = "#E4007C";
-    private const string ForegroundHex = "#262626";
+    private const string ForegroundHex = "#000000";
 
-    private enum Side { Left, Bottom, Right, Top }
+    public enum Side { Left, Bottom, Right, Top }
 
     /// <summary>The colour each of the four axes is asked to wear; <see langword="null"/> leaves the axis alone.</summary>
     private readonly record struct AxisColors(Color? Left, Color? Bottom, Color? Right, Color? Top);
@@ -48,22 +48,14 @@ public class AxisColorTests
         })
         .Build().ToSvg();
 
-    private static string[] Lines(string svg) => svg.Split('\n').Select(l => l.Trim()).ToArray();
+    private static Segment SegmentOf(XElement line) => new(line.Number("x1"), line.Number("y1"), line.Number("x2"), line.Number("y2"),
+        (string?)line.Attribute("stroke") ?? string.Empty);
 
-    private static double Attr(string element, string name) =>
-        double.Parse(Regex.Match(element, $@"\b{name}=""([^""]+)""").Groups[1].Value, CultureInfo.InvariantCulture);
+    private static bool IsSpine(XElement element) => element.Is("g") && (string?)element.Attribute("class") == "spine";
 
-    private static Segment SegmentOf(string element) => new(Attr(element, "x1"), Attr(element, "y1"),
-        Attr(element, "x2"), Attr(element, "y2"), Regex.Match(element, @"stroke=""([^""]+)""").Groups[1].Value);
-
-    /// <summary>The four spines in the order they are drawn: bottom, top, left, right.</summary>
-    private static Segment[] Spines(string[] lines)
-    {
-        var spines = new List<Segment>();
-        for (int i = 0; i < lines.Length - 1; i++)
-            if (lines[i] == "<g class=\"spine\">") spines.Add(SegmentOf(lines[i + 1]));
-        return spines.ToArray();
-    }
+    /// <summary>The four spines in the order they are drawn: bottom, top, left, right. Each is the one line of a group of class
+    /// <c>spine</c>.</summary>
+    private static Segment[] Spines(string svg) => [.. svg.Each("g").Where(IsSpine).Select(spine => SegmentOf(spine.Children("line").First()))];
 
     private static Segment SpineOf(Segment[] spines, Side side) => side switch
     {
@@ -74,18 +66,14 @@ public class AxisColorTests
     };
 
     /// <summary>The tick marks of one side: every <c>&lt;line&gt;</c> outside a spine group that points away from that edge.</summary>
-    private static List<Segment> TickMarks(string[] lines, Side side)
+    private static List<Segment> TickMarks(string svg, Side side)
     {
-        var spines = Spines(lines);
+        var spines = Spines(svg);
         double left = SpineOf(spines, Side.Left).X1, right = SpineOf(spines, Side.Right).X1;
         double top = SpineOf(spines, Side.Top).Y1, bottom = SpineOf(spines, Side.Bottom).Y1;
         var marks = new List<Segment>();
-        bool inSpine = false;
-        foreach (var line in lines)
+        foreach (var line in svg.Each("line").Where(line => line.Parent is not { } parent || !IsSpine(parent)))
         {
-            if (line == "<g class=\"spine\">") { inSpine = true; continue; }
-            if (line == "</g>") { inSpine = false; continue; }
-            if (inSpine || !line.StartsWith("<line", StringComparison.Ordinal)) continue;
             var s = SegmentOf(line);
             bool horizontal = s.Y1 == s.Y2, vertical = s.X1 == s.X2;
             bool onSide = side switch
@@ -100,10 +88,7 @@ public class AxisColorTests
         return marks;
     }
 
-    private static List<string> TextsFilledWith(string[] lines, string hex) => lines
-        .Where(l => l.StartsWith("<text", StringComparison.Ordinal) && l.Contains($"fill=\"{hex}\"", StringComparison.Ordinal))
-        .Select(l => Regex.Match(l, ">([^<]*)</text>").Groups[1].Value)
-        .ToList();
+    private static List<string> TextsFilledWith(string svg, string hex) => [.. svg.Each("text").Where(text => (string?)text.Attribute("fill") == hex).Select(text => text.Value)];
 
     /// <summary>Renders the figure with only <paramref name="colours"/> asked for and proves that axis, and only that
     /// axis, wears <see cref="Mark"/> on its spine, its tick marks, its tick labels and its title.</summary>
@@ -116,40 +101,36 @@ public class AxisColorTests
         Assert.NotEqual(baseline, coloured);
         Assert.Equal(baseline, coloured.Replace(MarkHex, ForegroundHex));
 
-        var lines = Lines(coloured);
-        var spines = Spines(lines);
+        var spines = Spines(coloured);
         foreach (Side s in Enum.GetValues<Side>())
             Assert.Equal(s == side ? MarkHex : ForegroundHex, SpineOf(spines, s).Stroke);
 
         foreach (Side s in Enum.GetValues<Side>())
         {
-            var marks = TickMarks(lines, s);
+            var marks = TickMarks(coloured, s);
             Assert.NotEmpty(marks);
             Assert.All(marks, m => Assert.Equal(s == side ? MarkHex : ForegroundHex, m.Stroke));
         }
 
-        Assert.Equal(textsOfTheAxis, TextsFilledWith(lines, MarkHex));
+        Assert.Equal(textsOfTheAxis, TextsFilledWith(coloured, MarkHex));
     }
 
-    [Fact]
-    public void SetYAxisColor_ColoursTheLeftSpineTheTickMarksTheTickLabelsAndTheTitle_andNothingElse()
-        => AssertOnlyOneAxisIsColoured(new AxisColors(Mark, null, null, null), Side.Left,
-            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Level");
+    /// <summary>The Y axis ends where its data and margin end (0.6 to 9.4, the default theme's <c>axes.autolimit_mode</c>
+    /// 'data'), so its labels run 1 to 9.</summary>
+    public static TheoryData<Side, string[]> TheTextsOfEachAxis => new()
+    {
+        { Side.Left, ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Level"] },
+        { Side.Bottom, ["1.00", "1.25", "1.50", "1.75", "2.00", "2.25", "2.50", "2.75", "3.00", "Time"] },
+        { Side.Right, ["10.0", "12.5", "15.0", "17.5", "20.0", "22.5", "25.0", "27.5", "30.0", "Right"] },
+        { Side.Top, ["10.0", "12.5", "15.0", "17.5", "20.0", "22.5", "25.0", "27.5", "30.0", "Top"] },
+    };
 
-    [Fact]
-    public void SetXAxisColor_ColoursTheBottomSpineTheTickMarksTheTickLabelsAndTheTitle_andNothingElse()
-        => AssertOnlyOneAxisIsColoured(new AxisColors(null, Mark, null, null), Side.Bottom,
-            "1.00", "1.25", "1.50", "1.75", "2.00", "2.25", "2.50", "2.75", "3.00", "Time");
-
-    [Fact]
-    public void RightYAxis_SetYAxisColor_ColoursTheRightSpineTheTickMarksTheTickLabelsAndTheTitle_andNothingElse()
-        => AssertOnlyOneAxisIsColoured(new AxisColors(null, null, Mark, null), Side.Right,
-            "10.0", "12.5", "15.0", "17.5", "20.0", "22.5", "25.0", "27.5", "30.0", "Right");
-
-    [Fact]
-    public void SecondaryXAxis_SetXAxisColor_ColoursTheTopSpineTheTickMarksTheTickLabelsAndTheTitle_andNothingElse()
-        => AssertOnlyOneAxisIsColoured(new AxisColors(null, null, null, Mark), Side.Top,
-            "10.0", "12.5", "15.0", "17.5", "20.0", "22.5", "25.0", "27.5", "30.0", "Top");
+    [Theory]
+    [MemberData(nameof(TheTextsOfEachAxis))]
+    public void SetAxisColor_ColoursTheSpineTheTickMarksTheTickLabelsAndTheTitle_ofThatAxis_andNothingElse(Side side, string[] textsOfTheAxis) =>
+        AssertOnlyOneAxisIsColoured(
+            new AxisColors(side == Side.Left ? Mark : null, side == Side.Bottom ? Mark : null, side == Side.Right ? Mark : null, side == Side.Top ? Mark : null),
+            side, textsOfTheAxis);
 
     [Fact]
     public void FourAxesCarryFourColours_eachOnItsOwnAxis()
@@ -158,46 +139,38 @@ public class AxisColorTests
         var green = Color.FromHex("#00AA00");
         var blue = Color.FromHex("#0000CC");
         var svg = Svg(new AxisColors(red, green, blue, Mark));
-        var spines = Spines(Lines(svg));
+        var spines = Spines(svg);
 
         Assert.Equal("#CC0000", SpineOf(spines, Side.Left).Stroke);
         Assert.Equal("#00AA00", SpineOf(spines, Side.Bottom).Stroke);
         Assert.Equal("#0000CC", SpineOf(spines, Side.Right).Stroke);
         Assert.Equal(MarkHex, SpineOf(spines, Side.Top).Stroke);
-        Assert.Contains("Level", TextsFilledWith(Lines(svg), "#CC0000"));
-        Assert.Contains("Time", TextsFilledWith(Lines(svg), "#00AA00"));
-        Assert.Contains("Right", TextsFilledWith(Lines(svg), "#0000CC"));
-        Assert.Contains("Top", TextsFilledWith(Lines(svg), MarkHex));
+        Assert.Contains("Level", TextsFilledWith(svg, "#CC0000"));
+        Assert.Contains("Time", TextsFilledWith(svg, "#00AA00"));
+        Assert.Contains("Right", TextsFilledWith(svg, "#0000CC"));
+        Assert.Contains("Top", TextsFilledWith(svg, MarkHex));
     }
 
     // ── what each verb writes in the model ──────────────────────────────────
 
-    [Fact]
-    public void SetYAxisColor_WritesTheSpineTheTicksAndTheTitleStyleOfTheLeftAxis()
+    /// <summary>SetYAxisColor colours the left spine, the ticks and the title of the Y axis, SetXAxisColor the bottom spine and those of the
+    /// X axis, and neither touches the other axis.</summary>
+    [Theory]
+    [InlineData("Y")]
+    [InlineData("X")]
+    public void SetAxisColor_WritesTheSpineTheTicksAndTheTitleStyleOfItsAxisOnly(string axisName)
     {
-        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetYAxisColor(Mark)).Build().SubPlots[0];
+        bool y = axisName == "Y";
+        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => _ = y ? ax.SetYAxisColor(Mark) : ax.SetXAxisColor(Mark)).Build().SubPlots[0];
+        Axis coloured = y ? axes.YAxis : axes.XAxis, other = y ? axes.XAxis : axes.YAxis;
 
-        Assert.Equal(Mark, axes.Spines.Left.Color);
-        Assert.Equal(Mark, axes.YAxis.MajorTicks.Color);
-        Assert.Equal(Mark, axes.YAxis.MajorTicks.LabelColor);
-        Assert.Equal(Mark, axes.YAxis.LabelStyle!.Color);
-        Assert.Null(axes.Spines.Bottom.Color);
-        Assert.Null(axes.XAxis.MajorTicks.Color);
-        Assert.Null(axes.XAxis.LabelStyle);
-    }
-
-    [Fact]
-    public void SetXAxisColor_WritesTheSpineTheTicksAndTheTitleStyleOfTheBottomAxis()
-    {
-        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetXAxisColor(Mark)).Build().SubPlots[0];
-
-        Assert.Equal(Mark, axes.Spines.Bottom.Color);
-        Assert.Equal(Mark, axes.XAxis.MajorTicks.Color);
-        Assert.Equal(Mark, axes.XAxis.MajorTicks.LabelColor);
-        Assert.Equal(Mark, axes.XAxis.LabelStyle!.Color);
-        Assert.Null(axes.Spines.Left.Color);
-        Assert.Null(axes.YAxis.MajorTicks.Color);
-        Assert.Null(axes.YAxis.LabelStyle);
+        Assert.Equal(Mark, (y ? axes.Spines.Left : axes.Spines.Bottom).Color);
+        Assert.Equal(Mark, coloured.MajorTicks.Color);
+        Assert.Equal(Mark, coloured.MajorTicks.LabelColor);
+        Assert.Equal(Mark, coloured.LabelStyle!.Color);
+        Assert.Null((y ? axes.Spines.Bottom : axes.Spines.Left).Color);
+        Assert.Null(other.MajorTicks.Color);
+        Assert.Null(other.LabelStyle);
     }
 
     [Fact]

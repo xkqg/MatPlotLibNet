@@ -5,7 +5,7 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
-/// <summary>Behavioural coverage for <see cref="MatPlotLibNet.Rendering.Svg.SvgTreemapDrilldownScript"/>.
+/// <summary>Behavioural coverage for <see cref="Transforms.SvgTransform.TreemapDrilldownScript"/>.
 ///
 /// <para>Phase P (2026-04-18) — the script is now expand/collapse per parent (click a
 /// parent rect to toggle its direct children's visibility). Multiple parents can be
@@ -83,18 +83,18 @@ public class TreemapDrilldownTests
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
         var apparel = h.Document.querySelector("rect[data-treemap-node='0.1']")!;
         var fresh = h.Document.querySelector("rect[data-treemap-node='0.2.0']")!;
-        Assert.NotEqual("none", root.style.display);
-        Assert.NotEqual("none", electronics.style.display);
-        Assert.NotEqual("none", phones.style.display);
-        Assert.NotEqual("none", apparel.style.display);
-        Assert.NotEqual("none", fresh.style.display);
+        Assert.NotEqual("hidden", root.style.visibility);
+        Assert.NotEqual("hidden", electronics.style.visibility);
+        Assert.NotEqual("hidden", phones.style.visibility);
+        Assert.NotEqual("hidden", apparel.style.visibility);
+        Assert.NotEqual("hidden", fresh.style.visibility);
     }
 
     [Fact]
     public void ClickParent_CollapsesItsDirectChildren()
     {
         using var h = BuildTreemap();
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
 
         // Click Electronics (depth-1 parent) — its direct children hide.
         var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
@@ -103,20 +103,20 @@ public class TreemapDrilldownTests
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
         var laptops = h.Document.querySelector("rect[data-treemap-node='0.0.1']")!;
         var tvs = h.Document.querySelector("rect[data-treemap-node='0.0.2']")!;
-        Assert.Equal("none", phones.style.display);
-        Assert.Equal("none", laptops.style.display);
-        Assert.Equal("none", tvs.style.display);
+        Assert.Equal("hidden", phones.style.visibility);
+        Assert.Equal("hidden", laptops.style.visibility);
+        Assert.Equal("hidden", tvs.style.visibility);
 
         // Siblings of Electronics stay expanded — this collapse is independent of others.
         var mens = h.Document.querySelector("rect[data-treemap-node='0.1.0']")!;
-        Assert.NotEqual("none", mens.style.display);
+        Assert.NotEqual("hidden", mens.style.visibility);
     }
 
     [Fact]
     public void ClickParent_Twice_RestoresExpandedChildren()
     {
         using var h = BuildTreemap();
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
 
         var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
         svg.Fire(new DomEvent("click") { target = electronics });
@@ -124,29 +124,29 @@ public class TreemapDrilldownTests
 
         // After collapse → re-expand, Phones is back to visible.
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
-        Assert.NotEqual("none", phones.style.display);
+        Assert.NotEqual("hidden", phones.style.visibility);
     }
 
     [Fact]
     public void ClickLeaf_DoesNothing()
     {
         using var h = BuildTreemap();
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
 
         // Clicking a leaf (Phones) must NOT change any state — leaves aren't toggleable.
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
         svg.Fire(new DomEvent("click") { target = phones });
 
         // Phones still visible (default-expanded); other leaves untouched.
-        Assert.NotEqual("none", phones.style.display);
-        Assert.NotEqual("none", h.Document.querySelector("rect[data-treemap-node='0.1.0']")!.style.display);
+        Assert.NotEqual("hidden", phones.style.visibility);
+        Assert.NotEqual("hidden", h.Document.querySelector("rect[data-treemap-node='0.1.0']")!.style.visibility);
     }
 
     [Fact]
     public void MultipleParents_CanBeCollapsedIndependently()
     {
         using var h = BuildTreemap();
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
 
         var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
         var grocery = h.Document.querySelector("rect[data-treemap-node='0.2']")!;
@@ -154,9 +154,9 @@ public class TreemapDrilldownTests
         svg.Fire(new DomEvent("click") { target = grocery });
 
         // Both sets of children hidden; Apparel's stay visible (independent).
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.0.0']")!.style.display);
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.2.0']")!.style.display);
-        Assert.NotEqual("none", h.Document.querySelector("rect[data-treemap-node='0.1.0']")!.style.display);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.0.0']")!.style.visibility);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.2.0']")!.style.visibility);
+        Assert.NotEqual("hidden", h.Document.querySelector("rect[data-treemap-node='0.1.0']")!.style.visibility);
     }
 
     [Fact]
@@ -212,11 +212,11 @@ public class TreemapDrilldownTests
             b.WithSize(700, 500).WithTreemapDrilldown();
             b.AddSubPlot(1, 1, 1, ax => ax.Treemap(SampleRootDepth3).HideAllAxes());
         });
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
 
         // Sanity: depth-3 iPhone visible by default.
         var iphone = h.Document.querySelector("rect[data-treemap-node='0.0.0.0']")!;
-        Assert.NotEqual("none", iphone.style.display);
+        Assert.NotEqual("hidden", iphone.style.visibility);
 
         // Click ROOT (Catalog, depth-0). Its direct children (Electronics, Apparel) hide;
         // Electronics' children (Phones, Laptops) MUST also hide; Phones' children
@@ -224,10 +224,10 @@ public class TreemapDrilldownTests
         var root = h.Document.querySelector("rect[data-treemap-node='0']")!;
         svg.Fire(new DomEvent("click") { target = root });
 
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.0']")!.style.display);
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.0.0']")!.style.display);
-        Assert.Equal("none", iphone.style.display);
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.1']")!.style.display);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.0']")!.style.visibility);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.0.0']")!.style.visibility);
+        Assert.Equal("hidden", iphone.style.visibility);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.1']")!.style.visibility);
     }
 
     [Fact]
@@ -238,29 +238,29 @@ public class TreemapDrilldownTests
             b.WithSize(700, 500).WithTreemapDrilldown();
             b.AddSubPlot(1, 1, 1, ax => ax.Treemap(SampleRootDepth3).HideAllAxes());
         });
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
 
         // Phase W "steady pictures": every depth visible on first paint, including
         // depth-3 iPhone/Galaxy/Pixel — z-order ensures the deepest label wins in
         // any region where rects overlap.
         var iphone = h.Document.querySelector("rect[data-treemap-node='0.0.0.0']");
         Assert.NotNull(iphone);
-        Assert.NotEqual("none", iphone.style.display);
+        Assert.NotEqual("hidden", iphone.style.visibility);
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
-        Assert.NotEqual("none", phones.style.display);
+        Assert.NotEqual("hidden", phones.style.visibility);
 
         // Click Phones (depth-2) — its three depth-3 leaves collapse but Phones itself
         // stays visible. Independent of Electronics' / Apparel's expansion state.
         svg.Fire(new DomEvent("click") { target = phones });
-        Assert.NotEqual("none", phones.style.display);
-        Assert.Equal("none", iphone.style.display);
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.0.0.1']")!.style.display);
-        Assert.Equal("none", h.Document.querySelector("rect[data-treemap-node='0.0.0.2']")!.style.display);
+        Assert.NotEqual("hidden", phones.style.visibility);
+        Assert.Equal("hidden", iphone.style.visibility);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.0.0.1']")!.style.visibility);
+        Assert.Equal("hidden", h.Document.querySelector("rect[data-treemap-node='0.0.0.2']")!.style.visibility);
     }
 
     /// <summary>Regression for the v1.7.2 Phase R second-layer click bug, surfaced by the
     /// real-browser pixel-compare repro on 2026-04-19. The pan/zoom script
-    /// (<see cref="MatPlotLibNet.Rendering.Svg.SvgInteractivityScript"/>) calls
+    /// (<see cref="Transforms.SvgTransform"/>) calls
     /// <c>svg.setPointerCapture(e.pointerId)</c> on every <c>pointerdown</c>. In
     /// Chromium this redirects the synthetic <c>click</c> derived from <c>pointerup</c>
     /// to the SVG root rather than the rect under the cursor. Pre-fix the treemap script
@@ -285,14 +285,14 @@ public class TreemapDrilldownTests
         using var h = BuildTreemap();
         var root = h.Document.querySelector("rect[data-treemap-node='0']")!;
         Assert.NotNull(root);
-        Assert.NotEqual("none", root.style.display);
+        Assert.NotEqual("hidden", root.style.visibility);
     }
 
     [Fact]
     public void Click_RedirectedToSvgRoot_FallsBackTo_ElementFromPoint()
     {
         using var h = BuildTreemap();
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
         var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
 
@@ -304,13 +304,13 @@ public class TreemapDrilldownTests
         // Pre-click sanity: Phones is visible by default ("steady pictures" — every
         // parent expanded on first paint). The toggle must FLIP this to hidden via
         // the elementFromPoint fallback path even when click target is the SVG root.
-        Assert.NotEqual("none", phones.style.display);
+        Assert.NotEqual("hidden", phones.style.visibility);
 
         // Click event with target=SVG (not the rect) — the post-redirection shape.
         svg.Fire(new DomEvent("click") { target = svg, clientX = 200, clientY = 300 });
 
         // Toggle fired through the fallback path → Electronics' direct children collapsed.
-        Assert.Equal("none", phones.style.display);
+        Assert.Equal("hidden", phones.style.visibility);
     }
 
     /// <summary>Regression for the v1.7.2 Phase P click bug: a hover (pointermove without
@@ -323,12 +323,12 @@ public class TreemapDrilldownTests
     public void HoverWithoutButtonDown_DoesNotPoisonClickHandler()
     {
         using var h = BuildTreemap();
-        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var svg = h.Chart();
         var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
         var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
 
         // Pre-click: Phones is visible by default (steady-pictures initial state).
-        Assert.NotEqual("none", phones.style.display);
+        Assert.NotEqual("hidden", phones.style.visibility);
 
         // Hover the SVG (pointermove without any prior pointerdown) — must NOT poison
         // the drag-suppression flag. Two moves at >5 px from origin (0,0) so the buggy
@@ -339,6 +339,6 @@ public class TreemapDrilldownTests
         // Click the parent — toggle MUST fire (collapse Electronics) even after hovering.
         svg.Fire(new DomEvent("click") { target = electronics });
 
-        Assert.Equal("none", phones.style.display);
+        Assert.Equal("hidden", phones.style.visibility);
     }
 }

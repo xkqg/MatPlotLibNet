@@ -23,61 +23,27 @@ public class PlaygroundControllerTests
     private static readonly IColorMap[] _colorMapChoices =
         [ColorMaps.Viridis, ColorMaps.Plasma, ColorMaps.Inferno];
 
-    // ─── SelectThemeByIndex ───────────────────────────────────────────────────
+    // ─── selecting a theme or a colour map by its index ─────────────────────────
 
     [Fact]
-    public void SelectThemeByIndex_ValidIndex_ReturnsTheme()
+    public void AnIndexOfAChoice_SelectsThatChoice()
     {
-        var result = PlaygroundController.SelectThemeByIndex("1", _themeChoices);
-        Assert.NotNull(result);
-        Assert.Same(Theme.Dark, result);
+        Assert.Same(Theme.Dark, PlaygroundController.SelectThemeByIndex("1", _themeChoices));
+        Assert.Same(ColorMaps.Inferno, PlaygroundController.SelectColorMapByIndex("2", _colorMapChoices));
     }
 
-    [Fact]
-    public void SelectThemeByIndex_NullValue_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectThemeByIndex(null, _themeChoices));
-
-    [Fact]
-    public void SelectThemeByIndex_NonIntegerValue_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectThemeByIndex("abc", _themeChoices));
-
-    [Fact]
-    public void SelectThemeByIndex_NegativeIndex_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectThemeByIndex("-1", _themeChoices));
-
-    [Fact]
-    public void SelectThemeByIndex_IndexAtLength_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectThemeByIndex("3", _themeChoices));
-
-    [Fact]
-    public void SelectThemeByIndex_IndexBeyondLength_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectThemeByIndex("999", _themeChoices));
-
-    // ─── SelectColorMapByIndex ────────────────────────────────────────────────
-
-    [Fact]
-    public void SelectColorMapByIndex_ValidIndex_ReturnsColorMap()
+    /// <summary>A value that is no number, or no index of a choice, selects nothing, in either list.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("abc")]
+    [InlineData("-1")]
+    [InlineData("3")]
+    [InlineData("999")]
+    public void AValueThatIsNoIndexOfAChoice_SelectsNothing(string? value)
     {
-        var result = PlaygroundController.SelectColorMapByIndex("2", _colorMapChoices);
-        Assert.NotNull(result);
-        Assert.Same(ColorMaps.Inferno, result);
+        Assert.Null(PlaygroundController.SelectThemeByIndex(value, _themeChoices));
+        Assert.Null(PlaygroundController.SelectColorMapByIndex(value, _colorMapChoices));
     }
-
-    [Fact]
-    public void SelectColorMapByIndex_NullValue_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectColorMapByIndex(null, _colorMapChoices));
-
-    [Fact]
-    public void SelectColorMapByIndex_NonIntegerValue_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectColorMapByIndex("abc", _colorMapChoices));
-
-    [Fact]
-    public void SelectColorMapByIndex_NegativeIndex_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectColorMapByIndex("-1", _colorMapChoices));
-
-    [Fact]
-    public void SelectColorMapByIndex_IndexAtLength_ReturnsNull()
-        => Assert.Null(PlaygroundController.SelectColorMapByIndex("3", _colorMapChoices));
 
     // ─── TryBuild ─────────────────────────────────────────────────────────────
 
@@ -109,17 +75,17 @@ public class PlaygroundControllerTests
 
     // ─── BuildDataTable ───────────────────────────────────────────────────────
 
-    /// <summary>The playground shows what the library does, and what it does now is give the picture a readable
-    /// alternative. The preview pane can show it because the figure can produce it — same figure, same options.</summary>
-    [Fact]
-    public void BuildDataTable_ValidExample_IsTheFiguresDataAsAnHtmlTable()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string html = PlaygroundController.BuildDataTable(PlaygroundExample.LineChart, new PlaygroundOptions { Title = "Test" });
+        //  The playground shows what the library does, and what it does now is give the picture a readable alternative. The preview pane
+        // can show it because the figure can produce it — same figure, same options.
+        new DrawnToken("BuildDataTable_ValidExample_IsTheFiguresDataAsAnHtmlTable", () => PlaygroundController.BuildDataTable(PlaygroundExample.LineChart, new PlaygroundOptions { Title = "Test" }), "<table", "<caption>Test", "scope=\"col\""),
+    };
 
-        Assert.Contains("<table", html);
-        Assert.Contains("<caption>Test", html);
-        Assert.Contains("scope=\"col\"", html);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>An example that cannot be built has no table either — and says so with nothing, not with an
     /// exception: the preview pane already reports the failure once, on the chart.</summary>

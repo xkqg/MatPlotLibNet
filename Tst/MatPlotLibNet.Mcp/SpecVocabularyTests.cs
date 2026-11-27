@@ -47,17 +47,63 @@ public class SpecVocabularyTests
         var property = EnumValuedFields.Single(candidate => WireName(candidate) == field);
         var enumType = EnumOf(property)!;
 
-        var rule = new SpecVocabulary().RuleFor(SpecNodeKind.Series, field, seriesType: null);
+        var rule = new ChartSpecReader.SpecVocabulary().RuleFor(ChartSpecReader.SpecNodeKind.Series, field, seriesType: null);
 
         Assert.True(rule is not null,
             $"The series field '{field}' holds {enumType.Name}, and the spec vocabulary has no row for it: a misspelt value would pass the reader and be dropped by the serializer without a word.");
         Assert.Equal(Enum.GetNames(enumType), rule.Accepted);
     }
 
+    /// <summary>The fields a node of each kind is normalised by are the vocabulary's own rows: every field it lists has a rule there,
+    /// so the reader cannot ask about a field the vocabulary does not know, nor skip one it does (a patch's plane was skipped while the
+    /// reader typed its own lists).</summary>
+    [Fact]
+    public void TheFieldsOfEveryKind_AreTheFieldsItHasARuleFor()
+    {
+        var vocabulary = new ChartSpecReader.SpecVocabulary();
+
+        foreach (var kind in Enum.GetValues<ChartSpecReader.SpecNodeKind>())
+        {
+            foreach (var field in vocabulary.FieldsOf(kind))
+            {
+                Assert.True(vocabulary.RuleFor(kind, field, seriesType: "bar") is not null, $"{kind}.{field} is listed but has no rule");
+            }
+        }
+
+        Assert.Contains("zDir", vocabulary.FieldsOf(ChartSpecReader.SpecNodeKind.Patch));
+        Assert.Equal(["direction"], vocabulary.FieldsOf(ChartSpecReader.SpecNodeKind.Ticks));
+        Assert.Contains("orientation", vocabulary.FieldsOf(ChartSpecReader.SpecNodeKind.Series));
+        // A kind that carries no enum field (none does today) has an empty list, not a missing one.
+        Assert.Empty(vocabulary.FieldsOf((ChartSpecReader.SpecNodeKind)(-1)));
+    }
+
+    /// <summary>A series' orientation holds the enum its kind reads it as, the kind named by its class.</summary>
+    [Theory]
+    [InlineData("bar", "Vertical", "Horizontal")]
+    [InlineData("count", "Vertical", "Horizontal")]
+    [InlineData("area", "Vertical", "Horizontal")]
+    [InlineData("bulletgraph", "Horizontal", "Vertical")]
+    public void TheOrientationOfASeries_IsTheEnumItsKindReads(string kind, string first, string second)
+    {
+        var rule = new ChartSpecReader.SpecVocabulary().RuleFor(ChartSpecReader.SpecNodeKind.Series, "orientation", kind);
+
+        Assert.NotNull(rule);
+        Assert.Equal([first, second], rule.Accepted);
+        Assert.Equal(second, rule.Canonical(second.ToLowerInvariant()));
+    }
+
+    [Theory]
+    [InlineData("line")]
+    [InlineData(null)]
+    public void ASeriesOfAnotherKind_HasNoOrientation(string? kind)
+    {
+        Assert.Null(new ChartSpecReader.SpecVocabulary().RuleFor(ChartSpecReader.SpecNodeKind.Series, "orientation", kind));
+    }
+
     [Fact]
     public void TheNetworkGraphLayout_AcceptsTheArcDiagram_InAnySpelling()
     {
-        var rule = new SpecVocabulary().RuleFor(SpecNodeKind.Series, "networkGraphLayout", seriesType: null);
+        var rule = new ChartSpecReader.SpecVocabulary().RuleFor(ChartSpecReader.SpecNodeKind.Series, "networkGraphLayout", seriesType: null);
 
         Assert.NotNull(rule);
         Assert.Contains("Arc", rule.Accepted);
@@ -88,7 +134,7 @@ public class SpecVocabularyTests
     {
         var data = new List<(string Kind, string Field)>();
         var assembly = typeof(SeriesDto).Assembly;
-        foreach (var (kind, record) in new[] { (SpecNodeKind.Axes, "AxesDto"), (SpecNodeKind.Spine, "SpineConfigDto") })
+        foreach (var (kind, record) in new[] { (ChartSpecReader.SpecNodeKind.Axes, "AxesDto"), (ChartSpecReader.SpecNodeKind.Spine, "SpineConfigDto") })
         {
             var type = assembly.GetType($"MatPlotLibNet.Serialization.{record}")!;
             foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(property => property.PropertyType == typeof(string)))
@@ -108,7 +154,7 @@ public class SpecVocabularyTests
     [MemberData(nameof(AxesAndSpineStringFields))]
     public void EveryTextFieldOfTheAxesAndSpineRecords_IsFreeTextOrNamesTheValuesItAccepts(string kind, string field)
     {
-        var rule = new SpecVocabulary().RuleFor(Enum.Parse<SpecNodeKind>(kind), field, seriesType: null);
+        var rule = new ChartSpecReader.SpecVocabulary().RuleFor(Enum.Parse<ChartSpecReader.SpecNodeKind>(kind), field, seriesType: null);
 
         Assert.True(rule is not null,
             $"The {kind} field '{field}' is text on the wire and not on the list of free-text fields, and the spec vocabulary has no row for it: a misspelt value would pass the reader and be dropped by the serializer without a word.");
@@ -133,33 +179,34 @@ public class SpecVocabularyTests
     /// <summary>Where each record that holds an enum field stands in the spec: the node kind the vocabulary keys its rules by. A
     /// record of the figure JSON that holds an enum field and is not named here turns the guard below red, so a new record cannot
     /// carry an enum the reader never sees.</summary>
-    private static readonly IReadOnlyDictionary<string, SpecNodeKind> KindOfRecord = new Dictionary<string, SpecNodeKind>(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, ChartSpecReader.SpecNodeKind> KindOfRecord = new Dictionary<string, ChartSpecReader.SpecNodeKind>(StringComparer.Ordinal)
     {
-        ["SeriesDto"] = SpecNodeKind.Series,
-        ["AxesDto"] = SpecNodeKind.Axes,
-        ["AxisDto"] = SpecNodeKind.Axis,
-        ["AnnotationDto"] = SpecNodeKind.Annotation,
-        ["ReferenceLineDto"] = SpecNodeKind.ReferenceLine,
-        ["SpanRegionDto"] = SpecNodeKind.Span,
-        ["TrendlineDto"] = SpecNodeKind.Trendline,
-        ["HorizontalLevelDto"] = SpecNodeKind.HorizontalLevel,
-        ["AxisBreakDto"] = SpecNodeKind.AxisBreak,
-        ["SignalMarkerDto"] = SpecNodeKind.Signal,
-        ["LegendDto"] = SpecNodeKind.Legend,
-        ["ColorBarDto"] = SpecNodeKind.ColorBar,
-        ["GridDto"] = SpecNodeKind.Grid,
-        ["GridChangeDto"] = SpecNodeKind.Grid,
-        ["SpineConfigDto"] = SpecNodeKind.Spine,
-        ["TickConfigDto"] = SpecNodeKind.Ticks,
-        ["TextStyleDto"] = SpecNodeKind.TextStyle,
-        ["FontDto"] = SpecNodeKind.Font,
-        ["FigureTextDto"] = SpecNodeKind.FigureText,
-        ["ZoomIndicatorDto"] = SpecNodeKind.ZoomIndicator,
-        ["PropCyclerDto"] = SpecNodeKind.PropCycler,
-        ["PatchDto"] = SpecNodeKind.Patch,
-        ["ArrowDto"] = SpecNodeKind.Patch,
-        ["ThemeDto"] = SpecNodeKind.Theme,
-        ["TreeNodeDto"] = SpecNodeKind.TreeNode,
+        ["SeriesDto"] = ChartSpecReader.SpecNodeKind.Series,
+        ["AxesDto"] = ChartSpecReader.SpecNodeKind.Axes,
+        ["AxisDto"] = ChartSpecReader.SpecNodeKind.Axis,
+        ["AnnotationDto"] = ChartSpecReader.SpecNodeKind.Annotation,
+        ["ReferenceLineDto"] = ChartSpecReader.SpecNodeKind.ReferenceLine,
+        ["SpanRegionDto"] = ChartSpecReader.SpecNodeKind.Span,
+        ["TrendlineDto"] = ChartSpecReader.SpecNodeKind.Trendline,
+        ["HorizontalLevelDto"] = ChartSpecReader.SpecNodeKind.HorizontalLevel,
+        ["AxisBreakDto"] = ChartSpecReader.SpecNodeKind.AxisBreak,
+        ["SignalMarkerDto"] = ChartSpecReader.SpecNodeKind.Signal,
+        ["LegendDto"] = ChartSpecReader.SpecNodeKind.Legend,
+        ["ColorBarDto"] = ChartSpecReader.SpecNodeKind.ColorBar,
+        ["GridDto"] = ChartSpecReader.SpecNodeKind.Grid,
+        ["GridChangeDto"] = ChartSpecReader.SpecNodeKind.Grid,
+        ["SpineConfigDto"] = ChartSpecReader.SpecNodeKind.Spine,
+        ["TickConfigDto"] = ChartSpecReader.SpecNodeKind.Ticks,
+        ["TextStyleDto"] = ChartSpecReader.SpecNodeKind.TextStyle,
+        ["FontDto"] = ChartSpecReader.SpecNodeKind.Font,
+        ["FigureTextDto"] = ChartSpecReader.SpecNodeKind.FigureText,
+        ["ZoomIndicatorDto"] = ChartSpecReader.SpecNodeKind.ZoomIndicator,
+        ["PropCyclerDto"] = ChartSpecReader.SpecNodeKind.PropCycler,
+        ["PatchDto"] = ChartSpecReader.SpecNodeKind.Patch,
+        ["ArrowDto"] = ChartSpecReader.SpecNodeKind.Patch,
+        ["ThemeDto"] = ChartSpecReader.SpecNodeKind.Theme,
+        ["BoxLookDto"] = ChartSpecReader.SpecNodeKind.BoxLook,
+        ["TreeNodeDto"] = ChartSpecReader.SpecNodeKind.TreeNode,
     };
 
     /// <summary>One enum-valued member of a record of the figure JSON.</summary>
@@ -218,7 +265,7 @@ public class SpecVocabularyTests
     [Fact]
     public void EveryEnumFieldReachableFromFigureDto_IsNormalised()
     {
-        var vocabulary = new SpecVocabulary();
+        var vocabulary = new ChartSpecReader.SpecVocabulary();
         var gaps = new List<string>();
         foreach (var field in RecordsReachableFrom(Dto("FigureDto")).SelectMany(EnumFieldsOf))
         {
@@ -248,14 +295,14 @@ public class SpecVocabularyTests
     /// in the spec: the node kind whose <c>type</c> rule lists its kinds. A family of the figure JSON that is not named here turns the
     /// guard below red, so a family added tomorrow cannot be read by a serializer that skips an unknown kind while the reader never
     /// checks the kind.</summary>
-    private static readonly IReadOnlyDictionary<string, SpecNodeKind> KindOfFamily = new Dictionary<string, SpecNodeKind>(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, ChartSpecReader.SpecNodeKind> KindOfFamily = new Dictionary<string, ChartSpecReader.SpecNodeKind>(StringComparer.Ordinal)
     {
-        ["TickLocatorDto"] = SpecNodeKind.TickLocator,
-        ["TickFormatterDto"] = SpecNodeKind.TickFormatter,
-        ["NormalizerDto"] = SpecNodeKind.Normalizer,
-        ["ColorMapDto"] = SpecNodeKind.ColorMap,
-        ["PatchDto"] = SpecNodeKind.Patch,
-        ["AxisTransformDto"] = SpecNodeKind.AxisLink,
+        ["TickLocatorDto"] = ChartSpecReader.SpecNodeKind.TickLocator,
+        ["TickFormatterDto"] = ChartSpecReader.SpecNodeKind.TickFormatter,
+        ["NormalizerDto"] = ChartSpecReader.SpecNodeKind.Normalizer,
+        ["ColorMapDto"] = ChartSpecReader.SpecNodeKind.ColorMap,
+        ["PatchDto"] = ChartSpecReader.SpecNodeKind.Patch,
+        ["AxisTransformDto"] = ChartSpecReader.SpecNodeKind.AxisLink,
     };
 
     /// <summary>Every described family the figure JSON reaches has a row of its kinds in the vocabulary, spelt as its attributes
@@ -264,7 +311,7 @@ public class SpecVocabularyTests
     [Fact]
     public void EveryDescribedFamilyReachableFromFigureDto_NamesItsKindsInTheVocabulary()
     {
-        var vocabulary = new SpecVocabulary();
+        var vocabulary = new ChartSpecReader.SpecVocabulary();
         var families = RecordsReachableFrom(Dto("FigureDto")).Where(record => record.IsDefined(typeof(JsonPolymorphicAttribute), inherit: false)).ToList();
         var gaps = new List<string>();
         foreach (var family in families)

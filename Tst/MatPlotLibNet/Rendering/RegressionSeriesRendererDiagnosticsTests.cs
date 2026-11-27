@@ -23,23 +23,14 @@ public class RegressionSeriesRendererDiagnosticsTests
     [Fact]
     public void RegressionSeriesRenderer_SingularFit_EmitsDiagnostic()
     {
-        ChartDiagnostic? received = null;
-        void Handler(ChartDiagnostic d) => received = d;
-        ChartDiagnostics.Emitted += Handler;
-        try
-        {
-            string svg = Plt.Create()
-                .AddSubPlot(1, 1, 1, ax => ax.Regression([1.0, 2.0], [1.0]))
-                .ToSvg();
+        using var capture = new DiagnosticsCapture();
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Regression([1.0, 2.0], [1.0]))
+            .ToSvg();
 
-            Assert.NotNull(received);
-            Assert.Equal("RegressionSeriesRenderer", received!.Value.Source);
-            Assert.NotNull(received.Value.Exception);
-            Assert.Contains("<svg", svg);
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Handler;
-        }
+        Assert.NotNull(capture.Last);
+        Assert.Equal("RegressionSeriesRenderer", capture.Last!.Value.Source);
+        Assert.NotNull(capture.Last.Value.Exception);
+        Assert.Contains("<svg", svg);
     }
 }

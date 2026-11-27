@@ -80,7 +80,9 @@ in `Font.Family`. Registering the same family and face twice throws; registering
 bundled one and reports that through `ChartDiagnostics`.
 
 A font that is installed on the machine can be used by name alone, without registering anything. The registered
-fonts are tried first, then the fonts the operating system knows.
+fonts are tried first, then the fonts the operating system knows. The default family, `sans-serif`, is the bundled
+DejaVu Sans, as in matplotlib, so text in the default family looks the same on every machine; it is the last resort of
+a stack, so `"Arial, sans-serif"` draws in Arial where Arial is installed.
 
 ## When a font is missing
 

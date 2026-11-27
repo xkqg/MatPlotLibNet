@@ -23,13 +23,13 @@ public abstract class OhlcSeries : ChartSeries, IPriceSeries
 
     /// <summary>An optional label for each bar, such as its date: it names the bar in the series' data table and, for
     /// candlesticks, labels the category axis. <see langword="null"/> leaves the bars numbered.</summary>
-    public string[]? DateLabels { get; set; }
+    public string[]? DateLabels { get; set => Change(ref field, value); }
 
     /// <summary>The colour of the bars that closed at or above their open. Default green.</summary>
-    public Color UpColor { get; set; } = Colors.Green;
+    public Color UpColor { get; set => Change(ref field, value); } = UpDownColors.Standard.Up;
 
     /// <summary>The colour of the bars that closed below their open. Default red.</summary>
-    public Color DownColor { get; set; } = Colors.Red;
+    public Color DownColor { get; set => Change(ref field, value); } = UpDownColors.Standard.Down;
 
     /// <inheritdoc />
     public double[] PriceData => Close;
@@ -43,6 +43,10 @@ public abstract class OhlcSeries : ChartSeries, IPriceSeries
         Close = close;
     }
 
+    /// <summary>The columns of a bar's prices, each a position along Y: open, high, low, close.</summary>
+    internal static IReadOnlyList<ChartDataColumn> PriceColumns { get; } =
+        [ChartDataColumn.Position(DataAxis.Y, "open"), ChartDataColumn.Position(DataAxis.Y, "high"), ChartDataColumn.Position(DataAxis.Y, "low"), ChartDataColumn.Position(DataAxis.Y, "close")];
+
     /// <inheritdoc />
     /// <remarks>Five columns. The first is the bar's <see cref="DateLabels"/> entry when the series carries
     /// them — that is the only thing a bar knows about its own x position — and its index otherwise.</remarks>
@@ -50,18 +54,14 @@ public abstract class OhlcSeries : ChartSeries, IPriceSeries
     {
         int count = Math.Min(Math.Min(Open.Length, High.Length), Math.Min(Low.Length, Close.Length));
         bool dated = DateLabels is { Length: > 0 };
-        var columns = new ChartDataColumn[]
-        {
-            dated ? new("date", DataColumnKind.Text) : new("x", Axis: DataAxis.X),
-            new("open", Axis: DataAxis.Y), new("high", Axis: DataAxis.Y), new("low", Axis: DataAxis.Y), new("close", Axis: DataAxis.Y),
-        };
+        ChartDataColumn[] columns = [dated ? new("date", DataColumnKind.Text) : ChartDataColumn.Position(DataAxis.X), .. PriceColumns];
 
         var rows = new IReadOnlyList<DataCell>[count];
         for (int i = 0; i < count; i++)
         {
             rows[i] =
             [
-                dated ? DataCell.FromText(i < DateLabels!.Length ? DateLabels[i] : "") : DataCell.FromNumber(i),
+                dated ? DataCell.FromText(DateLabels.ElementOr(i, "")) : DataCell.FromNumber(i),
                 DataCell.FromNumber(Open[i]), DataCell.FromNumber(High[i]),
                 DataCell.FromNumber(Low[i]), DataCell.FromNumber(Close[i]),
             ];

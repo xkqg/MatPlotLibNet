@@ -22,6 +22,14 @@ public sealed class DomDocument
     /// that the embedded scripts call).</summary>
     internal void AttachEngine(Jint.Engine engine) => Engine = engine;
 
+    /// <summary>Whether the page lays its charts out. A chart that is hidden or not yet laid out has no screen transform: its
+    /// <c>getScreenCTM()</c> answers <see langword="null"/>.</summary>
+    internal bool LaysOut { get; set; } = true;
+
+    /// <summary>Whether the browser refuses to hold a pointer, as it does with a <c>NotFoundError</c> for a pointer it does not
+    /// know (a synthetic event, one already released).</summary>
+    internal bool RefusesPointerCapture { get; set; }
+
     /// <summary>Mirrors browser <c>document.currentScript</c> — the script element
     /// that is currently executing. The harness sets this before each
     /// <c>engine.Execute(scriptBody)</c> call so the script can self-locate its

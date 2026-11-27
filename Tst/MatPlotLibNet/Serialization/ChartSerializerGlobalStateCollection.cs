@@ -16,7 +16,7 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// a non-deterministic, environment-dependent test failure. Tagging every SeriesRegistry
 /// reader/writer test class into this <see cref="CollectionDefinitionAttribute.DisableParallelization"/>
 /// collection makes them run one at a time — no reader ever observes a registry mid-mutation.
-/// (Mirrors the sibling <c>ChartServicesGlobalState</c> collection for the ChartServices statics.)
+/// (Mirrors the sibling <c>ChartServicesGlobalState</c> collection for the five static defaults.)
 /// </summary>
 [CollectionDefinition("ChartSerializerGlobalState", DisableParallelization = true)]
 public sealed class ChartSerializerGlobalStateCollection

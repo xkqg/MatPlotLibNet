@@ -76,19 +76,19 @@ public sealed class ViewHistoryTests
         Assert.Equal(50, mgr.Count);
     }
 
-    [Fact]
-    public void Back_AtBeginning_ReturnsNull()
+    public static TheoryData<Func<ViewHistoryManager, object?>> StepsPastAnEnd => new()
+    {
+        manager => manager.Back(),
+        manager => manager.Forward(),
+    };
+
+    [Theory]
+    [MemberData(nameof(StepsPastAnEnd))]
+    public void AStepPastTheEndOfTheHistory_ReturnsNull(Func<ViewHistoryManager, object?> step)
     {
         var mgr = new ViewHistoryManager();
         mgr.Push(0, 10, 0, 100);
-        Assert.Null(mgr.Back());
+        Assert.Null(step(mgr));
     }
 
-    [Fact]
-    public void Forward_AtEnd_ReturnsNull()
-    {
-        var mgr = new ViewHistoryManager();
-        mgr.Push(0, 10, 0, 100);
-        Assert.Null(mgr.Forward());
-    }
 }

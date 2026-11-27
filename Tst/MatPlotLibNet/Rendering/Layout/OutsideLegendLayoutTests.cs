@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 
@@ -11,25 +12,25 @@ namespace MatPlotLibNet.Tests.Rendering.Layout;
 
 /// <summary>
 /// Covers the Feature C deliverable: outside legend reservation in
-/// <see cref="ConstrainedLayoutEngine"/> via the shared <see cref="LegendMeasurer"/>.
+/// <see cref="ConstrainedLayoutEngine"/> via the shared <see cref="LegendLayoutCalculator.MeasureLegendBox"/>.
 /// </summary>
 public class OutsideLegendLayoutTests
 {
     // ──────────────────────────────────────────────────────────────────────────
-    // LegendMeasurer invariants
+    // Measured legend box invariants
     // ──────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LegendMeasurer_EmptyLabels_ReturnsZeroSize()
+    public void LegendBox_EmptyLabels_ReturnsZeroSize()
     {
         var axes = new Axes();
         axes.Plot([1.0, 2.0], [1.0, 2.0]);  // series with no label
-        var size = LegendMeasurer.MeasureBox(axes, new SvgRenderContext(), Theme.MatplotlibV2);
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, new SvgRenderContext(), Theme.MatplotlibV2);
         Assert.Equal(Size.Empty, size);
     }
 
     [Fact]
-    public void LegendMeasurer_LongLabels_ProduceLargerBoxThanShortLabels()
+    public void LegendBox_LongLabels_ProduceLargerBoxThanShortLabels()
     {
         var shortAxes = new Axes();
         shortAxes.Plot([1.0, 2.0], [1.0, 2.0]).Label = "A";
@@ -37,23 +38,59 @@ public class OutsideLegendLayoutTests
         longAxes.Plot([1.0, 2.0], [1.0, 2.0]).Label = "A very long descriptive label indeed";
 
         var ctx = new SvgRenderContext();
-        var shortBox = LegendMeasurer.MeasureBox(shortAxes, ctx, Theme.MatplotlibV2);
-        var longBox = LegendMeasurer.MeasureBox(longAxes, ctx, Theme.MatplotlibV2);
+        var shortBox = LegendLayoutCalculator.MeasureLegendBox(shortAxes, ctx, Theme.MatplotlibV2);
+        var longBox = LegendLayoutCalculator.MeasureLegendBox(longAxes, ctx, Theme.MatplotlibV2);
 
         Assert.True(longBox.Width > shortBox.Width,
             $"Expected long label to widen box; got short={shortBox.Width}, long={longBox.Width}");
     }
 
+    /// <summary>Whether a position stands outside the plot is said by its strategy, the one owner of what a legend position
+    /// does: the four outside positions, and no other.</summary>
     [Fact]
-    public void LegendMeasurer_IsOutsidePosition_ClassifiesCorrectly()
+    public void OnlyTheFourOutsidePositions_StandOutsideThePlot()
     {
-        Assert.True(LegendMeasurer.IsOutsidePosition(LegendPosition.OutsideRight));
-        Assert.True(LegendMeasurer.IsOutsidePosition(LegendPosition.OutsideLeft));
-        Assert.True(LegendMeasurer.IsOutsidePosition(LegendPosition.OutsideTop));
-        Assert.True(LegendMeasurer.IsOutsidePosition(LegendPosition.OutsideBottom));
-        Assert.False(LegendMeasurer.IsOutsidePosition(LegendPosition.UpperRight));
-        Assert.False(LegendMeasurer.IsOutsidePosition(LegendPosition.Best));
-        Assert.False(LegendMeasurer.IsOutsidePosition(LegendPosition.Center));
+        LegendPosition[] outside = [LegendPosition.OutsideRight, LegendPosition.OutsideLeft, LegendPosition.OutsideTop, LegendPosition.OutsideBottom];
+        foreach (LegendPosition position in Enum.GetValues<LegendPosition>())
+            Assert.Equal(outside.Contains(position), LegendPositionStrategyFactory.Create(position).StandsOutside);
+    }
+
+    private static readonly Sides<double> Needs = new(Left: 10, Bottom: 20, Top: 30, Right: 40);
+    private static readonly Size Box = new(50, 25);
+
+    private static Sides<double> Reserved(LegendPosition position, Sides<double> needs, Sides<double>? past = null) =>
+        LegendPositionStrategyFactory.Create(position).ReserveFor(Box, needs, past ?? needs);
+
+    /// <summary>An outside box keeps what its edge needs for what the box stands past (what the axes draws there and the pad), the box
+    /// and the gap on either side of it (16), and never less than the edge needs already: a colour bar in the margin stands beside the
+    /// legend, not under it. Box 50 x 25.</summary>
+    [Theory]
+    [InlineData(LegendPosition.OutsideRight, 40, 0, 66)]    // nothing drawn past the right spine: the box and its gaps
+    [InlineData(LegendPosition.OutsideRight, 100, 0, 100)]  // a colour bar needs more
+    [InlineData(LegendPosition.OutsideRight, 40, 40, 106)]  // mirrored labels past the right spine: the box stands past them
+    [InlineData(LegendPosition.OutsideLeft, 10, 10, 76)]
+    [InlineData(LegendPosition.OutsideTop, 30, 30, 71)]
+    [InlineData(LegendPosition.OutsideBottom, 20, 20, 61)]
+    [InlineData(LegendPosition.OutsideBottom, 100, 20, 100)] // a colour bar below needs more
+    public void AnOutsideLegend_KeepsWhatItStandsPast_TheBoxAndItsGaps_AtLeastWhatTheEdgeNeeds(LegendPosition position, double need, double past, double kept)
+    {
+        Sides<double> On(double value) => position switch
+        {
+            LegendPosition.OutsideRight => Needs with { Right = value },
+            LegendPosition.OutsideLeft => Needs with { Left = value },
+            LegendPosition.OutsideTop => Needs with { Top = value },
+            _ => Needs with { Bottom = value },
+        };
+
+        Assert.Equal(On(kept), Reserved(position, On(need), On(past)));
+    }
+
+    [Fact]
+    public void ALegendInsideThePlot_ReservesNothing()
+    {
+        foreach (LegendPosition position in Enum.GetValues<LegendPosition>())
+            if (!LegendPositionStrategyFactory.Create(position).StandsOutside)
+                Assert.Equal(Needs, Reserved(position, Needs));
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -143,10 +180,13 @@ public class OutsideLegendLayoutTests
     // AxesRenderer — outside legend SVG placement
     // ──────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void OutsideRight_Renders_WithoutErrorAndEmitsLegendElements()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Legend frame is a rectangle and the labels are rendered as glyph paths — the most
+        // reliable invariant is that the SVG was produced without throwing and contains the
+        // "Chart legend" accessibility group that RenderLegend always emits.
+        new DrawnToken("OutsideRight_Renders_WithoutErrorAndEmitsLegendElements", () => Plt.Create()
             .WithSize(900, 500)
             .TightLayout()
             .AddSubPlot(1, 1, 1, ax =>
@@ -155,12 +195,10 @@ public class OutsideLegendLayoutTests
                 ax.Plot([1.0, 2.0, 3.0], [2.0, 1.0, 3.0], s => s.Label = "SeriesB");
                 ax.WithLegend(l => l with { Position = LegendPosition.OutsideRight });
             })
-            .ToSvg();
+            .ToSvg(), "Chart legend", "<svg"),
+    };
 
-        // Legend frame is a rectangle and the labels are rendered as glyph paths — the most
-        // reliable invariant is that the SVG was produced without throwing and contains the
-        // "Chart legend" accessibility group that RenderLegend always emits.
-        Assert.Contains("Chart legend", svg);
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

@@ -14,7 +14,7 @@ internal readonly record struct SupertrendPoint(double Line, int Direction, bool
 /// above and below the midpoint of the bar; a band only moves toward the price, unless the close before broke through it; the
 /// trend turns up when the close is above the upper band of the bar before and down when it is below the lower one. The first value comes with
 /// the first average true range, so the step says no value (a 0 direction) before it.</summary>
-internal struct SupertrendStep
+internal struct SupertrendStep : IHlcStep<SupertrendPoint>
 {
     private readonly double _multiplier;
     private AtrStep _atr;
@@ -37,7 +37,7 @@ internal struct SupertrendStep
     /// <param name="high">The high of the bar.</param>
     /// <param name="low">The low of the bar.</param>
     /// <param name="close">The close of the bar.</param>
-    internal SupertrendPoint Next(double high, double low, double close)
+    public SupertrendPoint Next(double high, double low, double close)
     {
         double atr = _atr.Next(high, low, close);
         double previousClose = _previousClose;

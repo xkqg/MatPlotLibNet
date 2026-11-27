@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
@@ -31,25 +32,16 @@ public class ChordSeriesRendererTests
         return axes;
     }
 
-    private static RecordingRenderContext Draw(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        AxesRenderer.Create(axes, Box, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     private static PathSegment[][] Paths(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawPath").Select(c => (PathSegment[])((dynamic)c.Args!).segments)];
+        [.. ctx.Of<DrawPathCall>().Select(c => c.Segments)];
 
     private static Color?[] Fills(RecordingRenderContext ctx) =>
-        [.. ctx.OfKind("DrawPath").Select(c => (Color?)((dynamic)c.Args!).fill)];
-
-    private static double Distance(Point a, Point b) => Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
+        [.. ctx.Of<DrawPathCall>().Select(c => c.Fill)];
 
     [Fact]
     public void ThereIsOnePathForEachArc_ThenOneForEachRibbon_TheLargestFirst()
     {
-        var ctx = Draw(ChordAxes(out _));
+        var ctx = ChordAxes(out _).Drawn(Box);
 
         // Arcs: 3. Ribbons: (0,1) of 5 + 3, (0,2) of 2, (2,1) of 4, (2,2) of 6: four, largest first by size: 8, 6, 4, 2.
         var fills = Fills(ctx);
@@ -60,7 +52,7 @@ public class ChordSeriesRendererTests
     [Fact]
     public void TheRibbons_WearTheColourOfTheirSource_ABitTransparent()
     {
-        var ctx = Draw(ChordAxes(out var series));
+        var ctx = ChordAxes(out var series).Drawn(Box);
         var fills = Fills(ctx);
         var groupColours = fills.Take(3).Select(c => c!.Value).ToArray();
 
@@ -75,14 +67,18 @@ public class ChordSeriesRendererTests
     [Fact]
     public void AnArcStartsAtTwelveOClock_OnTheRim_AndTheRingIsCentredInThePlot()
     {
-        var ctx = Draw(ChordAxes(out _));
+        var ctx = ChordAxes(out _).Drawn(Box);
 
+        // The first group's arc is a ring wedge: it begins on the inner rim, goes out to the outer rim, then runs along it.
         var first = Paths(ctx)[0];
-        var start = Assert.IsType<MoveToSegment>(first[0]).Point;
-        var arc = Assert.IsType<ArcSegment>(first[1]);
+        var inner = Assert.IsType<MoveToSegment>(first[0]).Point;
+        var start = Assert.IsType<LineToSegment>(first[1]).Point;
+        var arc = Assert.IsType<ArcSegment>(first[2]);
 
         Assert.Equal(Centre.X, start.X, 6);          // straight up from the centre
         Assert.True(start.Y < Centre.Y);
+        Assert.Equal(Centre.X, inner.X, 6);
+        Assert.True(inner.Y > start.Y && inner.Y < Centre.Y);
         double rim = Centre.Y - start.Y;
         Assert.True(rim > 0.7 * Box.Width / 2 && rim < Box.Width / 2);   // the names have room outside it
         Assert.Equal(Centre, arc.Center);
@@ -91,9 +87,50 @@ public class ChordSeriesRendererTests
     }
 
     [Fact]
+    public void TheRingOfArcs_IsTheOutlineOfARingWedgePerArc_ThatRingWedgeNamesForASliceOfARing()
+    {
+        var axes = ChordAxes(out var series);
+        var paths = Paths(axes.Drawn(Box));
+        var outer = paths[0].OfType<ArcSegment>().First().RadiusX;
+        var inner = outer * (1 - 0.07);
+
+        var arcs = series.Layout().Arcs;
+        for (int i = 0; i < arcs.Count; i++)
+        {
+            var wedge = new RingWedge(Centre.X, Centre.Y, inner, outer, arcs[i].Start.ToDegrees() - 90, arcs[i].End.ToDegrees() - 90).Path();
+            Assert.Equal(wedge.Count, paths[i].Length);
+            for (int segment = 0; segment < wedge.Count; segment++) AssertSame(wedge[segment], paths[i][segment]);
+        }
+    }
+
+    private static void AssertSame(PathSegment expected, PathSegment actual)
+    {
+        Assert.Equal(expected.GetType(), actual.GetType());
+        switch (expected)
+        {
+            case MoveToSegment move: AssertSame(move.Point, ((MoveToSegment)actual).Point); break;
+            case LineToSegment line: AssertSame(line.Point, ((LineToSegment)actual).Point); break;
+            case ArcSegment arc:
+                var drawn = (ArcSegment)actual;
+                AssertSame(arc.Center, drawn.Center);
+                Assert.Equal(arc.RadiusX, drawn.RadiusX, 6);
+                Assert.Equal(arc.RadiusY, drawn.RadiusY, 6);
+                Assert.Equal(arc.StartAngle, drawn.StartAngle, 6);
+                Assert.Equal(arc.EndAngle, drawn.EndAngle, 6);
+                break;
+        }
+    }
+
+    private static void AssertSame(Point expected, Point actual)
+    {
+        Assert.Equal(expected.X, actual.X, 6);
+        Assert.Equal(expected.Y, actual.Y, 6);
+    }
+
+    [Fact]
     public void ARibbon_LeavesTheRing_BendsThroughTheCentre_AndArrivesAtTheOtherGroup()
     {
-        var ctx = Draw(ChordAxes(out _));
+        var ctx = ChordAxes(out _).Drawn(Box);
 
         var ribbon = Paths(ctx)[3];   // the largest: groups 0 and 1
 
@@ -110,7 +147,7 @@ public class ChordSeriesRendererTests
     [Fact]
     public void ASelfLoop_IsOneCurveBackToItsOwnStart()
     {
-        var ctx = Draw(ChordAxes(out _));
+        var ctx = ChordAxes(out _).Drawn(Box);
 
         // The ribbons by size: 8 (groups 0 and 1), 6 (the loop of group 2), 4 (2 to 1), 2 (0 to 2). The loop is the second, so
         // the fifth path after the three arcs' paths.
@@ -127,17 +164,17 @@ public class ChordSeriesRendererTests
     [Fact]
     public void TheNames_StandOutsideTheRing_TurnedToReadOutward()
     {
-        var ctx = Draw(ChordAxes(out _));
+        var ctx = ChordAxes(out _).Drawn(Box);
 
         // The names on the ring come first; the legend, which has an entry for each group, is drawn after them.
-        var labels = ctx.OfKind("DrawText").Take(3).Select(c => (dynamic)c.Args!).ToArray();
+        var labels = ctx.Of<DrawTextCall>().Take(3).ToArray();
 
-        Assert.Equal(["North", "South", "East"], labels.Select(l => (string)l.text));
+        Assert.Equal(["North", "South", "East"], labels.Select(l => l.Text));
         var rim = Centre.Y - ((MoveToSegment)Paths(ctx)[0][0]).Point.Y;
         foreach (var label in labels)
         {
-            Assert.True(Distance((Point)label.position, Centre) > rim, "a name stands past the rim");
-            Assert.InRange((double)label.rotation, -90.0 - 1e-9, 90.0 + 1e-9);
+            Assert.True((label.Position).DistanceTo(Centre) > rim, "a name stands past the rim");
+            Assert.InRange(label.Rotation, -90.0 - 1e-9, 90.0 + 1e-9);
         }
     }
 
@@ -147,7 +184,7 @@ public class ChordSeriesRendererTests
         var axes = ChordAxes(out var series);
         series.Colors = [Color.FromHex("#C03030")];
 
-        var fills = Fills(Draw(axes));
+        var fills = Fills(axes.Drawn(Box));
 
         Assert.Equal(Color.FromHex("#C03030"), fills[0]);
         Assert.Equal(Color.FromHex("#C03030").WithAlpha((byte)Math.Round(series.RibbonAlpha * 255)), fills[3]);
@@ -160,18 +197,21 @@ public class ChordSeriesRendererTests
 
         AxesRenderer.Create(ChordAxes(out _), new Rect(0, 0, 4, 4), ctx, Theme.Default).Render();
 
-        Assert.Equal(0, ctx.CountOf("DrawPath"));
+        Assert.Equal(0, ctx.Count<DrawPathCall>());
     }
 
-    [Fact]
-    public void AChordFigure_RendersToSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure { Width = 500, Height = 500 };
-        figure.AddSubPlot(1, 1, 1).Chord(["North", "South", "East"], Flows);
+        new DrawnToken("AChordFigure_RendersToSvg", () =>
+        {
+            var figure = new Figure { Width = 500, Height = 500 };
+            figure.AddSubPlot(1, 1, 1).Chord(["North", "South", "East"], Flows);
+            return figure.ToSvg();
+        }, "North", "<path"),
+    };
 
-        string svg = figure.ToSvg();
-
-        Assert.Contains("North", svg, StringComparison.Ordinal);
-        Assert.Contains("<path", svg, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

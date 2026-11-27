@@ -15,33 +15,6 @@ namespace MatPlotLibNet.Tests.Interaction;
 public class FigureNotificationEventTests
 {
     [Fact]
-    public void FigureNotificationEvent_IsAbstract()
-    {
-        Assert.True(typeof(FigureNotificationEvent).IsAbstract);
-    }
-
-    [Fact]
-    public void FigureNotificationEvent_Inherits_FigureInteractionEvent()
-    {
-        Assert.True(typeof(FigureInteractionEvent)
-            .IsAssignableFrom(typeof(FigureNotificationEvent)));
-    }
-
-    [Fact]
-    public void BrushSelectEvent_Inherits_FigureNotificationEvent()
-    {
-        Assert.True(typeof(FigureNotificationEvent)
-            .IsAssignableFrom(typeof(BrushSelectEvent)));
-    }
-
-    [Fact]
-    public void HoverEvent_Inherits_FigureNotificationEvent()
-    {
-        Assert.True(typeof(FigureNotificationEvent)
-            .IsAssignableFrom(typeof(HoverEvent)));
-    }
-
-    [Fact]
     public void BrushSelectEvent_ApplyTo_IsNoOp_FigureUnchanged()
     {
         var figure = TestFigures.SingleLine();

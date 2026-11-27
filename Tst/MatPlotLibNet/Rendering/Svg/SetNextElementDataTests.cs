@@ -4,27 +4,31 @@
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
 /// <summary>Verifies <see cref="SvgRenderContext.SetNextElementData"/> emits and clears data attributes.</summary>
 public class SetNextElementDataTests
 {
-    [Fact]
-    public void SetNextElementData_EmitsDataAttribute_OnPolygon()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var ctx = new SvgRenderContext();
-        ctx.SetNextElementData("v3d", "0.1,0.2,0.3");
+        new DrawnToken("SetNextElementData_EmitsDataAttribute_OnPolygon", () =>
+        {
+            var ctx = new SvgRenderContext();
+            ctx.SetNextElementData("v3d", "0.1,0.2,0.3");
+            var pts = new[] { new Point(10, 10), new Point(50, 10), new Point(50, 50), new Point(10, 50) };
+            ctx.DrawPolygon(pts, new ShapeStyle(Color.FromHex("#FF0000"), null, 0));
+            var sb = new System.Text.StringBuilder();
+            ctx.WriteTo(sb);
+            return sb.ToString();
+        }, "data-v3d=\"0.1,0.2,0.3\""),
+    };
 
-        var pts = new[] { new Point(10, 10), new Point(50, 10), new Point(50, 50), new Point(10, 50) };
-        ctx.DrawPolygon(pts, new ShapeStyle(Color.FromHex("#FF0000"), null, 0));
-
-        var sb = new System.Text.StringBuilder();
-        ctx.WriteTo(sb);
-        var svg = sb.ToString();
-
-        Assert.Contains("data-v3d=\"0.1,0.2,0.3\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void SetNextElementData_ClearedAfterUse()
@@ -42,7 +46,7 @@ public class SetNextElementDataTests
         var svg = sb.ToString();
 
         // data-v3d should appear exactly once
-        Assert.Equal(1, CountOccurrences(svg, "data-v3d="));
+        Assert.Equal(1, svg.CountOf("data-v3d="));
     }
 
     [Fact]
@@ -52,16 +56,5 @@ public class SetNextElementDataTests
         IRenderContext ctx = new SvgRenderContext();
         var exception = Record.Exception(() => ctx.SetNextElementData("key", "value"));
         Assert.Null(exception);
-    }
-
-    private static int CountOccurrences(string source, string pattern)
-    {
-        int count = 0, idx = 0;
-        while ((idx = source.IndexOf(pattern, idx, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            idx += pattern.Length;
-        }
-        return count;
     }
 }

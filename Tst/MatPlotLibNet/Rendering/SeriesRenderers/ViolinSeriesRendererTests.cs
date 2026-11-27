@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -11,13 +12,13 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// <see cref="MatPlotLibNet.Rendering.SeriesRenderers.ViolinSeriesRenderer"/>. Pre-X.9
 /// the renderer was at 79%L / 63%B because only the default ShowExtrema body was
 /// covered. This file pins:
-///   - Empty dataset → continue (line 28)
-///   - Positions per-dataset (line 29 ternary's true arm)
-///   - range==0 (all-equal data) → range = 1 (line 31)
-///   - Side.High / Side.Low / Side.Both (lines 40-41)
-///   - ShowExtrema=false (line 50 false arm)
-///   - ShowMedians=true (line 62 true arm)
-///   - ShowMeans=true (line 70 true arm)</summary>
+///   - Empty dataset → continue
+///   - Positions per-dataset (ternary's true arm)
+///   - range==0 (all-equal data) → range = 1
+///   - Side.High / Side.Low / Side.Both
+///   - ShowExtrema=false (false arm)
+///   - ShowMedians=true (true arm)
+///   - ShowMeans=true (true arm)</summary>
 public class ViolinSeriesRendererTests
 {
     private static string Render(ViolinSeries s) =>
@@ -27,80 +28,45 @@ public class ViolinSeriesRendererTests
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_BasicViolin_DrawsPolygon()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] }));
-        Assert.Contains("<polygon", svg);
-    }
+        new DrawnToken("Render_BasicViolin_DrawsPolygon", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] })), "<polygon"),
+        // Positions per-dataset (ternary's true arm). Each dataset placed at the configured X offset rather than its index.
+        new DrawnToken("Render_Positions_PlacesDatasetsAtCustomX", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3], [4.0, 5, 6] })
+        {
+            Positions = new[] { 10.0, 20.0 },
+        }), "<polygon"),
+        // range==0 (all-identical values) → range = 1 fallback.
+        new DrawnToken("Render_AllIdenticalValues_RangeFallback", () => Render(new ViolinSeries(new double[][] { [5.0, 5.0, 5.0, 5.0] })), "<polygon"),
+        // Side.High → leftOff=0 (half-violin on the right side only).
+        new DrawnToken("Render_SideHigh_ClipsLeftSide", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3] }) { Side = ViolinSide.High }), "<polygon"),
+        // Side.Low → rightOff=0 (half-violin on the left side only).
+        new DrawnToken("Render_SideLow_ClipsRightSide", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3] }) { Side = ViolinSide.Low }), "<polygon"),
+        // ShowExtrema=false (false arm) → no extrema lines drawn. Just the body polygon remains.
+        new DrawnToken("Render_HideExtrema_OnlyDrawsBody", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3] }) { ShowExtrema = false }), "<polygon"),
+        // ShowMedians=true (true arm) → adds a horizontal median line across the violin in white.
+        new DrawnToken("Render_ShowMedians_DrawsMedianLine", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] }) { ShowMedians = true }), "<polygon"),
+        // ShowMeans=true (true arm) → adds a horizontal dashed mean line across the violin in green.
+        new DrawnToken("Render_ShowMeans_DrawsDashedMeanLine", () => Render(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] }) { ShowMeans = true }), "<polygon"),
+        // Themed render with explicit ViolinBodyColor + ViolinStatsColor (true arms of `??`). MatplotlibClassic sets these to
+        // y=#BFBF00 and r=#FF0000 respectively.
+        new DrawnToken("Render_WithMatplotlibClassicTheme_UsesThemeViolinColors", () => Plt.Create()
+            .WithSize(400, 300)
+            .WithTheme(Theme.MatplotlibClassic)
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] })))
+            .Build()
+            .ToSvg(), "<polygon"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // Note: a mixed empty + non-empty dataset triggers ComputeDataRange's Min/Max on
     // the empty array BEFORE the renderer's `data.Length == 0 continue` guard runs.
     // Skipping that test — the renderer's empty-dataset arm is provably defensive,
     // covered indirectly via the empty-data Min/Max behavior validated in series tests.
-
-    /// <summary>Positions per-dataset (line 29 ternary's true arm). Each dataset placed
-    /// at the configured X offset rather than its index.</summary>
-    [Fact]
-    public void Render_Positions_PlacesDatasetsAtCustomX()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3], [4.0, 5, 6] })
-        {
-            Positions = new[] { 10.0, 20.0 },
-        });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>range==0 (all-identical values) → range = 1 fallback (line 31).</summary>
-    [Fact]
-    public void Render_AllIdenticalValues_RangeFallback()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [5.0, 5.0, 5.0, 5.0] }));
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Side.High → leftOff=0 (half-violin on the right side only).</summary>
-    [Fact]
-    public void Render_SideHigh_ClipsLeftSide()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3] }) { Side = ViolinSide.High });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>Side.Low → rightOff=0 (half-violin on the left side only).</summary>
-    [Fact]
-    public void Render_SideLow_ClipsRightSide()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3] }) { Side = ViolinSide.Low });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>ShowExtrema=false (line 50 false arm) → no extrema lines drawn. Just
-    /// the body polygon remains.</summary>
-    [Fact]
-    public void Render_HideExtrema_OnlyDrawsBody()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3] }) { ShowExtrema = false });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>ShowMedians=true (line 62 true arm) → adds a horizontal median line
-    /// across the violin in white.</summary>
-    [Fact]
-    public void Render_ShowMedians_DrawsMedianLine()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] }) { ShowMedians = true });
-        Assert.Contains("<polygon", svg);
-    }
-
-    /// <summary>ShowMeans=true (line 70 true arm) → adds a horizontal dashed mean line
-    /// across the violin in green.</summary>
-    [Fact]
-    public void Render_ShowMeans_DrawsDashedMeanLine()
-    {
-        var svg = Render(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] }) { ShowMeans = true });
-        Assert.Contains("<polygon", svg);
-    }
 
     // ── violins placed by Positions are drawn inside the plot ───────────────────────────────────────────────────────
 
@@ -111,28 +77,26 @@ public class ViolinSeriesRendererTests
         [3.0, 3.4, 3.9, 4.4, 4.6, 5.2, 5.8, 6.1, 6.9, 7.5, 8.8, 9.9],
     ];
 
-    private static double Number(string text) => double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
-
     /// <summary>The horizontal extent of every violin body in the picture.</summary>
     private static Range1D[] BodyExtents(string svg) =>
     [
-        .. System.Text.RegularExpressions.Regex.Matches(svg, @"<polygon points=""([^""]+)""").Select(m =>
+        .. svg.Elements("polygon").Select(polygon =>
         {
-            var xs = m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(p => Number(p.Split(',')[0])).ToArray();
+            var xs = polygon.Points().Select(point => point.X).ToArray();
             return new Range1D(xs.Min(), xs.Max());
         }),
     ];
 
     private static void AssertInsideThePlot(string svg, int bodies)
     {
-        var plot = BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
         var extents = BodyExtents(svg);
 
         Assert.Equal(bodies, extents.Length);
         Assert.All(extents, e =>
         {
-            Assert.InRange(e.Lo, plot.X - 1e-6, plot.X + plot.W + 1e-6);
-            Assert.InRange(e.Hi, plot.X - 1e-6, plot.X + plot.W + 1e-6);
+            Assert.InRange(e.Lo, plot.X - 1e-6, plot.X + plot.Width + 1e-6);
+            Assert.InRange(e.Hi, plot.X - 1e-6, plot.X + plot.Width + 1e-6);
         });
     }
 
@@ -183,31 +147,16 @@ public class ViolinSeriesRendererTests
     [Fact]
     public void ViolinsWithoutPositions_StandWhereTheyAlwaysDid()
     {
-        string svg = Plt.Create().WithSize(500, 300)
+        string svg = Plt.Create().WithSize(500, 300).WithTheme(Theme.Default)
             .AddSubPlot(1, 1, 1, ax => ax.Violin(Samples)).Build().ToSvg();
-        var plot = BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
         var extents = BodyExtents(svg);
 
         // Positions 0, 1, 2 in the range -1..3 plus its 5 % margin on each side: the plot is 4.4 positions wide and the
         // middle violin stands in the middle of it.
         double Centre(int g) => (extents[g].Lo + extents[g].Hi) / 2;
         double pitch = Centre(1) - Centre(0);
-        Assert.Equal(4.4, plot.W / pitch, 3);
-        Assert.Equal(plot.X + plot.W / 2, Centre(1), 6);
-    }
-
-    /// <summary>Themed render with explicit ViolinBodyColor + ViolinStatsColor
-    /// (lines 20, 23 true arms of `??`). MatplotlibClassic sets these to y=#BFBF00
-    /// and r=#FF0000 respectively.</summary>
-    [Fact]
-    public void Render_WithMatplotlibClassicTheme_UsesThemeViolinColors()
-    {
-        var svg = Plt.Create()
-            .WithSize(400, 300)
-            .WithTheme(Theme.MatplotlibClassic)
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new ViolinSeries(new double[][] { [1.0, 2, 3, 4, 5] })))
-            .Build()
-            .ToSvg();
-        Assert.Contains("<polygon", svg);
+        Assert.Equal(4.4, plot.Width / pitch, 3);
+        Assert.Equal(plot.X + plot.Width / 2, Centre(1), 6);
     }
 }

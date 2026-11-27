@@ -18,29 +18,32 @@ using MatPlotLibNet.Geo.Data;
 using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Skia;
 
-// Resolves a sample output filename to the canonical `images/` directory at the repo root,
-// regardless of where the samples binary is invoked from. Walks upward from the binary
-// directory until it finds the `MatPlotLibNet.CI.slnf` solution-filter sentinel, then
-// writes into <repo>/images/<name>. Falls back to the cwd-relative `images/` directory.
-static string SamplesPath(string name)
+// Where the sample program writes: the environment variable MPL_SAMPLES_OUT names a folder (the pictures go to its `images/`
+// folder, the package icon to the folder itself, which is how a test draws every picture without touching the repository's);
+// without it, the repository root, found by walking upward from the binary directory until the `MatPlotLibNet.CI.slnf`
+// solution-filter sentinel turns up. Falls back to the current directory when neither names a folder.
+static string OutputRoot()
 {
+    var named = Environment.GetEnvironmentVariable("MPL_SAMPLES_OUT");
+    if (!string.IsNullOrEmpty(named))
+        return named;
     var dir = AppContext.BaseDirectory;
     while (dir is not null && !File.Exists(Path.Combine(dir, "MatPlotLibNet.CI.slnf")))
         dir = Path.GetDirectoryName(dir);
-    var imagesDir = dir is not null ? Path.Combine(dir, "images") : "images";
+    return dir ?? ".";
+}
+
+// Resolves a sample output filename to the `images/` directory under the output root.
+static string SamplesPath(string name)
+{
+    var imagesDir = Path.Combine(OutputRoot(), "images");
     Directory.CreateDirectory(imagesDir);
     return Path.Combine(imagesDir, name);
 }
 
-// The same walk, but for the few files that belong at the repository ROOT rather than in images/ —
-// the package icon, which Directory.Build.props packs into all fifteen packages from there.
-static string RepoPath(string name)
-{
-    var dir = AppContext.BaseDirectory;
-    while (dir is not null && !File.Exists(Path.Combine(dir, "MatPlotLibNet.CI.slnf")))
-        dir = Path.GetDirectoryName(dir);
-    return dir is not null ? Path.Combine(dir, name) : name;
-}
+// The few files that belong at the output root rather than in images/ -- the package icon, which
+// Directory.Build.props packs into all fifteen packages from there.
+static string RepoPath(string name) => Path.Combine(OutputRoot(), name);
 
 
 // --- 1. Simple line chart -> SVG ---
@@ -1286,7 +1289,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // 14. Outside legend — the constrained-layout engine now measures the legend box via
-//     LegendMeasurer and reserves right-margin space for LegendPosition.OutsideRight (and
+//     LegendLayoutCalculator.MeasureLegendBox and reserves right-margin space for LegendPosition.OutsideRight (and
 //     the three other outside positions). Without TightLayout() the legend would clip at
 //     the figure edge; with it the margin expands to host the full box.
 {
@@ -1318,7 +1321,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     Plt.Create()
         .WithTitle("Language Popularity")
         .WithSize(600, 600)
-        .Pie(sizes, labels, s => { s.AutoPct = "%.0f%%"; s.Shadow = true; })
+        .Pie(sizes, labels, s => { s.AutoPct = "{0:F0}%"; s.Shadow = true; })
         .SaveSvgAndPng(SamplesPath("pie_chart.svg"));
     Console.WriteLine("Saved pie_chart");
 
@@ -1379,7 +1382,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 
     string[] cats = ["Speed", "Power", "Defense", "Range", "Accuracy"];
     double[] v1 = [85, 70, 90, 60, 95];
-    double[] v2 = [70, 95, 60, 80, 75];
+    double[] v2 = [70, 88, 60, 80, 75];   // a largest value of its own: the two radars share the web of the larger, 95
     Plt.Create()
         .WithTitle("Radar Comparison")
         .WithSize(600, 600)
@@ -2180,51 +2183,10 @@ Console.WriteLine("Saved international.svg and international.png");
 
 // --- 43. The package icon — drawn by the library it stands for ---
 //
-// 128x128 PNG at the repository root, packed into all fifteen packages by Directory.Build.props. It is a
-// pcolormesh under viridis with one bold trace over it: the two things this library is for, in the one colour
-// map that says "scientific plotting" without a word. No text — at the 16 pixels a package list shows, a word
-// is a smudge. Six cells to a side is as fine as it can go and still read there.
-{
-    const int cells = 6;
-    double[] edges = [.. Enumerable.Range(0, cells + 1).Select(i => (double)i)];
-
-    // A diagonal ramp with a soft peak up in the bright corner, so the map runs its whole length.
-    var field = new double[cells, cells];
-    for (int row = 0; row < cells; row++)
-    {
-        for (int col = 0; col < cells; col++)
-        {
-            double u = (col + 0.5) / cells;
-            double v = (row + 0.5) / cells;
-            field[row, col] = (0.55 * u) + (0.45 * v)
-                + (0.35 * Math.Exp(-(((u - 0.72) * (u - 0.72)) + ((v - 0.7) * (v - 0.7))) / 0.06));
-        }
-    }
-
-    double[] traceX = [.. Enumerable.Range(0, 193).Select(i => i * cells / 192.0)];
-    double[] traceY = [.. traceX.Select(t => (cells * 0.5) + (cells * 0.26 * Math.Sin(t / cells * Math.PI * 1.5)))];
-
-    Plt.Create()
-        .WithSize(128, 128)
-        .WithTheme(Theme.CreateFrom(Theme.Default).WithBackground(Color.FromHex("#0B0F14")).Build())
-        .AddSubPlot(1, 1, 1, ax => ax
-            .Pcolormesh(edges, edges, field, s => s.ColorMap = ColorMaps.Viridis)
-            .Plot(traceX, traceY, s => { s.Color = Color.FromHex("#FFFFFF"); s.LineWidth = 6.0; })
-            .HideAllAxes()
-            .WithGrid(g => g with { Visible = false })
-            .WithLegend(visible: false))
-        // No margins and no gaps: the mark fills the square edge to edge, which is what makes it read as a
-        // mark rather than as a tiny chart with a frame around it.
-        .WithSubPlotSpacing(sp => sp with
-        {
-            MarginLeft = 0, MarginRight = 0, MarginTop = 0, MarginBottom = 0,
-            HorizontalGap = 0, VerticalGap = 0,
-        })
-        .Build()
-        .Transform(new PngTransform())
-        .ToFile(RepoPath("icon.png"));
-    Console.WriteLine("Saved icon.png");
-}
+// 128x128 PNG at the repository root, packed into all fifteen packages by Directory.Build.props. The drawing is PackageIcon;
+// a test of the Skia suite holds the committed file to it.
+PackageIcon.Build().Transform(new PngTransform()).ToFile(RepoPath("icon.png"));
+Console.WriteLine("Saved icon.png");
 
 
 // --- 44. The link preview card — the same mark, wide enough to read ---

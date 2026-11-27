@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The sentence a verb refuses arrays of another length in, written once by the core suite. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\LengthRefusals.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

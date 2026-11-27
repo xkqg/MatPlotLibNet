@@ -33,44 +33,34 @@ public class SeriesRendererBaseTests
         };
     }
 
-    // ── ResolveColor — `?? theme cycle colour` arm (dash, marker and width: SeriesSlotTests) ──
-
-    [Fact]
-    public void ResolveColor_ReturnsSeriesColor_WhenSet()
-    {
-        var r = new TestRenderer(NewContext());
-        Assert.Equal(Colors.Red, r.CallResolveColor(Colors.Red));
-    }
-
-    [Fact]
-    public void ResolveColor_FallsBackToContext_WhenNull()
-    {
-        var r = new TestRenderer(NewContext());
-        Assert.Equal(Colors.Tab10Blue, r.CallResolveColor(null));
-    }
+    // The colour of a series (named, else its slot's): SeriesRendererOwnerContractTests. Dash, marker and width: SeriesSlotTests.
 
     // ── BeginTooltip / EndTooltip — `TooltipsEnabled && Ctx is SvgRenderContext` ────
 
-    [Fact]
-    public void BeginTooltip_EmitsGroup_WhenEnabledAndSvgContext()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = new SvgRenderContext();
-        var r = new TestRenderer(NewContext(ctx: svg, tooltips: true));
-        r.CallBeginTooltip("hello");
-        r.CallEndTooltip();
-        var output = svg.GetOutput();
-        Assert.Contains("<title>hello</title>", output);
-    }
+        new DrawnToken("BeginTooltip_EmitsGroup_WhenEnabledAndSvgContext", () =>
+        {
+            var svg = new SvgRenderContext();
+            var r = new TestRenderer(NewContext(ctx: svg, tooltips: true));
+            r.CallBeginTooltip("hello");
+            r.CallEndTooltip();
+            return svg.GetOutput();
+        }, "<title>hello</title>"),
+        new DrawnToken("BeginTooltip_NoOp_WhenTooltipsDisabled", () =>
+        {
+            var svg = new SvgRenderContext();
+            var r = new TestRenderer(NewContext(ctx: svg, tooltips: false));
+            r.CallBeginTooltip("ignored");
+            r.CallEndTooltip();
+            return svg.GetOutput();
+        }) { Absent = ["<title>"] },
+    };
 
-    [Fact]
-    public void BeginTooltip_NoOp_WhenTooltipsDisabled()
-    {
-        var svg = new SvgRenderContext();
-        var r = new TestRenderer(NewContext(ctx: svg, tooltips: false));
-        r.CallBeginTooltip("ignored");
-        r.CallEndTooltip();
-        Assert.DoesNotContain("<title>", svg.GetOutput());
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void BeginTooltip_NoOp_WhenContextIsNotSvg()
@@ -135,26 +125,8 @@ public class SeriesRendererBaseTests
     {
         public TestRenderer(SeriesRenderContext context) : base(context) { }
         public override void Render(LineSeries series) { }
-        public Color CallResolveColor(Color? c) => ResolveColor(c);
         public void CallBeginTooltip(string text) => BeginTooltip(text);
         public void CallEndTooltip() => EndTooltip();
         public XYData CallApplyDownsampling(double[] x, double[] y, int? maxPoints) => ApplyDownsampling(x, y, maxPoints);
-    }
-
-    private sealed class RecordingRenderContext : IRenderContext
-    {
-        public List<string> Calls { get; } = new();
-        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) => Calls.Add(nameof(DrawLine));
-        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) => Calls.Add(nameof(DrawLines));
-        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) => Calls.Add(nameof(DrawPolygon));
-        public void DrawCircle(Point center, double radius, ShapeStyle shape) => Calls.Add(nameof(DrawCircle));
-        public void DrawRectangle(Rect rect, ShapeStyle shape) => Calls.Add(nameof(DrawRectangle));
-        public void DrawEllipse(Rect bounds, ShapeStyle shape) => Calls.Add(nameof(DrawEllipse));
-        public void DrawText(string text, Point position, Font font, TextAlignment alignment) => Calls.Add(nameof(DrawText));
-        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) => Calls.Add(nameof(DrawPath));
-        public void PushClip(Rect clipRect) => Calls.Add(nameof(PushClip));
-        public void PopClip() => Calls.Add(nameof(PopClip));
-        public Size MeasureText(string text, Font font) => new(text.Length * font.Size * 0.6, font.Size);
-        public void SetOpacity(double opacity) => Calls.Add(nameof(SetOpacity));
     }
 }

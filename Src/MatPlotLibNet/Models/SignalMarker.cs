@@ -18,8 +18,15 @@ public enum SignalDirection
 }
 
 /// <summary>Represents a buy or sell signal marker at a specific data coordinate on the chart.</summary>
-public sealed class SignalMarker
+public sealed class SignalMarker : IChangeTracked
 {
+    private long _stamp;
+
+    /// <summary>Stores <paramref name="value"/> and marks this signal changed, unless it already holds an equal value.</summary>
+    private void Change<T>(ref T slot, T value) => ChangeClock.Change(ref slot, value, ref _stamp);
+
+    long IChangeTracked.LatestChange => _stamp;
+
     /// <summary>The X data coordinate of the signal.</summary>
     public double X { get; }
 
@@ -32,14 +39,14 @@ public sealed class SignalMarker
 
     /// <summary>The colour of the triangle. <see langword="null"/> (the default) draws a buy signal in green and a sell
     /// signal in red.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The size of the triangle, in pixels: it is this tall and this wide, and its tip stands this far from the
     /// price point. Default 12.</summary>
-    public double Size { get; set; } = 12;
+    public double Size { get; set => Change(ref field, value); } = 12;
 
     /// <summary>A name for the signal. The chart does not draw it. <see langword="null"/> (the default) means none.</summary>
-    public string? Label { get; set; }
+    public string? Label { get; set => Change(ref field, value); }
 
     /// <summary>Creates a new signal marker at the given data coordinates.</summary>
     /// <param name="x">The X data coordinate of the signal.</param>

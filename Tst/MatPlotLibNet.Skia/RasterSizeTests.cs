@@ -12,29 +12,22 @@ public class RasterSizeTests
 {
     private static Figure FigureOf(double width, double height) => new() { Width = width, Height = height };
 
-    [Fact]
-    public void At96Dpi_AFigureOfWholeSize_IsDrawnUnscaled()
+    /// <summary>A figure of 400 by 300 units: at 96 dpi it is drawn unscaled, at 192 dpi every unit is two pixels, at half the
+    /// resolution every unit is half a pixel.</summary>
+    [Theory]
+    [InlineData(96, 400, 300, 1f)]
+    [InlineData(192, 800, 600, 2f)]
+    [InlineData(48, 200, 150, 0.5f)]
+    public void AFigureOfWholeSize_IsDrawnAtTheScaleOfItsResolution(double dpi, int width, int height, float scale)
     {
-        Assert.Equal(new RasterSize(400, 300, 1f, 1f), RasterSize.For(FigureOf(400, 300), 96));
-    }
-
-    [Fact]
-    public void At192Dpi_EveryUnitIsTwoPixels()
-    {
-        Assert.Equal(new RasterSize(800, 600, 2f, 2f), RasterSize.For(FigureOf(400, 300), 192));
-    }
-
-    [Fact]
-    public void AtHalfTheResolution_EveryUnitIsHalfAPixel()
-    {
-        Assert.Equal(new RasterSize(200, 150, 0.5f, 0.5f), RasterSize.For(FigureOf(400, 300), 48));
+        Assert.Equal(new RasterRenderingExtensions.RasterSize(width, height, scale, scale), RasterRenderingExtensions.RasterSizeOf(FigureOf(400, 300), dpi));
     }
 
     [Fact]
     public void TheScale_IsExactlyThePixelCountOverTheSize()
     {
         // 500 * 150/96 = 781.25 -> 781 pixels, so the drawing is scaled by 781/500 and meets both edges.
-        RasterSize size = RasterSize.For(FigureOf(500, 350), 150);
+        RasterRenderingExtensions.RasterSize size = RasterRenderingExtensions.RasterSizeOf(FigureOf(500, 350), 150);
 
         Assert.Equal(781, size.Width);
         Assert.Equal(547, size.Height);
@@ -46,15 +39,15 @@ public class RasterSizeTests
     public void AHalfPixel_RoundsAwayFromZero()
     {
         // 10.5 units at 96 dpi is 10.5 pixels: 11, not the banker's 10.
-        Assert.Equal(11, RasterSize.For(FigureOf(10.5, 10.5), 96).Width);
-        Assert.Equal(13, RasterSize.For(FigureOf(12.5, 12.5), 96).Height);
+        Assert.Equal(11, RasterRenderingExtensions.RasterSizeOf(FigureOf(10.5, 10.5), 96).Width);
+        Assert.Equal(13, RasterRenderingExtensions.RasterSizeOf(FigureOf(12.5, 12.5), 96).Height);
     }
 
     [Fact]
     public void AFractionalFigureAt96Dpi_IsRoundedNotCut()
     {
-        Assert.Equal(500, RasterSize.For(FigureOf(499.6, 350.4), 96).Width);
-        Assert.Equal(350, RasterSize.For(FigureOf(499.6, 350.4), 96).Height);
+        Assert.Equal(500, RasterRenderingExtensions.RasterSizeOf(FigureOf(499.6, 350.4), 96).Width);
+        Assert.Equal(350, RasterRenderingExtensions.RasterSizeOf(FigureOf(499.6, 350.4), 96).Height);
     }
 
     [Theory]
@@ -65,7 +58,7 @@ public class RasterSizeTests
     [InlineData(double.NegativeInfinity)]
     public void ADpiThatIsNotPositiveAndFinite_IsRefused(double dpi)
     {
-        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => RasterSize.For(FigureOf(400, 300), dpi));
+        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => RasterRenderingExtensions.RasterSizeOf(FigureOf(400, 300), dpi));
 
         Assert.Equal("dpi", refusal.ParamName);
     }
@@ -73,7 +66,7 @@ public class RasterSizeTests
     [Fact]
     public void LessThanOnePixel_IsRefused()
     {
-        var refusal = Assert.Throws<ArgumentException>(() => RasterSize.For(FigureOf(400, 300), 0.1));
+        var refusal = Assert.Throws<ArgumentException>(() => RasterRenderingExtensions.RasterSizeOf(FigureOf(400, 300), 0.1));
 
         Assert.Equal("figure", refusal.ParamName);
         Assert.Contains("pixels", refusal.Message);
@@ -83,15 +76,15 @@ public class RasterSizeTests
     public void ThinInOneDirectionOnly_IsRefused()
     {
         // 1 unit tall at half the resolution is half a pixel, which rounds to 1; a quarter is 0.
-        Assert.Equal(1, RasterSize.For(FigureOf(400, 1), 48).Height);
-        Assert.Throws<ArgumentException>(() => RasterSize.For(FigureOf(400, 0.4), 96));
+        Assert.Equal(1, RasterRenderingExtensions.RasterSizeOf(FigureOf(400, 1), 48).Height);
+        Assert.Throws<ArgumentException>(() => RasterRenderingExtensions.RasterSizeOf(FigureOf(400, 0.4), 96));
     }
 
     [Fact]
     public void MorePixelsThanACountCanHold_IsRefused()
     {
-        Assert.Throws<ArgumentException>(() => RasterSize.For(FigureOf(400, 300), 1e12));
-        Assert.Throws<ArgumentException>(() => RasterSize.For(FigureOf(1, 3e9), 96));
+        Assert.Throws<ArgumentException>(() => RasterRenderingExtensions.RasterSizeOf(FigureOf(400, 300), 1e12));
+        Assert.Throws<ArgumentException>(() => RasterRenderingExtensions.RasterSizeOf(FigureOf(1, 3e9), 96));
     }
 
     [Theory]
@@ -102,23 +95,16 @@ public class RasterSizeTests
     [InlineData(-400.0, 300.0)]
     public void AFigureWithNoSize_IsRefused(double width, double height)
     {
-        Assert.Throws<ArgumentException>(() => RasterSize.For(FigureOf(width, height), 96));
+        Assert.Throws<ArgumentException>(() => RasterRenderingExtensions.RasterSizeOf(FigureOf(width, height), 96));
     }
 
     // ── drawing onto a bitmap ────────────────────────────────────────────────────────────────────────
-
-    private sealed class ThrowingRenderer : IChartRenderer
-    {
-        public void Render(Figure figure, IRenderContext ctx) => throw new InvalidOperationException("the drawing failed");
-
-        public LayoutResult ComputeLayout(Figure figure, IRenderContext measureCtx) => throw new NotSupportedException();
-    }
 
     [Fact]
     public void ADrawingThatFails_PropagatesItsException()
     {
         var refusal = Assert.Throws<InvalidOperationException>(
-            () => new ThrowingRenderer().RenderToBitmap(FigureOf(40, 30), 96));
+            () => new RecordingChartRenderer((_, _) => throw new InvalidOperationException("the drawing failed"), () => throw new NotSupportedException()).RenderToBitmap(FigureOf(40, 30), 96));
 
         Assert.Equal("the drawing failed", refusal.Message);
     }

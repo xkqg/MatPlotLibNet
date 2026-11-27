@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// <see cref="Streaming.StreamingCyberCycle"/> takes one price at a time. The price is smoothed by a four-bar weighted mean (the
 /// first three bars pass through), the cycle starts at 0 and from the fourth bar is a second difference of the smoothed price
 /// plus the two cycle values before it, weighted. Before the fourth bar the step says NaN.</summary>
-internal struct CyberCycleStep
+internal struct CyberCycleStep : IPriceStep<double>
 {
     private readonly double _squareHalf;
     private readonly double _twoOneMinusAlpha;
@@ -29,7 +29,7 @@ internal struct CyberCycleStep
 
     /// <summary>Takes one price and returns the cycle, or NaN before the fourth price.</summary>
     /// <param name="price">The price.</param>
-    internal double Next(double price)
+    public double Next(double price)
     {
         int i = _count++;
         double smooth = i >= 3

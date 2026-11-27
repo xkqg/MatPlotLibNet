@@ -14,7 +14,4 @@ internal readonly record struct Interval1D(double Start, double Size)
 
     /// <summary>Upper edge of the span.</summary>
     public double End => Start + Size;
-
-    /// <summary>Builds the span of the given <paramref name="extent"/> whose midpoint is <paramref name="centre"/>.</summary>
-    public static Interval1D FromCentre(double centre, double extent) => new(centre - extent / 2, extent);
 }

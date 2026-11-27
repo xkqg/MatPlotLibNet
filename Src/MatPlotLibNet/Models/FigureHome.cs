@@ -65,27 +65,20 @@ internal sealed class FigureHome
         AxisLimits X,
         AxisLimits[] Left,
         AxisLimits[] Right,
-        double Azimuth,
-        double Elevation,
-        double? CameraDistance)
+        CameraView Camera)
     {
         internal static AxesView Of(Axes axes) => new(
             AxisLimits.Of(axes.XAxis),
             [.. axes.YAxes.Left.Select(slot => AxisLimits.Of(slot.Axis))],
             [.. axes.YAxes.Right.Select(slot => AxisLimits.Of(slot.Axis))],
-            axes.Azimuth,
-            axes.Elevation,
-            axes.CameraDistance);
+            axes.CameraView);
 
         internal void RestoreOn(Axes axes)
         {
             X.RestoreOn(axes.XAxis);
             Restore(Left, axes.YAxes.Left);
             Restore(Right, axes.YAxes.Right);
-            axes.Azimuth = Azimuth;
-            axes.Elevation = Elevation;
-            axes.CameraDistance = CameraDistance;
-            axes.Projection = null;   // the camera moved, the projection is built again
+            axes.Camera.LookFrom(Camera);
         }
 
         /// <summary>Slots that were added after the view was stored have no stored limits and are left as they are.</summary>

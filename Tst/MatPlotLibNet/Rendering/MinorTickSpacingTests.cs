@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -37,7 +36,7 @@ public class MinorTickSpacingTests
         return fig.ToSvg();
     }
 
-    private static int LineCount(string svg) => Regex.Matches(svg, "<line", RegexOptions.None, TimeSpan.FromSeconds(5)).Count;
+    private static int LineCount(string svg) => svg.Elements("line").Count;
 
     [Fact]
     public void ASPACINGOfItsOwnPutsFEWERMarksThanTheDefaultFiveWaySubdivision()
@@ -125,6 +124,6 @@ public class MinorTickSpacingTests
             .Build()
             .ToSvg();
 
-        Assert.DoesNotContain("NaN", svg, StringComparison.Ordinal);
+        svg.AssertNoNonFiniteNumber();
     }
 }

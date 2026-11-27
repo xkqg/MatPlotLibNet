@@ -6,28 +6,23 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Tests.Styling.ColorMapNormalizers;
 
-/// <summary>Exercises the default interface methods on <see cref="IColorMap"/>
-/// (currently 0% line coverage because no minimal implementor in the suite touches
-/// the defaults). A bespoke <see cref="MinimalColorMap"/> exercises the three
-/// default-returning-<c>null</c> methods so the lines are counted.</summary>
+/// <summary>The under, over and bad colours of a map that sets none are null: the default members of <see cref="IColorMap"/> (a map
+/// that writes only its colours) and a built-in map whose extremes were not set.</summary>
 public class IColorMapDefaultsTests
 {
-    private sealed class MinimalColorMap : IColorMap
+    public static TheoryData<string, IColorMap> MapsThatSetNoExtreme => new()
     {
-        public string Name => "minimal";
-        public Color GetColor(double value) => new(0, 0, 0);
-        // Don't override GetUnderColor / GetOverColor / GetBadColor → defaults apply
+        { "a map that writes only its colours", new TestColorMap("minimal", _ => new(0, 0, 0)) },
+        { "viridis", ColorMaps.Viridis },
+    };
+
+    [Theory]
+    [MemberData(nameof(MapsThatSetNoExtreme))]
+    public void TheExtremeColoursOfAMapThatSetsNone_AreNull(string map, IColorMap colours)
+    {
+        Assert.Null(colours.GetUnderColor());
+        Assert.Null(colours.GetOverColor());
+        Assert.Null(colours.GetBadColor());
+        _ = map;
     }
-
-    [Fact]
-    public void DefaultGetUnderColor_IsNull()
-        => Assert.Null(((IColorMap)new MinimalColorMap()).GetUnderColor());
-
-    [Fact]
-    public void DefaultGetOverColor_IsNull()
-        => Assert.Null(((IColorMap)new MinimalColorMap()).GetOverColor());
-
-    [Fact]
-    public void DefaultGetBadColor_IsNull()
-        => Assert.Null(((IColorMap)new MinimalColorMap()).GetBadColor());
 }

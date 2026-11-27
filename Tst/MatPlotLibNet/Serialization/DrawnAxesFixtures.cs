@@ -43,7 +43,6 @@ public static class DrawnAxesFixtures
     {
         [nameof(Figure.Theme)] = "a part of its own (Theme), held property by property",
         [nameof(Figure.FigureColorBar)] = "a part of its own (FigureColorBar), held property by property",
-        [nameof(Figure.Legend)] = "a part of its own (FigureLegend), held property by property",
     };
 
     /// <summary>The get-only list properties of <see cref="Figure"/> other than its subplots (the texts and the images placed on
@@ -152,12 +151,17 @@ public static class DrawnAxesFixtures
 
     /// <summary>The internally set properties of <see cref="Axes"/> (<see cref="InternallySet"/>) no JSON carries, each with the
     /// reason. Named by string: some are internal, and the Mcp test project compiles this file against the public API.</summary>
+    /// <remarks>Each is a request a builder makes while it builds, which the build turns into what is drawn and carried; what an
+    /// SVG draw writes for the browser is not kept on the axes (it travels with the draw, see <c>SvgEmit</c>).</remarks>
     public static IReadOnlyDictionary<string, string> InternallySetNotCarried { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["EmitDataCursorMapping"] = "the SVG writer sets it on every axes for each render, from the figure's ServerInteraction and "
-            + "EnableDataCursor, which the JSON carries: the state of one render, not something an author sets",
-        ["ServerViewIndex"] = "the SVG writer sets it on every axes for each render, from the figure's ServerInteraction and the axes' "
-            + "place among the subplots, both of which the JSON keeps: the state of one render, not something an author sets",
+        ["BarSlotX"] = "UseBarSlotX tells the indicator verbs of the same build to stand their points at the centres of bar slots; "
+            + "the offset each indicator was given is in its series' X values, which the JSON carries, and no builder reaches an axes "
+            + "read back from JSON to add another.",
+        ["ShareXKey"] = "ShareX(key) asks for the subplot of that key, which may be added later; the figure joins the two when every "
+            + "subplot stands (ShareByKeys) into ShareXWith, which the JSON carries. A key no subplot has joins nothing and draws nothing.",
+        ["ShareYKey"] = "ShareY(key) asks for the subplot of that key; the figure joins the two into ShareYWith, which the JSON "
+            + "carries. A key no subplot has joins nothing and draws nothing.",
     };
 
     /// <summary>A public call that sets an internally set property of an axes: the property, the call, and a figure built
@@ -169,9 +173,9 @@ public static class DrawnAxesFixtures
 
     /// <summary>Every public call that sets an internally set property of an axes (<see cref="InternallySet"/>), each with a figure
     /// built through it, whose value of that property on every axes the JSON must give back. A share of a scale is carried by the
-    /// key of the axes it is shared with (<c>ShareX(key)</c>, the call the builder offers); an axes that shares through
-    /// <c>Figure.AddSubPlot</c> with a partner that has no key has no name the JSON can write the share by, and reads back
-    /// unshared.</summary>
+    /// key of the axes it is shared with (<c>ShareX(key)</c>, the call the builder offers), or, when that axes has no key
+    /// (<c>Figure.AddSubPlot(..., sharex, sharey)</c>, matplotlib's <c>add_subplot(sharex=ax)</c>), by its place among the
+    /// subplots.</summary>
     public static IReadOnlyList<InternalRoute> InternallySetRoutes { get; } =
     [
         new("GridRows", "AddSubPlot(rows, cols, index)", CellsOfAGrid),
@@ -181,6 +185,8 @@ public static class DrawnAxesFixtures
         new("GridPosition", "AddSubPlot(GridPosition) without a grid specification", CellWithoutAGridSpecification),
         new("ShareXWith", "ShareX(key)", SharedScales),
         new("ShareYWith", "ShareY(key)", SharedScales),
+        new("ShareXWith", "AddSubPlot(rows, cols, index, sharex) with no key", SharedScalesWithNoKey),
+        new("ShareYWith", "AddSubPlot(rows, cols, index, sharey) with no key", SharedScalesWithNoKey),
         new("InsetBounds", "AddInset(x, y, width, height)", AnInset),
         new("SecondaryXAxis", "WithSecondaryXAxis", ATopAxis),
         new("GridChange", "WithGrid", AGridChange),
@@ -206,6 +212,19 @@ public static class DrawnAxesFixtures
         .AddSubPlot(1, 2, 1, ax => ax.Plot(RouteX, RouteY), key: "left")
         .AddSubPlot(1, 2, 2, ax => ax.Plot(RouteY, RouteX).ShareX("left").ShareY("left"))
         .Build();
+
+    /// <summary>Three subplots made as matplotlib's <c>add_subplot(sharex=ax)</c> makes them, none with a key: the second shares
+    /// the first's X scale, the third the second's Y scale.</summary>
+    internal static Figure SharedScalesWithNoKey()
+    {
+        var figure = new Figure();
+        var first = figure.AddSubPlot(1, 3, 1);
+        first.Plot(RouteX, RouteY);
+        var second = figure.AddSubPlot(1, 3, 2, sharex: first);
+        second.Plot([10.0, 20, 30], [5.0, 1, 8]);
+        figure.AddSubPlot(1, 3, 3, sharey: second).Plot(RouteY, RouteX);
+        return figure;
+    }
 
     private static Figure AnInset() => Plt.Create()
         .AddSubPlot(1, 1, 1, ax => ax.Plot(RouteX, RouteY).AddInset(0.55, 0.1, 0.4, 0.3, inset => inset.Plot(RouteY, RouteX)))
@@ -347,7 +366,7 @@ public static class DrawnAxesFixtures
         new("YAxisContainer", TheAxes, nameof(Axes.YAxes), typeof(YAxisContainer)),
         new("SecondaryXAxis", TheAxes, nameof(Axes.SecondaryXAxis), typeof(Axis), AxisSettings),
         // A YAxisSlot has no settable property of its own (Axis and Side are construction-only) — this row contributes
-        // zero DrawnPaths and exists only so ComposedChartRoundTripTests recognises the type every slot of the container
+        // zero DrawnPaths and exists only so ComposedChartContractTests recognises the type every slot of the container
         // has. The data a slot wraps round-trips through the Y axis slot parts above (the Axis) and the series contract
         // (the slot's own series).
         new("YAxisSlot", figure => TheAxes(figure).YAxes.Right[0], "", typeof(YAxisSlot)),
@@ -359,10 +378,10 @@ public static class DrawnAxesFixtures
         new("ZoomIndicator", TheInset, nameof(Axes.ZoomIndicator), typeof(ZoomIndicator)),
         new("ColorBar", TheAxes, nameof(Axes.ColorBar), typeof(ColorBar)),
         new("FigureColorBar", figure => figure, nameof(Figure.FigureColorBar), typeof(ColorBar)),
-        // What the figure itself draws besides its subplots: its legend (settable, held property by property as the axes' is),
-        // its texts and its images (get-only lists, held through their first item: the constructor's own values are held by
-        // FigureListValues).
-        new("FigureLegend", figure => figure, nameof(Figure.Legend), typeof(Legend)),
+        // What the figure itself draws besides its subplots: its last legend (the last of Figure.Legends, reached through one seat
+        // and held property by property as the axes' is), its texts and its images (get-only lists, held through their first item:
+        // the constructor's own values are held by FigureListValues).
+        new("FigureLegend", figure => new LastFigureLegend(figure), nameof(LastFigureLegend.Legend), typeof(Legend)),
         new("FigureText", figure => figure.Texts[0], "", typeof(FigureText)),
         new("FigureImage", figure => figure.Images[0], "", typeof(FigureImage)),
         new("Grid", TheAxes, nameof(Axes.Grid), typeof(GridStyle)),
@@ -420,31 +439,14 @@ public static class DrawnAxesFixtures
         }
     }
 
-    /// <summary>One row per part and drawn property path.</summary>
-    public static TheoryData<string, string> Rows { get; } = RowsOf(Parts);
+    /// <summary>One row per part that has a drawn property path: its name. A rule that holds for every path of a part is one case per
+    /// part that names each path it finds wrong (<see cref="DrawnSeriesFixtures.AssertKept"/>), never one case per path.</summary>
+    public static TheoryData<string> PartNames { get; } = new(Parts.Where(part => DrawnPaths(part).Count > 0).Select(part => part.Name));
 
-    /// <summary>One row per key of <see cref="FigureListValues"/> for a figure built by <see cref="Build"/>. Declared after
-    /// <see cref="Parts"/>, which <see cref="Build"/> reads.</summary>
-    public static TheoryData<string> FigureListValueKeys { get; } = new(FigureListValues(Build(everyPropertySet: true)).Keys);
-
-    /// <summary>One row per key of <see cref="AxesListValues"/> for a figure built by <see cref="Build"/>. Declared after
-    /// <see cref="Parts"/>, which <see cref="Build"/> reads.</summary>
-    public static TheoryData<string> AxesListValueKeys { get; } = new(AxesListValues(Build(everyPropertySet: true)).Keys);
-
-    /// <summary>The rows of <paramref name="parts"/>: one per part and drawn property path.</summary>
-    public static TheoryData<string, string> RowsOf(IEnumerable<DrawnPart> parts)
-    {
-        var rows = new TheoryData<string, string>();
-        foreach (var part in parts)
-        {
-            foreach (var path in DrawnPaths(part))
-            {
-                rows.Add(part.Name, path);
-            }
-        }
-
-        return rows;
-    }
+    /// <summary>Every drawn property path of the part called <paramref name="partName"/> in <paramref name="figure"/> with its value
+    /// (<see cref="ValueOf"/>), by the path.</summary>
+    public static IReadOnlyDictionary<string, object?> ValuesOf(Figure figure, string partName) =>
+        DrawnPaths(Part(partName)).ToDictionary(path => path, path => ValueOf(figure, partName, path), StringComparer.Ordinal);
 
     /// <summary>A figure with one subplot that holds every part: a labelled line, three right Y axes and two left Y axes
     /// past the primary (so every wire seat of a Y axis is taken: slot 0, the frozen list's one slot and a slot past it, on
@@ -571,6 +573,24 @@ public static class DrawnAxesFixtures
         if (clone is not null || current is null || copied || childType.IsValueType)
         {
             property.SetValue(owner, child);
+        }
+    }
+
+    /// <summary>The last legend of a figure as one settable seat, so the FigureLegend part reaches it the way the axes' Legend part
+    /// reaches the axes' one: read, it is the last of <see cref="Figure.Legends"/> (<see langword="null"/> when there is none);
+    /// set, it replaces that legend, or adds the first one.</summary>
+    /// <param name="figure">The figure whose legends the seat reads and writes.</param>
+    private sealed class LastFigureLegend(Figure figure)
+    {
+        /// <summary>The figure's last legend.</summary>
+        public Legend? Legend
+        {
+            get => figure.Legends.Count > 0 ? figure.Legends[^1] : null;
+            set
+            {
+                if (figure.Legends.Count > 0) figure.RemoveLegend(figure.Legends[^1]);
+                if (value is not null) figure.AddLegend(value);
+            }
         }
     }
 }

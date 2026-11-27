@@ -1,10 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -16,13 +15,7 @@ public class HeatmapAxesRangeTests
 {
     private const double Tolerance = 1e-6;
 
-    private static readonly Regex RectRx = new(
-        """<rect x="(?<x>[-0-9.E]+)" y="(?<y>[-0-9.E]+)" width="(?<w>[-0-9.E]+)" height="(?<h>[-0-9.E]+)" fill="(?<fill>#[0-9A-Fa-f]{6,8})" />""",
-        RegexOptions.Compiled);
-
-    private static readonly Regex MonthRx = new(
-        """<text x="(?<x>[-0-9.E]+)" y="[-0-9.E]+"[^>]*>(?<name>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)</text>""",
-        RegexOptions.Compiled);
+    private static readonly string[] Months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     private readonly record struct Box(double X, double Y, double W, double H, string Fill)
     {
@@ -32,9 +25,8 @@ public class HeatmapAxesRangeTests
     }
 
     private static List<Box> Boxes(string svg) =>
-        [.. RectRx.Matches(svg).Select(m => new Box(Num(m, "x"), Num(m, "y"), Num(m, "w"), Num(m, "h"), m.Groups["fill"].Value))];
-
-    private static double Num(Match m, string group) => double.Parse(m.Groups[group].Value, CultureInfo.InvariantCulture);
+        [.. svg.Elements("rect").Where(rect => rect["fill"]?.StartsWith('#') == true)
+            .Select(rect => new Box(rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height"), rect["fill"]!))];
 
     /// <summary>The plot area: the axes background, the second rectangle of the picture (after the figure's own).</summary>
     private static Box Plot(List<Box> boxes) => boxes[1];
@@ -142,7 +134,7 @@ public class HeatmapAxesRangeTests
         string svg = figure.ToSvg();
         var cells = Cells(Boxes(svg));
 
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
         Assert.Equal(Rows * (Cols - 1), cells.Count);
     }
 
@@ -172,15 +164,15 @@ public class HeatmapAxesRangeTests
         var boxes = Boxes(svg);
         var plot = Plot(boxes);
         double columnWidth = plot.W / columnsShown;
-        var cells = boxes.Where(b => Math.Abs(b.W - columnWidth) < 1e-4 && Math.Abs(b.H - plot.H / 7) < 1e-4).ToList();
-        var names = MonthRx.Matches(svg).Select(m => (Name: m.Groups["name"].Value, X: Num(m, "x"))).ToList();
+        var cells = boxes.Where(b => Math.Abs(b.W - columnWidth) <= SvgMarkupExtensions.WrittenPrecision && Math.Abs(b.H - plot.H / 7) <= SvgMarkupExtensions.WrittenPrecision).ToList();
+        var names = svg.Elements("text").Where(text => Months.Contains(text.Text)).Select(text => (Name: text.Text, X: text.Number("x"))).ToList();
 
         Assert.True(names.Count > 0, "the calendar names no month");
         Assert.True(cells.Count > 0,
             $"no cell is {columnWidth:F4} px wide and {plot.H / 7:F4} px tall, the size {columnsShown} columns across the plot give: the cells ignore the range the axes show.");
         foreach (var (name, x) in names)
         {
-            Assert.True(cells.Any(cell => Math.Abs(cell.CentreX - x) < Tolerance),
+            Assert.True(cells.Any(cell => Math.Abs(cell.CentreX - x) <= SvgMarkupExtensions.WrittenPrecision),
                 $"'{name}' is written at x = {x:F4}, over no column of cells (columns are {columnWidth:F4} wide and start at {cells.Min(c => c.X):F4}).");
         }
     }

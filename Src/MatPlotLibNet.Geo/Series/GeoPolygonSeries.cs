@@ -7,18 +7,19 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Geo.Series;
 
-/// <summary>Renders projected geographic polygons from GeoJSON features. Coordinates are
-/// pre-projected and self-rendered via <see cref="Accept"/> — no visitor registration needed
-/// because this series lives in a separate package. With <see cref="Values"/> it is a choropleth: each feature is
-/// filled with the colour its value has in <see cref="ColorMap"/>, and the colour bar reads the range of the values.</summary>
-public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, INormalizable, IColorBarDataProvider
+/// <summary>Renders projected geographic polygons from GeoJSON features, drawn by its renderer
+/// through the library's series pass. With <see cref="Values"/> it is a choropleth: each feature is
+/// filled with the colour its value has in <see cref="ColorMap"/>, and the colour bar reads the range of the values. The axes it
+/// stands on is a map axes: it keeps the projection's shape, one unit of Y as long as one of X, centred in its cell, and the
+/// projection's bounds as its limits under every theme, as cartopy's <c>GeoAxes</c> does.</summary>
+public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, INormalizable, IColorBarDataProvider, IColorScaled, IMapSeries, ISeriesKind<GeoPolygonSeries>
 {
     private double[]? _values;
 
@@ -28,7 +29,9 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
     /// <summary>The map projection applied to all features.</summary>
     public IGeoProjection Projection { get; }
 
-    /// <summary>Fill color for polygons. A region that has a value (<see cref="Values"/>) is filled by the colour map instead.</summary>
+    /// <summary>Fill color for polygons. A region that has a value (<see cref="Values"/>) is filled by the colour map instead. A map
+    /// that is given none is filled in the colour its verb chose, if one did (a cartogram), as every series that names none is drawn
+    /// in the colour its theme gives it, and not at all otherwise.</summary>
     public Color? Color { get; set; }
 
     /// <summary>The value of each feature, parallel to <see cref="Features"/>; <see langword="null"/> for a map of one fill
@@ -38,12 +41,7 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
     public double[]? Values
     {
         get => _values;
-        set
-        {
-            if (value is not null && value.Length != Features.Count)
-                throw new ArgumentException($"Array lengths must match. Got {value.Length} values for {Features.Count} features.");
-            _values = value;
-        }
+        set => _values = value.ThrowIfNotOnePer(Features.Count, nameof(Values));
     }
 
     /// <inheritdoc />
@@ -60,17 +58,19 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
     /// <inheritdoc />
     /// <remarks>The range of the values that can be drawn: a missing value and an infinity are left out; a single value is a
     /// range of one above it, as the colours are measured; with none the range is 0 to 1.</remarks>
-    public MinMaxRange GetColorBarRange() =>
-        Values?.DrawableRange() is { } range
-            ? new(range.Lo, range.Lo == range.Hi ? range.Lo + 1 : range.Hi)
-            : new(0, 1);
+    public MinMaxRange GetColorBarRange() => this.ColourRangeUnder(Theme.Default);
+
+    /// <inheritdoc />
+    MinMaxRange IColorScaled.ColourRangeOver(ColorMapping mapping) => mapping.RangeOf(Values);
 
     /// <summary>Stroke color for polygon outlines. <see langword="null"/> draws no outline, unless the series wears the theme's
     /// neutral grey in its place (the outline of <c>Borders</c>, a choropleth and a cartogram until a colour is named).</summary>
     public Color? StrokeColor { get; set; }
 
-    /// <summary>Stroke width. Default 0.5.</summary>
-    public double StrokeWidth { get; set; } = 0.5;
+    private const double RestingStrokeWidth = 0.5;
+
+    /// <summary>Stroke width. Default <see cref="RestingStrokeWidth"/>.</summary>
+    public double StrokeWidth { get; set; } = RestingStrokeWidth;
 
     /// <summary>When true, ring coordinates are treated as already-projected (X, Y) values
     /// instead of (lon, lat). Used by background fills like <c>Ocean</c> that span the
@@ -93,133 +93,92 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor, IColormappable, I
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         var bounds = Projection.Bounds;
-        return new(bounds.XMin, bounds.XMax, bounds.YMin, bounds.YMax,
-            StickyXMin: bounds.XMin, StickyXMax: bounds.XMax, StickyYMin: bounds.YMin, StickyYMax: bounds.YMax);
+        return DataRangeContribution.Pinned(new(bounds.XMin, bounds.XMax), new(bounds.YMin, bounds.YMax));
     }
 
-    /// <summary>The discriminator a map is written under.</summary>
-    private const string Discriminator = "geo_polygon";
+    /// <inheritdoc />
+    /// <remarks>The projection's outline (<see cref="ProjectionOutlineExtensions.Outline"/>): the oval of a world map, the circle of a
+    /// globe, the rectangle of the bounds for a cylindrical or a conic map, placed by the transform of the axes.</remarks>
+    IReadOnlyList<Point> IMapSeries.OutlineIn(DataTransform transform) =>
+        GeoPixelMapping.For(Projection, rawProjected: true, transform).Ring(Projection.Outline());
+
+    static string ISeriesKind<GeoPolygonSeries>.Kind => "geo_polygon";
 
     /// <summary>Registers the reader that rebuilds a map from the figure's JSON, so a figure holding a map reads back whole.
     /// Done once when this package loads; call it once in a process that reads JSON before it has used any type of this package,
     /// and again after the series registry was reset. Registering twice is the same as once.</summary>
-    public static void RegisterReader() => SeriesRegistry.Register(Discriminator, FromSeriesDto);
+    public static void RegisterReader() => SeriesRegistry.RegisterReader<GeoPolygonSeries>(FromSeriesDto);
 
     /// <inheritdoc />
     /// <remarks>The fill, the outline and its width travel in the fields every series shares; the projection and the features in
-    /// the package data (<see cref="GeoPackageData"/>).</remarks>
+    /// the package data.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = Discriminator,
+        Type = this.WireKind(),
         Label = Label,
         Color = Color,
         EdgeColor = StrokeColor,
-        LineWidth = StrokeWidth.OrNullAtRest(0.5),
+        LineWidth = StrokeWidth.OrNullAtRest(RestingStrokeWidth),
         Values = Values,
-        ColorMapName = ColorMap.NameForJson(),
-        ColorMap = ColorMap.DescriptionForJson(),
-        Normalizer = this.DescribeNormalizer(),
-        PackageData = GeoPackageData.Write(this),
+        ColorScale = this.ColorScaleOnTheWire(),
+        PackageData = new GeoMapData(Projection, Features, IsRawProjected).Write(),
     };
 
-    /// <summary>Rebuilds a map from its DTO and adds it to the axes.</summary>
-    /// <returns>The map; <see langword="null"/> for a DTO that does not describe one this package can make (a figure written
-    /// before maps carried their data, a projection or a source this version does not know) - the figure then reads without it, as
-    /// for any series kind that is not known, and the drop is reported through the chart diagnostics.</returns>
-    internal static GeoPolygonSeries? FromSeriesDto(Axes axes, SeriesDto dto)
+    /// <summary>The reader of a map that <see cref="SeriesRegistry"/> takes.</summary>
+    /// <param name="axes">The axes the map is added to.</param>
+    /// <param name="dto">The record of the map.</param>
+    /// <returns>The map; no map and the reason for a DTO that does not describe one this package can make (a figure written before
+    /// maps carried their data, a projection or a source this version does not know) - the figure then reads without it, and the
+    /// drop is reported through the chart diagnostics with that reason.</returns>
+    internal static SeriesRead FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        if (GeoPackageData.Read(dto.PackageData) is not { } map) return null;
+        var read = GeoMapData.Read(dto.PackageData);
+        if (read.Map is not { } map) return SeriesRead.Unreadable(read.Why!);
         var (projection, features, rawProjected) = map;
 
         var series = new GeoPolygonSeries(features, projection)
         {
             Color = dto.Color,
             StrokeColor = dto.EdgeColor,
-            StrokeWidth = dto.LineWidth ?? 0.5,
+            StrokeWidth = dto.LineWidth ?? RestingStrokeWidth,
             IsRawProjected = rawProjected,
         };
         if (dto.Values is { } values) series.Values = values;
-        series.RestoreColorMap(dto);
-        series.RestoreNormalizer(dto);
-        return axes.AddSeries(series);
+        series.RestoreColorScale(dto);
+        return SeriesRead.Of(axes.AddSeries(series));
     }
 
     /// <inheritdoc />
-    public override void Accept(ISeriesVisitor visitor, RenderArea area)
+    /// <remarks>Drawn by its renderer through the library's series pass, which the public visitor reaches
+    /// for a series of a package through the host it is (<c>ISeriesRendererHost</c>); a visitor of your own is handed no map.</remarks>
+    public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Draw(this, static context => new GeoPolygonRenderer(context));
+
+    /// <inheritdoc />
+    /// <remarks>Drawn in the colour the map is drawn in, by the rules its renderer draws with: a map that fills its regions is
+    /// a rectangle in its fill (a choropleth in its first region's colour, as matplotlib's <c>HandlerPolyCollection</c> takes the first
+    /// face colour); a map of lines, or one that only outlines its regions (the coastlines, the borders), is a line as wide and in the
+    /// colour of its stroke, as <c>HandlerLineCollection</c> draws a collection of lines.</remarks>
+    internal override IReadOnlyList<LegendPart> LegendPartsUnder(Theme theme)
     {
-        // Self-rendering: project features and draw directly on the render context.
-        // Uses PlotBounds + ComputeDataRange to map projected coords to pixels.
-        var bounds = Projection.Bounds;
-        // The outline: the colour named, or the theme's neutral grey when the series wears it in that place.
-        var outline = StrokeColor ?? (WearsNeutral ? (visitor as SvgSeriesRenderer)?.Theme.Neutral : null);
-        var plot = area.PlotBounds;
-
-        // A ring as pixels; a position the projection cannot place (NaN) is left out.
-        List<Point> Pixels(IEnumerable<(double Lon, double Lat)> ring)
-        {
-            var points = new List<Point>();
-            foreach (var (lon, lat) in ring)
-            {
-                var (px, py) = IsRawProjected ? new ProjectedPoint(lon, lat) : Projection.Forward(lat, lon);
-                if (double.IsNaN(px) || double.IsNaN(py)) continue;
-
-                // Map projected coords to pixel space
-                double fracX = (px - bounds.XMin) / (bounds.XMax - bounds.XMin);
-                double fracY = 1.0 - (py - bounds.YMin) / (bounds.YMax - bounds.YMin);
-                points.Add(new Point(plot.X + fracX * plot.Width, plot.Y + fracY * plot.Height));
-            }
-
-            return points;
-        }
-
-        // The colour of each region: the colour map's colour for its value, over the range of the values that can be drawn.
-        var values = Values;
-        var map = ColorMap ?? ColorMaps.Viridis;
-        var normalizer = this.NormalizerOrLinear();
-        var (min, max) = GetColorBarRange();
-
-        for (int index = 0; index < Features.Count; index++)
-        {
-            var feature = Features[index];
-            var fill = values is null ? Color : map.ColorOf(values[index], normalizer, min, max);
-
-            if (feature.Geometry.Type is "Polygon" or "MultiPolygon")
-            {
-                // One path for each polygon, its exterior and its holes together under the non-zero fill rule, so what a hole
-                // encloses is not filled.
-                foreach (var polygon in feature.Geometry.Polygons)
-                {
-                    var exterior = Pixels(polygon.Exterior.Select(p => (p.Lon, p.Lat)));
-                    if (exterior.Count < 3) continue;
-
-                    var segments = new List<PathSegment>();
-                    AddRing(segments, exterior);
-                    foreach (var hole in polygon.Holes)
-                    {
-                        var pixels = Pixels(hole.Select(p => (p.Lon, p.Lat)));
-                        if (pixels.Count >= 3) AddRing(segments, pixels);
-                    }
-
-                    area.Context.DrawPath(segments, new ShapeStyle(fill, outline, StrokeWidth));
-                }
-            }
-            else
-            {
-                foreach (var ring in feature.Geometry.Rings)
-                {
-                    var points = Pixels(ring);
-                    if (points.Count < 2) continue;
-                    area.Context.DrawLines(points, new StrokeStyle(outline ?? Color ?? Colors.Black, StrokeWidth, LineStyle.Solid));
-                }
-            }
-        }
+        if (string.IsNullOrEmpty(Label)) return [];
+        if (Values is { Length: > 0 } values)
+            return [new LegendPart(Label, LegendSwatch.Patch, Color: this.ColorScaleUnder(theme).ColorOf(values[0]))];
+        if ((Color ?? VerbColor) is not null && Features.Exists(feature => feature.Geometry.Kind.IsArea))
+            return base.LegendPartsUnder(theme);
+        return [new LegendPart(Label, LegendSwatch.Line(GivenStroke.Solid(StrokeWidth)),
+            Color: LineColorOver(OutlineUnder(theme)))];
     }
 
-    /// <summary>A closed subpath through <paramref name="ring"/>.</summary>
-    private static void AddRing(List<PathSegment> segments, List<Point> ring)
-    {
-        segments.Add(new MoveToSegment(ring[0]));
-        for (int i = 1; i < ring.Count; i++) segments.Add(new LineToSegment(ring[i]));
-        segments.Add(new CloseSegment());
-    }
+    /// <summary>The one colour every region is filled in: the colour named, else the colour the verb chose, as the pass of the series
+    /// hands it over (the verb's under the library's own themes, the theme's cycle under the matplotlib themes); none when neither was
+    /// given.</summary>
+    /// <param name="unnamed">The colour the pass gives a series that names none.</param>
+    internal Color? FillOfAll(Color unnamed) => Color ?? (VerbColor is not null ? unnamed : null);
+
+    /// <summary>The colour the outline of a region and a line are drawn in: the colour named, or the theme's neutral grey when the
+    /// series wears it in that place; none when neither says one.</summary>
+    internal Color? OutlineUnder(Theme theme) => StrokeColor ?? (WearsNeutral ? theme.Neutral : null);
+
+    /// <summary>The colour a line is drawn in: its outline, else the fill named, else black.</summary>
+    internal Color LineColorOver(Color? outline) => outline ?? Color ?? Colors.Black;
 }

@@ -1,7 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Tests.Packaging;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Transforms;
 
@@ -14,9 +16,6 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// </summary>
 public class EmbeddedScriptLabelTests
 {
-    /// <summary>One piece of script text the library embeds, and the member it comes from.</summary>
-    private readonly record struct ScriptText(string Source, string Text);
-
     /// <summary>The internal labels found in one embedded script.</summary>
     private readonly record struct ScriptFinding(string Source, IReadOnlyList<InternalLabelHit> Hits);
 
@@ -24,28 +23,33 @@ public class EmbeddedScriptLabelTests
         string.Join(Environment.NewLine, hits.Select(h => $"  {h.Kind}: {h.Text}"));
 
     /// <summary>Every script the library embeds in an SVG: each <c>Svg*Script</c> class's string constants and the
-    /// text its script methods return, with every switch of a method turned on so no branch of the script is skipped.</summary>
-    private static List<ScriptText> EmbeddedScripts()
+    /// text its script methods return, with every switch of a method turned on so no branch of the script is skipped. A script is read as
+    /// a file whose path names the member it comes from.</summary>
+    private static List<SourceFile> EmbeddedScripts()
     {
         const BindingFlags Members = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-        var scripts = new List<ScriptText>();
+        var scripts = new List<SourceFile>();
         foreach (var type in ScriptTypes())
         {
             foreach (var field in type.GetFields(Members).Where(f => f.FieldType == typeof(string)))
             {
-                scripts.Add(new ScriptText($"{type.Name}.{field.Name}", (string)field.GetValue(null)!));
+                scripts.Add(new SourceFile($"{type.Name}.{field.Name}", (string)field.GetValue(null)!));
             }
 
-            foreach (var method in type.GetMethods(Members).Where(m => m.ReturnType == typeof(string) && !m.IsSpecialName))
+            // A method that picks a script for a figure hands out one of the texts its options value composes, read below.
+            foreach (var method in type.GetMethods(Members).Where(m => m.ReturnType == typeof(string) && !m.IsSpecialName
+                         && !m.GetParameters().Any(p => p.ParameterType == typeof(MatPlotLibNet.Models.Figure))))
             {
                 var arguments = method.GetParameters()
                     .Select(p => p.ParameterType == typeof(bool)
                         ? true
+                        : p.ParameterType == typeof(SvgTransform.ServerScriptBranches)
+                        ? SvgTransform.ServerScriptBranches.All
                         : p.HasDefaultValue
                             ? p.DefaultValue
                             : throw new NotSupportedException($"{type.Name}.{method.Name}: teach this test to call parameter '{p.Name}'"))
                     .ToArray();
-                scripts.Add(new ScriptText($"{type.Name}.{method.Name}()", (string)method.Invoke(null, arguments)!));
+                scripts.Add(new SourceFile($"{type.Name}.{method.Name}()", (string)method.Invoke(null, arguments)!));
             }
         }
 
@@ -63,7 +67,7 @@ public class EmbeddedScriptLabelTests
     {
         // The reflection above finds a script by its name. A script class it cannot see would be a script nobody
         // holds to the check, so the folder and the reflection must name the same classes.
-        var folder = Path.Combine(RepoRoot(), "Src", "MatPlotLibNet", "Rendering", "Svg");
+        var folder = Path.Combine(RepositoryRoot.Folder, "Src", "MatPlotLibNet", "Rendering", "Svg");
         var onDisk = Directory.EnumerateFiles(folder, "Svg*Script.cs").Select(Path.GetFileNameWithoutExtension).Order(StringComparer.Ordinal);
 
         Assert.Equal(onDisk, ScriptTypes().Select(t => t.Name));
@@ -73,13 +77,59 @@ public class EmbeddedScriptLabelTests
     public void EveryEmbeddedScript_DescribesWhatItDoes_AndNamesNoPhaseVersionDateOrTest()
     {
         var offenders = EmbeddedScripts()
-            .Select(s => new ScriptFinding(s.Source, s.Text.InternalLabels()))
+            .Select(s => new ScriptFinding(s.Path, s.Text.InternalLabels()))
             .Where(f => f.Hits.Count > 0)
             .Select(f => $"{f.Source}{Environment.NewLine}{Describe(f.Hits)}")
             .ToArray();
 
         Assert.True(offenders.Length == 0,
             $"{offenders.Length} embedded script(s) carry internal labels:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
+
+    /// <summary>A type written before a member (<c>Projection3D.SelectFaces</c>).</summary>
+    private static readonly Regex TypeAndMember = new(@"\b([A-Z][A-Za-z0-9]+)\.([A-Z][A-Za-z0-9_]+)\b", RegexOptions.CultureInvariant);
+
+    /// <summary>A member of the server named after the word that says it is the server's (<c>the server's OutwardPerp</c>).</summary>
+    private static readonly Regex ServerMember = new(@"\bserver(?:'s)? ([A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+)\b", RegexOptions.CultureInvariant);
+
+    private const BindingFlags AllMembers = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+
+    private static IEnumerable<Type> WithNestedTypes(Type type) =>
+        new[] { type }.Concat(type.GetNestedTypes(AllMembers).SelectMany(WithNestedTypes));
+
+    /// <summary>The comments of a script are written for the reader of the page, and the ones that point at the server say which
+    /// member it is. A member that was renamed, moved or deleted leaves a pointer to nothing, so every type and member a
+    /// comment names is looked up in the library.</summary>
+    [Fact]
+    public void EveryMemberAnEmbeddedScriptNamesInItsComments_StillExists()
+    {
+        var types = typeof(SvgTransform).Assembly.GetTypes().SelectMany(WithNestedTypes).ToArray();
+        var typesByName = types.GroupBy(t => t.Name).ToDictionary(g => g.Key, g => g.ToArray());
+        var names = types.Select(t => t.Name).Concat(types.SelectMany(t => t.GetMembers(AllMembers)).Select(m => m.Name)).ToHashSet();
+
+        var stale = new List<string>();
+        foreach (var script in EmbeddedScripts())
+        {
+            foreach (var line in script.Lines)
+            {
+                if (SourceFile.CommentOf(line) is not { } words) continue;
+
+                foreach (Match m in TypeAndMember.Matches(words))
+                {
+                    if (typesByName.TryGetValue(m.Groups[1].Value, out var named)
+                        && !named.Any(t => t.GetMember(m.Groups[2].Value, AllMembers).Length > 0))
+                        stale.Add($"{script.Path}: {m.Value} (no member {m.Groups[2].Value} on {m.Groups[1].Value})");
+                }
+
+                foreach (Match m in ServerMember.Matches(words))
+                {
+                    if (!names.Contains(m.Groups[1].Value))
+                        stale.Add($"{script.Path}: the server's {m.Groups[1].Value} (no type or member of that name)");
+                }
+            }
+        }
+
+        Assert.True(stale.Count == 0, $"{stale.Count} name(s) in embedded scripts point at nothing:{Environment.NewLine}{string.Join(Environment.NewLine, stale)}");
     }
 
     [Fact]
@@ -106,17 +156,5 @@ public class EmbeddedScriptLabelTests
 
         var hits = svg.InternalLabels();
         Assert.True(hits.Count == 0, $"The interactive SVG carries {hits.Count} internal label(s):{Environment.NewLine}{Describe(hits)}");
-    }
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
     }
 }

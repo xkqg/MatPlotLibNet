@@ -37,7 +37,7 @@ public class FixedFrameTests
     {
         var figure = TernaryFigure();
         var host = Attach(figure);
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         string before = figure.ToJson();
 
         host.HandleScroll(new ScrollInputArgs(plot.X + plot.Width / 2, plot.Y + plot.Height / 2, 0, -1));
@@ -50,7 +50,7 @@ public class FixedFrameTests
     {
         var figure = TernaryFigure();
         var host = Attach(figure);
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         string before = figure.ToJson();
         double x = plot.X + plot.Width / 2, y = plot.Y + plot.Height / 2;
 

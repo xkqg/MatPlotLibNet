@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useMplLiveChart } from './use-mpl-live-chart';
-import { mountSvg } from './mount-svg';
+import { mountSvg } from '@matplotlibnet/client';
 
 /** Props for the MplLiveChart component. */
 export interface MplLiveChartProps {

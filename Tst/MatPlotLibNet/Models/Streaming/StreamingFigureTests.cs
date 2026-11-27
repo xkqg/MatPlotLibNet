@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Models.Streaming;
 
@@ -51,6 +52,117 @@ public sealed class StreamingFigureTests
         Assert.True(sf.DataVersion > v1);
         sf.Dispose();
     }
+
+    /// <summary>A sampled signal is a streaming kind too: its appends must tell the clock a frame is due, or a figure that holds one
+    /// is drawn once and never again.</summary>
+    [Fact]
+    public void DataVersion_CountsAStreamingSignal()
+    {
+        var figure = new Figure();
+        var signal = figure.AddSubPlot().AddSeries(new StreamingSignalSeries(100));
+        using var sf = new StreamingFigure(figure);
+
+        long before = sf.DataVersion;
+        signal.AppendSample(1);
+
+        Assert.Equal(before + 1, sf.DataVersion);
+    }
+
+    /// <summary>Every seat a series can stand on is counted: the Y axes on the right, the ones stacked on the left past the primary,
+    /// the top X axis and the insets. A stream on any of them that the clock does not count is never drawn again.</summary>
+    public static TheoryData<string> Seats { get; } = ["right Y axis", "left Y axis past the primary", "top X axis", "inset", "inset of an inset"];
+
+    [Theory]
+    [MemberData(nameof(Seats))]
+    public void DataVersion_CountsAStreamOnEverySeat(string seat)
+    {
+        var figure = new Figure();
+        var stream = Seat(figure.AddSubPlot(), seat, new StreamingLineSeries(100));
+        using var sf = new StreamingFigure(figure);
+
+        long before = sf.DataVersion;
+        stream.AppendPoint(1, 2);
+
+        Assert.Equal(before + 1, sf.DataVersion);
+    }
+
+    /// <summary>The clock's question is the sum of the versions of every series the subplots and their insets show: the walk agrees
+    /// with <see cref="Axes.AllSeries"/>, the owner of "every series of a subplot".</summary>
+    [Fact]
+    public void DataVersion_IsTheSumOfTheVersionsOfEverySeriesShown()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        foreach (var seat in Seats) Seat(axes, seat, new StreamingLineSeries(10)).AppendPoints([1.0, 2.0], [3.0, 4.0]);
+        axes.AddSeries(new StreamingSignalSeries(10)).AppendSample(1);
+        axes.AddSeries(new StreamingCandlestickSeries(10)).AppendBar(1, 2, 0, 1);
+        axes.AddSeries(new StreamingScatterSeries(10)).AppendPoint(1, 1);
+        axes.AddSeries(new LineSeries([1.0, 2.0], [1.0, 2.0]));
+        using var sf = new StreamingFigure(figure);
+
+        long expected = Shown(figure.SubPlots).Sum(series => series switch
+        {
+            IStreamingSeries s => s.Version,
+            IStreamingOhlcSeries o => o.Version,
+            StreamingSignalSeries g => g.Version,
+            _ => 0,
+        });
+
+        Assert.Equal(8, expected);
+        Assert.Equal(expected, sf.DataVersion);
+    }
+
+    /// <summary>The clock asks at every tick, thirty times a second per figure: asking allocates nothing.</summary>
+    [Fact]
+    public void DataVersion_AllocatesNothing()
+    {
+        var figure = new Figure();
+        for (int p = 0; p < 3; p++)
+        {
+            var axes = figure.AddSubPlot();
+            foreach (var seat in Seats) Seat(axes, seat, new StreamingLineSeries(10)).AppendPoint(1, 1);
+            axes.AddSeries(new StreamingSignalSeries(10)).AppendSample(1);
+        }
+
+        using var sf = new StreamingFigure(figure) { MinRenderInterval = TimeSpan.FromHours(1) };
+        _ = sf.DataVersion;
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        long version = sf.DataVersion;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(version > 0);
+        Assert.Equal(0, allocated);
+    }
+
+    /// <summary>The red team's repro: a streaming figure that holds a sampled signal asks for a frame when a sample comes in.</summary>
+    [Fact]
+    public async Task RenderRequested_FiresForAStreamingSignal()
+    {
+        var figure = new Figure();
+        var signal = figure.AddSubPlot().AddSeries(new StreamingSignalSeries(100));
+        using var sf = new StreamingFigure(figure) { MinRenderInterval = TimeSpan.FromMilliseconds(20) };
+        var fired = new TaskCompletionSource();
+        sf.RenderRequested += () => fired.TrySetResult();
+
+        signal.AppendSample(1);
+
+        var completed = await Task.WhenAny(fired.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
+        Assert.Equal(fired.Task, completed);
+    }
+
+    private static T Seat<T>(Axes axes, string seat, T series) where T : ISeries => seat switch
+    {
+        "right Y axis" => axes.YAxes.Right.Add().AddSeries(series),
+        "left Y axis past the primary" => axes.YAxes.Left.Add().AddSeries(series),
+        "top X axis" => axes.AddXSecondarySeries(series),
+        "inset" => axes.AddInset(0.1, 0.1, 0.3, 0.3).AddSeries(series),
+        "inset of an inset" => axes.AddInset(0.5, 0.5, 0.3, 0.3).AddInset(0.1, 0.1, 0.5, 0.5).AddSeries(series),
+        _ => throw new ArgumentOutOfRangeException(nameof(seat), seat, null),
+    };
+
+    private static IEnumerable<ISeries> Shown(IEnumerable<Axes> axes) =>
+        axes.SelectMany(a => a.AllSeries.Concat(Shown(a.Insets)));
 
     [Fact]
     public async Task RenderRequested_FiresAfterThrottle()
@@ -167,7 +279,7 @@ public sealed class StreamingFigureTests
     }
 
     [Fact]
-    public void DefaultConfig_IsSlidingWindowAutoScale()
+    public void ANewStreamingFigure_SlidesItsXWindow_AndScalesItsYToTheData()
     {
         var (sf, _) = CreateSimple();
         Assert.IsType<AxisScaleMode.SlidingWindow>(sf.DefaultConfig.XMode);
@@ -202,7 +314,7 @@ public sealed class StreamingFigureTests
     }
 
     [Fact]
-    public void MinRenderInterval_DefaultIs33ms()
+    public void ANewStreamingFigure_DrawsAtMostOnceEvery33Milliseconds()
     {
         var (sf, _) = CreateSimple();
         Assert.Equal(TimeSpan.FromMilliseconds(33), sf.MinRenderInterval);

@@ -7,14 +7,22 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.DataFrame</PackageId>
-    <Version>1.29.0</Version>
-    <Description>Microsoft.Data.Analysis.DataFrame extension methods for MatPlotLibNet — plot directly from typed DataFrames (Line, Scatter, Hist with hue grouping), compute 51 financial / signal-processing indicators (SMA, EMA, RSI, MACD, Bollinger, ADX, ATR, VWAP, Ichimoku, Supertrend, MAMA/FAMA, Garman-Klass, Yang-Zhang, VPIN, BOCPD, Transfer Entropy, and more), and run polynomial regression with confidence bands — all from named column strings.</Description>
+    <Version>1.30.0</Version>
+    <Description>Microsoft.Data.Analysis.DataFrame extension methods for MatPlotLibNet — plot directly from typed DataFrames (Line, Scatter, Hist with hue grouping), read the bars of every financial / signal-processing indicator of the library (SMA, EMA, RSI, MACD, Bollinger, ADX, ATR, VWAP, Ichimoku, Supertrend, MAMA/FAMA, Garman-Klass, Yang-Zhang, VPIN, BOCPD, Transfer Entropy, and more) by one call for each shape of bars (Hlc, Hlcv, Ohlc, Cv, Hl, Hlv) or one column (Values), and run polynomial regression with confidence bands — all from named column strings.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;dataframe;indicators;finance;sma;ema;macd;bollinger</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <InternalsVisibleTo>MatPlotLibNet.DataFrame.Tests</InternalsVisibleTo>
+    <!-- Reads internals of the core (HueGrouper.Codes, the one numbering of hue labels), so it depends on it at exactly this
+         version (Directory.Build.targets). -->
+    <DependsOnInternals>true</DependsOnInternals>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The suite holds the one way every verb reads a column by its name (DataFrameColumnExtensions), which is how the package reads a
+         frame, not a public API. The SDK reads the item; a property of that name does nothing. -->
+    <InternalsVisibleTo Include="MatPlotLibNet.DataFrame.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Analysis" Version="0.23.*" />

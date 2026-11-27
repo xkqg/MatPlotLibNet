@@ -99,7 +99,7 @@ public class ControlChartDataTests
         var error = Assert.Throws<ArgumentException>(() => ControlChartData.MovingRange([1, 2], [4.2, double.NaN]));
 
         Assert.Equal("values", error.ParamName);
-        Assert.Equal("The sample has 1 observation that can be drawn; a moving range chart is drawn from 2 or more (NaN and the infinities are left out). (Parameter 'values')", error.Message);
+        Assert.Equal("The sample holds 1 observation; a moving range chart needs at least 2; NaN and the infinities are not counted. (Parameter 'values')", error.Message);
     }
 
     [Fact]
@@ -206,12 +206,12 @@ public class ControlChartDataTests
     {
         double[][] subgroups = [[.. Enumerable.Range(0, size).Select(i => (double)i)], [.. Enumerable.Range(0, size).Select(i => i + 1.0)]];
 
-        var xbar = Assert.Throws<ArgumentException>(() => ControlChartData.XBar(subgroups));
-        var range = Assert.Throws<ArgumentException>(() => ControlChartData.Range(subgroups));
+        var xbar = Assert.Throws<ArgumentOutOfRangeException>(() => ControlChartData.XBar(subgroups));
+        var range = Assert.Throws<ArgumentOutOfRangeException>(() => ControlChartData.Range(subgroups));
 
         Assert.Equal("subgroups", xbar.ParamName);
         Assert.Equal("subgroups", range.ParamName);
-        Assert.StartsWith($"The subgroups hold {size} observation{(size == 1 ? "" : "s")} each; the constants of a control chart for subgroups are tabulated for 2 to 10.", xbar.Message, StringComparison.Ordinal);
+        Assert.StartsWith($"The size of a subgroup must be in [2, 10] (got {size}).", xbar.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public class ControlChartDataTests
         var error = Assert.Throws<ArgumentException>(() => ControlChartData.XBar([[1, 2, 3], [1, 2, 3], [1, 2, 3, 4]]));
 
         Assert.Equal("subgroups", error.ParamName);
-        Assert.StartsWith("Subgroup 3 holds 4 observations and subgroup 1 holds 3 observations; the limits of the chart are for one subgroup size.", error.Message, StringComparison.Ordinal);
+        Assert.StartsWith(4.RefusalAgainst(3, of: "subgroup 2"), error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -277,10 +277,11 @@ public class ControlChartDataTests
     {
         Assert.Equal("defectives", Assert.Throws<ArgumentNullException>(() => ControlChartData.P(null!, 100)).ParamName);
         Assert.Equal("sampleSize", Assert.Throws<ArgumentOutOfRangeException>(() => ControlChartData.P([1, 2], 0)).ParamName);
-        var over = Assert.Throws<ArgumentException>(() => ControlChartData.P([4, 120, 5], 100));
+        var over = Assert.Throws<ArgumentOutOfRangeException>(() => ControlChartData.P([4, 120, 5], 100));
         Assert.Equal("defectives", over.ParamName);
-        Assert.StartsWith("Sample 2 has 120 defectives; a sample of 100 has between 0 and 100.", over.Message, StringComparison.Ordinal);
-        Assert.StartsWith("Sample 1 has -1 defectives;", Assert.Throws<ArgumentException>(() => ControlChartData.P([-1, 2], 100)).Message, StringComparison.Ordinal);
+        Assert.StartsWith("The defectives of sample 2 must be in [0, 100] (got 120).", over.Message, StringComparison.Ordinal);
+        Assert.StartsWith("The defectives of sample 1 must be in [0, 100] (got -1).", Assert.Throws<ArgumentOutOfRangeException>(() => ControlChartData.P([-1, 2], 100)).Message, StringComparison.Ordinal);
+        Assert.StartsWith("The defectives of sample 1 must be in [0, 100] (got Infinity).", Assert.Throws<ArgumentOutOfRangeException>(() => ControlChartData.P([double.PositiveInfinity], 100)).Message, StringComparison.Ordinal);
         var none = Assert.Throws<ArgumentException>(() => ControlChartData.P([double.NaN], 100));
         Assert.StartsWith("No sample has a result;", none.Message, StringComparison.Ordinal);
     }
@@ -320,10 +321,10 @@ public class ControlChartDataTests
         Assert.True(double.IsNaN(gap.Values.YData[1]));
         Assert.Equal(5.0, gap.Center.Value);
         Assert.Equal("counts", Assert.Throws<ArgumentNullException>(() => ControlChartData.C(null!)).ParamName);
-        var negative = Assert.Throws<ArgumentException>(() => ControlChartData.C([3, -1, 4]));
+        var negative = Assert.ThrowsAny<ArgumentException>(() => ControlChartData.C([3, -1, 4]));
         Assert.Equal("counts", negative.ParamName);
-        Assert.StartsWith("Sample 2 has a count of -1; a count is a finite number of 0 or more.", negative.Message, StringComparison.Ordinal);
-        Assert.StartsWith("No sample has a count;", Assert.Throws<ArgumentException>(() => ControlChartData.C([double.NaN])).Message, StringComparison.Ordinal);
+        Assert.StartsWith("The count of sample 2 must be >= 0 (got -1).", negative.Message, StringComparison.Ordinal);
+        Assert.StartsWith("No sample has a count;", Assert.ThrowsAny<ArgumentException>(() => ControlChartData.C([double.NaN])).Message, StringComparison.Ordinal);
     }
 
     /// <summary>A count of 0 sits ON a lower limit of 0, which is not beyond it (a limit is not a violation).</summary>

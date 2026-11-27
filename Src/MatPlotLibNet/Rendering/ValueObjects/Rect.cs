@@ -16,8 +16,13 @@ public readonly record struct Rect(double X, double Y, double Width, double Heig
     /// <summary>Bottom edge Y coordinate (Y + Height).</summary>
     public double Bottom => Y + Height;
 
-    /// <summary>Centre point of the rectangle.</summary>
-    public Point Center => new(X + Width / 2.0, Y + Height / 2.0);
+    /// <summary>Centre point of the rectangle: its centre along X and along Y (the one place
+    /// half a side is added to its start).</summary>
+    public Point Center => new(this.CentreAlong(true), this.CentreAlong(false));
+
+    /// <summary>The shorter of the two sides: what the circle of a round chart, the square a 3-D box is fitted in and the largest
+    /// radius of a rounded corner are measured from. The one place the lesser of the width and the height is picked.</summary>
+    internal double ShorterSide => Math.Min(Width, Height);
 
     /// <summary>The rectangle between two opposite corners, in either order: its left and top edges are the smaller
     /// coordinates, its width and height the distances between them, never negative. A mark placed by its data corners
@@ -31,6 +36,50 @@ public readonly record struct Rect(double X, double Y, double Width, double Heig
     /// <returns>The rectangle the two corners span.</returns>
     internal static Rect FromCorners(Point a, Point b) =>
         new(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(b.X - a.X), Math.Abs(b.Y - a.Y));
+
+    /// <summary>The smallest rectangle that holds every rectangle of <paramref name="rects"/> (matplotlib's <c>Bbox.union</c>).</summary>
+    /// <param name="rects">The rectangles.</param>
+    /// <returns>The enclosing rectangle; <see langword="null"/> when there is none.</returns>
+    internal static Rect? Enclosing(IReadOnlyList<Rect> rects)
+    {
+        if (rects.Count == 0) return null;
+        double left = double.MaxValue, top = double.MaxValue, right = double.MinValue, bottom = double.MinValue;
+        for (int i = 0; i < rects.Count; i++)
+        {
+            var rect = rects[i];
+            left = Math.Min(left, rect.X);
+            top = Math.Min(top, rect.Y);
+            right = Math.Max(right, rect.Right);
+            bottom = Math.Max(bottom, rect.Bottom);
+        }
+
+        return new Rect(left, top, right - left, bottom - top);
+    }
+
+    /// <summary>This rectangle moved by the transform that maps the box <paramref name="from"/> onto the box
+    /// <paramref name="to"/> (matplotlib's <c>BboxTransform(from, to)</c>): its position and its size are scaled by the ratio of the
+    /// two boxes on each axis.</summary>
+    /// <param name="from">The box the rectangle stands in.</param>
+    /// <param name="to">The box it is mapped onto.</param>
+    /// <returns>The rectangle in <paramref name="to"/>.</returns>
+    internal Rect Remapped(Rect from, Rect to)
+    {
+        double scaleX = to.Width / from.Width, scaleY = to.Height / from.Height;
+        return new Rect(to.X + (X - from.X) * scaleX, to.Y + (Y - from.Y) * scaleY, Width * scaleX, Height * scaleY);
+    }
+
+    /// <summary>Whether a plot area of this rectangle shows <paramref name="point"/>, the point an annotation in data coordinates
+    /// annotates: inside it or within half a pixel past an edge, as matplotlib reads it (<c>Annotation._check_xy</c> asks
+    /// <c>Axes.contains_point</c>, the axes patch with a radius of 1.0). An annotation whose point it does not show is not drawn: the
+    /// label of a bar whose end lies past the limits, an annotation of a point past them.</summary>
+    /// <param name="point">The annotated point, in pixels.</param>
+    /// <returns>Whether the point is shown.</returns>
+    internal bool Shows(Point point) =>
+        point.X >= X - HalfAPixel && point.X <= Right + HalfAPixel && point.Y >= Y - HalfAPixel && point.Y <= Bottom + HalfAPixel;
+
+    /// <summary>How far past an edge of the axes a point still stands in it for matplotlib (half of the radius of 1.0 its axes patch is
+    /// asked with), in pixels.</summary>
+    private const double HalfAPixel = 0.5;
 
     /// <summary>
     /// Returns <see langword="true"/> when this rectangle overlaps <paramref name="other"/>

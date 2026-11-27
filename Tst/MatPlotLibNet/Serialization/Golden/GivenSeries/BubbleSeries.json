@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"bubble","label":"text 2","xData":[1,2,3],"yData":[2,4,3],"sizes":[10,20,30],"color":"#1BC33F","alpha":0.25,"zOrder":8,"visible":false,"maxDisplayPoints":5,"rowKeys":["layer 4.0","layer 4.1","layer 4.2"]}]}]}

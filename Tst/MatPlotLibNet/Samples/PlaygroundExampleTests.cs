@@ -1,11 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Playground;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Samples;
 
@@ -42,6 +44,16 @@ public class PlaygroundExampleTests
         Assert.Contains("</svg>", svg);
     }
 
+    [Theory]
+    [MemberData(nameof(AllExamples))]
+    public void EveryExample_PrintsNoFormatStringAsText(PlaygroundExample example)
+    {
+        // A pie example that wrote matplotlib's "%.0f%%" printed that text on every wedge.
+        string svg = PlaygroundExamples.Build(example, Defaults()).Figure.ToSvg();
+
+        Assert.DoesNotContain(svg.Elements("text").Select(text => text.Text), text => Regex.IsMatch(text, @"%[-+ 0#]*\d*(\.\d*)?[fFdi]"));
+    }
+
     public static IEnumerable<object[]> AllExamples() =>
         Enum.GetValues<PlaygroundExample>().Select(e => new object[] { e });
 
@@ -66,58 +78,32 @@ public class PlaygroundExampleTests
 
     // ── Grid toggle (the inverted-bug regression test) ───────────────────────
 
-    [Fact]
-    public void ShowGrid_TrueKeepsThemeDefaultGrid_FalseHidesIt()
+    /// <summary>Each of the grid and the legend is set explicitly both ways, whatever the other is. Before, the options skipped the call
+    /// when a checkbox was off, leaving the axes at their default-visible state, so a chart drawn with the box on looked the same as one
+    /// drawn with it off.</summary>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void ShowGrid_AndShowLegend_AreSetExplicitly_BothWays(bool grid, bool legend)
     {
-        var on  = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowGrid = true }).Figure;
-        var off = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowGrid = false }).Figure;
+        var figure = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowGrid = grid, ShowLegend = legend }).Figure;
 
-        // Phase P (2026-04-18) strengthened: ApplyToAxes now sets Grid.Visible
-        // BOTH ways so the user sees a visible difference on toggle. Pre-P we
-        // only called ShowGrid(false) when off, leaving the builder's default-
-        // visible state for on — but that meant the rendered chart looked
-        // identical regardless of the checkbox.
-        Assert.True(on.SubPlots[0].Grid.Visible,
-            "ShowGrid=true must set Grid.Visible=true explicitly so the toggle is idempotent");
-        Assert.False(off.SubPlots[0].Grid.Visible,
-            "ShowGrid=false must explicitly hide the grid");
+        Assert.Equal(grid, figure.SubPlots[0].Grid.Visible);
+        Assert.Equal(legend, figure.SubPlots[0].Legend.Visible);
     }
 
-    [Fact]
-    public void ShowLegend_TrueAddsLegend_FalseExplicitlyHidesIt()
+    /// <summary>End-to-end proof that toggling the playground checkbox (the legend, the grid) actually changes the rendered SVG. If
+    /// bytes are identical, Blazor's virtual-DOM diff doesn't re-emit the iframe srcdoc, the iframe doesn't reload and the user
+    /// sees a stale chart (the exact symptom they reported).</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ShowLegendAndShowGrid_Toggle_ProduceDifferentSvgBytes(bool legend)
     {
-        // Phase P regression test — pre-P this checkbox had no visual effect
-        // because ApplyToAxes skipped the WithLegend() call when off, leaving
-        // Axes.Legend at its default-visible state. User screenshots showed
-        // identical charts with the checkbox on vs off. ApplyToAxes now calls
-        // WithLegend(visible: ShowLegend) unconditionally.
-        var on  = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowLegend = true  }).Figure;
-        var off = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowLegend = false }).Figure;
+        string Svg(bool shown) => PlaygroundExamples.Build(PlaygroundExample.LineChart,
+            legend ? Defaults() with { ShowLegend = shown } : Defaults() with { ShowGrid = shown }).Figure.ToSvg();
 
-        Assert.True(on.SubPlots[0].Legend.Visible,
-            "ShowLegend=true must set Legend.Visible=true explicitly");
-        Assert.False(off.SubPlots[0].Legend.Visible,
-            "ShowLegend=false must explicitly hide the legend");
-    }
-
-    [Fact]
-    public void ShowLegend_Toggle_ProducesDifferentSvgBytes()
-    {
-        // Phase P — end-to-end proof that toggling the playground checkbox
-        // actually changes the rendered SVG. If bytes are identical, Blazor's
-        // virtual-DOM diff doesn't re-emit the iframe srcdoc → iframe doesn't
-        // reload → user sees stale chart (the exact symptom they reported).
-        string svgOn  = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowLegend = true  }).Figure.ToSvg();
-        string svgOff = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowLegend = false }).Figure.ToSvg();
-        Assert.NotEqual(svgOn, svgOff);
-    }
-
-    [Fact]
-    public void ShowGrid_Toggle_ProducesDifferentSvgBytes()
-    {
-        string svgOn  = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowGrid = true  }).Figure.ToSvg();
-        string svgOff = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { ShowGrid = false }).Figure.ToSvg();
-        Assert.NotEqual(svgOn, svgOff);
+        Assert.NotEqual(Svg(true), Svg(false));
     }
 
     // ── TightMargins toggle ──────────────────────────────────────────────────
@@ -133,18 +119,18 @@ public class PlaygroundExampleTests
 
     // ── Spine toggles ────────────────────────────────────────────────────────
 
-    [Fact]
-    public void HideTopSpine_HidesTopSpine_WhenEnabled()
+    public static TheoryData<Func<PlaygroundOptions, PlaygroundOptions>, Func<Figure, bool>> HiddenSpines => new()
     {
-        var fig = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { HideTopSpine = true }).Figure;
-        Assert.False(fig.SubPlots[0].Spines.Top.Visible);
-    }
+        { options => options with { HideTopSpine = true }, figure => figure.SubPlots[0].Spines.Top.Visible },
+        { options => options with { HideRightSpine = true }, figure => figure.SubPlots[0].Spines.Right.Visible },
+    };
 
-    [Fact]
-    public void HideRightSpine_HidesRightSpine_WhenEnabled()
+    [Theory]
+    [MemberData(nameof(HiddenSpines))]
+    public void HideASpine_HidesThatSpine_WhenEnabled(Func<PlaygroundOptions, PlaygroundOptions> hide, Func<Figure, bool> isVisible)
     {
-        var fig = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { HideRightSpine = true }).Figure;
-        Assert.False(fig.SubPlots[0].Spines.Right.Visible);
+        var fig = PlaygroundExamples.Build(PlaygroundExample.LineChart, hide(Defaults())).Figure;
+        Assert.False(isVisible(fig));
     }
 
     // ── Theme + size ─────────────────────────────────────────────────────────
@@ -172,6 +158,27 @@ public class PlaygroundExampleTests
         new object[] { Theme.Cyberpunk },
     };
 
+    /// <summary>The snippet the reader copies names the theme by the property that holds it: it printed the theme's own name,
+    /// which is no C# (<c>Theme.custom-default</c>, <c>Theme.high-contrast</c>).</summary>
+    [Theory]
+    [MemberData(nameof(ThemesByTheirProperty))]
+    public void TheCodeSnippet_NamesTheThemeByItsProperty(Theme theme, string property)
+    {
+        string code = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { Theme = theme }).Code;
+
+        Assert.Contains($".WithTheme(Theme.{property})", code);
+    }
+
+    public static IEnumerable<object[]> ThemesByTheirProperty() => new[]
+    {
+        new object[] { Theme.Default, "Default" },
+        new object[] { Theme.Nord, "Nord" },
+        new object[] { Theme.OneDark, "OneDark" },
+        new object[] { Theme.GitHub, "GitHub" },
+        new object[] { Theme.HighContrast, "HighContrast" },
+        new object[] { Theme.MatplotlibV2, "MatplotlibV2" },
+    };
+
     [Fact]
     public void Size_PropagatesToFigure()
     {
@@ -197,18 +204,18 @@ public class PlaygroundExampleTests
 
     // ── Code snippet reflects toggles (so users can copy a working repro) ────
 
-    [Fact]
-    public void CodeSnippet_IncludesBrowserInteraction_WhenEnabled()
+    public static TheoryData<Func<PlaygroundOptions, PlaygroundOptions>, string> SwitchedOnOptions => new()
     {
-        var (_, code) = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { BrowserInteraction = true });
-        Assert.Contains("WithBrowserInteraction", code);
-    }
+        { options => options with { BrowserInteraction = true }, "WithBrowserInteraction" },
+        { options => options with { TightLayout = true }, "TightLayout" },
+    };
 
-    [Fact]
-    public void CodeSnippet_IncludesTightLayout_WhenEnabled()
+    [Theory]
+    [MemberData(nameof(SwitchedOnOptions))]
+    public void CodeSnippet_IncludesTheSwitchedOnOption_WhenEnabled(Func<PlaygroundOptions, PlaygroundOptions> switchOn, string expected)
     {
-        var (_, code) = PlaygroundExamples.Build(PlaygroundExample.LineChart, Defaults() with { TightLayout = true });
-        Assert.Contains("TightLayout", code);
+        var (_, code) = PlaygroundExamples.Build(PlaygroundExample.LineChart, switchOn(Defaults()));
+        Assert.Contains(expected, code);
     }
 
     [Fact]
@@ -230,36 +237,33 @@ public class PlaygroundExampleTests
         Assert.Equal(22, PlaygroundExamples.Examples.Count);
     }
 
-    [Fact]
-    public void SupportsLineControls_IsTrueOnlyForExamplesThatDrawALine()
+    /// <summary>What the controls of the playground apply to, example by example: the line controls to the examples that draw a line (a
+    /// scatter plot has none), the marker controls to every example whose primary series has a marker style (the scatter plot's always
+    /// on, the line families' optional), and the spines to the examples drawn on Cartesian axes.</summary>
+    public static TheoryData<Func<PlaygroundExample, bool>, PlaygroundExample, bool> Capabilities { get; } = BuildCapabilities();
+
+    private static TheoryData<Func<PlaygroundExample, bool>, PlaygroundExample, bool> BuildCapabilities()
     {
-        // L.6 of Phase L — scatter plots have NO line, so line-style / line-width
-        // controls make no visual difference on them. Exclude Scatter.
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.LineChart));
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MultiSeries));
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.AxisBreaks));
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MinorGrid));
-        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.DirectLabels));
-        Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.ScatterPlot));
-        Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.Heatmap));
-        Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.PieChart));
+        var data = new TheoryData<Func<PlaygroundExample, bool>, PlaygroundExample, bool>();
+        foreach (var example in new[] { PlaygroundExample.LineChart, PlaygroundExample.MultiSeries, PlaygroundExample.AxisBreaks, PlaygroundExample.MinorGrid, PlaygroundExample.DirectLabels })
+            data.Add(PlaygroundExamples.SupportsLineControls, example, true);
+        foreach (var example in new[] { PlaygroundExample.ScatterPlot, PlaygroundExample.Heatmap, PlaygroundExample.PieChart })
+            data.Add(PlaygroundExamples.SupportsLineControls, example, false);
+        foreach (var example in new[] { PlaygroundExample.LineChart, PlaygroundExample.ScatterPlot, PlaygroundExample.MultiSeries, PlaygroundExample.AxisBreaks, PlaygroundExample.MinorGrid, PlaygroundExample.DirectLabels })
+            data.Add(PlaygroundExamples.SupportsMarkerControls, example, true);
+        foreach (var example in new[] { PlaygroundExample.Heatmap, PlaygroundExample.PieChart })
+            data.Add(PlaygroundExamples.SupportsMarkerControls, example, false);
+        foreach (var example in new[] { PlaygroundExample.LineChart, PlaygroundExample.BarChart })
+            data.Add(PlaygroundExamples.HasCartesianSpines, example, true);
+        foreach (var example in new[] { PlaygroundExample.Surface3D, PlaygroundExample.PolarLine, PlaygroundExample.PieChart, PlaygroundExample.SankeyFlow, PlaygroundExample.Treemap, PlaygroundExample.RadarChart })
+            data.Add(PlaygroundExamples.HasCartesianSpines, example, false);
+        return data;
     }
 
-    [Fact]
-    public void SupportsMarkerControls_IsTrueForLineScatterAndMulti()
-    {
-        // L.6 of Phase L — the playground's Marker / Marker-size controls apply to
-        // any example whose primary series exposes a MarkerStyle: Scatter (always-on)
-        // and the line families (optional per-point markers).
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.LineChart));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.ScatterPlot));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MultiSeries));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.AxisBreaks));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MinorGrid));
-        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.DirectLabels));
-        Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.Heatmap));
-        Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.PieChart));
-    }
+    [Theory]
+    [MemberData(nameof(Capabilities))]
+    public void TheControlsOfThePlayground_ApplyToTheExamplesThatCanShowThem(Func<PlaygroundExample, bool> applies, PlaygroundExample example, bool expected) =>
+        Assert.Equal(expected, applies(example));
 
     [Fact]
     public void Scatter_AppliesMarkerStyleFromOptions()
@@ -279,26 +283,29 @@ public class PlaygroundExampleTests
         Assert.Equal(14, series.MarkerSize);
     }
 
-    [Fact]
-    public void AxisBreaks_WithMarker_AppliesMarkerTruthBranch()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        // Covers the true-branch of `if (opts.Marker != MarkerStyle.None)` in BuildAxisBreaks
-        var opts = Defaults() with { Marker = MarkerStyle.Circle, MarkerSize = 6 };
-        var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.AxisBreaks, opts);
-        string svg = figure.ToSvg();
-        Assert.Contains("<circle", svg);
-    }
+        new DrawnToken("AxisBreaks_WithMarker_AppliesMarkerTruthBranch", () =>
+        {
+            // Covers the true-branch of `if (opts.Marker != MarkerStyle.None)` in BuildAxisBreaks
+            var opts = Defaults() with { Marker = MarkerStyle.Circle, MarkerSize = 6 };
+            var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.AxisBreaks, opts);
+            return figure.ToSvg();
+        }, "<circle"),
+        new DrawnToken("MinorGrid_WithMarker_AppliesMarkerTruthBranch", () =>
+        {
+            // Covers the true-branch of `if (opts.Marker != MarkerStyle.None)` in BuildMinorGrid
+            // also covers the `s.MarkEvery = 5` assignment inside that branch
+            var opts = Defaults() with { Marker = MarkerStyle.Circle, MarkerSize = 6 };
+            var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.MinorGrid, opts);
+            return figure.ToSvg();
+        }, "<circle"),
+    };
 
-    [Fact]
-    public void MinorGrid_WithMarker_AppliesMarkerTruthBranch()
-    {
-        // Covers the true-branch of `if (opts.Marker != MarkerStyle.None)` in BuildMinorGrid
-        // also covers the `s.MarkEvery = 5` assignment inside that branch
-        var opts = Defaults() with { Marker = MarkerStyle.Circle, MarkerSize = 6 };
-        var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.MinorGrid, opts);
-        string svg = figure.ToSvg();
-        Assert.Contains("<circle", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void SupportsColormap_IsTrueOnlyForGridFamilies()

@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"barbs","label":"text 2","xData":[1,2,3],"yData":[2,4,3],"color":"#1BC33F","speed":[10,20,30],"direction":[45,90,135],"barbLength":0.25,"zOrder":6,"visible":false}]}]}

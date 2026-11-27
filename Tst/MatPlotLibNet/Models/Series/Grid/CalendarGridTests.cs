@@ -77,13 +77,13 @@ public class CalendarGridTests
     }
 
     /// <summary>Every day of <paramref name="year"/>, each holding its day of the year.</summary>
-    private static CalendarGrid Year(int year, DayOfWeek weekStart)
+    private static GridAxesExtensions.CalendarGrid Year(int year, DayOfWeek weekStart)
     {
         var days = Days(new DateTime(year, 1, 1), new DateTime(year, 12, 31));
-        return CalendarGrid.Of([.. days], [.. days.Select(d => (double)d.DayOfYear)], weekStart);
+        return GridAxesExtensions.CalendarGrid.Of([.. days], [.. days.Select(d => (double)d.DayOfYear)], weekStart);
     }
 
-    private static int Filled(CalendarGrid grid) => grid.Cells.Cast<double>().Count(v => !double.IsNaN(v));
+    private static int Filled(GridAxesExtensions.CalendarGrid grid) => grid.Cells.Cast<double>().Count(v => !double.IsNaN(v));
 
     // ---- where a day lands ------------------------------------------------------------------------------------------
 
@@ -97,7 +97,7 @@ public class CalendarGridTests
         var days = Days(span.First, span.Last);
         var expected = Walk(span.First, span.Last, weekStart);
 
-        var grid = CalendarGrid.Of([.. days], [.. days.Select((_, i) => i + 1.0)], weekStart);
+        var grid = GridAxesExtensions.CalendarGrid.Of([.. days], [.. days.Select((_, i) => i + 1.0)], weekStart);
 
         Assert.Equal(7, grid.Cells.GetLength(0));
         Assert.Equal(expected.Values.Max(c => c.Column) + 1, grid.Columns);
@@ -125,7 +125,7 @@ public class CalendarGridTests
     {
         var monday = new DateTime(2025, 3, 3);
 
-        var grid = CalendarGrid.Of([monday], [1], weekStart);
+        var grid = GridAxesExtensions.CalendarGrid.Of([monday], [1], weekStart);
 
         Assert.Equal(DayOfWeek.Monday, monday.DayOfWeek);
         Assert.Equal(row, grid.RowOf(monday));
@@ -218,7 +218,7 @@ public class CalendarGridTests
     {
         DateTime[] dates = [new(2025, 3, 4, 0, 1, 0), new(2025, 3, 5, 12, 0, 0), new(2025, 3, 4, 23, 59, 0)];
 
-        var grid = CalendarGrid.Of(dates, [2, 7, 5], DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of(dates, [2, 7, 5], DayOfWeek.Monday);
 
         Assert.Equal(new DateTime(2025, 3, 4), grid.First);
         Assert.Equal(new DateTime(2025, 3, 5), grid.Last);
@@ -235,7 +235,7 @@ public class CalendarGridTests
     {
         DateTime[] dates = [new(2025, 3, 3), new(2025, 3, 4), new(2025, 3, 4), new(2025, 3, 5)];
 
-        var grid = CalendarGrid.Of(dates, [double.NaN, 3, double.NaN, 0], DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of(dates, [double.NaN, 3, double.NaN, 0], DayOfWeek.Monday);
 
         Assert.True(double.IsNaN(grid.Cells[0, 0]));
         Assert.Equal(3, grid.Cells[1, 0]);
@@ -247,7 +247,7 @@ public class CalendarGridTests
     [Fact]
     public void AnInfiniteValue_IsHeld_NotLeftOut()
     {
-        var grid = CalendarGrid.Of([new DateTime(2025, 3, 3)], [double.PositiveInfinity], DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of([new DateTime(2025, 3, 3)], [double.PositiveInfinity], DayOfWeek.Monday);
 
         Assert.Equal(double.PositiveInfinity, grid.Cells[0, 0]);
     }
@@ -259,9 +259,9 @@ public class CalendarGridTests
     {
         var days = Days(new DateTime(2025, 5, 1), new DateTime(2025, 7, 31));
         double[] values = [.. days.Select((_, i) => i * 3.0)];
-        var inOrder = CalendarGrid.Of([.. days], values, DayOfWeek.Monday);
+        var inOrder = GridAxesExtensions.CalendarGrid.Of([.. days], values, DayOfWeek.Monday);
 
-        var shuffled = CalendarGrid.Of([.. Enumerable.Reverse(days)], [.. Enumerable.Reverse(values)], DayOfWeek.Monday);
+        var shuffled = GridAxesExtensions.CalendarGrid.Of([.. Enumerable.Reverse(days)], [.. Enumerable.Reverse(values)], DayOfWeek.Monday);
 
         Assert.Equal(inOrder.Cells, shuffled.Cells);
         Assert.Equal(new DateTime(2025, 5, 1), shuffled.First);
@@ -276,8 +276,8 @@ public class CalendarGridTests
     {
         var day = new DateTime(2025, 3, 3);
 
-        Assert.Equal(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], CalendarGrid.Of([day], [1], DayOfWeek.Monday).WeekdayNames);
-        Assert.Equal(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], CalendarGrid.Of([day], [1], DayOfWeek.Sunday).WeekdayNames);
+        Assert.Equal(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], GridAxesExtensions.CalendarGrid.Of([day], [1], DayOfWeek.Monday).WeekdayNames);
+        Assert.Equal(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], GridAxesExtensions.CalendarGrid.Of([day], [1], DayOfWeek.Sunday).WeekdayNames);
     }
 
     /// <summary>For every week start, row r is named after the day r days past the week start.</summary>
@@ -288,7 +288,7 @@ public class CalendarGridTests
         var start = new DateTime(2025, 3, 2);
         while (start.DayOfWeek != weekStart) start = start.AddDays(1);
 
-        var names = CalendarGrid.Of([start], [1], weekStart).WeekdayNames;
+        var names = GridAxesExtensions.CalendarGrid.Of([start], [1], weekStart).WeekdayNames;
 
         Assert.Equal([.. Enumerable.Range(0, 7).Select(r => start.AddDays(r).ToString("ddd", CultureInfo.InvariantCulture))], names);
     }
@@ -342,7 +342,7 @@ public class CalendarGridTests
     [Fact]
     public void AMonthWhoseFirstIsBeforeTheFirstDate_IsNotNamed()
     {
-        var grid = CalendarGrid.Of([new DateTime(2025, 1, 15), new DateTime(2025, 3, 10)], [1, 1], DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of([new DateTime(2025, 1, 15), new DateTime(2025, 3, 10)], [1, 1], DayOfWeek.Monday);
 
         Assert.Equal(["Feb", "Mar"], grid.MonthColumns.Values);
         Assert.Equal(grid.ColumnOf(new DateTime(2025, 2, 1)), grid.MonthColumns.Keys.First());
@@ -353,7 +353,7 @@ public class CalendarGridTests
     [Fact]
     public void ASpanAcrossAYear_NamesTheMonthsOfBothYears()
     {
-        var grid = CalendarGrid.Of([new DateTime(2024, 12, 1), new DateTime(2025, 2, 1)], [1, 1], DayOfWeek.Monday);
+        var grid = GridAxesExtensions.CalendarGrid.Of([new DateTime(2024, 12, 1), new DateTime(2025, 2, 1)], [1, 1], DayOfWeek.Monday);
 
         Assert.Equal(["Dec", "Jan", "Feb"], grid.MonthColumns.Values);
         Assert.Equal(0, grid.MonthColumns.Keys.First());
@@ -364,8 +364,8 @@ public class CalendarGridTests
     [Fact]
     public void TheEndsOfTheCalendar_AreLaidOutWithoutOverflow()
     {
-        var start = CalendarGrid.Of([DateTime.MinValue, DateTime.MinValue.AddDays(6)], [1, 2], DayOfWeek.Sunday);
-        var end = CalendarGrid.Of([new DateTime(9999, 12, 1), DateTime.MaxValue], [1, 2], DayOfWeek.Sunday);
+        var start = GridAxesExtensions.CalendarGrid.Of([DateTime.MinValue, DateTime.MinValue.AddDays(6)], [1, 2], DayOfWeek.Sunday);
+        var end = GridAxesExtensions.CalendarGrid.Of([new DateTime(9999, 12, 1), DateTime.MaxValue], [1, 2], DayOfWeek.Sunday);
 
         Assert.Equal(1, start.RowOf(DateTime.MinValue));
         Assert.Equal(2, start.Columns);
@@ -381,8 +381,8 @@ public class CalendarGridTests
     [Fact]
     public void NoArrays_AreRefusedByName()
     {
-        var noDates = Assert.Throws<ArgumentNullException>(() => CalendarGrid.Of(null!, [1], DayOfWeek.Monday));
-        var noValues = Assert.Throws<ArgumentNullException>(() => CalendarGrid.Of([DateTime.MinValue], null!, DayOfWeek.Monday));
+        var noDates = Assert.Throws<ArgumentNullException>(() => GridAxesExtensions.CalendarGrid.Of(null!, [1], DayOfWeek.Monday));
+        var noValues = Assert.Throws<ArgumentNullException>(() => GridAxesExtensions.CalendarGrid.Of([DateTime.MinValue], null!, DayOfWeek.Monday));
 
         Assert.Equal("dates", noDates.ParamName);
         Assert.Equal("values", noValues.ParamName);
@@ -392,7 +392,7 @@ public class CalendarGridTests
     [Fact]
     public void NoDates_AreRefused()
     {
-        var error = Assert.Throws<ArgumentException>(() => CalendarGrid.Of([], [], DayOfWeek.Monday));
+        var error = Assert.Throws<ArgumentException>(() => GridAxesExtensions.CalendarGrid.Of([], [], DayOfWeek.Monday));
 
         Assert.Equal("dates", error.ParamName);
         Assert.Equal("No dates were given; a calendar draws one cell per day. (Parameter 'dates')", error.Message);
@@ -404,10 +404,10 @@ public class CalendarGridTests
     {
         DateTime[] dates = [new(2025, 1, 1), new(2025, 1, 2), new(2025, 1, 3), new(2025, 1, 4)];
 
-        var error = Assert.Throws<ArgumentException>(() => CalendarGrid.Of(dates, [1, 2, 3], DayOfWeek.Monday));
+        var error = Assert.Throws<ArgumentException>(() => GridAxesExtensions.CalendarGrid.Of(dates, [1, 2, 3], DayOfWeek.Monday));
 
         Assert.Equal("values", error.ParamName);
-        Assert.Equal("3 values were given for 4 dates; there must be one value per date. (Parameter 'values')", error.Message);
+        Assert.Equal(3.RefusalAgainst(4, "values"), error.Message);
     }
 
     /// <summary>A week start that is not a day of the week is refused by name.</summary>
@@ -416,7 +416,7 @@ public class CalendarGridTests
     [InlineData(-1)]
     public void AWeekStartThatIsNotADay_IsRefused(int weekStart)
     {
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() => CalendarGrid.Of([new DateTime(2025, 1, 1)], [1], (DayOfWeek)weekStart));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => GridAxesExtensions.CalendarGrid.Of([new DateTime(2025, 1, 1)], [1], (DayOfWeek)weekStart));
 
         Assert.Equal("firstDayOfWeek", error.ParamName);
     }

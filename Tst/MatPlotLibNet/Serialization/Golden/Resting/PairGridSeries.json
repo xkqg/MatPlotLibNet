@@ -1,0 +1,17 @@
+{
+  "CellSpacing": "0.02",
+  "DiagonalBins": "20",
+  "DiagonalKind": "Histogram",
+  "HexbinGridSize": "15",
+  "HueGroups": "null",
+  "HueLabels": "null",
+  "HuePalette": "null",
+  "Label": "null",
+  "Labels": "null",
+  "MarkerSize": "3",
+  "OffDiagonalColorMap": "null",
+  "OffDiagonalKind": "Scatter",
+  "Triangular": "Both",
+  "Visible": "true",
+  "ZOrder": "0"
+}

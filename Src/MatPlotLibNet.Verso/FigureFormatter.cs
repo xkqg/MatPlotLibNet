@@ -28,7 +28,6 @@ public sealed class FigureFormatter : IDataFormatter
     private const string FigureType = "MatPlotLibNet.Models.Figure";
     private const string FigureBuilderType = "MatPlotLibNet.FigureBuilder";
     private const string MosaicBuilderType = "MatPlotLibNet.Builders.MosaicFigureBuilder";
-    private const string ExtensionsType = "MatPlotLibNet.FigureExtensions";
     private const string RenderVerb = "ToSvg";
 
     private const string Html = "text/html";
@@ -137,28 +136,31 @@ public sealed class FigureFormatter : IDataFormatter
     private static string Describe(object? value) =>
         value is null ? "nothing" : $"a {value.GetType().FullName}";
 
+    /// <summary>The class of the library whose extension member renders a value that does not render itself, by the value's type
+    /// (names only: no type of the library is held here).</summary>
+    private static readonly IReadOnlyDictionary<string, string> RendererOf = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        [FigureType] = "MatPlotLibNet.FigureExtensions",
+        [FigureBuilderType] = "MatPlotLibNet.FigureBuilderExportVerbs",
+    };
+
     /// <summary>Renders through the library the VALUE came from, never through a type this assembly names.</summary>
     private static string Render(object value)
     {
         var type = value.GetType();
 
-        // A builder renders itself; a figure is rendered by an extension method, which reflection sees as a
-        // static on the class that declares it.
-        var (method, target, arguments) = type.FullName == FigureType
-            ? (type.Assembly.GetType(ExtensionsType, throwOnError: true)!
-                   .GetMethod(RenderVerb, BindingFlags.Public | BindingFlags.Static, binder: null, [type], modifiers: null),
-               (object?)null,
-               new[] { value })
-            : (type.GetMethod(RenderVerb, BindingFlags.Public | BindingFlags.Instance, binder: null, Type.EmptyTypes, modifiers: null),
-               value,
-               []);
+        // A mosaic renders itself; a figure and a figure builder are rendered by an extension member, which reflection sees
+        // as a static on the class that declares it, looked up on the value's own assembly.
+        var method = type.GetMethod(RenderVerb, BindingFlags.Public | BindingFlags.Instance, binder: null, Type.EmptyTypes, modifiers: null)
+            ?? type.Assembly.GetType(RendererOf.GetValueOrDefault(type.FullName!, type.FullName!))
+                ?.GetMethod(RenderVerb, BindingFlags.Public | BindingFlags.Static, binder: null, [type], modifiers: null);
 
         if (method is null || method.ReturnType != typeof(string))
         {
             throw new MissingMethodException($"{type.FullName} has no {RenderVerb}() that returns an SVG string.");
         }
 
-        return method.Invoke(target, arguments) as string is { Length: > 0 } svg
+        return method.Invoke(method.IsStatic ? null : value, method.IsStatic ? [value] : []) as string is { Length: > 0 } svg
             ? svg
             : throw new InvalidOperationException("The renderer returned no SVG.");
     }

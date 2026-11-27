@@ -4,6 +4,7 @@
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
@@ -32,7 +33,7 @@ public class LegendToggleAnchorTests
     private static List<(string Method, object? Payload)> Click(InteractionScriptHarness h, DomElement target)
     {
         var mock = h.WireSignalRMock();
-        h.Document.QuerySelectorAllRaw("svg").Single().Fire(new DomEvent("click") { target = target, clientX = 300, clientY = 250 });
+        h.Chart().Fire(new DomEvent("click") { target = target, clientX = 300, clientY = 250 });
         return mock.Calls;
     }
 
@@ -40,7 +41,7 @@ public class LegendToggleAnchorTests
     public void AClickOnAPlottedLine_SendsTheDataCursor_AndNoLegendToggle()
     {
         using var h = InteractionScriptHarness.FromBuilder(TwinAxes);
-        var polyline = h.Document.Wrap(SeriesGroup(h, "primary").Xml.Descendants().First(e => e.Name.LocalName == "polyline"));
+        var polyline = h.Document.Wrap(SeriesGroup(h, "primary").Xml.Each("polyline").First());
 
         var calls = Click(h, polyline);
 
@@ -52,7 +53,7 @@ public class LegendToggleAnchorTests
     public void AClickOnALegendEntry_SendsTheLegendToggle_AndNoDataCursor()
     {
         using var h = InteractionScriptHarness.FromBuilder(TwinAxes);
-        var text = h.Document.Wrap(LegendEntry(h, "primary").Xml.Descendants().First(e => e.Name.LocalName == "text"));
+        var text = h.Document.Wrap(LegendEntry(h, "primary").Xml.Each("text").First());
 
         var calls = Click(h, text);
 

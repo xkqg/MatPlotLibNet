@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>Represents a triangulated mesh with flat triangle index array and point coordinates.</summary>
@@ -129,13 +131,12 @@ public static class Delaunay
     private static bool InCircumcircle(double px, double py,
         double ax, double ay, double bx, double by, double cx, double cy)
     {
-        // Determinant test
-        double ax_ = ax - px, ay_ = ay - py;
-        double bx_ = bx - px, by_ = by - py;
-        double cx_ = cx - px, cy_ = cy - py;
-        double det = ax_ * (by_ * (cx_ * cx_ + cy_ * cy_) - cy_ * (bx_ * bx_ + by_ * by_))
-                   - ay_ * (bx_ * (cx_ * cx_ + cy_ * cy_) - cx_ * (bx_ * bx_ + by_ * by_))
-                   + (ax_ * ax_ + ay_ * ay_) * (bx_ * cy_ - by_ * cx_);
+        // Determinant test, over the steps from the point to each corner and the square of each step's length.
+        var p = new Point(px, py);
+        Point a = p.StepTo(new Point(ax, ay)), b = p.StepTo(new Point(bx, by)), c = p.StepTo(new Point(cx, cy));
+        double det = a.X * (b.Y * c.SquaredLength - c.Y * b.SquaredLength)
+                   - a.Y * (b.X * c.SquaredLength - c.X * b.SquaredLength)
+                   + a.SquaredLength * (b.X * c.Y - b.Y * c.X);
         return det > 0;
     }
 

@@ -11,7 +11,7 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// <para>Bug (user-reported via screenshot): before any interaction, tick-label
 /// numerics sit <em>outside</em> the cube silhouette (correct — server renders
 /// them at <c>projected_tick + perp × (tickLength + pad + 14 px)</c> in
-/// <c>ThreeDAxesRenderer.RenderAxisEdgeTicks</c> L580-L589). After a pan/drag,
+/// <c>ThreeDAxesRenderer.RenderAxisEdgeTicks</c>). After a pan/drag,
 /// labels snap <em>onto</em> the axis edge — the JS reproject text branch wrote
 /// only the projected 3D anchor, dropping the perpendicular pad.</para>
 ///
@@ -42,29 +42,11 @@ public class ThreeDTickLabelOffsetTests
     // because those regressions produce 40+ px jumps, not 20–25.
     private const double MaxLabelDisplacementPx = 25.0;
 
-    public static IEnumerable<object[]> CameraAngles() =>
-    [
-        [30, -60],  // matplotlib default
-        [35, -50],  // playground default
-        [45,   0],  // looking straight down +X
-        [10, -90],  // shallow elevation, sideways
-        [60, -30],  // high elevation, slight rotation
-    ];
-
     [Theory]
-    [MemberData(nameof(CameraAngles))]
+    [ClassData(typeof(CameraAngles))]
     public void TickLabels_StayOutsideCubeCentroid_AfterDragRotate(int elev, int azim)
     {
-        const int n = 20;
-        var sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sy = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sz = new double[n, n];
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-            {
-                double r = Math.Sqrt(sx[i] * sx[i] + sy[j] * sy[j]);
-                sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
-            }
+        var (sx, sy, sz) = SampleSurface.Sinc();
 
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithSize(600, 500)

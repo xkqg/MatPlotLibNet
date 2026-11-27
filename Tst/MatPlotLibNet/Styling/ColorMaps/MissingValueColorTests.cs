@@ -20,9 +20,13 @@ public class MissingValueColorTests
 
     // ---- the colormap itself ------------------------------------------------------------------------------------
 
-    [Fact]
-    public void AnEvenlySpacedMap_DrawsNaN_InItsBadColour() =>
-        Assert.Equal(Bad, new LinearColorMap("even", [Low, High]) { BadColor = Bad }.GetColor(double.NaN));
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnEvenlySpacedOrAListedMap_DrawsNaN_InItsBadColour(bool evenlySpaced) =>
+        Assert.Equal(Bad, (evenlySpaced
+            ? new LinearColorMap("even", [Low, High]) { BadColor = Bad }
+            : (IColorMap)new ListedColorMap("listed", [Low, High]) { BadColor = Bad }).GetColor(double.NaN));
 
     [Fact]
     public void AnEvenlySpacedMap_WithoutABadColour_DrawsNaN_Transparent() =>
@@ -38,19 +42,18 @@ public class MissingValueColorTests
         Assert.Equal(Colors.Transparent, new ListedColorMap("listed", [Low, High]).GetColor(double.NaN));
 
     [Fact]
-    public void AListedMap_DrawsNaN_InItsBadColour() =>
-        Assert.Equal(Bad, new ListedColorMap("listed", [Low, High]) { BadColor = Bad }.GetColor(double.NaN));
-
-    [Fact]
     public void AReversedMap_DrawsNaN_InTheBadColourOfTheMapItReverses() =>
         Assert.Equal(Bad, new ReversedColorMap(new LinearColorMap("even", [Low, High]) { BadColor = Bad }).GetColor(double.NaN));
 
-    /// <summary>Every map the library ships, by name, draws a missing value transparent.</summary>
-    public static TheoryData<string> RegisteredNames { get; } = new(ColorMapRegistry.Names.Order(StringComparer.Ordinal));
+    /// <summary>Every map the library ships, by name, draws a missing value transparent. Only the shipped ones
+    /// (<see cref="ColorMapRegistry.IsShipped"/>): the registry is process-wide, and a map another test registered under a name of
+    /// its own is that test's, not the library's.</summary>
+    public static TheoryData<string> ShippedNames { get; } =
+        new(ColorMapRegistry.Names.Where(name => ColorMapRegistry.IsShipped(ColorMapRegistry.Get(name)!)).Order(StringComparer.Ordinal));
 
     [Theory]
-    [MemberData(nameof(RegisteredNames))]
-    public void EveryRegisteredMap_DrawsNaN_Transparent(string name) =>
+    [MemberData(nameof(ShippedNames))]
+    public void EveryShippedMap_DrawsNaN_Transparent(string name) =>
         Assert.Equal(Colors.Transparent, ColorMapRegistry.Get(name)!.GetColor(double.NaN));
 
     [Fact]
@@ -59,19 +62,12 @@ public class MissingValueColorTests
 
     // ---- the one place a renderer maps a data value -------------------------------------------------------------
 
-    /// <summary>Normalizes like <see cref="LinearNormalizer"/>, but throws when it is handed NaN.</summary>
-    private sealed class NaNRefusingNormalizer : INormalizer
-    {
-        public double Normalize(double value, double min, double max) =>
-            double.IsNaN(value) ? throw new InvalidOperationException("NaN reached the normalizer") : (value - min) / (max - min);
-    }
-
     [Fact]
     public void AMissingDataValue_NeverReachesTheNormalizer()
     {
         var map = new LinearColorMap("even", [Low, High]) { BadColor = Bad };
 
-        var colour = map.ColorOf(double.NaN, new NaNRefusingNormalizer(), 0, 10);
+        var colour = map.ColorOf(double.NaN, new TestNormalizer((value, min, max) => double.IsNaN(value) ? throw new InvalidOperationException("NaN reached the normalizer") : (value - min) / (max - min)), 0, 10);
 
         Assert.Equal(Bad, colour);
     }

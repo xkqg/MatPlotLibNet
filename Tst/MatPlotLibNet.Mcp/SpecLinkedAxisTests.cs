@@ -1,11 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Reflection;
 using System.Text.Json.Serialization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Tests.Serialization;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -15,9 +15,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// accepts, as it does for every other kind of the document, and the schema tells the agent what to write.</summary>
 public class SpecLinkedAxisTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
-    private static readonly ChartSchemaDescription Description = new(new ChartTypeCatalog());
-
     private const string Line = """{"type":"line","xData":[1,2,3,4,5],"yData":[2,4,3,5,4]}""";
 
     /// <summary>One kind of link as an agent writes it and the same link made in code.</summary>
@@ -53,6 +50,9 @@ public class SpecLinkedAxisTests
     /// <summary>The kinds, by the name a spec writes them with.</summary>
     public static TheoryData<string> Kinds { get; } = new(Cases.Keys);
 
+    /// <summary>The kinds the cases stand for.</summary>
+    internal static IEnumerable<string> CaseKinds => Cases.Keys;
+
     /// <summary>The seats that draw a link.</summary>
     public static TheoryData<string> Seats { get; } = new(SeatCases.Keys);
 
@@ -84,20 +84,11 @@ public class SpecLinkedAxisTests
         };
     }
 
-    private static Type TransformRecord() =>
+    internal static Type TransformRecord() =>
         typeof(SeriesDto).Assembly.GetType("MatPlotLibNet.Serialization.AxisTransformDto")
         ?? throw new InvalidOperationException("The serializer no longer declares AxisTransformDto.");
 
     // ---- the four kinds, read from a spec ---------------------------------------------------------------------------
-
-    /// <summary>The cases are a case for every kind the wire family names: a fifth kind turns this red until a case stands for it.</summary>
-    [Fact]
-    public void TheCases_StandForEveryKindTheTransformFamilyDeclares()
-    {
-        var declared = TransformRecord().GetCustomAttributes<JsonDerivedTypeAttribute>().Select(derived => (string)derived.TypeDiscriminator!);
-
-        Assert.Equal(declared.Order(StringComparer.Ordinal), Cases.Keys.Order(StringComparer.Ordinal));
-    }
 
     [Theory]
     [MemberData(nameof(KindsAtSeats))]
@@ -206,7 +197,7 @@ public class SpecLinkedAxisTests
     [Fact]
     public void TheVocabulary_AcceptsEveryKindOfTheFamily_InTheSpellingTheSerializerReads()
     {
-        var rule = new SpecVocabulary().RuleFor(SpecNodeKind.AxisLink, "type", seriesType: null);
+        var rule = new ChartSpecReader.SpecVocabulary().RuleFor(ChartSpecReader.SpecNodeKind.AxisLink, "type", seriesType: null);
 
         Assert.NotNull(rule);
         Assert.Equal(Cases.Keys.Order(StringComparer.Ordinal), rule.Accepted.Order(StringComparer.Ordinal));
@@ -216,52 +207,24 @@ public class SpecLinkedAxisTests
 
     // ---- what the schema tells an agent ---------------------------------------------------------------------------------
 
-    private static string[] SectionLines(string heading)
-    {
-        string schema = Description.Describe(null);
-        int at = schema.IndexOf(heading, StringComparison.Ordinal);
-        Assert.True(at >= 0, $"'{heading}' is not in the schema.");
-        return schema[at..].Split(Environment.NewLine).Skip(1).TakeWhile(line => line.Trim().Length > 0).ToArray();
-    }
-
-    private static string FieldName(string line) => line.Trim().Split(':')[0];
-
-    /// <summary>The fields of one kind as the schema lists them under the kind: the lines indented under the kind's own line.</summary>
-    private static string[] FieldsListedUnder(string kind)
-    {
-        var lines = SectionLines("Axis link kinds");
-        int at = Array.FindIndex(lines, line => line.StartsWith($"  {kind} ", StringComparison.Ordinal));
-        Assert.True(at >= 0, $"The schema lists no axis link kind '{kind}'.");
-        return [.. lines.Skip(at + 1).TakeWhile(line => line.StartsWith("    ", StringComparison.Ordinal)).Select(FieldName)];
-    }
-
     [Theory]
     [InlineData("linear", "scale,offset")]
     [InlineData("reciprocal", "numerator")]
     [InlineData("logarithm", "base")]
     [InlineData("power", "exponent")]
     public void TheSchema_NamesEveryKindOfLink_WithTheFieldsThatKindTakes(string kind, string fields) =>
-        Assert.Equal(fields.Split(','), FieldsListedUnder(kind));
+        Assert.Equal(fields.Split(','), Description.FieldsListedUnder("Axis link kinds", kind));
 
-    [Fact]
-    public void TheSchema_ListsNoKindOfLinkTheTransformFamilyDoesNotDeclare()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var kinds = SectionLines("Axis link kinds").Where(line => !line.StartsWith("    ", StringComparison.Ordinal)).Select(line => line.Trim().Split(' ')[0]);
+        //  The heading says what a link is, where it counts and that the axis then holds no series.
+        new DrawnToken("TheSchema_SaysWhatALinkIsAndWhereItIsWritten", () => Description.Describe(null).HeadingLine("Axis link kinds"), "secondaryXAxis", "secondaryYAxis", "no series", "secondary_xaxis"),
+    };
 
-        Assert.Equal(Cases.Keys.Order(StringComparer.Ordinal), kinds.Order(StringComparer.Ordinal));
-    }
-
-    /// <summary>The heading says what a link is, where it counts and that the axis then holds no series.</summary>
-    [Fact]
-    public void TheSchema_SaysWhatALinkIsAndWhereItIsWritten()
-    {
-        string heading = Description.Describe(null).Split(Environment.NewLine).Single(line => line.StartsWith("Axis link kinds", StringComparison.Ordinal));
-
-        Assert.Contains("secondaryXAxis", heading);
-        Assert.Contains("secondaryYAxis", heading);
-        Assert.Contains("no series", heading);
-        Assert.Contains("secondary_xaxis", heading);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The kinds say what they compute, and the fields say what they scale.</summary>
     [Theory]
@@ -272,7 +235,7 @@ public class SpecLinkedAxisTests
     [InlineData("exponent", "power")]
     public void TheSchema_ExplainsTheFieldsOfALink(string field, string explanation)
     {
-        var line = Assert.Single(SectionLines("Axis link kinds"), l => FieldName(l) == field);
+        var line = Assert.Single(Description.SectionLines("Axis link kinds"), l => l.FieldName() == field);
 
         Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
     }
@@ -280,9 +243,7 @@ public class SpecLinkedAxisTests
     [Fact]
     public void TheAxisFields_ListTheLink_AndSayItIsWrittenByKind()
     {
-        string schema = Description.Describe(null);
-        int at = schema.IndexOf("Axis fields", StringComparison.Ordinal);
-        var axisFields = schema[at..].Split(Environment.NewLine).Skip(1).TakeWhile(line => line.Trim().Length > 0).ToArray();
+        var axisFields = Description.SectionLines("Axis fields");
 
         var line = Assert.Single(axisFields, l => l.TrimStart().StartsWith("link: object", StringComparison.Ordinal));
 

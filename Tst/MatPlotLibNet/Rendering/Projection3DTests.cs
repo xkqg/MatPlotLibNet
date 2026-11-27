@@ -52,22 +52,6 @@ public class Projection3DTests
         Assert.NotEqual(d1, d2);
     }
 
-    /// <summary>Verifies that Elevation property is stored correctly.</summary>
-    [Fact]
-    public void Elevation_IsStored()
-    {
-        var proj = CreateProjection(elevation: 45);
-        Assert.Equal(45, proj.Elevation);
-    }
-
-    /// <summary>Verifies that Azimuth property is stored correctly.</summary>
-    [Fact]
-    public void Azimuth_IsStored()
-    {
-        var proj = CreateProjection(azimuth: -30);
-        Assert.Equal(-30, proj.Azimuth);
-    }
-
     /// <summary>An axis whose range has no width (one point, a constant column) places its values in the middle of the
     /// box, the rule every 2-D axis follows (a flat range is widened by half a unit each side). Before, the box was fitted
     /// to its eight corners, which a one-point range collapsed onto one point: the fit divided by zero and a one-point
@@ -95,8 +79,31 @@ public class Projection3DTests
         var n = reversed.Normalize(5, 5, 5);
 
         Assert.Equal(new Box3D(10, 0, 10, 0, 10, 0), reversed.DataBox);
-        Assert.True(double.IsFinite(pt.X) && double.IsFinite(pt.Y));
-        Assert.True(double.IsFinite(n.Nx) && double.IsFinite(n.Ny) && double.IsFinite(n.Nz));
+        pt.AssertFinite();
+        new[] { n.Nx, n.Ny, n.Nz }.AssertAllFinite();
+    }
+
+    /// <summary>A range set high to low draws its axis the other way round, as matplotlib's world transformation does with a
+    /// negative scale: a value lands where the mirrored value of the forward range lands, and normalises to the mirrored
+    /// place, so the browser turns it where it is drawn.</summary>
+    [Theory]
+    [InlineData(-60)]
+    [InlineData(45)]
+    [InlineData(150)]
+    public void AReversedRange_DrawsTheAxisTheOtherWayRound(double azimuth)
+    {
+        var bounds = new Rect(0, 0, 400, 400);
+        var forward = new Projection3D(30, azimuth, bounds, -1, 4, 0, 2, 0, 3);
+        var reversed = new Projection3D(30, azimuth, bounds, 4, -1, 0, 2, 0, 3);
+
+        foreach (double x in (double[])[-1, 0, 1.5, 4])
+        {
+            var drawn = reversed.Project(x, 1, 2);
+            var mirrored = forward.Project(3 - x, 1, 2);
+            Assert.Equal(mirrored.X, drawn.X, 9);
+            Assert.Equal(mirrored.Y, drawn.Y, 9);
+            Assert.Equal(forward.Normalize(3 - x, 1, 2).Nx, reversed.Normalize(x, 1, 2).Nx, 12);
+        }
     }
 
     [Fact]

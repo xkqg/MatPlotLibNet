@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"text3d","label":"text 2","color":"#14C83C","markerSize":0.265625,"text3DAnnotations":[{"x":1,"y":2,"z":3,"text":"A"},{"x":4,"y":5,"z":6,"text":"B"}],"zOrder":6,"visible":false}],"coordinateSystem":"threed"}]}

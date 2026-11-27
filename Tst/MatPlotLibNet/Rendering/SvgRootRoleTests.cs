@@ -20,35 +20,17 @@ public class SvgRootRoleTests
         return b.ToSvg();
     }
 
-    [Fact]
-    public void AFigureWithoutALink_IsAnImage()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        Assert.Contains("role=\"img\"", Render());
-    }
+        new DrawnToken("AFigureWithALink_IsAGroup", () => Render(t => t.Url = "/?panel=x"), "role=\"group\"") { Absent = ["role=\"img\""] },
+        // An untitled tile row still has an accessible name: the tile labels, joined.
+        new DrawnToken("AnUntitledFigure_TakesItsNameFromItsTiles", () => Render(t => t.Label = "Processes"), "<title id=\"chart-title\">Processes</title>"),
+        new DrawnToken("ATitle_StillWins", () => Render(t => t.Label = "Processes", title: "Order service — fleet"), "<title id=\"chart-title\">Order service — fleet</title>"),
+        new DrawnToken("AFigureWithoutALink_IsAnImage", () => Render(), "role=\"img\""),
+    };
 
-    [Fact]
-    public void AFigureWithALink_IsAGroup()
-    {
-        string svg = Render(t => t.Url = "/?panel=x");
-
-        Assert.Contains("role=\"group\"", svg);
-        Assert.DoesNotContain("role=\"img\"", svg);
-    }
-
-    /// <summary>An untitled tile row still has an accessible name: the tile labels, joined.</summary>
-    [Fact]
-    public void AnUntitledFigure_TakesItsNameFromItsTiles()
-    {
-        string svg = Render(t => t.Label = "Processes");
-
-        Assert.Contains("<title id=\"chart-title\">Processes</title>", svg);
-    }
-
-    [Fact]
-    public void ATitle_StillWins()
-    {
-        string svg = Render(t => t.Label = "Processes", title: "Order service — fleet");
-
-        Assert.Contains("<title id=\"chart-title\">Order service — fleet</title>", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

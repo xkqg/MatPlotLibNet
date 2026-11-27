@@ -8,25 +8,14 @@ namespace MatPlotLibNet.Tests.Styling;
 /// <summary>Verifies <see cref="StyleSheetRegistry"/> lookup and registration.</summary>
 public class StyleSheetRegistryTests
 {
-    [Fact]
-    public void Get_Default_ReturnsSheet()
+    /// <summary>A registered name gives its sheet; a name no sheet was registered under gives none.</summary>
+    [Theory]
+    [InlineData("default", true)]
+    [InlineData("dark", true)]
+    [InlineData("no-such-style-xyzzy-9999", false)]
+    public void Get_GivesTheSheetOfARegisteredName_AndNoneElse(string name, bool found)
     {
-        var sheet = StyleSheetRegistry.Get("default");
-        Assert.NotNull(sheet);
-    }
-
-    [Fact]
-    public void Get_Dark_ReturnsSheet()
-    {
-        var sheet = StyleSheetRegistry.Get("dark");
-        Assert.NotNull(sheet);
-    }
-
-    [Fact]
-    public void Get_Unknown_ReturnsNull()
-    {
-        var sheet = StyleSheetRegistry.Get("no-such-style-xyzzy-9999");
-        Assert.Null(sheet);
+        Assert.Equal(found, StyleSheetRegistry.Get(name) is not null);
     }
 
     [Fact]

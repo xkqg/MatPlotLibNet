@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests;
 using MatPlotLibNet.Tests.Models;
 
 namespace MatPlotLibNet.Wiki.Tests;
@@ -11,9 +12,7 @@ namespace MatPlotLibNet.Wiki.Tests;
 /// to it; this holds the wiki's pages to it, so a series added in the repository cannot leave the wiki a count behind.</summary>
 public sealed class PublishedCountsTests
 {
-    private static int SeriesShipped() =>
-        typeof(ChartSeries).Assembly.GetTypes()
-            .Count(t => t.IsClass && !t.IsAbstract && t.IsPublic && typeof(ChartSeries).IsAssignableFrom(t));
+    private static int SeriesShipped() => typeof(ChartSeries).Assembly.ConcretePublicSubtypesOf(typeof(ChartSeries)).Length;
 
     [Fact]
     public void EveryWikiPage_StatesTheNumberOfSeriesTheAssemblyShips()

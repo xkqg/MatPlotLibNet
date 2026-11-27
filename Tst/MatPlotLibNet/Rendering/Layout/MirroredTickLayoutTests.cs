@@ -5,7 +5,9 @@ using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Layout;
@@ -16,43 +18,43 @@ namespace MatPlotLibNet.Tests.Rendering.Layout;
 /// axes title rises above the top band, the end labels start past the right band, and both layout paths reserve them.
 /// A drawn secondary axis owns its edge, as matplotlib's <c>twinx</c>/<c>twiny</c> move the host's ticks away; a drawn
 /// secondary X axis is then the top band (its tick labels, then its title by
-/// <see cref="AxisTickExtensions.TopAxisLabelOffset"/>), measured and reserved by the same rule.</summary>
+/// <see cref="TitleClearance.TitleOffset"/> beside the top edge), measured and reserved by the same rule.</summary>
 public class MirroredTickLayoutTests
 {
     private static readonly double[] X = [0.0, 1.0, 2.0];
     private static readonly Rect Area = new(80, 60, 400, 300);
 
-    private static RecordingRenderContext Draw(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        new CartesianAxesRenderer(axes, Area, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     /// <summary>The bands measured for the plot area the axes is drawn in (<see cref="Draw"/>): whether the X tick labels
     /// turn depends on its width.</summary>
+    /// <summary>The right edge of a mirrored Y axis is measured as the length and the pad of its ticks and the widest label the drawing then puts there.</summary>
+    private static void AssertTheMirroredLabelsAreMeasured(Axes axes)
+    {
+        var measured = Measure(axes);
+        var ctx = axes.Drawn(Area);
+
+        var ticks = axes.YAxis.MajorTicks;
+        Assert.Equal(ticks.Length + ticks.Pad + Widest(ctx, RightLabels(ctx)), measured.Right, 6);
+    }
+
     private static EdgeBands Measure(Axes axes) =>
         AxesRenderer.Create(axes, Area, new RecordingRenderContext(), Theme.Default).MeasureEdgeBands();
 
-    private static List<dynamic> Texts(RecordingRenderContext ctx) =>
-        ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).ToList();
-
     /// <summary>The labels drawn past the right spine, left-aligned (the mirrored Y and secondary Y tick labels).</summary>
-    private static List<dynamic> RightLabels(RecordingRenderContext ctx) =>
-        Texts(ctx).Where(a => (double)a.position.X > Area.X + Area.Width && (TextAlignment)a.alignment == TextAlignment.Left).ToList();
+    private static List<DrawTextCall> RightLabels(RecordingRenderContext ctx) =>
+        ctx.Of<DrawTextCall>().Where(a => (double)a.Position.X > Area.X + Area.Width && a.Alignment == TextAlignment.Left).ToList();
 
     /// <summary>The labels drawn above the top spine (the mirrored X and secondary X tick labels).</summary>
-    private static List<dynamic> TopLabels(RecordingRenderContext ctx) =>
-        Texts(ctx).Where(a => (double)a.position.Y < Area.Y).ToList();
+    private static List<DrawTextCall> TopLabels(RecordingRenderContext ctx) =>
+        ctx.Of<DrawTextCall>().Where(a => (double)a.Position.Y < Area.Y).ToList();
 
-    private static double Widest(RecordingRenderContext ctx, IEnumerable<dynamic> labels) =>
-        labels.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Width);
+    private static double Widest(RecordingRenderContext ctx, IEnumerable<DrawTextCall> labels) =>
+        labels.Max(a => ctx.MeasureText(a.Text, a.Font).Width);
 
     /// <summary>The band the primary Y tick labels take left of the spine as they are drawn: the mark, the pad and the
     /// widest label.</summary>
     private static double DrawnLeftBand(Axes axes)
     {
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
         var ticks = axes.YAxis.MajorTicks;
         return ticks.Length + ticks.Pad + Widest(ctx, LeftLabels(ctx));
     }
@@ -81,7 +83,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true, Length = 6, Pad = 5 };
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var labels = RightLabels(ctx);
         Assert.NotEmpty(labels);
@@ -98,11 +100,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.Scale = AxisScale.Log;
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
 
-        var measured = Measure(axes);
-        var ctx = Draw(axes);
-
-        var ticks = axes.YAxis.MajorTicks;
-        Assert.Equal(ticks.Length + ticks.Pad + Widest(ctx, RightLabels(ctx)), measured.Right, 6);
+        AssertTheMirroredLabelsAreMeasured(axes);
     }
 
     [Fact]
@@ -114,11 +112,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.TickLocator = new MatPlotLibNet.Rendering.TickLocators.MultipleLocator(0.25);
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
 
-        var measured = Measure(axes);
-        var ctx = Draw(axes);
-
-        var ticks = axes.YAxis.MajorTicks;
-        Assert.Equal(ticks.Length + ticks.Pad + Widest(ctx, RightLabels(ctx)), measured.Right, 6);
+        AssertTheMirroredLabelsAreMeasured(axes);
     }
 
     [Fact]
@@ -129,7 +123,7 @@ public class MirroredTickLayoutTests
         axes.Plot(X, [1.0, 2.0, 3.0]);
         axes.YAxis.Scale = AxisScale.Date;
 
-        Draw(axes);
+        axes.Drawn(Area);
 
         Assert.Null(axes.YAxis.TickLocator);
         Assert.Null(axes.YAxis.TickFormatter);
@@ -151,7 +145,7 @@ public class MirroredTickLayoutTests
 
         var labels = TopLabels(ctx);
         Assert.NotEmpty(labels);
-        Assert.All(labels, a => Assert.Equal(30.0, (double)a.rotation));
+        Assert.All(labels, a => Assert.Equal(30.0, a.Rotation));
         Assert.True(drawn.Top > 7 + 2 + 20, $"the turned labels reach past the upright band ({drawn.Top:F2})");
         Assert.Equal(drawn.Top, measured.Top, 6);
         Assert.Equal(0, measured.Right);
@@ -183,7 +177,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true, Visible = false };
 
         Assert.Equal(default, Measure(axes));
-        Assert.Empty(RightLabels(Draw(axes)));
+        Assert.Empty(RightLabels(axes.Drawn(Area)));
     }
 
     /// <summary>The series that draw without axes (<c>ChartSeries.DrawsWithoutAxes</c>), one verb each.</summary>
@@ -256,13 +250,15 @@ public class MirroredTickLayoutTests
         Assert.NotEqual(default, Measure(axes));
     }
 
+    /// <summary>A polar axes draws no mirrored ticks; what it measures past its square is the rise of its title above it, a
+    /// twentieth of the square's side (300 of the 400 by 300 area: 15).</summary>
     [Fact]
-    public void PolarAxes_DrawNoMirroredTicks_AndMeasureNone()
+    public void PolarAxes_DrawNoMirroredTicks_AndMeasureOnlyTheirTitlesRise()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.PolarPlot([1.0, 2.0, 3.0], [0.0, 1.0, 2.0])
             .WithXTicksMirrored().WithYTicksMirrored()).Build();
 
-        Assert.Equal(default, Measure(figure.SubPlots[0]));
+        Assert.Equal(new EdgeBands(0.05 * 300, 0, 0, 0), Measure(figure.SubPlots[0]));
     }
 
     // ── the X axis title below the tick labels ──────────────────────────────────
@@ -284,11 +280,11 @@ public class MirroredTickLayoutTests
         if (hiddenTicks) axes.XAxis.MajorTicks = axes.XAxis.MajorTicks with { Visible = false };
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
-        var title = Texts(ctx).Single(a => (string)a.text == "Time");
-        var font = (Font)title.font;
-        double top = (double)title.position.Y - 0.8 * font.Size - (Area.Y + Area.Height);
+        var title = ctx.Of<DrawTextCall>().Single(a => a.Text == "Time");
+        var font = title.Font;
+        double top = (double)title.Position.Y - 0.8 * font.Size - (Area.Y + Area.Height);
         Assert.Equal(top + ctx.MeasureText("Time", font).Height, measured.BottomTitle, 6);
         Assert.Equal(hiddenTicks, measured.Bottom == 0);
     }
@@ -301,11 +297,11 @@ public class MirroredTickLayoutTests
         axes.XAxis.Label = "Share";
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
-        var title = Texts(ctx).Single(a => (string)a.text == "Share");
-        var font = (Font)title.font;
-        Assert.Equal(Area.Y + Area.Height + 35, (double)title.position.Y, 6);
+        var title = ctx.Of<DrawTextCall>().Single(a => a.Text == "Share");
+        var font = title.Font;
+        Assert.Equal(Area.Y + Area.Height + 35, (double)title.Position.Y, 6);
         Assert.Equal(35 - 0.8 * font.Size + ctx.MeasureText("Share", font).Height, measured.BottomTitle, 6);
         Assert.Equal(0, measured.Bottom);
     }
@@ -320,7 +316,9 @@ public class MirroredTickLayoutTests
         axes.Plot(X, [1.0, 2.0, 3.0]);
         axes.XAxis.Label = "Time";
 
-        Assert.Equal(default, Measure(axes));
+        var bands = Measure(axes);
+        Assert.False(bands.DrawsBelow);
+        Assert.Equal(default, bands with { Top = 0 });
     }
 
     // ── a drawn secondary axis owns its edge ────────────────────────────────────
@@ -335,11 +333,11 @@ public class MirroredTickLayoutTests
         var axes = figure.SubPlots[0];
 
         Assert.Equal(0, Measure(axes).Right);
-        var labels = RightLabels(Draw(axes));
+        var labels = RightLabels(axes.Drawn(Area));
         Assert.NotEmpty(labels);
         // Only the secondary axis' labels stand there: no primary label (0 .. 1) overlaps them.
-        Assert.All(labels, a => Assert.True(double.Parse((string)a.text, System.Globalization.CultureInfo.InvariantCulture) >= 500,
-            $"a primary tick label '{a.text}' is drawn on the secondary axis' edge"));
+        Assert.All(labels, a => Assert.True(double.Parse(a.Text, System.Globalization.CultureInfo.InvariantCulture) >= 500,
+            $"a primary tick label '{a.Text}' is drawn on the secondary axis' edge"));
     }
 
     [Fact]
@@ -352,7 +350,7 @@ public class MirroredTickLayoutTests
         var axes = figure.SubPlots[0];
 
         Assert.True(Measure(axes).Right > 0);
-        Assert.NotEmpty(RightLabels(Draw(axes)));
+        Assert.NotEmpty(RightLabels(axes.Drawn(Area)));
     }
 
     [Fact]
@@ -364,14 +362,14 @@ public class MirroredTickLayoutTests
             .WithSecondaryXAxis(x2 => x2.PlotXSecondary([1_000.0, 3_000.0, 5_000.0], X))).Build();
         var axes = figure.SubPlots[0];
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
         var labels = TopLabels(ctx);
         Assert.NotEmpty(labels);
-        Assert.All(labels, a => Assert.True(double.Parse((string)a.text, System.Globalization.CultureInfo.InvariantCulture) >= 500,
-            $"a primary tick label '{a.text}' is drawn on the secondary axis' edge"));
+        Assert.All(labels, a => Assert.True(double.Parse(a.Text, System.Globalization.CultureInfo.InvariantCulture) >= 500,
+            $"a primary tick label '{a.Text}' is drawn on the secondary axis' edge"));
         // The top band is the secondary axis' own, not the mirrored primary labels'.
         var ticks = axes.SecondaryXAxis!.MajorTicks;
-        Assert.Equal(ticks.Length + ticks.Pad + labels.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Height),
+        Assert.Equal(ticks.Length + ticks.Pad + labels.Max(a => ctx.MeasureText(a.Text, a.Font).Height),
             Measure(axes).Top, 6);
     }
 
@@ -393,38 +391,68 @@ public class MirroredTickLayoutTests
     }
 
     /// <summary>The secondary X tick labels: drawn above the top spine, centred, and not the secondary title.</summary>
-    private static List<dynamic> SecondaryTickLabels(RecordingRenderContext ctx) =>
-        TopLabels(ctx).Where(a => (string)a.text != TopTitle && (string)a.text != "A Title").ToList();
+    private static List<DrawTextCall> SecondaryTickLabels(RecordingRenderContext ctx) =>
+        TopLabels(ctx).Where(a => a.Text != TopTitle && a.Text != "A Title").ToList();
 
-    private static double Tallest(RecordingRenderContext ctx, IEnumerable<dynamic> labels) =>
-        labels.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Height);
+    private static double Tallest(RecordingRenderContext ctx, IEnumerable<DrawTextCall> labels) =>
+        labels.Max(a => ctx.MeasureText(a.Text, a.Font).Height);
+
+    /// <summary>The clearance of a horizontal title beside <paramref name="edge"/> over tick labels <paramref name="tallest"/> high,
+    /// with the 6 px gap the library's themes keep.</summary>
+    private static TitleClearance XTitle(EdgeTerms edge, TickConfig config, double tallest, double size) =>
+        TitleClearance.Beside(edge, config.TickLabelBand(tallest), TitleClearance.XLabelGap, size);
 
     [Fact]
-    public void TopAxisLabelOffset_IsTheBandTheGapAndTheTitleDescent()
+    public void ATitleAboveATopEdge_StandsItsBaselineTheBandAndTheGapAway()
     {
-        // The title's baseline stands the 6 px gap plus its descent (a fifth of its size) above the tick labels.
-        Assert.Equal(30 + 6 + 2, new TickConfig { Length = 4, Pad = 6 }.TopAxisLabelOffset(20, 10), 9);
-        Assert.Equal(6 + 3, new TickConfig { Length = 4, Pad = 6 }.TopAxisLabelOffset(0, 15), 9);
+        // The title's baseline stands the 6 px gap above the tick labels, as matplotlib sets its top X label (va='baseline').
+        Assert.Equal(30 + 6, XTitle(EdgeTerms.Top, new TickConfig { Length = 4, Pad = 6 }, 20, 10).TitleOffset(), 9);
+        Assert.Equal(6, XTitle(EdgeTerms.Top, new TickConfig { Length = 4, Pad = 6 }, 0, 15).TitleOffset(), 9);
     }
 
     [Fact]
-    public void BottomAxisLabelOffset_IsTheBandTheGapAndTheTitleAscent_OrTheFixed35WhenNoLabelIsDrawn()
+    public void ATitleBelowABottomEdge_StandsTheBandTheGapAndItsAscentAway_OrTheFixed35WhenNoLabelIsDrawn()
     {
         // The title's baseline stands the 6 px gap plus its ascent (four fifths of its size) below the tick labels.
-        Assert.Equal(30 + 6 + 8, new TickConfig { Length = 4, Pad = 6 }.BottomAxisLabelOffset(20, 10), 9);
-        Assert.Equal(35, new TickConfig { Length = 4, Pad = 6 }.BottomAxisLabelOffset(0, 15), 9);
+        Assert.Equal(30 + 6 + 8, XTitle(EdgeTerms.Bottom, new TickConfig { Length = 4, Pad = 6 }, 20, 10).TitleOffset(), 9);
+        Assert.Equal(35, XTitle(EdgeTerms.Bottom, new TickConfig { Length = 4, Pad = 6 }, 0, 15).TitleOffset(), 9);
     }
 
     [Fact]
-    public void BottomAxisTitleExtent_IsTheTitleTopWhereTheOffsetPutsIt_ThenItsPadAndItsHeight()
+    public void TheRoomOfATitleBelowABottomEdge_IsTheTitleTopWhereTheOffsetPutsIt_ThenItsPadAndItsHeight()
     {
         var config = new TickConfig { Length = 4, Pad = 6 };
 
-        Assert.Equal(30 + 6 + 3 + 12, config.BottomAxisTitleExtent(20, 10, 12, 3), 9);
-        Assert.Equal(35 - 8 + 3 + 12, config.BottomAxisTitleExtent(0, 10, 12, 3), 9);
-        // The title's top is the baseline the renderer draws it at (BottomAxisLabelOffset) less its ascent, both arms.
+        Assert.Equal(30 + 6 + 3 + 12, XTitle(EdgeTerms.Bottom, config, 20, 10).TitleExtent(12, 3), 9);
+        Assert.Equal(35 - 8 + 3 + 12, XTitle(EdgeTerms.Bottom, config, 0, 10).TitleExtent(12, 3), 9);
+        // The title's top is the baseline the renderer draws it at (TitleOffset) less its ascent, both arms.
         foreach (double tallest in new[] { 0.0, 20.0 })
-            Assert.Equal(config.BottomAxisLabelOffset(tallest, 10) - 0.8 * 10, config.BottomAxisTitleExtent(tallest, 10, 12, 0) - 12, 9);
+            Assert.Equal(XTitle(EdgeTerms.Bottom, config, tallest, 10).TitleOffset() - 0.8 * 10, XTitle(EdgeTerms.Bottom, config, tallest, 10).TitleExtent(12, 0) - 12, 9);
+    }
+
+    [Fact]
+    public void TheRoomOfATitleBelowABottomEdge_IsWhereTheTitleIsDrawn_WhenAPadPullsTheLabelsInsideTheEdge()
+    {
+        // A pad of -60 puts the far side of a 20 px label 35 px inside the edge: the band is not positive, so the title is drawn at
+        // its fixed place (35 px below the edge) and the room the layout keeps must reach that title, not the band's.
+        var clearance = XTitle(EdgeTerms.Bottom, new TickConfig { Length = 4, Pad = -60 }, 20, 10);
+
+        Assert.True(clearance.TickLabelBand <= 0);
+        Assert.Equal(35, clearance.TitleOffset(), 9);
+        Assert.Equal(clearance.TitleOffset() - 0.8 * 10, clearance.TitleExtent(12, 0) - 12, 9);
+    }
+
+    [Fact]
+    public void TheRoomOfATitleAboveATopEdge_IsItsOffsetLessItsDescent_ThenItsPadAndItsHeight_WhateverTheBand()
+    {
+        // A top edge has no fixed place: with or without labels, and with a band pulled inside the edge, the title's baseline stands the
+        // band and the gap away, its descent dipping into the gap, and its room reaches its far side.
+        foreach (var config in new[] { new TickConfig { Length = 4, Pad = 6 }, new TickConfig { Length = 4, Pad = -60 } })
+            foreach (double tallest in new[] { 0.0, 20.0 })
+            {
+                var clearance = XTitle(EdgeTerms.Top, config, tallest, 10);
+                Assert.Equal(clearance.TickLabelBand + 6 - 2 + 3 + 12, clearance.TitleExtent(12, 3), 9);
+            }
     }
 
     [Theory]
@@ -437,17 +465,18 @@ public class MirroredTickLayoutTests
         var config = new TickConfig { LabelSize = 17 };
         var draw = new TickDrawContext
         {
-            Side = side, AxisEdge = 10, BaseFont = ThemedFontProvider.TickFont(Theme.Default),
-            UniformFormat = AxesRenderer.BuildUniformTickFormatter(ticks), Foreground = Colors.Black,
+            Side = side, AxisEdge = 10, BaseFont = Theme.Default.TickFont(),
+            UniformFormat = ticks.UniformFormat(), Foreground = Colors.Black, Theme = Theme.Default,
         };
         var transform = new DataTransform(0, 1_000, 0, 1_000, Area);
         var ctx = new RecordingRenderContext();
 
-        double measured = ctx.MeasureAxisTicks(ticks, config, draw);
+        var run = new TickRun(ticks, transform, draw.Edge);
+        double measured = ctx.MeasureAxisTicks(run, config, draw);
 
         Assert.True(measured > 0);
-        Assert.Equal(ctx.RenderAxisTicks(ticks, 0, transform, config, draw), measured, 9);
-        Assert.Equal(0, ctx.MeasureAxisTicks(ticks, config with { Visible = false }, draw));
+        Assert.Equal(ctx.RenderAxisTicks(run, config, draw), measured, 9);
+        Assert.Equal(0, ctx.MeasureAxisTicks(run, config with { Visible = false }, draw));
     }
 
     [Fact]
@@ -456,7 +485,7 @@ public class MirroredTickLayoutTests
         var axes = SecondaryX(ticks: t => t with { Length = 8, Pad = 5, LabelSize = 18 });
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         Assert.Equal(8 + 5 + Tallest(ctx, SecondaryTickLabels(ctx)), measured.Top, 6);
     }
@@ -465,18 +494,17 @@ public class MirroredTickLayoutTests
     [InlineData(3.5, 3.5, null, null)]
     [InlineData(8.0, 5.0, 18.0, null)]
     [InlineData(12.0, 9.0, 24.0, 4.0)]
-    public void TheSecondaryXTitle_StandsTheGapAndItsDescentAboveTheTickLabels(double length, double pad, double? labelSize,
-                                                                              double? stylePad)
+    public void TheSecondaryXTitle_StandsItsBaselineTheGapAboveTheTickLabels(double length, double pad, double? labelSize,
+                                                                             double? stylePad)
     {
         var style = stylePad is { } p ? new TextStyle { Pad = p, FontSize = 16 } : null;
         var axes = SecondaryX(TopTitle, ticks: t => t with { Length = length, Pad = pad, LabelSize = labelSize }, labelStyle: style);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
-        var title = Texts(ctx).Single(a => (string)a.text == TopTitle);
-        double size = ((Font)title.font).Size;
-        double expected = Area.Y - (length + pad + Tallest(ctx, SecondaryTickLabels(ctx)) + 6 + 0.2 * size) - (stylePad ?? 0);
-        Assert.Equal(expected, (double)title.position.Y, 6);
+        var title = ctx.Of<DrawTextCall>().Single(a => a.Text == TopTitle);
+        double expected = Area.Y - (length + pad + Tallest(ctx, SecondaryTickLabels(ctx)) + 6) - (stylePad ?? 0);
+        Assert.Equal(expected, (double)title.Position.Y, 6);
     }
 
     [Fact]
@@ -486,10 +514,12 @@ public class MirroredTickLayoutTests
                               labelStyle: new TextStyle { Pad = 3, FontSize = 20 });
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
-        var title = Texts(ctx).Single(a => (string)a.text == TopTitle);
-        double titleTop = (double)title.position.Y - ctx.MeasureText(TopTitle, (Font)title.font).Height;
+        var title = ctx.Of<DrawTextCall>().Single(a => a.Text == TopTitle);
+        var font = title.Font;
+        // The top of the title's box: its part above the baseline (the descent faces the tick labels below it).
+        double titleTop = (double)title.Position.Y - (ctx.MeasureText(TopTitle, font).Height - FacingInk.Descent * font.Size);
         Assert.Equal(Area.Y - titleTop, measured.Top, 6);
     }
 
@@ -499,7 +529,7 @@ public class MirroredTickLayoutTests
     public void ADrawnSecondaryXAxis_TheAxesTitleRisesByItsBand(bool withAxisTitle)
     {
         static double TitleY(RecordingRenderContext ctx) =>
-            (double)Texts(ctx).Single(a => (string)a.text == "A Title").position.Y;
+            (double)ctx.Of<DrawTextCall>().Single(a => a.Text == "A Title").Position.Y;
         var plain = new Axes { Title = "A Title" };
         plain.Plot([0.0, 0.5, 1.0], X);
         var axes = SecondaryX(withAxisTitle ? TopTitle : null, "A Title");
@@ -507,14 +537,14 @@ public class MirroredTickLayoutTests
         double band = Measure(axes).Top;
 
         Assert.True(band > 0);
-        Assert.Equal(TitleY(Draw(plain)) - band, TitleY(Draw(axes)), 6);
+        Assert.Equal(TitleY(plain.Drawn(Area)) - band, TitleY(axes.Drawn(Area)), 6);
     }
 
     [Fact]
     public void ASecondaryXAxisWithoutSeries_DrawsNothing_SoItMeasuresNothing_AndTheTitleStays()
     {
         static double TitleY(RecordingRenderContext ctx) =>
-            (double)Texts(ctx).Single(a => (string)a.text == "A Title").position.Y;
+            (double)ctx.Of<DrawTextCall>().Single(a => a.Text == "A Title").Position.Y;
         var plain = new Axes { Title = "A Title" };
         plain.Plot([0.0, 0.5, 1.0], X);
         var axes = new Axes { Title = "A Title" };
@@ -523,9 +553,9 @@ public class MirroredTickLayoutTests
         axes.SecondaryXAxis!.Label = TopTitle;
 
         Assert.Equal(0, Measure(axes).Top);
-        var ctx = Draw(axes);
-        Assert.DoesNotContain(Texts(ctx), a => (string)a.text == TopTitle);
-        Assert.Equal(TitleY(Draw(plain)), TitleY(ctx), 6);
+        var ctx = axes.Drawn(Area);
+        Assert.DoesNotContain(ctx.Of<DrawTextCall>(), a => a.Text == TopTitle);
+        Assert.Equal(TitleY(plain.Drawn(Area)), TitleY(ctx), 6);
     }
 
     // ── the title rises above the top band ──────────────────────────────────────
@@ -541,13 +571,13 @@ public class MirroredTickLayoutTests
             return axes;
         }
         static double TitleY(RecordingRenderContext ctx) =>
-            (double)Texts(ctx).Single(a => (string)a.text == "A Title").position.Y;
+            (double)ctx.Of<DrawTextCall>().Single(a => a.Text == "A Title").Position.Y;
 
         var mirrored = Titled(true);
         double band = Measure(mirrored).Top;
 
         Assert.True(band > 0);
-        Assert.Equal(TitleY(Draw(Titled(false))) - band, TitleY(Draw(mirrored)), 6);
+        Assert.Equal(TitleY(Titled(false).Drawn(Area)) - band, TitleY(mirrored.Drawn(Area)), 6);
     }
 
     // ── the end labels start past the right band ────────────────────────────────
@@ -561,12 +591,12 @@ public class MirroredTickLayoutTests
         line.LabelPlacement = MatPlotLibNet.Models.Series.SeriesLabelPlacement.LineEnd;
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
 
-        var ctx = Draw(axes);
-        var ticks = RightLabels(ctx).Where(a => (string)a.text != "Revenue").ToList();
-        var label = Texts(ctx).Single(a => (string)a.text == "Revenue");
+        var ctx = axes.Drawn(Area);
+        var ticks = RightLabels(ctx).Where(a => a.Text != "Revenue").ToList();
+        var label = ctx.Of<DrawTextCall>().Single(a => a.Text == "Revenue");
 
         double tickBand = axes.YAxis.MajorTicks.Length + axes.YAxis.MajorTicks.Pad + Widest(ctx, ticks);
-        Assert.Equal(Area.X + Area.Width + tickBand + DirectLabelMetrics.Gap, (double)label.position.X, 6);
+        Assert.Equal(Area.X + Area.Width + tickBand + DirectLabelMetrics.Gap, (double)label.Position.X, 6);
     }
 
     // ── both layout paths reserve the bands ─────────────────────────────────────
@@ -583,8 +613,17 @@ public class MirroredTickLayoutTests
             new SvgRenderContext(), figure.Theme).MeasureEdgeBands();
     }
 
-    private static double TitleHeight(Figure figure, string title) =>
-        new SvgRenderContext().MeasureText(title, ThemedFontProvider.TitleFont(figure.Theme)).Height;
+    /// <summary>The pad a tight layout keeps under the default theme (matplotlib v2): <c>tight_layout</c>'s 1.08 of its 10 pt font.</summary>
+    private const double TightPad = 1.08 * 10 * 100 / 72;
+
+    /// <summary>The room a title takes above its lift: under the matplotlib themes the part of its box above its baseline (matplotlib's
+    /// tight layout keeps room to the top of the title's box; its descent stands in the gap below the baseline), under the library's line
+    /// rule its whole line.</summary>
+    private static double TitleAscent(Figure figure, string title)
+    {
+        var box = new SvgRenderContext().ExtentOf(TextLabel.Of(title), figure.Theme.TitleFont());
+        return figure.Theme.Looks.Text.MeasuresLikeAgg ? box.Ascent : box.Height;
+    }
 
     [Fact]
     public void TightLayout_MirroredXTicksAndATitle_TheTopMarginHoldsTheBandThenTheTitle()
@@ -592,7 +631,7 @@ public class MirroredTickLayoutTests
         var figure = Plt.Create().WithSize(600, 400).TightLayout()
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).WithXTicksMirrored().WithTitle("A Title")).Build();
 
-        double expected = Bands(figure).Top + TitleHeight(figure, "A Title") + 8 + 8;
+        double expected = Bands(figure).Top + TitleAscent(figure, "A Title") + figure.Theme.TitleGapUnder + TightPad;
         Assert.Equal(expected, PlotAreas(figure)[0].Y, 6);
     }
 
@@ -602,17 +641,30 @@ public class MirroredTickLayoutTests
         var figure = Plt.Create().WithSize(600, 400).TightLayout().WithSubPlotSpacing(s => s with { MarginTop = 5 })
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).WithXTicksMirrored()).Build();
 
-        Assert.Equal(Bands(figure).Top + 8, PlotAreas(figure)[0].Y, 6);
+        Assert.Equal(Bands(figure).Top + TightPad, PlotAreas(figure)[0].Y, 6);
     }
 
+    /// <summary>The library's own themes keep the layout's pad above the title of the top row.</summary>
     [Fact]
     public void DefaultLayout_MirroredXTicksAndATitleInTheTopRow_WidenTheTopMargin()
+    {
+        var figure = Plt.Create().WithSize(600, 400).WithTheme(Theme.Default)
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).WithXTicksMirrored().WithTitle("A Title")).Build();
+
+        double expected = Bands(figure).Top + TitleAscent(figure, "A Title") + figure.Theme.TitleGapUnder + 8;
+        Assert.True(expected > 40, $"precondition: the band and the title ({expected:F2}) exceed the default top margin");
+        Assert.Equal(expected, PlotAreas(figure)[0].Y, 6);
+    }
+
+    /// <summary>The matplotlib themes lay the top row out as fixed subplot parameters do: nothing above the title.</summary>
+    [Fact]
+    public void DefaultLayout_MirroredXTicksAndATitleInTheTopRow_UnderTheMatplotlibThemes_KeepNoPadAboveTheTitle()
     {
         var figure = Plt.Create().WithSize(600, 400)
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).WithXTicksMirrored().WithTitle("A Title")).Build();
 
-        double expected = Bands(figure).Top + TitleHeight(figure, "A Title") + 8 + 8;
-        Assert.True(expected > 40, $"precondition: the band and the title ({expected:F2}) exceed the default top margin");
+        double expected = Bands(figure).Top + TitleAscent(figure, "A Title") + figure.Theme.TitleGapUnder;
+        Assert.True(expected > 0.12 * 400, $"precondition: the band and the title ({expected:F2}) exceed the theme's top margin");
         Assert.Equal(expected, PlotAreas(figure)[0].Y, 6);
     }
 
@@ -646,16 +698,26 @@ public class MirroredTickLayoutTests
 
         double band = Bands(figure).Top;
         Assert.True(band > 0);
-        Assert.Equal(band + TitleHeight(figure, "A Title") + 8 + 8, PlotAreas(figure)[0].Y, 6);
+        Assert.Equal(band + TitleAscent(figure, "A Title") + figure.Theme.TitleGapUnder + TightPad, PlotAreas(figure)[0].Y, 6);
     }
 
     [Fact]
     public void DefaultLayout_ASecondaryXAxisAndATitleInTheTopRow_WidenTheTopMargin()
     {
+        var figure = WithSecondaryX(Plt.Create().WithSize(600, 400).WithTheme(Theme.Default)).Build();
+
+        double expected = Bands(figure).Top + TitleAscent(figure, "A Title") + figure.Theme.TitleGapUnder + 8;
+        Assert.True(expected > 40, $"precondition: the axis and the title ({expected:F2}) exceed the default top margin");
+        Assert.Equal(expected, PlotAreas(figure)[0].Y, 6);
+    }
+
+    [Fact]
+    public void DefaultLayout_ASecondaryXAxisAndATitleInTheTopRow_UnderTheMatplotlibThemes_KeepNoPadAboveTheTitle()
+    {
         var figure = WithSecondaryX(Plt.Create().WithSize(600, 400)).Build();
 
-        double expected = Bands(figure).Top + TitleHeight(figure, "A Title") + 8 + 8;
-        Assert.True(expected > 40, $"precondition: the axis and the title ({expected:F2}) exceed the default top margin");
+        double expected = Bands(figure).Top + TitleAscent(figure, "A Title") + figure.Theme.TitleGapUnder;
+        Assert.True(expected > 0.12 * 400, $"precondition: the axis and the title ({expected:F2}) exceed the theme's top margin");
         Assert.Equal(expected, PlotAreas(figure)[0].Y, 6);
     }
 
@@ -682,7 +744,7 @@ public class MirroredTickLayoutTests
         axis.MajorTicks = axis.MajorTicks with { Length = 14, Pad = 11, LabelSize = 28 };
         axis.LabelStyle = new TextStyle { FontSize = 30 };
 
-        double lowerTop = Bands(figure, 1).Top + TitleHeight(figure, "Lower") + 8 + 8;
+        double lowerTop = Bands(figure, 1).Top + TitleAscent(figure, "Lower") + figure.Theme.TitleGapUnder + 8;
         Assert.True(lowerTop > 120, $"precondition: the lower row's top need ({lowerTop:F2}) exceeds the gap cap");
         Assert.True(RowGap(PlotAreas(figure)) >= lowerTop, $"row gap {RowGap(PlotAreas(figure)):F2} < {lowerTop:F2}");
     }
@@ -727,8 +789,8 @@ public class MirroredTickLayoutTests
     }
 
     /// <summary>The names drawn left of the Y spine, right-aligned: the Y tick labels.</summary>
-    private static List<dynamic> LeftLabels(RecordingRenderContext ctx) =>
-        Texts(ctx).Where(a => (double)a.position.X < Area.X && (TextAlignment)a.alignment == TextAlignment.Right).ToList();
+    private static List<DrawTextCall> LeftLabels(RecordingRenderContext ctx) =>
+        ctx.Of<DrawTextCall>().Where(a => (double)a.Position.X < Area.X && a.Alignment == TextAlignment.Right).ToList();
 
     [Theory]
     [InlineData(3.5, 3.5, null)]
@@ -738,10 +800,10 @@ public class MirroredTickLayoutTests
         var axes = HorizontalBars(t => t with { Length = length, Pad = pad, LabelSize = labelSize });
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var labels = LeftLabels(ctx);
-        Assert.Equal(["North", "South-east coastal region", "West"], labels.Select(a => (string)a.text));
+        Assert.Equal(["North", "South-east coastal region", "West"], labels.Select(a => a.Text));
         Assert.Equal(length + pad + Widest(ctx, labels), measured.Left, 6);
     }
 
@@ -763,7 +825,7 @@ public class MirroredTickLayoutTests
         var axes = HorizontalBars(t => t with { Visible = false });
 
         Assert.Equal(0, Measure(axes).Left);
-        Assert.Empty(LeftLabels(Draw(axes)));
+        Assert.Empty(LeftLabels(axes.Drawn(Area)));
     }
 
     [Fact]
@@ -774,7 +836,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.TickLocator = new MatPlotLibNet.Rendering.TickLocators.MultipleLocator(1);
 
         Assert.Equal(DrawnLeftBand(axes), Measure(axes).Left, 6);
-        Assert.DoesNotContain(LeftLabels(Draw(axes)), a => (string)a.text == "West");
+        Assert.DoesNotContain(LeftLabels(axes.Drawn(Area)), a => a.Text == "West");
     }
 
     [Fact]
@@ -785,7 +847,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.Scale = AxisScale.Log;
 
         Assert.Equal(DrawnLeftBand(axes), Measure(axes).Left, 6);
-        Assert.DoesNotContain(LeftLabels(Draw(axes)), a => (string)a.text == "West");
+        Assert.DoesNotContain(LeftLabels(axes.Drawn(Area)), a => a.Text == "West");
     }
 
     [Fact]
@@ -795,9 +857,9 @@ public class MirroredTickLayoutTests
         var axes = HorizontalBars();
         axes.YAxis.TickFormatter = new MatPlotLibNet.Rendering.TickFormatters.CategoryFormatter(["n", "s", "w"]);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
-        Assert.Equal(["n", "s", "w"], LeftLabels(ctx).Select(a => (string)a.text));
+        Assert.Equal(["n", "s", "w"], LeftLabels(ctx).Select(a => a.Text));
         Assert.Equal(axes.YAxis.MajorTicks.Length + axes.YAxis.MajorTicks.Pad + Widest(ctx, LeftLabels(ctx)), Measure(axes).Left, 6);
     }
 
@@ -807,10 +869,10 @@ public class MirroredTickLayoutTests
         var axes = HorizontalBars(t => t with { Mirror = true });
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var right = RightLabels(ctx);
-        Assert.Equal(["North", "South-east coastal region", "West"], right.Select(a => (string)a.text));
+        Assert.Equal(["North", "South-east coastal region", "West"], right.Select(a => a.Text));
         Assert.Equal(measured.Left, measured.Right, 6);
     }
 
@@ -905,8 +967,8 @@ public class MirroredTickLayoutTests
 
     /// <summary>The names drawn below the bottom spine, centred under their ticks: the X tick labels (the lowest Y label
     /// also stands a little below the spine, right-aligned left of it).</summary>
-    private static List<dynamic> BottomLabels(RecordingRenderContext ctx) =>
-        Texts(ctx).Where(a => (double)a.position.Y > Area.Y + Area.Height && (TextAlignment)a.alignment == TextAlignment.Center).ToList();
+    private static List<DrawTextCall> BottomLabels(RecordingRenderContext ctx) =>
+        ctx.Of<DrawTextCall>().Where(a => (double)a.Position.Y > Area.Y + Area.Height && a.Alignment == TextAlignment.Center).ToList();
 
     [Theory]
     [InlineData(3.5, 3.5, null)]
@@ -916,10 +978,10 @@ public class MirroredTickLayoutTests
         var axes = UprightBars(t => t with { Length = length, Pad = pad, LabelSize = labelSize });
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var labels = BottomLabels(ctx);
-        Assert.Equal(["North", "South", "West"], labels.Select(a => (string)a.text));
+        Assert.Equal(["North", "South", "West"], labels.Select(a => a.Text));
         Assert.Equal(length + pad + Tallest(ctx, labels), measured.Bottom, 6);
         // The numbers on the Y axis are measured as they are drawn; the names below take no part in that band.
         Assert.Equal(DrawnLeftBand(axes), measured.Left, 6);
@@ -950,11 +1012,11 @@ public class MirroredTickLayoutTests
         axes.XAxis.MajorTicks = axes.XAxis.MajorTicks with { Length = length, Pad = pad, LabelSize = labelSize };
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var labels = BottomLabels(ctx);
         Assert.NotEmpty(labels);
-        Assert.All(labels, a => Assert.Equal(0.0, (double)a.rotation));
+        Assert.All(labels, a => Assert.Equal(0.0, a.Rotation));
         Assert.Equal(length + pad + Tallest(ctx, labels), measured.Bottom, 6);
     }
 
@@ -1005,7 +1067,7 @@ public class MirroredTickLayoutTests
         var drawn = new DrawnBands(axes, Area, ctx);
         drawn.Render();
 
-        var turned = Texts(ctx).Where(a => (double)a.position.Y > Area.Y + Area.Height && (double)a.rotation != 0).ToList();
+        var turned = ctx.Of<DrawTextCall>().Where(a => (double)a.Position.Y > Area.Y + Area.Height && a.Rotation != 0).ToList();
         Assert.NotEmpty(turned);
         double upright = axes.XAxis.MajorTicks.TickLabelBand(Tallest(ctx, turned));
         Assert.True(drawn.Bottom > upright, $"precondition: the turned labels ({drawn.Bottom:F2}) reach past the upright band ({upright:F2})");
@@ -1023,11 +1085,10 @@ public class MirroredTickLayoutTests
 
         var narrow = Measure(axes);
         var broad = AxesRenderer.Create(axes, wide, new RecordingRenderContext(), Theme.Default).MeasureEdgeBands();
-        var ctx = new RecordingRenderContext();
-        new CartesianAxesRenderer(axes, wide, ctx, Theme.Default).Render();
+        var ctx = axes.Drawn(wide);
 
-        var labels = Texts(ctx).Where(a => Crowded.Contains((string)a.text)).ToList();
-        Assert.All(labels, a => Assert.Equal(0.0, (double)a.rotation));
+        var labels = ctx.Of<DrawTextCall>().Where(a => Crowded.Contains(a.Text)).ToList();
+        Assert.All(labels, a => Assert.Equal(0.0, a.Rotation));
         Assert.Equal(axes.XAxis.MajorTicks.TickLabelBand(Tallest(ctx, labels)), broad.Bottom, 9);
         Assert.True(narrow.Bottom > broad.Bottom, $"the narrow plot turns its names ({narrow.Bottom:F2} against {broad.Bottom:F2})");
     }
@@ -1045,7 +1106,7 @@ public class MirroredTickLayoutTests
         }
 
         Assert.Equal(0, Measure(axes).Bottom);
-        Assert.Empty(BottomLabels(Draw(axes)));
+        Assert.Empty(BottomLabels(axes.Drawn(Area)));
     }
 
     [Fact]
@@ -1058,7 +1119,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         Assert.Equal(0, measured.Bottom);
         var ticks = axes.YAxis.MajorTicks;
@@ -1071,9 +1132,9 @@ public class MirroredTickLayoutTests
         var axes = UprightBars(t => t with { LabelSize = 19 });
         axes.XAxis.TickLocator = new MatPlotLibNet.Rendering.TickLocators.MultipleLocator(1);
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
-        Assert.DoesNotContain(BottomLabels(ctx), a => (string)a.text == "West");
+        Assert.DoesNotContain(BottomLabels(ctx), a => a.Text == "West");
         var ticks = axes.XAxis.MajorTicks;
         Assert.Equal(ticks.Length + ticks.Pad + Tallest(ctx, BottomLabels(ctx)), Measure(axes).Bottom, 6);
     }
@@ -1086,7 +1147,7 @@ public class MirroredTickLayoutTests
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var ticks = axes.XAxis.MajorTicks;
         Assert.Equal(ticks.Length + ticks.Pad + Tallest(ctx, BottomLabels(ctx)), measured.Bottom, 6);
@@ -1099,10 +1160,10 @@ public class MirroredTickLayoutTests
         var axes = UprightBars(t => t with { Mirror = true, LabelSize = 20 });
 
         var measured = Measure(axes);
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Area);
 
         var top = TopLabels(ctx);
-        Assert.Equal(["North", "South", "West"], top.Select(a => (string)a.text));
+        Assert.Equal(["North", "South", "West"], top.Select(a => a.Text));
         Assert.Equal(measured.Bottom, measured.Top, 6);
     }
 
@@ -1121,17 +1182,21 @@ public class MirroredTickLayoutTests
         return figure.Height - (area.Y + area.Height);
     }
 
-    [Fact]
-    public void DefaultLayout_CategoryNamesAndAnXTitle_WidenTheBottomMarginToTheBandTheTitleAndThePad()
+    /// <summary>The theme's resolved bottom margin (matplotlib's 0.11 of the height, 38 px at 350) does not grow with the tick labels and the
+    /// X axis title; the default path widens it to the need (the band, the 6 px gap, the title's height and the pad), the rule the left edge
+    /// follows for names on the Y axis, whether the band is of category names or of numbers.</summary>
+    [Theory]
+    [InlineData(true, "Region")]
+    [InlineData(false, "Time")]
+    public void DefaultLayout_ABandAndAnXTitle_WidenTheBottomMarginToTheBandTheTitleAndThePad(bool names, string title)
     {
-        // The rule the left edge follows for names on the Y axis: the band, the 6 px gap, the title's height and the pad.
-        var named = BottomRow(true, "Region");
-        double titleHeight = new SvgRenderContext().MeasureText("Region", ThemedFontProvider.LabelFont(named.Theme)).Height;
+        var titled = BottomRow(names, title);
+        double titleHeight = new SvgRenderContext().MeasureText(title, titled.Theme.LabelFont()).Height;
 
-        double need = Bands(named).Bottom + 6 + titleHeight + 5;
+        double need = Bands(titled).Bottom + titled.Theme.XLabelGapUnder + titleHeight + 5;
         Assert.True(need > MarginBottom(BottomRow(false, null)),
-            $"precondition: the names and the title ({need:F2}) exceed the default bottom margin ({MarginBottom(BottomRow(false, null)):F2})");
-        Assert.Equal(need, MarginBottom(named), 6);
+            $"precondition: the band and the title ({need:F2}) exceed the default bottom margin ({MarginBottom(BottomRow(false, null)):F2})");
+        Assert.Equal(need, MarginBottom(titled), 6);
     }
 
     [Fact]
@@ -1140,20 +1205,6 @@ public class MirroredTickLayoutTests
         // A band narrower than the resolved margin leaves it as it is: the default path only ever widens.
         Assert.True(Bands(BottomRow(true, null)).Bottom > 0);
         Assert.Equal(MarginBottom(BottomRow(false, null)), MarginBottom(BottomRow(true, null)), 6);
-    }
-
-    /// <summary>The theme's resolved bottom margin (matplotlib's 0.11 of the height, 38 px at 350) does not grow with the
-    /// tick labels and the X axis title; the default path widens it to the need, the rule category names follow.</summary>
-    [Fact]
-    public void DefaultLayout_ANumericXAxisAndAnXTitle_WidenTheBottomMarginToTheBandTheTitleAndThePad()
-    {
-        var titled = BottomRow(false, "Time");
-        double titleHeight = new SvgRenderContext().MeasureText("Time", ThemedFontProvider.LabelFont(titled.Theme)).Height;
-
-        double need = Bands(titled).Bottom + 6 + titleHeight + 5;
-        Assert.True(need > MarginBottom(BottomRow(false, null)),
-            $"precondition: the tick labels and the title ({need:F2}) exceed the default bottom margin ({MarginBottom(BottomRow(false, null)):F2})");
-        Assert.Equal(need, MarginBottom(titled), 6);
     }
 
     [Fact]
@@ -1168,7 +1219,7 @@ public class MirroredTickLayoutTests
     }
 
     /// <summary>With no X tick label drawn the renderer sets the title's baseline at the fixed 35 px
-    /// (<see cref="AxisTickExtensions.BottomAxisLabelOffset"/>); the layout reserves the title where it is drawn, its full
+    /// (<see cref="EdgeTerms.TitleWithoutTickLabels"/>, through <see cref="TitleClearance.TitleOffset"/>); the layout reserves the title where it is drawn, its full
     /// height from its top (35 px less its ascent), and the pad.</summary>
     [Theory]
     [InlineData(false)]
@@ -1182,11 +1233,11 @@ public class MirroredTickLayoutTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).SetXLabel("Time")).Build();
         var axis = figure.SubPlots[0].XAxis;
         axis.MajorTicks = axis.MajorTicks with { Visible = false };
-        var font = ThemedFontProvider.LabelFont(figure.Theme);
+        var font = figure.Theme.LabelFont();
         double titleHeight = new SvgRenderContext().MeasureText("Time", font).Height;
 
         Assert.Equal(0, Bands(figure).Bottom);
-        Assert.Equal(35 - 0.8 * font.Size + titleHeight + 5, MarginBottom(figure), 6);
+        Assert.Equal(35 - 0.8 * font.Size + titleHeight + (tight ? TightPad : 5), MarginBottom(figure), 6);
     }
 
     /// <summary>The tight layout keeps the floor it has always kept below drawn tick labels (15 px for the mark and the
@@ -1199,21 +1250,22 @@ public class MirroredTickLayoutTests
             .AddSubPlot(1, 1, 1, ax => { if (names) ax.Bar(["North", "South", "West"], [1.0, 2.0, 3.0]); else ax.Plot(X, [1.0, 2.0, 3.0]); })
             .Build();
         var numbers = Tight(false);
-        double floor = 15 + new SvgRenderContext().MeasureText("0", ThemedFontProvider.TickFont(numbers.Theme)).Height + 5;
+        double floor = 15 + new SvgRenderContext().MeasureText("0", numbers.Theme.TickFont()).Height + TightPad;
 
         Assert.Equal(floor, MarginBottom(numbers), 6);
         Assert.Equal(floor, MarginBottom(Tight(true)), 6);
     }
 
     /// <summary>A polar or 3-D axes measures nothing below its bottom spine (it draws its X title elsewhere or not at all);
-    /// the tight layout keeps the margin it has always given it, the Cartesian rule on an estimated band: the mark, the
-    /// pad and a label, the gap and the title, the pad; with hidden ticks the gap, the title and the pad (at least the
-    /// 30 px the tight layout never goes below).</summary>
+    /// the tight layout gives it the Cartesian rule on an estimated band: the mark, the pad and a label, the gap and the
+    /// title, the pad; with hidden ticks the title at the fixed place a Cartesian axes draws it (35 px to its baseline, its
+    /// ascent of four fifths of its size above that), then the title and the pad (at least the 30 px the tight layout
+    /// never goes below).</summary>
     [Theory]
     [InlineData(CoordinateSystem.ThreeD, true)]
     [InlineData(CoordinateSystem.ThreeD, false)]
     [InlineData(CoordinateSystem.Polar, true)]
-    public void TightLayout_PolarAnd3DAxesWithAnXTitle_KeepTheMarginTheyAlwaysHad(CoordinateSystem system, bool ticks)
+    public void TightLayout_PolarAnd3DAxesWithAnXTitle_KeepRoomForItByTheCartesianRule(CoordinateSystem system, bool ticks)
     {
         var figure = Plt.Create().WithSize(500, 350).TightLayout().WithSubPlotSpacing(s => s with { MarginBottom = 5 })
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).SetXLabel("Time")).Build();
@@ -1221,12 +1273,13 @@ public class MirroredTickLayoutTests
         axes.CoordinateSystem = system;
         if (!ticks) axes.XAxis.MajorTicks = axes.XAxis.MajorTicks with { Visible = false };
         var ctx = new SvgRenderContext();
-        double label = ctx.MeasureText("0", ThemedFontProvider.TickFont(figure.Theme)).Height;
-        double title = ctx.MeasureText("Time", ThemedFontProvider.LabelFont(figure.Theme)).Height;
+        double label = ctx.MeasureText("0", figure.Theme.TickFont()).Height;
+        double title = ctx.MeasureText("Time", figure.Theme.LabelFont()).Height;
         var major = axes.XAxis.MajorTicks;
 
-        double expected = ticks ? major.Length + major.Pad + label + 6 + title + 5 : Math.Max(30, 6 + title + 5);
-        Assert.Equal(default, Bands(figure));
+        double size = figure.Theme.LabelFont().Size;
+        double expected = ticks ? major.Length + major.Pad + label + figure.Theme.XLabelGapUnder + title + TightPad : Math.Max(30, 35 - 0.8 * size + title + TightPad);
+        Assert.False(Bands(figure).DrawsBelow);
         Assert.Equal(expected, MarginBottom(figure), 6);
     }
 
@@ -1238,9 +1291,9 @@ public class MirroredTickLayoutTests
         var axis = figure.SubPlots[0].XAxis;
         axis.LabelStyle = new TextStyle { FontSize = 24, Pad = 8 };
         axis.MajorTicks = axis.MajorTicks with { LabelSize = 20 };
-        double titleHeight = new SvgRenderContext().MeasureText("Time", ThemedFontProvider.LabelFont(figure.Theme) with { Size = 24 }).Height;
+        double titleHeight = new SvgRenderContext().MeasureText("Time", figure.Theme.LabelFont() with { Size = 24 }).Height;
 
-        Assert.Equal(Bands(figure).Bottom + 6 + 8 + titleHeight + 5, MarginBottom(figure), 6);
+        Assert.Equal(Bands(figure).Bottom + figure.Theme.XLabelGapUnder + 8 + titleHeight + TightPad, MarginBottom(figure), 6);
     }
 
     private static Figure NamedRows(bool names) => Plt.Create().WithSize(500, 600)
@@ -1256,10 +1309,10 @@ public class MirroredTickLayoutTests
     public void DefaultLayout_CategoryNamesInAnUpperRow_TheRowGapHoldsThemTheirTitleAndTheLowerTitle()
     {
         var named = NamedRows(true);
-        double labelHeight = new SvgRenderContext().MeasureText("Region", ThemedFontProvider.LabelFont(named.Theme)).Height;
-        double lowerTitle = TitleHeight(named, "Lower") + 8 + 8;
+        double labelHeight = new SvgRenderContext().MeasureText("Region", named.Theme.LabelFont()).Height;
+        double lowerTitle = TitleAscent(named, "Lower") + named.Theme.TitleGapUnder + 8;
 
-        double need = Bands(named, 0).Bottom + 6 + labelHeight + 5 + lowerTitle;
+        double need = Bands(named, 0).Bottom + named.Theme.XLabelGapUnder + labelHeight + 5 + lowerTitle;
         Assert.True(need > RowGap(PlotAreas(NamedRows(false))), "precondition: the need exceeds the default row gap");
         Assert.Equal(need, RowGap(PlotAreas(named)), 6);
     }
@@ -1271,7 +1324,7 @@ public class MirroredTickLayoutTests
         // need (the band and the pad) and the room the lower title takes, the rule category names follow.
         var rows = NamedRows(false);
 
-        double need = Bands(rows, 0).Bottom + 5 + TitleHeight(rows, "Lower") + 8 + 8;
+        double need = Bands(rows, 0).Bottom + 5 + TitleAscent(rows, "Lower") + rows.Theme.TitleGapUnder + 8;
         Assert.True(need > 40, $"precondition: the need ({need:F2}) exceeds the default row gap");
         Assert.Equal(need, RowGap(PlotAreas(rows)), 6);
     }
@@ -1290,9 +1343,9 @@ public class MirroredTickLayoutTests
         axis.LabelStyle = new TextStyle { FontSize = 28, Pad = 6 };
 
         double labelHeight = new SvgRenderContext().MeasureText("Region",
-            ThemedFontProvider.LabelFont(figure.Theme) with { Size = 28 }).Height;
-        double upperBottom = Bands(figure, 0).Bottom + 6 + 6 + labelHeight + 5;
-        double lowerTop = TitleHeight(figure, "Lower") + 8 + 8;
+            figure.Theme.LabelFont() with { Size = 28 }).Height;
+        double upperBottom = Bands(figure, 0).Bottom + figure.Theme.XLabelGapUnder + 6 + labelHeight + 5;
+        double lowerTop = TitleAscent(figure, "Lower") + figure.Theme.TitleGapUnder + 8;
         Assert.True(upperBottom + lowerTop > 120, $"precondition: the stacked need ({upperBottom + lowerTop:F2}) exceeds the gap cap");
         Assert.True(RowGap(PlotAreas(figure)) >= upperBottom + lowerTop - 1e-6,
             $"row gap {RowGap(PlotAreas(figure)):F2} < {upperBottom + lowerTop:F2}");
@@ -1303,8 +1356,11 @@ public class MirroredTickLayoutTests
     {
         Assert.Equal(30, new RightBand(10, 30, 0).Axis);
         Assert.Equal(40, new RightBand(40, 30, 0).Axis);
-        Assert.Equal(30 + ConstrainedLayoutEngine.PadRight, new RightBand(10, 30, 0).Width, 9);
-        Assert.Equal(40 + 5 + ConstrainedLayoutEngine.PadRight, new RightBand(40, 30, 5).Width, 9);
-        Assert.Equal(0, new RightBand(0, 0, 0).Width);
+        Assert.Equal(30 + ConstrainedLayoutEngine.PadRight, new RightBand(10, 30, 0).WidthWith(ConstrainedLayoutEngine.PadRight), 9);
+        Assert.Equal(40 + 5 + ConstrainedLayoutEngine.PadRight, new RightBand(40, 30, 5).WidthWith(ConstrainedLayoutEngine.PadRight), 9);
+        Assert.Equal(0, new RightBand(0, 0, 0).WidthWith(ConstrainedLayoutEngine.PadRight));
+        // What is drawn past the spine, without the pad: what a colour bar in the library's margin stands past.
+        Assert.Equal(45, new RightBand(40, 30, 5).Past);
+        Assert.Equal(0, new RightBand(0, 0, 0).Past);
     }
 }

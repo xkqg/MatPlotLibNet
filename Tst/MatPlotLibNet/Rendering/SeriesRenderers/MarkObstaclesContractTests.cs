@@ -6,7 +6,7 @@ using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Models.Series;
+using MatPlotLibNet.Tests.Serialization;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -56,8 +56,7 @@ public class MarkObstaclesContractTests
     ];
 
     private static IEnumerable<Type> Shipped() =>
-        typeof(ISeries).Assembly.GetExportedTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ISeries).IsAssignableFrom(t));
+        typeof(ISeries).Assembly.ConcretePublicSubtypesOf(typeof(ISeries));
 
     [Fact]
     public void EverySeriesType_StandsInExactlyOneList()
@@ -82,17 +81,13 @@ public class MarkObstaclesContractTests
         Assert.True(missing.Count == 0, $"no marks-as-drawn row for: {string.Join(", ", missing)}");
     }
 
-    public static TheoryData<ISeries, string> DroppedInstances =>
-        [.. ((IEnumerable<ITheoryDataRow>)AllSeriesTests.AllSeriesInstances)
-            .Select(row => row.GetData())
-            .Where(data => Dropped.Contains(data[0]!.GetType()))
-            .Select(data => (data[0]!, (string)data[1]!))
-            .Select(pair => new TheoryDataRow<ISeries, string>((ISeries)pair.Item1, pair.Item2))];
+    public static TheoryData<string> DroppedTypes { get; } = new(Dropped.Select(type => type.Name));
 
     [Theory]
-    [MemberData(nameof(DroppedInstances))]
-    public void ASeriesThatFillsItsAxes_CollectsNoMarks(ISeries series, string name)
+    [MemberData(nameof(DroppedTypes))]
+    public void ASeriesThatFillsItsAxes_CollectsNoMarks(string name)
     {
+        var series = DrawnSeriesFixtures.Instance(name);
         var ctx = new RecordingRenderContext();
         var builder = new MarkObstacles.Builder();
         var collector = new SvgSeriesRenderer(new DataTransform(0, 10, 0, 10, new Rect(0, 0, 400, 300)), ctx, Colors.Blue, Theme.Default,

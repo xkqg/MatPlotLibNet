@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -13,40 +14,41 @@ namespace MatPlotLibNet.Indicators;
 /// yielding VPIN = 0 for that window.</remarks>
 public sealed class Vpin : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>bucketPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultBucketPeriod = 50;
+
+    /// <summary>The <c>sigmaPeriod</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultSigmaPeriod = 50;
+
     private readonly int _bucketPeriod;
     private readonly int _sigmaPeriod;
 
     /// <summary>Creates a new VPIN indicator.</summary>
     /// <param name="bars">Close (strictly positive) and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
-    /// <param name="bucketPeriod">Rolling VPIN bucket length (default 50).</param>
-    /// <param name="sigmaPeriod">Rolling return-std normalization window (default 50).</param>
-    public Vpin(OhlcvBars bars, int bucketPeriod = 50, int sigmaPeriod = 50)
-        : base(bars)
+    /// <param name="bucketPeriod">Rolling VPIN bucket length (default <see cref="DefaultBucketPeriod"/>).</param>
+    /// <param name="sigmaPeriod">Rolling return-std normalization window (default <see cref="DefaultSigmaPeriod"/>).</param>
+    public Vpin(OhlcvBars bars, int bucketPeriod = DefaultBucketPeriod, int sigmaPeriod = DefaultSigmaPeriod)
+        : base(bars, Spec(bucketPeriod, sigmaPeriod))
     {
-        if (bucketPeriod <= 0)
-            throw new ArgumentException($"bucketPeriod must be > 0 (got {bucketPeriod}).", nameof(bucketPeriod));
-        if (sigmaPeriod <= 0)
-            throw new ArgumentException($"sigmaPeriod must be > 0 (got {sigmaPeriod}).", nameof(sigmaPeriod));
-        for (int i = 0; i < bars.Close.Length; i++)
-        {
-            if (bars.Close[i] <= 0)
-                throw new ArgumentException(
-                    $"Vpin requires strictly positive close; bar {i} has {bars.Close[i]}.", nameof(bars));
-        }
+        bars.Close.ThrowIfNotPositivePrices(nameof(Vpin), "close", nameof(bars));
         _bucketPeriod = bucketPeriod;
         _sigmaPeriod = sigmaPeriod;
-        Label = $"VPIN({bucketPeriod})";
+    }
+
+    internal static IndicatorSpec Spec(int bucketPeriod, int sigmaPeriod)
+    {
+        bucketPeriod.ThrowIfBelow(1, nameof(bucketPeriod));
+        sigmaPeriod.ThrowIfBelow(1, nameof(sigmaPeriod));
+        return IndicatorSpec.OfWindow("VPIN", bucketPeriod, Math.Max(bucketPeriod, sigmaPeriod) + 1);
     }
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = BarCount;
         int maxPeriod = Math.Max(_bucketPeriod, _sigmaPeriod);
-        if (n <= maxPeriod) return Array.Empty<double>();
 
         // Log-returns indexed 0..n-2 (return i corresponds to bar transition i → i+1).
-        int rLen = n - 1;
+        int rLen = PairsIn;
         var r = new double[rLen];
         for (int i = 0; i < rLen; i++)
             r[i] = Math.Log(Close[i + 1] / Close[i]);
@@ -58,15 +60,9 @@ public sealed class Vpin : CandleIndicator<SignalResult>
         {
             int start = Math.Max(0, i - _sigmaPeriod + 1);
             int count = i - start + 1;
-            double mean = 0, m2 = 0;
-            for (int k = start; k <= i; k++) mean += r[k];
-            mean /= count;
-            for (int k = start; k <= i; k++)
-            {
-                double d = r[k] - mean;
-                m2 += d * d;
-            }
-            double sigma = count > 1 ? Math.Sqrt(m2 / (count - 1)) : 0;
+            var recent = r.AsSpan(start, count);
+            double mean = recent.Mean();
+            double sigma = count > 1 ? recent.StdDev(mean, ddof: 1) : 0;
 
             // σ=0 policy: 50/50 split exactly (avoids Φ(0) approximation error).
             double phi = sigma == 0 ? 0.5 : NormalCdf((r[i] - mean) / sigma);
@@ -75,7 +71,7 @@ public sealed class Vpin : CandleIndicator<SignalResult>
 
         // VPIN: for each output w, bucket ends at return index maxPeriod + w, spans
         // the last bucketPeriod returns.
-        int outLen = n - maxPeriod - 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
         for (int w = 0; w < outLen; w++)
         {
@@ -95,12 +91,14 @@ public sealed class Vpin : CandleIndicator<SignalResult>
         return result;
     }
 
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingVpin"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Unit;
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), Math.Max(_bucketPeriod, _sigmaPeriod) + 1);
-        axes.YAxis.Min = 0;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 
     // Standard-normal CDF via Abramowitz & Stegun 26.2.17 rational approximation.

@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Indicators.Steps;
 /// close sits in the true range (from the true low to the true high, using the close before); the accumulation and the volume are
 /// each averaged by Wilder's exponential average (seeded with the first value, weight <c>1 / period</c>), and the money flow is
 /// their ratio (0 when there is no volume). The first bar has no close before it, so the step says NaN for it.</summary>
-internal struct TwiggsMoneyFlowStep
+internal struct TwiggsMoneyFlowStep : IHlcvStep<double>
 {
     private SeededEmaStep _averageAccumulation;
     private SeededEmaStep _averageVolume;
@@ -29,7 +29,7 @@ internal struct TwiggsMoneyFlowStep
     /// <param name="low">The low of the bar.</param>
     /// <param name="close">The close of the bar.</param>
     /// <param name="volume">The volume of the bar.</param>
-    internal double Next(double high, double low, double close, double volume)
+    public double Next(double high, double low, double close, double volume)
     {
         _count++;
         if (_count == 1)

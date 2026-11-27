@@ -1,11 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
@@ -35,11 +32,8 @@ public class KaplanMeierTests
 
     private const double Exact = 1e-15;
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Chart(IReadOnlyList<SurvivalGroup> groups, Action<LineSeries>? configure = null) =>
-        AxesOf(ax => ax.KaplanMeier(groups, configure));
+        Plt.Create().OneAxes(ax => ax.KaplanMeier(groups, configure));
 
     private static LineSeries Curve(Axes axes, int group) => axes.Series.OfType<LineSeries>().ElementAt(group);
 
@@ -196,8 +190,8 @@ public class KaplanMeierTests
         string svg = figure.ToSvg();
 
         Assert.All(figure.SubPlots[0].Series.OfType<LineSeries>(), s => Assert.Null(s.Color));
-        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), FirstColour(Group(svg, 0)));    // Worked's curve
-        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), FirstColour(Group(svg, 3)));    // Second's curve
+        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), svg.SeriesGroup(0).FirstColour());    // Worked's curve
+        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), svg.SeriesGroup(3).FirstColour());    // Second's curve
     }
 
     /// <summary>The groups are named in the legend, one entry each, with no call beyond the verb.</summary>
@@ -208,7 +202,7 @@ public class KaplanMeierTests
         figure.EnableLegendToggle = true;
         string svg = figure.ToSvg();
 
-        Assert.Equal(2, Regex.Matches(svg, "data-legend-index=").Count);
+        Assert.Equal(2, svg.CountOf("data-legend-index="));
         Assert.Contains(">Worked<", svg);
         Assert.Contains(">Second<", svg);
     }
@@ -219,28 +213,11 @@ public class KaplanMeierTests
     public void TheYAxis_IsTitledSurvivalProbability_ATitleSetAfterTheCallWins()
     {
         var axes = Chart(Both);
-        var retitled = AxesOf(ax => ax.KaplanMeier(Both).SetYLabel("Share without relapse"));
+        var retitled = Plt.Create().OneAxes(ax => ax.KaplanMeier(Both).SetYLabel("Share without relapse"));
 
         Assert.Equal("Survival probability", axes.YAxis.Label);
         Assert.Null(axes.XAxis.Label);
         Assert.Equal("Share without relapse", retitled.YAxis.Label);
-    }
-
-    /// <summary>The verb sets no axis limit (a limit clips every series and overwrites the caller's own) and keeps one the
-    /// caller set.</summary>
-    [Fact]
-    public void TheVerb_SetsNoAxisLimits_AndKeepsTheCallersOwn()
-    {
-        var axes = Chart(Both);
-        var kept = AxesOf(ax => ax.SetYLim(0, 1.05).KaplanMeier(Both));
-
-        Assert.False(axes.HasExplicitLimit);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Null(axes.XAxis.Min);
-        Assert.Null(axes.XAxis.Max);
-        Assert.Equal(0.0, kept.YAxis.Min);
-        Assert.Equal(1.05, kept.YAxis.Max);
     }
 
     /// <summary>A curve holds its own arrays: editing one line's data moves no other line.</summary>
@@ -253,83 +230,35 @@ public class KaplanMeierTests
         Assert.NotSame(Curve(axes, 0).YData, Curve(axes, 1).YData);
     }
 
-    // ---- the callback ---------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once per curve, in the order of the groups, after the verb has built the curve, and hands
-    /// over the very series on the axes, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerCurve_InGroupOrder_OnTheSeriesOnTheAxes_AfterTheVerbBuiltIt()
-    {
-        var seen = new List<LineSeries>();
-        var stylesWhenCalled = new List<DrawStyle?>();
-        var labelsWhenCalled = new List<string?>();
-
-        var axes = Chart(Both, line =>
-        {
-            seen.Add(line);
-            stylesWhenCalled.Add(line.DrawStyle);
-            labelsWhenCalled.Add(line.Label);
-            line.LineWidth = 2.5;
-        });
-
-        Assert.Equal(2, seen.Count);
-        Assert.Same(Curve(axes, 0), seen[0]);
-        Assert.Same(Curve(axes, 1), seen[1]);
-        Assert.Equal([DrawStyle.StepsPost, DrawStyle.StepsPost], stylesWhenCalled);
-        Assert.Equal(["Worked", "Second"], labelsWhenCalled);
-        Assert.All(axes.Series.OfType<LineSeries>(), s => Assert.Equal(2.5, s.LineWidth));
-    }
-
     // ---- refusals -------------------------------------------------------------------------------------------------
-
-    /// <summary>A missing argument is refused by name.</summary>
-    [Fact]
-    public void MissingArguments_AreRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).KaplanMeier(Both)).ParamName);
-        Assert.Equal("groups", Assert.Throws<ArgumentNullException>(() => Chart(null!)).ParamName);
-    }
-
-    /// <summary>A chart of no groups has nothing to draw.</summary>
-    [Fact]
-    public void NoGroups_AreRefused()
-    {
-        var error = Assert.Throws<ArgumentException>(() => Chart([]));
-
-        Assert.Equal("groups", error.ParamName);
-        Assert.Equal("No groups were given; a Kaplan-Meier chart draws one curve per group. (Parameter 'groups')", error.Message);
-    }
 
     /// <summary>A group that is not survival data is refused through the estimator's one check, naming the group and the
     /// verb's parameter: a duration that is missing (NaN), negative or infinite, flags that do not pair with the durations, no
     /// subjects.</summary>
     [Theory]
-    [InlineData(new[] { 2.0, double.NaN }, 2, "Group 'South' has a duration of NaN at index 1;")]
-    [InlineData(new[] { 2.0, -3.0 }, 2, "Group 'South' has a duration of -3 at index 1;")]
-    [InlineData(new[] { 2.0, 5.0 }, 3, "Group 'South' has 2 durations and 3 Observed flags;")]
+    [InlineData(new[] { 2.0, double.NaN }, 2, "The duration at index 1 of group 'South' must be finite (got NaN).")]
+    [InlineData(new[] { 2.0, -3.0 }, 2, "The duration at index 1 of group 'South' must be >= 0 (got -3).")]
     [InlineData(new double[0], 0, "Group 'South' has no subjects;")]
     public void AGroupThatIsNotSurvivalData_IsRefused_NamingTheGroup(double[] durations, int flags, string opening)
     {
         SurvivalGroup[] groups = [Worked, new("South", durations, new bool[flags])];
 
-        var error = Assert.Throws<ArgumentException>(() => Chart(groups));
+        var error = Assert.ThrowsAny<ArgumentException>(() => Chart(groups));
 
         Assert.Equal("groups", error.ParamName);
         Assert.StartsWith(opening, error.Message);
     }
 
-    /// <summary>A refused call has added nothing: no curve, no axis title. Every group is checked before the first curve is
-    /// added, so a bad second group does not leave the first one drawn.</summary>
+    /// <summary>Flags that do not pair with the durations are refused in the one sentence of every length that differs, naming the group.</summary>
     [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
+    public void AGroupWhoseFlagsDoNotPairWithItsDurations_IsRefusedInTheLengthSentence()
     {
-        var builder = new AxesBuilder();
+        SurvivalGroup[] groups = [Worked, new("South", [2.0, 5.0], new bool[3])];
 
-        Assert.Throws<ArgumentException>(() => builder.KaplanMeier([Worked, new SurvivalGroup("South", [double.NaN], [true])]));
-        var axes = builder.Build(1, 1, 1);
+        var error = Assert.ThrowsAny<ArgumentException>(() => Chart(groups));
 
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.YAxis.Label);
+        Assert.Equal("groups", error.ParamName);
+        Assert.StartsWith(3.RefusalAgainst(2, of: "group 'South'"), error.Message);
     }
 
     // ---- the public type ------------------------------------------------------------------------------------------
@@ -350,35 +279,6 @@ public class KaplanMeierTests
         Assert.Equal([1.0, 2.0], durations);
         Assert.Equal([true, false], observed);
         Assert.Equal(["Durations", "Label", "Observed"], type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(p => p.Name).Order());
-    }
-
-    // ---- the hand recipe and JSON ---------------------------------------------------------------------------------------
-
-    /// <summary>The verb draws exactly the picture of the hand recipe made of the public building blocks (the step points
-    /// worked out by hand), with and without a subject lost to follow-up.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("kaplan-meier").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.KaplanMeierByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
-
-    /// <summary>A Kaplan-Meier chart is its parts in JSON: read back it draws the same picture. It is not estimated again.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("kaplan-meier").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
     }
 
     // ---- the example in the documentation --------------------------------------------------------------------------------
@@ -418,25 +318,8 @@ public class KaplanMeierTests
 
     private readonly record struct SvgPoint(double X, double Y);
 
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     /// <summary>The points of the longest polyline of the picture: the curve (a legend swatch is two points).</summary>
     private static List<SvgPoint> Polyline(string svg) =>
-        XDocument.Parse(svg).Descendants().Where(e => e.Name.LocalName == "polyline")
-            .Select(e => ((string)e.Attribute("points")!).Split(' ').Select(p => p.Split(',')).Select(xy => new SvgPoint(Num(xy[0]), Num(xy[1]))).ToList())
-            .OrderByDescending(p => p.Count).First();
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>: up to the next series group or the
-    /// end of the picture.</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        int next = svg.IndexOf("""<g class="series" """.TrimEnd(), start + 1, StringComparison.Ordinal);
-        return svg[start..(next > start ? next : svg.Length)];
-    }
-
-    /// <summary>The first fill or stroke colour in a piece of markup.</summary>
-    private static string FirstColour(string markup) =>
-        Regex.Match(markup, """(?:fill|stroke)="(#[0-9A-F]{6})" """.TrimEnd()).Groups[1].Value;
-}
+        svg.Each("polyline")
+            .Select(e => ((string)e.Attribute("points")!).Split(' ').Select(p => p.Split(',')).Select(xy => new SvgPoint(xy[0].Number(), xy[1].Number())).ToList())
+            .OrderByDescending(p => p.Count).First();}

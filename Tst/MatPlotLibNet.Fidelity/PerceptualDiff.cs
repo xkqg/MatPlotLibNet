@@ -12,7 +12,9 @@ namespace MatPlotLibNet.Fidelity;
 /// <list type="bullet">
 ///   <item><description><b>RMS</b> — mean root-mean-square pixel error across all channels (0–255 scale).</description></item>
 ///   <item><description><b>SSIM</b> — structural similarity index on a downsampled luminance image (block-mean variant, 0–1 scale; 1 = identical).</description></item>
-///   <item><description><b>MaxColorDeltaE</b> — maximum CIE ΔE*76 between the 5 dominant colours of each image (identifies palette drift).</description></item>
+///   <item><description><b>MaxColorDeltaE</b> — maximum CIE ΔE*76 from each of the reference's 5 dominant colours to the nearest colour the
+///   actual image holds in at least a tenth of that amount (identifies palette drift; a colour under one pixel in a thousand is no
+///   palette colour).</description></item>
 /// </list>
 ///
 /// Default thresholds:
@@ -54,10 +56,6 @@ public static class PerceptualDiff
         EnsureSameSize(refBmp, actBmp);
         return Compute(refBmp, actBmp);
     }
-
-    /// <summary>Compares two PNG files by path and returns the perceptual diff result.</summary>
-    public static Result Compare(string referencePath, string actualPath) =>
-        Compare(File.ReadAllBytes(referencePath), File.ReadAllBytes(actualPath));
 
     /// <summary>
     /// Writes a 3-panel side-by-side diff image (reference | actual | abs-diff heatmap) to
@@ -205,24 +203,41 @@ public static class PerceptualDiff
                ((muA * muA + muB * muB + c1) * (varA + varB + c2));
     }
 
+    /// <summary>The share of a picture a colour must cover to be one of its palette's colours: one pixel in a thousand. The
+    /// anti-aliased edges of text and thin lines make greys of a few hundred pixels in a picture of 480,000, and the edges one
+    /// platform draws are not the edges another draws.</summary>
+    private const double PaletteShare = 0.001;
+
+    /// <summary>How much of a reference colour the other picture must hold for that colour to count as there: a tenth of the
+    /// reference's amount.</summary>
+    private const double PresentShare = 0.1;
+
     /// <summary>
-    /// Maximum CIE ΔE*76 between the 5 dominant colours of each image.
-    /// Dominant colours are found from EVERY pixel by a 4-bit per channel colour cube histogram. A lattice of pixels
-    /// (every tenth, say) reads a different sample of a picture drawn one pixel over, so the distance between the palettes of
-    /// two pictures of one thing would depend on where the lattice fell: the same picture one pixel over scored a ΔE of 77.
+    /// Maximum CIE ΔE*76 from each of the reference's 5 dominant colours (those that cover at least <see cref="PaletteShare"/>
+    /// of it) to the nearest colour the actual picture holds at least <see cref="PresentShare"/> as much of. Colours are read from
+    /// EVERY pixel by a 4-bit per channel colour cube histogram: a lattice of pixels reads a different sample of a picture drawn one
+    /// pixel over (the same picture one pixel over scored 77). The match is by amount, not by rank: an anti-aliasing grey that is the
+    /// fifth colour of one picture and the sixth of another (Windows and Linux draw text edges differently) is the same colour in
+    /// both, where comparing the two top-five lists read it as missing (13 on Linux against 0.7 on Windows for one picture).
     /// </summary>
     private static double ComputeMaxDeltaE(SKColor[] a, SKColor[] b)
     {
-        var domA = DominantColors(a, 5);
-        var domB = DominantColors(b, 5);
+        var reference = ColourCube.Of(a);
+        var actual = ColourCube.Of(b);
+        double palette = PaletteShare * a.Length;
 
         double maxDE = 0;
-        foreach (var ca in domA)
+        foreach (int key in reference.Dominant(5))
         {
-            // find closest match in domB
+            int count = reference.Counts[key];
+            if (count < palette) continue;
+            var colour = reference.MeanAt(key);
+            // The actual's most held colour always qualifies, so every reference colour has a nearest one.
+            double enough = Math.Min(PresentShare * count, actual.Counts.Max());
             double minDE = double.MaxValue;
-            foreach (var cb in domB)
-                minDE = Math.Min(minDE, DeltaE(ca, cb));
+            for (int k = 0; k < actual.Counts.Length; k++)
+                if (actual.Counts[k] > 0 && actual.Counts[k] >= enough)
+                    minDE = Math.Min(minDE, DeltaE(colour, actual.MeanAt(k)));
             maxDE = Math.Max(maxDE, minDE);
         }
         return maxDE;
@@ -277,22 +292,44 @@ public static class PerceptualDiff
     /// <summary>Returns the N most prevalent colours by histogram bucketing every pixel.</summary>
     private static List<SKColor> DominantColors(SKColor[] pixels, int n)
     {
-        // 4-bit per channel (16³ = 4096 buckets) histogram
-        var hist = new Dictionary<int, (long r, long g, long b, long count)>(256);
-        for (int i = 0; i < pixels.Length; i++)
+        var cube = ColourCube.Of(pixels);
+        return [.. cube.Dominant(n).Select(cube.MeanAt)];
+    }
+
+    /// <summary>A picture's colours counted in a 4-bit per channel cube (16³ = 4096 cells): how many pixels fall in each cell, and the
+    /// sum of their channels, so a cell's colour is the mean of its pixels.</summary>
+    /// <param name="Counts">The pixels in each cell.</param>
+    /// <param name="Sums">The red, green and blue sums of each cell, three per cell.</param>
+    private readonly record struct ColourCube(int[] Counts, long[] Sums)
+    {
+        internal static ColourCube Of(SKColor[] pixels)
         {
-            int key = (pixels[i].Red >> 4) << 8 | (pixels[i].Green >> 4) << 4 | (pixels[i].Blue >> 4);
-            var (r, g, b, cnt) = hist.GetValueOrDefault(key);
-            hist[key] = (r + pixels[i].Red, g + pixels[i].Green, b + pixels[i].Blue, cnt + 1);
+            var counts = new int[4096];
+            var sums = new long[3 * 4096];
+            foreach (var p in pixels)
+            {
+                int key = (p.Red >> 4) << 8 | (p.Green >> 4) << 4 | (p.Blue >> 4);
+                counts[key]++;
+                sums[3 * key] += p.Red;
+                sums[3 * key + 1] += p.Green;
+                sums[3 * key + 2] += p.Blue;
+            }
+            return new ColourCube(counts, sums);
         }
 
-        return hist.OrderByDescending(kv => kv.Value.count)
-                   .Take(n)
-                   .Select(kv => new SKColor(
-                       (byte)(kv.Value.r / kv.Value.count),
-                       (byte)(kv.Value.g / kv.Value.count),
-                       (byte)(kv.Value.b / kv.Value.count)))
-                   .ToList();
+        /// <summary>The <paramref name="n"/> most held cells, most held first; cells of one count in the order of their key.</summary>
+        internal IEnumerable<int> Dominant(int n)
+        {
+            var counts = Counts;
+            return Enumerable.Range(0, counts.Length).Where(k => counts[k] > 0).OrderByDescending(k => counts[k]).Take(n);
+        }
+
+        /// <summary>The mean colour of the pixels in cell <paramref name="key"/>.</summary>
+        internal SKColor MeanAt(int key)
+        {
+            int count = Counts[key];
+            return new SKColor((byte)(Sums[3 * key] / count), (byte)(Sums[3 * key + 1] / count), (byte)(Sums[3 * key + 2] / count));
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────

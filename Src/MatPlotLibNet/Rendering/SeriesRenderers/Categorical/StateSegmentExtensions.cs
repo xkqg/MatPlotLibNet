@@ -17,10 +17,8 @@ internal static class StateSegmentExtensions
         /// condition supplies one against the theme's alarm palette; an explicit hatch still wins.</summary>
         /// <param name="theme">The theme whose alarm palette resolves a stated condition.</param>
         internal ShapeStyle Fill(Theme theme) =>
-            new(segment.Color, null, 0)
-            {
-                Hatch = segment.Hatch != HatchPattern.None ? segment.Hatch : segment.Condition.Resolve(theme.Alarm).Hatch,
-            };
+            ShapeStyle.Filled(segment.Color).WithHatch(new HatchFill(
+                segment.Hatch != HatchPattern.None ? segment.Hatch : segment.Condition.Resolve(theme.Alarm).Hatch, null));
     }
 
     extension(IEnumerable<StateSegment> segments)

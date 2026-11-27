@@ -33,14 +33,6 @@ public class EngFormatterTests
         Assert.Equal(expected, formatter.Format(value));
     }
 
-    /// <summary>Verifies that zero formats as "0".</summary>
-    [Fact]
-    public void Format_Zero_ReturnsZero()
-    {
-        var formatter = new EngFormatter();
-        Assert.Equal("0", formatter.Format(0));
-    }
-
     /// <summary>Verifies that 1500 formats as "1.5 k" (matplotlib default separator).</summary>
     [Fact]
     public void Format_15Hundred_Returns1Point5k()
@@ -58,14 +50,26 @@ public class EngFormatterTests
         Assert.Equal("30k", formatter.Format(30_000));
     }
 
-    /// <summary>Verifies that 1,234,567 formats with M suffix.</summary>
-    [Fact]
-    public void Format_MillionRange_UsesMSuffix()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var formatter = new EngFormatter();
-        string result = formatter.Format(1_234_567);
-        Assert.Contains("M", result);
-    }
+        // Verifies that 1,234,567 formats with M suffix.
+        new DrawnToken("Format_MillionRange_UsesMSuffix", () =>
+        {
+            var formatter = new EngFormatter();
+            return formatter.Format(1_234_567);
+        }, "M"),
+        // Verifies that values between -1 and 1 (non-zero) use m or µ.
+        new DrawnToken("Format_SmallValue_UsesSubUnitPrefix", () =>
+        {
+            var formatter = new EngFormatter();
+            return formatter.Format(0.005);
+        }, "m"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that negative values keep the minus sign.</summary>
     [Fact]
@@ -75,14 +79,5 @@ public class EngFormatterTests
         string result = formatter.Format(-5000);
         Assert.StartsWith("-", result);
         Assert.Contains("k", result);
-    }
-
-    /// <summary>Verifies that values between -1 and 1 (non-zero) use m or µ.</summary>
-    [Fact]
-    public void Format_SmallValue_UsesSubUnitPrefix()
-    {
-        var formatter = new EngFormatter();
-        string result = formatter.Format(0.005);
-        Assert.Contains("m", result);
     }
 }

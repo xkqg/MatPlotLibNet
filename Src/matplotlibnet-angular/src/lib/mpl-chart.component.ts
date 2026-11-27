@@ -3,7 +3,7 @@
 
 import { Component, Input, OnChanges, SimpleChanges, ElementRef, ViewChild } from '@angular/core';
 import { ChartService } from './chart.service';
-import { mountSvg } from './mount-svg';
+import { mountSvg } from '@matplotlibnet/client';
 
 /**
  * Static chart component that fetches SVG from a MatPlotLibNet endpoint and renders it inline.

@@ -11,16 +11,25 @@ namespace MatPlotLibNet.Geo.Tests;
 /// (value equality + positional deconstruction) that call sites relied on.</summary>
 public class GeoPrimitivesTests
 {
+    /// <summary>Two points of the same components are equal, by <c>Equals</c> and by <c>==</c>, in the projected plane and on the globe.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ValueEquality_SameComponents_AreEqual(bool projected)
+    {
+        if (projected) AssertEqualByValue(new ProjectedPoint(1.5, -2.5), new ProjectedPoint(1.5, -2.5), new ProjectedPoint(1.5, -2.5) == new ProjectedPoint(1.5, -2.5));
+        else AssertEqualByValue(new GeoCoordinate(52.0, 4.0), new GeoCoordinate(52.0, 4.0), new GeoCoordinate(52.0, 4.0) == new GeoCoordinate(52.0, 4.0));
+    }
+
+    private static void AssertEqualByValue<T>(T first, T second, bool equalByOperator)
+    {
+        Assert.Equal(first, second);
+        Assert.True(equalByOperator);
+    }
+
     // ─── ProjectedPoint (Forward, projected-plane space) ────────────────────────
     public class ProjectedPointTests
     {
-        [Fact]
-        public void ValueEquality_SameComponents_AreEqual()
-        {
-            Assert.Equal(new ProjectedPoint(1.5, -2.5), new ProjectedPoint(1.5, -2.5));
-            Assert.True(new ProjectedPoint(1.5, -2.5) == new ProjectedPoint(1.5, -2.5));
-        }
-
         [Fact]
         public void ValueEquality_DifferentComponents_AreNotEqual()
         {
@@ -28,12 +37,32 @@ public class GeoPrimitivesTests
             Assert.True(new ProjectedPoint(1.0, 2.0) != new ProjectedPoint(2.0, 1.0));
         }
 
-        [Fact]
-        public void Deconstructs_Positionally_IntoXThenY()
+        /// <summary>A projected point deconstructs into X then Y, and a geographic coordinate into latitude then longitude.</summary>
+        public static TheoryData<Func<double[]>, double[]> Deconstructions => new()
         {
-            var (x, y) = new ProjectedPoint(3.0, 4.0);
-            Assert.Equal(3.0, x);
-            Assert.Equal(4.0, y);
+            {
+                () =>
+                {
+                    var (x, y) = new ProjectedPoint(3.0, 4.0);
+                    return [x, y];
+                },
+                [3.0, 4.0]
+            },
+            {
+                () =>
+                {
+                    var (lat, lon) = new GeoCoordinate(51.5, -0.1);
+                    return [lat, lon];
+                },
+                [51.5, -0.1]
+            },
+        };
+
+        [Theory]
+        [MemberData(nameof(Deconstructions))]
+        public void Deconstructs_Positionally(Func<double[]> deconstruct, double[] expected)
+        {
+            Assert.Equal(expected, deconstruct());
         }
 
         [Fact]
@@ -50,20 +79,6 @@ public class GeoPrimitivesTests
     // ─── GeoCoordinate (Inverse, geographic space) ──────────────────────────────
     public class GeoCoordinateTests
     {
-        [Fact]
-        public void ValueEquality_SameComponents_AreEqual()
-        {
-            Assert.Equal(new GeoCoordinate(52.0, 4.0), new GeoCoordinate(52.0, 4.0));
-            Assert.True(new GeoCoordinate(52.0, 4.0) == new GeoCoordinate(52.0, 4.0));
-        }
-
-        [Fact]
-        public void Deconstructs_Positionally_IntoLatitudeThenLongitude()
-        {
-            var (lat, lon) = new GeoCoordinate(51.5, -0.1);
-            Assert.Equal(51.5, lat);
-            Assert.Equal(-0.1, lon);
-        }
 
         [Fact]
         public void Nullable_DefaultsToNull_ForOutOfDomainInverse()

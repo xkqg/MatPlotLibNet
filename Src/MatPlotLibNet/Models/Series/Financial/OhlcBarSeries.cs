@@ -8,11 +8,28 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a traditional OHLC bar chart with vertical high-low lines and open/close tick marks.</summary>
-public sealed class OhlcBarSeries : OhlcSeries
+public sealed class OhlcBarSeries : OhlcSeries, ISeriesKind<OhlcBarSeries>, IWidthGiven
 {
+    /// <inheritdoc />
+    /// <remarks>2: an OHLC bar is three line segments, a <c>LineCollection</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
     /// <summary>How far the open tick reaches to the left and the close tick to the right of each bar, in units of 20
     /// pixels. Default 0.3, which is 6 pixels.</summary>
-    public double TickWidth { get; set; } = 0.3;
+    public double TickWidth { get; set => Change(ref field, value); } = 0.3;
+
+    /// <summary>The width of the bar's lines (the high-low line and the two ticks), in pixels, read and drawn as a line's
+    /// (<see cref="LineSeries.LineWidth"/>), as the lines of a <c>vlines</c> and an <c>hlines</c> take <c>lines.linewidth</c>.</summary>
+    public double LineWidth { get => this.ReportedLineWidth; set => GivenLineWidth = value; }
+
+    /// <summary>How wide the bar's lines are drawn: as a collection of lines (a <c>vlines</c> and an <c>hlines</c>, which take
+    /// <c>lines.linewidth</c> and never the cycler's), a line's width at rest.</summary>
+    LineWidthRule IWidthGiven.WidthRule => LineWidthRule.LineCollection;
+
+    /// <summary>The width the series was given; <see langword="null"/> when it was given none, and its rule decides.</summary>
+    internal double? GivenLineWidth { get; private set => Change(ref field, value); }
+
+    double? IWidthGiven.GivenLineWidth => GivenLineWidth;
 
     /// <summary>Initializes a new <see cref="OhlcBarSeries"/> with per-bar OHLC price data.</summary>
     /// <param name="open">Opening price for each bar.</param>
@@ -31,34 +48,26 @@ public sealed class OhlcBarSeries : OhlcSeries
         return new(ohlcXMin, ohlcXMax, Low.DrawableRange()?.Lo, High.DrawableRange()?.Hi, StickyXMin: ohlcXMin, StickyXMax: ohlcXMax);
     }
 
+    static string ISeriesKind<OhlcBarSeries>.Kind => "ohlcbar";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "ohlcbar",
+        Type = this.WireKind(),
         Open = Open, High = High, Low = Low, Close = Close,
         DateLabels = DateLabels, UpColor = UpColor, DownColor = DownColor,
-        TickWidth = TickWidth
+        TickWidth = TickWidth,
+        LineWidth = GivenLineWidth,
     };
 
-    /// <summary>Reconstructs an <see cref="OhlcBarSeries"/> from its serialization DTO, including up/down colours and tick width, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="OhlcBarSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries up/down colours, tick width and the width given to its lines.</summary>
     internal static OhlcBarSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.OhlcBar(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
-        if (dto.UpColor.HasValue)
-        {
-            s.UpColor = dto.UpColor.Value;
-        }
-        if (dto.DownColor.HasValue)
-        {
-            s.DownColor = dto.DownColor.Value;
-        }
-        if (dto.TickWidth.HasValue)
-        {
-            s.TickWidth = dto.TickWidth.Value;
-        }
+        if (dto.UpColor is { } upColor) s.UpColor = upColor;
+        if (dto.DownColor is { } downColor) s.DownColor = downColor;
+        if (dto.TickWidth is { } tickWidth) s.TickWidth = tickWidth;
+        if (dto.LineWidth is { } lineWidth) s.LineWidth = lineWidth;
         return s;
     }
 

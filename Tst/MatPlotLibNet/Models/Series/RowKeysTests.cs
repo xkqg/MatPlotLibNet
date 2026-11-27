@@ -1,11 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -53,8 +53,7 @@ public class RowKeysTests
         var refusal = Assert.Throws<ArgumentException>(() => series.RowKeys = [.. Enumerable.Range(0, length).Select(i => "k" + i)]);
 
         Assert.Equal("RowKeys", refusal.ParamName);
-        Assert.Contains($"{length} keys", refusal.Message, StringComparison.Ordinal);
-        Assert.Contains("4 points", refusal.Message, StringComparison.Ordinal);
+        Assert.StartsWith(length.RefusalAgainst(4), refusal.Message, StringComparison.Ordinal);
         Assert.Equal(Keys, series.RowKeys);
     }
 
@@ -107,28 +106,27 @@ public class RowKeysTests
 
     // ── the JSON ────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void TheKeys_RoundTripThroughTheJson_ForEverySeriesThatHasThem()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure { Width = 400, Height = 300 };
-        var axes = figure.AddSubPlot(1, 1, 1);
-        axes.Scatter(X, Y).RowKeys = Keys;
-        axes.Plot(X, Y).RowKeys = Keys;
-        axes.Step(X, Y).RowKeys = Keys;
+        new DrawnToken("WithoutKeys_TheJsonSaysNothingOfThem", () =>
+        {
+            var figure = new Figure { Width = 400, Height = 300 };
+            figure.AddSubPlot(1, 1, 1).Scatter(X, Y);
+            return figure.ToJson();
+        }) { Absent = ["rowKeys"] },
+        new DrawnToken("AnyDataAttribute_IsEscaped_NotOnlyTheRowOne", () =>
+        {
+            var ctx = new SvgRenderContext();
+            ctx.SetNextElementData("label", "R&D \"core\"");
+            ctx.DrawRectangle(new MatPlotLibNet.Rendering.Rect(0, 0, 10, 10), new MatPlotLibNet.Styling.ShapeStyle(null, null, 0));
+            return ctx.GetOutput();
+        }, "data-label=\"R&amp;D &quot;core&quot;\""),
+    };
 
-        var read = new ChartSerializer().FromJson(figure.ToJson());
-
-        Assert.All(read.SubPlots[0].Series.Cast<XYSeries>(), series => Assert.Equal(Keys, series.RowKeys));
-    }
-
-    [Fact]
-    public void WithoutKeys_TheJsonSaysNothingOfThem()
-    {
-        var figure = new Figure { Width = 400, Height = 300 };
-        figure.AddSubPlot(1, 1, 1).Scatter(X, Y);
-
-        Assert.DoesNotContain("rowKeys", figure.ToJson(), StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void AFigureWhoseKeysDoNotMatchItsPoints_IsRefusedWhenItIsRead()
@@ -143,7 +141,7 @@ public class RowKeysTests
     // ── the marks ───────────────────────────────────────────────────────────────
 
     private static string[] RowsOf(string svg) =>
-        [.. Regex.Matches(svg, "data-row=\"([^\"]*)\"").Select(m => m.Groups[1].Value)];
+        [.. svg.AttributeValues("data-row")];
 
     [Fact]
     public void EveryMarkOfAScatter_CarriesTheKeyOfItsRow_InTheOrderOfTheData()
@@ -200,18 +198,7 @@ public class RowKeysTests
 
         Assert.Contains("data-row=\"say &quot;hi&quot;\"", svg, StringComparison.Ordinal);
         Assert.Contains("data-row=\"A&amp;B &lt;c&gt;\"", svg, StringComparison.Ordinal);
-        var parsed = System.Xml.Linq.XDocument.Parse(svg);   // throws when the markup is not well-formed
+        var parsed = svg.Xml();   // throws when the markup is not well-formed
         Assert.NotNull(parsed.Root);
-    }
-
-    [Fact]
-    public void AnyDataAttribute_IsEscaped_NotOnlyTheRowOne()
-    {
-        var ctx = new SvgRenderContext();
-
-        ctx.SetNextElementData("label", "R&D \"core\"");
-        ctx.DrawRectangle(new MatPlotLibNet.Rendering.Rect(0, 0, 10, 10), new MatPlotLibNet.Styling.ShapeStyle(null, null, 0));
-
-        Assert.Contains("data-label=\"R&amp;D &quot;core&quot;\"", ctx.GetOutput(), StringComparison.Ordinal);
     }
 }

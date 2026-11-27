@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"progressbar","label":"text 3","fillColor":"#1BC33F","barHeight":0.25,"gaugeValue":0.5,"trackColor":"#30B448","zOrder":8,"visible":false,"fontSize":0.28125}]}]}

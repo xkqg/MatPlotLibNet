@@ -116,6 +116,11 @@ Plt.Create()
 
 ![Box plot](../images/boxplot.png)
 
+Under the library's own themes the boxes stand at 0, 1, 2, ... half a unit wide, as `Positions` and `Widths` say they do when
+you give none. Under the matplotlib themes, the default among them, a box you give no position stands where matplotlib's
+`boxplot` stands it: at 1, 2, ..., 0.15 of the span of the positions wide (at least 0.15, at most 0.5), with the axis ending half
+a unit past the outer boxes and a tick at each box. A `Positions` or a `Widths` you set is drawn as you set it under every theme.
+
 ## Violin plot
 
 ```csharp
@@ -132,8 +137,9 @@ Plt.Create()
 
 ![Violin plot](../images/violin.png)
 
-A violin's width at a height is the Gaussian kernel density of the sample there (Silverman's bandwidth, the estimator `Kde`
-and `Ridgeline` use), scaled so that the widest point is the violin's width; a sample without spread is a spike. On a small
+A violin's width at a height is the Gaussian kernel density of the sample there (the estimator `Kde` uses), smoothed by the
+theme's bandwidth: Scott's factor under the matplotlib themes, as matplotlib's `violinplot`, Silverman's rule under the library's own
+themes; scaled so that the widest point is the violin's width; a sample without spread is a spike. On a small
 sample that is one smooth hump:
 
 ```csharp
@@ -182,6 +188,10 @@ violin that names a `Color` wears that colour, body and lines alike, and its leg
 wears.
 
 ## KDE (Kernel Density Estimation)
+
+Under the matplotlib themes a density curve left alone is drawn as seaborn's `kdeplot` draws it: the curve alone, smoothed by
+Scott's factor on 200 points, standing on 0, with "Density" on its axis. Under the library's own themes it is filled. Set `Fill`
+or `Bandwidth` and it is drawn as you set it under every theme.
 
 ```csharp
 Plt.Create()

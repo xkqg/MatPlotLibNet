@@ -36,14 +36,34 @@
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Verso\MatPlotLibNet.Verso.csproj" />
   </ItemGroup>
 
-  <!-- The one reader of "86 chart types" and its kin: the repository's documents and the wiki's pages are held to the same
-       wording, so the file is shared with the core suite rather than copied. -->
+  <!-- The sample program is not referenced for its code but for its build: SamplePicturesTests runs the program it produces. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Samples\MatPlotLibNet.Samples.Console\MatPlotLibNet.Samples.Console.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- The one reader of "86 chart types" and its kin, and the one count of the series the assembly ships: the repository's documents
+       and the wiki's pages are held to the same wording and the same number, so the files are shared with the core suite rather than copied. -->
   <ItemGroup>
     <Compile Include="..\MatPlotLibNet\Models\SeriesCountPhrases.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\ConcreteSubtypesExtensions.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <!-- The names the library deleted: the core suite reads its code and documents for them, this suite the wiki's pages. -->
+  <ItemGroup>
+    <Compile Include="..\MatPlotLibNet\Packaging\DeletedName.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\SourceFile.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryTree.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Packaging\TreeWalk.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The one place that finds the repository's root: every suite reads the folder from this file. -->
+    <Compile Include="..\MatPlotLibNet\Packaging\RepositoryRoot.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests.Packaging" />
   </ItemGroup>
 
 </Project>

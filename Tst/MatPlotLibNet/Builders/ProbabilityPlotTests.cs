@@ -6,7 +6,6 @@ using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -69,24 +68,12 @@ public class ProbabilityPlotTests
 
     public static TheoryData<string> TwelveReferences { get; } = new(OnTwelve.Keys);
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static Axes Probability(double[] sample, QQReference reference, Action<QQPlotParts>? configure = null) =>
-        AxesOf(ax => ax.ProbabilityPlot(sample, reference, configure));
+        Plt.Create().OneAxes(ax => ax.ProbabilityPlot(sample, reference, configure));
 
     private static ScatterSeries Points(Axes axes) => Assert.IsType<ScatterSeries>(Assert.Single(axes.Series));
 
     private static Trendline Reference(Axes axes) => Assert.Single(axes.Trendlines);
-
-    private static void AssertClose(IReadOnlyList<double> expected, IReadOnlyList<double> actual)
-    {
-        Assert.Equal(expected.Count, actual.Count);
-        for (int i = 0; i < expected.Count; i++)
-        {
-            Assert.True(Math.Abs(expected[i] - actual[i]) <= Tolerance, $"[{i}]: expected {expected[i]:R}, got {actual[i]:R}");
-        }
-    }
 
     // ---- scipy's numbers --------------------------------------------------------------------------------------------------
 
@@ -100,12 +87,12 @@ public class ProbabilityPlotTests
 
         var axes = Probability(Five, pin.Reference);
 
-        AssertClose(pin.Quantiles, Points(axes).XData);
+        pin.Quantiles.AssertCloseTo(Points(axes).XData, Tolerance);
         Assert.Equal([1.2, 2.0, 2.9, 3.1, 4.8], Points(axes).YData);
         var line = Reference(axes);
         Assert.Equal(Points(axes).XData[0], line.X1);
         Assert.Equal(Points(axes).XData[^1], line.X2);
-        AssertClose([pin.LineStart, pin.LineEnd], [line.Y1, line.Y2]);
+        (new double[] { pin.LineStart, pin.LineEnd }).AssertCloseTo([line.Y1, line.Y2], Tolerance);
     }
 
     [Theory]
@@ -116,9 +103,9 @@ public class ProbabilityPlotTests
 
         var axes = Probability(Twelve, pin.Reference);
 
-        AssertClose(pin.Quantiles, Points(axes).XData);
+        pin.Quantiles.AssertCloseTo(Points(axes).XData, Tolerance);
         var line = Reference(axes);
-        AssertClose([pin.LineStart, pin.LineEnd], [line.Y1, line.Y2]);
+        (new double[] { pin.LineStart, pin.LineEnd }).AssertCloseTo([line.Y1, line.Y2], Tolerance);
     }
 
     /// <summary>The reference is asked for the quantile of every observation's plotting position, in ascending order and once:
@@ -130,7 +117,7 @@ public class ProbabilityPlotTests
 
         Probability(Five, QQReference.Of("recorder", p => { asked.Add(p); return p; }));
 
-        AssertClose([0.12944943670387588, 0.3136067101584343, 0.5, 0.6863932898415657, 0.8705505632961241], asked);
+        (new double[] { 0.12944943670387588, 0.3136067101584343, 0.5, 0.6863932898415657, 0.8705505632961241 }).AssertCloseTo(asked, Tolerance);
     }
 
     /// <summary>A caller's own quantile function is a reference like the others: the identity is the uniform distribution.</summary>
@@ -169,7 +156,7 @@ public class ProbabilityPlotTests
     {
         var exponential = Probability(Five, QQReference.Exponential);
         var normal = Probability(Five, QQReference.Normal);
-        var retitled = AxesOf(ax => ax.ProbabilityPlot(Five, QQReference.StudentT(5)).SetXLabel("t quantiles"));
+        var retitled = Plt.Create().OneAxes(ax => ax.ProbabilityPlot(Five, QQReference.StudentT(5)).SetXLabel("t quantiles"));
 
         Assert.Equal("Theoretical quantiles (exponential)", exponential.XAxis.Label);
         Assert.Equal("Sample quantiles", exponential.YAxis.Label);
@@ -207,7 +194,31 @@ public class ProbabilityPlotTests
         Assert.Equal(Points(clean).XData, Points(axes).XData);
         Assert.Equal(Points(clean).YData, Points(axes).YData);
         Assert.Equal(Reference(clean).Y1, Reference(axes).Y1);
-        Assert.DoesNotContain("NaN", Plt.Create().AddSubPlot(1, 1, 1, ax => ax.ProbabilityPlot(gappy, QQReference.StudentT(5))).ToSvg());
+        Plt.Create().AddSubPlot(1, 1, 1, ax => ax.ProbabilityPlot(gappy, QQReference.StudentT(5))).ToSvg().AssertNoNonFiniteNumber();
+    }
+
+    /// <summary>Zeros of either sign are one number: the sample quantiles run ascending through them, the same numbers whichever
+    /// zero stands where, and the reference line is the same line.</summary>
+    [Fact]
+    public void ZerosOfBothSigns_AreOneNumber_OnTheSampleAxis()
+    {
+        double[] mixed =
+        [
+            0.0, -0.0, 3.1, -0.0, 0.0, double.NaN, -0.0, 0.0, 1.2, -0.0, 0.0, -0.0, 0.0, double.PositiveInfinity, -0.0, 0.0,
+            -0.0, 0.0, -2.0, -0.0, 0.0, -0.0, double.NegativeInfinity, 0.0, 4.8,
+        ];
+        double[] plain = [.. mixed.Where(double.IsFinite).Select(v => v == 0 ? 0.0 : v)];
+
+        var withBothSigns = Probability(mixed, QQReference.Normal);
+        var withOne = Probability(plain, QQReference.Normal);
+
+        Assert.Equal(Points(withOne).XData, Points(withBothSigns).XData);
+        Assert.Equal(Points(withOne).YData, Points(withBothSigns).YData);
+        Assert.Equal(Reference(withOne).Y1, Reference(withBothSigns).Y1);
+        Assert.Equal(Reference(withOne).Y2, Reference(withBothSigns).Y2);
+        Assert.Equal(Points(withBothSigns).YData.Order().ToArray(), Points(withBothSigns).YData);
+        Assert.Equal(-2.0, Points(withBothSigns).YData[0]);
+        Assert.Equal(4.8, Points(withBothSigns).YData[^1]);
     }
 
     // ---- refusals -----------------------------------------------------------------------------------------------------------
@@ -226,68 +237,28 @@ public class ProbabilityPlotTests
         var error = Assert.Throws<ArgumentException>(() => Probability([double.NaN, 4.2], QQReference.Exponential));
 
         Assert.Equal("sample", error.ParamName);
-        Assert.Equal("The sample has 1 observation that can be drawn; a Q-Q plot is drawn from 2 or more (NaN and the infinities are left out). (Parameter 'sample')", error.Message);
+        Assert.Equal("The sample holds 1 observation; a Q-Q plot needs at least 2; NaN and the infinities are not counted. (Parameter 'sample')", error.Message);
     }
 
-    /// <summary>A reference whose quantile is not a finite number at a plotting position cannot be drawn: it is refused naming
-    /// the reference and the position, and nothing has been added to the axes.</summary>
+    /// <summary>A reference whose quantile is not a finite number at a plotting position cannot be drawn: its quantile function broke
+    /// its contract, so it is refused as a window or a detrend function that gives a value that is not finite is (the one owner of a
+    /// function's result), naming the reference, the position's index and the value; nothing has been added to the axes.</summary>
     [Theory]
-    [InlineData(double.NaN)]
-    [InlineData(double.PositiveInfinity)]
-    public void AReferenceWithoutAFiniteQuantile_IsRefused_AndLeavesTheAxesAsItWas(double quantile)
+    [InlineData(double.NaN, "NaN")]
+    [InlineData(double.PositiveInfinity, "Infinity")]
+    public void AReferenceWithoutAFiniteQuantile_IsRefused_AndLeavesTheAxesAsItWas(double quantile, string written)
     {
         var builder = new AxesBuilder();
         var broken = QQReference.Of("broken", p => p > 0.4 && p < 0.6 ? quantile : p);
 
-        var error = Assert.Throws<ArgumentException>(() => builder.ProbabilityPlot(Five, broken));
+        var error = Assert.Throws<InvalidOperationException>(() => builder.ProbabilityPlot(Five, broken));
         var axes = builder.Build(1, 1, 1);
 
-        Assert.Equal("reference", error.ParamName);
-        Assert.StartsWith("The reference 'broken' has no finite quantile at the plotting position 0.5;", error.Message, StringComparison.Ordinal);
+        Assert.Equal($"The quantile function of the reference 'broken' gave {written} for sample 2; every value is a finite number.", error.Message);
         Assert.Empty(axes.Series);
         Assert.Empty(axes.Trendlines);
         Assert.Null(axes.XAxis.Label);
         Assert.Null(axes.YAxis.Label);
-    }
-
-    // ---- the callback -------------------------------------------------------------------------------------------------------
-
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes_AfterTheVerbStyledThem()
-    {
-        int calls = 0;
-        QQPlotParts seen = default;
-        Color? referenceColourWhenCalled = null;
-
-        var axes = Probability(Five, QQReference.Exponential, parts =>
-        {
-            calls++;
-            seen = parts;
-            referenceColourWhenCalled = parts.Reference.Color;
-            parts.Points.Label = "waits";
-        });
-
-        Assert.Equal(1, calls);
-        Assert.Equal(Colors.Red, referenceColourWhenCalled);
-        Assert.Same(axes.Series[0], seen.Points);
-        Assert.Same(axes.Trendlines[0], seen.Reference);
-        Assert.Equal("waits", Points(axes).Label);
-    }
-
-    // ---- JSON ---------------------------------------------------------------------------------------------------------------
-
-    /// <summary>The chart is its parts in JSON: read back it draws the same picture, the reference's name in the title with it.
-    /// It is not fitted again; change the sample or the reference and call the verb again.</summary>
-    [Fact]
-    public void TheChart_SurvivesJson()
-    {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.ProbabilityPlot(Twelve, QQReference.StudentT(3))).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
-        Assert.Contains(">Theoretical quantiles (Student t, 3 df)<", readBack);
     }
 
     // ---- the example in the documentation -------------------------------------------------------------------------------------

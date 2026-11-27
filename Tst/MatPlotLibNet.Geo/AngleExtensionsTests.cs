@@ -22,14 +22,6 @@ public class AngleExtensionsTests
         Assert.Equal(expectedRadians, actual, precision: 12);
     }
 
-    [Fact]
-    public void ToRadians_MatchesFormula()
-    {
-        double degrees = 37.5;
-        double expected = degrees * Math.PI / 180.0;
-        Assert.Equal(expected, degrees.ToRadians(), precision: 15);
-    }
-
     // ── ToDegrees ─────────────────────────────────────────────────────────────
 
     [Theory]
@@ -44,13 +36,17 @@ public class AngleExtensionsTests
         Assert.Equal(expectedDegrees, actual, precision: 12);
     }
 
-    [Fact]
-    public void ToDegrees_MatchesFormula()
+    /// <summary>Each conversion matches the formula it stands for, at one angle.</summary>
+    public static TheoryData<double, Func<double, double>, Func<double, double>> Formulas => new()
     {
-        double radians = 0.654;
-        double expected = radians * 180.0 / Math.PI;
-        Assert.Equal(expected, radians.ToDegrees(), precision: 15);
-    }
+        { 37.5, degrees => degrees.ToRadians(), degrees => degrees * Math.PI / 180.0 },
+        { 0.654, radians => radians.ToDegrees(), radians => radians * 180.0 / Math.PI },
+    };
+
+    [Theory]
+    [MemberData(nameof(Formulas))]
+    public void Conversion_MatchesFormula(double angle, Func<double, double> convert, Func<double, double> formula) =>
+        Assert.Equal(formula(angle), convert(angle), precision: 15);
 
     // ── Round-trip precision ────────────────────────────────────────────────
 

@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -31,9 +29,7 @@ public class StatTileRowAlignmentTests
 
         double Y(string text)
         {
-            var m = Regex.Match(svg, "<text[^>]*y=\"([-0-9.]+)\"[^>]*>" + Regex.Escape(text) + "<");
-            Assert.True(m.Success, $"'{text}' was not drawn");
-            return double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            return svg.TextReading(text).Number("y");
         }
 
         return (Y("42"), Y("Processes"));

@@ -1,0 +1,15 @@
+{
+  "AbsorptionRatioPerBar": "null",
+  "ColorMap": "null",
+  "EnbPerBar": "null",
+  "FontSize": "9",
+  "Formula": "DualEma",
+  "Label": "null",
+  "LongPeriod": "26",
+  "MomentumLookback": "10",
+  "ShortPeriod": "10",
+  "ShowQuadrantGrid": "true",
+  "TailLength": "8",
+  "Visible": "true",
+  "ZOrder": "0"
+}

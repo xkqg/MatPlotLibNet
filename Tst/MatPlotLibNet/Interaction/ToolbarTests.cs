@@ -80,15 +80,4 @@ public sealed class ToolbarTests
         var toolbar = InteractionToolbar.CreateDefault(fig);
         Assert.Contains(toolbar.Buttons, b => b.Id == "cursor");
     }
-
-    [Fact]
-    public void ToolbarState_CapturesCurrentState()
-    {
-        var fig = new Figure();
-        fig.AddSubPlot();
-        var toolbar = InteractionToolbar.CreateDefault(fig);
-        var state = new ToolbarState(toolbar.Buttons, toolbar.ActiveToolId, 10, 10, 32, 32);
-        Assert.Equal("pan", state.ActiveToolId);
-        Assert.Equal(32, state.ButtonWidth);
-    }
 }

@@ -34,7 +34,7 @@ public class AxisColorSerializationTests
     [Fact]
     public void ColouredRightYAxis_KeepsSpineTicksLabelsAndTitleColour()
     {
-        var axes = S.FromJson(S.ToJson(AllFourAxesColoured())).SubPlots[0];
+        var axes = AllFourAxesColoured().RoundTripped().SubPlots[0];
 
         Assert.Equal(Blue, axes.Spines.Right.Color);
         Assert.Equal(Blue, axes.YAxes.Right[0].Axis.MajorTicks.Color);
@@ -46,7 +46,7 @@ public class AxisColorSerializationTests
     [Fact]
     public void ColouredSecondaryXAxis_KeepsSpineTicksLabelsAndTitleColour_andTheAxisItself()
     {
-        var axes = S.FromJson(S.ToJson(AllFourAxesColoured())).SubPlots[0];
+        var axes = AllFourAxesColoured().RoundTripped().SubPlots[0];
 
         Assert.Equal(Pink, axes.Spines.Top.Color);
         Assert.NotNull(axes.SecondaryXAxis);
@@ -67,7 +67,7 @@ public class AxisColorSerializationTests
                     .ScatterXSecondary([12.0, 22], [1.5, 2.5])))
             .Build();
 
-        var axes = S.FromJson(S.ToJson(figure)).SubPlots[0];
+        var axes = figure.RoundTripped().SubPlots[0];
 
         Assert.Equal("Top", axes.SecondaryXAxis!.Label);
         Assert.Equal(5, axes.SecondaryXAxis.Min);
@@ -84,7 +84,7 @@ public class AxisColorSerializationTests
     {
         var figure = AllFourAxesColoured();
 
-        Assert.Equal(figure.ToSvg(), S.FromJson(S.ToJson(figure)).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     [Fact]
@@ -110,25 +110,23 @@ public class AxisColorSerializationTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .WithSpines(s => s with { Bottom = s.Bottom with { LineWidth = 3 } })).Build();
 
-        var axes = S.FromJson(S.ToJson(figure)).SubPlots[0];
+        var axes = figure.RoundTripped().SubPlots[0];
 
         Assert.Equal(3, axes.Spines.Bottom.LineWidth);
         Assert.Equal(new SpineConfig().LineWidth, axes.Spines.Top.LineWidth);
     }
 
-    [Fact]
-    public void AnUncolouredFigure_writesNoneOfTheColourFields()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var json = S.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+        new DrawnToken("AnUncolouredFigure_writesNoneOfTheColourFields", () => S.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2], [3.0, 4]).SetXLabel("x").SetYLabel("y")
-            .WithAddRightYAxis(s => s.Plot([1.0, 2], [5.0, 6]))).Build());
+            .WithAddRightYAxis(s => s.Plot([1.0, 2], [5.0, 6]))).Build())) { Absent = ["spines", "tickColor", "tickLabelColor", "labelColor", "secondaryXAxis"] },
+    };
 
-        Assert.DoesNotContain("spines", json);
-        Assert.DoesNotContain("tickColor", json);
-        Assert.DoesNotContain("tickLabelColor", json);
-        Assert.DoesNotContain("labelColor", json);
-        Assert.DoesNotContain("secondaryXAxis", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void AJsonWrittenBeforeAxisColoursExisted_readsAsNoColour()

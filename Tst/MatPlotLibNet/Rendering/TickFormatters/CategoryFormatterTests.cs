@@ -36,18 +36,14 @@ public class CategoryFormatterTests
 
     // ── Bounds ───────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Format_BelowZero_ReturnsEmpty()
-    {
-        var f = new CategoryFormatter(Labels);
-        Assert.Equal(string.Empty, f.Format(-1));
-    }
+    public static TheoryData<int> IndicesOutsideTheLabels => new() { -1, Labels.Length };
 
-    [Fact]
-    public void Format_AboveLength_ReturnsEmpty()
+    [Theory]
+    [MemberData(nameof(IndicesOutsideTheLabels))]
+    public void Format_OutsideTheLabels_ReturnsEmpty(int index)
     {
         var f = new CategoryFormatter(Labels);
-        Assert.Equal(string.Empty, f.Format(Labels.Length));
+        Assert.Equal(string.Empty, f.Format(index));
     }
 
     // ── Reversed ─────────────────────────────────────────────────────────────
@@ -88,9 +84,7 @@ public class CategoryFormatterTests
                 .SetYTickFormatter(new CategoryFormatter(rows, reversed: true)))
             .ToSvg();
 
-        double Y(string text) => double.Parse(
-            System.Text.RegularExpressions.Regex.Match(svg, $@"<text[^>]*?\sy=""([-0-9.]+)""[^>]*>{text}</text>").Groups[1].Value,
-            System.Globalization.CultureInfo.InvariantCulture);
+        double Y(string text) => svg.TextReading(text).Number("y");
         double[] cells = [Y("101"), Y("202"), Y("303")];
         double[] names = [Y("first"), Y("second"), Y("third")];
 
@@ -161,7 +155,7 @@ public class CategoryFormatterTests
         Assert.Throws<ArgumentNullException>("positions", () => new CategoryFormatter(["a"], (double[])null!));
 
         var refusal = Assert.Throws<ArgumentException>("positions", () => new CategoryFormatter(["a", "b"], [1.0]));
-        Assert.StartsWith("1 positions were given for 2 labels; there must be one position per label.", refusal.Message);
+        Assert.StartsWith(1.RefusalAgainst(2), refusal.Message);
     }
 
     // ── Constructor validation ────────────────────────────────────────────────

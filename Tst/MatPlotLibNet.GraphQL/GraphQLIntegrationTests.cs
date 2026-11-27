@@ -49,19 +49,31 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         _client = _host.GetTestClient();
     }
 
+    /// <summary>What the endpoint answers to the query of one field for a chart.</summary>
+    private Task<HttpResponseMessage> AskAsync(string field, string chartId)
+    {
+        var query = new { query = "{ " + field + "(chartId: \"" + chartId + "\") }" };
+        var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
+
+        return _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>The string a query field answers for a chart, after the endpoint has answered 200 OK.</summary>
+    private async Task<string?> AnswerOfAsync(string field, string chartId)
+    {
+        var response = await AskAsync(field, chartId);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        return JsonDocument.Parse(json).RootElement.GetProperty("data").GetProperty(field).GetString();
+    }
+
     /// <summary>Verifies that the chartSvg GraphQL query returns valid SVG containing the chart title.</summary>
     [Fact]
     public async Task ChartSvgQuery_ReturnsValidSvg()
     {
-        var query = new { query = "{ chartSvg(chartId: \"test\") }" };
-        var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
+        var svg = await AnswerOfAsync("chartSvg", "test");
 
-        var response = await _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        var doc = JsonDocument.Parse(json);
-        var svg = doc.RootElement.GetProperty("data").GetProperty("chartSvg").GetString();
         Assert.NotNull(svg);
         Assert.Contains("<svg", svg);
         Assert.Contains("Chart test", svg);
@@ -71,15 +83,8 @@ public class GraphQLIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ChartJsonQuery_ReturnsValidJson()
     {
-        var query = new { query = "{ chartJson(chartId: \"sensor-1\") }" };
-        var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
+        var chartJson = await AnswerOfAsync("chartJson", "sensor-1");
 
-        var response = await _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        var doc = JsonDocument.Parse(json);
-        var chartJson = doc.RootElement.GetProperty("data").GetProperty("chartJson").GetString();
         Assert.NotNull(chartJson);
         Assert.Contains("Chart sensor-1", chartJson);
     }
@@ -88,10 +93,7 @@ public class GraphQLIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task GraphQLEndpoint_ReturnsOk()
     {
-        var query = new { query = "{ chartSvg(chartId: \"x\") }" };
-        var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
-
-        var response = await _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
+        var response = await AskAsync("chartSvg", "x");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

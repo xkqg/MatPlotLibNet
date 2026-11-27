@@ -142,25 +142,6 @@ public class GradientParityContractTests
         Assert.Equal("none", svg.Elements("rect").Single()["fill"]);
     }
 
-    /// <summary>The two members the Sankey renderer used before the gradient travelled in the shape are published API: they
-    /// still define a gradient and fill a path with it, and say what to use instead.</summary>
-    [Fact]
-    public void TheObsoleteMembers_StillDefineAGradientAndFillAPathWithIt()
-    {
-#pragma warning disable CS0618 // the members under test are the obsolete ones
-        string svg = Draw(ctx =>
-        {
-            string id = ctx.DefineLinearGradient(Red, Blue, 0, 0, 100, 0);
-            ctx.DrawPathWithGradientFill([new MoveToSegment(new Point(0, 0)), new LineToSegment(new Point(50, 0)), new LineToSegment(new Point(25, 40)), new CloseSegment()], id, Colors.Black, 2);
-        });
-#pragma warning restore CS0618
-
-        Assert.Equal("grad-0", svg.Elements("linearGradient").Single()["id"]);
-        var path = svg.Elements("path").Single();
-        Assert.Equal("url(#grad-0)", path["fill"]);
-        Assert.Equal("2", path["stroke-width"]);
-    }
-
     public static TheoryData<string> Shapes { get; } = new("polygon", "circle", "rectangle", "ellipse", "path");
 
     [Theory]

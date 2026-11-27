@@ -5,11 +5,10 @@ using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet;
 
-/// <summary>How a correlation is worked out and drawn (matplotlib's <c>acorr</c> and <c>xcorr</c>): how many lags either side of
-/// zero, whether the sums are divided to a scale of −1 to 1, what is taken out of the signals first, and whether the result is
-/// drawn as stems or as markers.
-/// The value you get from <c>default</c> holds matplotlib's defaults: ten lags either side, normalised, no detrend, and stems
-/// (<c>maxlags=10</c>, <c>normed=True</c>, <c>detrend_none</c>, <c>usevlines=True</c>).
+/// <summary>How a correlation is worked out and drawn (matplotlib's <c>acorr</c> and <c>xcorr</c>): how many lags either side of zero,
+/// whether the sums are divided to a scale of −1 to 1, what is taken out of the signals first, and whether the result is drawn as stems or
+/// as markers. The value you get from <c>default</c> holds matplotlib's defaults: <see cref="RestingMaxLags"/> lags either side,
+/// normalised, no detrend, and stems (<c>maxlags=10</c>, <c>normed=True</c>, <c>detrend_none</c>, <c>usevlines=True</c>).
 /// <para>Set only what differs from those defaults with an object initializer; the number of lags refuses, by its own name, a
 /// value no correlation can be drawn with. Whether the lags fit the signal, which needs more samples than lags, is checked where
 /// the options meet a signal.</para></summary>
@@ -20,19 +19,19 @@ namespace MatPlotLibNet;
 /// </example>
 public readonly record struct CorrelationOptions
 {
-    private readonly int? _maxLags;
-
+    private const int RestingMaxLags = 10;
     /// <summary>The number of lags drawn either side of lag 0, so the chart shows 2 · MaxLags + 1 lags (matplotlib's
-    /// <c>maxlags</c>). Default 10. The signal must hold more samples than this: with <c>n</c> samples the most there is to show
+    /// <c>maxlags</c>). Default <see cref="RestingMaxLags"/>. The signal must hold more samples than this: with <c>n</c> samples the most there is to show
     /// is <c>n − 1</c> lags either side.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The value is below 1.</exception>
     public int MaxLags
     {
-        get => _maxLags ?? 10;
-        init => _maxLags = value >= 1
-            ? value
-            : throw new ArgumentOutOfRangeException(nameof(MaxLags), value, "A correlation shows at least one lag either side of lag 0.");
+        get => GivenMaxLags ?? RestingMaxLags;
+        init => GivenMaxLags = value.ThrowIfBelow(1, nameof(MaxLags), "The lags a correlation shows either side of lag 0");
     }
+
+    /// <summary>The value of <see cref="MaxLags"/> its author gave, <see langword="null"/> while none was.</summary>
+    internal int? GivenMaxLags { get; private init; }
 
     /// <summary>Whether the sums are left as they are. By default (<see langword="false"/>) each is divided by the root of the
     /// energy of the first signal times the root of the energy of the second, so the correlation of a signal with itself is

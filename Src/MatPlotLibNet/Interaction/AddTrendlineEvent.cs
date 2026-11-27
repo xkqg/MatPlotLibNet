@@ -16,10 +16,5 @@ public sealed record AddTrendlineEvent(
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
-    internal override bool TryApplyTo(Figure figure)
-    {
-        if (!TryTargetAxes(figure, out var axes)) return false;
-        axes.AddTrendline(Tool);
-        return true;
-    }
+    internal override bool TryApplyTo(Figure figure) => OnTargetAxes(figure, axes => axes.Overlays.Add(Tool));
 }

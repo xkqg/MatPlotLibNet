@@ -1,7 +1,7 @@
 # MatPlotLibNet.Geo
 
 MatPlotLibNet.Geo adds geographic projections and maps to MatPlotLibNet: coastlines, borders, filled land and ocean, countries
-coloured by a value, places, bubbles, hexagon bins, flows and cartograms.
+coloured by a value, places, bubbles, hexagon bins, the cells of the H3 index, flows and cartograms.
 
 ## Quick Start
 
@@ -21,7 +21,8 @@ Plt.Create()
 A map axes has one projection. `WithProjection` records it and every layer reads it, so `Land(color)`, `Ocean(color)`,
 `Borders()` and `Coastlines()` need no projection of their own. A layer asked for before the axes has a projection is refused
 with "call WithProjection first", and a layer that is given a projection has to give the axes' own (the same kind with the
-same numbers) or it is refused with an `ArgumentException` naming both.
+same numbers) or it is refused with an `ArgumentException` naming both. A map keeps its projection's shape, centred in its
+cell, as cartopy's maps do.
 
 ## A map coloured by a value
 
@@ -54,11 +55,17 @@ drawn.
 | `Points(latitudes, longitudes)` | a scatter of places |
 | `Bubbles(latitudes, longitudes, values)` | a bubble at each place, its area in proportion to its value |
 | `HexBins(latitudes, longitudes)` | hexagon bins in the plane of the map |
+| `H3Bins(latitudes, longitudes, resolution)` | the places counted into the cells of Uber's H3 index at one resolution (0 to 15), each cell coloured by how many it holds |
+| `H3Cells(values, colorMap)` | the H3 cells you name by their index (`8928308280fffff`), each coloured by its value |
 | `Flows(flows, color, maxWidth)` | a line along the great circle for each `GeoFlow`, as wide as its quantity, cut where it crosses the antimeridian |
 | `Cartogram(values)` | each country resized so that its area is in proportion to its value, about its own centre |
+| `ContiguousCartogram(values)` | each country resized so that its area is in proportion to its value and bent so that the countries still meet at their borders (the fast flow-based method of Gastner, Seguy and More) |
 | `Dorling(values)` | a bubble at the centre of each country |
 
-A place the projection cannot place, such as the far side of an orthographic globe, is left out.
+A place the projection cannot place, such as the far side of an orthographic globe, is left out. An H3 cell is about as large on
+the globe everywhere; one that crosses the antimeridian is cut there, and one that goes round a pole is closed along it. The cells
+come from pocketken.H3, a managed port of the H3 library under the Apache licence (it brings NetTopologySuite, under the BSD
+licence); neither ships native code.
 
 ## A map in JSON
 
@@ -84,7 +91,8 @@ all and shows every layer with a picture.
 ## Data
 
 The package embeds Natural Earth data at 110m resolution:
-- Coastlines (~50KB)
-- Country borders (~150KB)
+- Coastlines (140 KB)
+- Countries (840 KB), the regions a choropleth, a land fill and a cartogram draw
+- The boundaries between countries on land (105 KB), which `Borders` draws, as cartopy's `BORDERS` does
 
 The data comes from [Natural Earth](https://www.naturalearthdata.com/) and is public domain.

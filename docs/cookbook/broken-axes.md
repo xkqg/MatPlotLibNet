@@ -25,6 +25,19 @@ Plt.Create()
 
 ![Broken Y-axis](../images/broken_y.png)
 
+## Under the matplotlib themes
+
+matplotlib has no broken axis of its own; its gallery draws one as two subplots stacked one over the other, each showing one
+part of the range. Under the matplotlib themes a broken axis is drawn that way. The parts stand apart by the gap matplotlib's
+subplots keep between them (`figure.subplot.hspace`, a fifth of the mean part, `wspace` for a break of the X axis), and each
+part keeps the length its range takes, so one unit of the data is as long on either side of the break. Each part has its own
+ticks and its own spines, which stop where the part stops, and the gap between the parts shows the figure's background. A line
+that crosses the break keeps the slope of the data in each part: it ends where it leaves one part and starts again where it
+comes into the next. The marker stands at the corners of each part where the spines stop.
+
+Under the library's own themes the break is cut out of a single axis, with one row of ticks and the marker across the middle of
+the plot.
+
 ## X-axis break
 
 ```csharp
@@ -37,7 +50,9 @@ Plt.Create()
 
 ## Break styles
 
-The break marker has three visual styles:
+The break marker has three visual styles. Under the library's own themes it is drawn across the middle of the plot over a thin
+band of the plot's background; under the matplotlib themes it is drawn at each corner of the cut, where the spines stop, a share of
+the part's size each way. `Straight` there is the diagonal of matplotlib's gallery recipe:
 
 ```csharp
 var builder = Plt.Create()
@@ -84,6 +99,21 @@ Plt.Create()
     .Save("broken_outlier.svg");
 ```
 
+## On a log or symlog axis
+
+A break on a log or symlog axis takes its bounds in data units, as on a linear one, and is cut out of the axis as it is drawn:
+`SetXScale(AxisScale.Log).WithXBreak(100, 1000)` hides the values between 100 and 1000 and removes that decade, so every
+other decade keeps the same width on either side of the mark.
+
+## On an interactive chart
+
+A pointer over an axis with breaks reads the value drawn under it, past a break as well as before it: the native controls,
+the browser chart talking to the server, the data cursor, hover, brush select, zoom and Home all read the axis by the
+same rule that cut the break out. The one place where a break is cut, where both its ends are drawn, reads as the value
+where the break begins. Under the matplotlib themes the gap between the parts is a share of the parts, so it grows and shrinks
+with them: a wheel zoom is taken in the parts themselves, and the value under the pointer stays under it while the break stays in
+view.
+
 ## Fluent API reference
 
 | Method | Parameters | Description |
@@ -95,6 +125,6 @@ Plt.Create()
 
 | BreakStyle | Description |
 |---|---|
-| `Zigzag` | Zigzag lines at break (default) |
-| `Diagonal` | Straight straight lines |
-| `None` | No visual marker |
+| `Zigzag` | A zigzag across the gap (default); at each corner of the cut under the matplotlib themes |
+| `Straight` | Two parallel slanted lines across the gap; the gallery recipe's diagonal at each corner under the matplotlib themes |
+| `None` | No marker; the gap is still cut out |

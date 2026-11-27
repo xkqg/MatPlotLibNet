@@ -12,7 +12,8 @@ public static class AxesSpecialVerbs
 {
     extension(Axes axes)
     {
-        /// <summary>Adds a table series rendered inside the plot area.</summary>
+        /// <summary>Adds a table series, which stands where its theme stands a table (<see cref="TableSeries.Location"/>): below the axes
+        /// under the matplotlib themes, as matplotlib's <c>ax.table</c>, in the plot area under the library's own themes.</summary>
         /// <param name="cellData">2D array of cell text values (rows × columns).</param>
         /// <returns>The newly created <see cref="TableSeries"/> for further configuration.</returns>
         public TableSeries Table(string[][] cellData) => axes.AddSeries(new TableSeries(cellData));

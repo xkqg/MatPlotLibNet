@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
+using System.Text.Json.Nodes;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -13,7 +15,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// reported as success — so the reader refuses first, and names the field it refused.</summary>
 public class ChartSpecReaderTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     private const string Line = """{"type":"line","xData":[1,2,3],"yData":[2,4,3]}""";
 
@@ -69,6 +70,34 @@ public class ChartSpecReaderTests
         Assert.Contains("series", refusal.Message);
     }
 
+    /// <summary>A series the reader cannot take is refused with the fault named and then either its place in the document or what to read
+    /// instead: an unknown field, an unknown type with the nearest listed one, a type in the wrong case with its exact name, an unknown colour.</summary>
+    [Theory]
+    [InlineData("""{"type":"line","x":[1,2],"y":[1,2]}""", "'x'", "subPlots[0].series[0]")]
+    [InlineData("""{"type":"lien","xData":[1,2],"yData":[1,2]}""", "'lien'", "'line'")]
+    [InlineData("""{"type":"Line","xData":[1,2],"yData":[1,2]}""", "'Line'", "'line'")]
+    [InlineData("""{"type":"line","xData":[1,2],"yData":[1,2],"color":"reddish"}""", "'reddish'", "subPlots[0].series[0].color")]
+    public void AFaultInASeries_IsRefused_NamingTheFaultAndItsPlaceOrItsRemedy(string series, string fault, string placeOrRemedy)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(series))));
+
+        Assert.Contains(fault, refusal.Message);
+        Assert.Contains(placeOrRemedy, refusal.Message);
+    }
+
+    /// <summary>The library substitutes an empty array for the absent half and refuses the pair, and the reader adds the place. Only a type
+    /// whose reader derives the other half may leave it out: a line with y values alone is refused too.</summary>
+    [Theory]
+    [InlineData("""{"type":"line","xData":[1,2,3],"yData":[1]}""", 3, 1)]
+    [InlineData("""{"type":"line","xData":[1,2,3]}""", 3, 0)]
+    [InlineData("""{"type":"line","yData":[1,2,3]}""", 0, 3)]
+    public void AnUnevenPairOfArrays_IsRefused_NamingTheSeriesAndTheLengths(string series, int x, int y)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(series))));
+
+        Assert.Equal($"The 'line' series at $.subPlots[0].series[0] was refused: {x.RefusalAgainst(y)}", refusal.Message);
+    }
+
     [Fact]
     public void AnUnknownFigureField_IsRefusedByName()
     {
@@ -76,36 +105,6 @@ public class ChartSpecReaderTests
             Reader.Read(new ChartSpec($$"""{"widht":400,"height":300,"subPlots":[{"series":[{{Line}}]}]}""")));
 
         Assert.Contains("'widht'", refusal.Message);
-    }
-
-    [Fact]
-    public void AnUnknownSeriesField_IsRefusedByNameAndPath()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"line","x":[1,2],"y":[1,2]}"""))));
-
-        Assert.Contains("'x'", refusal.Message);
-        Assert.Contains("subPlots[0].series[0]", refusal.Message);
-    }
-
-    [Fact]
-    public void AnUnknownSeriesType_IsRefusedByName_WithTheNearestListedType()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"lien","xData":[1,2],"yData":[1,2]}"""))));
-
-        Assert.Contains("'lien'", refusal.Message);
-        Assert.Contains("'line'", refusal.Message);
-    }
-
-    [Fact]
-    public void ASeriesTypeInTheWrongCase_IsRefused_WithTheExactName()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"Line","xData":[1,2],"yData":[1,2]}"""))));
-
-        Assert.Contains("'Line'", refusal.Message);
-        Assert.Contains("'line'", refusal.Message);
     }
 
     [Fact]
@@ -144,6 +143,7 @@ public class ChartSpecReaderTests
     [InlineData("""{"type":"bar","categories":["a","b"],"values":[1,2],"orientation":"diagonal"}""", "diagonal", "Horizontal")]
     [InlineData("""{"type":"step","xData":[1,2],"yData":[1,2],"stepPosition":"middle"}""", "middle", "Mid")]
     [InlineData("""{"type":"line","xData":[1,2],"yData":[1,2],"labelPlacement":"end"}""", "end", "LineEnd")]
+    [InlineData("""{"type":"scatter","xData":[1,2],"yData":[1,2],"asksAs":"lines"}""", "lines", "FillBetween")]
     public void AMisspelledSeriesEnumValue_IsRefusedWithTheAcceptedValues(string series, string wrong, string accepted)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(series))));
@@ -199,25 +199,6 @@ public class ChartSpecReaderTests
         Assert.Equal(Color.FromHex("#FFFFFF"), figure.BackgroundColor);
     }
 
-    [Fact]
-    public void AnUnknownColour_IsRefusedByNameAndPath()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"line","xData":[1,2],"yData":[1,2],"color":"reddish"}"""))));
-
-        Assert.Contains("'reddish'", refusal.Message);
-        Assert.Contains("subPlots[0].series[0].color", refusal.Message);
-    }
-
-    [Fact]
-    public void MismatchedArrayLengths_AreRefused_NamingTheSeriesAndTheLengths()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"line","xData":[1,2,3],"yData":[1]}"""))));
-
-        Assert.Equal("The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 3 and 1.", refusal.Message);
-    }
-
     /// <summary>The library's own rule, named by the place the series stands: a grid whose rows are not one per y value is
     /// refused while the document is read, with the JSON path of the series and the library's wording of why — the reader
     /// has no rule of its own for it, so the library never sees a document it would only fail to draw.</summary>
@@ -228,18 +209,8 @@ public class ChartSpecReaderTests
             Reader.Read(new ChartSpec(Spec("""{"type":"surface","xData":[0,1,2],"yData":[0,1,2],"zGridData":[[1,2,3],[4,5,6]]}"""))));
 
         Assert.Contains("$.subPlots[0].series[0]", refusal.Message);
-        Assert.Contains("Array lengths must match", refusal.Message);
+        Assert.Contains(LengthRefusals.Opening, refusal.Message);
         Assert.Contains("'surface'", refusal.Message);
-    }
-
-    [Fact]
-    public void AnAbsentSeriesArray_IsRefused_NamingTheSeriesAndTheLengths()
-    {
-        // The library substitutes an empty array for the absent half and refuses the pair; the reader adds the place.
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"line","xData":[1,2,3]}"""))));
-
-        Assert.Equal("The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 3 and 0.", refusal.Message);
     }
 
     /// <summary>A stacked area has x values and its layers but no y values: the library writes exactly this, and the server
@@ -260,7 +231,7 @@ public class ChartSpecReaderTests
         var refusal = Assert.Throws<ToolRefusalException>(() =>
             Reader.Read(new ChartSpec(Spec("""{"type":"stackedarea","datasets":[[1,2],[3,4]]}"""))));
 
-        Assert.StartsWith("The 'stackedarea' series at $.subPlots[0].series[0] was refused: Array lengths must match.", refusal.Message);
+        Assert.StartsWith($"The 'stackedarea' series at $.subPlots[0].series[0] was refused: {LengthRefusals.Opening}", refusal.Message);
     }
 
     /// <summary>A signal given x values and no y values has no samples: it reads as the empty signal it is, the way any
@@ -285,17 +256,6 @@ public class ChartSpecReaderTests
         var signal = Assert.IsType<SignalSeries>(figure.SubPlots[0].Series[0]);
         Assert.Equal(10, signal.SampleRate);
         Assert.Equal([1.0, 2.0, 3.0], signal.YData);
-    }
-
-    /// <summary>Only a type whose reader derives the other half may leave it out: a line with y values alone is
-    /// still refused, naming the series and the lengths.</summary>
-    [Fact]
-    public void ALineWithYDataAlone_IsStillRefused_NamingTheSeriesAndTheLengths()
-    {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"line","yData":[1,2,3]}"""))));
-
-        Assert.Equal("The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 0 and 3.", refusal.Message);
     }
 
     [Theory]
@@ -388,5 +348,170 @@ public class ChartSpecReaderTests
         Assert.Equal(double.PositiveInfinity, line.YData[0]);
         Assert.True(double.IsNaN(line.YData[1]));
         Assert.Equal(double.NegativeInfinity, line.YData[2]);
+    }
+
+    /// <summary>An item of a number list that is not a number is refused at its own index, so a model can find it: the
+    /// reader's strict pass reads lists as System.Text.Json does, which tracks the index (the serializer's faster list
+    /// reader cannot know it).</summary>
+    [Theory]
+    [InlineData("""[2,"four",3]""")]
+    [InlineData("[2,null,3]")]
+    public void ANumberListItemThatIsNotANumber_IsRefusedAtItsIndex(string yData)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            Reader.Read(new ChartSpec(Spec($$"""{"type":"line","xData":[1,2,3],"yData":{{yData}}}"""))));
+
+        Assert.Contains("$.subPlots[0].series[0].yData[1]", refusal.Message);
+    }
+
+    // ── The colour spelling: a CSS4 name becomes the hex the serializer reads, a hex of three, four, six or eight digits is kept as written (core's Color.FromHex reads all four), wherever the colour sits, and anything else is refused with the path it stands at ──
+
+    private static JsonNode Normalised(string json, string path = "$")
+    {
+        var root = JsonNode.Parse(json)!;
+        ChartSpecReader.NormaliseColours(root, path);
+        return root;
+    }
+
+    [Theory]
+    [InlineData("red", "#FF0000")]
+    [InlineData("CornflowerBlue", "#6495ED")]
+    [InlineData("#f00", "#F00")]
+    [InlineData("f00", "#F00")]
+    [InlineData("#f008", "#F008")]
+    [InlineData("#00ff00", "#00FF00")]
+    [InlineData("00ff00", "#00FF00")]
+    [InlineData("#aabbccdd", "#AABBCCDD")]
+    public void AColour_IsSpeltAsTheSerializerReadsIt(string written, string spelt)
+    {
+        var root = Normalised($$"""{"color":"{{written}}"}""");
+
+        Assert.Equal(spelt, (string?)root["color"]);
+    }
+
+    [Theory]
+    [InlineData("color")]
+    [InlineData("edgeColor")]
+    [InlineData("faceColor")]
+    [InlineData("background")]
+    [InlineData("foregroundText")]
+    [InlineData("axesBackground")]
+    public void AFieldThatHoldsOneColour_IsNormalised(string field)
+    {
+        var root = Normalised($$"""{"{{field}}":"white"}""");
+
+        Assert.Equal("#FFFFFF", (string?)root[field]);
+    }
+
+    [Theory]
+    [InlineData("stateSegmentColors")]
+    [InlineData("bandColors")]
+    [InlineData("colors")]
+    [InlineData("edgeColors")]
+    [InlineData("cycleColors")]
+    public void AFieldThatHoldsAListOfColours_IsNormalisedEntryByEntry(string field)
+    {
+        var root = Normalised($$"""{"{{field}}":["red","#0f0",7]}""");
+
+        var list = Assert.IsType<JsonArray>(root[field]);
+        Assert.Equal("#FF0000", (string?)list[0]);
+        Assert.Equal("#0F0", (string?)list[1]);
+        Assert.Equal(7, (int?)list[2]);
+    }
+
+    [Fact]
+    public void EveryFieldOfAThemesAlarmPalette_IsAColour()
+    {
+        var root = Normalised("""{"theme":{"alarm":{"critical":"red","warning":"#fa0"},"other":{"critical":"red"}}}""");
+
+        var alarm = root["theme"]!["alarm"]!;
+        Assert.Equal("#FF0000", (string?)alarm["critical"]);
+        Assert.Equal("#FA0", (string?)alarm["warning"]);
+        Assert.Equal("red", (string?)root["theme"]!["other"]!["critical"]);
+    }
+
+    [Fact]
+    public void AColourSittingInAnArrayOfObjects_IsReachedThroughTheArray()
+    {
+        var root = Normalised("""{"subPlots":[{"series":[{"type":"line","color":"red"},{"type":"line","color":"blue"}]}]}""");
+
+        var series = root["subPlots"]![0]!["series"]!;
+        Assert.Equal("#FF0000", (string?)series[0]!["color"]);
+        Assert.Equal("#0000FF", (string?)series[1]!["color"]);
+    }
+
+    [Fact]
+    public void AnArrayDirectlyInAnArray_IsWalkedToo()
+    {
+        var root = Normalised("""{"grid":[[{"color":"red"}]]}""");
+
+        Assert.Equal("#FF0000", (string?)root["grid"]![0]![0]!["color"]);
+    }
+
+    [Fact]
+    public void AFieldThatIsNotAColour_KeepsItsWords()
+    {
+        var root = Normalised("""{"title":"red","label":"#f00","colorMap":"viridis","colorful":"red"}""");
+
+        Assert.Equal("red", (string?)root["title"]);
+        Assert.Equal("#f00", (string?)root["label"]);
+        Assert.Equal("viridis", (string?)root["colorMap"]);
+        Assert.Equal("red", (string?)root["colorful"]);
+    }
+
+    [Fact]
+    public void AColourFieldThatHoldsAnotherKindOfValue_IsLeftForTheStrictPass()
+    {
+        var root = Normalised("""{"color":7,"edgeColor":null,"background":true,"colors":"red","faceColor":{"color":"red"}}""");
+
+        Assert.Equal(7, (int?)root["color"]);
+        Assert.Null(root["edgeColor"]);
+        Assert.True((bool?)root["background"]);
+        Assert.Equal("red", (string?)root["colors"]);
+        Assert.Equal("#FF0000", (string?)root["faceColor"]!["color"]);
+    }
+
+    [Fact]
+    public void ANodeThatIsNotAnObjectOrAnArray_IsLeftAlone()
+    {
+        JsonNode? nothing = null;
+        ChartSpecReader.NormaliseColours(nothing, "$");
+        var text = JsonValue.Create("red")!;
+        ChartSpecReader.NormaliseColours(text, "$");
+
+        Assert.Null(nothing);
+        Assert.Equal("red", (string?)text);
+    }
+
+    [Theory]
+    [InlineData("reddish")]
+    [InlineData("#12")]
+    [InlineData("#12345")]
+    [InlineData("#1234567")]
+    [InlineData("#123456789")]
+    [InlineData("#ggg")]
+    [InlineData("")]
+    public void AColourTheLibraryDoesNotKnow_IsRefusedByNameAndPath(string written)
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            Normalised($$"""{"subPlots":[{"series":[{"color":"{{written}}"}]}]}"""));
+
+        Assert.Equal($"'{written}' at $.subPlots[0].series[0].color is not a colour the library knows: use a CSS4 colour name or #RRGGBB.", refusal.Message);
+    }
+
+    [Fact]
+    public void ABadEntryOfAColourList_IsRefusedWithItsIndex()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Normalised("""{"bandColors":["red","nope"]}""", path: "$.axes"));
+
+        Assert.Contains("'nope' at $.axes.bandColors[1]", refusal.Message);
+    }
+
+    [Fact]
+    public void ABadColourInAnAlarmPalette_IsRefusedWithItsField()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() => Normalised("""{"theme":{"alarm":{"critical":"nope"}}}"""));
+
+        Assert.Contains("'nope' at $.theme.alarm.critical", refusal.Message);
     }
 }

@@ -5,25 +5,14 @@ using MatPlotLibNet.Styling.Themes;
 
 namespace MatPlotLibNet.Tests.Styling.Themes;
 
-/// <summary>Verifies the <see cref="MatplotlibFontStack"/> internal record struct.</summary>
+/// <summary>Verifies the <see cref="Styling.Themes.MatplotlibThemeFactory.MatplotlibFontStack"/> internal record struct.</summary>
 public class MatplotlibFontStackTests
 {
     [Fact]
-    public void MatplotlibFontStack_StoresAllFields()
-    {
-        var stack = new MatplotlibFontStack("DejaVu Sans, sans-serif", 10.0, 9.0, 12.0);
-
-        Assert.Equal("DejaVu Sans, sans-serif", stack.PrimaryFamily);
-        Assert.Equal(10.0, stack.BaseSize);
-        Assert.Equal(9.0, stack.TickSize);
-        Assert.Equal(12.0, stack.TitleSize);
-    }
-
-    [Fact]
     public void MatplotlibFontStack_TwoEqualValuesAreEqual()
     {
-        var a = new MatplotlibFontStack("DejaVu Sans", 10, 9, 12);
-        var b = new MatplotlibFontStack("DejaVu Sans", 10, 9, 12);
+        var a = new MatplotlibThemeFactory.MatplotlibFontStack("DejaVu Sans", 10, 1.2);
+        var b = new MatplotlibThemeFactory.MatplotlibFontStack("DejaVu Sans", 10, 1.2);
 
         Assert.Equal(a, b);
         Assert.Equal(a.GetHashCode(), b.GetHashCode());
@@ -32,8 +21,8 @@ public class MatplotlibFontStackTests
     [Fact]
     public void MatplotlibFontStack_DifferentValuesAreUnequal()
     {
-        var a = new MatplotlibFontStack("DejaVu Sans", 10, 9, 12);
-        var b = new MatplotlibFontStack("DejaVu Sans", 12, 9, 12);
+        var a = new MatplotlibThemeFactory.MatplotlibFontStack("DejaVu Sans", 10, 1.2);
+        var b = new MatplotlibThemeFactory.MatplotlibFontStack("DejaVu Sans", 12, 1.2);
 
         Assert.NotEqual(a, b);
     }
@@ -41,6 +30,6 @@ public class MatplotlibFontStackTests
     [Fact]
     public void MatplotlibFontStack_IsValueType()
     {
-        Assert.True(typeof(MatplotlibFontStack).IsValueType);
+        Assert.True(typeof(MatplotlibThemeFactory.MatplotlibFontStack).IsValueType);
     }
 }

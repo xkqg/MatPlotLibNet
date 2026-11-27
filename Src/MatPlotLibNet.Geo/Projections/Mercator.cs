@@ -30,12 +30,7 @@ public sealed class Mercator : IGeoProjection
     }
 
     /// <inheritdoc />
-    public GeoBounds Bounds
-    {
-        get
-        {
-            var (_, yMax) = Forward(MaxLat, 0);
-            return new(-180, 180, -yMax, yMax);
-        }
-    }
+    /// <remarks>The box round the edge of the world: the pole stands where the latitude is clamped,
+    /// at <see cref="MaxLat"/>.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
 }

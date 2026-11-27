@@ -27,12 +27,4 @@ public sealed class RectangleZoomTests
         Assert.Equal(2.0, figure.SubPlots[0].YAxis.Min);
         Assert.Equal(8.0, figure.SubPlots[0].YAxis.Max);
     }
-
-    [Fact]
-    public void RectangleZoomState_StoresPixelCoords()
-    {
-        var state = new RectangleZoomState(10, 20, 100, 200, 0);
-        Assert.Equal(10, state.StartPixelX);
-        Assert.Equal(100, state.CurrentPixelX);
-    }
 }

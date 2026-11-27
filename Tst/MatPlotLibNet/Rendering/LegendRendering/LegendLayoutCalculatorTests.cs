@@ -6,6 +6,12 @@ using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Models.Patches;
 
 namespace MatPlotLibNet.Tests.Rendering.LegendRendering;
 
@@ -38,10 +44,7 @@ public class LegendLayoutCalculatorTests
 
     private static void AssertSameBox(LegendLayout expected, LegendLayout actual)
     {
-        Assert.Equal(expected.BoxX, actual.BoxX);
-        Assert.Equal(expected.BoxY, actual.BoxY);
-        Assert.Equal(expected.BoxWidth, actual.BoxWidth);
-        Assert.Equal(expected.BoxHeight, actual.BoxHeight);
+        Assert.Equivalent(new { expected.BoxX, expected.BoxY, expected.BoxWidth, expected.BoxHeight }, actual);
     }
 
     [Fact]
@@ -90,21 +93,6 @@ public class LegendLayoutCalculatorTests
         => new(theme, new SvgRenderContext());
 
     [Fact]
-    public void PositionOf_BestUnderTheClassicTheme_IsTheThemesPlace()
-        => Assert.Equal(LegendPosition.UpperRight,
-            NewCalculator(Theme.MatplotlibClassic).PositionOf(DefaultLegend() with { Position = LegendPosition.Best }));
-
-    [Fact]
-    public void PositionOf_BestUnderTheDefaultTheme_IsBest()
-        => Assert.Equal(LegendPosition.Best,
-            NewCalculator(Theme.MatplotlibV2).PositionOf(DefaultLegend() with { Position = LegendPosition.Best }));
-
-    [Fact]
-    public void PositionOf_ANamedPlace_IsThatPlaceUnderAnyTheme()
-        => Assert.Equal(LegendPosition.LowerLeft,
-            NewCalculator(Theme.MatplotlibClassic).PositionOf(DefaultLegend() with { Position = LegendPosition.LowerLeft }));
-
-    [Fact]
     public void Compute_BestUnderTheClassicTheme_StandsInTheUpperRightEvenWithMarksThere()
     {
         var legend = DefaultLegend() with { Position = LegendPosition.Best };
@@ -124,7 +112,7 @@ public class LegendLayoutCalculatorTests
     public void Compute_DefaultFontSize_UsesTickFont()
     {
         var layout = NewCalculator().Compute(DefaultLegend(), new[] { "A" }, PlotArea);
-        Assert.Equal(ThemedFontProvider.TickFont(Theme.Default).Size, layout.Font.Size);
+        Assert.Equal(Theme.Default.TickFont().Size, layout.Font.Size);
     }
 
     [Fact]
@@ -139,7 +127,7 @@ public class LegendLayoutCalculatorTests
     public void Compute_TitleFont_IsBaseFontPlusOneBoldWhenTitleFontSizeNotSet()
     {
         var legend = DefaultLegend() with { Title = "T" };
-        var baseSize = ThemedFontProvider.TickFont(Theme.Default).Size;
+        var baseSize = Theme.Default.TickFont().Size;
         var layout = NewCalculator().Compute(legend, new[] { "A" }, PlotArea);
         Assert.Equal(baseSize + 1, layout.TitleFont.Size);
         Assert.Equal(FontWeight.Bold, layout.TitleFont.Weight);
@@ -228,23 +216,14 @@ public class LegendLayoutCalculatorTests
 
     // ── Position dispatch (delegates to LegendPositionStrategy) ───────────
 
-    [Fact]
-    public void Compute_UpperRightPosition_BoxXYMatchesStrategyOutput()
+    [Theory]
+    [InlineData(LegendPosition.UpperRight)]
+    [InlineData(LegendPosition.Center)]
+    public void Compute_Position_BoxXYMatchesStrategyOutput(LegendPosition position)
     {
-        var legend = DefaultLegend() with { Position = LegendPosition.UpperRight };
+        var legend = DefaultLegend() with { Position = position };
         var layout = NewCalculator().Compute(legend, new[] { "A" }, PlotArea);
-        var (expX, expY) = LegendPositionStrategyFactory.Create(LegendPosition.UpperRight)
-            .ComputeBox(PlotArea, layout.BoxWidth, layout.BoxHeight);
-        Assert.Equal(expX, layout.BoxX);
-        Assert.Equal(expY, layout.BoxY);
-    }
-
-    [Fact]
-    public void Compute_CenterPosition_BoxXYMatchesStrategyOutput()
-    {
-        var legend = DefaultLegend() with { Position = LegendPosition.Center };
-        var layout = NewCalculator().Compute(legend, new[] { "A" }, PlotArea);
-        var (expX, expY) = LegendPositionStrategyFactory.Create(LegendPosition.Center)
+        var (expX, expY) = LegendPositionStrategyFactory.Create(position)
             .ComputeBox(PlotArea, layout.BoxWidth, layout.BoxHeight);
         Assert.Equal(expX, layout.BoxX);
         Assert.Equal(expY, layout.BoxY);
@@ -296,5 +275,141 @@ public class LegendLayoutCalculatorTests
     {
         var layout = NewCalculator().Compute(DefaultLegend(), new[] { @"$\alpha$" }, PlotArea);
         Assert.True(layout.ColMaxWidths[0] > 0);
+    }
+
+    // ── The legend box of an axes (MeasureLegendBox): the margin an outside legend reserves is the box that is drawn ──
+
+    private static (Axes axes, Theme theme, IRenderContext ctx) NewMeasureContext(
+        params string?[] labels)
+    {
+        var theme = Theme.Default;
+        var axes = new Axes();
+        axes.Legend = axes.Legend with { Visible = true };
+        for (int i = 0; i < labels.Length; i++)
+        {
+            var s = new LineSeries(
+                (global::MatPlotLibNet.Numerics.Vec)new[] { 0.0, 1.0 },
+                (global::MatPlotLibNet.Numerics.Vec)new[] { 0.0, 1.0 });
+            s.Label = labels[i];
+            axes.AddSeries(s);
+        }
+        IRenderContext ctx = new MatPlotLibNet.Rendering.Svg.SvgRenderContext();
+        return (axes, theme, ctx);
+    }
+
+    [Fact]
+    public void LegendBox_LegendInvisible_ReturnsEmpty()
+    {
+        // if (!axes.Legend.Visible) return Size.Empty; — true arm
+        var (axes, theme, ctx) = NewMeasureContext("L1");
+        axes.Legend = axes.Legend with { Visible = false };
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, theme);
+        Assert.Equal(Size.Empty, size);
+    }
+
+    [Fact]
+    public void LegendBox_NoLabelledSeries_ReturnsEmpty()
+    {
+        // labels.Count == 0 path
+        var (axes, theme, ctx) = NewMeasureContext(null, null);
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, theme);
+        Assert.Equal(Size.Empty, size);
+    }
+
+    [Fact]
+    public void LegendBox_WithExplicitFontSize_AppliesOverride()
+    {
+        // legend.FontSize.HasValue ? tickFont with { Size = ... } : tickFont — true arm
+        var (axes, theme, ctx) = NewMeasureContext("L1");
+        axes.Legend = axes.Legend with { FontSize = 18 };
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, theme);
+        Assert.True(size.Width > 0);
+    }
+
+    /// <summary>A legend of a label has a width: with no font size given it reads the theme's tick font, a label that holds math is measured
+    /// as rich text, and a plain one as text.</summary>
+    [Theory]
+    [InlineData("L1")]
+    [InlineData(@"$\alpha$")]
+    [InlineData("plain")]
+    public void LegendBox_MeasuresALabelWithTheThemeTickFont(string label)
+    {
+        var (axes, theme, ctx) = NewMeasureContext(label);
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, theme);
+        Assert.True(size.Width > 0);
+    }
+
+    [Fact]
+    public void LegendBox_WithExplicitTitleFontSize_UsesOverride()
+    {
+        // legend.TitleFontSize.HasValue ? ... : ... — true arm
+        var (axes, theme, ctx) = NewMeasureContext("L1");
+        axes.Legend = axes.Legend with { Title = "MyLegend", TitleFontSize = 20 };
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, theme);
+        Assert.True(size.Height > 0);
+    }
+
+    [Fact]
+    public void LegendBox_TitleWithoutExplicitTitleFontSize_UsesDefaultPlusOne()
+    {
+        // false arm — Title set, TitleFontSize null → uses base+1 bold
+        var (axes, theme, ctx) = NewMeasureContext("L1");
+        axes.Legend = axes.Legend with { Title = "MyLegend" };
+        var size = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, theme);
+        Assert.True(size.Height > 0);
+    }
+
+    [Theory]
+    [InlineData(LegendPosition.OutsideBottom, 20.0, "T", 1)]    // the title font took the theme's size in one and the legend's in the other
+    [InlineData(LegendPosition.OutsideRight, null, null, 1)]
+    [InlineData(LegendPosition.UpperRight, 11.0, "Title", 2)]
+    [InlineData(LegendPosition.OutsideTop, 20.0, null, 3)]
+    [InlineData(LegendPosition.Best, 16.0, "Signals", 1)]
+    [InlineData(LegendPosition.OutsideLeft, 9.0, "A longer legend title", 2)]
+    public void TheMeasuredBox_IsTheBoxTheCalculatorLaysOut(LegendPosition position, double? fontSize, string? title, int columns)
+    {
+        var figure = Plt.Create().WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 1.0], [0.0, 1.0], s => s.Label = "alpha")
+                .Plot([0.0, 1.0], [1.0, 0.0], s => s.Label = "beta gamma")
+                .Plot([0.0, 1.0], [0.5, 0.5], s => s.Label = "delta")
+                .WithLegend(l => l with { Position = position, FontSize = fontSize, Title = title, NCols = columns }))
+            .Build();
+        var axes = figure.SubPlots[0];
+        var ctx = new SvgRenderContext();
+
+        var measured = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, figure.Theme);
+        var laidOut = new LegendLayoutCalculator(figure.Theme, ctx)
+            .Compute(axes.Legend, axes.LegendEntries(Theme.Default, false).Select(e => e.Label).ToList(), new Rect(0, 0, 500, 300));
+
+        Assert.Equal(laidOut.BoxWidth, measured.Width, 9);
+        Assert.Equal(laidOut.BoxHeight, measured.Height, 9);
+    }
+
+    /// <summary>A labelled patch is a row of the legend, after the series' rows, so the margin an outside legend reserves holds it;
+    /// a patch whose label starts with an underscore has no row and takes no room.</summary>
+    [Theory]
+    [InlineData(LegendPosition.OutsideRight)]
+    [InlineData(LegendPosition.OutsideBottom)]
+    [InlineData(LegendPosition.UpperRight)]
+    public void TheMeasuredBox_HoldsThePatchRows_AfterTheSeriesRows(LegendPosition position)
+    {
+        var figure = Plt.Create().WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AddPatch(new Rectangle(new(0, 0), 1, 1) { Label = "a much longer patch name" })
+                .Plot([0.0, 1.0], [0.0, 1.0], s => s.Label = "alpha")
+                .AddPatch(new Circle(new(0.5, 0.5), 0.1) { Label = "_skipped" })
+                .Plot([0.0, 1.0], [1.0, 0.0], s => s.Label = "beta gamma")
+                .WithLegend(l => l with { Position = position }))
+            .Build();
+        var axes = figure.SubPlots[0];
+        var ctx = new SvgRenderContext();
+
+        var measured = LegendLayoutCalculator.MeasureLegendBox(axes, ctx, figure.Theme);
+        var laidOut = new LegendLayoutCalculator(figure.Theme, ctx)
+            .Compute(axes.Legend, ["alpha", "beta gamma", "a much longer patch name"], new Rect(0, 0, 500, 300));
+
+        Assert.Equal(laidOut.BoxWidth, measured.Width, 9);
+        Assert.Equal(laidOut.BoxHeight, measured.Height, 9);
     }
 }

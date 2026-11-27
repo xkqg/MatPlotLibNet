@@ -12,16 +12,13 @@ namespace MatPlotLibNet.Interaction;
 /// emits a <see cref="DataCursorEvent"/> carrying a <see cref="PinnedAnnotation"/>.
 /// When the click doesn't hit any point, defers to the next modifier
 /// (typically pan) — so normal drag-pan gestures still work.</summary>
-public sealed class DataCursorModifier : IInteractionModifier
+public sealed class DataCursorModifier : InteractionModifier
 {
     /// <summary>Pixel radius within which a click "hits" a data point. Matches the
     /// default cursor-hit threshold used by matplotlib's mplcursors library.</summary>
     public const double HitRadiusPx = 10.0;
 
-    private readonly string _chartId;
-    private readonly IChartLayout _layout;
     private readonly Figure _figure;
-    private readonly Action<FigureInteractionEvent> _sink;
     private readonly PanModifier? _pan;
     private NearestPointResult? _pendingHit;
     private bool _spanPending;
@@ -42,32 +39,27 @@ public sealed class DataCursorModifier : IInteractionModifier
     /// the click, and anything further pans, anchored where the button went down. Without one a span is clicked on
     /// press, like a point.</para></summary>
     public DataCursorModifier(string chartId, IChartLayout layout, Figure figure, Action<FigureInteractionEvent> sink, PanModifier? pan)
+        : base(chartId, layout, sink)
     {
-        _chartId = chartId;
-        _layout = layout;
         _figure = figure;
-        _sink = sink;
         _pan = pan;
     }
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args)
+    public override bool HandlesPointerPressed(PointerInputArgs args)
     {
-        if (args.Button != PointerButton.Left) return false;
         if (args.Modifiers != ModifierKeys.None) return false;
+        if (Layout.LeftPressAxes(args) is not { } axesIndex) return false;
 
-        var axesIndex = _layout.HitTestAxes(args.X, args.Y);
-        if (axesIndex is null) return false;
+        var coords = Layout.PixelToData(args.X, args.Y, axesIndex);
 
-        var coords = _layout.PixelToData(args.X, args.Y, axesIndex.Value);
-
-        var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, coords!.Value.DataX, coords.Value.DataY, _layout);
+        var nearest = NearestPointFinder.Find(_figure, axesIndex, coords!.Value.DataX, coords.Value.DataY, Layout);
         if (nearest is null) return false;
         if (nearest.PixelDistance > HitRadiusPx) return false;
 
         _pendingHit = nearest;
         _pendingHitPointer = new Point(args.X, args.Y);
-        _pendingHitAxes = axesIndex.Value;
+        _pendingHitAxes = axesIndex;
         return true;
     }
 
@@ -75,7 +67,7 @@ public sealed class DataCursorModifier : IInteractionModifier
     private int _pendingHitAxes;
 
     /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args)
+    public override void OnPointerPressed(PointerInputArgs args)
     {
         if (_pendingHit is null) return;
 
@@ -104,11 +96,11 @@ public sealed class DataCursorModifier : IInteractionModifier
             PointIndex = hit.PointIndex,
             SeriesIndex = hit.SeriesIndex,
         };
-        _sink(new DataCursorEvent(_chartId, _pendingHitAxes, annotation));
+        Emit(new DataCursorEvent(ChartId, _pendingHitAxes, annotation));
     }
 
     /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args)
+    public override void OnPointerMoved(PointerInputArgs args)
     {
         if (!_spanPending) return;
 
@@ -120,7 +112,7 @@ public sealed class DataCursorModifier : IInteractionModifier
     }
 
     /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args)
+    public override void OnPointerReleased(PointerInputArgs args)
     {
         if (!_spanPending) return;
 
@@ -131,12 +123,4 @@ public sealed class DataCursorModifier : IInteractionModifier
         _dragging = false;
         _pendingHit = null;
     }
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args) { }
 }

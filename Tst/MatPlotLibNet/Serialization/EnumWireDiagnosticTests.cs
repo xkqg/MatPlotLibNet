@@ -10,40 +10,22 @@ namespace MatPlotLibNet.Tests.Serialization;
 
 /// <summary>An enum travels in the JSON as a name, and a reader that does not know the name used to drop it without a word: a
 /// figure written by a newer version with a coordinate system, a line style or a bar orientation this reader has never heard of
-/// came back drawn as the default, and nothing said so. The reader stays lenient (the figure loads) but now announces the value
-/// it could not place, on the channel every other silent degradation already uses.</summary>
+/// came back drawn as the default, and nothing said so. The reader stays lenient (the figure loads) but announces the text it could
+/// not place, on the channel every other silent degradation already uses. A member is named by its name, in any case, and by nothing
+/// else (<see cref="EnumWireNames{T}"/>).</summary>
 [Collection("ChartDiagnosticsGlobalState")]
 public class EnumWireDiagnosticTests
 {
-    private static List<ChartDiagnostic> Announced(Action act)
-    {
-        var seen = new List<ChartDiagnostic>();
-        void Collect(ChartDiagnostic d) => seen.Add(d);
-        ChartDiagnostics.Emitted += Collect;
-        try
-        {
-            act();
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Collect;
-        }
-
-        return seen;
-    }
-
     [Fact]
-    public void AnUnknownName_IsAnnouncedWithTheValueAndTheEnum_AndTheSetterIsNotCalled()
+    public void AnUnknownName_IsAnnouncedWithTheValueAndTheEnum_AndNamesNoMember()
     {
-        LineStyle applied = LineStyle.Solid;
-        bool called = false;
+        LineStyle? read = LineStyle.Solid;
 
-        var seen = Announced(() => "zigzag".ApplyEnum<LineStyle>(v => { applied = v; called = true; }));
+        var seen = DiagnosticsCapture.During(() => read = "zigzag".WireEnum<LineStyle>());
 
-        Assert.False(called);
-        Assert.Equal(LineStyle.Solid, applied);
+        Assert.Null(read);
         var announcement = Assert.Single(seen);
-        Assert.Contains("zigzag", announcement.Message, StringComparison.Ordinal);
+        Assert.Contains("'zigzag'", announcement.Message, StringComparison.Ordinal);
         Assert.Contains(nameof(LineStyle), announcement.Message, StringComparison.Ordinal);
     }
 
@@ -51,24 +33,71 @@ public class EnumWireDiagnosticTests
     [InlineData("Dashed")]
     [InlineData("dashed")]
     [InlineData("DASHED")]
-    public void AKnownName_IsAppliedInAnyCase_AndNothingIsAnnounced(string name)
+    public void AKnownName_IsReadInAnyCase_AndNothingIsAnnounced(string name)
     {
-        var applied = LineStyle.Solid;
+        LineStyle? read = null;
 
-        var seen = Announced(() => name.ApplyEnum<LineStyle>(v => applied = v));
+        var seen = DiagnosticsCapture.During(() => read = name.WireEnum<LineStyle>());
 
-        Assert.Equal(LineStyle.Dashed, applied);
+        Assert.Equal(LineStyle.Dashed, read);
         Assert.Empty(seen);
+    }
+
+    /// <summary>A text <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/> would make a value of names no member: the
+    /// ordinal of a member, an ordinal no member has, two names joined by a comma, a name with a space around it, an empty text.</summary>
+    [Theory]
+    [InlineData("1")]
+    [InlineData("99")]
+    [InlineData("-1")]
+    [InlineData("solid, dashed")]
+    [InlineData(" dashed")]
+    [InlineData("dashed ")]
+    [InlineData("")]
+    public void ATextTryParseWouldAccept_NamesNoMember_AndIsAnnounced(string text)
+    {
+        LineStyle? read = LineStyle.Solid;
+
+        var seen = DiagnosticsCapture.During(() => read = text.WireEnum<LineStyle>());
+
+        Assert.Null(read);
+        Assert.Contains($"'{text}'", Assert.Single(seen).Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void NoValue_IsNotAnUnknownValue()
     {
         string? absent = null;
+        LineStyle? read = LineStyle.Solid;
 
-        var seen = Announced(() => absent.ApplyEnum<LineStyle>(_ => throw new InvalidOperationException("nothing to apply")));
+        var seen = DiagnosticsCapture.During(() => read = absent.WireEnum<LineStyle>());
 
+        Assert.Null(read);
         Assert.Empty(seen);
+    }
+
+    [Fact]
+    public void TheNameRule_FindsANameInAnyCase_AndNothingElse()
+    {
+        string[] names = ["Grouped", "Stacked"];
+
+        Assert.Equal(1, names.IndexOfWireName("stacked"));
+        Assert.Equal(0, names.IndexOfWireName("GROUPED"));
+        Assert.Equal(-1, names.IndexOfWireName("stack"));
+        Assert.Equal(-1, names.IndexOfWireName("stackedx"));
+        Assert.Equal(-1, ((string[])[]).IndexOfWireName("stacked"));
+    }
+
+    [Fact]
+    public void TheTable_MatchesEveryMemberByItsName()
+    {
+        foreach (var member in Enum.GetValues<CoordinateSystem>())
+        {
+            Assert.True(EnumWireNames<CoordinateSystem>.TryMatch(member.ToWireName(), out var read));
+            Assert.Equal(member, read);
+        }
+
+        Assert.False(EnumWireNames<CoordinateSystem>.TryMatch("2", out var none));
+        Assert.Equal(default, none);
     }
 
     [Fact]
@@ -81,7 +110,7 @@ public class EnumWireDiagnosticTests
         Assert.Contains("hexagonal", written, StringComparison.Ordinal);
 
         Figure? read = null;
-        var seen = Announced(() => read = new ChartSerializer().FromJson(written));
+        var seen = DiagnosticsCapture.During(() => read = new ChartSerializer().FromJson(written));
 
         Assert.NotNull(read);
         Assert.Equal(CoordinateSystem.Cartesian, read!.SubPlots[0].CoordinateSystem);
@@ -100,7 +129,7 @@ public class EnumWireDiagnosticTests
         axes.ZAxis.Label = "Silt";
 
         Figure? read = null;
-        var seen = Announced(() => read = new ChartSerializer().FromJson(figure.ToJson()));
+        var seen = DiagnosticsCapture.During(() => read = figure.RoundTripped());
 
         Assert.Empty(seen);
         Assert.NotNull(read);

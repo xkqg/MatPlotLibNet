@@ -6,34 +6,9 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="HistogramSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="HistogramSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class HistogramSeriesTests
 {
-    /// <summary>Verifies that the constructor stores the data array.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        double[] data = [1.0, 2.0, 3.0, 4.0];
-        var series = new HistogramSeries(data);
-        Assert.Equal(data, series.Data);
-    }
-
-    /// <summary>Verifies that Bins defaults to 10.</summary>
-    [Fact]
-    public void DefaultBins_Is10()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.Equal(10, series.Bins);
-    }
-
-    /// <summary>Verifies that Alpha defaults to 1.0 (matplotlib hist bars are fully opaque).</summary>
-    [Fact]
-    public void DefaultAlpha_Is1Point0()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.Equal(1.0, series.Alpha);
-    }
-
     /// <summary>Verifies that ComputeBins returns valid counts, min, and bin width.</summary>
     [Fact]
     public void ComputeBins_ReturnsValidResult()
@@ -45,89 +20,18 @@ public class HistogramSeriesTests
         Assert.True(bins.BinWidth > 0);
     }
 
-    /// <summary>Verifies that Density defaults to false.</summary>
+    /// <summary>numpy drops a missing value and an infinity with its weight: <c>np.histogram([1, 2, nan, -inf, 3], bins=2, range=(1, 3),
+    /// weights=[1, 10, 100, 1000, 10000])</c> is <c>[1, 10010]</c>. The weighted heights leave out what the counts leave out (a missing
+    /// value was weighed into the first bin, and an infinity below the data threw).</summary>
     [Fact]
-    public void DefaultDensity_IsFalse()
+    public void AWeightedHistogram_LeavesOutTheWeightOfAValueItDoesNotCount()
     {
-        var series = new HistogramSeries([1.0]);
-        Assert.False(series.Density);
-    }
+        var series = new HistogramSeries([1.0, 2.0, double.NaN, double.NegativeInfinity, 3.0])
+        {
+            Bins = 2,
+            Weights = [1, 10, 100, 1000, 10000],
+        };
 
-    /// <summary>Verifies that Cumulative defaults to false.</summary>
-    [Fact]
-    public void DefaultCumulative_IsFalse()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.False(series.Cumulative);
-    }
-
-    /// <summary>Verifies that HistType defaults to Bar.</summary>
-    [Fact]
-    public void DefaultHistType_IsBar()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.Equal(HistType.Bar, series.HistType);
-    }
-
-    /// <summary>Verifies that Weights defaults to null.</summary>
-    [Fact]
-    public void DefaultWeights_IsNull()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.Null(series.Weights);
-    }
-
-    /// <summary>Verifies that RWidth defaults to 1.0.</summary>
-    [Fact]
-    public void DefaultRWidth_Is1()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.Equal(1.0, series.RWidth);
-    }
-
-    /// <summary>Verifies that HistType can be set.</summary>
-    [Fact]
-    public void HistType_CanBeSet()
-    {
-        var series = new HistogramSeries([1.0]);
-        series.HistType = HistType.Step;
-        Assert.Equal(HistType.Step, series.HistType);
-    }
-
-    /// <summary>Verifies that Density can be set.</summary>
-    [Fact]
-    public void Density_CanBeSet()
-    {
-        var series = new HistogramSeries([1.0]);
-        series.Density = true;
-        Assert.True(series.Density);
-    }
-
-    /// <summary>Verifies that Cumulative can be set.</summary>
-    [Fact]
-    public void Cumulative_CanBeSet()
-    {
-        var series = new HistogramSeries([1.0]);
-        series.Cumulative = true;
-        Assert.True(series.Cumulative);
-    }
-
-    /// <summary>Verifies that Weights can be set.</summary>
-    [Fact]
-    public void Weights_CanBeSet()
-    {
-        var series = new HistogramSeries([1.0, 2.0]);
-        series.Weights = [0.5, 0.5];
-        Assert.NotNull(series.Weights);
-        Assert.Equal(2, series.Weights.Length);
-    }
-
-    /// <summary>Verifies that RWidth can be set.</summary>
-    [Fact]
-    public void RWidth_CanBeSet()
-    {
-        var series = new HistogramSeries([1.0]);
-        series.RWidth = 0.8;
-        Assert.Equal(0.8, series.RWidth);
+        Assert.Equal([1.0, 10010], series.Heights(series.ComputeBins()));
     }
 }

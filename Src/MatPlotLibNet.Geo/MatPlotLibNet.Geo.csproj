@@ -4,17 +4,27 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.29.0</Version>
+    <Version>1.30.0</Version>
     <PackageId>MatPlotLibNet.Geo</PackageId>
-    <Description>Geographic projections and map rendering for MatPlotLibNet. Includes Natural Earth 110m coastlines and country borders, and 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, Stereographic, Mollweide, Sinusoidal, EqualEarth, NaturalEarth). Choropleth maps with colormap support, points, bubbles, hexagon bins, flows and cartograms, and maps that come back from JSON.</Description>
-    <PackageTags>matplotlib;charting;plotting;charts;visualization;geographic;map;projection;mercator;robinson;choropleth;geojson;natural-earth</PackageTags>
+    <Description>Geographic projections and map rendering for MatPlotLibNet. Includes Natural Earth 110m coastlines and country borders, and 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, Stereographic, Mollweide, Sinusoidal, EqualEarth, NaturalEarth). Choropleth maps with colormap support, points, bubbles, hexagon bins, the cells of the H3 index, flows and cartograms, and maps that come back from JSON.</Description>
+    <PackageTags>matplotlib;charting;plotting;charts;visualization;geographic;map;projection;mercator;robinson;choropleth;geojson;natural-earth;h3</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- Reads internals of the packages it references (InternalsVisibleTo), so it depends on each at exactly this
+         version (Directory.Build.targets). -->
+    <DependsOnInternals>true</DependsOnInternals>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MatPlotLibNet\MatPlotLibNet.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The cells of the H3 index (H3Cells, H3Bins): a managed port of Uber's H3, Apache-2.0 with its licence file in the
+         package and no native assets; it brings NetTopologySuite (BSD-3-Clause, managed). No type of it is on this package's
+         public surface. GeoDependencyContractTests holds both facts for every package this one brings in. -->
+    <PackageReference Include="pocketken.H3" Version="4.*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +33,9 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="MatPlotLibNet.Geo.Tests" />
+    <!-- The MCP server carries this package inside its tool package, built from the same tree, and tells an author what the
+         package data of a map holds in this package's own words (GeoMapData.Described). -->
+    <InternalsVisibleTo Include="MatPlotLibNet.Mcp" />
   </ItemGroup>
 
   <ItemGroup>

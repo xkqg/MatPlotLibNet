@@ -40,7 +40,7 @@ public class PatchStyleTests
         var patch = Assert.IsAssignableFrom<FilledPatch>(Leaf(leaf));
 
         Assert.Equal(Colors.Tab10Blue, patch.FaceColor);
-        Assert.Equal(Colors.Tab10Blue, patch.DrawnFaceColor);
+        Assert.Equal(Colors.Tab10Blue, patch.DrawnFaceColorUnder(Theme.Default));
     }
 
     /// <summary>Every leaf but the arc encloses an area and fills it; the arc is the one matplotlib refuses to fill.</summary>
@@ -50,23 +50,6 @@ public class PatchStyleTests
         Assert.Equal([nameof(Arc)], OneOfEach().Where(patch => patch is not FilledPatch).Select(patch => patch.GetType().Name));
     }
 
-    [Theory]
-    [InlineData(nameof(Rectangle))]
-    [InlineData(nameof(Polygon))]
-    [InlineData(nameof(Circle))]
-    [InlineData(nameof(Ellipse))]
-    [InlineData(nameof(Wedge))]
-    public void AFilledShape_HasNoEdge_ByDefault(string leaf)
-    {
-        Assert.Equal(Colors.Transparent, Leaf(leaf).EdgeColor);
-    }
-
-    [Fact]
-    public void AnArrow_HasABlackEdge_ByDefault()
-    {
-        Assert.Equal(Colors.Black, new Arrow(new(0, 0), 1, 0).EdgeColor);
-    }
-
     /// <summary>matplotlib 3.11.2: <c>Arc((0, 0), 2, 1)</c> has a face of alpha 0 and a black edge; <c>fill=True</c> raises
     /// "Arc objects cannot be filled". An arc here has no face to set: it draws none, and its edge is black.</summary>
     [Fact]
@@ -74,10 +57,9 @@ public class PatchStyleTests
     {
         var arc = new Arc(new(0, 0), 2, 1);
 
-        Assert.Equal(Colors.Black, arc.EdgeColor);
-        Assert.Equal(0, arc.DrawnFaceColor.A);
-        Assert.Null(arc.DrawnStyle.Fill);
-        Assert.Equal(Colors.Black, arc.DrawnStyle.Stroke);
+        Assert.Equal(0, arc.DrawnFaceColorUnder(Theme.Default).A);
+        Assert.Null(arc.DrawnStyleUnder(Theme.Default).Fill);
+        Assert.Equal(Colors.Black, arc.DrawnStyleUnder(Theme.Default).Stroke);
         Assert.Null(typeof(Arc).GetProperty(nameof(FilledPatch.FaceColor)));
     }
 
@@ -89,98 +71,11 @@ public class PatchStyleTests
     {
         var arc = new Arc(new(0, 0), 2, 2) { Theta2 = 180, Hatch = HatchPattern.ForwardDiagonal, EdgeColor = Colors.Red };
 
-        var style = arc.DrawnStyle;
+        var style = arc.DrawnStyleUnder(Theme.Default);
 
         Assert.Equal(0, style.Fill!.Value.A);
         Assert.True(style.HasVisibleHatch);
         Assert.Equal(Colors.Red, style.HatchColor);
-    }
-
-    [Fact]
-    public void ACircle_KeepsWhatItWasMadeWith()
-    {
-        var circle = new Circle(new(1, 2), 3);
-
-        Assert.Equal(new DataPoint(1, 2), circle.Center);
-        Assert.Equal(3, circle.Radius);
-    }
-
-    [Fact]
-    public void AnEllipse_KeepsWhatItWasMadeWith_AndIsNotTurned()
-    {
-        var ellipse = new Ellipse(new(1, 2), 4, 3);
-
-        Assert.Equal(new DataPoint(1, 2), ellipse.Center);
-        Assert.Equal(4, ellipse.Width);
-        Assert.Equal(3, ellipse.Height);
-        Assert.Equal(0, ellipse.Angle);
-    }
-
-    [Fact]
-    public void AWedge_KeepsWhatItWasMadeWith_AndReachesItsCentre()
-    {
-        var wedge = new Wedge(new(1, 2), 3, 30, 120);
-
-        Assert.Equal(new DataPoint(1, 2), wedge.Center);
-        Assert.Equal(3, wedge.Radius);
-        Assert.Equal(30, wedge.Theta1);
-        Assert.Equal(120, wedge.Theta2);
-        Assert.Null(wedge.Width);
-    }
-
-    /// <summary>matplotlib's <c>Arc</c> defaults: not turned, from 0 to 360 degrees, the whole ellipse.</summary>
-    [Fact]
-    public void AnArc_KeepsWhatItWasMadeWith_AndIsTheWholeEllipse()
-    {
-        var arc = new Arc(new(1, 2), 4, 3);
-
-        Assert.Equal(new DataPoint(1, 2), arc.Center);
-        Assert.Equal(4, arc.Width);
-        Assert.Equal(3, arc.Height);
-        Assert.Equal(0, arc.Angle);
-        Assert.Equal(0, arc.Theta1);
-        Assert.Equal(360, arc.Theta2);
-    }
-
-    [Theory]
-    [MemberData(nameof(LeafNames))]
-    public void EveryLeaf_RestsAtMatplotlibsPatchDefaults(string leaf)
-    {
-        var patch = Leaf(leaf);
-
-        Assert.Equal(1.0, patch.EdgeWidth);
-        Assert.Equal(LineStyle.Solid, patch.EdgeLineStyle);
-        Assert.Equal(1.0, patch.Alpha);
-        Assert.Null(patch.Label);
-        Assert.Equal(HatchPattern.None, patch.Hatch);
-        Assert.Null(patch.HatchColor);
-    }
-
-    [Fact]
-    public void AnArrow_RestsAtMatplotlibsFancyArrowDefaults()
-    {
-        var arrow = new Arrow(new(1, 2), 3, 4);
-
-        Assert.Equal(new DataPoint(1, 2), arrow.Start);
-        Assert.Equal(3, arrow.Dx);
-        Assert.Equal(4, arrow.Dy);
-        Assert.Equal(0.001, arrow.Width);
-        Assert.Null(arrow.HeadWidth);
-        Assert.Null(arrow.HeadLength);
-        Assert.False(arrow.LengthIncludesHead);
-        Assert.Equal(ArrowHeadShape.Full, arrow.Shape);
-        Assert.Equal(0, arrow.Overhang);
-    }
-
-    [Fact]
-    public void ARectangle_KeepsWhatItWasMadeWith_AndIsNotTurned()
-    {
-        var rectangle = new Rectangle(new(1, 2), -3, 4);
-
-        Assert.Equal(new DataPoint(1, 2), rectangle.Anchor);
-        Assert.Equal(-3, rectangle.Width);
-        Assert.Equal(4, rectangle.Height);
-        Assert.Equal(0, rectangle.Angle);
     }
 
     // ---- the colours drawn ---------------------------------------------------------------------------------------------
@@ -190,17 +85,64 @@ public class PatchStyleTests
     {
         var patch = new Rectangle(new(0, 0), 1, 1) { FaceColor = Colors.Red, EdgeColor = Colors.Green, Alpha = 0.5 };
 
-        Assert.Equal(Colors.Red.WithAlpha(128), patch.DrawnFaceColor);
-        Assert.Equal(Colors.Green.WithAlpha(128), patch.DrawnEdgeColor);
+        Assert.Equal(Colors.Red.WithAlpha(128), patch.DrawnFaceColorUnder(Theme.Default));
+        Assert.Equal(Colors.Green.WithAlpha(128), patch.DrawnStyleUnder(Theme.Default).Stroke);
     }
 
     [Fact]
-    public void Alpha_ScalesAColourThatIsAlreadyTranslucent_AndLeavesNoneAsNone()
+    public void Alpha_ReplacesTheOpacityOfAColourThatIsAlreadyTranslucent()
     {
-        var patch = new Polygon(Triangle) { FaceColor = Colors.Red.WithAlpha(100), Alpha = 0.5 };
+        // matplotlib: Rectangle((0, 0), 1, 1, facecolor=(1, 0, 0, 0.39), edgecolor=(0, 0, 1, 0.25), alpha=0.8)
+        //   .get_facecolor() == (1, 0, 0, 0.8) and .get_edgecolor() == (0, 0, 1, 0.8): to_rgba(color, alpha) replaces.
+        var patch = new Polygon(Triangle) { FaceColor = Colors.Red.WithAlpha(100), EdgeColor = Colors.Blue.WithAlpha(64), Alpha = 0.8 };
 
-        Assert.Equal(Colors.Red.WithAlpha(50), patch.DrawnFaceColor);
-        Assert.Equal(0, patch.DrawnEdgeColor.A);
+        Assert.Equal(Colors.Red.WithAlpha(204), patch.DrawnFaceColorUnder(Theme.Default));
+        Assert.Equal(Colors.Blue.WithAlpha(204), patch.DrawnStyleUnder(Theme.Default).Stroke);
+    }
+
+    [Fact]
+    public void Alpha_LeavesNoneAsNone()
+    {
+        // matplotlib: Rectangle((0, 0), 1, 1, facecolor='none', edgecolor='none', alpha=0.8): both colours are (0, 0, 0, 0).
+        var patch = new Polygon(Triangle) { FaceColor = Colors.Transparent, EdgeColor = Colors.Transparent, Alpha = 0.8 };
+
+        Assert.Equal(0, patch.DrawnFaceColorUnder(Theme.Default).A);
+        Assert.Null(patch.DrawnStyleUnder(Theme.Default).Stroke);
+    }
+
+    [Fact]
+    public void WithoutAnAlpha_EveryColourKeepsItsOwnOpacity()
+    {
+        // matplotlib: Rectangle((0, 0), 1, 1, facecolor=(1, 0, 0, 0.5), edgecolor=(0, 0, 1, 0.25)) keeps 0.5 and 0.25.
+        var patch = new Polygon(Triangle) { FaceColor = Colors.Red.WithAlpha(128), EdgeColor = Colors.Blue.WithAlpha(64) };
+
+        Assert.Equal(Colors.Red.WithAlpha(128), patch.DrawnFaceColorUnder(Theme.Default));
+        Assert.Equal(Colors.Blue.WithAlpha(64), patch.DrawnStyleUnder(Theme.Default).Stroke);
+        Assert.Null(patch.GivenAlpha);
+    }
+
+    [Fact]
+    public void AnAlphaOfOneThatWasGiven_MakesATranslucentColourOpaque()
+    {
+        var patch = new Polygon(Triangle) { FaceColor = Colors.Red.WithAlpha(100), Alpha = 1.0 };
+
+        Assert.Equal(Colors.Red, patch.DrawnFaceColorUnder(Theme.Default));
+        Assert.Equal(1.0, patch.GivenAlpha);
+    }
+
+    [Fact]
+    public void AnAlphaOfZeroThatWasGiven_ClearsEveryColour()
+    {
+        var patch = new Polygon(Triangle) { FaceColor = Colors.Red, EdgeColor = Colors.Blue, Alpha = 0 };
+
+        Assert.Equal(0, patch.DrawnFaceColorUnder(Theme.Default).A);
+        Assert.Null(patch.DrawnStyleUnder(Theme.Default).Stroke);
+    }
+
+    [Fact]
+    public void APatchGivenNoAlpha_HoldsNoGivenValue()
+    {
+        Assert.Null(new Rectangle(new(0, 0), 1, 1).GivenAlpha);
     }
 
     [Fact]
@@ -208,8 +150,8 @@ public class PatchStyleTests
     {
         var arrow = new Arrow(new(0, 0), 1, 0);
 
-        Assert.Equal(Colors.Tab10Blue, arrow.DrawnFaceColor);
-        Assert.Equal(Colors.Black, arrow.DrawnEdgeColor);
+        Assert.Equal(Colors.Tab10Blue, arrow.DrawnFaceColorUnder(Theme.Default));
+        Assert.Equal(Colors.Black, arrow.DrawnStyleUnder(Theme.Default).Stroke);
     }
 
     [Fact]
@@ -217,20 +159,48 @@ public class PatchStyleTests
     {
         var patch = new Rectangle(new(0, 0), 1, 1) { EdgeColor = Colors.Green, Hatch = HatchPattern.Cross, Alpha = 0.5 };
 
-        Assert.Equal(Colors.Green.WithAlpha(128), patch.DrawnHatchColor);
+        Assert.Equal(Colors.Green.WithAlpha(128), patch.DrawnStyleUnder(Theme.Default).HatchColor);
 
         patch.HatchColor = Colors.Red;
 
-        Assert.Equal(Colors.Red.WithAlpha(128), patch.DrawnHatchColor);
+        Assert.Equal(Colors.Red.WithAlpha(128), patch.DrawnStyleUnder(Theme.Default).HatchColor);
     }
 
     [Fact]
-    public void TheHatchOfAShapeWithNoEdge_IsBlack()
+    public void TheHatchTakesTheGivenAlpha_InPlaceOfTheOpacityOfItsColour()
     {
-        // matplotlib: Rectangle((0, 0), 1, 1, hatch='/').get_hatchcolor() is (0, 0, 0, 1) while the edge is 'none'.
+        // matplotlib: Rectangle(.., hatch='/', hatchcolor='r', alpha=0.5).get_hatchcolor() == (1, 0, 0, 0.5), and with
+        // edgecolor=(0, 1, 0, 0.25) and alpha=0.5 the 'edge' hatch colour is (0, 1, 0, 0.5): the edge as drawn.
+        var viaTheEdge = new Rectangle(new(0, 0), 1, 1) { EdgeColor = Colors.Green.WithAlpha(64), Hatch = HatchPattern.Cross, Alpha = 0.5 };
+        var own = new Rectangle(new(0, 0), 1, 1) { HatchColor = Colors.Red.WithAlpha(64), Hatch = HatchPattern.Cross, Alpha = 0.5 };
+        var withNone = new Rectangle(new(0, 0), 1, 1) { Hatch = HatchPattern.Cross, Alpha = 0.5 };
+
+        Assert.Equal(Colors.Green.WithAlpha(128), viaTheEdge.DrawnStyleUnder(Theme.MatplotlibV2).HatchColor);
+        Assert.Equal(Colors.Red.WithAlpha(128), own.DrawnStyleUnder(Theme.MatplotlibV2).HatchColor);
+        Assert.Equal(Colors.Black.WithAlpha(128), withNone.DrawnStyleUnder(Theme.MatplotlibV2).HatchColor);
+        Assert.Equal(Colors.Green.WithAlpha(128), viaTheEdge.DrawnStyleUnder(Theme.Default).HatchColor);
+        Assert.Equal(Colors.Red.WithAlpha(128), own.DrawnStyleUnder(Theme.Default).HatchColor);
+    }
+
+    [Fact]
+    public void WithoutAnAlpha_TheHatchKeepsTheOpacityOfItsColour()
+    {
+        // matplotlib: Rectangle(.., hatch='/', edgecolor=(0, 1, 0, 0.25)).get_hatchcolor() == (0, 1, 0, 0.25)
+        var patch = new Rectangle(new(0, 0), 1, 1) { EdgeColor = Colors.Green.WithAlpha(64), Hatch = HatchPattern.Cross };
+
+        Assert.Equal(Colors.Green.WithAlpha(64), patch.DrawnStyleUnder(Theme.Default).HatchColor);
+    }
+
+    [Fact]
+    public void TheHatchOfAShapeWithNoEdge_IsBlackUnderTheMatplotlibThemes_AndReadsAgainstItsFaceUnderTheLibrarys()
+    {
+        // matplotlib: Rectangle((0, 0), 1, 1, hatch='/').get_hatchcolor() is (0, 0, 0, 1) while the edge is 'none'. The library's
+        // own themes hatch a patch as they hatch a bar given no edge: in the colour that reads best against its face.
         var patch = new Rectangle(new(0, 0), 1, 1) { Hatch = HatchPattern.ForwardDiagonal };
 
-        Assert.Equal(Colors.Black, patch.DrawnHatchColor);
+        Assert.Equal(Colors.Black, patch.DrawnStyleUnder(Theme.MatplotlibV2).HatchColor);
+        Assert.Null(patch.DrawnStyleUnder(Theme.Default).HatchColor);
+        Assert.Equal(patch.DrawnFaceColorUnder(Theme.Default).ContrastingTextColor(), patch.DrawnStyleUnder(Theme.Default).HatchStroke);
     }
 
     // ---- the style the patch is drawn with -------------------------------------------------------------------------------
@@ -246,7 +216,7 @@ public class PatchStyleTests
             Hatch = HatchPattern.Dots, HatchColor = Colors.Blue, Alpha = 0.5,
         };
 
-        var style = patch.DrawnStyle;
+        var style = patch.DrawnStyleUnder(Theme.Default);
 
         Assert.Equal(Colors.Red.WithAlpha(128), style.Fill);
         Assert.Equal(Colors.Green.WithAlpha(128), style.Stroke);
@@ -262,7 +232,7 @@ public class PatchStyleTests
     {
         var patch = new Polygon(Triangle) { FaceColor = Colors.Transparent };
 
-        var style = patch.DrawnStyle;
+        var style = patch.DrawnStyleUnder(Theme.Default);
 
         Assert.Null(style.Fill);
         Assert.Null(style.Stroke);
@@ -276,7 +246,7 @@ public class PatchStyleTests
     {
         var patch = new Rectangle(new(0, 0), 1, 1) { FaceColor = Colors.Transparent, Hatch = HatchPattern.Cross };
 
-        var style = patch.DrawnStyle;
+        var style = patch.DrawnStyleUnder(Theme.Default);
 
         Assert.Equal(0, style.Fill!.Value.A);
         Assert.True(style.HasVisibleHatch);
@@ -289,8 +259,8 @@ public class PatchStyleTests
     {
         var arrow = new Arrow(new(0, 0), 1, 0) { Alpha = 0 };
 
-        Assert.Null(arrow.DrawnStyle.Fill);
-        Assert.Null(arrow.DrawnStyle.Stroke);
+        Assert.Null(arrow.DrawnStyleUnder(Theme.Default).Fill);
+        Assert.Null(arrow.DrawnStyleUnder(Theme.Default).Stroke);
     }
 
     // ---- refusals --------------------------------------------------------------------------------------------------
@@ -305,18 +275,8 @@ public class PatchStyleTests
 
         var refused = Assert.Throws<ArgumentOutOfRangeException>(() => patch.Alpha = alpha);
 
-        Assert.Equal("value", refused.ParamName);
+        Assert.Equal("Alpha", refused.ParamName);
         Assert.Equal(0.4, patch.Alpha);
-    }
-
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(1.0)]
-    public void AnAlphaAtEitherEnd_IsTaken(double alpha)
-    {
-        var patch = new Arrow(new(0, 0), 1, 0) { Alpha = alpha };
-
-        Assert.Equal(alpha, patch.Alpha);
     }
 
     [Theory]
@@ -329,16 +289,8 @@ public class PatchStyleTests
 
         var refused = Assert.Throws<ArgumentOutOfRangeException>(() => patch.EdgeWidth = width);
 
-        Assert.Equal("value", refused.ParamName);
+        Assert.Equal(nameof(Polygon.EdgeWidth), refused.ParamName);
         Assert.Equal(2, patch.EdgeWidth);
-    }
-
-    [Fact]
-    public void AnEdgeOfNoWidth_IsTaken()
-    {
-        var patch = new Polygon(Triangle) { EdgeWidth = 0 };
-
-        Assert.Equal(0, patch.EdgeWidth);
     }
 
     [Fact]

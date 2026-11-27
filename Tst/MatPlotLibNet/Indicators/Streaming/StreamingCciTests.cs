@@ -7,32 +7,12 @@ using MatPlotLibNet.Indicators.Streaming;
 namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
 /// <summary>Coverage uplift Batch D — full coverage for <see cref="StreamingCci"/> (was 0%).
-/// Verifies typical-price aggregation, the mean-deviation = 0 short-circuit,
-/// hand-derived CCI values across a small window, and ring-buffer wraparound.</summary>
-public sealed class StreamingCciTests : OhlcStreamingIndicatorTests<StreamingCci>
+/// Verifies typical-price aggregation, the mean-deviation = 0 short-circuit
+/// and hand-derived CCI values across a small window.</summary>
+public sealed class StreamingCciTests
 {
-    protected override StreamingCci CreateIndicator(int period, int capacity = 256)
-        => new(period: period, capacity: capacity);
-
     private static OhlcBar BarWithTp(double typicalPrice)
         => new(typicalPrice, typicalPrice, typicalPrice, typicalPrice); // H=L=C ⇒ TP = price
-
-    [Fact]
-    public void Construction_DefaultsAreCorrect()
-    {
-        var cci = new StreamingCci();
-        Assert.Equal(20, cci.WarmupPeriod);
-        Assert.Equal("CCI(20)", cci.Label);
-        Assert.Single(cci.OutputSeries);
-    }
-
-    [Fact]
-    public void Construction_CustomPeriod_PropagatesLabel()
-    {
-        var cci = new StreamingCci(period: 7);
-        Assert.Equal(7, cci.WarmupPeriod);
-        Assert.Equal("CCI(7)", cci.Label);
-    }
 
     [Fact]
     public void TypicalPriceFormula_HighLowClose_ArithmeticMean()
@@ -100,17 +80,4 @@ public sealed class StreamingCciTests : OhlcStreamingIndicatorTests<StreamingCci
         for (int i = 0; i < 5; i++) cci.AppendCandle(BarWithTp(50 - i * 5));
         Assert.True(cci.GetLatest() < 0);
     }
-
-    [Fact]
-    public void RingBuffer_WrapsCorrectly_WhenBarsExceedPeriod()
-    {
-        var cci = new StreamingCci(period: 4);
-        for (int i = 0; i < 12; i++)
-            cci.AppendCandle(new OhlcBar(i, i + 2, i - 1, i + 1));
-
-        var y = cci.OutputSeries[0].CreateSnapshot().YData;
-        Assert.Equal(12, y.Length);
-        Assert.False(double.IsNaN(y[^1]));
-    }
-
 }

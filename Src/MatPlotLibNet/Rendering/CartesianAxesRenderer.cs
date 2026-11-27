@@ -1,21 +1,22 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Numerics;
-using MatPlotLibNet.Rendering.Layout;
-using MatPlotLibNet.Rendering.Svg;
-using MatPlotLibNet.Rendering.TickFormatters;
-using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering.CartesianParts;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>Renders axes using the standard Cartesian (X, Y) coordinate system.</summary>
 /// <remarks>Not sealed so that inset axes can answer the end-label question differently
-/// (<c>CartesianInsetAxesRenderer</c>); the drawing itself (<see cref="Render"/>) is sealed.</remarks>
-public class CartesianAxesRenderer : AxesRenderer
+/// (<c>CartesianInsetAxesRenderer</c>); the drawing itself (<see cref="Render"/>) is sealed. The renderer keeps the order things are drawn
+/// in; what is drawn is each part's: every axis through its axis part, the data layer through the one loop of a series
+/// pass hosted by the data layer, which draws its other layers, the marks a
+/// legend keeps clear of, and the opposite edges.</remarks>
+public partial class CartesianAxesRenderer : AxesRenderer
 {
     /// <summary>Initializes a new Cartesian axes renderer.</summary>
     public CartesianAxesRenderer(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
@@ -30,1085 +31,561 @@ public class CartesianAxesRenderer : AxesRenderer
     /// row in their legend.</remarks>
     internal override bool DrawsPatches => true;
 
+    /// <summary>The spine a map's outline is drawn as under a theme that frames maps as cartopy does: the theme's own colour and
+    /// width (cartopy's <c>spines['geo']</c> reads <c>axes.edgecolor</c> and <c>axes.linewidth</c>).</summary>
+    private static readonly SpineConfig MapSpine = new();
+
     /// <summary>The end labels of the axes being rendered; placed by <see cref="Render"/> before the series pass.</summary>
-    private CartesianParts.CartesianDirectLabelsPart? _directLabels;
+    private CartesianDirectLabelsPart? _directLabels;
 
-    /// <summary>The part that draws the primary Y axis, left slot 0 of the container, in this render: built by
-    /// <see cref="Render"/> before the ticks are drawn.</summary>
-    private CartesianParts.CartesianYAxisSlotPart? _primaryYPart;
+    /// <summary>The lines the primary X and Y axes hang their ticks from in this render (the bottom and the left spine wherever they were
+    /// moved to): their titles stand past the tick labels drawn there.</summary>
+    private double _xTitleLine, _yTitleLine;
 
-    /// <summary>The axes, plot area, context and theme every part of this render draws with.</summary>
-    private CartesianParts.CartesianPartContext PartContext => new(Axes, PlotArea, Ctx, Theme);
+    /// <summary>Where the axes of this render stand (<see cref="CartesianAxisPlacement"/>): the ranges, transforms, ticks and
+    /// slot bands the drawing, the measuring and the views read. A value, made on the stack where it is asked for.</summary>
+    private CartesianAxisPlacement Placement => new(Axes, PlotArea, Ctx, Theme, Ranges);
+
+    /// <summary>What every part of this render draws with, through <paramref name="transform"/>.</summary>
+    private CartesianPartContext PartContext(DataTransform transform) => new(Axes, Pass, ColorSlots, transform);
 
     /// <inheritdoc />
     /// <remarks>Draws the series' end label, when it asked for one, inside the series' own group, whatever axis the series
-    /// is plotted against.</remarks>
-    internal override void DrawInsideSeriesGroup(int seriesIndex) => _directLabels!.DrawLabelOf(seriesIndex);
+    /// is plotted against. A series drawn under the axis' labels (<see cref="UnderTheLabelsFirst"/>: a table below the axes) is drawn
+    /// before the end labels are placed, and has none.</remarks>
+    internal override void DrawInsideSeriesGroup(int seriesIndex) => _directLabels?.DrawLabelOf(seriesIndex);
 
     /// <inheritdoc />
-    /// <remarks>Through the part that draws every Y axis (<see cref="CartesianParts.CartesianYAxisSlotPart"/>), past the
-    /// widest tick label it drew.</remarks>
-    private protected override void RenderYAxisTitle() => _primaryYPart!.RenderTitle(MeasuredYTickMaxWidth);
+    /// <remarks>The bottom spine wherever it was moved to (<see cref="PlacedAxis.EdgeLine"/>), so the title stands below the tick labels
+    /// a moved spine took along, as matplotlib places its X label.</remarks>
+    private protected override double XTitleLine => _xTitleLine;
 
-    /// <summary>The band the mirrored Y tick labels took past the right spine in this render; 0 when none were drawn.
-    /// The end labels start past it.</summary>
+    /// <inheritdoc />
+    /// <remarks>The left spine wherever it was moved to (<see cref="PlacedAxis.EdgeLine"/>).</remarks>
+    private protected override double YTitleLine => _yTitleLine;
+
+    /// <summary>What the mirrored Y tick labels reach past the plot's right edge in this render, hung from the right spine wherever it
+    /// stands; 0 when none were drawn. The end labels start past it.</summary>
     private double _mirroredYTickBand;
 
-    /// <summary>Whether any right-side slot is drawn (<see cref="YAxisSlot.IsDrawn"/>: it has series or is linked). A drawn
-    /// secondary axis owns the right edge.</summary>
-    private bool DrawsSecondaryY => Axes.YAxes.Right.Any(s => s.IsDrawn);
+    /// <summary>Every Y axis slot this render placed, the primary first; <see langword="null"/> before the slots are placed.</summary>
+    private List<PlacedAxis>? _placedSlots;
 
-    /// <summary>Whether the top X axis is drawn: it has series, or it is linked to the primary X axis (<see cref="Axis.Link"/>),
-    /// when it draws the primary's range in its own unit without any. A top axis with neither is placed nowhere and draws
-    /// nothing. A drawn secondary axis owns the top edge.</summary>
-    private bool DrawsSecondaryX => Axes.SecondaryXAxis is { } top && (Axes.XSecondarySeries.Count > 0 || top.Link is not null);
+    /// <inheritdoc />
+    /// <remarks>The right slots as this render placed them, stacked, or the mirrored Y tick labels, then the end labels by the rule the
+    /// layout reserves them with (<see cref="Layout.AxesEdgeNeeds.MeasureRightBand"/>): <see cref="Layout.RightBand.Placed"/>.
+    /// Before a render the slots are placed and the mirrored labels measured as the render will place and draw them
+    /// (<see cref="MeasureSideBands"/>), for the figure's bar, which stands past the last column.</remarks>
+    internal override double PastRightSpine()
+    {
+        List<PlacedAxis> slots;
+        double mirrored;
+        if (_placedSlots is { } drawn)
+        {
+            slots = drawn;
+            mirrored = _mirroredYTickBand;
+        }
+        else
+        {
+            var placement = Placement;
+            var range = placement.ComputeDataRanges();
+            slots = placement.PlaceYSlots(placement.PlacePrimary(range, placement.PrimaryView(range)));
+            mirrored = SpineInsetsAt(PlotArea).PastRight(MeasureSideBands().Right);
+        }
 
-    /// <summary>Whether the primary X ticks are mirrored on the top edge: asked for, and no drawn secondary X axis owns
-    /// that edge (matplotlib's <c>twiny</c> moves the host's ticks to the bottom the same way).</summary>
-    private bool MirrorsXTicks => Axes.XAxis.MajorTicks.Mirror && !DrawsSecondaryX;
-
-    /// <summary>Whether the primary Y ticks are mirrored on the right edge: asked for, and no drawn secondary Y axis owns
-    /// that edge (matplotlib's <c>twinx</c> moves the host's ticks to the left the same way).</summary>
-    private bool MirrorsYTicks => Axes.YAxis.MajorTicks.Mirror && !DrawsSecondaryY;
+        return Layout.RightBand.Placed(Axes, Theme, slots, mirrored, new Layout.DirectLabelMetrics(Axes, Theme, Ctx).Band()).Past;
+    }
 
     /// <summary>Whether every series fills the plot without Cartesian axes (<see cref="ChartSeries.DrawsWithoutAxes"/>: a
-    /// radar, a pie, a treemap, a table, a stat tile): then no grid, ticks or frame are drawn. A series the library does not
-    /// know says nothing, so it keeps its axes.</summary>
-    private bool IsAxisLess => Axes.Series.Count > 0 && Axes.Series.All(s => s is ChartSeries { DrawsWithoutAxes: true });
+    /// radar, a pie, a treemap, a table in the plot, a stat tile): then no grid, ticks or frame are drawn. A series that stands outside
+    /// the plot under the theme (<see cref="ChartSeries.StandsOutsideThePlot"/>: a table below the axes) leaves the plot to its axes, and a
+    /// series the library does not know says nothing, so both keep the axes.</summary>
+    private bool IsAxisLess
+    {
+        get
+        {
+            var all = Axes.Series;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i] is not ChartSeries { DrawsWithoutAxes: true } series || series.StandsOutsideThePlot(Theme)) return false;
+            return all.Count > 0;
+        }
+    }
 
     /// <inheritdoc />
-    /// <remarks>Measured with what <see cref="Render"/> draws them with: the same predicates, tick sources and values
-    /// (the Y ticks for this renderer's plot height), formatter, label font and band rule
-    /// (<see cref="AxisTickExtensions.TickLabelBand"/>). The left band is the primary Y axis' tick labels as the drawing
-    /// places them, numbers and category names alike, so the layout reserves for the primary, left slot 0 of the
-    /// container, the band it draws; the mirrored right band is the same labels past the right spine. Nothing is measured
-    /// for axis-less series.</remarks>
+    /// <remarks>Measured with what <see cref="Render"/> draws them with: the same edges (<see cref="CartesianEdges"/>), tick sources and
+    /// values (the Y ticks for this renderer's plot height), formatter, label font and band rule (<see cref="TickConfig.TickLabelBand"/>).
+    /// The left band is the primary Y axis' tick labels as the drawing places them, numbers and category names alike, so the layout
+    /// reserves for the primary, left slot 0 of the container, the band it draws; the mirrored right band is the same labels past the
+    /// right spine. Nothing is measured for axis-less series.</remarks>
     internal override Layout.EdgeBands MeasureSideBands()
     {
-        var yMajor = Axes.YAxis.MajorTicks;
+        var yMajor = Axes.YAxis.MajorTicksUnder(Theme);
         if (IsAxisLess || !yMajor.Visible) return default;
-        var range = ComputeDataRanges();
-        var primary = PlacePrimary(range, ViewTransform(range, Axes.YAxis, Axes.YBreaks));
-        double left = yMajor.TickLabelBand(Ctx.MeasureAxisTicks(primary.Ticks, yMajor, primary.TickDraw(Theme)));
-        return new Layout.EdgeBands(0, MirrorsYTicks ? left : 0, left, 0);
+        var placement = Placement;
+        var range = placement.ComputeDataRanges();
+        var primary = placement.PlacePrimary(range, placement.PrimaryView(range));
+        double band = yMajor.TickLabelBand(Ctx.MeasureAxisTicks(primary.Run, yMajor, primary.TickDraw(Theme, Axes.Spines)));
+        // The left band holds the labels only where the axis labels its own side (TickConfig.LabelsOnOwnSide); the mirrored band always.
+        return new Layout.EdgeBands(0, CartesianEdges.Of(Axes, Theme).Y.Majors.DrawsLabels ? band : 0, yMajor.LabelsOnOwnSide ? band : 0, 0);
     }
 
     /// <inheritdoc />
-    /// <remarks>Measured with what <see cref="Render"/> draws them with: the same predicates, tick sources and values
-    /// (the X ticks for this renderer's plot width), formatter, label font, rotation and band rule
-    /// (<see cref="AxisTickExtensions.TickLabelBand"/>). The X tick labels turn when the drawing turns them
-    /// (<see cref="PrimaryXDraw"/>: their own rotation, or 30 degrees when upright labels would collide at this plot's
-    /// width), so the layout hands this renderer the width the plot is drawn at before it reads these bands. An upright
-    /// tick label's height depends on its font only, so upright numbers and dates, and the upright mirrored top band, are
+    /// <remarks>Measured with what <see cref="Render"/> draws them with: the same edges, tick sources and values (the X ticks for this
+    /// renderer's plot width), formatter, label font, rotation and band rule (<see cref="TickConfig.TickLabelBand"/>). The X tick labels
+    /// turn when the drawing turns them (<see cref="CartesianAxisPart.TurnedToFit"/>: their own rotation, or 30 degrees when upright labels
+    /// would collide at this plot's width), so the layout hands this renderer the width the plot is drawn at before it reads these bands.
+    /// An upright tick label's height depends on its font only, so upright numbers and dates, and the upright mirrored top band, are
     /// measured on one label; category names and turned labels over the labels the drawing places, turned as drawn
-    /// (<see cref="AxisTickExtensions.LabelExtent"/>). A drawn secondary X axis owns the top edge, so the top band is then
-    /// its band (<see cref="CartesianParts.CartesianSecondaryXAxisPart.MeasureBand"/>), placed by <see cref="PlaceTopAxis"/> as
-    /// the drawing places it (its ticks, a linked one's included, depend on this plot's width), which it draws whatever the
-    /// series. The bottom band is measured for every X axis that draws tick labels; the X axis title below them is measured by
-    /// the rule <see cref="AxesRenderer.RenderAxisLabels"/> places it by (<see cref="AxisTickExtensions.BottomAxisTitleExtent"/>),
-    /// at its fixed offset when no tick label is drawn, axis-less series included.</remarks>
-    internal override Layout.EdgeBands MeasureEndBands()
+    /// (<see cref="TickDrawContext.LabelExtent"/>). A drawn top X axis owns the top edge, so the top band is then its band
+    /// (<see cref="AxesTitleExtensions"/>' <c>TopBand</c>), placed by <see cref="CartesianAxisPlacement.PlaceDrawnTopAxis"/> as the
+    /// drawing places it. The bottom band is measured for every X axis that draws tick labels; the X axis title below them is measured by
+    /// the rule <see cref="AxesRenderer.RenderAxisLabels"/> places it by (<see cref="AxesTitleExtensions"/>' <c>BottomTitleExtent</c>), at
+    /// its fixed offset when no tick label is drawn, axis-less series included. The linked X axes below the plot are measured below all
+    /// of that as they are stacked (<see cref="CartesianAxisPlacement.PlaceBottomAxes"/>).</remarks>
+    internal override Layout.EdgeBands MeasureEndBands(SpineInsets insets)
     {
-        double secondaryTop = DrawsSecondaryX
-            ? CartesianParts.CartesianSecondaryXAxisPart.MeasureBand(Axes, Ctx, Theme, PlaceTopAxis(ComputeDataRanges()))
+        var xMajor = Axes.XAxis.MajorTicksUnder(Theme);
+        var placement = Placement;
+        bool axisLess = IsAxisLess;
+        bool drawsBottomAxes = Axes.YAxes.BottomCount > 0;
+        bool drawsXLabels = xMajor.Visible && !axisLess;
+        // The range is read once, when anything measured here stands on it: the top axis, the bottom axes, or the X tick labels.
+        var range = Axes.DrawnSecondaryXAxis is not null || drawsBottomAxes || drawsXLabels ? placement.ComputeDataRanges() : default;
+        double top = placement.PlaceDrawnTopAxis(range) is { } topAxis
+            ? topAxis.Axis.TopBand(Axes.TitleOf(topAxis.Axis, Theme), Ctx, Theme, topAxis.OwnSideLabelReach(Ctx, Theme, Axes.Spines))
             : 0;
-        if (IsAxisLess) return new Layout.EdgeBands(secondaryTop, 0, 0, 0, MeasureBottomTitle(0));
-        var xMajor = Axes.XAxis.MajorTicks;
-        double top = secondaryTop, tallestX = 0;
+        double tallestX = 0;
         var overhang = default(Layout.SideOverhang);
-        if (xMajor.Visible)
+        if (drawsXLabels)
         {
-            // The X tick labels as the drawing places them: the same ticks, and turned when the drawing turns them, which
-            // the plot's width decides (PrimaryXDraw). Upright, a number's or a date's height is its font's, so it is
-            // measured on one label; category names and turned labels are measured over the labels drawn.
-            var range = ComputeDataRanges();
-            var xSource = Axes.PrimaryTickSource(isX: true);
-            var xTicks = PrimaryTicks(range, xSource, isX: true);
-            var view = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
-            var xDraw = PrimaryXDraw(xTicks, xSource, view, range.YMin);
-            bool uprightNumbers = xDraw.LabelRotation == 0 && !xSource.NamesCategories;
-            double xLabelHeight = Ctx.MeasureText("0", xMajor.LabelFont(xDraw.BaseFont)).Height;
-            tallestX = uprightNumbers ? xLabelHeight : Ctx.MeasureAxisTicks(xTicks, xMajor, xDraw);
-            if (MirrorsXTicks)
-                top = xMajor.TickLabelBand(xDraw.LabelRotation == 0
-                    ? xLabelHeight
-                    : Ctx.MeasureAxisTicks(xTicks, xMajor, MirroredXDraw(xDraw, view)));
+            // The X tick labels as the drawing places them: the same ticks, and turned when the drawing turns them, which the plot's
+            // width decides. Upright, a number's or a date's height is its font's, so it is measured on one label; category names and
+            // turned labels are measured over the labels drawn.
+            var xPlaced = placement.PlacePrimaryX(range, placement.PrimaryView(range));
+            var xRun = xPlaced.Run;
+            var xDraw = CartesianAxisPart.TurnedToFit(Ctx, xPlaced, Theme, Axes.Spines);
+            var mirrored = CartesianEdges.Of(Axes, Theme).X.Majors.DrawsLabels ? xPlaced.OppositeDraw(xDraw, PlotArea, Axes.Spines, Theme) : (TickDrawContext?)null;
+            // Upright, every number is a label's height high, at the major mark and pad; a label is drawn only where the plot holds its
+            // tick. A labelled minor tick stands its label nearer (TickDrawContext.MinorNamed), so such labels are measured as drawn.
+            bool uprightSameReach = xDraw.LabelRotation == 0 && xDraw.MinorNamed is null;
+            bool uprightNumbers = uprightSameReach && !xPlaced.Source.NamesCategories;
+            double xLabelHeight = xRun.HoldsAny() ? Ctx.LineExtentOf(xDraw.LabelFont(xMajor)).Height : 0;
+            // No band below the plot for labels the axis does not draw on its own side (TickConfig.LabelsOnOwnSide).
+            tallestX = !xMajor.LabelsOnOwnSide ? 0 : uprightNumbers ? xLabelHeight : Ctx.MeasureAxisTicks(xRun, xMajor, xDraw);
+            if (mirrored is { } mirror)
+                top = xMajor.TickLabelBand(uprightSameReach ? xLabelHeight : Ctx.MeasureAxisTicks(xRun, xMajor, mirror));
 
             // How far the first and the last label stand out sideways past the plot, at the rotation they are drawn at.
-            double fontSize = xMajor.LabelFont(xDraw.BaseFont).Size;
-            overhang = OverhangOf(xTicks, xDraw, view, range.YMin, fontSize);
-            if (MirrorsXTicks)
+            overhang = xMajor.LabelsOnOwnSide ? CartesianAxisPart.OverhangOf(xRun, xDraw, PlotArea) : default;
+            if (mirrored is { } mirror2)
             {
-                var mirrored = OverhangOf(xTicks, MirroredXDraw(xDraw, view), view, range.YMin, fontSize);
-                overhang = new Layout.SideOverhang(Math.Max(overhang.Left, mirrored.Left), Math.Max(overhang.Right, mirrored.Right));
+                var past = CartesianAxisPart.OverhangOf(xRun, mirror2, PlotArea);
+                overhang = new Layout.SideOverhang(Math.Max(overhang.Left, past.Left), Math.Max(overhang.Right, past.Right));
             }
         }
-        return new Layout.EdgeBands(top, 0, 0, xMajor.TickLabelBand(tallestX), MeasureBottomTitle(tallestX), overhang);
+        // No tick label is drawn for axis-less series: the title alone, at its fixed place.
+        var below = Axes.XAxis.BandsBelow(Axes.TitleOf(Axes.XAxis, Theme), Ctx, Theme, tallestX);
+        // The linked X axes below the plot stand past what the primary draws past the plot's edge, its spine wherever it stands.
+        double pastEdge = insets.PastBottom(below.Extent);
+        return new Layout.EdgeBands(top, 0, 0, below.TickLabels, below.Title, overhang,
+            drawsBottomAxes ? BottomAxesExtent(placement.PlaceBottomAxes(range, pastEdge), pastEdge) : 0, insets);
     }
 
-    /// <summary>How far the labels of <paramref name="draw"/> stand out past the left and the right edge of the plot area: for
-    /// each tick, how far its label reaches before and after its anchor (<see cref="AxisTickExtensions.Reach"/>) less the
-    /// room between its anchor and that edge, the largest of them; 0 when every label lies within the plot's width.</summary>
-    /// <param name="xTicks">The X tick values.</param>
-    /// <param name="draw">How the labels are drawn: their rotation, alignment and the sizes already measured.</param>
-    /// <param name="transform">The transform the ticks are placed with.</param>
-    /// <param name="yMin">The data value on the Y axis the ticks are mapped at.</param>
-    /// <param name="fontSize">The labels' font size.</param>
-    private Layout.SideOverhang OverhangOf(double[] xTicks, TickDrawContext draw, DataTransform transform, double yMin, double fontSize)
+    /// <summary>From the plot's bottom edge to the far side of the lowest linked X axis below the plot, as <paramref name="stack"/> stands
+    /// them, or what the primary X axis draws past that edge when that is lower.</summary>
+    private static double BottomAxesExtent(PlacedAxis[] stack, double primaryPastEdge)
     {
-        double left = 0, right = 0;
-        var sizes = draw.LabelSizes;
-        for (int i = 0; i < xTicks.Length && sizes is not null && i < sizes.Count; i++)
-        {
-            double x = transform.DataToPixel(xTicks[i], yMin).X;
-            if (!x.IsDrawable()) continue;
-            var reach = draw.Reach(sizes[i], fontSize);
-            left = Math.Max(left, reach.Before - (x - PlotArea.X));
-            right = Math.Max(right, reach.After - (PlotArea.X + PlotArea.Width - x));
-        }
-        return new Layout.SideOverhang(left, right);
+        double lowest = primaryPastEdge;
+        foreach (var axis in stack) lowest = Math.Max(lowest, axis.Offset + axis.Band);
+        return lowest;
     }
 
-    /// <summary>From the bottom spine to the far side of the X axis title, as <see cref="AxesRenderer.RenderAxisLabels"/>
-    /// draws it below tick labels <paramref name="tallestTickLabel"/> high: in its own style, past its style's pad
-    /// (<see cref="AxisTickExtensions.BottomAxisTitleExtent"/>); 0 when the X axis has no title.</summary>
-    private double MeasureBottomTitle(double tallestTickLabel)
+    /// <summary>Says once a draw that a primary axis carries a link (<see cref="Axis.Link"/>), which it cannot draw: a primary axis
+    /// has nothing to link to, so the link changes nothing in the picture.</summary>
+    private void ReportPrimaryLinks()
     {
-        if (Axes.XAxis.Label is not { } label) return 0;
-        var font = Axes.XAxis.LabelStyle?.ApplyTo(LabelFont()) ?? LabelFont();
-        return Axes.XAxis.MajorTicks.BottomAxisTitleExtent(tallestTickLabel, font.Size, Ctx.MeasureText(label, font).Height,
-            Axes.XAxis.LabelStyle?.Pad ?? 0);
+        if (Axes.XAxis.Link is not null) Emit("X");
+        if (Axes.YAxis.Link is not null) Emit("Y");
+
+        static void Emit(string axis) => Diagnostics.ChartDiagnostics.Emit(new Diagnostics.ChartDiagnostic(nameof(CartesianAxesRenderer),
+            $"The primary {axis} axis carries a link, which it does not draw: a link belongs to an axis that shows the primary's range in other units (the top X axis, a Y axis stacked past the primary, a linked X axis below the plot).", null));
     }
 
-    /// <summary>Installs the locator and formatter the axis' scale brings when the axis has no locator; the axis'
-    /// own formatter is kept.</summary>
-    private static void InstallScaleTicks(Axis axis, bool isX)
+    /// <summary>The outline of a map as a polygon: cut by the plot when a zoom has made it reach beyond it (the outline of a map at its
+    /// own limits stands inside the plot and needs no cut).</summary>
+    private void DrawMapOutline(IReadOnlyList<Point> outline, ShapeStyle style)
     {
-        if (axis.TickLocator is not null) return;
-        axis.TickLocator = axis.ScaleLocator(isX);
-        axis.TickFormatter ??= axis.TickLocator.ScaleFormatter();
+        using var clip = ReachesPastThePlot(outline) ? Ctx.ClippedTo(PlotArea) : default;
+        Ctx.DrawPolygon(outline, style);
     }
 
-    /// <summary>The primary tick values of the X axis (<paramref name="isX"/>) or the Y axis the axes draws for
-    /// <paramref name="range"/>: placed by the locator of <paramref name="source"/>, otherwise by the default placement
-    /// for this renderer's plot width or height; ticks inside a break of that axis are left out (they would stand in empty
-    /// space or on the break marker).</summary>
-    private double[] PrimaryTicks(DataRange range, TickSource source, bool isX)
+    /// <summary>Whether a map's outline reaches past the plot (a zoom moved it there).</summary>
+    private bool ReachesPastThePlot(IReadOnlyList<Point> outline) =>
+        outline.Any(point => point.X < PlotArea.X - 1e-6 || point.X > PlotArea.Right + 1e-6
+            || point.Y < PlotArea.Y - 1e-6 || point.Y > PlotArea.Bottom + 1e-6);
+
+    /// <summary>The outline inside the plot area the marks of the primary series are cut off at: the outline of a map that stands inside
+    /// it, which is the axes' patch cartopy clips every artist of a map to; <see langword="null"/> for the plot area alone (no map, or a map
+    /// zoomed past the plot, which is cut off at the plot). A Y axis stacked past the primary and the top X axis cut their marks off at the
+    /// plot area, their own patch, as matplotlib's twin axes clip to their own rectangle.</summary>
+    private IReadOnlyList<PathSegment>? MarksOutline(IReadOnlyList<Point>? mapOutline)
     {
-        var axis = isX ? Axes.XAxis : Axes.YAxis;
-        double from = isX ? range.XMin : range.YMin, to = isX ? range.XMax : range.YMax;
-        var ticks = source.Locator is { } locator
-            ? locator.LocateInterval(from, to)
-            : ComputeTickValues(from, to, axis, isX ? PlotArea.Width : PlotArea.Height);
-        var breaks = isX ? Axes.XBreaks : Axes.YBreaks;
-        return breaks.Count > 0
-            ? ticks.Where(t => !AxisBreakMapper.IsInBreak(breaks, t)).ToArray()
-            : ticks;
+        if (mapOutline is not { Count: > 2 } outline || ReachesPastThePlot(outline)) return null;
+        var path = new PathSegment[outline.Count + 1];
+        path[0] = new MoveToSegment(outline[0]);
+        for (int i = 1; i < outline.Count; i++) path[i] = new LineToSegment(outline[i]);
+        path[^1] = new CloseSegment();
+        return path;
     }
-
-    /// <summary>How the primary X ticks are drawn under the bottom spine, at the rotation they are drawn at
-    /// (<see cref="XLabelRotation"/>: the axis' own, or 30 degrees when upright labels would run into each other at this
-    /// renderer's plot width): the one context the drawing (<see cref="RenderTicks"/>) and the measuring
-    /// (<see cref="MeasureEndBands"/>) share, so the band reserved is the band drawn. A turned label hangs from its end.</summary>
-    /// <param name="xTicks">The X tick values.</param>
-    /// <param name="source">Where the ticks come from and how they read.</param>
-    /// <param name="transform">The transform the ticks are placed with: how far apart the labels stand.</param>
-    /// <param name="yMin">The data value on the Y axis the ticks are mapped at.</param>
-    private TickDrawContext PrimaryXDraw(double[] xTicks, TickSource source, DataTransform transform, double yMin)
-    {
-        var context = new TickDrawContext
-        {
-            Side          = TickSide.Bottom,
-            AxisEdge      = Axes.Spines.Bottom.HorizontalY(PlotArea, PlotArea.Y + PlotArea.Height, transform),
-            SpineHalf     = Axes.Spines.Bottom.LineWidth / 2.0,
-            BaseFont      = TickFont(),
-            Formatter     = source.Formatter,
-            UniformFormat = BuildUniformTickFormatter(xTicks),
-            Foreground    = Theme.ForegroundText,
-        };
-        // The labels are measured once, here, where their widths decide the rotation; the drawing and the measuring of the
-        // band read the same sizes from the context.
-        var font = Axes.XAxis.MajorTicks.LabelFont(context.BaseFont);
-        var sizes = Array.ConvertAll(xTicks, tick => Ctx.MeasureText(context.LabelText(tick), font));
-        double rotation = XLabelRotation(xTicks, sizes, transform, yMin);
-        return context with
-        {
-            LabelRotation = rotation,
-            Alignment     = rotation == 0 ? TextAlignment.Center : TextAlignment.Right,
-            LabelSizes    = sizes,
-        };
-    }
-
-    /// <summary>The primary X ticks mirrored on the top spine: the same ticks and rotation as <paramref name="bottom"/>,
-    /// labels above the edge; a turned label hangs from its start, so it rises away from the axis (the point reflection of
-    /// the bottom label). The drawing and the measuring share it.</summary>
-    private TickDrawContext MirroredXDraw(TickDrawContext bottom, DataTransform transform) => bottom with
-    {
-        Side      = TickSide.Top,
-        AxisEdge  = Axes.Spines.Top.HorizontalY(PlotArea, PlotArea.Y, transform),
-        SpineHalf = Axes.Spines.Top.LineWidth / 2.0,
-        Alignment = bottom.LabelRotation == 0 ? TextAlignment.Center : TextAlignment.Left,
-    };
-
-    /// <summary>The primary Y axis, left slot 0 of the container, as this renderer places it over <paramref name="range"/>:
-    /// the axes' own range and <paramref name="transform"/>, the ticks its grid is drawn through (<see cref="PrimaryTicks"/>)
-    /// and their source. The drawing and the measuring (<see cref="MeasureSideBands"/>) read its ticks by the one context
-    /// (<see cref="PlacedYSlot.TickDraw"/>), so the band reserved is the band drawn.</summary>
-    /// <param name="range">The axes' range (<see cref="ComputeDataRanges"/>).</param>
-    /// <param name="transform">The transform the primary series are drawn with.</param>
-    /// <returns>The placed primary, at offset 0 and with no band yet: its band is known once its tick labels are drawn.</returns>
-    private PlacedYSlot PlacePrimary(DataRange range, DataTransform transform)
-    {
-        var source = Axes.PrimaryTickSource(isX: false);
-        return new PlacedYSlot
-        {
-            Slot = Axes.YAxes.Left[0],
-            Range = range,
-            Transform = transform,
-            Ticks = PrimaryTicks(range, source, isX: false),
-            Source = source,
-            Pair = SeriesAxisPair.Primary,
-        };
-    }
-
-    /// <summary>The ONE place a Y axis slot past the primary is placed over the primary's X extent
-    /// <paramref name="x"/>: its own range (<see cref="ComputeSecondaryDataRanges(double,double,Axis,IReadOnlyList{ISeries})"/>),
-    /// the transform its series and ticks are drawn with (<see cref="ViewTransform"/>, the rule the primary's is built by:
-    /// through the slot's own scale and symlog threshold, beside the primary X axis' scale and breaks) and the ticks it places
-    /// with their source (<see cref="AxesTickSourceExtensions"/>' <c>SlotTickSource</c>: its locator, or its scale's). The render, the layout's reserve
-    /// (<c>ConstrainedLayoutEngine</c>) and the interaction views (<see cref="ComputeSecondaryViewTransforms"/>) all place a
-    /// slot here, so none of them works its range or transform out a second way.</summary>
-    /// <remarks>A linked slot (<see cref="YAxisSlot.IsLinked"/>) has no range of its own and is placed by
-    /// <see cref="PlaceLinkedSlot"/>; <paramref name="x"/> is then not read.</remarks>
-    /// <param name="slot">The slot.</param>
-    /// <param name="x">The X extent the slot shares with the primary.</param>
-    /// <returns>The slot with its range, transform and ticks; its identity, band and offset are the caller's to add.</returns>
-    internal PlacedYSlot PlaceSlot(YAxisSlot slot, MinMaxRange x)
-    {
-        if (slot.Axis.Link is { } link) return PlaceLinkedSlot(slot, link);
-        var range = ComputeSecondaryDataRanges(x.Min, x.Max, slot.Axis, slot.Series);
-        return new PlacedYSlot
-        {
-            Slot = slot,
-            Range = range,
-            Transform = ViewTransform(range, slot.Axis, []),
-            Ticks = slot.Axis.SlotTickValues(range, PlotArea.Height),
-            Source = slot.Axis.SlotTickSource(),
-        };
-    }
-
-    /// <summary>A slot linked to the primary Y axis (<see cref="Axis.Link"/>, matplotlib's <c>secondary_yaxis</c>) placed: on
-    /// the primary's range and transform (<see cref="ComputeDataRanges"/>, <see cref="ViewTransform"/>), with no range of its
-    /// own, its ticks laid out by the one rule of a linked axis (<see cref="LayOutLinkedTicks"/>), the rule the linked top axis
-    /// follows too.</summary>
-    /// <param name="slot">The linked slot.</param>
-    /// <param name="link">Its link.</param>
-    /// <returns>The slot placed; its identity, band and offset are the caller's to add.</returns>
-    private PlacedYSlot PlaceLinkedSlot(YAxisSlot slot, AxisTransform link)
-    {
-        var range = ComputeDataRanges();
-        var transform = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
-        var linked = LayOutLinkedTicks(slot.Axis, link, transform, isX: false);
-        return new PlacedYSlot
-        {
-            Slot = slot,
-            Range = range,
-            Transform = transform,
-            Placement = linked.Placement,
-            Ticks = linked.Ticks,
-            Source = linked.Source,
-            Diagnostic = linked.Diagnostic,
-        };
-    }
-
-    /// <summary>The ONE place the top X axis is placed, for the primary's range <paramref name="primary"/>
-    /// (<see cref="ComputeDataRanges"/>). The drawing (<see cref="Render"/>), the band the layout reserves for it
-    /// (<see cref="MeasureEndBands"/>) and the marks a legend keeps clear of (<see cref="LegendObstacles"/>) all place it here,
-    /// so none of them works its range, transform or ticks out a second way.
-    /// <para>A top axis linked to the primary X axis (<see cref="Axis.Link"/>, matplotlib's <c>secondary_xaxis</c>) has no range
-    /// of its own: it takes <paramref name="primary"/> and the primary's transform, and its ticks are laid out by the one rule of
-    /// a linked axis (<see cref="LayOutLinkedTicks"/>), the rule a linked Y slot follows. Any other top axis is placed over its
-    /// own range (<see cref="ComputeSecondaryXDataRanges"/>), through its own scale (a log top axis draws its series and its
-    /// ticks on its log scale), with its ticks by its own locator, else the one its scale brings, else its tick spacing, else the
-    /// default placement at full density: the eight intervals a top axis that sets none of these has always drawn, whatever the
-    /// plot's width (<see cref="AxesTickSourceExtensions"/>' <c>OwnTickSource</c> and <c>TickValuesBetween</c>).</para></summary>
-    /// <remarks>The Y of a top axis with a range of its own is the primary's: the same range through the primary's Y scale and
-    /// breaks (matplotlib's <c>twiny</c> shares the Y axis), so a value stands at the height the primary gives it on a log, symlog
-    /// or broken Y axis.</remarks>
-    /// <param name="primary">The primary axes' range: a linked top axis shows its X range, and a top axis with a range of its own
-    /// shares its Y range.</param>
-    /// <returns>The top axis placed.</returns>
-    internal PlacedTopAxis PlaceTopAxis(DataRange primary)
-    {
-        var top = Axes.SecondaryXAxis!;
-        if (top.Link is { } link)
-        {
-            var view = ViewTransform(primary, Axes.YAxis, Axes.YBreaks);
-            var linked = LayOutLinkedTicks(top, link, view, isX: true);
-            return new PlacedTopAxis
-            {
-                Range = primary,
-                Transform = view,
-                Placement = linked.Placement,
-                Ticks = linked.Ticks,
-                Source = linked.Source,
-                Diagnostic = linked.Diagnostic,
-            };
-        }
-
-        var range = ComputeSecondaryXDataRanges(primary.YMin, primary.YMax);
-        var source = top.OwnTickSource(isX: true);
-        return new PlacedTopAxis
-        {
-            Range = range,
-            Transform = TransformOf(range, AxisMapping.Of(top, []), AxisMapping.Of(Axes.YAxis, Axes.YBreaks)),
-            Ticks = top.TickValuesBetween(source, new Range1D(range.XMin, range.XMax), FullTickDensityLength),
-            Source = source,
-        };
-    }
-
-    /// <summary>The ONE rule a linked axis lays its ticks out by, the top X axis (<paramref name="isX"/>) and a Y slot past the
-    /// primary alike: over the image, in the linked unit, of the range the primary shows that way (the drawn range of
-    /// <paramref name="primary"/>), low to high whichever way the link runs (<see cref="AxisTransform.ImageOf"/>), from the
-    /// axis' tick source (<see cref="AxesTickSourceExtensions"/>' <c>LinkedTickSource</c>: its own locator, the log locator on a
-    /// log primary, as matplotlib's <c>functionlog</c> scale, otherwise its spacing or the default placement for the plot's
-    /// length that way). Each tick stands where the primary shows the value it maps back to (<see cref="LinkedTickPlacement"/>),
-    /// and one the primary cannot place (inside a break, or where the link has no inverse) is left out. When the link cannot
-    /// place the primary's range there are no ticks, and the diagnostic the drawing reports says why.</summary>
-    /// <param name="axis">The linked axis: its locator, spacing and formatter.</param>
-    /// <param name="link">Its link.</param>
-    /// <param name="primary">The primary's transform, over the primary's range.</param>
-    /// <param name="isX">The top X axis when <see langword="true"/>, a Y slot past the primary otherwise.</param>
-    /// <returns>Where the ticks stand, the ticks, their source and, when the link cannot place the range, the diagnostic.</returns>
-    private LinkedTicks LayOutLinkedTicks(Axis axis, AxisTransform link, DataTransform primary, bool isX)
-    {
-        var drawn = primary.DrawnRange;
-        var placement = isX ? LinkedTickPlacement.AlongX(primary, link) : LinkedTickPlacement.AlongY(primary, link);
-        var source = axis.LinkedTickSource((isX ? Axes.XAxis : Axes.YAxis).Scale);
-        var shown = isX ? new Range1D(drawn.XMin, drawn.XMax) : new Range1D(drawn.YMin, drawn.YMax);
-        if (link.ImageOf(shown) is not { } image)
-            return new LinkedTicks(placement, [], source, UnplacedLinkDiagnostic(isX ? "top X" : "Y", shown));
-
-        double[] ticks = [.. axis.TickValuesBetween(source, image.Interval, isX ? PlotArea.Width : PlotArea.Height)
-            .Where(tick => (isX ? placement.DataToPixel(tick, drawn.YMin).X : placement.DataToPixel(drawn.XMin, tick).Y).IsDrawable())];
-        return new LinkedTicks(placement, ticks, source, null);
-    }
-
-    /// <summary>The ticks of a linked axis as one render lays them out (<see cref="LayOutLinkedTicks"/>).</summary>
-    /// <param name="Placement">Where a tick of a given value stands: where the primary shows the value it maps back to.</param>
-    /// <param name="Ticks">The tick values, in the linked unit; none when the link cannot place the primary's range.</param>
-    /// <param name="Source">Where the ticks come from and how their labels are written.</param>
-    /// <param name="Diagnostic">Why there are no ticks, when the link cannot place the primary's range; otherwise
-    /// <see langword="null"/>.</param>
-    private readonly record struct LinkedTicks(LinkedTickPlacement Placement, double[] Ticks, TickSource Source,
-        Diagnostics.ChartDiagnostic? Diagnostic);
-
-    /// <summary>What a linked axis reports when its link cannot place the primary's range <paramref name="shown"/>.</summary>
-    /// <param name="axis">Which axis it is, as the message names it: "Y" or "top X".</param>
-    /// <param name="shown">The range the primary shows along that axis.</param>
-    private static Diagnostics.ChartDiagnostic UnplacedLinkDiagnostic(string axis, Range1D shown) => new(nameof(CartesianAxesRenderer),
-        string.Create(System.Globalization.CultureInfo.InvariantCulture,
-            $"A linked {axis} axis draws no ticks: its transform cannot show the primary range {shown.Lo}..{shown.Hi} (a reciprocal across 0, a logarithm or a power reaching below 0, or a function that is no number at an end or maps both ends to one value)."),
-        null);
-
-    /// <summary>From a placed slot's edge to the far side of what it draws, as its part draws it: its tick labels measured
-    /// in the context its part draws them with (<see cref="PlacedYSlot.TickDraw"/>), then its title by the one band rule
-    /// (<see cref="YAxisTitleExtensions"/>) with the container's gap. The layout reserves every slot by this band and the
-    /// render stacks the slots by it.</summary>
-    /// <param name="placed">The slot as placed (<see cref="PlaceSlot"/>).</param>
-    /// <returns>The slot's band, in pixels.</returns>
-    internal double SlotBand(PlacedYSlot placed)
-    {
-        var axis = placed.Slot.Axis;
-        double widest = Ctx.MeasureAxisTicks(placed.Ticks, axis.MajorTicks, placed.TickDraw(Theme));
-        return axis.YTitleExtent(new YAxisTitleInput(axis.MajorTicks.TickLabelBand(widest), placed.Slot.Side,
-            Axes.YAxes.TitleGap, LabelFont())).Band;
-    }
-
-    /// <summary>Places every Y axis slot of the container for this render, once each, in identity order
-    /// (<see cref="SeriesSlotExtensions.YSlotSeats"/>): the primary as it was drawn (<paramref name="primary"/>, its band
-    /// that of the tick labels it drew), then every slot past it, each with its range, transform and ticks
-    /// (<see cref="PlaceSlot"/>), the place its series hold in the identity order, its band (<see cref="SlotBand"/>) and its
-    /// offset: each side stacked once, nearest the plot first, with the container's gap between each pair
-    /// (<see cref="Layout.AxisStackingExtensions.StackedOffsets"/>), the rule the layout reserves the sides by.</summary>
-    /// <param name="primary">The primary Y axis as placed and drawn.</param>
-    /// <returns>Every slot placed, the primary first.</returns>
-    private List<PlacedYSlot> PlaceYSlots(PlacedYSlot primary)
-    {
-        var x = new MinMaxRange(primary.Range.XMin, primary.Range.XMax);
-        var placed = new List<PlacedYSlot> { primary };
-        foreach (var seat in Axes.YSlotSeats().Skip(1))
-        {
-            var slot = PlaceSlot(seat.Slot, x) with { Pair = seat.Pair, FirstIndexInPair = seat.FirstIndexInPair };
-            placed.Add(slot with { Band = SlotBand(slot) });
-        }
-
-        // Each side stacked once, its slots in stack order, the primary first on the left.
-        foreach (var side in new[] { AxisSide.Right, AxisSide.Left })
-        {
-            var onSide = placed.Select((slot, at) => new PlacedAt(slot, at)).Where(p => p.Slot.Slot.Side == side).ToList();
-            var offsets = onSide.Select(p => p.Slot.Band).ToArray().StackedOffsets(Axes.YAxes.TitleGap);
-            for (int i = 0; i < onSide.Count; i++)
-                placed[onSide[i].At] = onSide[i].Slot with { Offset = offsets[i] };
-        }
-        return placed;
-    }
-
-    /// <summary>A placed slot and its index in the list of every placed slot.</summary>
-    private readonly record struct PlacedAt(PlacedYSlot Slot, int At);
 
     /// <inheritdoc />
     public sealed override void Render()
     {
-        var axesBg = Theme.AxesBackground;
-        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
+        ReportPrimaryLinks();
 
         // Compute data ranges, and the transform the primary series are drawn with
-        var range = ComputeDataRanges();
-        var transform = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
+        var placement = Placement;
+        var drawnRange = placement.RangeOfAxes();
+        var range = drawnRange.Range;
+        var transform = placement.PrimaryView(range);
         DrawnTransform = transform;
+        var context = PartContext(transform);
 
-        // A scale with its own tick placement installs it when the axis has no locator: AutoDateLocator +
-        // AutoDateFormatter for a date X axis (handles legacy SetXDateFormat() calls that only set scale + formatter),
-        // SymlogLocator for symlog (matplotlib's set_yscale("symlog") installs SymmetricalLogLocator), LogLocator +
-        // LogTickFormatter for log (without that arm a log axis wore LINEAR ticks 0, 25, 50 … over a logarithmic
-        // transform, measured 2026-08-30).
-        InstallScaleTicks(Axes.XAxis, isX: true);
-        InstallScaleTicks(Axes.YAxis, isX: false);
+        // A map axes under a theme that frames maps as cartopy does: its background is the area inside the map's outline (ax.patch),
+        // and the outline is its spine, drawn below over the map. The outline is placed by the transform of the axes, as the map is.
+        var mapOutline = Theme.Looks.Map.LikeCartopy && Axes.Map is { } map ? map.OutlineIn(transform) : null;
 
-        // Compute tick values once for grid + ticks (respects TickLocator / Spacing / plot size; an axis that carries
-        // categories ticks them, so the grid runs through the categories and every tick setting reaches their names;
-        // ticks inside a break are left out)
-        var xSource = Axes.PrimaryTickSource(isX: true);
-        var xTicks = PrimaryTicks(range, xSource, isX: true);
-        // The primary Y axis is left slot 0 of the container and is drawn by the part that draws every Y axis.
-        var primary = PlacePrimary(range, transform);
-        _primaryYPart = new CartesianParts.CartesianYAxisSlotPart(PartContext, primary, DrawInsideSeriesGroup);
-        var yTicks = primary.Ticks;
+        // An axes that draws no axes paints no background under a theme that says so (matplotlib's axis('off') draws no axes patch),
+        // unless a series on it keeps one (a Sankey diagram's frame).
+        if (mapOutline is not null)
+            DrawMapOutline(mapOutline, ShapeStyle.Filled(Theme.AxesBackground));
+        else if (!(IsAxisLess && Theme.Looks.Frame.NoBackgroundWithoutAxes && Axes.Series.All(s => s is ChartSeries { KeepsAxesBackground: false })))
+            FillAxesBackground();
+
+        // The primary axes, placed once for grid + ticks (respects TickLocator / Spacing / plot size; an axis that carries categories ticks
+        // them, so the grid runs through the categories and every tick setting reaches their names; ticks inside a break are left out).
+        // The primary Y axis is left slot 0 of the container and is drawn by the part that draws every axis.
+        var xPlaced = placement.PlacePrimaryX(range, transform);
+        var primary = placement.PlacePrimary(range, transform);
+        _xTitleLine = xPlaced.EdgeLine;
+        _yTitleLine = primary.EdgeLine;
 
         // Skip standard grid/ticks/frame for axis-less series (radar, pie, treemap, table).
         // These fill the plot area and don't use a Cartesian coordinate system.
         bool radarOnly = IsAxisLess;
-        if (!radarOnly)
-        {
-            // Grid — axes-level setting overrides theme when explicitly set (Visible=true);
-            // otherwise fall back to Theme.DefaultGrid so the theme controls the default.
-            // An axes that asked for something gets the theme's grid WITH that change applied; one that asked
-            // nothing gets the theme's grid whole. The older reading — the axes grid when it happened to be
-            // visible, the theme's otherwise — dropped a change that did not mention visibility, and could not
-            // express "no grid" at all under a theme that draws one.
-            var effectiveGrid = Axes.GridUnder(Theme);
-            if (effectiveGrid.Visible)
-                RenderGrid(xTicks, yTicks, range.YMin, transform, effectiveGrid);
 
-            // Tick marks and labels
-            RenderTicks(xTicks, xSource, range.YMin, transform);
+        // Grid — an axes that asked for something gets the theme's grid WITH that change applied; one that asked nothing gets
+        // the theme's grid whole, so a theme that draws one can still be told "no grid".
+        var effectiveGrid = Axes.GridUnder(Theme);
+        // The major grid stands on the major ticks alone, and the minor grid on the minor ticks a scale places over them, a labelled
+        // minor tick among them (a log axis' named multiple under the matplotlib themes); worked out only for a grid that is drawn.
+        bool drawsGrid = !radarOnly && effectiveGrid.Visible;
+        var xGridTicks = drawsGrid ? xPlaced.Source.MajorsAmong(xPlaced.Ticks, xPlaced.Run.View, Theme) : xPlaced.Ticks;
+        var yGridTicks = drawsGrid ? primary.Source.MajorsAmong(primary.Ticks, primary.Run.View, Theme) : primary.Ticks;
+
+        // The data in the order it is drawn in: the grid, the spans, each patch, the reference lines, the drawing tools, each
+        // series and the tick marks, at the z-order the theme gives each (DataLayers; matplotlib's under the matplotlib themes, the grid
+        // under everything and the marks with their labels under the library's own). A layer with nothing to draw is not listed, so the
+        // draw does not make its part.
+        var order = DataLayers(drawsGrid, drawsTicks: !radarOnly);
+        List<PlacedAxis> placed;
+        try
+        {
+            var steps = order.Steps;
+
+            // A grid nothing stands under is drawn first, before the tick marks and labels, where it always stood.
+            int next = steps.Length > 0 && steps[0].Layer == DataLayer.Grid ? 1 : 0;
+            if (next == 1)
+                Ctx.RenderGrid(effectiveGrid, Axes, xGridTicks, yGridTicks, transform, Theme);
+
+            // The data layer and the primary axes: the X axis' labels turned to fit when it draws ticks at all.
+            var layer = new CartesianDataLayer(this, context, effectiveGrid, xGridTicks, yGridTicks, range, drawnRange.PatchesMayReachPastPlot)
+            {
+                X = radarOnly ? default : CartesianAxisPart.PrimaryX(context, xPlaced, this),
+                Y = CartesianAxisPart.Of(context, primary, this),
+                Edges = CartesianEdges.Of(Axes, Theme),
+            };
+
+            // What stands outside the plot under the axis is drawn first, as matplotlib draws it before the axis: a table below the axes
+            // (at 0) hangs where the X axis draws its labels, which stand over its cells.
+            var pass = SeriesPass.OverPlot(Axes, Pass, transform, MarksOutline(mapOutline));
+            int under = radarOnly ? 0 : UnderTheLabelsFirst(steps[next..]);
+            pass.DrawSteps(steps.Slice(next, under), ref layer);
+            next += under;
+
+            // Tick labels, and the marks with them unless the theme places the marks among the data (a step of the layers)
+            if (!radarOnly)
+                RenderTicks(layer, Theme.TickMarksZ is null ? TickInk.Both : TickInk.Labels);
+
+            // Every Y axis slot of the container is placed ONCE for this render (CartesianAxisPlacement.PlaceYSlots): its range, its
+            // transform, its ticks, where its series stand in the identity order, its band and its offset. A slot without series is
+            // still placed and charged its band, by the rule the layout reserves the sides by, so the slot past it stands where the
+            // layout made room for it; only a slot that is drawn (PlacedAxis.IsDrawn: with series, or linked to the primary) is
+            // drawn. The primary, left slot 0, comes first, with the band of the tick labels it drew.
+            placed = placement.PlaceYSlots(primary with
+            {
+                Band = Axes.YAxis.YTitleExtent(Axes.TitleOf(Axes.YAxis, Theme),
+                    Axes.YAxes.TitleInputUnder(Theme, AxisSide.Left, Axes.YAxis.MajorTicksUnder(Theme).TickLabelBand(MeasuredYTickMaxWidth))).Band,
+            });
+
+            // End-of-line labels: placed once, across every series, before any is drawn, each at the height its own slot puts
+            // the end of its line at. Each label is drawn inside its own series' group — by the series pass of its axis, through
+            // DrawInsideSeriesGroup — so whatever hides the series hides its label.
+            _placedSlots = placed;
+            _directLabels = new CartesianDirectLabelsPart(context, placed, _mirroredYTickBand);
+
+            // The rest of the data layer, the bars stacked and grouped first, through the one loop of the primary series' pass.
+            Axes.ArrangeBars();
+            pass.DrawSteps(steps[next..], ref layer);
+        }
+        finally
+        {
+            order.Return();
         }
 
-        // Render span regions (Phase B.5 — extracted to CartesianSpansPart)
-        new CartesianParts.CartesianSpansPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
-
-        // Patches, in the spans' layer (matplotlib draws both at zorder 1, under the lines): after the spans, before the lines
-        new CartesianParts.CartesianPatchesPart(Axes, PlotArea, Ctx, Theme, transform).Render();
-
-        // Render reference lines (Phase B.6 — extracted to CartesianReferenceLinesPart)
-        new CartesianParts.CartesianReferenceLinesPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
-
-        // Render financial drawing tools (trendlines, levels, Fibonacci retracements)
-        new CartesianParts.CartesianToolsPart(Axes, PlotArea, Ctx, Theme, transform).Render();
-
-        StackBars();
-
-        // Every Y axis slot of the container is placed ONCE for this render (PlaceYSlots): its range, its transform, its
-        // ticks, where its series stand in the identity order, its band and its offset. A slot without series is still
-        // placed and charged its band, by the rule the layout reserves the sides by, so the slot past it stands where the
-        // layout made room for it; only a slot that is drawn (YAxisSlot.IsDrawn: with series, or linked to the primary) is
-        // drawn. The primary, left slot 0, comes first, with the band of the tick labels it drew.
-        var placed = PlaceYSlots(primary with
-        {
-            Band = Axes.YAxis.YTitleExtent(new YAxisTitleInput(
-                Axes.YAxis.MajorTicks.TickLabelBand(MeasuredYTickMaxWidth), AxisSide.Left, Axes.YAxes.TitleGap, LabelFont())).Band,
-        });
-
-        // End-of-line labels: placed once, across every series, before any is drawn, each at the height its own slot puts
-        // the end of its line at. Each label is drawn inside its own series' group — by the primary pass or the part of its
-        // slot, both through DrawInsideSeriesGroup — so whatever hides the series hides its label.
-        _directLabels = new CartesianParts.CartesianDirectLabelsPart(PartContext, placed, _mirroredYTickBand);
-
-        // Series
-        RenderSeries(transform);
-
-        // Axis break markers (drawn on top of series, overlaying the break region)
-        if (Axes.XBreaks.Count > 0) RenderBreakMarkers(Axes.XBreaks, transform, isXAxis: true);
-        if (Axes.YBreaks.Count > 0) RenderBreakMarkers(Axes.YBreaks, transform, isXAxis: false);
+        // Axis break marks, drawn on top of the series over the break region; the part is made only when there is a break
+        if (Axes.XBreaks.Count > 0 || Axes.YBreaks.Count > 0)
+            new CartesianBreakMarkersPart(context, FigureGround ?? Theme.Background).Render();
 
         // Every Y axis slot past the primary that is drawn (it has series, or it is linked), right slots then left slots,
-        // nearest the plot first, each at its own offset, through the part that draws every Y axis (the primary's steps are
+        // nearest the plot first, each at its own offset, through the part that draws every axis (the primary's steps are
         // drawn above and below).
-        foreach (var slot in placed.Skip(1).Where(slot => slot.Slot.IsDrawn))
-            new CartesianParts.CartesianYAxisSlotPart(PartContext, slot, DrawInsideSeriesGroup).Render();
+        for (int i = 1; i < placed.Count; i++)
+            if (placed[i].IsDrawn) CartesianAxisPart.Of(context, placed[i], this).Render();
 
-        // The top X axis, drawn when it has series or is linked (DrawsSecondaryX), as PlaceTopAxis places it, the placement the
-        // layout measured its band by. It owns the top edge, so the band it draws there is what the axes title rises by.
-        if (DrawsSecondaryX)
+        // The top X axis, drawn when it has series or is linked, as PlaceDrawnTopAxis places it, the placement the layout measured its band
+        // by. It owns the top edge, so the band it draws there is what the axes title rises by.
+        var top = placement.PlaceDrawnTopAxis(range);
+        if (top is { } topAxis)
         {
-            var secondaryX = new CartesianParts.CartesianSecondaryXAxisPart(
-                Axes, PlotArea, Ctx, Theme, transform, PlaceTopAxis(range));
-            secondaryX.Render();
-            MeasuredTopTickBand = secondaryX.Band;
+            double reach = CartesianAxisPart.Of(context, topAxis, this).Render();
+            MeasuredTopTickBand = topAxis.Axis.TopBand(Axes.TitleOf(topAxis.Axis, Theme), Ctx, Theme, reach);
         }
+
+        // The marks of every series of every seat, hidden ones too, where this render put them: the bars stacked and grouped
+        // as drawn, each slot and the top axis through the transform it was drawn with. Collected at most once, when a legend at
+        // Best or a text that moves out of the way asks, and shared by both.
+        var marks = new CartesianSeriesMarks(this, context);
+        MarkObstacles? seriesMarks = null;
+        MarkObstacles SeriesMarks() => seriesMarks ??= marks.OfSeries(placed.Skip(1), top);
 
         // The legend is placed now, ahead of the annotations, so a text that asked to move out of the way keeps clear of the box
         // the legend is drawn in a moment later; the marks it keeps clear of are the series' and that box.
-        var legendBox = PlaceLegend();
+        var legendBox = PlaceLegend(() => marks.WithTextBoxes(SeriesMarks()));
         var obstacles = MarkObstacles.None;
         if (Axes.Annotations.Any(a => a.AvoidOverlap))
-        {
-            var marks = new MarkObstacles.Builder();
-            CollectSeriesMarks(marks);
-            if (legendBox is { } box) marks.AddBox(box);
-            obstacles = marks.Build();
-        }
+            obstacles = legendBox is { } box ? SeriesMarks().Including(box) : SeriesMarks();
 
-        // Annotations (Phase B.4 — extracted to CartesianAnnotationsPart via Composite pattern)
-        new CartesianParts.CartesianAnnotationsPart(Axes, PlotArea, Ctx, Theme, transform) { Obstacles = obstacles }.Render();
+        if (Axes.Annotations.Count > 0)
+            new CartesianAnnotationsPart(context) { Obstacles = obstacles }.Render();
 
-        // Signal markers (Phase B.9 — extracted to CartesianSignalsPart)
-        new CartesianParts.CartesianSignalsPart(Axes, PlotArea, Ctx, Theme, transform).Render();
+        if (Axes.Signals.Count > 0)
+            new CartesianSignalsPart(context).Render();
 
         // Axes spines — rendered after series so they appear on top of fills/areas
         if (!radarOnly)
-            RenderSpines(transform);
+            Ctx.RenderSpines(Axes.Spines, transform, Theme);
 
-        // Legend
+        // A map's outline, its spine (cartopy's spines['geo']): the colour and the width of the theme's spines, over the map.
+        if (mapOutline is not null)
+        {
+            var spine = MapSpine.StrokeIn(Theme);
+            DrawMapOutline(mapOutline, ShapeStyle.Outlined(spine.Color, spine.Thickness));
+        }
+
         RenderLegend();
-
-        // ColorBar
         RenderColorBar();
-
-        // Axes title
         RenderTitle();
-
-        // Axis labels
         RenderAxisLabels();
+
+        // The linked X axes below the plot, below everything the primary X axis drew, stacked as the layout reserved them.
+        if (Axes.YAxes.BottomCount > 0)
+        {
+            double pastEdge = SpineInsetsAt(PlotArea).PastBottom(Axes.XAxis.BandsBelow(Axes.TitleOf(Axes.XAxis, Theme), Ctx, Theme, MeasuredXTickMaxHeight).Extent);
+            foreach (var bottom in placement.PlaceBottomAxes(range, pastEdge))
+                CartesianAxisPart.Of(context, bottom, this).Render();
+        }
     }
 
-    /// <summary>Stacked bars: each bar starts on the sum of the stackable series added before it that have no foot of their
-    /// own — the same set the data range sums; a bar with a foot of its own floats on it and is not in the stack. Render state, worked out afresh here on every render and cleared on every render that does not
-    /// stack; the StackBaseline a user sets is never written, so a stacked render leaves no trace in the figure, in
-    /// its JSON or in the next render. The marks a legend keeps clear of are collected from the same state.</summary>
-    private void StackBars()
+
+    /// <summary>The order a Cartesian axes draws its data in (<see cref="LayerOrder"/>): the grid, the spans, each patch, the reference
+    /// lines, the drawing tools, each primary series and, under the matplotlib themes, the tick marks, each at the z-order the theme gives it
+    /// (<see cref="ZOrderExtensions"/>), sorted once a draw. They are listed in the order they were drawn in before they had a z-order, so a
+    /// tie keeps it and nothing at rest moves under the library's own themes. A layer with nothing to draw is not listed.</summary>
+    /// <param name="drawsGrid">Whether the grid is drawn.</param>
+    /// <param name="drawsTicks">Whether the axes draws tick marks: then, under a theme that places them among the data
+    /// (<see cref="ZOrderExtensions"/>' <c>TickMarksZ</c>), they are a step, listed right after the grid they share the axis' z-order with,
+    /// as matplotlib draws a tick's grid line before its marks; no series or patch stands at the axis' 1.5 or 2.5 to tie them (a given
+    /// z-order is a whole number, a kind's 0, 1, 1.1 or 2), and a list of lines over them is then already in order and is not sorted.</param>
+    /// <returns>The order; the caller hands it back.</returns>
+    internal LayerOrder DataLayers(bool drawsGrid, bool drawsTicks)
     {
-        var layers = Axes.Series.StackLayers();
-        bool stacked = Axes.BarMode == BarMode.Stacked && layers.Count > 1;
-        var feet = layers.StackedFeet();
-        foreach (var bar in Axes.Series.OfType<BarSeries>())
-            bar.StackedBottoms = null;
-        for (int i = 0; i < layers.Count; i++)
+        var axes = Axes;
+        var theme = Theme;
+        bool tools = axes.Trendlines.Count > 0 || axes.HorizontalLevels.Count > 0 || axes.FibonacciRetracements.Count > 0;
+        double? marksZ = drawsTicks ? theme.TickMarksZ : null;
+        var order = new LayerOrder((drawsGrid ? 1 : 0) + (axes.Spans.Count > 0 ? 1 : 0) + axes.Patches.Count
+            + (axes.ReferenceLines.Count > 0 ? 1 : 0) + (tools ? 1 : 0) + axes.Series.Count + (marksZ is null ? 0 : 1));
+        if (drawsGrid) order.Add(theme.GridZ, DataLayer.Grid, 0);
+        if (marksZ is { } z) order.Add(z, DataLayer.TickMarks, 0);
+        if (axes.Spans.Count > 0) order.Add(theme.SpansZ, DataLayer.Spans, 0);
+        for (int i = 0; i < axes.Patches.Count; i++) order.Add(theme.ZOf(axes.Patches[i]), DataLayer.Patch, i);
+        if (axes.ReferenceLines.Count > 0) order.Add(theme.OverlayLinesZ, DataLayer.ReferenceLines, 0);
+        if (tools) order.Add(theme.OverlayLinesZ, DataLayer.Tools, 0);
+        for (int i = 0; i < axes.Series.Count; i++) order.Add(theme.ZOf(axes.Series[i]), DataLayer.Series, i);
+        order.Sort();
+        return order;
+    }
+
+
+    /// <summary>Moves to the front of <paramref name="steps"/>, in their order, the series that stand outside the plot
+    /// (<see cref="ChartSeries.StandsOutsideThePlot"/>: a table below the axes) under the z-order of the axis' labels, where a theme
+    /// draws the labels among the data's z-orders (<see cref="ZOrderExtensions"/>' <c>TickMarksZ</c>, matplotlib's axis at 1.5 or 2.5):
+    /// matplotlib draws every artist under its axis first, and those are the ones its labels stand over. The rest keep their order.</summary>
+    /// <param name="steps">The steps still to draw, in their order.</param>
+    /// <returns>How many steps were moved to the front, to be drawn before the labels; 0 under a theme that draws the labels before the
+    /// data, and on an axes with no such series.</returns>
+    private int UnderTheLabelsFirst(Span<LayerStep> steps)
+    {
+        if (Theme.TickMarksZ is not { } axisZ) return 0;
+        int moved = 0;
+        for (int i = 0; i < steps.Length; i++)
         {
-            if (stacked && layers[i] is BarSeries bar)
-                bar.StackedBottoms = feet[i];
+            var step = steps[i];
+            if (step.Layer != DataLayer.Series || step.Z >= axisZ
+                || Axes.Series[step.Index] is not ChartSeries series || !series.StandsOutsideThePlot(Theme)) continue;
+            steps[moved..i].CopyTo(steps[(moved + 1)..(i + 1)]);
+            steps[moved++] = step;
         }
+
+        return moved;
     }
 
     /// <inheritdoc />
     /// <remarks>Every series of every seat, hidden ones too (a legend that toggles a series must not move from under the
-    /// pointer): the primary's through the view transform, each Y slot's through the transform <see cref="PlaceSlot"/>
-    /// gives it and the top axis' through the one <see cref="PlaceTopAxis"/> gives it, the three <see cref="Render"/> draws
-    /// them with, none of it drawn.</remarks>
+    /// pointer): the primary's through the view transform, each Y slot's through the transform
+    /// <see cref="CartesianAxisPlacement.PlaceSlot"/> gives it and the top axis' through the one
+    /// <see cref="CartesianAxisPlacement.PlaceDrawnTopAxis"/> gives it, the three <see cref="Render"/> draws them with, none of it
+    /// drawn (<see cref="Rendering.CartesianAxesRenderer.CartesianSeriesMarks"/>).</remarks>
     internal override MarkObstacles LegendObstacles()
     {
-        var marks = new MarkObstacles.Builder();
-        var primaryView = CollectSeriesMarks(marks);
-
-        // The annotations' texts stand among the marks as well, at the places they are put at (a text that moves out of the
-        // way is laid out around the legend afterwards, so where it ends up does not decide where the legend stands).
-        new CartesianParts.CartesianAnnotationsPart(Axes, PlotArea, Ctx, Theme, primaryView).AddTextBoxes(marks);
-        return marks.Build();
-    }
-
-    /// <summary>Adds the marks of every series of every seat, hidden ones too, to <paramref name="marks"/>.</summary>
-    /// <param name="marks">The collection the marks go into.</param>
-    /// <returns>The view transform the primary series are drawn with.</returns>
-    private DataTransform CollectSeriesMarks(MarkObstacles.Builder marks)
-    {
-        var range = ComputeDataRanges();
+        var placement = Placement;
+        var range = placement.ComputeDataRanges();
 
         // The bars stand where they are drawn: stacked, and grouped beside one another.
-        StackBars();
-        ArrangeBarGroups();
+        Axes.ArrangeBars();
 
-        var primaryView = ViewTransform(range, Axes.YAxis, Axes.YBreaks);
-        CollectMarks(Axes.Series, primaryView, marks);
-        var x = new MinMaxRange(range.XMin, range.XMax);
-        foreach (var seat in Axes.YSlotSeats().Skip(1))
-            CollectMarks(seat.Slot.Series, PlaceSlot(seat.Slot, x).Transform, marks);
-        if (DrawsSecondaryX)
-            CollectMarks(Axes.XSecondarySeries, PlaceTopAxis(range).Transform, marks);
-        return primaryView;
+        var seats = Axes.YSlotSeats();
+        var slots = new List<PlacedAxis>(seats.Count - 1);
+        for (int i = 1; i < seats.Count; i++) slots.Add(placement.PlaceSlot(seats[i].Slot, range));
+        var marks = new CartesianSeriesMarks(this, PartContext(placement.PrimaryView(range)));
+        return marks.WithTextBoxes(marks.OfSeries(slots, placement.PlaceDrawnTopAxis(range)));
     }
 
     /// <inheritdoc />
-    /// <remarks>The range is <see cref="ComputeDataRanges"/>' and the transform is built by <see cref="ViewTransform"/>,
-    /// the two calls <see cref="Render"/> makes before it draws anything.</remarks>
-    internal override DataTransform ComputeViewTransform() => ViewTransform(ComputeDataRanges(), Axes.YAxis, Axes.YBreaks);
+    /// <remarks>The range and the transform <see cref="Render"/> draws the primary series with
+    /// (<see cref="CartesianAxisPlacement.PrimaryView"/>), worked out before it draws anything.</remarks>
+    internal override DataTransform ComputeViewTransform()
+    {
+        var placement = Placement;
+        return placement.PrimaryView(placement.ComputeDataRanges());
+    }
 
     /// <inheritdoc />
-    /// <remarks>Every slot past the primary placed where <see cref="Render"/> places it (<see cref="PlaceSlot"/>, against
-    /// the primary X range every slot shares), without drawing or measuring anything; numbered outward, right slots then
-    /// left slots.</remarks>
+    /// <remarks>Every slot past the primary placed where <see cref="Render"/> places it
+    /// (<see cref="CartesianAxisPlacement.PlaceSlot"/>, against the primary X range every slot shares), without drawing or
+    /// measuring anything; numbered outward, right slots then left slots.</remarks>
     internal override IReadOnlyList<SecondaryAxisTransform> ComputeSecondaryViewTransforms()
     {
-        var range = ComputeDataRanges();
-        var x = new MinMaxRange(range.XMin, range.XMax);
+        var placement = Placement;
+        var range = placement.ComputeDataRanges();
         var views = new List<SecondaryAxisTransform>();
         foreach (var stack in new[] { Axes.YAxes.Right, Axes.YAxes.Left })
         {
             for (int i = 0; stack.SlotAtOutward(i) is { } slot; i++)
-                views.Add(new SecondaryAxisTransform(stack.Side, i, PlaceSlot(slot, x).Transform));
+                views.Add(new SecondaryAxisTransform(stack.Side, i, placement.PlaceSlot(slot, range).Transform));
         }
         return views;
     }
 
-    /// <summary>The transform that maps <paramref name="range"/> onto the plot area, for a Y axis
-    /// <paramref name="yAxis"/> beside the primary X axis: axis breaks compress it, and on a log or symlog axis the pixel
-    /// mapping works in the scaled space (<see cref="AxisScaleExtensions.Forward"/>) so that ticks at 100, 1000, 10000 land
-    /// evenly spaced.</summary>
-    /// <param name="range">The X range and the Y axis' own range.</param>
-    /// <param name="yAxis">The Y axis: its scale and symlog threshold.</param>
-    /// <param name="yBreaks">The breaks of that Y axis.</param>
-    private DataTransform ViewTransform(DataRange range, Axis yAxis, IReadOnlyList<AxisBreak> yBreaks) =>
-        TransformOf(range, AxisMapping.Of(Axes.XAxis, Axes.XBreaks), AxisMapping.Of(yAxis, yBreaks));
-
-    /// <summary>The ONE rule a transform of this renderer is built by: the transform that maps <paramref name="range"/> onto the
-    /// plot area, each direction by its <see cref="AxisMapping"/>. Breaks compress a direction, and on a log or symlog axis the
-    /// pixel mapping works in the scaled space (<see cref="AxisScaleExtensions.Forward"/>); with neither, the plain linear
-    /// transform. The primary's and every Y slot's (<see cref="ViewTransform"/>) and the top axis' (<see cref="PlaceTopAxis"/>)
-    /// are built here.</summary>
-    /// <param name="range">The range mapped onto the plot, in data units.</param>
-    /// <param name="x">How the X direction maps its values.</param>
-    /// <param name="y">How the Y direction maps its values.</param>
-    private DataTransform TransformOf(DataRange range, AxisMapping x, AxisMapping y)
+    /// <summary>Renders one pass over the tick marks and tick labels of the primary axes, minor ticks included, through the part that draws
+    /// every axis (<see cref="CartesianAxisPart.RenderTicks"/>): the X axis' on the bottom edge and what the top edge draws of them, then the
+    /// Y axis' on the left edge and what the right edge draws of them (<see cref="CartesianEdges"/>).</summary>
+    /// <remarks>One walk for both passes, so the marks and the labels stand on the same ticks in the same order: the library's own
+    /// themes draw both in one pass, before the data (<see cref="TickInk.Both"/>, each mark beside its label); a theme that places the
+    /// marks among the data (<see cref="ZOrderExtensions"/>' <c>TickMarksZ</c>) draws the labels before the data, measured as they are
+    /// drawn (the Y slots and the end labels read their band), and the marks at the axis' step of the data layer. The X labels' turn is
+    /// worked out once, when the X part is made, and read by both passes.</remarks>
+    /// <param name="layer">The data layer of this render, which holds the parts of the primary axes and their opposite edges.</param>
+    /// <param name="ink">What this pass draws.</param>
+    internal void RenderTicks(in CartesianDataLayer layer, TickInk ink)
     {
-        // Apply axis breaks: compress the visible range by removing break gaps
-        var (cXMin, cXMax) = x.Breaks.Count > 0
-            ? AxisBreakMapper.CompressedRange(x.Breaks, range.XMin, range.XMax)
-            : new MinMaxRange(range.XMin, range.XMax);
-        var (cYMin, cYMax) = y.Breaks.Count > 0
-            ? AxisBreakMapper.CompressedRange(y.Breaks, range.YMin, range.YMax)
-            : new MinMaxRange(range.YMin, range.YMax);
+        var x = layer.X.RenderTicks(ink, layer.Edges.X);
+        var y = layer.Y.RenderTicks(ink, layer.Edges.Y);
+        if (!ink.DrawsLabels) return;
 
-        var (txMin, txMax) = ScaleRange(cXMin, cXMax, x.Scale, x.LinThresh);
-        var (tyMin, tyMax) = ScaleRange(cYMin, cYMax, y.Scale, y.LinThresh);
-
-        return (x.Breaks.Count > 0 || y.Breaks.Count > 0
-                || x.Scale is AxisScale.Log or AxisScale.SymLog
-                || y.Scale is AxisScale.Log or AxisScale.SymLog)
-            ? new DataTransform(txMin, txMax, tyMin, tyMax, PlotArea,
-                x.Breaks, y.Breaks,
-                range.XMin, range.XMax, range.YMin, range.YMax,
-                x.Scale, y.Scale, x.LinThresh, y.LinThresh)
-            : new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
+        // What the labels reach is where the X axis title stands clear of them (RenderAxisLabels), what the mirrored X labels reach past
+        // the plot's top is what the axes title rises by, and the end labels start past what the mirrored Y labels reach past its right:
+        // the mirrored labels hang from the top and the right spine wherever they stand.
+        var insets = SpineInsetsAt(PlotArea);
+        MeasuredXTickMaxHeight = x.OwnReach;
+        MeasuredTopTickBand = insets.PastTop(x.OppositeBand);
+        MeasuredYTickMaxWidth = y.OwnReach;
+        _mirroredYTickBand = insets.PastRight(y.OppositeBand);
     }
 
-    /// <summary>How one direction of a transform maps its values before they are spread over the plot (<see cref="TransformOf"/>):
-    /// the scale and symlog threshold of its axis, and that axis' breaks.</summary>
-    /// <param name="Scale">The axis' scale.</param>
-    /// <param name="LinThresh">The axis' symlog threshold.</param>
-    /// <param name="Breaks">The axis' breaks.</param>
-    private readonly record struct AxisMapping(AxisScale Scale, double LinThresh, IReadOnlyList<AxisBreak> Breaks)
-    {
-        /// <summary>The mapping of <paramref name="axis"/> with <paramref name="breaks"/>.</summary>
-        /// <param name="axis">The axis: its scale and symlog threshold.</param>
-        /// <param name="breaks">Its breaks.</param>
-        /// <returns>The mapping.</returns>
-        internal static AxisMapping Of(Axis axis, IReadOnlyList<AxisBreak> breaks) => new(axis.Scale, axis.SymLogLinThresh, breaks);
-    }
-
-    /// <summary>Maps a (raw) data range through the axis scale's Forward function so the
-    /// resulting scaled range can be used by <see cref="DataTransform"/> for pixel scaling.
-    /// Linear scale is identity; SymLog applies <see cref="SymlogTransform.Forward"/>; Log
-    /// applies log10. Returns the scaled (min, max) pair.</summary>
-    private static MinMaxRange ScaleRange(double min, double max, AxisScale scale, double linthresh) =>
-        new(scale.Forward(min, linthresh), scale.Forward(max, linthresh));
-
-    /// <summary>Renders major and/or minor grid lines behind the plot area at each tick position.</summary>
-    private void RenderGrid(double[] xTicks, double[] yTicks, double yMin, DataTransform transform, GridStyle grid)
-    {
-        var gridColor = grid.Color;
-        var gridStyle = grid.LineStyle;
-        double gridWidth = grid.LineWidth;
-        bool drawX = grid.Axis is GridAxis.X or GridAxis.Both;
-        bool drawY = grid.Axis is GridAxis.Y or GridAxis.Both;
-        double xMin = Axes.XAxis.Min ?? 0;
-
-        if (grid.Which is GridWhich.Major or GridWhich.Both)
-        {
-            if (drawX) RenderGridLines(Orientation.Horizontal, xTicks, yMin,   transform, gridColor, gridWidth, gridStyle, minor: false);
-            if (drawY) RenderGridLines(Orientation.Vertical,   yTicks, xMin,   transform, gridColor, gridWidth, gridStyle, minor: false);
-        }
-
-        if (grid.Which is GridWhich.Minor or GridWhich.Both)
-        {
-            double minorWidth = gridWidth * 0.5;
-            var minorColor = gridColor.WithAlpha((byte)(gridColor.A / 2));
-            if (drawX) RenderGridLines(Orientation.Horizontal, xTicks, yMin, transform, minorColor, minorWidth, gridStyle, minor: true);
-            if (drawY) RenderGridLines(Orientation.Vertical,   yTicks, xMin, transform, minorColor, minorWidth, gridStyle, minor: true);
-        }
-    }
-
-    /// <summary>Renders tick marks and tick labels along the X and Y axes, including minor ticks when enabled. The X ticks
-    /// are those of <paramref name="xSource"/> and the primary Y axis' those of its placed slot: numbers, dates, or the
-    /// names of the categories its series stand on, drawn by the one tick drawing whatever they read; the primary Y axis
-    /// draws its ticks through the part that draws every Y axis.</summary>
-    private void RenderTicks(double[] xTicks, TickSource xSource, double yMin, DataTransform transform)
-    {
-        // --- X axis ticks ---
-        var xMajor = Axes.XAxis.MajorTicks;
-        var xMinor = Axes.XAxis.MinorTicks;
-        var yMajor = Axes.YAxis.MajorTicks;
-
-        if (!xMajor.Visible)
-        {
-            // HideAllAxes / explicit TickConfig.Visible=false → draw no tick marks or labels, numbers and names alike.
-            MeasuredXTickMaxHeight = 0;
-        }
-        else
-        {
-            // At the rotation the labels are drawn at (PrimaryXDraw); what they reach below the axis, turned or not, is
-            // where the X axis title stands clear of them (RenderAxisLabels).
-            var xDraw = PrimaryXDraw(xTicks, xSource, transform, yMin);
-            MeasuredXTickMaxHeight = Ctx.RenderAxisTicks(xTicks, yMin, transform, xMajor, xDraw);
-
-            // Mirrored X ticks on the top spine: the same ticks, labels above the edge. The band they take is what the
-            // axes title rises by.
-            if (MirrorsXTicks)
-                MeasuredTopTickBand = xMajor.TickLabelBand(Ctx.RenderAxisTicks(xTicks, yMin, transform, xMajor, MirroredXDraw(xDraw, transform)));
-
-            // Minor X ticks (no labels, shorter mark)
-            Ctx.RenderMinorTicks(new TickRun(xTicks, yMin, transform), xMinor, xDraw);
-        }
-
-        // --- Y axis ticks: the primary, left slot 0, through the part that draws every Y axis ---
-        var yPart = _primaryYPart!;
-        MeasuredYTickMaxWidth = yPart.RenderMajorTicks();
-
-        // Mirrored Y ticks on the right spine: the same ticks hung from the right edge by the right side's terms, labels
-        // past it. The end labels start past the band they take.
-        if (MirrorsYTicks)
-        {
-            var right = YSideTerms.Right;
-            _mirroredYTickBand = yMajor.TickLabelBand(Ctx.RenderAxisTicks(yPart.Ticks, Axes.XAxis.Min ?? 0, transform, yMajor,
-                right.Hang(yPart.TickDraw, Axes.Spines.Right.VerticalX(PlotArea, right.EdgeX(PlotArea, 0), transform), Axes.Spines)));
-        }
-
-        // Minor Y ticks (no labels, shorter mark)
-        yPart.RenderMinorTicks();
-    }
-
-    /// <summary>
-    /// The rotation the X tick labels are drawn at, the one decision the drawing and the layout's measuring share
-    /// (<see cref="PrimaryXDraw"/>). The axis' own non-zero <see cref="TickConfig.LabelRotation"/> always wins. Otherwise,
-    /// when adjacent upright labels would overlap at the tick positions <paramref name="transform"/> places them at (so at
-    /// this renderer's plot width), 30 degrees, as matplotlib's <c>Figure.autofmt_xdate</c> turns them; 0 when upright
-    /// labels fit.
-    /// </summary>
-    /// <param name="xTicks">The X tick values.</param>
-    /// <param name="sizes">The upright size of each tick's label in the font it is drawn in.</param>
-    /// <param name="transform">The transform that places the ticks.</param>
-    /// <param name="yMin">The data value on the Y axis the ticks are mapped at.</param>
-    private double XLabelRotation(double[] xTicks, Size[] sizes, DataTransform transform, double yMin)
-    {
-        var major = Axes.XAxis.MajorTicks;
-        if (major.LabelRotation != 0) return major.LabelRotation;
-        if (xTicks.Length < 2)   return 0;
-
-        // The widest label, then whether the tick spacing in pixels is at least that width + 4 px padding. If any pair
-        // collides we return 30°.
-        const double GapPx = 4;
-        double maxLabelWidth = 0;
-        var pixelXs = new double[xTicks.Length];
-        for (int i = 0; i < xTicks.Length; i++)
-        {
-            if (sizes[i].Width > maxLabelWidth) maxLabelWidth = sizes[i].Width;
-            pixelXs[i] = transform.DataToPixel(xTicks[i], yMin).X;
-        }
-
-        for (int i = 1; i < pixelXs.Length; i++)
-        {
-            double spacing = Math.Abs(pixelXs[i] - pixelXs[i - 1]);
-            if (spacing < maxLabelWidth + GapPx) return 30;
-        }
-        return 0;
-    }
-
-    /// <summary>The combined X and Y data ranges across all series on the axes, including shared axes' series when
-    /// <c>sharex</c>/<c>sharey</c> is configured. The rule is the axes' own (<see cref="AxesRangeExtensions"/>): it reads the
-    /// axes and the theme and never the plot area, so whatever must know the extent before a rectangle exists asks the axes.
-    /// Exposed as <c>internal</c> so regression tests can assert the padding / sticky-edge / nice-bound interaction without
-    /// rendering to SVG.</summary>
-    internal DataRange ComputeDataRanges() => Axes.ComputeDataRanges(Theme);
-
-    /// <summary>Computes the Y data range for <paramref name="series"/> plotted against <paramref name="axis"/> — one
-    /// slot's own range, independent of every other slot's (each <see cref="YAxisSlot"/> keeps its own series, so nothing
-    /// here folds two slots' data together).</summary>
-    /// <param name="xMin">The primary axes' X minimum, shared by every slot past the primary.</param>
-    /// <param name="xMax">The primary axes' X maximum, shared by every slot past the primary.</param>
-    /// <param name="axis">The slot's own axis (its set limits and scale orientation).</param>
-    /// <param name="series">The slot's own series — never another slot's.</param>
-    internal DataRange ComputeSecondaryDataRanges(double xMin, double xMax, Axis axis, IReadOnlyList<ISeries> series)
-    {
-        double yMin = axis.Min ?? double.MaxValue;
-        double yMax = axis.Max ?? double.MinValue;
-
-        var context = new AxesContextAdapter(Axes);
-        foreach (var s in series)
-        {
-            // ISeries.ComputeDataRange, not an `is IHasDataRange` test: every series carries the member, but
-            // not every one carries that separate marker interface — a streaming series does not, so the test
-            // skipped it, the range stayed at its 0..1 sentinel and the trace was drawn off the plot area
-            // while the primary path (SnapshotContributions) had ranged it correctly all along.
-            var c = s.ComputeDataRange(context);
-            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
-            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
-        }
-
-        // A set limit is exact, the same rule the primary axes follow (Range1D.WithExplicitLimits).
-        var exact = new Range1D(yMin, yMax).WithExplicitLimits(axis);
-        yMin = exact.Lo;
-        yMax = exact.Hi;
-
-        if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-        if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
-
-        // A log axis lifts a floor it cannot place and pads in log space, a set side is left as set, and an inverted axis
-        // is drawn high to low: the rules the primary axes follow (Range1D.PositiveForLog, Padded, OrientedBy).
-        var drawn = new Range1D(yMin, yMax).PositiveForLog(axis).Padded(0.05, axis).OrientedBy(axis);
-        return new DataRange(xMin, xMax, drawn.Lo, drawn.Hi);
-    }
-
-    /// <summary>Computes the X data range for series plotted against the secondary X-axis: its series' extent, a set limit
-    /// exact, then by the rules a Y slot's range follows (<see cref="ComputeSecondaryDataRanges(double,double,Axis,IReadOnlyList{ISeries})"/>):
-    /// on a log scale a floor it cannot place lifted and the margin taken in log space, a set side left as set, an inverted axis
-    /// drawn high to low.</summary>
-    /// <param name="yMin">The primary's Y minimum, which the top axis shares.</param>
-    /// <param name="yMax">The primary's Y maximum, which the top axis shares.</param>
-    /// <returns>The top axis' own X range beside the primary's Y range.</returns>
-    internal DataRange ComputeSecondaryXDataRanges(double yMin, double yMax)
-    {
-        var axis = Axes.SecondaryXAxis!;
-        double xMin = axis.Min ?? double.MaxValue;
-        double xMax = axis.Max ?? double.MinValue;
-
-        var context = new AxesContextAdapter(Axes);
-        foreach (var series in Axes.XSecondarySeries)
-        {
-            if (series is IHasDataRange hasRange)
-            {
-                var c = hasRange.ComputeDataRange(context);
-                if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
-                if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
-            }
-        }
-
-        // A set limit is exact, the same rule the primary axes follow (Range1D.WithExplicitLimits).
-        var exact = new Range1D(xMin, xMax).WithExplicitLimits(axis);
-        xMin = exact.Lo;
-        xMax = exact.Hi;
-
-        if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-        if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
-
-        // A log axis lifts a floor it cannot place and pads in log space, a set side is left as set, and an inverted axis is
-        // drawn high to low: the rules every other axis follows (Range1D.PositiveForLog, Padded, OrientedBy). On a linear scale
-        // the margin is the five per cent each free side has always had.
-        var drawn = new Range1D(xMin, xMax).PositiveForLog(axis).Padded(0.05, axis).OrientedBy(axis);
-        return new DataRange(drawn.Lo, drawn.Hi, yMin, yMax);
-    }
-
-    /// <summary>Renders the four axis spines (border lines) based on the <see cref="Axes.Spines"/> configuration: each from
-    /// the one rule that places a spine (<see cref="SpineLineExtensions"/>), the same rule the tick marks hang from.</summary>
-    private void RenderSpines(DataTransform transform)
+    /// <inheritdoc />
+    /// <remarks>Read off the spines where the drawing stands them (<see cref="EdgeTerms.InsetOf"/>), through the primary's transform at
+    /// <paramref name="plot"/> for a spine at a data value. The top spine's inset is 0 where a top X axis owns the edge: the top band is
+    /// then that axis', which stands at the plot's edge. Nothing is worked out while every spine stands on its edge.</remarks>
+    internal override SpineInsets SpineInsetsAt(Rect plot)
     {
         var spines = Axes.Spines;
-        double bottom = PlotArea.Y + PlotArea.Height;
-        double right = PlotArea.X + PlotArea.Width;
-
-        if (spines.Bottom.Visible) DrawSpine(spines.Bottom, spines.Bottom.HorizontalLine(PlotArea, bottom, transform));
-        if (spines.Top.Visible) DrawSpine(spines.Top, spines.Top.HorizontalLine(PlotArea, PlotArea.Y, transform));
-        if (spines.Left.Visible) DrawSpine(spines.Left, spines.Left.VerticalLine(PlotArea, PlotArea.X, transform));
-        if (spines.Right.Visible) DrawSpine(spines.Right, spines.Right.VerticalLine(PlotArea, right, transform));
+        if (!spines.AnyOffItsEdge) return default;
+        var placement = new CartesianAxisPlacement(Axes, plot, Ctx, Theme, Ranges);
+        var transform = placement.PrimaryView(placement.ComputeDataRanges());
+        return new SpineInsets(
+            EdgeTerms.Left.InsetOf(spines, plot, transform),
+            EdgeTerms.Right.InsetOf(spines, plot, transform),
+            Axes.DrawnSecondaryXAxis is null ? EdgeTerms.Top.InsetOf(spines, plot, transform) : 0,
+            EdgeTerms.Bottom.InsetOf(spines, plot, transform));
     }
 
-    private void DrawSpine(SpineConfig spine, SpineLine line)
+    /// <summary>The marks a legend at <see cref="Models.LegendPosition.Best"/> and a text that moves out of the way keep clear of on a Cartesian
+    /// axes: the marks of every series of every seat, hidden ones too (a legend that toggles a series must not move from under the pointer), where
+    /// a render puts them, then the annotations' texts. The renderer asks for them while it draws and when it places its legend outside a
+    /// draw, through the same placed axes, so both keep clear of the same marks.</summary>
+    /// <param name="host">The renderer whose series visitor collects the marks (<see cref="AxesRenderer.CollectMarks"/>).</param>
+    /// <param name="context">What the render draws with; its transform is the one the primary series and the annotations are placed by.</param>
+    private readonly struct CartesianSeriesMarks(AxesRenderer host, CartesianPartContext context)
     {
-        Ctx.BeginGroup("spine");
-        Ctx.DrawLine(line.From, line.To, new StrokeStyle(spine.Color ?? Theme.ForegroundText, spine.LineWidth, spine.LineStyle));
-        Ctx.EndGroup();
-    }
-
-    private void RenderBreakMarkers(IReadOnlyList<Models.AxisBreak> breaks, DataTransform transform, bool isXAxis)
-    {
-        const double MarkerHalfSize = 6.0;
-        const double MarkerThickness = 1.5;
-        var markerColor = Theme.ForegroundText;
-        var bgColor = Theme.AxesBackground;
-
-        foreach (var b in breaks)
+        /// <summary>The marks of every series: the primary's through the primary transform, each Y axis past the primary through the transform
+        /// it is placed with, in identity order, then the top axis' through its own. The bars must stand where they are drawn
+        /// (<see cref="Models.Series.BarArrangementExtensions"/>' <c>ArrangeBars</c>) before this is asked.</summary>
+        /// <param name="slots">Every Y axis past the primary, placed, in identity order.</param>
+        /// <param name="top">The top axis placed when it is drawn; <see langword="null"/> otherwise.</param>
+        /// <returns>The marks.</returns>
+        internal MarkObstacles OfSeries(IEnumerable<PlacedAxis> slots, PlacedAxis? top)
         {
-            if (b.Style == Models.BreakStyle.None) continue;
-
-            if (isXAxis)
-            {
-                double compressedX = AxisBreakMapper.Remap(breaks, b.From, transform.DataXMin, transform.DataXMax);
-                if (double.IsNaN(compressedX)) continue;
-                var pt = transform.DataToPixel(compressedX, transform.DataYMin);
-                DrawAxisBreakMark(b.Style, markerColor, bgColor, MarkerHalfSize, MarkerThickness,
-                    pt.X, PlotArea.Y, PlotArea.Y + PlotArea.Height, horizontal: true);
-            }
-            else
-            {
-                double compressedY = AxisBreakMapper.Remap(breaks, b.From, transform.DataYMin, transform.DataYMax);
-                if (double.IsNaN(compressedY)) continue;
-                var pt = transform.DataToPixel(transform.DataXMin, compressedY);
-                DrawAxisBreakMark(b.Style, markerColor, bgColor, MarkerHalfSize, MarkerThickness,
-                    pt.Y, PlotArea.X, PlotArea.X + PlotArea.Width, horizontal: false);
-            }
+            var marks = new MarkObstacles.Builder();
+            host.CollectMarks(context.Axes.Series, context.Transform, marks);
+            foreach (var slot in slots)
+                host.CollectMarks(slot.Series, slot.Transform, marks);
+            if (top is { } topAxis)
+                host.CollectMarks(topAxis.Series, topAxis.Transform, marks);
+            return marks.Build();
         }
-    }
 
-    private void DrawAxisBreakMark(
-        Models.BreakStyle style, Color lineColor, Color bgColor,
-        double halfSize, double thickness,
-        double pos, double edgeA, double edgeB, bool horizontal)
-    {
-        const double GapHalf = 4.0;
-        if (horizontal)
-            Ctx.DrawRectangle(new Rect(pos - GapHalf, edgeA, GapHalf * 2, edgeB - edgeA), new ShapeStyle(bgColor, null, 0));
-        else
-            Ctx.DrawRectangle(new Rect(edgeA, pos - GapHalf, edgeB - edgeA, GapHalf * 2), new ShapeStyle(bgColor, null, 0));
-
-        DrawBreakSegments(
-            horizontal ? Orientation.Horizontal : Orientation.Vertical,
-            crossStart: edgeA, crossEnd: edgeB,
-            perpPos: pos, halfSize: halfSize,
-            thickness: thickness, lineColor: lineColor,
-            style: style);
-    }
-
-    // ── Internal helpers (testable via InternalsVisibleTo) ───────────────────
-
-    /// <summary>Draws major or minor grid lines for one axis orientation.
-    /// Horizontal → vertical lines at each X tick; Vertical → horizontal lines at each Y tick.
-    /// <paramref name="fixedCoord"/> is the data-space value of the perpendicular axis used in the
-    /// DataToPixel lookup (yMin for X ticks, xMin for Y ticks).</summary>
-    internal void RenderGridLines(
-        Orientation orientation,
-        double[] ticks,
-        double fixedCoord,
-        DataTransform transform,
-        Color color, double width, LineStyle style,
-        bool minor)
-    {
-        bool isHorizontal = orientation == Orientation.Horizontal;
-        double areaMin = isHorizontal ? PlotArea.X : PlotArea.Y;
-        double areaMax = isHorizontal ? PlotArea.X + PlotArea.Width : PlotArea.Y + PlotArea.Height;
-
-        if (!minor)
+        /// <summary><paramref name="seriesMarks"/>, then the annotations' texts at the places they are put at (a text that moves out of the way
+        /// is laid out around the legend afterwards, so where it ends up does not decide where the legend stands).</summary>
+        /// <param name="seriesMarks">The marks of every series (<see cref="Rendering.CartesianAxesRenderer.CartesianSeriesMarks.OfSeries"/>).</param>
+        /// <returns>The series' marks with the annotations' text boxes after them; <paramref name="seriesMarks"/> is left as it was.</returns>
+        internal MarkObstacles WithTextBoxes(MarkObstacles seriesMarks)
         {
-            foreach (var tick in ticks)
-            {
-                var pt = isHorizontal
-                    ? transform.DataToPixel(tick, fixedCoord)
-                    : transform.DataToPixel(fixedCoord, tick);
-                if (isHorizontal)
-                    Ctx.DrawLine(new Point(pt.X, PlotArea.Y), new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                        new StrokeStyle(color, width, style));
-                else
-                    Ctx.DrawLine(new Point(PlotArea.X, pt.Y), new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                        new StrokeStyle(color, width, style));
-            }
-        }
-        else if (ticks.Length >= 2)
-        {
-            double majorStep = ticks[1] - ticks[0];
-            double minorStep = majorStep / 5;
-            double rangeStart = ticks[0] - majorStep;
-            double rangeEnd   = ticks[^1] + majorStep;
-            for (double mt = rangeStart; mt <= rangeEnd + minorStep * 0.01; mt += minorStep)
-            {
-                mt = Math.Round(mt, 10);
-                if (Array.Exists(ticks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
-                var pt = isHorizontal
-                    ? transform.DataToPixel(mt, fixedCoord)
-                    : transform.DataToPixel(fixedCoord, mt);
-                double pos = isHorizontal ? pt.X : pt.Y;
-                if (pos < areaMin || pos > areaMax) continue;
-                if (isHorizontal)
-                    Ctx.DrawLine(new Point(pt.X, PlotArea.Y), new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                        new StrokeStyle(color, width, style));
-                else
-                    Ctx.DrawLine(new Point(PlotArea.X, pt.Y), new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                        new StrokeStyle(color, width, style));
-            }
-        }
-    }
-
-    /// <summary>Draws the zigzag or straight-line segments of an axis break marker.
-    /// The white-rectangle gap erasure is done by the caller (<see cref="DrawAxisBreakMark"/>).
-    /// <paramref name="crossStart"/>/<paramref name="crossEnd"/> span the axis extent (e.g. PlotArea.Y to PlotArea.Y+Height for horizontal);
-    /// <paramref name="perpPos"/> is the break position on the perpendicular axis.</summary>
-    internal void DrawBreakSegments(
-        Orientation orientation,
-        double crossStart, double crossEnd,
-        double perpPos, double halfSize,
-        double thickness, Color lineColor,
-        BreakStyle style)
-    {
-        double span = crossEnd - crossStart;
-        bool horiz = orientation == Orientation.Horizontal;
-
-        if (style == BreakStyle.Zigzag)
-        {
-            if (horiz)
-            {
-                Ctx.DrawLine(new Point(perpPos - halfSize, crossStart + span * 0.4),
-                    new Point(perpPos, crossStart + span * 0.5), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-                Ctx.DrawLine(new Point(perpPos, crossStart + span * 0.5),
-                    new Point(perpPos + halfSize, crossStart + span * 0.6), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-                Ctx.DrawLine(new Point(perpPos - halfSize, crossEnd - span * 0.6),
-                    new Point(perpPos, crossEnd - span * 0.5), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-                Ctx.DrawLine(new Point(perpPos, crossEnd - span * 0.5),
-                    new Point(perpPos + halfSize, crossEnd - span * 0.4), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-            }
-            else
-            {
-                Ctx.DrawLine(new Point(crossStart + span * 0.4, perpPos - halfSize),
-                    new Point(crossStart + span * 0.5, perpPos), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-                Ctx.DrawLine(new Point(crossStart + span * 0.5, perpPos),
-                    new Point(crossStart + span * 0.6, perpPos + halfSize), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-            }
-        }
-        else if (style == BreakStyle.Straight)
-        {
-            if (horiz)
-            {
-                Ctx.DrawLine(new Point(perpPos - halfSize * 0.5, crossStart + span * 0.3),
-                    new Point(perpPos + halfSize * 0.5, crossStart + span * 0.7),
-                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-                Ctx.DrawLine(new Point(perpPos - halfSize * 0.5 + halfSize * 0.6, crossStart + span * 0.3),
-                    new Point(perpPos + halfSize * 0.5 + halfSize * 0.6, crossStart + span * 0.7),
-                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-            }
-            else
-            {
-                Ctx.DrawLine(new Point(crossStart + span * 0.3, perpPos - halfSize * 0.5),
-                    new Point(crossStart + span * 0.7, perpPos + halfSize * 0.5),
-                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-                Ctx.DrawLine(new Point(crossStart + span * 0.3, perpPos - halfSize * 0.5 + halfSize * 0.6),
-                    new Point(crossStart + span * 0.7, perpPos + halfSize * 0.5 + halfSize * 0.6),
-                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
-            }
+            var marks = new MarkObstacles.Builder(seriesMarks);
+            if (context.Axes.Annotations.Count > 0)
+                new CartesianAnnotationsPart(context).AddTextBoxes(marks);
+            return marks.Build();
         }
     }
 }

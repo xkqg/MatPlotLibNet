@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet;
@@ -26,23 +27,26 @@ namespace MatPlotLibNet;
 /// cannot replay history, and cannot render a dashboard for a moment other than this one.</para></summary>
 public sealed class OpsDashboardBuilder
 {
-    private readonly List<OpsTileSpec> _tiles = [];
-    private readonly List<OpsTimelineSpec> _timelines = [];
-    private readonly List<OpsTopologySpec> _topologies = [];
-    private readonly List<OpsTrendSpec> _trends = [];
+    // Each row is kept as the step that configures its panel's AxesBuilder (a trace and an event marker as the step they take
+    // on the trend or a timeline panel); Build reads only how many there are, for the layout, and hands a row's step to its
+    // subplot as it is, so a row costs one step and no second one wrapped around it.
+    private readonly List<Action<AxesBuilder>> _tiles = [];
+    private readonly List<Action<AxesBuilder>> _timelines = [];
+    private readonly List<Action<AxesBuilder>> _topologies = [];
+    private readonly List<Action<AxesBuilder>> _trends = [];
 
     /// <summary>The widest a tile row gets before it wraps onto another row. Eight is what a control-room screen
     /// reads at a glance; past it the tiles narrow until the number inside stops being scannable.</summary>
     public const int MaxTilesPerRow = 8;
 
-    /// <summary>The gutter between two tiles, in points — tighter than the generic figure default, which is sized
+    /// <summary>The gutter between two tiles, in pixels — tighter than the generic figure default, which is sized
     /// for axes that carry tick labels between them.</summary>
     public const double TileGap = 12;
 
-    /// <summary>What a further tile row costs the figure, in points (the tile row's own height, 220, is in the base).</summary>
+    /// <summary>What a further tile row costs the figure, in pixels (the tile row's own height, 220, is in the base).</summary>
     private const double TileRowHeight = 150;
 
-    /// <summary>What a panel row costs the figure, in points. A topology and a trend are both panels: something a
+    /// <summary>What a panel row costs the figure, in pixels. A topology and a trend are both panels: something a
     /// reader looks INTO rather than glances at, so they get the same room and the same height ratio.</summary>
     private const double PanelHeight = 320;
 
@@ -50,11 +54,11 @@ public sealed class OpsDashboardBuilder
     private const double TimelineRatio = 1.0;
     private const double PanelRatio = 1.6;
 
-    private readonly List<OpsEventMarkerSpec> _markers = [];
+    private readonly List<Action<AxesBuilder>> _markers = [];
     private string? _title;
     private DateTime? _windowEnd;
     private TimeSpan _windowSpan;
-    private (double Low, double High)? _band;
+    private MinMaxRange? _band;
     private Action<AxesBuilder>? _configureTrend;
 
     /// <summary>Sets the figure title.</summary>
@@ -91,7 +95,7 @@ public sealed class OpsDashboardBuilder
     /// <returns>This builder for chaining.</returns>
     public OpsDashboardBuilder WithEventMarker(DateTime at, Action<ReferenceLine>? configure = null)
     {
-        _markers.Add(new OpsEventMarkerSpec(at, configure));
+        _markers.Add(ax => ax.AxVLine(at.ToOADate(), configure));
         return this;
     }
 
@@ -102,7 +106,7 @@ public sealed class OpsDashboardBuilder
     /// <returns>This builder for chaining.</returns>
     public OpsDashboardBuilder WithNormalBand(double low, double high)
     {
-        _band = (low, high);
+        _band = new MinMaxRange(low, high);
         return this;
     }
 
@@ -112,7 +116,12 @@ public sealed class OpsDashboardBuilder
     /// <returns>This builder for chaining.</returns>
     public OpsDashboardBuilder AddTile(double value, Action<StatTileSeries>? configure = null)
     {
-        _tiles.Add(new OpsTileSpec(value, configure));
+        _tiles.Add(ax =>
+        {
+            ax.StatTile(value, configure);
+            ax.HideAllAxes();
+            ax.WithLegend(visible: false);
+        });
         return this;
     }
 
@@ -123,7 +132,14 @@ public sealed class OpsDashboardBuilder
     public OpsDashboardBuilder AddTimeline(IReadOnlyList<StateSegment> segments,
         Action<StateTimelineSeries>? configure = null)
     {
-        _timelines.Add(new OpsTimelineSpec(segments, configure));
+        _timelines.Add(ax =>
+        {
+            ax.StateTimeline(segments, configure);
+            PinWindow(ax);
+            MarkEvents(ax);
+            ax.OpenFrame();
+            ax.WithLegend(visible: false);
+        });
         return this;
     }
 
@@ -145,7 +161,13 @@ public sealed class OpsDashboardBuilder
         IReadOnlyList<GraphEdge> edges,
         Action<NetworkGraphSeries>? configure = null)
     {
-        _topologies.Add(new OpsTopologySpec(nodes, edges, configure));
+        _topologies.Add(ax =>
+        {
+            ax.NetworkGraph(nodes, edges, configure);
+            ax.HideAllAxes();
+            ax.WithGrid(g => g with { Visible = false });
+            ax.WithLegend(visible: false);
+        });
         return this;
     }
 
@@ -156,7 +178,7 @@ public sealed class OpsDashboardBuilder
     /// <returns>This builder for chaining.</returns>
     public OpsDashboardBuilder AddTrend(double[] x, double[] y, Action<LineSeries>? configure = null)
     {
-        _trends.Add(new OpsTrendSpec(x, y, configure));
+        _trends.Add(ax => ax.Plot(x, y, configure));
         return this;
     }
 
@@ -186,8 +208,9 @@ public sealed class OpsDashboardBuilder
         // The balanced wrap (9 as 5+4) was tried and rejected on exactly that wall: it makes the FIGURE
         // narrower than the page it hangs on, and a host that fits the SVG to its own width scales that
         // narrower figure UP — so the cards come out wider AND taller than the one size a card has.
-        int tileRows = ((_tiles.Count - 1) / MaxTilesPerRow) + 1;
-        int columns = Math.Min(_tiles.Count, MaxTilesPerRow);
+        var tileWrap = PanelWrap.Filled(_tiles.Count, MaxTilesPerRow);
+        int tileRows = tileWrap.Rows;
+        int columns = tileWrap.Columns;
         int trendRows = _trends.Count > 0 ? 1 : 0;
         int rows = tileRows + _timelines.Count + _topologies.Count + trendRows;
 
@@ -233,43 +256,19 @@ public sealed class OpsDashboardBuilder
 
         for (int i = 0; i < _tiles.Count; i++)
         {
-            var spec = _tiles[i];
-            int column = i % columns;
-            int tileRow = i / columns;
-            figure.AddSubPlot(GridPosition.Single(tileRow, column), ax =>
-            {
-                ax.StatTile(spec.Value, spec.Configure);
-                ax.HideAllAxes();
-                ax.WithLegend(visible: false);
-            });
+            figure.AddSubPlot(tileWrap.At(i), _tiles[i]);
         }
 
         for (int i = 0; i < _timelines.Count; i++)
         {
-            var spec = _timelines[i];
             int row = tileRows + i;
-            figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), ax =>
-            {
-                ax.StateTimeline(spec.Segments, spec.Configure);
-                PinWindow(ax);
-                MarkEvents(ax);
-                ax.HideTopSpine();
-                ax.HideRightSpine();
-                ax.WithLegend(visible: false);
-            });
+            figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), _timelines[i]);
         }
 
         for (int i = 0; i < _topologies.Count; i++)
         {
-            var spec = _topologies[i];
             int row = tileRows + _timelines.Count + i;
-            figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), ax =>
-            {
-                ax.NetworkGraph(spec.Nodes, spec.Edges, spec.Configure);
-                ax.HideAllAxes();
-                ax.WithGrid(g => g with { Visible = false });
-                ax.WithLegend(visible: false);
-            });
+            figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), _topologies[i]);
         }
 
         if (trendRows > 0)
@@ -279,12 +278,12 @@ public sealed class OpsDashboardBuilder
             {
                 if (_band is { } band)
                 {
-                    ax.AxHSpan(band.Low, band.High, s => s.Alpha = 0.08);
+                    ax.AxHSpan(band.Min, band.Max, s => s.Alpha = 0.08);
                 }
 
                 foreach (var trend in _trends)
                 {
-                    ax.Plot(trend.X, trend.Y, trend.Configure);
+                    trend(ax);
                 }
 
                 PinWindow(ax);
@@ -297,48 +296,23 @@ public sealed class OpsDashboardBuilder
         return figure;
     }
 
-    /// <summary>Pins the shared window on a time axis: EXACT bounds, ROUND ticks.
-    /// <para>The distinction is the whole reason a rolling chart reads well or badly. The ticks should sit on
-    /// round clock instants and glide leftwards. The <i>bounds</i> must not be rounded — an auto axis expands
-    /// them outward to the nearest nice number, which makes the axis stand perfectly still while the data grows
-    /// into it and then jump a whole step at once. Pinning the bounds and letting the locator round only the
-    /// ticks is what turns that lurch into a glide.</para></summary>
     /// <summary>Draws every event marker on one panel. Called from the same places <see cref="PinWindow"/> is,
     /// because a marker without a clock behind it marks nothing.</summary>
     private void MarkEvents(AxesBuilder ax)
     {
         foreach (var marker in _markers)
         {
-            ax.AxVLine(marker.At.ToOADate(), marker.Configure);
+            marker(ax);
         }
     }
 
+    /// <summary>Pins the shared window on a panel's time axis when the caller gave one: EXACT bounds, ROUND ticks, the
+    /// granularity following the window (<see cref="AxesBuilderScaleVerbs.PinTimeWindow"/>).</summary>
     private void PinWindow(AxesBuilder ax)
     {
-        if (_windowEnd is not { } end)
+        if (_windowEnd is { } end)
         {
-            return;
+            ax.PinTimeWindow(end, _windowSpan);
         }
-
-        ax.SetXLim((end - _windowSpan).ToOADate(), end.ToOADate());
-        // The granularity follows the WINDOW: an ops screen is minutes wide, and a fixed yyyy-MM-dd printed the
-        // same date on every tick of it — an axis that says nothing. The auto locator/formatter pair reads the
-        // visible range and picks minutes, hours or days accordingly.
-        ax.SetXDateAxis();
     }
-
-    private readonly record struct OpsTileSpec(double Value, Action<StatTileSeries>? Configure);
-
-    private readonly record struct OpsTimelineSpec(
-        IReadOnlyList<StateSegment> Segments,
-        Action<StateTimelineSeries>? Configure);
-
-    private readonly record struct OpsTopologySpec(
-        IReadOnlyList<GraphNode> Nodes,
-        IReadOnlyList<GraphEdge> Edges,
-        Action<NetworkGraphSeries>? Configure);
-
-    private readonly record struct OpsTrendSpec(double[] X, double[] Y, Action<LineSeries>? Configure);
-
-    private readonly record struct OpsEventMarkerSpec(DateTime At, Action<ReferenceLine>? Configure);
 }

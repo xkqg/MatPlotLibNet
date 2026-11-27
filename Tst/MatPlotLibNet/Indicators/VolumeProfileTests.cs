@@ -9,6 +9,7 @@ using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
@@ -102,6 +103,17 @@ public class VolumeProfileTests
         Assert.Equal([0.0, 0.0, 60.0, 0.0], profile.Volumes);
     }
 
+    /// <summary>Closes a rounding error apart are flat too, as an axis' range a rounding error wide is (<c>Range1D</c>'s tolerance):
+    /// the bins cover the unit around them, not a span of a rounding error cut into bins.</summary>
+    [Fact]
+    public void PricesARoundingErrorApart_AreFlatToo()
+    {
+        var profile = Profile([5, 5 + 1e-12], [10, 20], bins: 2);
+
+        Assert.Equal(4.5, profile.BinEdges[0]);
+        Assert.Equal(5 + 1e-12 + 0.5, profile.BinEdges[^1]);
+    }
+
     /// <summary>A bar with no volume adds nothing to its bin, but its close still takes part in the range.</summary>
     [Fact]
     public void ABarWithNoVolume_AddsNothing()
@@ -135,17 +147,6 @@ public class VolumeProfileTests
 
         var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.VolumeProfile(OhlcvBars.Cv([double.NaN], [1]))).Build().SubPlots[0];
         Assert.Empty(axes.XSecondarySeries);
-    }
-
-    /// <summary>The number of bins is 1 or more.</summary>
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-3)]
-    public void BinsBelowOne_AreRefused(int bins)
-    {
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() => new VolumeProfile(OhlcvBars.Cv([1, 2], [1, 1]), bins));
-
-        Assert.Equal("bins", error.ParamName);
     }
 
     [Fact]
@@ -194,15 +195,15 @@ public class VolumeProfileTests
         var figure = Drawn();
         figure.EnableLegendToggle = true;
         string svg = figure.ToSvg();
-        var plot = ChartRendererDefault.Current.ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
 
         // The filled rectangles of the series group; the clip path of the plot area is the one without a fill.
-        var rects = Rects(Group(svg, 1)).Where(rect => rect.Contains("fill=")).ToList();
+        var rects = svg.SeriesGroup(1).Elements("rect").Where(rect => rect["fill"] is not null).ToList();
 
         Assert.Equal(2, rects.Count);
         foreach (var rect in rects)
         {
-            double x = Num(rect, "x"), width = Num(rect, "width"), height = Num(rect, "height");
+            double x = rect.Number("x"), width = rect.Number("width"), height = rect.Number("height");
             Assert.Equal(plot.Right, x + width, 6);
             Assert.Equal(plot.Height / 2, height, 6);
             Assert.Equal(plot.Width / 4, width, 6);
@@ -216,23 +217,12 @@ public class VolumeProfileTests
         var figure = Drawn(bins: 12);
 
         string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
-        var axes = ChartSerializerDefault.Current.FromJson(figure.ToJson()).SubPlots[0];
+        var axes = figure.RoundTripped().SubPlots[0];
         Assert.True(axes.SecondaryXAxis!.Inverted);
         Assert.IsType<BarSeries>(Assert.Single(axes.XSecondarySeries));
-    }
-
-    [Fact]
-    public void TheShortcut_RunsItsCallbackOnTheIndicator_Once()
-    {
-        int calls = 0;
-
-        var axes = Drawn(configure: p => { calls++; p.Label = "where it traded"; }).SubPlots[0];
-
-        Assert.Equal(1, calls);
-        Assert.Equal("where it traded", Assert.Single(axes.XSecondarySeries).Label);
     }
 
     [Fact]
@@ -254,25 +244,5 @@ public class VolumeProfileTests
 
         Assert.Equal(1.0, axes.SecondaryXAxis!.Max);
         Assert.Equal([0.0, 0.0], Assert.IsType<BarSeries>(Assert.Single(axes.XSecondarySeries)).Values);
-    }
-
-    // ---- reading the picture ----------------------------------------------------------------------------------------------
-
-    private static double Num(string rect, string attribute) =>
-        double.Parse(Regex.Match(rect, $"""(?<![\w-]){attribute}="([^"]+)" """.TrimEnd()).Groups[1].Value, CultureInfo.InvariantCulture);
-
-    /// <summary>The opening tags of the rectangles in a piece of markup.</summary>
-    private static List<string> Rects(string markup) =>
-        [.. Regex.Matches(markup, """<rect\b[^>]*>""").Select(match => match.Value)];
-
-    /// <summary>The markup of the series group with index <paramref name="seriesIndex"/>: from its opening tag to the end of the
-    /// clipped group inside it (the group closes with two end tags in a row).</summary>
-    private static string Group(string svg, int seriesIndex)
-    {
-        int start = svg.IndexOf($"""<g class="series" data-series-index="{seriesIndex}" """.TrimEnd(), StringComparison.Ordinal);
-        Assert.True(start >= 0, $"series group {seriesIndex} is not in the picture");
-        var end = Regex.Match(svg[start..], """</g>\s*</g>""");
-        Assert.True(end.Success, $"series group {seriesIndex} does not close");
-        return svg[start..(start + end.Index)];
     }
 }

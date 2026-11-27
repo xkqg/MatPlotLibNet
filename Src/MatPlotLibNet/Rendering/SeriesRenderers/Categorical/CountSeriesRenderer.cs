@@ -19,8 +19,9 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
     }
 
     /// <summary>The bars that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a
-    /// legend. A count's bar stands on 0, which a log axis clips to the edge where it begins, as matplotlib clips it; a bar
-    /// the axes cannot place is left out. Along the category axis it stands centred in its category's slot
+    /// legend. A count's bar stands on 0, which a log axis clips to the edge where it begins, as matplotlib clips it, and a slot
+    /// reaching 0 on a log category axis is cut at that edge too; a bar the axes cannot place at all is left out. Along the
+    /// category axis it stands centred in its category's slot
     /// (CategorySlot), where the axis writes the category's name.</summary>
     private IEnumerable<Rect> Bars(CountSeries series)
     {
@@ -32,7 +33,7 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
         {
             double count = counts[categories[i]];
             var slot = CategorySlot.Of(i).Bar(series.BarWidth, 0, BarAlignment.Center);
-            var bar = Transform.BoxOnFoot(slot, 0, count, rising: true, series.Orientation).Rect;
+            var bar = PixelBox.OnFoot(Transform, slot, 0, count, rising: true, series.Orientation).Rect;
             if (bar.IsDrawable()) yield return bar;
         }
     }
@@ -40,8 +41,10 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
     /// <inheritdoc />
     public override void Render(CountSeries series)
     {
-        var color = ResolveColor(series.Color);
+        // No edge of its own: the theme's (matplotlib's forced black edge under classic), else none.
+        var fill = ColorOf(series);
+        var style = Context.Theme.PatchEdgesOf(series).StyleOf(fill, fill);
         foreach (var bar in Bars(series))
-            Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
+            Ctx.DrawSnappedRectangle(bar, style);
     }
 }

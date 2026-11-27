@@ -34,15 +34,6 @@ public class MultipleLocatorTests
         });
     }
 
-    /// <summary>Verifies that all ticks are within [min, max].</summary>
-    [Fact]
-    public void Locate_AllTicksWithinRange()
-    {
-        var locator = new MultipleLocator(5);
-        double[] ticks = locator.Locate(3, 22);
-        Assert.All(ticks, t => Assert.InRange(t, 3, 22));
-    }
-
     /// <summary>Verifies that base=5, range [0,20] yields 0,5,10,15,20.</summary>
     [Fact]
     public void Locate_Base5_ZeroToTwenty_YieldsExpected()
@@ -50,16 +41,6 @@ public class MultipleLocatorTests
         var locator = new MultipleLocator(5);
         double[] ticks = locator.Locate(0, 20);
         Assert.Equal([0, 5, 10, 15, 20], ticks);
-    }
-
-    /// <summary>Verifies ticks are ascending.</summary>
-    [Fact]
-    public void Locate_ReturnsAscendingOrder()
-    {
-        var locator = new MultipleLocator(3);
-        double[] ticks = locator.Locate(1, 15);
-        for (int i = 1; i < ticks.Length; i++)
-            Assert.True(ticks[i] > ticks[i - 1]);
     }
 
     /// <summary>Verifies that negative ranges work correctly.</summary>

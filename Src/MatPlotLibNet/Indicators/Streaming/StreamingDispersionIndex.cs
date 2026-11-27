@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming dispersion index: the spread of several signals at one bar, the population standard deviation of one row. A
@@ -12,25 +14,22 @@ public sealed class StreamingDispersionIndex : StreamingIndicator<double[]>
     private int _signalCount;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => 1;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming dispersion index.</summary>
     /// <param name="capacity">How many points the line keeps.</param>
-    public StreamingDispersionIndex(int capacity = 10_000) : base(capacity)
+    public StreamingDispersionIndex(int capacity = StreamingSeries.RestingCapacity) : base(DispersionIndex.Spec(0), capacity)
     {
-        Label = "Dispersion";
     }
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">The row has fewer than two signals, or a different number than the rows before it.</exception>
     protected override void Step(double[] input, int index, Span<double> outputs)
     {
-        if (input.Length < 2)
-            throw new ArgumentException($"DispersionIndex requires at least 2 signals per row (got {input.Length}).", nameof(input));
-        if (_signalCount != 0 && input.Length != _signalCount)
-            throw new ArgumentException(
-                $"All feature rows must have the same length; row 0 has {_signalCount}, row {index} has {input.Length}.", nameof(input));
+        DispersionIndex.ThrowIfTooFewSignals(input.Length, nameof(input));
+        if (_signalCount != 0) input.Length.ThrowIfMisaligned(_signalCount, nameof(input));
 
+        if (_signalCount == 0) Label = DispersionIndex.Spec(input.Length).Label;   // the batch's label, once the first row says how many signals
         _signalCount = input.Length;
         outputs[0] = DispersionIndex.Of(input);
     }

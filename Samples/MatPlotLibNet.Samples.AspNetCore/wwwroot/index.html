@@ -62,7 +62,7 @@
                 .withAutomaticReconnect()
                 .build();
 
-            // Expose globally so the embedded SvgSignalRInteractionScript can find it.
+            // Expose globally so the embedded server-interaction script can find it.
             window.__mpl_signalr_connection = connection;
 
             connection.on('UpdateChartSvg', (id, svg) => {

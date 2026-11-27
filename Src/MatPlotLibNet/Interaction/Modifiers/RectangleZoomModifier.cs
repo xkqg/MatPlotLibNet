@@ -7,108 +7,27 @@ namespace MatPlotLibNet.Interaction;
 
 /// <summary>Ctrl+left-drag draws a zoom rectangle; on release, zooms the axes to that rectangle.
 /// Exposes <see cref="ActiveZoomRect"/> for overlay rendering by platform controls.</summary>
-public sealed class RectangleZoomModifier : IInteractionModifier
+public sealed class RectangleZoomModifier : RubberBandModifier
 {
-    private readonly string _chartId;
-    private readonly IChartLayout _layout;
-    private readonly Action<FigureInteractionEvent> _sink;
-
-    private bool _active;
-    private int _activeAxes;
-    private double _startPixelX, _startPixelY;
-    private double _currentPixelX, _currentPixelY;
-    private double _startDataX, _startDataY;
-
-    /// <summary>Creates a rectangle-zoom modifier.</summary>
+    /// <summary>Creates a rectangle-zoom modifier: opened with Ctrl held, a drag shorter than two pixels both ways does not zoom.</summary>
     public RectangleZoomModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
+        : base(chartId, layout, sink, ModifierKeys.Ctrl, DragFloor.Box)
     {
-        _chartId = chartId;
-        _layout = layout;
-        _sink = sink;
     }
 
     /// <summary>Returns the current zoom rectangle while a Ctrl+drag is in progress, or <c>null</c>.</summary>
     public RectangleZoomState? ActiveZoomRect =>
-        _active
-            ? new RectangleZoomState(_startPixelX, _startPixelY, _currentPixelX, _currentPixelY, _activeAxes)
-            : null;
+        Band.Showing(static (x0, y0, x1, y1, axes) => new RectangleZoomState(x0, y0, x1, y1, axes));
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args) =>
-        args.Button == PointerButton.Left &&
-        (args.Modifiers & ModifierKeys.Ctrl) != 0 &&
-        _layout.HitTestAxes(args.X, args.Y) is not null;
-
-    /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args)
+    /// <remarks>Every Y axis stacked past the primary zooms to the SAME two pixel corners the primary zoomed to, read through that
+    /// axis' own transform.</remarks>
+    private protected override void Released(Drag drag)
     {
-        _activeAxes = _layout.HitTestAxes(args.X, args.Y) ?? 0;
-        var coords = _layout.PixelToData(args.X, args.Y, _activeAxes);
-        if (coords is null) return;
-
-        _active = true;
-        _startPixelX = _currentPixelX = args.X;
-        _startPixelY = _currentPixelY = args.Y;
-        _startDataX = coords.Value.DataX;
-        _startDataY = coords.Value.DataY;
-    }
-
-    /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args)
-    {
-        if (!_active) return;
-        _currentPixelX = args.X;
-        _currentPixelY = args.Y;
-    }
-
-    /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args)
-    {
-        if (!_active) return;
-        _active = false;
-
-        var endCoords = _layout.PixelToData(args.X, args.Y, _activeAxes);
-        if (endCoords is null) return;
-
-        double xMin = Math.Min(_startDataX, endCoords.Value.DataX);
-        double xMax = Math.Max(_startDataX, endCoords.Value.DataX);
-        double yMin = Math.Min(_startDataY, endCoords.Value.DataY);
-        double yMax = Math.Max(_startDataY, endCoords.Value.DataY);
-
-        // Ignore tiny drags (< 2px in either direction)
-        if (Math.Abs(args.X - _startPixelX) < 2 && Math.Abs(args.Y - _startPixelY) < 2) return;
-
-        _sink(new RectangleZoomEvent(_chartId, _activeAxes, xMin, xMax, yMin, yMax)
+        var box = drag.DataBox;
+        Emit(new RectangleZoomEvent(ChartId, drag.AxesIndex, box.XMin, box.XMax, box.YMin, box.YMax)
         {
-            SecondaryRanges = SecondaryRangesFor(args.X, args.Y),
+            SecondaryRanges = Layout.SecondaryRangesBetween(drag.AxesIndex, drag.StartPixel, drag.EndPixel, DataRange.Between),
         });
     }
-
-    /// <summary>The new range of every Y axis stacked past the primary after this drag — the SAME two pixel corners the
-    /// primary zoomed to, read through each axis' OWN transform instead.</summary>
-    private List<SecondaryAxisRange>? SecondaryRangesFor(double endPixelX, double endPixelY)
-    {
-        var views = _layout.SecondaryViewsOf(_activeAxes);
-        if (views.Count == 0) return null;
-
-        var ranges = new List<SecondaryAxisRange>(views.Count);
-        foreach (var v in views)
-        {
-            var a = v.Transform.PixelToData(new Rendering.Point(_startPixelX, _startPixelY));
-            var b = v.Transform.PixelToData(new Rendering.Point(endPixelX, endPixelY));
-            ranges.Add(new SecondaryAxisRange(v.Side, v.SlotIndex,
-                new DataRange(Math.Min(a.X, b.X), Math.Max(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.Y, b.Y))));
-        }
-
-        return ranges;
-    }
-
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args) { }
 }

@@ -29,7 +29,18 @@ internal readonly record struct AxisNames(Axes Axes, bool OnPrimaryX, bool OnPri
     internal static AxisNames Of(Axes axes, ISeries series) =>
         new(axes,
             !axes.XSecondarySeries.Contains(series),
-            !axes.YSlotSeats().Any(seat => seat.Pair != SeriesAxisPair.Primary && seat.Slot.Series.Contains(series)));
+            !OnASlotPastThePrimary(axes, series));
+
+    /// <summary>Whether a Y axis slot past the primary holds <paramref name="series"/>.</summary>
+    private static bool OnASlotPastThePrimary(Axes axes, ISeries series)
+    {
+        foreach (var seat in axes.YSlotSeats())
+        {
+            if (seat.Pair != SeriesAxisPair.Primary && seat.Slot.Series.Contains(series)) return true;
+        }
+
+        return false;
+    }
 
     /// <summary>The names shown at <paramref name="positions"/> along <paramref name="axis"/>: one for each position
     /// (<see langword="null"/> where it cannot be placed), or <see langword="null"/> when that axis does not name every

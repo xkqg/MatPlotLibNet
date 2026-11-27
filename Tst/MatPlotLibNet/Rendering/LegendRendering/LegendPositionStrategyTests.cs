@@ -11,7 +11,7 @@ namespace MatPlotLibNet.Tests.Rendering.LegendRendering;
 /// Phase B.2 (strict-90 floor plan) — equivalence tests for the
 /// <see cref="LegendPositionStrategy"/> hierarchy. Each test asserts that the
 /// strategy's <c>ComputeBox</c> output matches the OLD inline switch arm
-/// formula from <c>AxesRenderer.RenderLegend</c> lines 291-307 byte-for-byte.
+/// formula from <c>AxesRenderer.RenderLegend</c> byte-for-byte.
 /// </summary>
 public class LegendPositionStrategyTests
 {
@@ -67,11 +67,16 @@ public class LegendPositionStrategyTests
         Assert.Equal(CenterY - BoxH / 2, y);
     }
 
-    [Fact] public void CenterRight_MatchesLegacy()
+    /// <summary>matplotlib's <c>'right'</c> is its <c>'center right'</c> (<c>Legend.codes</c>: 5 is 'right', 7 is 'center right', and
+    /// <c>_get_anchored_bbox</c> places both at the middle of the right edge): one rule, so one strategy stands for both positions.</summary>
+    [Fact] public void RightAndCenterRight_AreOneStrategy_WhichStandsAtTheMiddleOfTheRightEdge()
     {
-        var (x, y) = LegendPositionStrategyFactory.Create(LegendPosition.CenterRight).ComputeBox(PlotArea, BoxW, BoxH);
-        Assert.Equal(PlotArea.X + PlotArea.Width - BoxW - Inset, x);
-        Assert.Equal(CenterY - BoxH / 2, y);
+        var right = LegendPositionStrategyFactory.Create(LegendPosition.Right);
+        var centerRight = LegendPositionStrategyFactory.Create(LegendPosition.CenterRight);
+
+        Assert.Equal(right.GetType(), centerRight.GetType());
+        Assert.Equal(right, centerRight);
+        Assert.Equal(right.ComputeBox(PlotArea, BoxW, BoxH), centerRight.ComputeBox(PlotArea, BoxW, BoxH));
     }
 
     [Fact] public void LowerCenter_MatchesLegacy()
@@ -165,7 +170,7 @@ public class LegendPositionStrategyTests
 
     [Fact] public void Best_WithNoMarks_IsTheUpperRightBox()
     {
-        var best = new BestStrategy().ComputeBox(PlotArea, BoxW, BoxH, MarkObstacles.None);
+        var best = new BestStrategy().Place(PlotArea, new Size(BoxW, BoxH), LegendPositionStrategy.Inset, MarkObstacles.None, default);
 
         Assert.Equal(BoxOf(LegendPosition.UpperRight), best);
     }
@@ -183,7 +188,7 @@ public class LegendPositionStrategyTests
     {
         var marks = PointsAt([.. BestOrder.Take(taken)]);
 
-        Assert.Equal(BoxOf(expected), new BestStrategy().ComputeBox(PlotArea, BoxW, BoxH, marks));
+        Assert.Equal(BoxOf(expected), new BestStrategy().Place(PlotArea, new Size(BoxW, BoxH), LegendPositionStrategy.Inset, marks, default));
     }
 
     [Fact] public void Best_WhenEveryPlaceIsCovered_StandsAtTheLeastCoveredOne()
@@ -195,7 +200,7 @@ public class LegendPositionStrategyTests
             for (int i = 0; i < covers; i++) builder.AddPoint(CentreOfBox(position));
         }
 
-        Assert.Equal(BoxOf(LegendPosition.LowerCenter), new BestStrategy().ComputeBox(PlotArea, BoxW, BoxH, builder.Build()));
+        Assert.Equal(BoxOf(LegendPosition.LowerCenter), new BestStrategy().Place(PlotArea, new Size(BoxW, BoxH), LegendPositionStrategy.Inset, builder.Build(), default));
     }
 
     /// <summary>A threshold line from one edge of the plot to the other, near the top: no vertex of it is inside any place
@@ -207,7 +212,45 @@ public class LegendPositionStrategyTests
             .AddPath([new Point(PlotArea.X, PlotArea.Y + 30), new Point(PlotArea.X + PlotArea.Width, PlotArea.Y + 30)])
             .Build();
 
-        Assert.Equal(BoxOf(LegendPosition.LowerLeft), new BestStrategy().ComputeBox(PlotArea, BoxW, BoxH, line));
+        Assert.Equal(BoxOf(LegendPosition.LowerLeft), new BestStrategy().Place(PlotArea, new Size(BoxW, BoxH), LegendPositionStrategy.Inset, line, default));
+    }
+
+    /// <summary>A place inside the plot stands the inset it is given inside the edges it is placed against (matplotlib's
+    /// <c>legend.borderaxespad</c> under the matplotlib themes); the library's <see cref="LegendPositionStrategy.Inset"/> is what
+    /// <c>ComputeBox</c> places by. The centre and the places outside the plot do not stand against an edge, and the inset leaves them
+    /// where they are.</summary>
+    [Theory]
+    [InlineData(LegendPosition.UpperRight, 613.0, 72.0)]
+    [InlineData(LegendPosition.UpperLeft, 107.0, 72.0)]
+    [InlineData(LegendPosition.LowerLeft, 107.0, 377.0)]
+    [InlineData(LegendPosition.LowerRight, 613.0, 377.0)]
+    [InlineData(LegendPosition.Right, 613.0, 224.5)]
+    [InlineData(LegendPosition.CenterLeft, 107.0, 224.5)]
+    [InlineData(LegendPosition.CenterRight, 613.0, 224.5)]
+    [InlineData(LegendPosition.LowerCenter, 360.0, 377.0)]
+    [InlineData(LegendPosition.UpperCenter, 360.0, 72.0)]
+    [InlineData(LegendPosition.Best, 613.0, 72.0)]
+    public void APlaceInsideThePlot_StandsTheInsetItIsGiven_InsideTheEdges(LegendPosition position, double x, double y)
+    {
+        // The plot runs from (100, 65) to (720, 434); the box is 100 x 50 and stands 7 pixels inside the edges it is placed against.
+        var plot = new Rect(100, 65, 620, 369);
+        var strategy = LegendPositionStrategyFactory.Create(position);
+
+        Assert.Equal(new Point(x, y), strategy.Place(plot, new Size(BoxW, BoxH), 7.0));
+        Assert.Equal(strategy.ComputeBox(plot, BoxW, BoxH), strategy.Place(plot, new Size(BoxW, BoxH), LegendPositionStrategy.Inset));
+    }
+
+    [Theory]
+    [InlineData(LegendPosition.Center)]
+    [InlineData(LegendPosition.OutsideRight)]
+    [InlineData(LegendPosition.OutsideLeft)]
+    [InlineData(LegendPosition.OutsideTop)]
+    [InlineData(LegendPosition.OutsideBottom)]
+    public void TheCentreAndThePlacesOutside_StandWhereTheyAlwaysDid_WhateverTheInset(LegendPosition position)
+    {
+        var strategy = LegendPositionStrategyFactory.Create(position);
+
+        Assert.Equal(strategy.ComputeBox(PlotArea, BoxW, BoxH), strategy.Place(PlotArea, new Size(BoxW, BoxH), 3.0));
     }
 
     public static TheoryData<LegendPosition> FixedPositions => new(Enum.GetValues<LegendPosition>().Where(p => p != LegendPosition.Best));
@@ -219,6 +262,6 @@ public class LegendPositionStrategyTests
         var strategy = LegendPositionStrategyFactory.Create(position);
         var marks = PointsAt([.. BestOrder]);
 
-        Assert.Equal(strategy.ComputeBox(PlotArea, BoxW, BoxH), strategy.ComputeBox(PlotArea, BoxW, BoxH, marks));
+        Assert.Equal(strategy.ComputeBox(PlotArea, BoxW, BoxH), strategy.Place(PlotArea, new Size(BoxW, BoxH), LegendPositionStrategy.Inset, marks, default));
     }
 }

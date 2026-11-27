@@ -20,11 +20,8 @@ public sealed class StreamingSqueezeMomentum : WindowedStreamingIndicator<OhlcvB
     /// <param name="bbMult">The width of the Bollinger band in standard deviations.</param>
     /// <param name="kcMult">The width of the Keltner channel in average true ranges.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingSqueezeMomentum(int period = 20, double bbMult = 2.0, double kcMult = 1.5, int capacity = 10_000)
-        : base(period + 2, [
-            new StreamingLineSeries(capacity) { Label = $"Squeeze({period}) Momentum" },
-            new StreamingLineSeries(capacity) { Label = $"Squeeze({period}) On" },
-        ])
+    public StreamingSqueezeMomentum(int period = SqueezeMomentum.DefaultPeriod, double bbMult = SqueezeMomentum.DefaultBbMult, double kcMult = SqueezeMomentum.DefaultKcMult, int capacity = StreamingSeries.RestingCapacity)
+        : base(SqueezeMomentum.Spec(period, bbMult, kcMult), capacity)
     {
         _period = period;
         _bbMult = bbMult;

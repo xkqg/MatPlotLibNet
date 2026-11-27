@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
 
@@ -11,22 +12,14 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// in the library; uncovered branches here would silently corrupt all step charts.</summary>
 public class DrawStyleInterpolationTests
 {
-    [Fact]
-    public void Apply_NullStyle_ReturnsInputUnchanged()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(DrawStyle.Default)]
+    public void Apply_NoStyleOrTheDefaultStyle_ReturnsInputUnchanged(DrawStyle? style)
     {
         double[] x = { 1, 2, 3 };
         double[] y = { 4, 5, 6 };
-        var result = DrawStyleInterpolation.Apply(x, y, null);
-        Assert.Same(x, result.X);
-        Assert.Same(y, result.Y);
-    }
-
-    [Fact]
-    public void Apply_DefaultStyle_ReturnsInputUnchanged()
-    {
-        double[] x = { 1, 2, 3 };
-        double[] y = { 4, 5, 6 };
-        var result = DrawStyleInterpolation.Apply(x, y, DrawStyle.Default);
+        var result = new XYData(x, y).SteppedBy(style);
         Assert.Same(x, result.X);
         Assert.Same(y, result.Y);
     }
@@ -40,7 +33,7 @@ public class DrawStyleInterpolationTests
         // x.Length < 2 → bypass interpolation
         double[] x = { 1 };
         double[] y = { 2 };
-        var result = DrawStyleInterpolation.Apply(x, y, style);
+        var result = new XYData(x, y).SteppedBy(style);
         Assert.Same(x, result.X);
         Assert.Same(y, result.Y);
     }
@@ -51,51 +44,26 @@ public class DrawStyleInterpolationTests
     [InlineData(DrawStyle.StepsMid)]
     public void EmptyInput_ReturnsInputUnchanged(DrawStyle style)
     {
-        var result = DrawStyleInterpolation.Apply(Array.Empty<double>(), Array.Empty<double>(), style);
+        var result = new XYData(Array.Empty<double>(), Array.Empty<double>()).SteppedBy(style);
         Assert.Empty(result.X);
         Assert.Empty(result.Y);
     }
 
-    [Fact]
-    public void StepsPre_ThreePoints_ProducesExpectedShape()
+    /// <summary>Three points x = y = 0, 1, 2 under each step style. Pre is matplotlib's steps-pre (cbook.pts_to_prestep): the jump falls at
+    /// the earlier point, so the line rises at x[i-1] to y[i] and then runs flat to x[i]. Post emits (x[i], y[i]) then (x[i+1], y[i]). Mid
+    /// puts the step halfway between consecutive x values: 0.5 and 1.5.</summary>
+    [Theory]
+    [InlineData(DrawStyle.StepsPre, new[] { 0d, 0, 1, 1, 2 }, new[] { 0d, 1, 1, 2, 2 })]
+    [InlineData(DrawStyle.StepsPost, new[] { 0d, 1, 1, 2, 2 }, new[] { 0d, 0, 1, 1, 2 })]
+    [InlineData(DrawStyle.StepsMid, new[] { 0d, 0.5, 0.5, 1, 1.5, 1.5, 2 }, new[] { 0d, 0, 1, 1, 1, 2, 2 })]
+    public void ThreePoints_ProduceTheExpectedStep(DrawStyle style, double[] expectedX, double[] expectedY)
     {
-        // StepsPre: at each subsequent x, first emit (x[i], y[i-1]) then (x[i], y[i]).
-        // Input:  x=[0,1,2], y=[0,1,2]
-        // Output: (0,0), (1,0), (1,1), (2,1), (2,2)  →  5 points
         double[] x = { 0, 1, 2 };
         double[] y = { 0, 1, 2 };
-        var r = DrawStyleInterpolation.Apply(x, y, DrawStyle.StepsPre);
-        Assert.Equal(5, r.X.Length);
-        Assert.Equal(new[] { 0d, 1, 1, 2, 2 }, r.X);
-        Assert.Equal(new[] { 0d, 0, 1, 1, 2 }, r.Y);
-    }
-
-    [Fact]
-    public void StepsPost_ThreePoints_ProducesExpectedShape()
-    {
-        // StepsPost: at each x, emit (x[i], y[i]) then (x[i+1], y[i]).
-        // Input:  x=[0,1,2], y=[0,1,2]
-        // Output: (0,0), (1,0), (1,1), (2,1), (2,2)
-        double[] x = { 0, 1, 2 };
-        double[] y = { 0, 1, 2 };
-        var r = DrawStyleInterpolation.Apply(x, y, DrawStyle.StepsPost);
-        Assert.Equal(5, r.X.Length);
-        Assert.Equal(new[] { 0d, 1, 1, 2, 2 }, r.X);
-        Assert.Equal(new[] { 0d, 0, 1, 1, 2 }, r.Y);
-    }
-
-    [Fact]
-    public void StepsMid_ThreePoints_PlacesStepAtMidpoint()
-    {
-        // StepsMid: step transition halfway between consecutive x values.
-        // Midpoints between x[0]=0,x[1]=1 → 0.5; between x[1]=1,x[2]=2 → 1.5.
-        double[] x = { 0, 1, 2 };
-        double[] y = { 0, 1, 2 };
-        var r = DrawStyleInterpolation.Apply(x, y, DrawStyle.StepsMid);
-        // Expected sequence: (0,0), (0.5,0), (0.5,1), (1,1), (1.5,1), (1.5,2), (2,2)
-        Assert.Equal(7, r.X.Length);
-        Assert.Equal(new[] { 0d, 0.5, 0.5, 1, 1.5, 1.5, 2 }, r.X);
-        Assert.Equal(new[] { 0d, 0,   1,   1, 1,   2,   2 }, r.Y);
+        var r = new XYData(x, y).SteppedBy(style);
+        Assert.Equal(expectedX.Length, r.X.Length);
+        Assert.Equal(expectedX, r.X);
+        Assert.Equal(expectedY, r.Y);
     }
 
     [Fact]
@@ -104,10 +72,10 @@ public class DrawStyleInterpolationTests
         // Minimum non-trivial input. (n-1)*2 + 1 = 3 output points.
         double[] x = { 0, 10 };
         double[] y = { 5, 15 };
-        var r = DrawStyleInterpolation.Apply(x, y, DrawStyle.StepsPre);
+        var r = new XYData(x, y).SteppedBy(DrawStyle.StepsPre);
         Assert.Equal(3, r.X.Length);
-        Assert.Equal(new[] { 0d, 10, 10 }, r.X);
-        Assert.Equal(new[] { 5d,  5, 15 }, r.Y);
+        Assert.Equal(new[] { 0d, 0, 10 }, r.X);
+        Assert.Equal(new[] { 5d, 15, 15 }, r.Y);
     }
 
     [Fact]
@@ -116,7 +84,7 @@ public class DrawStyleInterpolationTests
         // StepsMid duplicates Y values; NaN must flow through without crashing.
         double[] x = { 0, 1, 2 };
         double[] y = { 0, double.NaN, 2 };
-        var r = DrawStyleInterpolation.Apply(x, y, DrawStyle.StepsMid);
+        var r = new XYData(x, y).SteppedBy(DrawStyle.StepsMid);
         Assert.True(r.Y.Any(double.IsNaN), "NaN should propagate through interpolation");
     }
 
@@ -127,8 +95,35 @@ public class DrawStyleInterpolationTests
         int n = 1000;
         double[] x = Enumerable.Range(0, n).Select(i => (double)i).ToArray();
         double[] y = Enumerable.Range(0, n).Select(i => (double)i * 0.5).ToArray();
-        var r = DrawStyleInterpolation.Apply(x, y, DrawStyle.StepsPost);
+        var r = new XYData(x, y).SteppedBy(DrawStyle.StepsPost);
         Assert.Equal(2 * n - 1, r.X.Length);
         Assert.Equal(2 * n - 1, r.Y.Length);
     }
+
+    /// <summary>Every data point keeps its place in the stepped points: the stepped point at <c>IndexOfPoint</c> is the data point
+    /// itself, for every style and every point (a fill's region is cut from the stepped top by it).</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData(DrawStyle.Default)]
+    [InlineData(DrawStyle.StepsPre)]
+    [InlineData(DrawStyle.StepsMid)]
+    [InlineData(DrawStyle.StepsPost)]
+    public void EachDataPoint_StandsAtItsIndexInTheSteppedPoints(DrawStyle? style)
+    {
+        double[] x = [0, 1, 3, 4, 7], y = [2, 5, 1, 4, 3];
+
+        var stepped = new XYData(x, y).SteppedBy(style);
+
+        for (int i = 0; i < x.Length; i++)
+        {
+            int at = (style ?? DrawStyle.Default).IndexOfPoint(i, x.Length);
+            Assert.Equal(x[i], stepped.X[at]);
+            Assert.Equal(y[i], stepped.Y[at]);
+        }
+        Assert.Equal(stepped.X.Length - 1, (style ?? DrawStyle.Default).IndexOfPoint(x.Length - 1, x.Length));
+    }
+
+    [Fact]
+    public void ALonePoint_IsNotStepped_AndKeepsItsIndex() =>
+        Assert.Equal(0, DrawStyle.StepsMid.IndexOfPoint(0, 1));
 }

@@ -66,7 +66,9 @@ public class PatchExtentTests
         Box.Of(new Wedge(new(1, 2), 2, 0, 90)).IsNear(new(1, 2, 3, 4));
     }
 
-    /// <summary>The automatic range of an axes that holds an arc frames the arc's curve, as it would frame a line over the same extent.</summary>
+    /// <summary>The automatic range of an axes that holds an arc frames the arc's curve, as it would frame a line over the same extent
+    /// (under the library's own theme, which frames an axes of patches alone; the matplotlib themes range a patch only beside a
+    /// series, <see cref="DrawnRangeTests"/>).</summary>
     [Fact]
     public void TheRangeOfAnAxesOfAnArc_IsTheRangeOfALineOverItsCurvesExtent()
     {
@@ -75,8 +77,8 @@ public class PatchExtentTests
         var withLine = new Axes();
         withLine.Plot([0.6427876096865393, 0.9999982414994397], [-0.7660444431189781, 0.6427876096865393]);
 
-        var arc = withArc.ComputeDataRanges(Theme.MatplotlibV2);
-        var line = withLine.ComputeDataRanges(Theme.MatplotlibV2);
+        var arc = withArc.ComputeDataRanges(Theme.Default);
+        var line = withLine.ComputeDataRanges(Theme.Default);
 
         Assert.Equal(line.XMin, arc.XMin, Tolerance);
         Assert.Equal(line.XMax, arc.XMax, Tolerance);

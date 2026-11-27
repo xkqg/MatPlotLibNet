@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Models.Series;
@@ -11,8 +12,11 @@ namespace MatPlotLibNet.Models.Series;
 /// are kept as given, a count, a percentage or a mass, and are closed to fractions only to be placed
 /// (<see cref="TernaryPointExtensions.Closed"/>), so the table shows what the author knows and the picture the proportions.
 /// The place a series stands in is fixed (<see cref="TernaryFrame"/>), so it contributes no range to any axis.</summary>
-public abstract class TernarySeries : ChartSeries
+public abstract class TernarySeries : ChartSeries, IHoverTarget
 {
+    /// <inheritdoc />
+    internal override CoordinateSystem? DrawnIn => CoordinateSystem.Ternary;
+
     /// <summary>The part at the apex, for each sample.</summary>
     public double[] Top { get; }
 
@@ -34,7 +38,7 @@ public abstract class TernarySeries : ChartSeries
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
 
     /// <inheritdoc />
     /// <remarks>One row for each sample: its three parts as given, and their sum, which a closed composition no longer shows.</remarks>
@@ -74,7 +78,7 @@ public abstract class TernarySeries : ChartSeries
     internal string Describe(int row, Axes axes)
     {
         var closed = new TernaryPoint(Top[row], Left[row], Right[row]).Closed();
-        static string Share(double fraction) => (fraction * 100).ToString("0.#", CultureInfo.InvariantCulture);
+        static string Share(double fraction) => (fraction * 100).InvariantText("0.#");
         return $"{axes.YAxis.Label ?? "top"} {Share(closed.Top)} %, {axes.ZAxis.Label ?? "left"} {Share(closed.Left)} %, {axes.XAxis.Label ?? "right"} {Share(closed.Right)} %";
     }
 
@@ -97,9 +101,33 @@ public abstract class TernarySeries : ChartSeries
             }
             catch (ArgumentException refusal)
             {
-                throw new ArgumentException($"Row {row} cannot be placed in a ternary diagram. {refusal.Message}", refusal);
+                throw new ArgumentException(string.Invariant($"Row {row} cannot be placed in a ternary diagram. {refusal.Message}"), refusal);
             }
         }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>A sample stands where its composition does in the frame the axes are drawn over; what the reader is told is the
+    /// composition (<see cref="Describe"/>), not that place.</remarks>
+    NearestPointResult? IHoverTarget.Nearest(in HoverSearch search, int seriesIndex, NearestPointResult? best)
+    {
+        if (!Visible) return best;
+
+        var hover = search; // a local copy, so the loop reads the cursor and the view from registers, not through the reference
+        foreach (var mark in FramePoints())
+        {
+            double pixelDistance = hover.PixelDistanceTo(mark.Position.X, mark.Position.Y);
+            if (hover.Beats(pixelDistance, best))
+            {
+                best = new NearestPointResult(Label ?? string.Invariant($"Series {seriesIndex}"), seriesIndex, mark.Position.X, mark.Position.Y, pixelDistance)
+                {
+                    PointIndex = mark.Row,
+                    Detail = Describe(mark.Row, search.Axes),
+                };
+            }
+        }
+
+        return best;
     }
 }
 

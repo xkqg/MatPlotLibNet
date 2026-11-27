@@ -5,7 +5,7 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="Text3DSeries"/> default properties and construction.</summary>
+/// <summary>Verifies <see cref="Text3DSeries"/> behaviour; what it starts from and the settings it stores are held by <see cref="Serialization.RestingValueCorpusTests"/> and the drawn-property round trips.</summary>
 public class Text3DSeriesTests
 {
     private static readonly List<Text3DAnnotation> Annotations =
@@ -15,48 +15,19 @@ public class Text3DSeriesTests
         new(7, 8, 9, "C")
     ];
 
-    private static readonly List<Text3DAnnotation> SingleAnnotation =
-    [
-        new(1, 2, 3, "X")
-    ];
-
-    /// <summary>Verifies that the constructor stores the annotations list.</summary>
-    [Fact]
-    public void Constructor_StoresAnnotations()
+    /// <summary>Verifies that ComputeDataRange is derived from annotation positions for the text, and is 0..dim for each axis for the voxels.</summary>
+    public static TheoryData<Func<ISeries>, double[]> TheDataRanges => new()
     {
-        var series = new Text3DSeries(Annotations);
-        Assert.Same(Annotations, series.Annotations);
-    }
+        { () => new Text3DSeries(Annotations), [1, 7, 2, 8, 3, 9] },
+        { () => new VoxelSeries(new bool[2, 3, 4]), [0, 2, 0, 3, 0, 4] },
+    };
 
-    /// <summary>Verifies that FontSize defaults to 10.</summary>
-    [Fact]
-    public void DefaultFontSize_Is10()
+    [Theory]
+    [MemberData(nameof(TheDataRanges))]
+    public void ComputeDataRange_OfA3DSeries(Func<ISeries> make, double[] xMinXMaxYMinYMaxZMinZMax)
     {
-        var series = new Text3DSeries(SingleAnnotation);
-        Assert.Equal(10, series.FontSize);
-    }
-
-    /// <summary>Verifies that ComputeDataRange is derived from annotation positions.</summary>
-    [Fact]
-    public void ComputeDataRange_FromAnnotationPositions()
-    {
-        var series = new Text3DSeries(Annotations);
-        var range = series.ComputeDataRange(null!);
-        Assert.Equal(1, range.XMin);
-        Assert.Equal(7, range.XMax);
-        Assert.Equal(2, range.YMin);
-        Assert.Equal(8, range.YMax);
-        Assert.Equal(3, range.ZMin);
-        Assert.Equal(9, range.ZMax);
-    }
-
-    /// <summary>Verifies that ToSeriesDto sets type to "text3d".</summary>
-    [Fact]
-    public void ToSeriesDto_TypeIsText3D()
-    {
-        var series = new Text3DSeries(SingleAnnotation);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("text3d", dto.Type);
+        var range = make().ComputeDataRange(null!);
+        Assert.Equal(xMinXMaxYMinYMaxZMinZMax, new double[] { Convert.ToDouble(range.XMin), Convert.ToDouble(range.XMax), Convert.ToDouble(range.YMin), Convert.ToDouble(range.YMax), Convert.ToDouble(range.ZMin), Convert.ToDouble(range.ZMax) });
     }
 
     /// <summary>Empty annotations must yield an all-null DataRangeContribution
@@ -71,17 +42,4 @@ public class Text3DSeriesTests
         Assert.Null(range.YMin);
         Assert.Null(range.YMax);
     }
-
-    /// <summary>ToSeriesDto must serialise every annotation, propagate
-    /// non-default FontSize/Color/Label so all arms of the DTO initialiser fire.</summary>
-    [Fact]
-    public void ToSeriesDto_PopulatedSeries_RoundTripsAllFields()
-    {
-        var series = new Text3DSeries(Annotations) { FontSize = 14, Label = "lbl" };
-        var dto = series.ToSeriesDto();
-        Assert.Equal(3, dto.Text3DAnnotations!.Count);
-        Assert.Equal(14, dto.MarkerSize);
-        Assert.Equal("lbl", dto.Label);
-    }
-
 }

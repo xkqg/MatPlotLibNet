@@ -2,48 +2,44 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Indicators.Steps;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming Volume-Weighted Average Price. O(1) cumulative: sum(price*volume) / sum(volume).</summary>
-public sealed class StreamingVwap : StreamingIndicator
+/// <summary>Streaming Volume-Weighted Average Price. O(1) cumulative: sum(price*volume) / sum(volume). It reads a price and the
+/// volume traded at it (<see cref="TradedPrice"/>); a bar is its typical price, (high + low + close) / 3, as in the batch
+/// <see cref="Vwap"/> over candles. A bar that comes without a volume (NaN) turns the sums NaN, so from there the average reads the
+/// price of each bar, which is what the batch does with a volume that is not a number.</summary>
+public sealed class StreamingVwap : StreamingIndicator<TradedPrice>
 {
     private VolumeWeightedMean _mean;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => 1;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming VWAP indicator.</summary>
-    public StreamingVwap(int capacity = 10_000) : base(capacity)
+    public StreamingVwap(int capacity = StreamingSeries.RestingCapacity) : base(Vwap.Spec(), capacity)
     {
-        Label = "VWAP";
     }
 
     /// <summary>Appends a price + volume pair.</summary>
-    public void AppendWithVolume(double price, double volume)
-    {
-        _mean.Add(price, volume);
-        Append(price); // triggers base ProcessedCount++ and output append
-    }
-
-    /// <inheritdoc />
-    /// <remarks>A candle carries no volume, so it is a bar without one (see <see cref="AppendBar"/>).</remarks>
-    public override void AppendCandle(OhlcBar bar) => AppendBar(OhlcvBar.From(bar));
-
-    /// <inheritdoc />
-    /// <remarks>The price of a bar is its typical price, (high + low + close) / 3, as in the batch <see cref="Vwap"/> over candles.
-    /// A bar that comes without a volume (NaN) turns the sums NaN, so from there the average reads the price of each bar, which is
-    /// what the batch does with a volume that is not a number.</remarks>
-    public override void AppendBar(OhlcvBar bar) =>
-        AppendWithVolume(PriceSources.TypicalPrice(bar.High, bar.Low, bar.Close), bar.Volume);
+    /// <param name="price">The price.</param>
+    /// <param name="volume">The volume traded at it.</param>
+    public void AppendWithVolume(double price, double volume) => Append(new TradedPrice(price, volume));
 
     /// <summary>Anchors the average at the next bar: forgets every bar so far, so the average from here on is the average price
     /// paid since this point (an anchored VWAP). The values already given stay as they were.</summary>
     public void AnchorHere() => _mean.Reset();
 
     /// <inheritdoc />
-    protected override double ComputeNext(double price)
+    /// <remarks>A bar is its typical price, with its volume.</remarks>
+    protected override TradedPrice FromBar(OhlcvBar bar) => new(PriceSources.TypicalPrice(bar.High, bar.Low, bar.Close), bar.Volume);
+
+    /// <inheritdoc />
+    protected override void Step(TradedPrice input, int index, Span<double> outputs)
     {
-        return _mean.Value(price);
+        _mean.Add(input.Price, input.Volume);
+        outputs[0] = _mean.Value(input.Price);
     }
 }

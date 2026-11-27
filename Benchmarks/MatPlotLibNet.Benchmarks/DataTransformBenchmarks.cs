@@ -6,7 +6,8 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Benchmarks;
 
-/// <summary>Benchmarks comparing per-point DataToPixel vs SIMD batch TransformBatch.</summary>
+/// <summary>What a plain linear transform costs per point: one point at a time through DataToPixel, a whole array of points through
+/// TransformBatch, and one direction of a whole array through TransformX and TransformY.</summary>
 [MemoryDiagnoser]
 public class DataTransformBenchmarks
 {
@@ -42,4 +43,10 @@ public class DataTransformBenchmarks
 
     [Benchmark]
     public Point[] TransformBatch() => _transform.TransformBatch(_xData, _yData);
+
+    [Benchmark]
+    public double[] TransformX() => _transform.TransformX(_xData);
+
+    [Benchmark]
+    public double[] TransformY() => _transform.TransformY(_yData);
 }

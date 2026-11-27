@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
@@ -17,12 +18,55 @@ public class MarkCollectingContextTests
     private static readonly SvgRenderContext Inner = new();
     private static readonly StrokeStyle Stroke = new(Colors.Black, 1, LineStyle.Solid);
     private static readonly ShapeStyle Shape = new(Colors.Red, null, 0);
-    private static readonly Font Font = ThemedFontProvider.DataTextFont(Theme.Default);
+    private static readonly Font Font = Theme.Default.DataTextFont();
 
     private static (MarkCollectingContext Context, MarkObstacles.Builder Marks) Collector()
     {
         var marks = new MarkObstacles.Builder();
         return (new MarkCollectingContext(Inner, marks), marks);
+    }
+
+    // ---- paths -------------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void DrawPath_OfALongArc_MakesItsVerticesOnceAtTheirCount()
+    {
+        // A move and an arc of 64 six-degree steps: 1 + 65 vertices of 16 bytes, so about 1.1 KB. Growing a list a vertex at a time
+        // made 4, 8, 16 ... 128 slots on the way and copied the result again (more than 5 KB).
+        var path = new PathSegment[] { new MoveToSegment(new Point(0, 0)), new ArcSegment(new Point(0, 0), 50, 50, 0, 6 * 64), new CloseSegment() };
+        for (int i = 0; i < 20; i++) Collector().Context.DrawPath(path, Shape);
+        var (context, marks) = Collector();
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        context.DrawPath(path, Shape);
+        long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(66, Assert.Single(marks.Build().Paths).Count);
+        Assert.InRange(bytes, 0, 1500);
+    }
+
+    [Fact]
+    public void DrawPath_CountsAMoveALineACurveAnArcAndNothingForACloseOrAKindItDoesNotKnow()
+    {
+        var (context, marks) = Collector();
+        PathSegment[] path =
+        [
+            new MoveToSegment(new Point(0, 0)), new LineToSegment(new Point(10, 0)),
+            new BezierSegment(new Point(12, 2), new Point(14, 4), new Point(16, 6)),
+            new ArcSegment(new Point(0, 0), 10, 10, 0, 12),   // two steps: three vertices
+            new AnApplicationsSegment(), new CloseSegment(),
+        ];
+
+        context.DrawPath(path, Shape);
+
+        var vertices = Assert.Single(marks.Build().Paths);
+        Assert.Equal(6, vertices.Count);
+        Assert.Equal(new Point(16, 6), vertices[2]);
+    }
+
+    private sealed record AnApplicationsSegment : PathSegment
+    {
+        public override string ToSvgPathData() => "";
     }
 
     // ---- strokes -----------------------------------------------------------------------------------------------------
@@ -122,8 +166,7 @@ public class MarkCollectingContextTests
 
         context.DrawText("Peak", position, Font, alignment);
 
-        var expected = new TextBox(position, Inner.MeasureText("Peak", Font), Font.Size, alignment,
-            TextVerticalAlignment.Baseline, 0).Bounds();
+        var expected = new TextBox(new TextPlacement(position, alignment), TextExtent.Of(Inner.MeasureText("Peak", Font), Font.Size)).Bounds();
         Assert.Equal([expected], marks.Build().Boxes);
     }
 
@@ -135,8 +178,7 @@ public class MarkCollectingContextTests
 
         context.DrawText("Peak", position, Font, TextAlignment.Left, 45);
 
-        var expected = new TextBox(position, Inner.MeasureText("Peak", Font), Font.Size, TextAlignment.Left,
-            TextVerticalAlignment.Baseline, 45).Bounds();
+        var expected = new TextBox(new TextPlacement(position, TextAlignment.Left) { Rotation = 45 }, TextExtent.Of(Inner.MeasureText("Peak", Font), Font.Size)).Bounds();
         var box = Assert.Single(marks.Build().Boxes);
         Assert.Equal(expected, box);
         Assert.True(box.Width < Inner.MeasureText("Peak", Font).Width + Font.Size && box.Height > Font.Size,
@@ -185,6 +227,26 @@ public class MarkCollectingContextTests
         Assert.Equal(100, path[0].Y, 9);
         Assert.Equal(100, path[^1].X, 9);                   // and at 90 degrees, a quarter turn on
         Assert.Equal(130, path[^1].Y, 9);
+    }
+
+    /// <summary>The sampled outline and the drawn arc must say the same about where the arc ends: the last vertex is the point
+    /// the SVG <c>A</c> command is written with, to the last bit, for an angle that start + (end - start) * steps / steps does
+    /// not give back exactly.</summary>
+    [Theory]
+    [InlineData(-39.97, -393.43)]
+    [InlineData(-39.97, -397.33)]
+    [InlineData(10.1, 80.7)]
+    [InlineData(0, 90)]
+    public void DrawPath_OfAnArc_EndsOnTheExactPointTheArcIsDrawnTo(double start, double end)
+    {
+        var (context, marks) = Collector();
+        var arc = new ArcSegment(new Point(100, 100), 50, 30, start, end);
+
+        context.DrawPath([arc], Shape);
+
+        var path = Assert.Single(marks.Build().Paths);
+        Assert.Equal(arc.EndPoint, path[^1]);
+        Assert.Equal(arc.StartPoint, path[0]);
     }
 
     [Fact]
@@ -244,6 +306,6 @@ public class MarkCollectingContextTests
         var (context, _) = Collector();
         var rich = MathTextParser.Parse(@"$\alpha$ rate");
 
-        Assert.Equal(((IRenderContext)Inner).MeasureRichText(rich, Font), context.MeasureRichText(rich, Font));
+        Assert.Equal(((IRenderContext)Inner).MeasureRichText(rich, Font), ((IRenderContext)context).MeasureRichText(rich, Font));
     }
 }

@@ -19,16 +19,18 @@ public class ChartToolsTests : IDisposable
     private readonly DirectoryInfo _output = Directory.CreateTempSubdirectory("mcp-tool-tests");
     private readonly ChartTools _tools;
 
-    public ChartToolsTests()
+    public ChartToolsTests() => _tools = ToolsOver(new ChartTypeCatalog(), _output.FullName);
+
+    /// <summary>The tools over <paramref name="catalog"/>, writing under <paramref name="output"/>.</summary>
+    private static ChartTools ToolsOver(ChartTypeCatalog catalog, string output)
     {
-        var catalog = new ChartTypeCatalog();
         var reader = new ChartSpecReader(catalog, RenderLimits.Default);
-        _tools = new ChartTools(
+        return new ChartTools(
             new ChartRendering(reader, new ChartSummarizer()),
             new ChartTabulation(reader, RenderLimits.Default),
             catalog,
             new ChartSchemaDescription(catalog),
-            new OutputPathResolver(_output.FullName));
+            new OutputPathResolver(output));
     }
 
     public void Dispose()
@@ -147,6 +149,28 @@ public class ChartToolsTests : IDisposable
         Assert.True(File.Exists(path));
     }
 
+    /// <summary>The size the reply reports is written the same on every machine: a culture that groups thousands with a point does not
+    /// turn 12,345 bytes into 12.345.</summary>
+    [Theory]
+    [InlineData("nl-NL")]
+    [InlineData("de-DE")]
+    public void SaveChart_WritesTheSizeTheSameInEveryCulture(string culture)
+    {
+        var before = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo(culture);
+            string message = _tools.SaveChart(Spec(LineJson), "chart.svg", ChartFormat.Svg);
+
+            long length = new FileInfo(Path.Combine(_output.FullName, "chart.svg")).Length;
+            Assert.Contains($"({length.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} bytes", message);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = before;
+        }
+    }
+
     [Fact]
     public void ChartDataTable_ReturnsTheMarkdownAndTheValuesBesideIt()
     {
@@ -163,39 +187,26 @@ public class ChartToolsTests : IDisposable
         Assert.Equal(3.0, rows[2][1].GetDouble());
     }
 
-    [Fact]
-    public void ListChartTypes_NamesTheListedTypes_AndNoneAreUnavailableToday()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string listed = _tools.ListChartTypes();
-
-        Assert.Contains("line", listed);
-        Assert.Contains("sankey", listed);   // JSON-roundtrip plan: listed now, not excluded
-        Assert.DoesNotContain("Not available", listed);
-    }
-
-    /// <summary>The "Not available" section itself, independent of which real type is excluded on any given
-    /// day — exercised through an injected catalog, the same pattern <see cref="ChartTypeCatalogTests"/> and
-    /// <c>ChartSpecReaderTests</c> use.</summary>
-    [Fact]
-    public void ListChartTypes_WithAnExcludedType_NamesItUnderNotAvailable()
-    {
-        var catalog = new ChartTypeCatalog(new Dictionary<string, string>(StringComparer.Ordinal)
+        //  JSON-roundtrip plan: listed now, not excluded
+        new DrawnToken("ListChartTypes_NamesTheListedTypes_AndNoneAreUnavailableToday", () => ToolsOver(new ChartTypeCatalog(), Path.GetTempPath()).ListChartTypes(), "line", "sankey") { Absent = ["Not available"] },
+        //  The "Not available" section itself, independent of which real type is excluded on any given day — exercised through an injected
+        // catalog, the same pattern ChartTypeCatalogTests and ChartSpecReaderTests use.
+        new DrawnToken("ListChartTypes_WithAnExcludedType_NamesItUnderNotAvailable", () =>
         {
-            ["line"] = "a fake reason for this test only",
-        });
-        var reader = new ChartSpecReader(catalog, RenderLimits.Default);
-        var tools = new ChartTools(
-            new ChartRendering(reader, new ChartSummarizer()),
-            new ChartTabulation(reader, RenderLimits.Default),
-            catalog,
-            new ChartSchemaDescription(catalog),
-            new OutputPathResolver(_output.FullName));
+            var catalog = new ChartTypeCatalog(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["line"] = "a fake reason for this test only",
+            });
+            return ToolsOver(catalog, Path.GetTempPath()).ListChartTypes();
+        }, "Not available", "line — a fake reason for this test only"),
+    };
 
-        string listed = tools.ListChartTypes();
-
-        Assert.Contains("Not available", listed);
-        Assert.Contains("line — a fake reason for this test only", listed);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void DescribeChartSchema_AnswersWithAndWithoutAType()

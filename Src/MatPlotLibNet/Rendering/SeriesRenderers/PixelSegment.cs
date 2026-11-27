@@ -3,7 +3,7 @@
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
-/// <summary>A straight mark between two points, in pixels: a whisker, a tick, an interval.</summary>
+/// <summary>A straight mark between two points, in pixels: a whisker, a tick, an interval, a spine.</summary>
 /// <param name="From">One end.</param>
 /// <param name="To">The other end.</param>
 internal readonly record struct PixelSegment(Point From, Point To);

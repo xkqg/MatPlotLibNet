@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -94,43 +92,96 @@ public class DendrogramRenderTests
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Dendrogram(root, configure))
             .ToSvg();
-
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        int count = 0, idx = 0;
-        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            idx += needle.Length;
-        }
-        return count;
-    }
-
     private static int CountDistinctStrokeColors(string svg)
     {
-        var matches = Regex.Matches(svg, @"<line[^>]*stroke=""(#[0-9a-fA-F]{6,8})""");
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (Match m in matches) set.Add(m.Groups[1].Value);
-        return set.Count;
+        return svg.Elements("line").Select(line => line["stroke"]).OfType<string>().Where(stroke => stroke.StartsWith('#')).Distinct(StringComparer.OrdinalIgnoreCase).Count();
     }
 
     // ── Smoke tests for all four orientations ───────────────────────────────
 
-    [Fact]
-    public void ThreeLeaf_Top_RendersValidSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = RenderSvg(ThreeLeafTree, s => s.Orientation = DendrogramOrientation.Top);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+        new DrawnToken("ThreeLeaf_Left_RendersValidSvg", () => RenderSvg(ThreeLeafTree, s => s.Orientation = DendrogramOrientation.Left), "<svg", "<line"),
+        new DrawnToken("ThreeLeaf_Right_RendersValidSvg", () => RenderSvg(ThreeLeafTree, s => s.Orientation = DendrogramOrientation.Right), "<svg", "<line"),
+        new DrawnToken("ThreeLeaf_Top_ShowLabelsTrue_EmitsLeafLabels", () => RenderSvg(ThreeLeafTree, s => s.ShowLabels = true), ">A<", ">B<", ">C<"),
+        new DrawnToken("ThreeLeaf_Top_ShowLabelsFalse_NoLeafLabels", () => RenderSvg(ThreeLeafTree, s => s.ShowLabels = false)) { Absent = [">A<", ">B<", ">C<"] },
+        // Left/Right orientations rotate labels so they remain readable along the leaf axis.
+        new DrawnToken("ThreeLeaf_Left_RotatesLeafLabels", () => RenderSvg(ThreeLeafTree, s =>
+        {
+            s.Orientation = DendrogramOrientation.Left;
+            s.ShowLabels = true;
+        }), "transform=\"rotate("),
+        // Cut height greater than every node's Value collapses to a single cluster root
+        // (the series root itself). AssignClusterColors' singletonT=0.0 path samples
+        // the colormap at index 0, yielding Tab10's first colour (#1F77B4).
+        new DrawnToken("CutAboveRoot_AllSegmentsShareSingletonClusterColor", () => RenderSvg(SevenLeafTree, s =>
+        {
+            s.CutHeight = 999;
+            s.ColorByCluster = true;
+            s.ColorMap = QualitativeColorMaps.Tab10;
+        }), "#1F77B4") { Comparison = StringComparison.OrdinalIgnoreCase },
+        // The Bottom case of DrawLabels' switch was previously unhit; ensure leaf labels
+        // appear when ShowLabels is enabled in this orientation.
+        new DrawnToken("Bottom_ShowLabelsTrue_EmitsLeafLabels", () => RenderSvg(ThreeLeafTree, s =>
+        {
+            s.Orientation = DendrogramOrientation.Bottom;
+            s.ShowLabels = true;
+        }), ">A<", ">B<", ">C<"),
+        new DrawnToken("AllZeroMergeValues_RendersWithoutNaN", () =>
+        {
+            // Multi-node tree where every merge distance is zero. Exercises ComputeMaxMerge's
+            // <1e-10 → 1.0 fallback at the internal-node path (SingleLeaf only hits it via
+            // an empty layout). Without the guard, MergePixel would divide by zero and emit
+            // NaN coordinates into the SVG.
+            var tree = new TreeNode
+            {
+                Label = "root",
+                Value = 0,
+                Children =
+                [
+                    new TreeNode { Label = "A", Value = 0 },
+                    new TreeNode { Label = "B", Value = 0 },
+                ],
+            };
+            return RenderSvg(tree);
+        }, "<svg") { Finite = true },
+        new DrawnToken("PureLeafTree_LeafIsClusterRootViaChildrenCountArm", () =>
+        {
+            // Tree where every leaf's Value is greater than the cut. The Value<cut arm of
+            // CollectClusterRoots fails for leaves; only the Children.Count==0 short-circuit
+            // adds them as cluster roots. With two leaves we get exactly two cluster roots
+            // → Tab10 samples at t=0 and t=1 (#1F77B4 and #17BECF respectively).
+            var tree = new TreeNode
+            {
+                Label = "root",
+                Value = 10,
+                Children =
+                [
+                    new TreeNode { Label = "A", Value = 5 },
+                    new TreeNode { Label = "B", Value = 5 },
+                ],
+            };
+            return RenderSvg(tree, s =>
+            {
+                s.CutHeight = 3;
+                s.ColorByCluster = true;
+                s.ColorMap = QualitativeColorMaps.Tab10;
+            });
+        }, "#1F77B4", "#17BECF") { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ThreeLeaf_Top_EmitsLineSegments()
     {
         // 3 leaves → 2 internal merges → 6 line segments (3 per U-shape).
         string svg = RenderSvg(ThreeLeafTree);
-        Assert.True(CountOccurrences(svg, "<line") >= 6,
-            $"Expected at least 6 <line> segments for a 3-leaf dendrogram, found {CountOccurrences(svg, "<line")}.");
+        Assert.True(svg.CountOf("<line") >= 6,
+            $"Expected at least 6 <line> segments for a 3-leaf dendrogram, found {svg.CountOf("<line")}.");
     }
 
     [Fact]
@@ -141,54 +192,6 @@ public class DendrogramRenderTests
         Assert.NotEqual(top, bottom);
     }
 
-    [Fact]
-    public void ThreeLeaf_Left_RendersValidSvg()
-    {
-        string svg = RenderSvg(ThreeLeafTree, s => s.Orientation = DendrogramOrientation.Left);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void ThreeLeaf_Right_RendersValidSvg()
-    {
-        string svg = RenderSvg(ThreeLeafTree, s => s.Orientation = DendrogramOrientation.Right);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<line", svg);
-    }
-
-    // ── Labels ──────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ThreeLeaf_Top_ShowLabelsTrue_EmitsLeafLabels()
-    {
-        string svg = RenderSvg(ThreeLeafTree, s => s.ShowLabels = true);
-        Assert.Contains(">A<", svg);
-        Assert.Contains(">B<", svg);
-        Assert.Contains(">C<", svg);
-    }
-
-    [Fact]
-    public void ThreeLeaf_Top_ShowLabelsFalse_NoLeafLabels()
-    {
-        string svg = RenderSvg(ThreeLeafTree, s => s.ShowLabels = false);
-        Assert.DoesNotContain(">A<", svg);
-        Assert.DoesNotContain(">B<", svg);
-        Assert.DoesNotContain(">C<", svg);
-    }
-
-    [Fact]
-    public void ThreeLeaf_Left_RotatesLeafLabels()
-    {
-        // Left/Right orientations rotate labels so they remain readable along the leaf axis.
-        string svg = RenderSvg(ThreeLeafTree, s =>
-        {
-            s.Orientation = DendrogramOrientation.Left;
-            s.ShowLabels = true;
-        });
-        Assert.Contains("transform=\"rotate(", svg);
-    }
-
     // ── Cut height ──────────────────────────────────────────────────────────
 
     [Fact]
@@ -196,7 +199,7 @@ public class DendrogramRenderTests
     {
         string none   = RenderSvg(ThreeLeafTree);
         string cut    = RenderSvg(ThreeLeafTree, s => s.CutHeight = 1.5);
-        Assert.True(CountOccurrences(cut, "<line") > CountOccurrences(none, "<line"),
+        Assert.True(cut.CountOf("<line") > none.CountOf("<line"),
             "Expected cut-line emission to add at least one extra <line> segment.");
     }
 
@@ -228,14 +231,9 @@ public class DendrogramRenderTests
             s.CutLineColor = Colors.Magenta;
         });
         // Strip the cut-line stroke (Magenta) and count remaining distinct stroke colours.
-        var nonCutSegments = Regex.Matches(svg, @"<line[^>]*stroke=""(#[0-9a-fA-F]{6,8})""");
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (Match m in nonCutSegments)
-        {
-            string c = m.Groups[1].Value;
-            if (!c.Equals(Colors.Magenta.ToHex(), StringComparison.OrdinalIgnoreCase))
-                set.Add(c);
-        }
+        var set = svg.Elements("line").Select(line => line["stroke"]).OfType<string>()
+            .Where(stroke => stroke.StartsWith('#') && !stroke.Equals(Colors.Magenta.ToHex(), StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         Assert.Single(set);
     }
 
@@ -252,98 +250,9 @@ public class DendrogramRenderTests
             .AddSubPlot(1, 1, 1, ax => ax.Dendrogram(tree))
             .ToSvg();
 
-        var matches = Regex.Matches(svg, @"<text[^>]*x=""([0-9.]+)""[^>]*>Only</text>");
-        Assert.Single(matches);
-        double labelX = double.Parse(matches[0].Groups[1].Value, CultureInfo.InvariantCulture);
+        var only = Assert.Single(svg.Elements("text"), text => text.Text == "Only");
+        double labelX = only.Number("x");
         Assert.InRange(labelX, 200.0, 400.0);   // central third of a 600-wide figure
     }
 
-    [Fact]
-    public void EmptyChildren_RendersWithoutError()
-    {
-        var tree = new TreeNode { Label = "Empty" };
-        string svg = RenderSvg(tree);
-        Assert.Contains("<svg", svg);
-    }
-
-    // ── Coverage gaps surfaced during code review ────────────────────────────
-
-    [Fact]
-    public void AllZeroMergeValues_RendersWithoutNaN()
-    {
-        // Multi-node tree where every merge distance is zero. Exercises ComputeMaxMerge's
-        // <1e-10 → 1.0 fallback at the internal-node path (SingleLeaf only hits it via
-        // an empty layout). Without the guard, MergePixel would divide by zero and emit
-        // NaN coordinates into the SVG.
-        var tree = new TreeNode
-        {
-            Label = "root",
-            Value = 0,
-            Children =
-            [
-                new TreeNode { Label = "A", Value = 0 },
-                new TreeNode { Label = "B", Value = 0 },
-            ],
-        };
-        string svg = RenderSvg(tree);
-        Assert.Contains("<svg", svg);
-        Assert.DoesNotContain("NaN", svg);
-    }
-
-    [Fact]
-    public void CutAboveRoot_AllSegmentsShareSingletonClusterColor()
-    {
-        // Cut height greater than every node's Value collapses to a single cluster root
-        // (the series root itself). AssignClusterColors' singletonT=0.0 path samples
-        // the colormap at index 0, yielding Tab10's first colour (#1F77B4).
-        string svg = RenderSvg(SevenLeafTree, s =>
-        {
-            s.CutHeight = 999;
-            s.ColorByCluster = true;
-            s.ColorMap = QualitativeColorMaps.Tab10;
-        });
-        Assert.Contains("#1F77B4", svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void PureLeafTree_LeafIsClusterRootViaChildrenCountArm()
-    {
-        // Tree where every leaf's Value is greater than the cut. The Value<cut arm of
-        // CollectClusterRoots fails for leaves; only the Children.Count==0 short-circuit
-        // adds them as cluster roots. With two leaves we get exactly two cluster roots
-        // → Tab10 samples at t=0 and t=1 (#1F77B4 and #17BECF respectively).
-        var tree = new TreeNode
-        {
-            Label = "root",
-            Value = 10,
-            Children =
-            [
-                new TreeNode { Label = "A", Value = 5 },
-                new TreeNode { Label = "B", Value = 5 },
-            ],
-        };
-        string svg = RenderSvg(tree, s =>
-        {
-            s.CutHeight = 3;
-            s.ColorByCluster = true;
-            s.ColorMap = QualitativeColorMaps.Tab10;
-        });
-        Assert.Contains("#1F77B4", svg, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("#17BECF", svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Bottom_ShowLabelsTrue_EmitsLeafLabels()
-    {
-        // The Bottom case of DrawLabels' switch was previously unhit; ensure leaf labels
-        // appear when ShowLabels is enabled in this orientation.
-        string svg = RenderSvg(ThreeLeafTree, s =>
-        {
-            s.Orientation = DendrogramOrientation.Bottom;
-            s.ShowLabels = true;
-        });
-        Assert.Contains(">A<", svg);
-        Assert.Contains(">B<", svg);
-        Assert.Contains(">C<", svg);
-    }
 }

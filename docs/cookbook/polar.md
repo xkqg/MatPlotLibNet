@@ -56,11 +56,16 @@ Plt.Create()
     .Save("radar.svg");
 ```
 
+The web is a polygon with the first spoke at the top and the categories running clockwise, and the largest value reaches its outer
+ring (set `MaxValue` to put the outer ring elsewhere). Under the library's own themes there are five rings at fifths of the axis.
+Under the matplotlib themes, the default among them, the rings stand where matplotlib's polar axes would put them, at the ticks of its
+default locator between 0 and the outer value, each labelled, drawn in the theme's grid, and the outer polygon is outlined as a frame.
+
 ## Radar comparison (two players)
 
 ```csharp
 double[] player1 = [85, 70, 90, 60, 95];
-double[] player2 = [70, 95, 60, 80, 75];
+double[] player2 = [70, 88, 60, 80, 75];
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
@@ -71,6 +76,10 @@ Plt.Create()
 ```
 
 ![Radar comparison](../images/radar_comparison.png)
+
+Two radars on one axes share one web under the matplotlib themes, as matplotlib's polar axes has one radial axis: the outer ring is
+the largest outer value of the two (here Player 1's 95, so Player 2's 88 stops short of it), the rings are labelled once and the
+frame is drawn once, over both. Under the library's own themes each radar keeps its own largest value at the outer ring.
 
 ## Polar bar
 
@@ -186,4 +195,32 @@ series.
 The grid and every polar series (lines, points, bars and heatmaps) read one radial scale. The rings stand at round numbers,
 labelled in one number format (or by the axis' own formatter) at 22.5° so the labels stay clear of the bars, and a ring
 labelled 10 stands exactly where a radius of 10 is drawn, whichever kind of series draws it, so two series on one axes can be
-compared. The scale reaches 5 % beyond the farthest radius, or exactly the limit you gave the axes.
+compared. Under the matplotlib themes the scale is ranged as matplotlib's polar axes ranges it: the default style pads the span
+of the radii by 5 % at each end, the classic style rounds it out to the rings, and the centre is 0 unless a radius falls below it.
+Under the library's own themes it reaches 5 % beyond the farthest radius. A limit you give the axes (`SetYLim`) is that end
+exactly.
+
+A radius below zero is drawn, as matplotlib draws it: the scale reaches down to it and its low end stands at the centre. Radii
+from -20 to -3 give a scale from -20.85 to -2.15 under the default style. `SetROrigin` puts another radius at the centre
+(matplotlib's `set_rorigin`); one below the low end leaves a hole there, bounded by an inner spine:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 2, 1, ax => ax
+        .PolarPlot([-20.0, -10, -3], [0.0, 2, 4]))
+    .AddSubPlot(1, 2, 2, ax => ax
+        .PolarPlot([1.0, 5, 9], [0.0, 2, 4])
+        .SetROrigin(-3))
+    .Save("polar_below_zero_and_origin.svg");
+```
+
+A locator you give the radial axis places the rings, as matplotlib's polar axes rings itself at the ticks of its radial axis'
+locator. Rings every 3 out to 10:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .PolarPlot([10.0, 10, 10], [0.0, 1, 2])
+        .SetYTickLocator(new MultipleLocator(3)))
+    .Save("polar_rings_every_3.svg");
+```

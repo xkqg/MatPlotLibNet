@@ -9,17 +9,21 @@ using SkiaSharp.HarfBuzz;
 
 namespace MatPlotLibNet.Skia;
 
-/// <summary>The fonts the Skia backend draws with. Four faces of DejaVu Sans ship inside the package and are loaded
-/// when the package initialises; any other font is found by NAME on the machine that renders, which is what
+/// <summary>The fonts the Skia backend draws with. Four faces of DejaVu Sans, the Computer Modern faces matplotlib's classic
+/// style sets math in (<c>cmr10</c>, <c>cmmi10</c>, <c>cmti10</c>, <c>cmb10</c>, <c>cmsy10</c>, <c>cmex10</c>, <c>cmtt10</c>) and the STIX faces
+/// it takes the math characters those faces lack from (<c>STIXGeneral</c> regular, italic and bold, <c>STIXNonUnicode</c> regular and
+/// italic), ship inside the package and are read once, the first time a font is resolved; any other font is found by NAME on the machine that renders, which is what
 /// <see cref="Font.Family"/> has always done. This class adds the door that was missing: a font FILE, registered once
 /// at startup, so a chart drawn in a container without installed fonts, or in a script that needs Devanagari, Thai
 /// or Chinese, brings its own.</summary>
 /// <remarks>
 /// <para><b>Resolution order</b> for a family stack such as <c>"Noto Sans Devanagari, DejaVu Sans, sans-serif"</c>:
 /// each name is tried against the registered and bundled fonts first, then against the fonts installed on the
-/// machine; the first real match wins. When no name matches anything, the operating system's default face is used
-/// and a <see cref="ChartDiagnostics"/> message names the family that was asked for — once per family, so a
-/// misspelled name shows up instead of quietly rendering in Segoe UI.</para>
+/// machine; the first real match wins. The generic <c>sans-serif</c> (the default family) is the last resort, as in
+/// CSS, and it is the bundled DejaVu Sans, as in matplotlib, so default text looks the same on every machine. When no
+/// name matches anything, the operating system's default face is used and a <see cref="ChartDiagnostics"/> message
+/// names the family that was asked for — once per family, so a misspelled name shows up instead of quietly rendering in
+/// Segoe UI. <c>serif</c> and <c>monospace</c> have no bundled face and are left to the machine.</para>
 /// <para><b>Ownership.</b> Every typeface and shaper handed out lives for the process. Callers never dispose them.</para>
 /// <para><b>Concurrency.</b> Registration replaces the registry and the resolution cache as whole objects, read
 /// through <see langword="volatile"/> fields, so a render on another thread sees either the old registry or the new
@@ -29,14 +33,24 @@ public static class SkiaFonts
 {
     private const string BundledResourcePrefix = "MatPlotLibNet.Skia.Fonts.";
 
+    /// <summary>The generic family the package carries a face for: the default of <see cref="Font.Family"/>.</summary>
+    private const string SansSerif = "sans-serif";
+
+    /// <summary>The bundled family that <see cref="SansSerif"/> stands for, as in matplotlib.</summary>
+    private const string BundledSansSerif = "DejaVu Sans";
+
     /// <summary>A registered face: the typeface and whether it came from the package or from the user.</summary>
     private sealed record FontEntry(SKTypeface Typeface, bool Bundled);
 
     /// <summary>The cache key: exactly what a caller asked for.</summary>
     private readonly record struct ResolutionKey(string? Family, SKFontStyleWeight Weight, SKFontStyleSlant Slant);
 
+    /// <summary>The faces embedded in the package, read once for the life of the process. Never mutated: a registration copies the
+    /// registry before it writes.</summary>
+    private static readonly Dictionary<string, FontEntry> Bundled = LoadBundled();
+
     /// <summary>Family-and-style key → face. Replaced whole on every registration; never mutated in place.</summary>
-    private static volatile Dictionary<string, FontEntry> _registry = new(StringComparer.OrdinalIgnoreCase);
+    private static volatile Dictionary<string, FontEntry> _registry = Bundled;
 
     /// <summary>Every resolution ever made, memoised. Replaced whole on every registration so that a family resolved
     /// before its file was registered is resolved again afterwards.</summary>
@@ -129,11 +143,15 @@ public static class SkiaFonts
 
     /// <summary>The typeface and shaper for a <see cref="Font"/>: its family stack, weight and slant.</summary>
     internal static ResolvedTypeface Resolve(Font font) => Resolve(font.Family,
-        font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-        font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        font.IsBold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+        font.IsItalic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
 
     /// <summary>The typeface and shaper for a family stack, weight and slant. Resolved once per distinct request and
     /// memoised; the result is shared and never disposed by a caller.</summary>
+    /// <param name="family">The font family stack, <see langword="null"/> for the default family.</param>
+    /// <param name="weight">The weight asked for.</param>
+    /// <param name="slant">The slant asked for.</param>
+    /// <returns>The typeface and the shaper that answer the request.</returns>
     internal static ResolvedTypeface Resolve(string? family, SKFontStyleWeight weight, SKFontStyleSlant slant)
     {
         var key = new ResolutionKey(family, weight, slant);
@@ -144,7 +162,7 @@ public static class SkiaFonts
         }
 
         var (typeface, matched, shared) = ResolveUncached(family, weight, slant);
-        var candidate = new ResolvedTypeface(typeface, new SKShaper(typeface));
+        var candidate = new ResolvedTypeface(typeface, new SKShaper(typeface), new FaceInk(typeface));
         var winner = cache.GetOrAdd(key, candidate);
         if (!ReferenceEquals(winner.Shaper, candidate.Shaper))
         {
@@ -168,20 +186,26 @@ public static class SkiaFonts
         return winner;
     }
 
-    /// <summary>Finds the face for a request. <c>Matched</c> says whether some name in the stack was really found
-    /// (registered, bundled, or installed under that name) as opposed to the OS handing back its default;
-    /// <c>Shared</c> says whether the typeface is owned by the registry and must never be disposed.</summary>
-    private static (SKTypeface Typeface, bool Matched, bool Shared) ResolveUncached(string? family, SKFontStyleWeight weight, SKFontStyleSlant slant)
+    /// <summary>The face found for a request.</summary>
+    /// <param name="Typeface">The face.</param>
+    /// <param name="Matched">Whether some name in the stack was really found (registered, bundled, or installed under that
+    /// name) as opposed to the OS handing back its default.</param>
+    /// <param name="Shared">Whether the typeface is owned by the registry and must never be disposed.</param>
+    private readonly record struct FaceSearch(SKTypeface Typeface, bool Matched, bool Shared);
+
+    /// <summary>Finds the face for a request (<see cref="FaceSearch"/>).</summary>
+    private static FaceSearch ResolveUncached(string? family, SKFontStyleWeight weight, SKFontStyleSlant slant)
     {
         if (string.IsNullOrWhiteSpace(family))
         {
-            return (SKTypeface.FromFamilyName(null, weight, SKFontStyleWidth.Normal, slant), Matched: true, Shared: false);
+            return new FaceSearch(SKTypeface.FromFamilyName(null, weight, SKFontStyleWidth.Normal, slant), Matched: true, Shared: false);
         }
 
         // SKFontStyle is only a key ingredient here; the returned typefaces never retain it.
         using var style = new SKFontStyle(weight, SKFontStyleWidth.Normal, slant);
         var registry = _registry;
         var candidates = new List<string>();
+        bool sansSerif = false;
         foreach (var raw in family.Split(','))
         {
             string name = raw.Trim().Trim('"', '\'');
@@ -190,10 +214,17 @@ public static class SkiaFonts
                 continue;
             }
 
+            // The generic family is no installed name: it is the last resort of the stack, below.
+            if (string.Equals(name, SansSerif, StringComparison.OrdinalIgnoreCase))
+            {
+                sansSerif = true;
+                continue;
+            }
+
             candidates.Add(name);
             if (registry.TryGetValue(BuildKey(name, style), out var entry))
             {
-                return (entry.Typeface, Matched: true, Shared: true);
+                return new FaceSearch(entry.Typeface, Matched: true, Shared: true);
             }
         }
 
@@ -203,21 +234,28 @@ public static class SkiaFonts
             var installed = SKTypeface.FromFamilyName(name, weight, SKFontStyleWidth.Normal, slant);
             if (installed is not null && string.Equals(installed.FamilyName, name, StringComparison.OrdinalIgnoreCase))
             {
-                return (installed, Matched: true, Shared: false);
+                return new FaceSearch(installed, Matched: true, Shared: false);
             }
 
             installed?.Dispose();
         }
 
-        return (SKTypeface.FromFamilyName(family, weight, SKFontStyleWidth.Normal, slant), Matched: false, Shared: false);
+        // "sans-serif" is the face the package carries, as matplotlib's is DejaVu Sans, never the machine's default.
+        // Every style key of it is present: the four faces load with the package and a registration only replaces one.
+        if (sansSerif)
+        {
+            return new FaceSearch(registry[BuildKey(BundledSansSerif, style)].Typeface, Matched: true, Shared: true);
+        }
+
+        return new FaceSearch(SKTypeface.FromFamilyName(family, weight, SKFontStyleWidth.Normal, slant), Matched: false, Shared: false);
     }
 
     /// <summary>The registry key for a family and style: the bare family for a regular upright face, and the family
-    /// with <c>|Bold</c>, <c>|Italic</c> or <c>|BoldItalic</c> otherwise.</summary>
+    /// with <c>|Bold</c>, <c>|Italic</c> or <c>|BoldItalic</c> otherwise. A face that leans, italic or oblique, fills the italic slot.</summary>
     internal static string BuildKey(string family, SKFontStyle style)
     {
-        bool bold = style.Weight >= (int)SKFontStyleWeight.SemiBold;
-        bool italic = style.Slant != SKFontStyleSlant.Upright;
+        bool bold = ToFontWeight(style) == FontWeight.Bold;
+        bool italic = ToFontSlant(style) != FontSlant.Normal;
         return (bold, italic) switch
         {
             (true, true) => $"{family}|BoldItalic",
@@ -227,9 +265,9 @@ public static class SkiaFonts
         };
     }
 
-    /// <summary>Loads the four DejaVu Sans faces embedded in this assembly into a fresh registry. Called once when the
-    /// package initialises; a user's registrations come after it.</summary>
-    internal static void LoadBundled()
+    /// <summary>Reads the faces embedded in this assembly. Runs once, the first time the package resolves a font; a user's
+    /// registrations come after it.</summary>
+    private static Dictionary<string, FontEntry> LoadBundled()
     {
         var registry = new Dictionary<string, FontEntry>(StringComparer.OrdinalIgnoreCase);
         var assembly = typeof(SkiaFonts).Assembly;
@@ -246,15 +284,15 @@ public static class SkiaFonts
             registry[BuildKey(typeface.FamilyName, typeface.FontStyle)] = new FontEntry(typeface, Bundled: true);
         }
 
-        _registry = registry;
-        _resolved = new ConcurrentDictionary<ResolutionKey, ResolvedTypeface>();
+        return registry;
     }
 
-    /// <summary>Back to the state after package initialisation: only the bundled faces, nothing resolved, nothing
-    /// warned about. For tests that register fonts.</summary>
+    /// <summary>Back to the state after package initialisation: only the bundled faces (the very ones read at the start),
+    /// nothing resolved, nothing warned about. For tests that register fonts.</summary>
     internal static void ResetForTests()
     {
-        LoadBundled();
+        _registry = Bundled;
+        _resolved = new ConcurrentDictionary<ResolutionKey, ResolvedTypeface>();
         _warnedFamilies.Clear();
     }
 

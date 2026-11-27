@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Sinusoidal (Sanson-Flamsteed) projection — equal-area pseudo-cylindrical.
 /// Simplest equal-area projection. Meridians are sinusoidal curves.</summary>
-public sealed class Sinusoidal : IGeoProjection
+public sealed class Sinusoidal : IGeoProjection, IProjectionOutline
 {
     /// <inheritdoc />
     public string Name => "Sinusoidal";
@@ -23,5 +23,8 @@ public sealed class Sinusoidal : IGeoProjection
     }
 
     /// <inheritdoc />
-    public GeoBounds Bounds => new(-180, 180, -90, 90);
+    /// <remarks>The box round the edge of the world.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
+
+    IReadOnlyList<GeoJson.GeoPosition> IProjectionOutline.TraceOutline() => this.MeridianOutline();
 }

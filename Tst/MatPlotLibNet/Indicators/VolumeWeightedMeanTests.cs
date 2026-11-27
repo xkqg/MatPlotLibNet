@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Indicators.Streaming;
+using MatPlotLibNet.Indicators.Steps;
 
 namespace MatPlotLibNet.Tests.Indicators;
 

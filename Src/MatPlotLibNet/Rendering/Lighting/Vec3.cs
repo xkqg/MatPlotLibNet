@@ -7,6 +7,10 @@ namespace MatPlotLibNet.Rendering.Lighting;
 /// <c>(X, Y, Z)</c>.</summary>
 public readonly record struct Vec3(double X, double Y, double Z)
 {
+    /// <summary>The length of the vector: the square root of the sum of the three squares, the one place a light, a face's normal and
+    /// the diagonal of a scene's box are measured.</summary>
+    internal double Length => Math.Sqrt(X * X + Y * Y + Z * Z);
+
     /// <summary>Returns the unnormalized face normal of the triangle formed by vertices
     /// <paramref name="v0"/>, <paramref name="v1"/>, <paramref name="v2"/> (cross product
     /// <c>(v1 − v0) × (v2 − v0)</c>). Reversing vertex order flips the normal's direction.</summary>

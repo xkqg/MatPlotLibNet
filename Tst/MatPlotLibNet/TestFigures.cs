@@ -10,14 +10,13 @@ internal static class TestFigures
     internal static Figure SingleLine(double[]? x = null, double[]? y = null)
         => Plt.Create().Plot(x ?? [1.0, 2.0, 3.0], y ?? [4.0, 5.0, 6.0]).Build();
 
-    internal static Figure SingleScatter(double[]? x = null, double[]? y = null)
-        => Plt.Create().Scatter(x ?? [1.0, 2.0, 3.0], y ?? [4.0, 5.0, 6.0]).Build();
-
-    internal static Figure SingleBar(string[]? cats = null, double[]? vals = null)
-        => Plt.Create().Bar(cats ?? ["A", "B", "C"], vals ?? [10.0, 20.0, 15.0]).Build();
-
     internal static Figure Empty() => Plt.Create().Build();
 
-    internal static Figure WithTitle(string title)
-        => Plt.Create().WithTitle(title).Plot([1.0, 2.0], [3.0, 4.0]).Build();
+    /// <summary>The SVG of a two-point line that <paramref name="with"/> sets a figure-level flag on.</summary>
+    /// <param name="with">Switches a flag of the figure on (returns the builder it is given for a figure with none).</param>
+    internal static string TwoPointSvg(Func<FigureBuilder, FigureBuilder> with) => with(Plt.Create()).Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
+
+    /// <summary>The figure a test of one verb draws: 800 by 400 pixels with one subplot that <paramref name="verb"/> fills.</summary>
+    /// <param name="verb">The call of the verb on the subplot.</param>
+    internal static Figure OfOneVerb(Action<AxesBuilder> verb) => Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, verb).Build();
 }

@@ -14,29 +14,10 @@ namespace MatPlotLibNet.Tests.Models.Series;
 /// first time a caller leaves something out, and each would otherwise report a wrong name or throw.</summary>
 public class SeriesDataTableEdgeTests
 {
-    /// <summary>A series outside the <see cref="ChartSeries"/> hierarchy — what the interface's own default
-    /// answers for.</summary>
-    private sealed class BareSeries : ISeries
-    {
-        public string? Label { get; set; }
-
-        public bool Visible { get; set; } = true;
-
-        public int ZOrder { get; set; }
-
-        public void Accept(ISeriesVisitor visitor, RenderArea area)
-        {
-        }
-
-        public DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
-
-        public SeriesDto ToSeriesDto() => new() { Type = "bare" };
-    }
-
     [Fact]
     public void ASeriesOutsideTheHierarchy_GetsTheInterfacesOwnDefault()
     {
-        Assert.Null(((ISeries)new BareSeries()).ToDataTable());
+        Assert.Null(((ISeries)new ForeignSeries()).ToDataTable());
     }
 
     // ---- a column needs a header -------------------------------------------------------------------------------
@@ -49,10 +30,14 @@ public class SeriesDataTableEdgeTests
 
     // ---- the label lists that may be absent or short ------------------------------------------------------------
 
-    [Fact]
-    public void APieWithFewerLabelsThanSlices_NumbersTheRest()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void APieOrADonutWithFewerLabelsThanSlices_NumbersTheRest(bool pie)
     {
-        var table = new PieSeries([1, 2, 3]) { Labels = ["only"] }.ToDataTable()!;
+        ChartSeries series = pie ? new PieSeries([1, 2, 3]) { Labels = ["only"] } : new DonutSeries([1, 2, 3]) { Labels = ["only"] };
+
+        var table = series.ToDataTable()!;
 
         Assert.Equal(["only", "slice 2", "slice 3"], table.Rows.Select(r => r[0].Text));
     }
@@ -63,25 +48,6 @@ public class SeriesDataTableEdgeTests
         var table = new DonutSeries([1, 2]).ToDataTable()!;
 
         Assert.Equal(["slice 1", "slice 2"], table.Rows.Select(r => r[0].Text));
-    }
-
-    [Fact]
-    public void ADonutWithFewerLabelsThanSlices_NumbersTheRest()
-    {
-        var table = new DonutSeries([1, 2, 3]) { Labels = ["only"] }.ToDataTable()!;
-
-        Assert.Equal(["only", "slice 2", "slice 3"], table.Rows.Select(r => r[0].Text));
-    }
-
-    [Fact]
-    public void AFilledContourWhoseAxesAreShorterThanItsGrid_FallsBackToTheIndex()
-    {
-        var series = new ContourfSeries([10.0], [20.0], new double[,] { { 1, 2 }, { 3, 4 } });
-
-        var table = series.ToDataTable()!;
-
-        Assert.Equal([10.0, 20.0], [table.Rows[0][0].Number, table.Rows[0][1].Number]);
-        Assert.Equal([1.0, 1.0], [table.Rows[3][0].Number, table.Rows[3][1].Number]);
     }
 
     [Fact]
@@ -235,10 +201,13 @@ public class SeriesDataTableEdgeTests
 
     // ---- grids whose axis arrays are shorter than the grid -------------------------------------------------------
 
-    [Fact]
-    public void AContourWhoseAxesAreShorterThanItsGrid_FallsBackToTheIndex()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AContourOrAFilledContourWhoseAxesAreShorterThanItsGrid_FallsBackToTheIndex(bool filled)
     {
-        var series = new ContourSeries([10.0], [20.0], new double[,] { { 1, 2 }, { 3, 4 } });
+        double[,] grid = { { 1, 2 }, { 3, 4 } };
+        ChartSeries series = filled ? new ContourfSeries([10.0], [20.0], grid) : new ContourSeries([10.0], [20.0], grid);
 
         var table = series.ToDataTable()!;
 
@@ -513,20 +482,13 @@ public class SeriesDataTableEdgeTests
         Assert.Equal(["x", "y", "speed", "direction"], series.ToDataTable()!.Columns.Select(c => c.Header));
     }
 
-    [Fact]
-    public void ATricontour_IsItsUnstructuredPoints()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ATricontourOrATripcolor_IsItsUnstructuredPoints(bool contour)
     {
-        var series = new TricontourSeries(
-            new double[] { 0, 1, 0.5 }, new double[] { 0, 0, 1 }, new double[] { 1, 2, 3 });
-
-        Assert.Equal(3, series.ToDataTable()!.RowCount);
-    }
-
-    [Fact]
-    public void ATripcolor_IsItsUnstructuredPoints()
-    {
-        var series = new TripcolorSeries(
-            new double[] { 0, 1, 0.5 }, new double[] { 0, 0, 1 }, new double[] { 1, 2, 3 });
+        double[] x = [0, 1, 0.5], y = [0, 0, 1], z = [1, 2, 3];
+        ChartSeries series = contour ? new TricontourSeries(x, y, z) : new TripcolorSeries(x, y, z);
 
         Assert.Equal(3, series.ToDataTable()!.RowCount);
     }

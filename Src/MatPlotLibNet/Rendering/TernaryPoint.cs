@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
+
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>A composition of three parts: how much of the one named at the apex of a ternary diagram, how much of the one at
@@ -42,9 +44,9 @@ public static class TernaryPointExtensions
         /// <exception cref="ArgumentException">All three parts are zero, so there are no proportions to place.</exception>
         public TernaryPoint Closed()
         {
-            CheckPart(composition.Top, nameof(TernaryPoint.Top));
-            CheckPart(composition.Left, nameof(TernaryPoint.Left));
-            CheckPart(composition.Right, nameof(TernaryPoint.Right));
+            composition.Top.ThrowIfNotFinite(nameof(TernaryPoint.Top)).ThrowIfBelow(0, nameof(TernaryPoint.Top));
+            composition.Left.ThrowIfNotFinite(nameof(TernaryPoint.Left)).ThrowIfBelow(0, nameof(TernaryPoint.Left));
+            composition.Right.ThrowIfNotFinite(nameof(TernaryPoint.Right)).ThrowIfBelow(0, nameof(TernaryPoint.Right));
 
             double sum = composition.Top + composition.Left + composition.Right;
             if (sum == 0)
@@ -60,7 +62,7 @@ public static class TernaryPointExtensions
         public bool TryClosed(out TernaryPoint closed)
         {
             double sum = composition.Top + composition.Left + composition.Right;
-            if (IsPart(composition.Top) && IsPart(composition.Left) && IsPart(composition.Right) && sum > 0 && double.IsFinite(sum))
+            if (IsPart(composition.Top) && IsPart(composition.Left) && IsPart(composition.Right) && sum.IsPositiveFinite())
             {
                 closed = new TernaryPoint(composition.Top / sum, composition.Left / sum, composition.Right / sum);
                 return true;
@@ -92,10 +94,4 @@ public static class TernaryPointExtensions
     }
 
     private static bool IsPart(double part) => double.IsFinite(part) && part >= 0;
-
-    private static void CheckPart(double part, string name)
-    {
-        if (!IsPart(part))
-            throw new ArgumentOutOfRangeException(name, part, $"The {name} part of a ternary composition must be a finite number that is not negative.");
-    }
 }

@@ -10,6 +10,7 @@ using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Geo.Series;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -21,43 +22,27 @@ public class GeoMapRoundTripTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static string RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure)).ToSvg();
-
     private static Figure Map(Action<AxesBuilder> axes) =>
         Plt.Create().WithSize(600, 330).AddSubPlot(1, 1, 1, axes).Build();
 
     // ---- the four layers -----------------------------------------------------------------------------------------------
 
-    [Fact]
-    public void Land_ComesBack_AsTheSamePicture()
+    /// <summary>Each of the four layers, drawn alone under a projection of its own.</summary>
+    public static TheoryData<string, Action<AxesBuilder>> Layers => new()
     {
-        var figure = Map(ax => ax.WithProjection(GeoProjection.Robinson).Land(Colors.Green));
+        { "land", ax => ax.WithProjection(GeoProjection.Robinson).Land(Colors.Green) },
+        { "borders", ax => ax.WithProjection(GeoProjection.Mercator).Borders(Colors.Red, 0.4) },
+        { "coastlines", ax => ax.WithProjection(GeoProjection.Mollweide).Coastlines(Colors.Navy, 0.9) },
+        { "ocean", ax => ax.WithProjection(GeoProjection.EqualEarth).Ocean(Colors.Blue) },
+    };
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure));
-    }
-
-    [Fact]
-    public void Borders_ComeBack_AsTheSamePicture()
+    [Theory]
+    [MemberData(nameof(Layers))]
+    public void ALayer_ComesBack_AsTheSamePicture(string layer, Action<AxesBuilder> axes)
     {
-        var figure = Map(ax => ax.WithProjection(GeoProjection.Mercator).Borders(Colors.Red, 0.4));
+        var figure = Map(axes);
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure));
-    }
-
-    [Fact]
-    public void Coastlines_ComeBack_AsTheSamePicture()
-    {
-        var figure = Map(ax => ax.WithProjection(GeoProjection.Mollweide).Coastlines(Colors.Navy, 0.9));
-
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure));
-    }
-
-    [Fact]
-    public void TheOcean_ComesBack_AsTheSamePicture()
-    {
-        var figure = Map(ax => ax.WithProjection(GeoProjection.EqualEarth).Ocean(Colors.Blue));
-
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure));
+        Assert.True(figure.ToSvg() == figure.RoundTripped().ToSvg(), "the " + layer + " came back as another picture");
     }
 
     [Fact]
@@ -66,7 +51,7 @@ public class GeoMapRoundTripTests
         var figure = Map(ax => ax.WithProjection(GeoProjection.Robinson)
             .Ocean(Colors.Blue).Land(Colors.Green).Coastlines(Colors.White).Borders(Colors.Gray));
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure));
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     [Fact]
@@ -74,7 +59,7 @@ public class GeoMapRoundTripTests
     {
         var figure = Map(ax => ax.WithProjection(GeoProjection.Robinson).Land(Colors.Green).Ocean(Colors.Blue));
 
-        var back = Serializer.FromJson(Serializer.ToJson(figure)).SubPlots[0].Series.Cast<GeoPolygonSeries>().ToList();
+        var back = figure.RoundTripped().SubPlots[0].Series.Cast<GeoPolygonSeries>().ToList();
 
         Assert.Equal(["Land", "Ocean"], back.Select(s => s.Label));
         Assert.Equal([-1, -2], back.Select(s => s.ZOrder));
@@ -95,8 +80,8 @@ public class GeoMapRoundTripTests
     [Fact]
     public void TheTableHoldsEveryProjectionThePackageShips() =>
         Assert.Equal(
-            typeof(IGeoProjection).Assembly.GetTypes().Count(t => t is { IsClass: true, IsAbstract: false, IsPublic: true } && typeof(IGeoProjection).IsAssignableFrom(t)),
-            Projections.Select(p => p.GetType()).Distinct().Count());
+            typeof(IGeoProjection).Assembly.ConcretePublicSubtypesOf(typeof(IGeoProjection)).Select(type => type.Name),
+            Projections.Select(p => p.GetType().Name).Distinct().Order(StringComparer.Ordinal));
 
     public static TheoryData<int> ProjectionIndices => [.. Enumerable.Range(0, Projections.Length)];
 
@@ -107,7 +92,7 @@ public class GeoMapRoundTripTests
         var projection = Projections[index];
         var figure = Map(ax => ax.WithProjection(projection).Ocean(Colors.Blue));
 
-        var back = Assert.IsType<GeoPolygonSeries>(Serializer.FromJson(Serializer.ToJson(figure)).SubPlots[0].Series[0]).Projection;
+        var back = Assert.IsType<GeoPolygonSeries>(figure.RoundTripped().SubPlots[0].Series[0]).Projection;
 
         Assert.IsType(projection.GetType(), back);
         Assert.Equal(projection.Name, back.Name);
@@ -121,16 +106,16 @@ public class GeoMapRoundTripTests
         }
     }
 
-    [Fact]
-    public void AProjectionsNumbers_AreWrittenByTheirProjNames_AllOfThem()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Serializer.ToJson(Map(ax => ax.WithProjection(new LambertConformal(20, 50, 10, 45)).Ocean(Colors.Blue)));
+        new DrawnToken("AProjectionsNumbers_AreWrittenByTheirProjNames_AllOfThem", () => Serializer.ToJson(Map(ax => ax.WithProjection(new LambertConformal(20, 50, 10, 45)).Ocean(Colors.Blue))), "\"lat_1\":20", "\"lat_2\":50", "\"lon_0\":10", "\"lat_0\":45"),
+        new DrawnToken("TheCoastlinesSource_IsNamedToo", () => Serializer.ToJson(Map(ax => ax.WithProjection(GeoProjection.Robinson).Coastlines(Colors.Black))), "ne_110m_coastline"),
+    };
 
-        Assert.Contains("\"lat_1\":20", json);
-        Assert.Contains("\"lat_2\":50", json);
-        Assert.Contains("\"lon_0\":10", json);
-        Assert.Contains("\"lat_0\":45", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- the features --------------------------------------------------------------------------------------------------
 
@@ -144,14 +129,6 @@ public class GeoMapRoundTripTests
     }
 
     [Fact]
-    public void TheCoastlinesSource_IsNamedToo()
-    {
-        string json = Serializer.ToJson(Map(ax => ax.WithProjection(GeoProjection.Robinson).Coastlines(Colors.Black)));
-
-        Assert.Contains("ne_110m_coastline", json);
-    }
-
-    [Fact]
     public void FeaturesOfYourOwn_AreEmbeddedExactly_HolesAndPropertiesIncluded()
     {
         var own = new List<GeoFeature>
@@ -159,15 +136,15 @@ public class GeoMapRoundTripTests
             new(new GeoGeometry
                 {
                     Type = "Polygon",
-                    Rings = [[(0, 0), (20, 0), (20, 20), (0, 20), (0, 0)], [(5, 5), (5, 15), (15, 15), (15, 5), (5, 5)]],
+                    PositionRings = [[new(0, 0), new(20, 0), new(20, 20), new(0, 20), new(0, 0)], [new(5, 5), new(5, 15), new(15, 15), new(15, 5), new(5, 5)]],
                 },
                 new Dictionary<string, string> { ["ADM0_A3"] = "AAA", ["NAME"] = "Alpha" }),
-            new(new GeoGeometry { Type = "LineString", Rings = [[(30, 30), (40, 35), (50, 30)]] }, new Dictionary<string, string>()),
+            new(new GeoGeometry { Type = "LineString", PositionRings = [[new(30, 30), new(40, 35), new(50, 30)]] }, new Dictionary<string, string>()),
         };
         var figure = Map(ax => ax.WithProjection(GeoProjection.PlateCarree)
             .AddSeries(new GeoPolygonSeries(own, GeoProjection.PlateCarree) { Color = Colors.Orange, StrokeColor = Colors.Black }));
 
-        var back = Assert.IsType<GeoPolygonSeries>(Serializer.FromJson(Serializer.ToJson(figure)).SubPlots[0].Series[0]);
+        var back = Assert.IsType<GeoPolygonSeries>(figure.RoundTripped().SubPlots[0].Series[0]);
 
         Assert.Equal(2, back.Features.Count);
         var polygon = Assert.Single(back.Features[0].Geometry.Polygons);
@@ -175,29 +152,20 @@ public class GeoMapRoundTripTests
         Assert.Equal(5, Assert.Single(polygon.Holes).Count);
         Assert.Equal("Alpha", back.Features[0].Properties["NAME"]);
         Assert.Equal("LineString", back.Features[1].Geometry.Type);
-        Assert.Equal(figure.ToSvg(), Serializer.FromJson(Serializer.ToJson(figure)).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     // ---- what is not a map -----------------------------------------------------------------------------------------------
-
-    private static (Figure Figure, List<ChartDiagnostic> Diagnostics) Read(string json)
-    {
-        var diagnostics = new List<ChartDiagnostic>();
-        void Handler(ChartDiagnostic d) => diagnostics.Add(d);
-        ChartDiagnostics.Emitted += Handler;
-        try { return (Serializer.FromJson(json), diagnostics); }
-        finally { ChartDiagnostics.Emitted -= Handler; }
-    }
-
     [Fact]
     public void AMapWrittenBefore_WithNoPackageData_IsDroppedWithTheDiagnostic_AsItWas()
     {
         const string json = """{"subPlots":[{"series":[{"type":"geo_polygon","label":"Land"}]}]}""";
 
-        var (figure, diagnostics) = Read(json);
+        var (figure, diagnostics) = DiagnosticsCapture.Of(() => Serializer.FromJson(json));
 
         Assert.Empty(figure.SubPlots[0].Series);
-        Assert.Contains(diagnostics, d => d.Message.Contains("geo_polygon", StringComparison.Ordinal));
+        Assert.Equal("The 'geo_polygon' series was skipped during deserialization: its data is unreadable: it carries no package data.",
+            Assert.Single(diagnostics).Message);
     }
 
     /// <summary>What the 1.23.0 build wrote for an ocean, a land and a set of coastlines on a Robinson map, byte for byte (written by
@@ -214,7 +182,7 @@ public class GeoMapRoundTripTests
     [Fact]
     public void AFigureWrittenBy1230_ReadsWithoutItsMaps_AsItDid_WithOneDiagnosticForEach()
     {
-        var (figure, diagnostics) = Read(WrittenBy1230);
+        var (figure, diagnostics) = DiagnosticsCapture.Of(() => Serializer.FromJson(WrittenBy1230));
 
         Assert.Equal(600, figure.Width);
         Assert.Empty(figure.SubPlots[0].Series);
@@ -226,10 +194,12 @@ public class GeoMapRoundTripTests
     {
         const string json = """{"subPlots":[{"series":[{"type":"geo_polygon","packageData":{"projection":{"name":"Peirce"},"source":"ne_110m_admin_0_countries"}}]}]}""";
 
-        var (figure, diagnostics) = Read(json);
+        var (figure, diagnostics) = DiagnosticsCapture.Of(() => Serializer.FromJson(json));
 
         Assert.Empty(figure.SubPlots[0].Series);
-        Assert.NotEmpty(diagnostics);
+        // Measured before the change: "Unknown series discriminator 'geo_polygon' was skipped", although the kind is registered.
+        Assert.Equal("The 'geo_polygon' series was skipped during deserialization: its data is unreadable: its projection 'Peirce' with "
+            + "no numbers is not one this package makes.", Assert.Single(diagnostics).Message);
     }
 
     [Fact]
@@ -237,10 +207,45 @@ public class GeoMapRoundTripTests
     {
         const string json = """{"subPlots":[{"series":[{"type":"geo_polygon","packageData":{"projection":{"name":"Robinson"},"source":"ne_10m_unheard_of"}}]}]}""";
 
-        var (figure, diagnostics) = Read(json);
+        var (figure, diagnostics) = DiagnosticsCapture.Of(() => Serializer.FromJson(json));
 
         Assert.Empty(figure.SubPlots[0].Series);
-        Assert.NotEmpty(diagnostics);
+        Assert.EndsWith("its data is unreadable: its source 'ne_10m_unheard_of' is not a built-in set of this package.", Assert.Single(diagnostics).Message);
+    }
+
+    /// <summary>A number the projection does not take is a misspelt one (<c>lat0</c> for <c>lat_0</c>): taken as no number, the map
+    /// would be drawn about the default centre without a word, so the data describes no map this package can make.</summary>
+    [Theory]
+    [InlineData("Orthographic", "lat0")]
+    [InlineData("Robinson", "lon_0")]
+    public void ANumberTheProjectionDoesNotTake_IsDroppedWithTheDiagnostic(string projection, string parameter)
+    {
+        string json = $$$"""{"subPlots":[{"series":[{"type":"geo_polygon","packageData":{"projection":{"name":"{{{projection}}}","parameters":{"{{{parameter}}}":10}},"source":"ne_110m_coastline"}}]}]}""";
+
+        var (figure, diagnostics) = DiagnosticsCapture.Of(() => Serializer.FromJson(json));
+
+        Assert.Empty(figure.SubPlots[0].Series);
+        Assert.EndsWith($"its data is unreadable: its projection '{projection}' with the numbers {parameter} is not one this package makes.",
+            Assert.Single(diagnostics).Message);
+    }
+
+    /// <summary>What the package data of a map holds, in words, for a reader that tells an author what to write (the MCP server's
+    /// schema and its refusals): every projection by its name with the numbers it takes, and both built-in sets.</summary>
+    [Fact]
+    public void TheDescriptionOfAMap_NamesEveryProjectionWithItsNumbers_AndEverySource()
+    {
+        string described = GeoMapData.Described;
+
+        foreach (var projection in Projections)
+        {
+            string named = projection.ParametersOf().Count == 0
+                ? projection.Name
+                : $"{projection.Name} ({string.Join(", ", projection.ParametersOf().Keys)})";
+            Assert.Contains(named, described);
+        }
+
+        Assert.Contains(NaturalEarth110m.CountriesSource, described);
+        Assert.Contains(NaturalEarth110m.CoastlinesSource, described);
     }
 
     // ---- the reader is the package's -------------------------------------------------------------------------------------
@@ -252,9 +257,7 @@ public class GeoMapRoundTripTests
     [Fact]
     public void TheReader_IsGoneWhenTheRegistryIsReset_AndRegisterReaderBringsItBack()
     {
-#pragma warning disable CS0618 // the public reset is the one a test outside the core project can reach
-        SeriesRegistry.ResetForTests();
-#pragma warning restore CS0618
+        SeriesRegistry.ResetForTestsInternal();
         try
         {
             Assert.DoesNotContain("geo_polygon", SeriesRegistry.Discriminators);

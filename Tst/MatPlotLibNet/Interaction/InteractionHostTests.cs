@@ -50,10 +50,9 @@ public class InteractionHostTests
     [Fact]
     public void AfterAPaint_AWheelZoomsTheFigureAndAsksForARepaint()
     {
-        var host = new InteractionHost();
-        var figure = NewFigure();
         int repaints = 0;
-        host.InvalidateRequested += () => repaints++;
+        var host = new InteractionHost(() => repaints++);
+        var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
 
         host.HandleScroll(Wheel());
@@ -154,22 +153,10 @@ public class InteractionHostTests
         Assert.Equal(first, figure.ToJson());
     }
 
-    private sealed class RecordingHandler : IChartEventHandler
-    {
-        public List<string> Seen { get; } = [];
-        public Exception? Throw { get; init; }
-
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            Seen.Add(evt.GetType().Name);
-            return Throw is null ? default : ValueTask.FromException(Throw);
-        }
-    }
-
     [Fact]
     public void TheHandler_IsToldOfEveryGesture_ThatReachedTheFigure()
     {
-        var handler = new RecordingHandler();
+        var handler = new RecordingChartEventHandler();
         var host = new InteractionHost { Handler = handler };
         var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
@@ -178,7 +165,7 @@ public class InteractionHostTests
         host.Update(figure, LayoutOf(figure));
         host.HandleKeyDown(new KeyInputArgs("Home"));
 
-        Assert.Equal(["ZoomEvent", "ResetEvent"], handler.Seen);
+        Assert.Equal(["ZoomEvent", "ResetEvent"], handler.Names);
     }
 
     [Fact]
@@ -186,7 +173,7 @@ public class InteractionHostTests
     {
         var figure = NewFigure();
         double? limitSeenByHandler = null;
-        var host = new InteractionHost { Handler = new LimitProbe(() => limitSeenByHandler = figure.SubPlots[0].XAxis.Min) };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler { WhileHandling = () => limitSeenByHandler = figure.SubPlots[0].XAxis.Min } };
         host.Update(figure, LayoutOf(figure));
 
         host.HandleScroll(Wheel());
@@ -194,20 +181,11 @@ public class InteractionHostTests
         Assert.NotNull(limitSeenByHandler);
     }
 
-    private sealed class LimitProbe(Action probe) : IChartEventHandler
-    {
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            probe();
-            return default;
-        }
-    }
-
     [Fact]
     public void AHandlerThatFails_IsReported_AndDoesNotReachTheControl()
     {
         var failures = new List<Exception>();
-        var host = new InteractionHost { Handler = new RecordingHandler { Throw = new InvalidOperationException("boom") } };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler { Throw = new InvalidOperationException("boom") } };
         host.HandlerFaulted += failures.Add;
         var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
@@ -220,16 +198,32 @@ public class InteractionHostTests
     }
 
     [Fact]
+    public void AHandlerThatFinishesLater_IsWatchedToItsEnd_AndReportsNothing()
+    {
+        var later = new TaskCompletionSource();
+        var failures = new List<Exception>();
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler { Finishes = later.Task } };
+        host.HandlerFaulted += failures.Add;
+        var figure = NewFigure();
+        host.Update(figure, LayoutOf(figure));
+
+        host.HandleScroll(Wheel());
+        later.SetResult();
+
+        Assert.Empty(failures);
+    }
+
+    [Fact]
     public void WithAServerSink_TheHandlerIsToldToo()
     {
-        var handler = new RecordingHandler();
+        var handler = new RecordingChartEventHandler();
         var host = new InteractionHost { ServerEventSink = _ => { }, Handler = handler };
         var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
 
         host.HandleScroll(Wheel());
 
-        Assert.Equal(["ZoomEvent"], handler.Seen);
+        Assert.Equal(["ZoomEvent"], handler.Names);
     }
 
     [Fact]
@@ -254,17 +248,11 @@ public class InteractionHostTests
         Assert.NotNull(host.ActiveCrosshair);
     }
 
-    private sealed class ThrowingAtOnce : IChartEventHandler
-    {
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context) =>
-            throw new InvalidOperationException("at once");
-    }
-
     [Fact]
     public void AHandlerThatThrowsBeforeItReturns_IsReported_AndDoesNotReachTheControl()
     {
         var failures = new List<Exception>();
-        var host = new InteractionHost { Handler = new ThrowingAtOnce() };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler { ThrowAtOnce = new InvalidOperationException("at once") } };
         host.HandlerFaulted += failures.Add;
         var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
@@ -278,7 +266,7 @@ public class InteractionHostTests
     [Fact]
     public void AHandlerThatFails_WithNobodyListeningForFailures_IsHarmless()
     {
-        var host = new InteractionHost { Handler = new RecordingHandler { Throw = new InvalidOperationException("boom") } };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler { Throw = new InvalidOperationException("boom") } };
         var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
 
@@ -291,7 +279,7 @@ public class InteractionHostTests
     [Fact]
     public void AHandlerThatThrowsBeforeItReturns_WithNobodyListeningForFailures_IsHarmless()
     {
-        var host = new InteractionHost { Handler = new ThrowingAtOnce() };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler { ThrowAtOnce = new InvalidOperationException("at once") } };
         var figure = NewFigure();
         host.Update(figure, LayoutOf(figure));
 

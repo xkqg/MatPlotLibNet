@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -22,12 +23,8 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
         int[] tris = Delaunay.TrianglesOf(series.X, series.Y, series.Triangles);
         if (tris.Length == 0) return;
 
-        // The series' own colour range, the one its colour bar shows.
-        var (zMin, zMax) = series.GetColorBarRange();
-        if (zMin == zMax) zMax = zMin + 1;
-
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var norm = series.NormalizerOrLinear();
+        // The series' own colour scale, whose range its colour bar shows.
+        var scale = series.ColorScaleUnder(Context.Theme);
 
         int nTri = tris.Length / 3;
         for (int t = 0; t < nTri; t++)
@@ -36,7 +33,7 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
             if (ia >= series.Z.Length || ib >= series.Z.Length || ic >= series.Z.Length) continue;
 
             double meanZ = (series.Z[ia] + series.Z[ib] + series.Z[ic]) / 3.0;
-            var color = cmap.ColorOf(meanZ, norm, zMin, zMax);
+            var color = scale.ColorOf(meanZ);
 
             var pts = new List<Point>(3)
             {
@@ -44,7 +41,7 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
                 Transform.DataToPixel(series.X[ib], series.Y[ib]),
                 Transform.DataToPixel(series.X[ic], series.Y[ic])
             };
-            Ctx.DrawPolygon(pts, new ShapeStyle(color, null, 0));
+            Ctx.DrawPolygon(pts, ShapeStyle.Filled(color));
         }
     }
 }

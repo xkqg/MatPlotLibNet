@@ -8,35 +8,21 @@ namespace MatPlotLibNet.Interaction;
 /// <summary>Manages selection and deletion of existing drawing tools. Callers use
 /// <see cref="SelectTool"/> to programmatically select a tool; the Delete key then
 /// emits a <see cref="RemoveDrawingToolEvent"/> for the selected tool.</summary>
-public sealed class DrawingToolSelectionModifier : IInteractionModifier
+public sealed class DrawingToolSelectionModifier : InteractionModifier
 {
-    private readonly string _chartId;
-    private readonly IChartLayout _layout;
-    private readonly Figure _figure;
-    private readonly Action<FigureInteractionEvent> _sink;
-    private readonly InteractionToolbar _toolbar;
-
     private object? _selectedTool;
     private int _selectedAxesIndex;
 
     /// <summary>Creates a modifier that removes the selected drawing tool when the Delete key is pressed.</summary>
     /// <param name="chartId">The identifier of the chart that the emitted <see cref="RemoveDrawingToolEvent"/> is addressed to.</param>
     /// <param name="layout">The chart layout of the rendered figure.</param>
-    /// <param name="figure">The figure being interacted with.</param>
     /// <param name="sink">Receives the event this modifier emits when a selected tool is deleted.</param>
-    /// <param name="toolbar">The toolbar whose state the controller shares with its other modifiers.</param>
     public DrawingToolSelectionModifier(
         string chartId,
         IChartLayout layout,
-        Figure figure,
-        Action<FigureInteractionEvent> sink,
-        InteractionToolbar toolbar)
+        Action<FigureInteractionEvent> sink)
+        : base(chartId, layout, sink)
     {
-        _chartId = chartId;
-        _layout  = layout;
-        _figure  = figure;
-        _sink    = sink;
-        _toolbar = toolbar;
     }
 
     /// <summary>Programmatically selects a drawing tool for deletion.</summary>
@@ -50,27 +36,14 @@ public sealed class DrawingToolSelectionModifier : IInteractionModifier
     public void ClearSelection() => _selectedTool = null;
 
     /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) =>
+    public override bool HandlesKeyDown(KeyInputArgs args) =>
         _selectedTool is not null && args.Key == "Delete";
 
     /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args)
+    public override void OnKeyDown(KeyInputArgs args)
     {
         if (_selectedTool is null) return;
-        _sink(new RemoveDrawingToolEvent(_chartId, _selectedAxesIndex, _selectedTool));
+        Emit(new RemoveDrawingToolEvent(ChartId, _selectedAxesIndex, _selectedTool));
         _selectedTool = null;
     }
 }

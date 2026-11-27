@@ -20,9 +20,9 @@ internal static class LargestRemainderExtensions
         internal int[] Apportion(int seats)
         {
             var cells = new int[values.Length];
-            double[] weights = [.. values.Select(value => double.IsFinite(value) && value > 0 ? value : 0)];
+            double[] weights = [.. values.Select(value => value.IsPositiveFinite() ? value : 0)];
             double total = weights.Sum();
-            if (seats <= 0 || !(total > 0) || !double.IsFinite(total)) return cells;
+            if (seats <= 0 || !total.IsPositiveFinite()) return cells;
 
             var remainders = new double[values.Length];
             int handedOut = 0;
@@ -35,7 +35,7 @@ internal static class LargestRemainderExtensions
             }
 
             // The cells left over go one each to the largest remainders; equal remainders are served in the order they stand.
-            foreach (int i in Enumerable.Range(0, values.Length).OrderByDescending(i => remainders[i]).ThenBy(i => i).Take(seats - handedOut))
+            foreach (int i in remainders.DescendingOrder().AsSpan(0, seats - handedOut))
             {
                 cells[i]++;
             }

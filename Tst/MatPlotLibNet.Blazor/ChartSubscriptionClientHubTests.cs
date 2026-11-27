@@ -10,15 +10,15 @@ namespace MatPlotLibNet.Blazor.Tests;
 /// <summary>Phase X.11.c (v1.7.2, 2026-04-19) — exercises the
 /// <see cref="ChartSubscriptionClient"/> ConnectAsync + Subscribe + UpdateChartSvg
 /// receive flow against a real ASP.NET Core SignalR hub provided by the
-/// <see cref="StreamingHostFixture"/>. Pre-X.11.c the ConnectAsync body (lines 19-39)
-/// was 0%-covered because no test reached a live hub. This class:
+/// <see cref="StreamingHostFixture"/>. The ConnectAsync body needs a live hub, which no other test reaches.
+/// This class:
 ///   - Exercises ConnectAsync's full body (HubConnectionBuilder configuration,
 ///     On&lt;...&gt; handler registration, StartAsync)
-///   - Exercises SubscribeAsync's hub-non-null arm (line 44 true)
-///   - Exercises the OnSvgUpdated callback closure (line 26-30) by publishing a
+///   - Exercises SubscribeAsync with a connected hub
+///   - Exercises the OnSvgUpdated callback closure by publishing a
 ///     frame from the hub side and asserting the callback fires
-///   - Exercises UnsubscribeAsync's hub-non-null arm (line 51 true)
-///   - Exercises DisposeAsync's hub-non-null arm (line 64 true) including the
+///   - Exercises UnsubscribeAsync with a connected hub
+///   - Exercises DisposeAsync with a connected hub, including the
 ///     try/catch around DisposeAsync.</summary>
 public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixture>
 {
@@ -37,7 +37,7 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
     }
 
     /// <summary>Full subscribe → publish → callback flow. The OnSvgUpdated closure
-    /// (line 26-30) only fires when a published "UpdateChartSvg" message arrives;
+    /// only fires when a published "UpdateChartSvg" message arrives;
     /// this exercises the closure body for the chartId+svg arguments.</summary>
     [Fact]
     public async Task Subscribe_ThenPublishSvg_InvokesOnSvgUpdatedCallback()
@@ -56,7 +56,7 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
         Assert.Contains("Live X.11.c", received.svg);
     }
 
-    /// <summary>Subscribe + Unsubscribe round-trip — both line 44 and line 51 hub-non-null
+    /// <summary>Subscribe + Unsubscribe round-trip — both calls take their hub-connected
     /// arms run. After Unsubscribe, subsequent publishes do NOT invoke the callback.</summary>
     [Fact]
     public async Task Unsubscribe_StopsCallbackFromFiring()
@@ -75,8 +75,8 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
         Assert.False(fired);
     }
 
-    /// <summary>DisposeAsync after a real connect runs the line 64 true arm + the
-    /// inner try/catch (line 66-67). Forward-regression guard for the cleanup contract.</summary>
+    /// <summary>DisposeAsync after a real connect takes its connected path, with the
+    /// inner try/catch. Forward-regression guard for the cleanup contract.</summary>
     [Fact]
     public async Task DisposeAsync_AfterConnect_ClosesConnectionCleanly()
     {
@@ -96,15 +96,9 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
     [Fact]
     public async Task ConnectAsync_CalledTwice_DisposesPriorConnection()
     {
-        var builtHubs = new List<HubConnection>();
-        await using var client = new ChartSubscriptionClient(
-            hubUrl =>
-            {
-                var hub = ChartSubscriptionClient.BuildHubConnection(hubUrl);
-                builtHubs.Add(hub);
-                return hub;
-            },
-            ChartSubscriptionClient.RegisterHandler);
+        var connector = new RecordingHubConnector();
+        var builtHubs = connector.Built;
+        await using var client = new ChartSubscriptionClient(connector);
 
         await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
         await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
@@ -123,29 +117,12 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
     [Fact]
     public async Task DisposeAsync_DisposesSubscriptionTokens()
     {
-        var disposedCount = 0;
-        var client = new ChartSubscriptionClient(
-            ChartSubscriptionClient.BuildHubConnection,
-            (hub, methodName, handler) =>
-            {
-                var real = ChartSubscriptionClient.RegisterHandler(hub, methodName, handler);
-                return new SpyDisposable(real, () => disposedCount++);
-            });
+        var connector = new RecordingHubConnector();
+        var client = new ChartSubscriptionClient(connector);
 
         await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
         await client.DisposeAsync();
 
-        Assert.Equal(2, disposedCount);
-    }
-
-    /// <summary>Wraps a real IDisposable token so tests can observe Dispose() calls
-    /// without altering the underlying (real) unregister behavior.</summary>
-    private sealed class SpyDisposable(IDisposable inner, Action onDisposed) : IDisposable
-    {
-        public void Dispose()
-        {
-            inner.Dispose();
-            onDisposed();
-        }
+        Assert.Equal(2, connector.TokensDisposed);
     }
 }

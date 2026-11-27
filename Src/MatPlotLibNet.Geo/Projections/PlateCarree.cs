@@ -20,6 +20,6 @@ public sealed class PlateCarree : IGeoProjection
         Math.Abs(y) <= 90 && Math.Abs(x) <= 180 ? new GeoCoordinate(y, x) : null;
 
     /// <inheritdoc />
-    public GeoBounds Bounds =>
-        new(-180, 180, -90, 90);
+    /// <remarks>The box round the edge of the world.</remarks>
+    public GeoBounds Bounds => this.WorldEdgeBounds();
 }

@@ -66,32 +66,23 @@ public static class DrawnSeriesFixtures
         typeof(SankeySeries), typeof(SignalSeries), typeof(SignalXYSeries), typeof(SparklineSeries), typeof(StatTileSeries),
         typeof(StateTimelineSeries), typeof(Stem3DSeries), typeof(StreamplotSeries), typeof(SwarmplotSeries),
         typeof(TableSeries), typeof(Text3DSeries), typeof(TreeGridSeries), typeof(VoxelSeries), typeof(WireframeSeries),
+        typeof(PlanarBar3DSeries), typeof(StreamingLineSeries), typeof(StreamingScatterSeries), typeof(StreamingSignalSeries),
+        typeof(StreamingCandlestickSeries),
     ];
 
     /// <summary>The series types the contract leaves out, each with the reason: types no JSON gives back as their own
     /// type, so there is no property of theirs to compare. A type is either in <see cref="DrawnTypes"/> or named here;
     /// <see cref="SeriesDrawnPropertiesRoundTripTests"/> turns red on a shipped series type that is neither, so the next
-    /// series cannot slip past the contract unseen.</summary>
-    public static IReadOnlyDictionary<Type, string> NotUnderContract { get; } = new Dictionary<Type, string>
-    {
-        [typeof(StreamingLineSeries)] = LiveSeries,
-        [typeof(StreamingScatterSeries)] = LiveSeries,
-        [typeof(StreamingSignalSeries)] = LiveSeries,
-        [typeof(StreamingCandlestickSeries)] = LiveSeries,
-        [typeof(PlanarBar3DSeries)] = "it writes the type 'planarbar3d' and the reader has no factory for it, so it does not come back as its "
-            + "own type; the roadmap row 'Live series back from JSON' gives it and the streaming series their way back",
-    };
+    /// series cannot slip past the contract unseen. Every shipped series type comes back from JSON as its own type, so none is
+    /// named today.</summary>
+    public static IReadOnlyDictionary<Type, string> NotUnderContract { get; } = new Dictionary<Type, string>();
 
-    private const string LiveSeries =
-        "a live series is written to JSON and dropped when the JSON is read, so it does not come back as its own type; "
-        + "the roadmap row 'Live series back from JSON' gives it its way back";
-
-    /// <summary>The settable properties no JSON carries, as <c>Type.Property</c>, each with the reason.</summary>
+    /// <summary>The settable properties no JSON carries, as <c>Type.Property</c>, each with the reason. Only code qualifies, a
+    /// delegate, which a document cannot hold: <see cref="SeriesDrawnPropertiesRoundTripTests"/> turns red on a row for any other
+    /// type.</summary>
     public static IReadOnlyDictionary<string, string> NotCarried { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["AreaSeries.Where"] = "a delegate is code, and a JSON document carries data only",
-        ["ClustermapSeries.RowTree"] = "a hierarchy is not written to JSON yet: the roadmap row 'Every chart type back from JSON' gives treemap, sunburst, dendrogram and clustermap their trees",
-        ["ClustermapSeries.ColumnTree"] = "a hierarchy is not written to JSON yet: the roadmap row 'Every chart type back from JSON' gives treemap, sunburst, dendrogram and clustermap their trees",
     };
 
     /// <summary>The public settable properties of <paramref name="type"/> that the JSON must carry, by name.
@@ -105,16 +96,40 @@ public static class DrawnSeriesFixtures
             .Where(p => !NotCarried.ContainsKey($"{type.Name}.{p.Name}"))
             .OrderBy(p => p.Name, StringComparer.Ordinal)];
 
-    /// <summary>One row per series type under the contract and drawn property: the type's name and the property's name.</summary>
-    public static TheoryData<string, string> Rows { get; } =
-        new(DrawnTypes.SelectMany(t => DrawnProperties(t).Select(p => (t.Name, p.Name))));
+    /// <summary>One row per series type under the contract: its name. Every theory over the shipped series types reads these rows and
+    /// takes its instance from <see cref="Instance"/>: the suite keeps one roster. A rule that holds for every drawn property is one
+    /// case per type that names each property it finds wrong (<see cref="AssertKept"/>), never one case per property.</summary>
+    public static TheoryData<string> TypeNames { get; } = new(DrawnTypes.Select(t => t.Name));
 
-    /// <summary>The rows of the two series types a secondary axis holds, once per secondary axis.</summary>
-    public static TheoryData<string, string, SeriesSeat> SecondaryRows { get; } =
-        new(from type in new[] { typeof(LineSeries), typeof(ScatterSeries) }
-            from seat in new[] { SeriesSeat.SecondaryY, SeriesSeat.SecondaryX }
-            from property in DrawnProperties(type)
-            select (type.Name, property.Name, seat));
+    /// <summary>The one series of the type named <paramref name="typeName"/>, every property at rest, as <see cref="Build"/> makes it:
+    /// a fresh instance each call, so a case may change it, and one a test may add to axes of its own.</summary>
+    /// <exception cref="ArgumentException">No series type under the contract has that name.</exception>
+    public static ISeries Instance(string typeName) => TheSeries(Build(typeName, everyPropertySet: false));
+
+    /// <summary>The series types a secondary axis holds.</summary>
+    public static IReadOnlyList<Type> SecondaryTypes { get; } = [typeof(LineSeries), typeof(ScatterSeries)];
+
+    /// <summary>One row per seat a series type under the contract can take: every type on the primary list, and the types a
+    /// secondary axis holds on each secondary axis.</summary>
+    public static TheoryData<string, SeriesSeat> Seats { get; } =
+        new([.. DrawnTypes.Select(type => (type.Name, SeriesSeat.Primary)),
+            .. from type in SecondaryTypes
+               from seat in new[] { SeriesSeat.SecondaryY, SeriesSeat.SecondaryX }
+               select (type.Name, seat)]);
+
+    /// <summary>Every drawn property of <paramref name="series"/> with its value, by the property's name.</summary>
+    public static IReadOnlyDictionary<string, object?> ValuesOf(ISeries series) =>
+        DrawnProperties(series.GetType()).ToDictionary(p => p.Name, p => p.GetValue(series), StringComparer.Ordinal);
+
+    /// <summary>Holds every value of <paramref name="written"/> to come back in <paramref name="read"/> as it was, and names each one
+    /// that did not as <c>subject.key</c> with both values, every one of them in the one failure.</summary>
+    /// <param name="subject">What the values are of: a series type, a part.</param>
+    /// <param name="written">The values before, by name.</param>
+    /// <param name="read">The values after, by name; a name it lacks did not come back.</param>
+    /// <param name="through">How they came back, as the failure says it: "from JSON", "through the spec reader".</param>
+    public static void AssertKept(string subject, IReadOnlyDictionary<string, object?> written, IReadOnlyDictionary<string, object?> read, string through) =>
+        Assert.All(written.Keys, key => Assert.True(read.TryGetValue(key, out object? back) && SameValue(written[key], back),
+            $"{subject}.{key}: {Show(written[key])}, read back {through} as {(read.TryGetValue(key, out object? shown) ? Show(shown) : "nothing")}."));
 
     /// <summary>A figure that holds one series of the type named <paramref name="typeName"/> at <paramref name="seat"/>:
     /// at rest, or with every drawn property set to a value that is not its default.</summary>
@@ -125,6 +140,9 @@ public static class DrawnSeriesFixtures
         double[][] sets = [[1, 2, 3], [2, 3, 4], [3, 4, 5]];
         double[,] grid = { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
         double[] edges = [1, 2, 3, 4];   // a mesh has one edge more than it has cells along each axis
+        // A contour at rest is drawn over a 2 by 2 grid; with every property given, over the grid its pinned bytes were written from.
+        double[] contourX = everyPropertySet ? x : [1, 2];
+        double[,] contourGrid = everyPropertySet ? grid : new double[,] { { 1, 2 }, { 3, 4 } };
         string[] categories = ["A", "B", "C"];
         var tree = new TreeNode { Label = "Root" };
         void Set<T>(T series) where T : ISeries
@@ -156,7 +174,7 @@ public static class DrawnSeriesFixtures
             (nameof(StripplotSeries), _) => ax.Stripplot(sets, Set),
             (nameof(KdeSeries), _) => ax.Kde(y, Set),
             (nameof(WaterfallSeries), _) => ax.Waterfall(categories, y, Set),
-            (nameof(ContourfSeries), _) => ax.Contourf(x, x, grid, Set),
+            (nameof(ContourfSeries), _) => ax.Contourf(contourX, contourX, contourGrid, Set),
             (nameof(HexbinSeries), _) => ax.Hexbin(x, y, Set),
             (nameof(Histogram2DSeries), _) => ax.Histogram2D(x, y, 3, Set),
             (nameof(ImageSeries), _) => ax.Image(grid, Set),
@@ -180,7 +198,7 @@ public static class DrawnSeriesFixtures
             (nameof(BulletGraphSeries), _) => ax.AddSeries(new BulletGraphSeries(50), Set),
             (nameof(CandlestickSeries), _) => ax.AddSeries(new CandlestickSeries([10.0, 11, 12], [15.0, 16, 17], [8.0, 9, 10], [13.0, 12, 14]), Set),
             (nameof(Contour3DSeries), _) => ax.AddSeries(new Contour3DSeries(x, x, grid), Set),
-            (nameof(ContourSeries), _) => ax.AddSeries(new ContourSeries(x, x, grid), Set),
+            (nameof(ContourSeries), _) => ax.AddSeries(new ContourSeries(contourX, contourX, contourGrid), Set),
             (nameof(CountSeries), _) => ax.AddSeries(new CountSeries(["a", "b", "a"]), Set),
             (nameof(DonutSeries), _) => ax.AddSeries(new DonutSeries([30.0, 50.0, 20.0]), Set),
             (nameof(EcdfSeries), _) => ax.AddSeries(new EcdfSeries(y), Set),
@@ -228,8 +246,37 @@ public static class DrawnSeriesFixtures
             (nameof(TreeGridSeries), _) => ax.AddSeries(new TreeGridSeries([new TreeGridRow("Root", ["1", "2"])]), Set),
             (nameof(VoxelSeries), _) => ax.AddSeries(new VoxelSeries(new bool[2, 2, 2] { { { true, false }, { false, true } }, { { false, true }, { true, false } } }), Set),
             (nameof(WireframeSeries), _) => ax.AddSeries(new WireframeSeries(x, x, grid), Set),
+            (nameof(PlanarBar3DSeries), _) => ax.PlanarBar3D(x, y, low, Set),
+            (nameof(StreamingLineSeries), _) => ax.AddSeries(Fed(new StreamingLineSeries(16), x, y), Set),
+            (nameof(StreamingScatterSeries), _) => ax.AddSeries(Fed(new StreamingScatterSeries(16), x, y), Set),
+            (nameof(StreamingSignalSeries), _) => ax.AddSeries(FedSamples(new StreamingSignalSeries(16, 100.0), y), Set),
+            (nameof(StreamingCandlestickSeries), _) => ax.AddSeries(FedBars(new StreamingCandlestickSeries(16)), Set),
             _ => throw new ArgumentException($"'{typeName}' is not a series type under the contract.", nameof(typeName)),
         }).Build();
+    }
+
+    /// <summary>A live series that holds the points <paramref name="x"/> and <paramref name="y"/>, as its snapshot is what the
+    /// JSON carries.</summary>
+    private static T Fed<T>(T series, double[] x, double[] y) where T : IStreamingSeries
+    {
+        series.AppendPoints(x, y);
+        return series;
+    }
+
+    /// <summary>A live signal that holds the samples <paramref name="y"/>.</summary>
+    private static StreamingSignalSeries FedSamples(StreamingSignalSeries series, double[] y)
+    {
+        series.AppendSamples(y);
+        return series;
+    }
+
+    /// <summary>A live candlestick series that holds three bars.</summary>
+    private static StreamingCandlestickSeries FedBars(StreamingCandlestickSeries series)
+    {
+        series.AppendBar(10, 15, 8, 13);
+        series.AppendBar(11, 16, 9, 12);
+        series.AppendBar(12, 17, 10, 14);
+        return series;
     }
 
     /// <summary>The one series a <see cref="Build"/> figure holds, wherever it sits.</summary>
@@ -262,9 +309,16 @@ public static class DrawnSeriesFixtures
         (INormalizer a, INormalizer b) => a.GetType() == b.GetType() && NormalisedBy(a).SequenceEqual(NormalisedBy(b)),
         (AxisTransform a, AxisTransform b) => a.GetType() == b.GetType() && MappedBy(a).SequenceEqual(MappedBy(b)),
         (string a, string b) => a == b,
+        (TreeNode a, TreeNode b) => SameTree(a, b),
         (IEnumerable a, IEnumerable b) => a.Cast<object?>().SequenceEqual(b.Cast<object?>()),
         _ => Equals(written, read),
     };
+
+    /// <summary>Whether two hierarchies hold the same nodes in the same order: what a node is written as (its label, its size and the
+    /// nodes under it), since a <see cref="TreeNode"/> compares its children by reference.</summary>
+    private static bool SameTree(TreeNode a, TreeNode b) =>
+        a.Label == b.Label && a.Value == b.Value && a.Children.Count == b.Children.Count
+        && a.Children.Zip(b.Children, SameTree).All(same => same);
 
     /// <summary>A range a locator is asked for ticks over.</summary>
     private readonly record struct TickRange(double Min, double Max);
@@ -326,6 +380,7 @@ public static class DrawnSeriesFixtures
         INormalizer normalizer => $"{normalizer.GetType().Name} [{string.Join(", ", NormalisedBy(normalizer).Select(v => Show(v)))}]",
         AxisTransform transform => $"{transform.GetType().Name} [{string.Join(", ", MappedBy(transform).Select(v => Show(v)))}]",
         string text => $"\"{text}\"",
+        TreeNode node => $"tree \"{node.Label}\" [{string.Join(", ", node.Children.Select(child => Show(child)))}]",
         IEnumerable items => "[" + string.Join(", ", items.Cast<object?>().Select(Show)) + "]",
         IFormattable number => number.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
         _ => value.ToString() ?? "?",
@@ -387,6 +442,17 @@ public static class DrawnSeriesFixtures
         if (type == typeof(Color))
         {
             return Colour(k, 0);
+        }
+
+        if (type == typeof(TreeNode))
+        {
+            // A hierarchy with one leaf for each of the Points rows and columns the fixture's data holds, named and sized
+            // differently for every k.
+            return new TreeNode
+            {
+                Label = $"root {k}",
+                Children = [.. Enumerable.Range(0, Points).Select(i => new TreeNode { Label = $"leaf {k}.{i}", Value = (i + k) % Points + 0.5 })],
+            };
         }
 
         if (type == typeof(Color[]))
@@ -465,6 +531,12 @@ public static class DrawnSeriesFixtures
             return new PercentFormatter(50 + k);
         }
 
+        if (type == typeof(LayoutRect))
+        {
+            // A rectangle in the figure that a measured layout fits the subplots into, a different one for every k.
+            return new LayoutRect(0.03 + k / 256.0, 0.02, 0.97, 0.93);
+        }
+
         if (type == typeof(AxisTransform))
         {
             // The link of an axis: a named transform the JSON can carry, defined over every range, distinct for every k.
@@ -487,6 +559,13 @@ public static class DrawnSeriesFixtures
             // A point of a patch (a corner, the start of an arrow): off the origin and distinct for every k.
             var point = new MatPlotLibNet.Interaction.DataPoint(0.25 + k / 64.0, 0.5 + k / 32.0);
             return current is MatPlotLibNet.Interaction.DataPoint at && at == point ? point with { DataX = point.DataX + 1 } : point;
+        }
+
+        if (type == typeof(MatPlotLibNet.Models.Patches.RotationPoint))
+        {
+            // A point the rectangle turns about: given, off the origin and distinct for every k (the centre has its own row in
+            // PatchSerializationTests).
+            return MatPlotLibNet.Models.Patches.RotationPoint.At(new(0.75 + k / 64.0, -0.5 - k / 32.0));
         }
 
         if (type == typeof(IReadOnlyList<MatPlotLibNet.Interaction.DataPoint>))

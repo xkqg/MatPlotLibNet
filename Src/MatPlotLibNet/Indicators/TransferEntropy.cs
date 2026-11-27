@@ -16,38 +16,36 @@ namespace MatPlotLibNet.Indicators;
 /// Kwon &amp; Yang (2008); feature-importance framing: Lopez de Prado (2018), Ch. 8.</summary>
 public sealed class TransferEntropy : Indicator<SignalResult>
 {
+    /// <summary>The <c>bins</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultBins = 8;
+
+    /// <summary>The <c>lag</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultLag = 1;
+
+    /// <summary>The <c>Neighbours</c> (the k of the Kraskov estimate) the options hold when the caller gives none.</summary>
+    public const int DefaultNeighbours = 4;
+
+    /// <summary>The <c>Stride</c> the options hold when the caller gives none: every window.</summary>
+    public const int DefaultStride = 1;
+
     private readonly double[] _source;
     private readonly double[] _target;
     private readonly TransferEntropyOptions _options;
+
+    /// <summary>The samples the Kraskov estimate needs, of the series or of each window: <c>Lag + Neighbours + 1</c>, a neighbour for
+    /// every sample, summed as a <see langword="long"/> so a lag near the largest count is refused rather than wrapped round.</summary>
+    private static long NeighbourSamples(TransferEntropyOptions options) => options.Lag + (long)options.Neighbours + 1;
 
     /// <summary>Creates a new transfer-entropy indicator measuring <c>TE(source → target)</c> with the binned estimate. For the
     /// Kraskov estimate, a condition or a different neighbour count use the overload that takes <see cref="TransferEntropyOptions"/>.</summary>
     /// <param name="source">Source series X — the potentially-influencing series.</param>
     /// <param name="target">Target series Y — the potentially-influenced series. Must match
     /// <paramref name="source"/> in length.</param>
-    /// <param name="bins">Histogram bin count per series. Default 8. Must be ≥ 2.</param>
-    /// <param name="lag">Source lag τ: the triple uses <c>x_{t-τ+1}</c>. Default 1
+    /// <param name="bins">Histogram bin count per series. Default <see cref="DefaultBins"/>. Must be ≥ 2.</param>
+    /// <param name="lag">Source lag τ: the triple uses <c>x_{t-τ+1}</c>. Default <see cref="DefaultLag"/>
     /// (<c>x_t</c> predicts <c>y_{t+1}</c>). Must be ≥ 1. Length must be ≥ <c>lag + 2</c>.</param>
-    public TransferEntropy(double[] source, double[] target, int bins = 8, int lag = 1)
-    {
-        if (source is null) throw new ArgumentException("source is required.", nameof(source));
-        if (target is null) throw new ArgumentException("target is required.", nameof(target));
-        if (source.Length != target.Length)
-            throw new ArgumentException(
-                $"source ({source.Length}) and target ({target.Length}) must have equal length.");
-        if (bins < 2)
-            throw new ArgumentException($"bins must be >= 2 (got {bins}).", nameof(bins));
-        if (lag < 1)
-            throw new ArgumentException($"lag must be >= 1 (got {lag}).", nameof(lag));
-        if (source.Length < lag + 2)
-            throw new ArgumentException(
-                $"length ({source.Length}) must be >= lag + 2 ({lag + 2}) to form triples.",
-                nameof(source));
-        _source = source;
-        _target = target;
-        _options = new TransferEntropyOptions(TransferEntropyEstimator.Binned, Bins: bins, Lag: lag);
-        Label = $"TE(bins={bins},lag={lag})";
-    }
+    public TransferEntropy(double[] source, double[] target, int bins = DefaultBins, int lag = DefaultLag)
+        : this(source, target, new TransferEntropyOptions(TransferEntropyEstimator.Binned, Bins: bins, Lag: lag)) { }
 
     /// <summary>Creates a new transfer-entropy indicator measuring <c>TE(source → target)</c> as the options say.</summary>
     /// <param name="source">Source series X — the potentially-influencing series.</param>
@@ -57,71 +55,57 @@ public sealed class TransferEntropy : Indicator<SignalResult>
     /// <see cref="TransferEntropyOptions.Lag"/> or (binned) <see cref="TransferEntropyOptions.Bins"/> is below its minimum; the
     /// <see cref="TransferEntropyOptions.Condition"/> differs in length or goes with the binned estimate; or the series are too short
     /// to form the samples the estimate needs.</exception>
-    public TransferEntropy(double[] source, double[] target, TransferEntropyOptions options)
+    public TransferEntropy(double[] source, double[] target, TransferEntropyOptions options) : base(Spec(options))
     {
         if (source is null) throw new ArgumentException("source is required.", nameof(source));
         if (target is null) throw new ArgumentException("target is required.", nameof(target));
-        if (source.Length != target.Length)
-            throw new ArgumentException(
-                $"source ({source.Length}) and target ({target.Length}) must have equal length.");
-        if (options.Lag < 1)
-            throw new ArgumentException($"Lag must be >= 1 (got {options.Lag}).", nameof(options.Lag));
-        if (options.Stride < 1)
-            throw new ArgumentException($"Stride must be >= 1 (got {options.Stride}).", nameof(options.Stride));
-        if (options.Stride > 1 && options.Window is null)
-            throw new ArgumentException("A Stride goes with a Window: it says which windows are worked out.", nameof(options.Stride));
+        target.Length.ThrowIfMisaligned(source.Length, nameof(target));
 
-        bool kraskov = options.Estimator == TransferEntropyEstimator.Kraskov;
-        if (options.Window is not null && !kraskov)
-            throw new ArgumentException(
-                "A Window goes with the Kraskov estimate only: the binned estimate is biased upward on a window.", nameof(options.Window));
-        if (kraskov)
+        if (options.Estimator == TransferEntropyEstimator.Kraskov)
         {
-            if (options.Neighbours < 1)
-                throw new ArgumentException($"Neighbours must be >= 1 (got {options.Neighbours}).", nameof(options.Neighbours));
-            if (options.Condition is not null && options.Condition.Length != source.Length)
-                throw new ArgumentException(
-                    $"Condition ({options.Condition.Length}) and source ({source.Length}) must have equal length.", nameof(options.Condition));
-            int needed = options.Lag + options.Neighbours + 1;
-            if (options.Window is not null)
-            {
-                if (options.Window < needed)
-                    throw new ArgumentException(
-                        $"Window ({options.Window}) must be >= lag + neighbours + 1 ({needed}) to have a neighbour for every sample.",
-                        nameof(options.Window));
-            }
-            else if (source.Length < needed)
-            {
-                throw new ArgumentException(
-                    $"length ({source.Length}) must be >= lag + neighbours + 1 ({needed}) to have a neighbour for every sample.",
-                    nameof(source));
-            }
+            options.Condition.ThrowIfNotOnePer(source.Length, nameof(options.Condition));
+            if (options.Window is null)
+                source.Length.ThrowIfFewerThan(NeighbourSamples(options), nameof(source), new("The source", "sample", "a neighbour for every sample (Lag + Neighbours + 1)"));
         }
         else
-        {
-            if (options.Bins < 2)
-                throw new ArgumentException($"Bins must be >= 2 (got {options.Bins}).", nameof(options.Bins));
-            if (options.Condition is not null)
-                throw new ArgumentException("A Condition goes with the Kraskov estimate only.", nameof(options.Condition));
-            if (source.Length < options.Lag + 2)
-                throw new ArgumentException(
-                    $"length ({source.Length}) must be >= lag + 2 ({options.Lag + 2}) to form triples.",
-                    nameof(source));
-        }
+            source.Length.ThrowIfFewerThan(options.Lag + 2L, nameof(source), new("The source", "sample", "a triple at the lag (Lag + 2)"));
 
         _source = source;
         _target = target;
         _options = options;
-        Label = LabelOf(options);
     }
 
-    /// <summary>The label of an indicator with the given options (shared with the streaming form).</summary>
-    internal static string LabelOf(TransferEntropyOptions options) =>
-        options.Estimator == TransferEntropyEstimator.Kraskov
-            ? options.Window is null
-                ? $"TE(k={options.Neighbours},lag={options.Lag})"
-                : $"TE(k={options.Neighbours},lag={options.Lag},W={options.Window})"
-            : $"TE(bins={options.Bins},lag={options.Lag})";
+    /// <summary>The first value of a rolling entropy is the last bar of its first window; the checks that need the series stay with the
+    /// batch.</summary>
+    internal static IndicatorSpec Spec(TransferEntropyOptions options)
+    {
+        options.Lag.ThrowIfBelow(1, nameof(options.Lag));
+        options.Stride.ThrowIfBelow(1, nameof(options.Stride));
+        if (options.Stride > 1 && options.Window is null)
+            throw new ArgumentException("A Stride goes with a Window: it says which windows are worked out.", nameof(options.Stride));
+
+        string label;
+        if (options.Estimator == TransferEntropyEstimator.Kraskov)
+        {
+            options.Neighbours.ThrowIfBelow(1, nameof(options.Neighbours));
+            ((long?)options.Window)?.ThrowIfBelow(NeighbourSamples(options), nameof(options.Window));
+            label = options.Window is null
+                ? string.Invariant($"TE(k={options.Neighbours},lag={options.Lag})")
+                : string.Invariant($"TE(k={options.Neighbours},lag={options.Lag},W={options.Window})");
+        }
+        else
+        {
+            if (options.Window is not null)
+                throw new ArgumentException(
+                    "A Window goes with the Kraskov estimate only: the binned estimate is biased upward on a window.", nameof(options.Window));
+            options.Bins.ThrowIfBelow(2, nameof(options.Bins));
+            if (options.Condition is not null)
+                throw new ArgumentException("A Condition goes with the Kraskov estimate only.", nameof(options.Condition));
+            label = string.Invariant($"TE(bins={options.Bins},lag={options.Lag})");
+        }
+
+        return IndicatorSpec.Of((options.Window ?? 1) - 1, label);
+    }
 
     /// <inheritdoc />
     /// <remarks>One value for the whole series; with a <see cref="TransferEntropyOptions.Window"/>, one for each bar: the entropy of the
@@ -191,17 +175,9 @@ public sealed class TransferEntropy : Indicator<SignalResult>
     /// (<paramref name="absoluteFirst"/> is the position of the first).</summary>
     private static double[] Standardised(double[] series, int first, int count, int salt, int absoluteFirst)
     {
-        double mean = 0;
-        for (int i = 0; i < count; i++) mean += series[first + i];
-        mean /= count;
-        double sumSquares = 0;
-        for (int i = 0; i < count; i++)
-        {
-            double d = series[first + i] - mean;
-            sumSquares += d * d;
-        }
-
-        double deviation = Math.Sqrt(sumSquares / count);
+        var window = series.AsSpan(first, count);
+        double mean = window.Mean();
+        double deviation = window.StdDev(mean);
         var column = new double[count];
         for (int i = 0; i < count; i++)
         {
@@ -282,22 +258,16 @@ public sealed class TransferEntropy : Indicator<SignalResult>
             if (values[i] < min) min = values[i];
             if (values[i] > max) max = values[i];
         }
-        double range = max - min;
-        if (range == 0) return result; // all zeros — all samples in bin 0
-        double invWidth = bins / range;
+        if (max - min == 0) return result; // all zeros — all samples in bin 0
+        var equal = new EqualWidthBins(min, max, bins);
         for (int i = 0; i < n; i++)
-        {
-            int b = (int)((values[i] - min) * invWidth);
-            if (b < 0) b = 0;
-            if (b >= bins) b = bins - 1;
-            result[i] = b;
-        }
+            result[i] = equal.IndexOf(values[i]);
         return result;
     }
 
     /// <inheritdoc />
     /// <remarks>A rolling entropy (with a <see cref="TransferEntropyOptions.Window"/>) is drawn as a line through its values.
-    /// The scalar is a number, not a per-bar series — callers typically take <see cref="ComputeScalar"/> and display it as a number or
+    /// The scalar is a number, not a per-bar series — callers typically take the scalar and display it as a number or
     /// annotation — so <c>Apply</c> draws nothing for it, to keep the <see cref="IIndicator"/> contract without a misleading line.</remarks>
     public override void Apply(Axes axes)
     {

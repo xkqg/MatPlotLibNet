@@ -15,9 +15,6 @@ public class CategoryTickExtensionsTests
 {
     private static readonly string[] Names = ["first", "second", "third"];
 
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
-
     private static string[] TicksAsRead(Axis axis) =>
         [.. axis.TickLocator!.Locate(0, Names.Length).Select(axis.TickFormatter!.Format)];
 
@@ -25,7 +22,7 @@ public class CategoryTickExtensionsTests
     [Fact]
     public void AlongX_EachCategoryIsNamedOnItsSlotCentre_FromTheLeft()
     {
-        var axis = AxesOf(ax => ax.SetXCategoryTicks(Names)).XAxis;
+        var axis = Plt.Create().OneAxes(ax => ax.SetXCategoryTicks(Names)).XAxis;
 
         Assert.IsType<FixedLocator>(axis.TickLocator);
         Assert.IsType<CategoryFormatter>(axis.TickFormatter);
@@ -37,7 +34,7 @@ public class CategoryTickExtensionsTests
     [Fact]
     public void AlongY_TheFirstCategoryIsAtTheBottom()
     {
-        var axis = AxesOf(ax => ax.SetYCategoryTicks(Names)).YAxis;
+        var axis = Plt.Create().OneAxes(ax => ax.SetYCategoryTicks(Names)).YAxis;
 
         Assert.Equal([0.5, 1.5, 2.5], axis.TickLocator!.Locate(0, 3));
         Assert.Equal(Names, TicksAsRead(axis));
@@ -48,7 +45,7 @@ public class CategoryTickExtensionsTests
     [Fact]
     public void AlongY_DrawnTopDown_TheFirstCategoryIsAtTheTop()
     {
-        var axis = AxesOf(ax => ax.SetYCategoryTicks(Names, topDown: true)).YAxis;
+        var axis = Plt.Create().OneAxes(ax => ax.SetYCategoryTicks(Names, topDown: true)).YAxis;
 
         Assert.Equal([0.5, 1.5, 2.5], axis.TickLocator!.Locate(0, 3));
         Assert.Equal(["third", "second", "first"], TicksAsRead(axis));
@@ -62,7 +59,7 @@ public class CategoryTickExtensionsTests
             .AddSubPlot(1, 1, 1, ax => ax.SetXCategoryTicks(Names).SetYCategoryTicks(Names, topDown: true))
             .Build();
 
-        var back = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure)).SubPlots[0];
+        var back = figure.RoundTripped().SubPlots[0];
 
         Assert.Equal(Names, TicksAsRead(back.XAxis));
         Assert.Equal(["third", "second", "first"], TicksAsRead(back.YAxis));
@@ -87,8 +84,8 @@ public class CategoryTickExtensionsTests
     [Fact]
     public void NoNames_AreRefusedByName()
     {
-        var alongX = Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.SetXCategoryTicks((string[])null!)));
-        var alongY = Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.SetYCategoryTicks(null!)));
+        var alongX = Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.SetXCategoryTicks((string[])null!)));
+        var alongY = Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.SetYCategoryTicks(null!)));
 
         Assert.Equal("names", alongX.ParamName);
         Assert.Equal("names", alongY.ParamName);
@@ -103,7 +100,7 @@ public class CategoryTickExtensionsTests
     {
         var bySlot = new Dictionary<int, string> { [8] = "Mar", [0] = "Jan", [4] = "Feb" };
 
-        var axis = AxesOf(ax => ax.SetXCategoryTicks(bySlot)).XAxis;
+        var axis = Plt.Create().OneAxes(ax => ax.SetXCategoryTicks(bySlot)).XAxis;
 
         var positions = axis.TickLocator!.Locate(0, 10);
         Assert.Equal([CategorySlot.Of(0).Centre, CategorySlot.Of(4).Centre, CategorySlot.Of(8).Centre], positions);
@@ -118,7 +115,7 @@ public class CategoryTickExtensionsTests
         var bySlot = new Dictionary<int, string> { [0] = "Jan", [4] = "Feb" };
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetXCategoryTicks(bySlot)).Build();
 
-        var back = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure)).SubPlots[0].XAxis;
+        var back = figure.RoundTripped().SubPlots[0].XAxis;
 
         var positions = back.TickLocator!.Locate(0, 10);
         Assert.Equal([0.5, 4.5], positions);
@@ -139,7 +136,7 @@ public class CategoryTickExtensionsTests
     public void NoNamedSlots_AreRefusedByName()
     {
         var pair = Assert.Throws<ArgumentNullException>(() => ((IReadOnlyDictionary<int, string>)null!).AsCategoryTicks());
-        var alongX = Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.SetXCategoryTicks((IReadOnlyDictionary<int, string>)null!)));
+        var alongX = Assert.Throws<ArgumentNullException>(() => Plt.Create().OneAxes(ax => ax.SetXCategoryTicks((IReadOnlyDictionary<int, string>)null!)));
 
         Assert.Equal("namesBySlot", pair.ParamName);
         Assert.Equal("namesBySlot", alongX.ParamName);
@@ -154,7 +151,7 @@ public class CategoryTickExtensionsTests
     [Fact]
     public void AlongX_AtPositions_EachNameIsReadAtItsPosition()
     {
-        var axis = AxesOf(ax => ax.SetXCategoryTicks(Names, Centres)).XAxis;
+        var axis = Plt.Create().OneAxes(ax => ax.SetXCategoryTicks(Names, Centres)).XAxis;
 
         Assert.IsType<FixedLocator>(axis.TickLocator);
         Assert.IsType<CategoryFormatter>(axis.TickFormatter);
@@ -170,7 +167,7 @@ public class CategoryTickExtensionsTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetXCategoryTicks(Names, Centres)).Build();
 
-        var back = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure)).SubPlots[0].XAxis;
+        var back = figure.RoundTripped().SubPlots[0].XAxis;
 
         var positions = back.TickLocator!.Locate(0, 100);
         Assert.Equal(Centres, positions);
@@ -186,7 +183,7 @@ public class CategoryTickExtensionsTests
         Assert.Equal("positions", Assert.Throws<ArgumentNullException>(() => Names.AsCategoryTicks((double[])null!)).ParamName);
         Assert.Equal("positions", Assert.Throws<ArgumentException>(() => Names.AsCategoryTicks([1.0, 2.0])).ParamName);
 
-        var axes = AxesOf(ax => Assert.Equal("positions",
+        var axes = Plt.Create().OneAxes(ax => Assert.Equal("positions",
             Assert.Throws<ArgumentException>(() => ax.SetXCategoryTicks(Names, [1.0])).ParamName));
         Assert.Null(axes.XAxis.TickLocator);
         Assert.Null(axes.XAxis.TickFormatter);

@@ -19,7 +19,10 @@ internal sealed record TextStyleDto
     private static readonly TextStyle Plain = new();
 
     /// <summary>The JSON's form of <paramref name="style"/>, or <see langword="null"/> when it overrides nothing.</summary>
-    internal static TextStyleDto? From(TextStyle? style) => style is null || style == Plain ? null : new()
+    internal static TextStyleDto? From(TextStyle? style) => style?.DescribedUnlessAtRest(Plain, Describe);
+
+    /// <summary>The JSON's form of a style that overrides something.</summary>
+    private static TextStyleDto Describe(TextStyle style) => new()
     {
         FontSize = style.FontSize,
         FontWeight = style.FontWeight,

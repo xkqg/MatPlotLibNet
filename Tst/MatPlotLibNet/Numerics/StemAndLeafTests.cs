@@ -138,4 +138,91 @@ public class StemAndLeafTests
         Assert.All(display.Rows.SelectMany(row => row.Leaves), leaf => Assert.InRange(leaf, 0, 9));
         Assert.Equal(11, display.Rows.Sum(row => row.Leaves.Count));
     }
+
+    /// <summary>The key says how to read the display: the first leaf, written as the value it stands for.</summary>
+    [Theory]
+    [InlineData(new double[] { 12, 15, 21, 23, 23, 38 }, 1.0, "Key: 1 | 2 = 12")]
+    [InlineData(new double[] { 1.2, 1.5, 2.1, 2.3 }, 0.1, "Key: 1 | 2 = 1.2")]
+    [InlineData(new double[] { 120, 150, 210, 230 }, 10.0, "Key: 1 | 2 = 120")]
+    [InlineData(new double[] { -15, -12, -3, 4, 17 }, 1.0, "Key: -1 | 5 = -15")]
+    [InlineData(new double[] { -3, 4, 17 }, 1.0, "Key: -0 | 3 = -3")]
+    public void TheKey_WritesTheFirstLeafAsTheValueItStandsFor(double[] sample, double unit, string key) =>
+        Assert.Equal(key, sample.StemAndLeaf(unit).Key);
+
+    /// <summary>A row without leaves cannot be read from: the key takes the first row that has one.</summary>
+    [Fact]
+    public void TheKey_SkipsARowWithNoLeaves()
+    {
+        var display = new StemAndLeafDisplay(0, [new StemRow("0", []), new StemRow("1", [4, 6])]);
+
+        Assert.Equal("Key: 1 | 4 = 14", display.Key);
+    }
+
+    /// <summary>Twenty-one zeros of both signs (more than the insertion sort of a short array covers), a negative and a positive half,
+    /// a missing value and the two infinities. Zero has no sign on a stem: -0.0 and 0.0 are both a 0 leaf on the stem "0", and only
+    /// a negative value cut to nothing stands on "-0".</summary>
+    private static readonly double[] WithZerosOfBothSigns =
+    [
+        0.0, -0.0, 0.0, -0.0, 0.0, -0.0, 0.0, -0.0, 0.0, -0.0, double.NaN, -0.0, 0.0, -0.0, 0.0, -0.0, 0.0, -0.0, 0.0, -0.0,
+        double.PositiveInfinity, 0.5, -0.5, 0.0, -0.0, double.NegativeInfinity, -0.05,
+    ];
+
+    [Fact]
+    public void ZerosOfBothSigns_StandTogetherOnTheStemZero_NotOnNegativeZero()
+    {
+        var display = WithZerosOfBothSigns.StemAndLeaf(0.1);
+
+        Assert.Equal("-0|5 0 / 0|" + string.Join(" ", Enumerable.Repeat(0, 21)) + " 5", Describe(display));
+        Assert.Equal("Key: -0 | 5 = -0.5", display.Key);
+    }
+
+    [Fact]
+    public void ZerosOfBothSigns_GiveTheSameDisplay_WhateverOrderTheyComeIn()
+    {
+        string expected = Describe(WithZerosOfBothSigns.StemAndLeaf(null));
+
+        Assert.Equal(expected, Describe(WithZerosOfBothSigns.Reverse().ToArray().StemAndLeaf(null)));
+        Assert.Equal(expected, Describe(WithZerosOfBothSigns.OrderBy(v => double.IsNegative(v)).ToArray().StemAndLeaf(null)));
+    }
+
+    [Fact]
+    public void ASampleOfNothingButZerosOfBothSigns_IsOneStemOfZeroLeaves()
+    {
+        double[] zeros = [.. Enumerable.Range(0, 20).Select(i => i % 2 == 0 ? 0.0 : -0.0)];
+
+        var display = zeros.StemAndLeaf(null);
+
+        Assert.Equal("0|" + string.Join(" ", Enumerable.Repeat(0, 20)), Describe(display));
+    }
+
+    [Fact]
+    public void TheCells_AreTheStemTheBarAndTheLeavesOfEachRow_PaddedToTheFullestRow()
+    {
+        double[] sample = [12, 15, 21, 23, 23, 38, 52];
+
+        var cells = sample.StemAndLeaf(1).Cells();
+
+        Assert.Equal(
+            "1 | 2 5 _ / 2 | 1 3 3 / 3 | 8 _ _ / 4 | _ _ _ / 5 | 2 _ _",
+            string.Join(" / ", cells.Select(row => string.Join(" ", row.Select(cell => cell.Length == 0 ? "_" : cell)))));
+        Assert.All(cells, row => Assert.Equal(5, row.Length));
+    }
+
+    [Fact]
+    public void TheLeafColumns_AreTheLeavesOfTheFullestRow()
+    {
+        Assert.Equal(3, new double[] { 12, 15, 21, 23, 23, 38 }.StemAndLeaf(1).LeafColumns);
+        Assert.Equal(1, new double[] { 12, 25 }.StemAndLeaf(1).LeafColumns);
+    }
+
+    [Fact]
+    public void ANegativeStem_KeepsItsSignInTheCell()
+    {
+        var cells = new double[] { -15, -12, -3, 4 }.StemAndLeaf(1).Cells();
+
+        // Visited in ascending order, -15 comes before -12: the leaves of the stem -1 read 5, 2.
+        Assert.Equal(["-1", "|", "5", "2"], cells[0]);
+        Assert.Equal(["-0", "|", "3", ""], cells[1]);
+        Assert.Equal(["0", "|", "4", ""], cells[2]);
+    }
 }

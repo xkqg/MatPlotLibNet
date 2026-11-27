@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>A legend swatch draws the marker its series has. The marker drawing of the legend treated every marker that was
 /// not a square as a circle, so a line, a step or a scatter with a triangle, a star or a cross showed a circle, and a line
 /// whose marker is explicitly <see cref="MarkerStyle.None"/> still showed one. The swatch now draws through the one owner of
-/// marker shapes (<c>MarkerRenderer</c>, which the plot itself draws with), so it shows the shape the plot shows, and
+/// marker shapes (<c>LegendRenderer.DrawMarker</c> over the shapes the plot itself draws with), so it shows the shape the plot shows, and
 /// nothing when the series has no marker.</summary>
 public class LegendMarkerSwatchTests
 {
@@ -36,12 +36,12 @@ public class LegendMarkerSwatchTests
             "scatter" => ax => ax.Scatter(X, Y, s => { s.Label = "series"; s.Color = Colors.Red; s.Marker = marker; }).WithLegend(),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a series with a marker."),
         };
-        var doc = XDocument.Parse(Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, build).ToSvg());
-        return Assert.Single(doc.Descendants(), g => g.Name.LocalName == "g" && (string?)g.Attribute("class") == "legend");
+        var doc = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, build).ToSvg().Xml();
+        return Assert.Single(doc.Each("g"), g => (string?)g.Attribute("class") == "legend");
     }
 
     private static List<XElement> RedElements(XElement legend, string element, string attribute) =>
-        legend.Descendants().Where(e => e.Name.LocalName == element && (string?)e.Attribute(attribute) == Red).ToList();
+        legend.Each(element).Where(e => (string?)e.Attribute(attribute) == Red).ToList();
 
     private static (double X, double Y)[] Vertices(XElement polygon) =>
         ((string)polygon.Attribute("points")!).Split(' ', StringSplitOptions.RemoveEmptyEntries)
@@ -100,9 +100,9 @@ public class LegendMarkerSwatchTests
     [Fact]
     public void ALineThatNamesNoMarkerAtAll_DrawsOnlyItsSwatchLine()
     {
-        var doc = XDocument.Parse(Plt.Create().WithSize(500, 350)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y, s => { s.Label = "series"; s.Color = Colors.Red; }).WithLegend()).ToSvg());
-        var legend = Assert.Single(doc.Descendants(), g => g.Name.LocalName == "g" && (string?)g.Attribute("class") == "legend");
+        var doc = Plt.Create().WithSize(500, 350)
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y, s => { s.Label = "series"; s.Color = Colors.Red; }).WithLegend()).ToSvg().Xml();
+        var legend = Assert.Single(doc.Each("g"), g => (string?)g.Attribute("class") == "legend");
 
         Assert.Empty(RedElements(legend, "circle", "fill"));
         Assert.Empty(RedElements(legend, "polygon", "fill"));
@@ -116,10 +116,10 @@ public class LegendMarkerSwatchTests
         var withMarkers = Theme.CreateFrom(Theme.Default).WithPropCycler(new PropCyclerBuilder()
             .WithColors(Colors.Red).WithMarkerStyles(MarkerStyle.Square).Build()).Build();
 
-        var doc = XDocument.Parse(Plt.Create().WithTheme(withMarkers).WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
+        var doc = Plt.Create().WithTheme(withMarkers).WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y, s => { s.Label = "marked"; }).Plot(X, Y, s => { s.Label = "bare"; s.Color = Colors.Blue; s.Marker = MarkerStyle.None; })
-            .WithLegend()).ToSvg());
-        var legend = Assert.Single(doc.Descendants(), g => g.Name.LocalName == "g" && (string?)g.Attribute("class") == "legend");
+            .WithLegend()).ToSvg().Xml();
+        var legend = Assert.Single(doc.Each("g"), g => (string?)g.Attribute("class") == "legend");
 
         // the first series takes the cycler's square, the second names none and gets none
         Assert.Single(RedElements(legend, "rect", "fill"));

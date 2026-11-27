@@ -9,17 +9,18 @@ using MatPlotLibNet.Models.Streaming;
 namespace MatPlotLibNet.AspNetCore;
 
 /// <summary>Per-chart registry of live <see cref="Figure"/> instances paired with a channel-based
-/// pub/sub pipeline. Each registered chart gets one <see cref="ChartSession"/> with its own
+/// pub/sub pipeline. Each registered chart gets one session with its own
 /// unbounded channel and single reader task, so hub methods simply publish events (microseconds)
 /// and return — mutation + re-render happens off the hub call stack. No locks, no semaphores,
 /// no shared mutable state exposed to callers.
 ///
 /// The <see cref="Register(string, Figure, Action{ChartSessionOptions})"/> overload attaches
-/// per-chart notification handlers (brush-select, hover); the overload without options attaches none.</summary>
+/// per-chart notification handlers (brush-select, hover); the overload without options attaches none.
+/// <para>One id is one chart, still or streaming: the registry holds one session per id, so registering under an id that is
+/// taken replaces what was there, whichever kind it was, and <see cref="UnregisterAsync"/> ends either kind.</para></summary>
 public sealed class FigureRegistry
 {
-    private readonly ConcurrentDictionary<string, ChartSession> _sessions = new();
-    private readonly ConcurrentDictionary<string, StreamingChartSession> _streamingSessions = new();
+    private readonly ConcurrentDictionary<string, IRegisteredChart> _sessions = new();
     private readonly IChartPublisher _publisher;
     private readonly ICallerPublisher _callerPublisher;
 
@@ -76,36 +77,40 @@ public sealed class FigureRegistry
         RegisterStreamingCore(chartId, streamingFigure, options);
     }
 
-    private void RegisterStreamingCore(string chartId, StreamingFigure streamingFigure, ChartSessionOptions options)
-    {
-        // The session that is replaced is the one this registration displaced, whichever registration ran first: two
-        // registrations of one id at the same time cannot leave a session that nobody disposes.
-        StreamingChartSession? displaced = null;
-        var session = new StreamingChartSession(chartId, streamingFigure, _publisher, _callerPublisher, options);
-        _streamingSessions.AddOrUpdate(chartId, session, (_, existing) => { displaced = existing; return session; });
-        if (displaced is not null) _ = displaced.DisposeAsync();
-    }
+    private void RegisterStreamingCore(string chartId, StreamingFigure streamingFigure, ChartSessionOptions options) =>
+        Hold(chartId, new StreamingChartSession(chartId, streamingFigure, _publisher, _callerPublisher, options));
 
-    private void RegisterCore(string chartId, Figure figure, ChartSessionOptions options)
+    private void RegisterCore(string chartId, Figure figure, ChartSessionOptions options) =>
+        Hold(chartId, new ChartSession(chartId, figure, _publisher, _callerPublisher, options));
+
+    /// <summary>Holds <paramref name="session"/> as the chart <paramref name="chartId"/>. The session that is replaced is the one
+    /// this registration displaced, whichever registration ran first: two registrations of one id at the same time cannot
+    /// leave a session that nobody disposes.</summary>
+    private void Hold(string chartId, IRegisteredChart session)
     {
-        ChartSession? displaced = null;
-        var session = new ChartSession(chartId, figure, _publisher, _callerPublisher, options);
+        IRegisteredChart? displaced = null;
         _sessions.AddOrUpdate(chartId, session, (_, existing) => { displaced = existing; return session; });
         if (displaced is not null) _ = displaced.DisposeAsync();
     }
 
-    /// <summary>Disposes the session for <paramref name="chartId"/>. Safe to call with an unknown id.</summary>
+    /// <summary>Ends the chart <paramref name="chartId"/>: disposes its session, still or streaming (a stream stops rendering
+    /// and publishing, and takes no more gestures), and tells the publisher to let go of what it kept for the chart. Safe to
+    /// call with an unknown id.</summary>
     public async ValueTask UnregisterAsync(string chartId)
     {
-        if (_sessions.TryRemove(chartId, out var session))
-            await session.DisposeAsync().ConfigureAwait(false);
+        if (!_sessions.TryRemove(chartId, out var session)) return;
+        await session.DisposeAsync().ConfigureAwait(false);
+        await _publisher.ForgetAsync(chartId).ConfigureAwait(false);
     }
+
+    /// <summary>Tells the publisher that nobody views <paramref name="chartId"/> any more, so it lets go of the picture it kept
+    /// to send each viewer only what changed. The chart stays registered; its next publish starts afresh.</summary>
+    internal Task ViewersLeftAsync(string chartId) => _publisher.ForgetAsync(chartId);
 
     /// <summary>Publishes an interaction event to the session for <paramref name="chartId"/>.
     /// Returns <see langword="true"/> if the write was accepted, <see langword="false"/> if the
     /// chart is not registered or the session is shutting down. Fire-and-forget — the caller
     /// does not await mutation or re-render.</summary>
     public bool Publish(string chartId, FigureInteractionEvent evt) =>
-        _sessions.TryGetValue(chartId, out var session) ? session.Events.Writer.TryWrite(evt)
-        : _streamingSessions.TryGetValue(chartId, out var streaming) && streaming.Gestures.TryWrite(evt);
+        _sessions.TryGetValue(chartId, out var session) && session.Gestures.TryWrite(evt);
 }

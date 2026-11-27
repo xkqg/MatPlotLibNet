@@ -2,6 +2,14 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
+using System.Text.Json;
 
 namespace MatPlotLibNet.Tests.Numerics;
 
@@ -131,14 +139,14 @@ public class LeastSquaresTests
 
     // ── Phase J coverage additions ────────────────────────────────────────────
 
-    /// <summary>L24 short-circuit — degree &lt; 0 fires the TRUE arm of the OR guard independently.</summary>
+    /// <summary>Short-circuit — degree &lt; 0 fires the TRUE arm of the OR guard independently.</summary>
     [Fact]
     public void PolyFit_DegreeNegative_ThrowsArgumentOutOfRange()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => LeastSquares.PolyFit([1.0, 2.0], [1.0, 2.0], -1));
     }
 
-    /// <summary>SolveLinear L153 TRUE (near-zero diagonal → skip) and L167 FALSE (zero result).
+    /// <summary>SolveLinear: near-zero diagonal → skip, and zero result.
     /// All identical x-values produce a rank-1 Vandermonde matrix; after elimination the second
     /// diagonal entry is 0, triggering both guards.</summary>
     [Fact]
@@ -150,7 +158,31 @@ public class LeastSquaresTests
         Assert.Equal(2, coeff.Length);
     }
 
-    /// <summary>InvertSymmetric L189 TRUE (near-zero diagonal → skip). ConfidenceBand internally
+    /// <summary>A fit through values of one x has no slope to find: the line is flat through their mean (the unknown the singular
+    /// normal equations cannot fix stays 0), the same line the solver of every linear system in the library gives.</summary>
+    [Fact]
+    public void PolyFit_DegenerateX_AllSame_IsAFlatLineThroughTheMean()
+    {
+        double[] coeff = LeastSquares.PolyFit([1.0, 1.0, 1.0, 1.0], [1.0, 2.0, 3.0, 4.0], 1);
+
+        Assert.Equal(2.5, coeff[0], 12);
+        Assert.Equal(0.0, coeff[1]);
+    }
+
+    /// <summary>The leverage of a point on a fit through values of one x is finite, and so is the band.</summary>
+    [Fact]
+    public void ConfidenceBand_DegenerateX_IsFinite()
+    {
+        double[] x = [1.0, 1.0, 1.0, 1.0];
+        double[] y = [1.0, 2.0, 3.0, 4.0];
+        double[] coeff = LeastSquares.PolyFit(x, y, 1);
+
+        var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [1.0]);
+
+        new[] { upper[0], lower[0] }.AssertAllFinite();
+    }
+
+    /// <summary>InvertSymmetric: near-zero diagonal → skip. ConfidenceBand internally
     /// builds the same singular XtX, so its inversion hits the near-zero guard.</summary>
     [Fact]
     public void ConfidenceBand_DegenerateX_SingularXtX_DoesNotThrow()
@@ -158,7 +190,7 @@ public class LeastSquaresTests
         double[] x = [1.0, 1.0, 1.0, 1.0];
         double[] y = [1.0, 2.0, 3.0, 4.0];
         double[] coeff = LeastSquares.PolyFit(x, y, 1);
-        var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [1.0]);
+        var (upper, _) = LeastSquares.ConfidenceBand(x, y, coeff, [1.0]);
         Assert.Single(upper);
     }
 
@@ -170,7 +202,8 @@ public class LeastSquaresTests
         double[] y = x.Select((xi, i) => 2.0 * xi + 1.0 + (i % 2 == 0 ? 0.3 : -0.3)).ToArray();
         double[] coeff = LeastSquares.PolyFit(x, y, 0);
         var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [61.0]);
-        Assert.True(double.IsFinite(upper[0]) && upper[0] > lower[0]);
+        upper[0].AssertFinite();
+        Assert.True(upper[0] > lower[0]);
     }
 
     /// <summary>With 121 degrees of freedom the band is t · s · √h wide on each side, with t the exact Student quantile (scipy's
@@ -202,7 +235,7 @@ public class LeastSquaresTests
         double[] y = x.Select((xi, i) => 2.0 * xi + 1.0 + (i % 2 == 0 ? 0.3 : -0.3)).ToArray();
         double[] coeff = LeastSquares.PolyFit(x, y, 0);
         var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [61.0], level: -0.2);
-        Assert.True(double.IsFinite(upper[0]) && double.IsFinite(lower[0]));
+        new[] { upper[0], lower[0] }.AssertAllFinite();
     }
 
     /// <summary>A probability of one or more has the quantile +Infinity.
@@ -286,4 +319,55 @@ public class LeastSquaresTests
 
         Assert.Equal(quantile / quantileAt95, (upper[0] - lower[0]) / (upper95[0] - lower95[0]), 9);
     }
+
+    [Fact]
+    public void LeastSquares_PolyFitDegree1TwoPoints_GivesExactLine()
+    {
+        var coeffs = LeastSquares.PolyFit([0.0, 1.0], [0.0, 2.0], degree: 1);
+        Assert.Equal(0.0, coeffs[0], precision: 6); // intercept
+        Assert.Equal(2.0, coeffs[1], precision: 6); // slope
+    }
+
+    [Fact]
+    public void LeastSquares_PolyFitDegree2_FitsParabola()
+    {
+        // y = x² → coefficients ≈ [0, 0, 1]
+        var coeffs = LeastSquares.PolyFit([-2.0, -1, 0, 1, 2], [4.0, 1, 0, 1, 4], degree: 2);
+        Assert.Equal(3, coeffs.Length);
+        Assert.Equal(1.0, coeffs[2], precision: 6);
+    }
+
+    [Theory]
+    [InlineData(20)]
+    [InlineData(-1)]
+    public void LeastSquares_PolyFit_ADegreeOutOfRange_Throws(int degree)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => LeastSquares.PolyFit([1.0], [1.0], degree: degree));
+    }
+
+    [Fact]
+    public void LeastSquares_PolyFitEmpty_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => LeastSquares.PolyFit([], [], degree: 1));
+    }
+
+    [Fact]
+    public void LeastSquares_PolyFit_HighDegreePolynomial_FitsCubicExactly()
+    {
+        // y = x³ → [0,0,0,1] coefficients
+        double[] x = [0, 1, 2, 3, 4];
+        double[] y = [0, 1, 8, 27, 64];
+        var coeffs = LeastSquares.PolyFit(x, y, degree: 3);
+        Assert.Equal(4, coeffs.Length);
+        Assert.Equal(1.0, coeffs[3], precision: 4);
+    }
+
+    [Fact]
+    public void LeastSquares_PolyFit_DegreeZero_GivesMean()
+    {
+        var coeffs = LeastSquares.PolyFit([1.0, 2, 3], [10.0, 20, 30], degree: 0);
+        Assert.Single(coeffs);
+        Assert.Equal(20.0, coeffs[0], precision: 4);
+    }
+
 }

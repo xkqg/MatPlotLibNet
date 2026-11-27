@@ -7,7 +7,7 @@ using MatPlotLibNet.Models.Tools;
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Removes a drawing tool (trendline, level, or Fibonacci retracement) from the target axes.
-/// Unknown tool types are silently ignored.</summary>
+/// Anything else, a reference line or a span drawn as a tool is included, is silently ignored.</summary>
 public sealed record RemoveDrawingToolEvent(
     string ChartId,
     int AxesIndex,
@@ -17,15 +17,5 @@ public sealed record RemoveDrawingToolEvent(
     public override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
-    internal override bool TryApplyTo(Figure figure)
-    {
-        if (!TryTargetAxes(figure, out var axes)) return false;
-        switch (Tool)
-        {
-            case Trendline t:          axes.RemoveTrendline(t); break;
-            case HorizontalLevel l:    axes.RemoveLevel(l); break;
-            case FibonacciRetracement f: axes.RemoveFibonacci(f); break;
-        }
-        return true;
-    }
+    internal override bool TryApplyTo(Figure figure) => OnTargetAxes(figure, axes => (Tool as IDrawingTool)?.RemoveFrom(axes.Overlays));
 }

@@ -3,6 +3,7 @@
 
 using MatPlotLibNet;
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.SeriesRenderers;
@@ -12,54 +13,48 @@ namespace MatPlotLibNet.Tests.Models.Series.Streaming;
 
 public sealed class StreamingCandlestickSeriesTests
 {
-    /// <summary>End-to-end on the real surface: a reader never calls the visitor directly, they call
-    /// <c>ToSvg()</c>. <see cref="ISeriesVisitor.Visit(StreamingCandlestickSeries, RenderArea)"/> had no
-    /// override in <c>SvgSeriesRenderer</c> (the ONLY production implementor), so the series' data range
-    /// still scaled the axes but nothing drew — the same silent gap <c>StreamingLineSeries</c>/
-    /// <c>StreamingScatterSeries</c>/<c>StreamingSignalSeries</c> had before 2026-08-22.
-    /// <para>Asserts on a deliberately unusual up-colour (<c>#123456</c>) rather than a bare SVG element
-    /// name — the plot background, grid lines and axis spines already emit <c>&lt;rect&gt;</c>/<c>&lt;line&gt;</c>
-    /// regardless of whether the series itself drew anything, so a bare "any primitive exists" assertion
-    /// passes even on the unfixed code (confirmed: it did, before this version was written). Only the
-    /// candle body/wick (<see cref="CandlestickSeriesRenderer"/>, which <c>Visit</c> must delegate to) ever
-    /// writes this exact colour.</para></summary>
-    [Fact]
-    public void ToSvg_DrawsTheAppendedBars()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var distinctiveUpColor = new Color(0x12, 0x34, 0x56);
+        //  End-to-end on the real surface: a reader never calls the visitor directly, they call ToSvg(). Visit(StreamingCandlestickSeries,
+        // RenderArea) had no override in SvgSeriesRenderer (the ONLY production implementor), so the series' data range still scaled the
+        // axes but nothing drew — the same silent gap StreamingLineSeries/ StreamingScatterSeries/StreamingSignalSeries had before
+        // 2026-08-22. Asserts on a deliberately unusual up-colour (#123456) rather than a bare SVG element name — the plot background, grid
+        // lines and axis spines already emit <rect>/<line> regardless of whether the series itself drew anything, so a bare "any primitive
+        // exists" assertion passes even on the unfixed code (confirmed: it did, before this version was written). Only the candle body/wick
+        // (CandlestickSeriesRenderer, which Visit must delegate to) ever writes this exact colour.
+        new DrawnToken("ToSvg_DrawsTheAppendedBars", () =>
+        {
+            var distinctiveUpColor = new Color(0x12, 0x34, 0x56);
+            return Plt.Create()
+                .AddSubPlot(1, 1, 1, ax =>
+                {
+                    var s = ax.StreamingCandlestick();
+                    s.Color = distinctiveUpColor; // both bars below close above open -> "up"
+                    s.AppendBar(100, 110, 95, 105);
+                    s.AppendBar(105, 118, 100, 112);
+                })
+                .ToSvg();
+        }, "123456") { Comparison = StringComparison.OrdinalIgnoreCase },
+        //  The sibling half of the test above: an explicit DownColor, the branch no other test sets (every other construction leaves it at
+        // its default null, taking SvgSeriesRenderer's own fallback, Colors.Red).
+        new DrawnToken("ToSvg_WithAnExplicitDownColor_DrawsADownBarInIt", () =>
+        {
+            var distinctiveDownColor = new Color(0x65, 0x43, 0x21);
+            return Plt.Create()
+                .AddSubPlot(1, 1, 1, ax =>
+                {
+                    var s = ax.StreamingCandlestick();
+                    s.DownColor = distinctiveDownColor;
+                    s.AppendBar(100, 105, 95, 90); // close below open -> "down"
+                })
+                .ToSvg();
+        }, "654321") { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                var s = ax.StreamingCandlestick();
-                s.Color = distinctiveUpColor; // both bars below close above open -> "up"
-                s.AppendBar(100, 110, 95, 105);
-                s.AppendBar(105, 118, 100, 112);
-            })
-            .ToSvg();
-
-        Assert.Contains("123456", svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>The sibling half of the test above: an explicit <see cref="StreamingCandlestickSeries.DownColor"/>,
-    /// the branch no other test sets (every other construction leaves it at its default null, taking
-    /// <c>SvgSeriesRenderer</c>'s own fallback, <c>Colors.Red</c>).</summary>
-    [Fact]
-    public void ToSvg_WithAnExplicitDownColor_DrawsADownBarInIt()
-    {
-        var distinctiveDownColor = new Color(0x65, 0x43, 0x21);
-
-        var svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-            {
-                var s = ax.StreamingCandlestick();
-                s.DownColor = distinctiveDownColor;
-                s.AppendBar(100, 105, 95, 90); // close below open -> "down"
-            })
-            .ToSvg();
-
-        Assert.Contains("654321", svg, StringComparison.OrdinalIgnoreCase);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void Construction_DefaultCapacity_Is5000()
@@ -120,11 +115,35 @@ public sealed class StreamingCandlestickSeriesTests
         Assert.Equal(120.0, range.YMax);
     }
 
-    [Fact]
-    public void ComputeDataRange_Empty_ReturnsNulls()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ComputeDataRange_Empty_ReturnsNulls(bool candlestick)
     {
-        var s = new StreamingCandlestickSeries();
+        ISeries s = candlestick ? new StreamingCandlestickSeries() : new StreamingSignalSeries();
         Assert.Null(s.ComputeDataRange(null!).XMin);
+    }
+
+    /// <summary>The bars are counted in the walk that finds the lowest low and the highest high, so the X extent is the count of the
+    /// same moment; the walk carries its count in its state, so asking allocates nothing.</summary>
+    [Fact]
+    public void ComputeDataRange_CountsTheBarsItWalks_AndAllocatesNothing()
+    {
+        var s = new StreamingCandlestickSeries(capacity: 2);
+        s.AppendBar(100, 120, 80, 110);
+        s.AppendBar(105, 115, 90, 108);
+        s.AppendBar(104, 130, 95, 101);
+        _ = s.ComputeDataRange(null!);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var range = s.ComputeDataRange(null!);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0.0, range.XMin);
+        Assert.Equal(1.0, range.XMax);
+        Assert.Equal(90.0, range.YMin);
+        Assert.Equal(130.0, range.YMax);
+        Assert.Equal(0, allocated);
     }
 
     [Fact]

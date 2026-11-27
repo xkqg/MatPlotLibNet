@@ -18,41 +18,16 @@ public class PolarHeatmapRenderTests
         return d;
     }
 
-    [Fact]
-    public void PolarHeatmap_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("PolarHeatmap_SvgContainsPolygonElements", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.PolarHeatmap(MakeData(), 8, 4))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<polygon"),
+    };
 
-    [Fact]
-    public void PolarHeatmap_SvgContainsPolygonElements()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.PolarHeatmap(MakeData(), 8, 4))
-            .ToSvg();
-        Assert.Contains("<polygon", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void PolarHeatmap_WithColorMap_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.PolarHeatmap(MakeData(), 8, 4,
-                s => s.ColorMap = ColorMapRegistry.Get("plasma")))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void PolarHeatmap_SingleCell_RendersWithoutError()
-    {
-        var data = new double[1, 1] { { 1.0 } };
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.PolarHeatmap(data, 1, 1))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

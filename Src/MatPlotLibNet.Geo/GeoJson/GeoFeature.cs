@@ -15,7 +15,7 @@ public sealed record GeoFeature(GeoGeometry Geometry, Dictionary<string, string>
     /// missing value, which a map colours in its colour map's bad colour.</returns>
     public double NumberOf(string property) =>
         Properties.TryGetValue(property, out var text)
-        && double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double number)
+        && text.TryReadInvariant(System.Globalization.NumberStyles.Float, out double number)
             ? number
             : double.NaN;
 }
@@ -24,34 +24,42 @@ public sealed record GeoFeature(GeoGeometry Geometry, Dictionary<string, string>
 public sealed record GeoGeometry
 {
     private IReadOnlyList<GeoPolygon>? _polygons;
+    private IReadOnlyList<IReadOnlyList<GeoPosition>>? _positionRings;
 
     /// <summary>Type of geometry: "Polygon", "MultiPolygon", "LineString", "MultiLineString".</summary>
     public required string Type { get; init; }
 
-    /// <summary>The flattened view: every ring of the geometry, each a list of (lon, lat) pairs. For a polygon or a multi-polygon
-    /// that is every exterior ring and every hole one after the other, the structure lost (see <see cref="Polygons"/>); for a
-    /// LineString a single ring, for a MultiLineString one ring for each line.</summary>
-    public required List<List<(double Lon, double Lat)>> Rings { get; init; }
+    /// <summary>The flattened view: every ring of the geometry, each a list of positions. For a polygon or a multi-polygon that is
+    /// every exterior ring and every hole one after the other, the structure lost (see <see cref="Polygons"/>); for a LineString a
+    /// single ring, for a MultiLineString one ring for each line. A geometry built with no rings has none.</summary>
+    public IReadOnlyList<IReadOnlyList<GeoPosition>> PositionRings
+    {
+        get => _positionRings ?? [];
+        init => _positionRings = value;
+    }
 
     /// <summary>The polygons of a Polygon or a MultiPolygon, each with the holes cut out of it; none for a line. A geometry read
-    /// from GeoJSON keeps its polygons as the file has them. One built from <see cref="Rings"/> alone has the ones the rings
-    /// say: a Polygon reads its first ring as the exterior and the rest as holes (RFC 7946), a MultiPolygon, whose rings carry no
-    /// grouping, reads every ring as an exterior.</summary>
+    /// from GeoJSON keeps its polygons as the file has them. One built from <see cref="PositionRings"/> alone has the ones the
+    /// rings say: a Polygon reads its first ring as the exterior and the rest as holes (RFC 7946), a MultiPolygon, whose rings
+    /// carry no grouping, reads every ring as an exterior.</summary>
     public IReadOnlyList<GeoPolygon> Polygons
     {
-        get => _polygons ??= PolygonsOfTheRings();
+        get => _polygons ??= Kind.PolygonsOf(PositionRings);
         init => _polygons = value;
     }
 
-    private IReadOnlyList<GeoPolygon> PolygonsOfTheRings()
-    {
-        static IReadOnlyList<GeoPosition> Positions(List<(double Lon, double Lat)> ring) => [.. ring.Select(p => new GeoPosition(p.Lon, p.Lat))];
+    /// <summary>The kind <see cref="Type"/> names, which reads, writes and draws the geometry.</summary>
+    internal GeoGeometryKind Kind => GeoGeometryKind.Of(Type);
 
-        return Type switch
-        {
-            "Polygon" when Rings.Count > 0 => [GeoPolygon.FromRings(Positions(Rings[0]), Rings.Skip(1).Select(Positions))],
-            "MultiPolygon" => [.. Rings.Select(ring => GeoPolygon.FromRings(Positions(ring), []))],
-            _ => [],
-        };
-    }
+    /// <summary>The geometry of <paramref name="polygons"/>: a Polygon for one, a MultiPolygon for any other number. The one place the
+    /// maps that make a region from polygons (the cells of H3, a region a cartogram resized or flowed, the ocean) take its type, its
+    /// flattened rings (each polygon's exterior, then its holes) and the polygons themselves.</summary>
+    /// <param name="polygons">The polygons, already wound (<see cref="GeoPolygon.FromRings"/>).</param>
+    /// <returns>The geometry of the polygons.</returns>
+    internal static GeoGeometry OfPolygons(IReadOnlyList<GeoPolygon> polygons) => new()
+    {
+        Type = polygons.Count == 1 ? PolygonKind.TypeName : MultiPolygonKind.TypeName,
+        PositionRings = [.. polygons.SelectMany(polygon => polygon.Holes.Prepend(polygon.Exterior))],
+        Polygons = polygons,
+    };
 }

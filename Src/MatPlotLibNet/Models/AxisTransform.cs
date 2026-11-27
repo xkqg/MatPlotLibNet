@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Models;
@@ -34,6 +35,12 @@ namespace MatPlotLibNet.Models;
 /// </example>
 public abstract class AxisTransform
 {
+    /// <summary>What a reciprocal divides by the primary value when it is told no numerator.</summary>
+    internal const double RestingNumerator = 1;
+
+    /// <summary>The base of a logarithmic transform when it is told none.</summary>
+    internal const double RestingBase = 10;
+
     /// <summary>Only the library derives a transform: a kind of transform is placed, drawn and written by the library, so it is
     /// one of the kinds its factories make.</summary>
     internal AxisTransform() { }
@@ -55,23 +62,14 @@ public abstract class AxisTransform
     /// </example>
     public static AxisTransform Linear(double scale, double offset = 0)
     {
-        if (!double.IsFinite(scale) || scale == 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(scale), scale, "The scale of a linear transform is a finite number other than 0; a scale of 0 maps every value to one and has no inverse.");
-        }
-
-        if (!double.IsFinite(offset))
-        {
-            throw new ArgumentOutOfRangeException(nameof(offset), offset, "The offset of a linear transform is a finite number.");
-        }
-
-        return new LinearAxisTransform(scale, offset);
+        return new LinearAxisTransform(
+            scale.ThrowIfNotFinite(nameof(scale)).ThrowIfEqual(0, nameof(scale)), offset.ThrowIfNotFinite(nameof(offset)));
     }
 
     /// <summary>A reciprocal: <paramref name="numerator"/> divided by the primary value (a period from a frequency is
     /// <c>Reciprocal()</c>, a wavelength in metres from a frequency in hertz <c>Reciprocal(299_792_458)</c>). It is its own
     /// inverse, and it places a range on either side of 0, never one across it.</summary>
-    /// <param name="numerator">What is divided by the primary value: a finite number other than 0, 1 by default.</param>
+    /// <param name="numerator">What is divided by the primary value: a finite number other than 0, <see cref="RestingNumerator"/> by default.</param>
     /// <returns>The transform.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="numerator"/> is 0 or not finite.</exception>
     /// <example>
@@ -80,19 +78,14 @@ public abstract class AxisTransform
     /// double metres = wavelength.Forward(100e6);                  // 2.99792458
     /// </code>
     /// </example>
-    public static AxisTransform Reciprocal(double numerator = 1)
+    public static AxisTransform Reciprocal(double numerator = RestingNumerator)
     {
-        if (!double.IsFinite(numerator) || numerator == 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(numerator), numerator, "The numerator of a reciprocal is a finite number other than 0.");
-        }
-
-        return new ReciprocalAxisTransform(numerator);
+        return new ReciprocalAxisTransform(numerator.ThrowIfNotFinite(nameof(numerator)).ThrowIfEqual(0, nameof(numerator)));
     }
 
     /// <summary>A logarithm in <paramref name="base"/> of the primary value; its inverse raises <paramref name="base"/> to the
     /// value shown. It places a range above 0.</summary>
-    /// <param name="base">The base: a finite number above 0 other than 1, 10 by default; below 1 the linked axis runs the other
+    /// <param name="base">The base: a finite number above 0 other than 1, <see cref="RestingBase"/> by default; below 1 the linked axis runs the other
     /// way.</param>
     /// <returns>The transform.</returns>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="base"/> is not above 0, is 1, or is not finite.</exception>
@@ -102,14 +95,9 @@ public abstract class AxisTransform
     /// double shown = decades.Forward(1000);   // 3
     /// </code>
     /// </example>
-    public static AxisTransform Logarithm(double @base = 10)
+    public static AxisTransform Logarithm(double @base = RestingBase)
     {
-        if (!double.IsFinite(@base) || @base <= 0 || @base == 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(@base), @base, "The base of a logarithm is a finite number above 0 other than 1.");
-        }
-
-        return new LogarithmAxisTransform(@base);
+        return new LogarithmAxisTransform(@base.ThrowIfNotFinite(nameof(@base)).ThrowIfNotAbove(0, nameof(@base)).ThrowIfEqual(1, nameof(@base)));
     }
 
     /// <summary>The primary value raised to <paramref name="exponent"/>; its inverse takes the root. It is defined on 0 and above
@@ -126,12 +114,7 @@ public abstract class AxisTransform
     /// </example>
     public static AxisTransform Power(double exponent)
     {
-        if (!double.IsFinite(exponent) || exponent == 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(exponent), exponent, "The exponent of a power is a finite number other than 0; an exponent of 0 maps every value to 1 and has no inverse.");
-        }
-
-        return new PowerAxisTransform(exponent);
+        return new PowerAxisTransform(exponent.ThrowIfNotFinite(nameof(exponent)).ThrowIfEqual(0, nameof(exponent)));
     }
 
     /// <summary>A transform of your own, given as the pair matplotlib's <c>functions=(forward, inverse)</c> is. A function is code,

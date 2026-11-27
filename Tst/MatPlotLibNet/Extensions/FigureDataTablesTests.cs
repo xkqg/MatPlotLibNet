@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.Packaging;
 
 namespace MatPlotLibNet.Tests.Extensions;
 
@@ -208,7 +209,7 @@ public class FigureDataTablesTests
 
         Assert.Equal(1500, table.RowCount);
         Assert.Contains("500 more rows", table.ToHtml());
-        Assert.Equal(1501, table.ToCsv().Split("\r\n").Length - 1);
+        Assert.Equal(1501, SourceFile.CrlfLinesOf(table.ToCsv()).Length - 1);
     }
 
     // ---- what the figure itself carries: its texts and its images ------------------------------------------------

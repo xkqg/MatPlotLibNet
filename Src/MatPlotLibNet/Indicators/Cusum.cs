@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Indicators.Steps;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -17,6 +18,12 @@ namespace MatPlotLibNet.Indicators;
 /// <i>Advances in Financial Machine Learning</i> §2.</remarks>
 public sealed class Cusum : PriceIndicator<CusumResult>
 {
+    /// <summary>The <c>drift</c> the indicator is made with when the caller gives none.</summary>
+    public const double DefaultDrift = 0.0;
+
+    /// <summary>The name the checks of its prices give it, in the batch and the streaming form.</summary>
+    internal const string CheckName = "CUSUM";
+
     private readonly double _threshold;
     private readonly double _drift;
 
@@ -25,49 +32,42 @@ public sealed class Cusum : PriceIndicator<CusumResult>
     /// <param name="threshold">Break-detection threshold <c>h</c> (must be &gt; 0).</param>
     /// <param name="drift">Drift-control offset <c>θ</c> (default 0).</param>
     /// <exception cref="ArgumentException">Thrown on non-positive prices or non-positive threshold.</exception>
-    public Cusum(double[] prices, double threshold, double drift = 0.0) : base(prices)
+    public Cusum(double[] prices, double threshold, double drift = DefaultDrift) : base(prices, Spec(threshold))
     {
-        if (threshold <= 0)
-            throw new ArgumentException($"CUSUM threshold must be > 0 (got {threshold}).", nameof(threshold));
-        for (int i = 0; i < prices.Length; i++)
-        {
-            if (prices[i] <= 0)
-                throw new ArgumentException(
-                    $"CUSUM requires strictly positive prices; bar {i} has {prices[i]}.", nameof(prices));
-        }
+        prices.ThrowIfNotPositivePrices(CheckName, "prices", nameof(prices));
         _threshold = threshold;
         _drift = drift;
-        Label = $"CUSUM(h={threshold.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)})";
+    }
+
+    internal static IndicatorSpec Spec(double threshold)
+    {
+        threshold.ThrowIfNotAbove(0, nameof(threshold));
+        string label = $"CUSUM(h={threshold.InvariantText("0.##")})";
+        return IndicatorSpec.Of(1, label, label, $"{label} S+", $"{label} S-");
     }
 
     /// <inheritdoc />
-    public override CusumResult Compute()
+    public override CusumResult Compute() => FoldPrices<CusumStep, CusumPoint, Lines>(new(_threshold, _drift), new(ValueCount)).Result;
+
+    /// <summary>The signal and the two sums, one entry per bar from the first value on.</summary>
+    private readonly struct Lines(int count) : IOutputLines<CusumPoint>
     {
-        int n = Prices.Length;
-        if (n < 2)
-            return new CusumResult([], [], []);
+        private readonly double[] _signal = new double[count], _positive = new double[count], _negative = new double[count];
 
-        int outLen = n - 1;
-        var signal = new double[outLen];
-        var sPos = new double[outLen];
-        var sNeg = new double[outLen];
-        var step = new CusumStep(_threshold, _drift);
-        for (int i = 0; i < n; i++)
+        internal CusumResult Result => new(_signal, _positive, _negative);
+
+        public void Set(int index, CusumPoint output)
         {
-            var point = step.Next(Prices[i]);
-            if (i == 0) continue;
-            signal[i - 1] = point.Signal;
-            sPos[i - 1] = point.SPos;
-            sNeg[i - 1] = point.SNeg;
+            _signal[index] = output.Signal;
+            _positive[index] = output.SPos;
+            _negative[index] = output.SNeg;
         }
-
-        return new CusumResult(signal, sPos, sNeg);
     }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
         var result = Compute();
-        PlotSignal(axes, result.Signal, warmup: 1);
+        PlotLine(axes, result.Signal);
     }
 }

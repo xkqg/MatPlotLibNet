@@ -8,14 +8,17 @@ namespace MatPlotLibNet.Indicators;
 
 /// <summary>Fibonacci Retracement indicator. Adds horizontal reference lines at key Fibonacci ratios between a high and low price.</summary>
 /// <remarks>Draws lines at 23.6%, 38.2%, 50%, 61.8%, and 78.6% retracement levels.
-/// These levels are widely used as support and resistance zones in technical analysis.</remarks>
+/// These levels are widely used as support and resistance zones in technical analysis. The lines are dashed; set
+/// <see cref="Indicator.LineStyle"/> for another pattern. They are orange under the library's own themes and in <c>lines.color</c>
+/// (the first colour of the cycle) under the matplotlib themes, as matplotlib's <c>axhline</c> draws a line that names no colour; set
+/// <see cref="Indicator.Color"/> for a colour of your own under every theme.</remarks>
 public sealed class FibonacciRetracement : Indicator<SignalResult>
 {
     private readonly double _low;
     private readonly double _high;
 
-    /// <summary>The standard Fibonacci retracement ratios.</summary>
-    public static readonly double[] Levels = [0.236, 0.382, 0.5, 0.618, 0.786];
+    /// <summary>The standard Fibonacci retracement ratios: the inner ratios of the retracement tool, without its 0 % and 100 %.</summary>
+    public static readonly double[] Levels = Models.Tools.FibonacciRetracement.Ratios[1..^1];
 
     /// <summary>Creates a new Fibonacci Retracement indicator between the given price extremes.</summary>
     /// <param name="low">The swing low price.</param>
@@ -25,32 +28,23 @@ public sealed class FibonacciRetracement : Indicator<SignalResult>
         _low = low;
         _high = high;
         Label = "Fib";
+        LineStyle = LineStyle.Dashed;
     }
 
     /// <inheritdoc />
-    public override SignalResult Compute()
-    {
-        double range = _high - _low;
-        var result = new double[Levels.Length];
-        for (int i = 0; i < Levels.Length; i++)
-            result[i] = _high - range * Levels[i];
-        return result;
-    }
+    public override SignalResult Compute() => Array.ConvertAll(Levels, level => Models.Tools.FibonacciRetracement.PriceAt(level, _high, _low));
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        double range = _high - _low;
-        var lineColor = Color ?? Colors.FibonacciOrange;
-
         foreach (double level in Levels)
         {
-            double value = _high - range * level;
-            var line = axes.AxHLine(value);
-            line.Color = lineColor;
-            line.LineStyle = LineStyle.Dashed;
+            var line = axes.AxHLine(Models.Tools.FibonacciRetracement.PriceAt(level, _high, _low));
+            line.Color = Color;
+            line.VerbColor = Colors.FibonacciOrange;
+            line.LineStyle = LineStyle;
             line.LineWidth = LineWidth;
-            line.Label = $"{level:P1}";
+            line.Label = $"{(level * 100).InvariantText("0.0")}%";
         }
     }
 }

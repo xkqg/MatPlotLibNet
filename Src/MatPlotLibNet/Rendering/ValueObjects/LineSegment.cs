@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Rendering;
 
 /// <summary>An oriented line segment from <paramref name="From"/> to <paramref name="To"/>.
 /// Used by contour extractors (e.g.
-/// <see cref="SeriesRenderers.TricontourSeriesRenderer"/>) to yield iso-line edges
+/// tricontour series renderer) to yield iso-line edges
 /// before polyline chaining.</summary>
 /// <param name="From">Starting endpoint.</param>
 /// <param name="To">Ending endpoint.</param>

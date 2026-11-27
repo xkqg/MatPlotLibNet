@@ -1,9 +1,7 @@
 ﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Reflection;
 using MatPlotLibNet.Models.Series;
-using Xunit;
 
 namespace MatPlotLibNet.Tests.Models;
 
@@ -22,11 +20,7 @@ public class SeriesCountContractTests
     /// bases (<see cref="ChartSeries"/>, <c>XYSeries</c>, <c>PolarSeries</c>, …) are scaffolding, not chart
     /// types, and nothing in the documents ever meant to count them.</summary>
     internal static Type[] ConcreteSeries() =>
-        [.. typeof(ChartSeries).Assembly
-            .GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.IsPublic
-                        && typeof(ChartSeries).IsAssignableFrom(t))
-            .OrderBy(t => t.Name, StringComparer.Ordinal)];
+        typeof(ChartSeries).Assembly.ConcretePublicSubtypesOf(typeof(ChartSeries));
 
     /// <summary>The number the documents publish. Changing a series count is a DOCUMENTED change: bump this,
     /// and the list in the failure message tells you which document to bump with it.</summary>
@@ -38,22 +32,11 @@ public class SeriesCountContractTests
 
     [Fact]
     public void TheCorePackageShips_ExactlyTheNumberOfSeriesTheDocumentsClaim()
-    {
-        var series = ConcreteSeries();
-
-        Assert.True(series.Length == PublishedSeriesTypes,
-            $"the published count is {PublishedSeriesTypes}; the assembly carries {series.Length}: " +
-            string.Join(", ", series.Select(t => t.Name)));
-    }
+        => PublishedCounts.AssertAre(ConcreteSeries(), PublishedSeriesTypes);
 
     [Fact]
     public void TheStreamingFamilyIs_ExactlyTheNumberTheDocumentsCallOutSeparately()
-    {
-        var streaming = ConcreteSeries().Where(t => t.Name.StartsWith("Streaming", StringComparison.Ordinal)).ToArray();
-
-        Assert.True(streaming.Length == PublishedStreamingSeries,
-            $"expected {PublishedStreamingSeries}: " + string.Join(", ", streaming.Select(t => t.Name)));
-    }
+        => PublishedCounts.AssertAre([.. ConcreteSeries().Where(t => t.Name.StartsWith("Streaming", StringComparison.Ordinal))], PublishedStreamingSeries);
 
     /// <summary>Every series stays under the one series namespace. The documents count CATEGORIES as well as
     /// types, and a series that escaped this root is exactly how a category nobody counted would appear.

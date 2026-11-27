@@ -9,57 +9,17 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies camera properties on Axes and perspective on Projection3D.</summary>
 public class CameraPropertiesTests
 {
-    // --- Axes camera properties ---
-
-    [Fact]
-    public void Axes_Elevation_DefaultIs30()
-    {
-        var axes = new Axes();
-        Assert.Equal(30, axes.Elevation);
-    }
-
-    [Fact]
-    public void Axes_Azimuth_DefaultIsMinus60()
-    {
-        var axes = new Axes();
-        Assert.Equal(-60, axes.Azimuth);
-    }
-
-    [Fact]
-    public void Axes_CameraDistance_DefaultIsNull()
-    {
-        var axes = new Axes();
-        Assert.Null(axes.CameraDistance);
-    }
-
-    [Fact]
-    public void Axes_CameraDistance_CanBeSet()
-    {
-        var axes = new Axes { CameraDistance = 5.0 };
-        Assert.Equal(5.0, axes.CameraDistance);
-    }
-
     // --- Projection3D perspective ---
 
-    [Fact]
-    public void Projection3D_Distance_IsStored()
+    /// <summary>A camera distance is kept from 2 up, a nearer one is held at 2, and none at all is the orthographic view.</summary>
+    [Theory]
+    [InlineData(5.0, 5.0)]
+    [InlineData(0.5, 2.0)]
+    [InlineData(null, null)]
+    public void Projection3D_Distance_IsHeldAtTwoOrMore_AndNoneIsOrthographic(double? given, double? kept)
     {
-        var proj = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10, distance: 5.0);
-        Assert.Equal(5.0, proj.Distance);
-    }
-
-    [Fact]
-    public void Projection3D_NullDistance_IsOrthographic()
-    {
-        var proj = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10);
-        Assert.Null(proj.Distance);
-    }
-
-    [Fact]
-    public void Projection3D_DistanceClamped_MinimumTwo()
-    {
-        var proj = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10, distance: 0.5);
-        Assert.Equal(2.0, proj.Distance);
+        var proj = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10, distance: given);
+        Assert.Equal(kept, proj.Distance);
     }
 
     [Fact]
@@ -75,23 +35,24 @@ public class CameraPropertiesTests
     public void Projection3D_Perspective_ParallaxEffect()
     {
         // Two projections sharing the same camera angles and data bounds but different
-        // camera distances must produce visibly different screen-space separations for
-        // a diagonal 3-D line. Distance 10 (default) places the camera far enough that
-        // near/far points project at nearly the same scale; distance 3 brings the camera
-        // close enough that the far point foreshortens noticeably, widening the gap.
+        // camera distances must draw an edge near the camera at visibly different lengths.
+        // The box keeps its size (matplotlib's view limits scale with the distance), so the
+        // diagonal through its centre barely moves; the front X edge, nearer the camera than
+        // the centre, grows as the camera comes closer (matplotlib: 273 px at focal length 1,
+        // 305 px at focal length 0.2 for an 800 x 600 figure).
         var farCam  = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10);
         var nearCam = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10, distance: 3.0);
 
         var p1Far  = farCam.Project(0, 0, 0);
-        var p2Far  = farCam.Project(10, 10, 10);
+        var p2Far  = farCam.Project(10, 0, 0);
         var p1Near = nearCam.Project(0, 0, 0);
-        var p2Near = nearCam.Project(10, 10, 10);
+        var p2Near = nearCam.Project(10, 0, 0);
 
         double distFar  = Math.Sqrt(Math.Pow(p2Far.X - p1Far.X, 2) + Math.Pow(p2Far.Y - p1Far.Y, 2));
         double distNear = Math.Sqrt(Math.Pow(p2Near.X - p1Near.X, 2) + Math.Pow(p2Near.Y - p1Near.Y, 2));
 
-        // Bringing the camera closer should visibly change the projected diagonal length.
-        Assert.NotEqual(distFar, distNear, 1.0);
+        // Bringing the camera closer draws the near edge visibly longer.
+        Assert.True(distNear > distFar + 5, $"near {distNear:F1} px against far {distFar:F1} px");
     }
 
     [Fact]

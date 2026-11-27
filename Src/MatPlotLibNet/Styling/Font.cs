@@ -11,7 +11,8 @@ public sealed record Font
     /// <summary>The font family as a CSS font-family list, for example <c>"DejaVu Sans, sans-serif"</c>. <c>sans-serif</c> by default.</summary>
     public string Family { get; init; } = "sans-serif";
 
-    /// <summary>The font size in points. 13 by default.</summary>
+    /// <summary>The font size, in pixels: the unit a figure is laid out in, drawn as it stands. A size in points is 100 / 72 of it, so
+    /// 10 points is 13.89 here (the matplotlib themes store theirs that way). 13 by default.</summary>
     public double Size { get; init; } = 13;
 
     /// <summary>How heavy the letters are drawn: light, normal or bold. Normal by default.</summary>

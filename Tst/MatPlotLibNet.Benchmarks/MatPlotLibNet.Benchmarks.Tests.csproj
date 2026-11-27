@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net10.0 like every other suite here; it is not listed in the coverage runners, because the benchmark program is a
+         measurement harness and stays out of the per-class gate. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The one piece of the benchmark program that holds decisions a test can judge: how a drag mode is read from the command
+         line. It is compiled in from its file rather than by referencing the benchmark executable, which would pull
+         BenchmarkDotNet, the server package and the live wall into a suite that needs none of them. -->
+    <Compile Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\Drag\DragMode.cs" Link="DragMode.cs" />
+    <!-- How a drag run reads processor time on a clock that moves in steps of the scheduler's tick: the rule, the clock and the meter. -->
+    <Compile Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\Drag\CpuResolution.cs" Link="CpuResolution.cs" />
+    <Compile Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\Drag\ProcessClock.cs" Link="ProcessClock.cs" />
+    <Compile Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\Drag\CpuMeter.cs" Link="CpuMeter.cs" />
+    <!-- The figures of the matplotlib-theme rows, which need the core package and nothing else of the benchmark program. -->
+    <Compile Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\MatplotlibThemes\MatplotlibThemeFigures.cs" Link="MatplotlibThemeFigures.cs" />
+    <!-- The figures of the math-label rows, the same way. -->
+    <Compile Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\MathLabelledFigures.cs" Link="MathLabelledFigures.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The benchmark classes cannot be compiled in (they need BenchmarkDotNet), so their sources are carried beside the test and
+         read, to hold that every row of the figures is a benchmark method of the class that suits how it is written, and that a
+         class which names the Skia package loads it for every row. Every source of the program, in one folder (the names are
+         unique). -->
+    <Content Include="..\..\Benchmarks\MatPlotLibNet.Benchmarks\**\*.cs"
+             Exclude="..\..\Benchmarks\MatPlotLibNet.Benchmarks\bin\**;..\..\Benchmarks\MatPlotLibNet.Benchmarks\obj\**"
+             Link="BenchmarkSources\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A fact that only draws and looks for tokens is a row of a theory over this one type. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\DrawnToken.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\FiniteAssertions.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Rendering\SvgMarkupExtensions.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+</Project>

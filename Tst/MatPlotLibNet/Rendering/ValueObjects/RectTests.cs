@@ -24,17 +24,22 @@ public class RectTests
         Assert.Equal(10, c.Y);
     }
 
-    [Fact]
-    public void Intersects_OverlappingRects_ReturnsTrue()
-        => Assert.True(new Rect(0, 0, 10, 10).Intersects(new Rect(5, 5, 10, 10)));
+    /// <summary>The shorter side of a rectangle, the one length a round chart's circle, a 3-D box's square and a rounded corner's
+    /// largest radius are measured from, whichever way the rectangle lies.</summary>
+    [Theory]
+    [InlineData(10.0, 20.0, 10.0)]
+    [InlineData(37.5, 12.25, 12.25)]
+    [InlineData(8.0, 8.0, 8.0)]
+    public void ShorterSide_IsTheLesserOfWidthAndHeight(double width, double height, double shorter)
+        => Assert.Equal(shorter, new Rect(3, 4, width, height).ShorterSide);
 
-    [Fact]
-    public void Intersects_TouchingEdges_ReturnsFalse()
-        => Assert.False(new Rect(0, 0, 10, 10).Intersects(new Rect(10, 0, 10, 10)));
-
-    [Fact]
-    public void Intersects_DisjointRects_ReturnsFalse()
-        => Assert.False(new Rect(0, 0, 5, 5).Intersects(new Rect(20, 20, 5, 5)));
+    /// <summary>Two rectangles that overlap intersect; two that only touch at an edge, or lie apart, do not.</summary>
+    [Theory]
+    [InlineData(5, 5, true)]
+    [InlineData(10, 0, false)]
+    [InlineData(20, 20, false)]
+    public void Intersects_OnlyRectanglesThatOverlap(double x, double y, bool intersects)
+        => Assert.Equal(intersects, new Rect(0, 0, 10, 10).Intersects(new Rect(x, y, 10, 10)));
 
     [Fact]
     public void Inflate_ExpandsBothDimensions()
@@ -100,5 +105,29 @@ public class RectTests
         Assert.Equal(2, r.Y);
         Assert.Equal(8, r.Width);
         Assert.Equal(6, r.Height);
+    }
+
+    /// <summary>The smallest rectangle that holds every rectangle of a list, as matplotlib's <c>Bbox.union</c> makes it.</summary>
+    [Fact]
+    public void Enclosing_HoldsEveryRectangle()
+    {
+        var box = Rect.Enclosing([new Rect(10, 20, 30, 40), new Rect(50, 5, 10, 10), new Rect(0, 30, 5, 5)]);
+
+        Assert.Equal(new Rect(0, 5, 60, 55), box);
+    }
+
+    [Fact]
+    public void Enclosing_OfNoRectangle_IsNothing() => Assert.Null(Rect.Enclosing([]));
+
+    /// <summary>A rectangle moved by the transform that maps one box onto another, as matplotlib's <c>BboxTransform(from, to)</c>
+    /// moves it: its position and its size are scaled by the ratio of the boxes, on each axis.</summary>
+    [Fact]
+    public void Remapped_ScalesPositionAndSizeByTheRatioOfTheBoxes()
+    {
+        var from = new Rect(100, 50, 600, 400);
+        var to = new Rect(100, 50, 480, 200);
+
+        Assert.Equal(new Rect(100 + 0.8 * 150, 50 + 0.5 * 100, 0.8 * 200, 0.5 * 80), new Rect(250, 150, 200, 80).Remapped(from, to));
+        Assert.Equal(to, from.Remapped(from, to));
     }
 }

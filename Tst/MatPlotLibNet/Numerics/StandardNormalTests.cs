@@ -136,8 +136,4 @@ public class StandardNormalTests
     public void Quantile_OneOrAbove_IsPositiveInfinity(double p) =>
         Assert.True(double.IsPositiveInfinity(StandardNormal.Quantile(p)));
 
-    /// <summary>A missing probability gives a missing quantile; it neither throws nor becomes an infinity.</summary>
-    [Fact]
-    public void Quantile_NaN_IsNaN() =>
-        Assert.True(double.IsNaN(StandardNormal.Quantile(double.NaN)));
 }

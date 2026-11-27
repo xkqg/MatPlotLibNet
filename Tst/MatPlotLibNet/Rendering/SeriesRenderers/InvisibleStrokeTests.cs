@@ -15,13 +15,6 @@ public class InvisibleStrokeTests
 {
     private static readonly Color SeriesColour = Theme.Default.CycleColors[0];
 
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
-
     private static Figure LineOf(LineStyle style, bool legend = false) =>
         Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax =>
         {
@@ -31,19 +24,19 @@ public class InvisibleStrokeTests
 
     /// <summary>The polylines in the series colour.</summary>
     private static int PolylinesOf(RecordingRenderContext drawn) =>
-        drawn.OfKind("DrawLines").Count(call => (Color)((dynamic)call.Args!).color == SeriesColour);
+        drawn.Of<DrawLinesCall>().Count(call => call.Color == SeriesColour);
 
     /// <summary>The straight lines in the series colour, which is what a legend swatch of a line is.</summary>
     private static int SwatchLinesOf(RecordingRenderContext drawn) =>
-        drawn.OfKind("DrawLine").Count(call => (Color)((dynamic)call.Args!).color == SeriesColour);
+        drawn.Of<DrawLineCall>().Count(call => call.Color == SeriesColour);
 
     [Fact]
     public void ALineOfStyleNone_DrawsNoLine_ButItsMarkers()
     {
-        var drawn = Drawn(LineOf(LineStyle.None));
+        var drawn = LineOf(LineStyle.None).Drawn();
 
         Assert.Equal(0, PolylinesOf(drawn));
-        Assert.Equal(3, drawn.OfKind("DrawCircle").Count);
+        Assert.Equal(3, drawn.Of<DrawCircleCall>().Count);
         Assert.DoesNotContain("<polyline", LineOf(LineStyle.None).ToSvg());
     }
 
@@ -54,7 +47,7 @@ public class InvisibleStrokeTests
     [InlineData(LineStyle.DashDot)]
     public void ALineOfAnyOtherStyle_IsStillDrawn(LineStyle style)
     {
-        var drawn = Drawn(LineOf(style));
+        var drawn = LineOf(style).Drawn();
 
         Assert.Equal(1, PolylinesOf(drawn));
         Assert.Contains("<polyline", LineOf(style).ToSvg());
@@ -66,7 +59,7 @@ public class InvisibleStrokeTests
         var figure = Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax =>
             ax.AddSeries(new StepSeries([1.0, 2.0, 3.0], [1.0, 3.0, 2.0]) { LineStyle = LineStyle.None, Marker = MarkerStyle.Square })).Build();
 
-        Assert.Equal(0, PolylinesOf(Drawn(figure)));
+        Assert.Equal(0, PolylinesOf(figure.Drawn()));
     }
 
     [Fact]
@@ -75,22 +68,22 @@ public class InvisibleStrokeTests
         var figure = Plt.Create().WithSize(800, 400).AddSubPlot(1, 1, 1, ax =>
             ax.AddSeries(new AreaSeries([1.0, 2.0, 3.0], [1.0, 3.0, 2.0]) { LineStyle = LineStyle.None })).Build();
 
-        var drawn = Drawn(figure);
+        var drawn = figure.Drawn();
 
-        Assert.NotEmpty(drawn.OfKind("DrawPolygon"));
+        Assert.NotEmpty(drawn.Of<DrawPolygonCall>());
         Assert.Equal(0, PolylinesOf(drawn));
     }
 
     [Fact]
     public void TheLegendEntry_OfALineOfStyleNone_IsItsMarkerAlone()
     {
-        var none = Drawn(LineOf(LineStyle.None, legend: true));
-        var solid = Drawn(LineOf(LineStyle.Solid, legend: true));
+        var none = LineOf(LineStyle.None, legend: true).Drawn();
+        var solid = LineOf(LineStyle.Solid, legend: true).Drawn();
 
         Assert.Equal(0, SwatchLinesOf(none));
         Assert.Equal(1, SwatchLinesOf(solid));
         // The markers of the data (3) and the marker of the swatch (1).
-        Assert.Equal(4, none.OfKind("DrawCircle").Count);
+        Assert.Equal(4, none.Of<DrawCircleCall>().Count);
     }
 
     [Fact]
@@ -100,9 +93,9 @@ public class InvisibleStrokeTests
             .Plot([1.0, 2.0, 3.0], [1.0, 3.0, 2.0], s => { s.LineStyle = LineStyle.None; s.Label = "nothing"; })
             .WithLegend()).Build();
 
-        var drawn = Drawn(figure);
+        var drawn = figure.Drawn();
 
         Assert.Equal(0, SwatchLinesOf(drawn));
-        Assert.Contains(drawn.OfKind("DrawText"), call => (string)((dynamic)call.Args!).text == "nothing");
+        Assert.Contains(drawn.Of<DrawTextCall>(), call => call.Text == "nothing");
     }
 }

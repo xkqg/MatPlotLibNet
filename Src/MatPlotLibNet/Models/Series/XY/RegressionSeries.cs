@@ -8,10 +8,14 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a polynomial regression series that fits and draws a trend line with optional confidence bands.</summary>
-public sealed class RegressionSeries : ChartSeries, IHasColor
+public sealed class RegressionSeries : ChartSeries, IHasColor, ISeriesKind<RegressionSeries>, IGivenStroked
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle, RestingLineWidth);
+    /// <remarks>2: the fit seaborn's <c>regplot</c> draws is a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Line(this);
 
     /// <summary>The x coordinate of each observation the line is fitted to, in data units.</summary>
     public double[] XData { get; }
@@ -20,35 +24,44 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
     /// <see cref="XData"/> entry. An observation with a missing value (NaN) or an infinity is left out of the fit.</summary>
     public double[] YData { get; }
 
-    /// <summary>The degree of the polynomial that is fitted: 1, the default, is a straight line, 2 a parabola, and so on.
+    internal const int RestingDegree = 1;
+    /// <summary>The degree of the polynomial that is fitted: the default, <see cref="RestingDegree"/>, is a straight line, 2 a parabola, and so on.
     /// Drawing limits it to 0 through 10.</summary>
-    public int Degree { get; set; } = 1;
+    public int Degree { get; set => Change(ref field, value); } = RestingDegree;
 
     /// <summary>Whether a shaded confidence band is drawn around the fitted line. False by default.</summary>
-    public bool ShowConfidence { get; set; } = false;
+    public bool ShowConfidence { get; set => Change(ref field, value); } = false;
 
-    /// <summary>The confidence level of the band, as a fraction between 0 and 1. Default 0.95 for a 95 percent band; it
+    private const double RestingConfidenceLevel = Numerics.ConfidenceBand.DefaultLevel;
+    /// <summary>The confidence level of the band, as a fraction between 0 and 1. Default <see cref="Numerics.ConfidenceBand.DefaultLevel"/>; it
     /// has an effect only when <see cref="ShowConfidence"/> is true.</summary>
-    public double ConfidenceLevel { get; set; } = 0.95;
+    public double ConfidenceLevel { get; set => Change(ref field, value); } = RestingConfidenceLevel;
 
-    /// <summary>The line width a new regression line holds, which is not the 1.5 of the other lines; a theme's cycler
-    /// names a width for the line only when it holds this one and the cycler names one other than 1.5.</summary>
-    internal const double RestingLineWidth = 2.0;
+    /// <summary>How wide the fitted line is drawn: as a line, but at its own width whatever width the theme names, unless the
+    /// theme's cycler names a width for its slot.</summary>
+    LineWidthRule IWidthGiven.WidthRule => LineWidthRule.TwoPixelLine;
 
-    /// <summary>The thickness of the fitted line, in pixels. Default 2.</summary>
-    public double LineWidth { get; set; } = RestingLineWidth;
+    /// <summary>The thickness of the fitted line, in pixels. Default: the rest of the library's two-pixel line.</summary>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The colour of the confidence band; null (the default) uses the colour of the fitted line.</summary>
-    public Color? BandColor { get; set; }
+    public Color? BandColor { get; set => Change(ref field, value); }
 
-    /// <summary>The opacity of the confidence band, from 0 (invisible) to 1 (opaque). Default 0.2.</summary>
-    public double BandAlpha { get; set; } = 0.2;
+    private const double RestingBandAlpha = 0.2;
+    /// <summary>The opacity of the confidence band, from 0 (invisible) to 1 (opaque). Default <see cref="RestingBandAlpha"/>.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double BandAlpha { get; set => Change(ref field, value.ThrowIfNotOpacity(nameof(BandAlpha))); } = RestingBandAlpha;
 
     /// <summary>The dash pattern of the fitted line. Default solid.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
     /// <summary>Initializes a new instance of <see cref="RegressionSeries"/> with the specified X and Y data.</summary>
     /// <remarks>Deliberately does NOT validate matching lengths at construction (unlike
@@ -63,78 +76,51 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
     }
 
     /// <inheritdoc />
+    internal override bool HoldsNoData => XData.Length == 0;
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        if (XData.Length == 0) return new(0, 1, 0, 1);
+        if (HoldsNoData) return NoDataUnderTheLibrary;
         // Over the pairs the line is fitted to: a pair with a missing value (NaN) or an infinity is left out.
         var pairs = XData.DrawablePairs(YData);
-        var x = pairs.X.DrawableRange();
-        var y = pairs.Y.DrawableRange();
-        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
+        return DataRangeContribution.Over(pairs.X, pairs.Y);
     }
+
+    static string ISeriesKind<RegressionSeries>.Kind => "regression";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "regression",
+        Type = this.WireKind(),
         XData = XData, YData = YData,
-        Degree = Degree == 1 ? null : Degree,
-        ShowConfidence = ShowConfidence ? true : null,
-        ConfidenceLevel = ConfidenceLevel == 0.95 ? null : ConfidenceLevel,
-        LineWidth = LineWidth,
+        Degree = Degree.OrNullAtRest(RestingDegree),
+        ShowConfidence = ShowConfidence.OrNullAtRest(false),
+        ConfidenceLevel = ConfidenceLevel.OrNullAtRest(RestingConfidenceLevel),
+        Stroking = Stroke,
         Color = Color,
         FillColor = BandColor,
-        Alpha = BandAlpha == 0.2 ? null : BandAlpha,
-        LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant()
+        Alpha = BandAlpha.OrNullAtRest(RestingBandAlpha)
     };
 
-    /// <summary>Reconstructs a <see cref="RegressionSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="RegressionSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static RegressionSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Regression(dto.XData ?? [], dto.YData ?? []);
-        if (dto.Degree.HasValue)
-        {
-            s.Degree = dto.Degree.Value;
-        }
-        if (dto.ShowConfidence.HasValue)
-        {
-            s.ShowConfidence = dto.ShowConfidence.Value;
-        }
-        if (dto.ConfidenceLevel.HasValue)
-        {
-            s.ConfidenceLevel = dto.ConfidenceLevel.Value;
-        }
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
-        if (dto.Color.HasValue)
-        {
-            s.Color = dto.Color.Value;
-        }
-        if (dto.FillColor.HasValue)
-        {
-            s.BandColor = dto.FillColor.Value;
-        }
-        if (dto.Alpha.HasValue)
-        {
-            s.BandAlpha = dto.Alpha.Value;
-        }
-        if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls))
-        {
-            s.LineStyle = ls;
-        }
+        if (dto.Degree is { } degree) s.Degree = degree;
+        if (dto.ShowConfidence is { } showConfidence) s.ShowConfidence = showConfidence;
+        if (dto.ConfidenceLevel is { } confidenceLevel) s.ConfidenceLevel = confidenceLevel;
+        s.Stroke = dto.StrokeOver(s.Stroke);
+        if (dto.Color is { } color) s.Color = color;
+        if (dto.FillColor is { } fillColor) s.BandColor = fillColor;
+        if (dto.Alpha is { } alpha) s.BandAlpha = alpha;
         return s;
     }
-
 
     /// <inheritdoc />
     /// <remarks>The observations the fit was computed from — the line itself is derived, the points are data.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y)], [XData, YData]);
+        ChartDataTable.XY(Label, XData, YData);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

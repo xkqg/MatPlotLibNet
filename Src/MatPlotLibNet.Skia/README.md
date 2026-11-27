@@ -50,7 +50,9 @@ figure.Save("chart.pdf", new SaveOptions { Title = "Revenue", Author = "Finance"
 
 A PNG keeps the title and the author as text chunks with the keywords Title and Author. A PDF keeps them in its
 document information. A `Dpi` other than 96 replaces the figure's own resolution for that save. A PDF page is a vector
-drawing, one point to a unit, so the dpi changes nothing in a PDF (nor in an SVG).
+drawing, one point to a unit, so the dpi changes nothing in a PDF (nor in an SVG). A PDF holds no date, so a figure saved twice
+writes the same bytes; PDFs are written one at a time in a process, so two saved at once wait for each other and none loses the
+text map that lets its text be copied.
 
 ## Text and fonts
 
@@ -65,10 +67,15 @@ var font = SkiaFonts.Register("fonts/NotoSansDevanagari-Regular.ttf");
 var theme = Theme.CreateFrom(Theme.Seaborn).WithFont(f => f with { Family = font.Family }).Build();
 ```
 
-A font installed on the machine can be used by its family name without registering it. When a family cannot be
-found anywhere, the chart falls back to the operating system's default face and reports the fallback once through
-`ChartDiagnostics.Emitted`.
+A font installed on the machine can be used by its family name without registering it. The default family,
+`sans-serif`, is the bundled DejaVu Sans, as in matplotlib, so default text looks the same on every machine. When a
+family cannot be found anywhere, the chart falls back to the operating system's default face and reports the
+fallback once through `ChartDiagnostics.Emitted`.
 
 ## License
 
 [MIT](https://github.com/xkqg/MatPlotLibNet/blob/main/LICENSE) -- Copyright (c) 2026 H.P. Gansevoort
+
+The package embeds the DejaVu Sans fonts, the Computer Modern fonts of the BaKoMa collection that matplotlib sets math in under
+its classic style, and the STIX fonts matplotlib takes the math characters those faces lack from, as matplotlib ships them; their
+licences are in `THIRD-PARTY-NOTICES.md` in the package.

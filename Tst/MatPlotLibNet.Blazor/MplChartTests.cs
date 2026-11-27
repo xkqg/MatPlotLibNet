@@ -18,24 +18,14 @@ public class MplChartTests : BunitContext
             .Plot([1.0, 2.0], [3.0, 4.0])
             .Build();
 
-        var cut = Render<MplChart>(parameters =>
-            parameters.Add(p => p.Figure, figure));
-
-        var div = cut.Find(".mpl-chart");
-        Assert.NotNull(div);
-        var svgElement = cut.Find("svg");
-        Assert.NotNull(svgElement);
+        this.AssertContainerHoldsAnSvg<MplChart>(".mpl-chart", parameters => parameters.Add(p => p.Figure, figure));
     }
 
     /// <summary>Verifies that the component renders an empty container div when no figure is provided.</summary>
     [Fact]
     public void Renders_EmptyDiv_WhenFigureIsNull()
     {
-        var cut = Render<MplChart>();
-
-        var div = cut.Find(".mpl-chart");
-        Assert.NotNull(div);
-        Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("svg"));
+        this.AssertContainerIsEmpty<MplChart>(".mpl-chart");
     }
 
     /// <summary>Verifies that the component re-renders with updated content when the figure changes.</summary>
@@ -207,100 +197,58 @@ public class MplChartTests : BunitContext
         Assert.DoesNotContain("mpl-popup", div.GetAttribute("class"));
     }
 
+    /// <summary>The chart of a plain figure, shown in the display mode given and with the popup address given.</summary>
+    private IRenderedComponent<MplChart> InMode(DisplayMode mode, string? popupUrl = null)
+    {
+        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
+
+        return Render<MplChart>(p =>
+        {
+            p.Add(x => x.Figure, figure);
+            p.Add(x => x.DisplayMode, mode);
+            if (popupUrl is not null) p.Add(x => x.PopupUrl, popupUrl);
+        });
+    }
+
     /// <summary>Verifies that the expandable display mode renders an expand button.</summary>
     [Fact]
     public void DisplayMode_Expandable_RendersExpandButton()
     {
-        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
+        var btn = InMode(DisplayMode.Expandable).Find("button.mpl-expand-btn");
 
-        var cut = Render<MplChart>(p =>
-        {
-            p.Add(x => x.Figure, figure);
-            p.Add(x => x.DisplayMode, DisplayMode.Expandable);
-        });
-
-        var btn = cut.Find("button.mpl-expand-btn");
-        Assert.NotNull(btn);
         Assert.Contains("Expand", btn.TextContent);
     }
 
-    /// <summary>Verifies that the expandable display mode applies the mpl-expandable CSS class.</summary>
-    [Fact]
-    public void DisplayMode_Expandable_HasExpandableClass()
+    /// <summary>Verifies that each display mode applies its own CSS class to the container.</summary>
+    [Theory]
+    [InlineData(DisplayMode.Expandable, "div.mpl-expandable")]
+    [InlineData(DisplayMode.Popup, "div.mpl-popup")]
+    public void ADisplayMode_AppliesItsCssClass(DisplayMode mode, string selector)
     {
-        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
-
-        var cut = Render<MplChart>(p =>
-        {
-            p.Add(x => x.Figure, figure);
-            p.Add(x => x.DisplayMode, DisplayMode.Expandable);
-        });
-
-        var div = cut.Find("div.mpl-expandable");
-        Assert.NotNull(div);
+        Assert.NotNull(InMode(mode).Find(selector));
     }
 
     /// <summary>Verifies that the popup display mode renders a link with the correct href and target.</summary>
     [Fact]
     public void DisplayMode_Popup_RendersPopupLink()
     {
-        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
+        var link = InMode(DisplayMode.Popup, "http://localhost:5000/chart/abc").Find("a.mpl-popup-link");
 
-        var cut = Render<MplChart>(p =>
-        {
-            p.Add(x => x.Figure, figure);
-            p.Add(x => x.DisplayMode, DisplayMode.Popup);
-            p.Add(x => x.PopupUrl, "http://localhost:5000/chart/abc");
-        });
-
-        var link = cut.Find("a.mpl-popup-link");
-        Assert.NotNull(link);
         Assert.Equal("http://localhost:5000/chart/abc", link.GetAttribute("href"));
         Assert.Equal("_blank", link.GetAttribute("target"));
-    }
-
-    /// <summary>Verifies that the popup display mode applies the mpl-popup CSS class.</summary>
-    [Fact]
-    public void DisplayMode_Popup_HasPopupClass()
-    {
-        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
-
-        var cut = Render<MplChart>(p =>
-        {
-            p.Add(x => x.Figure, figure);
-            p.Add(x => x.DisplayMode, DisplayMode.Popup);
-        });
-
-        var div = cut.Find("div.mpl-popup");
-        Assert.NotNull(div);
     }
 
     /// <summary>Verifies that the popup display mode does not render a link when PopupUrl is empty.</summary>
     [Fact]
     public void DisplayMode_Popup_NoLinkWhenPopupUrlEmpty()
     {
-        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
-
-        var cut = Render<MplChart>(p =>
-        {
-            p.Add(x => x.Figure, figure);
-            p.Add(x => x.DisplayMode, DisplayMode.Popup);
-        });
+        var cut = InMode(DisplayMode.Popup);
 
         Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("a.mpl-popup-link"));
     }
-}
 
-// ─── MplChartCoverageTests.cs ─────────────────────────────────────────────────
-
-/// <summary>Phase Y.7 (v1.7.2, 2026-04-19) — branch coverage for the
-/// <see cref="MplChart"/> Expandable display mode's ToggleExpand path
-/// (line 55 was 0%-covered, lines 19/22 were 50/75%-covered for the
-/// `_expanded == true` arm). Pre-Y.7: 86.7%L / 88.9%B.</summary>
-public class MplChartCoverageTests : BunitContext
-{
     /// <summary>Click the Expand button → `_expanded` flips to true → div gets the
-    /// `mpl-expanded` class and button text becomes "Close" (covers line 19, 22, 55).</summary>
+    /// `mpl-expanded` class and button text becomes "Close".</summary>
     [Fact]
     public void Expandable_ClickButton_TogglesExpanded()
     {
@@ -420,4 +368,14 @@ public class MplChartCoverageTests : BunitContext
 
         Assert.Equal("Expand", cut.Find("button.mpl-expand-btn").TextContent);
     }
+
+    /// <summary>A chart that was never shown has no animation to stop following: its disposal does nothing and does not throw.</summary>
+    [Fact]
+    public void AChartThatWasNeverShown_DisposesWithNothingToLetGo()
+    {
+        Assert.Null(Record.Exception(() => new MplChart().Dispose()));
+    }
 }
+
+// ─── MplChartCoverageTests.cs ─────────────────────────────────────────────────
+

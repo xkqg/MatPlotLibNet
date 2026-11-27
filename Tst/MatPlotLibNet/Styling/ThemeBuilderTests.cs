@@ -54,6 +54,30 @@ public class ThemeBuilderTests
     }
 
     [Fact]
+    public void WithGround_SetsTheFigureThePlotAndTheInkAsOneValue_AndNothingElse()
+    {
+        var ground = ThemeGround.Hex("#010203", "#040506", "#070809");
+
+        var built = Theme.CreateFrom(Theme.Dark).WithGround(ground).Build();
+
+        Assert.Equal(Color.FromHex("#010203"), built.Background);
+        Assert.Equal(Color.FromHex("#040506"), built.AxesBackground);
+        Assert.Equal(Color.FromHex("#070809"), built.ForegroundText);
+        Assert.Equal(Theme.Dark.DefaultGrid, built.DefaultGrid);
+        Assert.Equal(Theme.Dark.DefaultFont, built.DefaultFont);
+    }
+
+    [Fact]
+    public void APreset_IsItsBaseUnderItsOwnName()
+    {
+        var built = Theme.Dark.Preset("night").Build();
+
+        Assert.Equal("night", built.Name);
+        Assert.Equal(Theme.Dark.Background, built.Background);
+        Assert.Equal(Theme.Dark.CycleColors, built.CycleColors);
+    }
+
+    [Fact]
     public void WithCycleColors_ReplacesEntireCycle()
     {
         Color[] palette = [Colors.Red, Colors.Green, Colors.Blue];
@@ -92,11 +116,16 @@ public class ThemeBuilderTests
         Assert.Equal(Theme.Default.DefaultFont.Size + 6, built.DefaultFont.Size);
     }
 
-    [Fact]
-    public void Build_Name_IsPrefixedWithCustom()
+    /// <summary>A theme built from another and not named answers to the base's name after <c>custom-</c>, whichever theme it was built
+    /// from.</summary>
+    [Theory]
+    [InlineData("default", "custom-default")]
+    [InlineData("v2", "custom-matplotlib-v2")]
+    [InlineData("classic", "custom-matplotlib-classic")]
+    [InlineData("HighContrast", "custom-high-contrast")]
+    public void Build_Name_IsTheBasesNamePrefixedWithCustom(string theme, string name)
     {
-        var built = Theme.CreateFrom(Theme.Default).Build();
-        Assert.StartsWith("custom-", built.Name);
+        Assert.Equal(name, Theme.CreateFrom(theme.AsTheme()).Build().Name);
     }
 
     [Fact]

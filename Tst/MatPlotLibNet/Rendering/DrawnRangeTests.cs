@@ -3,7 +3,6 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Patches;
-using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
@@ -115,7 +114,7 @@ public class DrawnRangeTests
     {
         var axes = Build(name);
         var theme = Theme.MatplotlibV2;
-        var renderer = new CartesianAxesRenderer(axes, PlotArea, new SvgRenderContext(), theme);
+        var renderer = new CartesianAxisPlacement(axes, PlotArea, new SvgRenderContext(), theme);
 
         Assert.Equal(renderer.ComputeDataRanges(), axes.ComputeDataRanges(theme));
     }
@@ -126,8 +125,8 @@ public class DrawnRangeTests
         var axes = Lines();
         var theme = Theme.MatplotlibV2;
 
-        var small = new CartesianAxesRenderer(axes, new Rect(0, 0, 50, 40), new SvgRenderContext(), theme).ComputeDataRanges();
-        var large = new CartesianAxesRenderer(axes, new Rect(0, 0, 900, 700), new SvgRenderContext(), theme).ComputeDataRanges();
+        var small = new CartesianAxisPlacement(axes, new Rect(0, 0, 50, 40), new SvgRenderContext(), theme).ComputeDataRanges();
+        var large = new CartesianAxisPlacement(axes, new Rect(0, 0, 900, 700), new SvgRenderContext(), theme).ComputeDataRanges();
 
         Assert.Equal(small, large);
         Assert.Equal(small, axes.ComputeDataRanges(theme));
@@ -162,21 +161,148 @@ public class DrawnRangeTests
         Assert.True(range.XMax > 15 && range.YMax > 3, $"the patch is not inside {range}");
     }
 
-    /// <summary>An axes that holds nothing but patches frames them, as it would frame a line through them. This departs from
-    /// matplotlib, whose <c>add_patch</c> updates the data limits without asking for an autoscale, so an axes of patches only
-    /// stays at 0 to 1 there and shows none of a patch that lies beyond 1.</summary>
-    [Fact]
-    public void APatchOnlyAxes_FramesItsPatches()
+    /// <summary>Under the library's own themes an axes that holds nothing but patches frames them, as it would frame a line through
+    /// them: the library's look, and what lets a spec of patches alone be drawn. The matplotlib themes follow matplotlib's
+    /// <c>add_patch</c> instead (the next rows).</summary>
+    [Theory]
+    [InlineData("default")]
+    [InlineData("dark")]
+    public void UnderTheLibrarysOwnThemes_APatchOnlyAxes_FramesItsPatches(string name)
     {
+        var theme = name.AsTheme();
         var patches = new Axes();
         patches.AddPatch(new Rectangle(new(2, 2), 1, 1));
         var line = new Axes();
         line.Plot([2.0, 3.0], [2.0, 3.0]);
 
-        var range = patches.ComputeDataRanges(Theme.MatplotlibV2);
+        var range = patches.ComputeDataRanges(theme);
 
-        Assert.Equal(line.ComputeDataRanges(Theme.MatplotlibV2), range);
+        Assert.Equal(line.ComputeDataRanges(theme), range);
         Assert.True(range.XMin < 2 && range.XMax > 3 && range.YMin < 2 && range.YMax > 3, $"the patch is not inside {range}");
+    }
+
+    /// <summary>matplotlib 3.11.2, printed with python: <c>ax.add_patch(Rectangle((2, 2), 3, 3))</c> on fresh axes and drawn gives
+    /// <c>get_xlim() == get_ylim() == (0.0, 1.0)</c> under the default style and under the classic one: <c>add_patch</c> updates
+    /// the data limits (<c>_update_patch_limits</c>) and asks for no autoscale, so the view stays where an empty axes has it.</summary>
+    [Theory]
+    [InlineData("v2")]
+    [InlineData("classic")]
+    public void UnderTheMatplotlibThemes_APatchOnlyAxes_StaysWhereAnEmptyAxesIs(string name)
+    {
+        var theme = name.AsTheme();
+        var patches = new Axes();
+        patches.AddPatch(new Rectangle(new(2, 2), 3, 3));
+
+        Assert.Equal(new Axes().ComputeDataRanges(theme), patches.ComputeDataRanges(theme));
+    }
+
+    /// <summary>matplotlib: with a series on the axes (<c>ax.plot</c> asks for the autoscale) the patch is in the data limits too:
+    /// <c>add_patch(Rectangle((2, 2), 3, 3)); plot([0, 1], [0, 1])</c> gives x and y limits (-0.25, 5.25) under the default style
+    /// and (0, 5) under the classic one.</summary>
+    [Theory]
+    [InlineData("v2")]
+    [InlineData("classic")]
+    public void UnderTheMatplotlibThemes_APatchBesideASeries_IsRangedWithIt(string name)
+    {
+        var theme = name.AsTheme();
+        var withPatch = new Axes();
+        withPatch.AddPatch(new Rectangle(new(2, 2), 3, 3));
+        withPatch.Plot([0.0, 1.0], [0.0, 1.0]);
+        var span = new Axes();
+        span.Plot([0.0, 5.0], [0.0, 5.0]);
+
+        var range = withPatch.ComputeDataRanges(theme);
+
+        Assert.Equal(span.ComputeDataRanges(theme), range);
+        Assert.True(range.XMax >= 5 && range.YMax >= 5, $"the patch is not inside {range}");
+    }
+
+    /// <summary>matplotlib: a horizontal line asks for the autoscale on Y alone, so <c>add_patch(Rectangle((2, 2), 3, 3)); axhline(8)</c> gives
+    /// xlim (0.0, 1.0) and ylim (1.7, 8.3); a vertical line asks on X alone: <c>axvline(8)</c> with the patch gives xlim (1.7, 8.3), ylim
+    /// (0, 1). The patch widens the axis that is autoscaled and not the other.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void UnderTheMatplotlibThemes_APatchBesideALine_IsRangedOnTheAxisTheLineAsksOnAlone(bool horizontal)
+    {
+        static double Min(DataRange range, bool x) => x ? range.XMin : range.YMin;
+        static double Max(DataRange range, bool x) => x ? range.XMax : range.YMax;
+        var theme = Theme.MatplotlibV2;
+        var axes = new Axes();
+        axes.AddPatch(new Rectangle(new(2, 2), 3, 3));
+        var span = new Axes();
+        if (horizontal)
+        {
+            axes.AxHLine(8);
+            span.Plot([0.0, 1.0], [2.0, 8.0]);
+        }
+        else
+        {
+            axes.AxVLine(8);
+            span.Plot([2.0, 8.0], [0.0, 1.0]);
+        }
+
+        var empty = new Axes().ComputeDataRanges(theme);
+        var range = axes.ComputeDataRanges(theme);
+        var drawn = span.ComputeDataRanges(theme);
+
+        Assert.Equal(Min(empty, horizontal), Min(range, horizontal));
+        Assert.Equal(Max(empty, horizontal), Max(range, horizontal));
+        Assert.Equal(Min(drawn, !horizontal), Min(range, !horizontal), 12);
+        Assert.Equal(Max(drawn, !horizontal), Max(range, !horizontal), 12);
+    }
+
+    /// <summary>matplotlib flags every axes of a shared scale when one asks for the autoscale, so a patch-only axes that shares X
+    /// with an axes holding a line is ranged over its own patch and the line, while two patch-only axes stay at the default.</summary>
+    [Fact]
+    public void UnderTheMatplotlibThemes_APatchOnlyAxes_IsRangedWhenAnAxesItSharesWithAsksForIt()
+    {
+        var theme = Theme.MatplotlibV2;
+        var patches = new Axes();
+        patches.AddPatch(new Rectangle(new(20, 0), 5, 1));
+        var partner = new Axes();
+        partner.Plot([0.0, 1.0], [0.0, 1.0]);
+        var other = new Axes();
+        other.AddPatch(new Rectangle(new(30, 0), 5, 1));
+        var empty = new Axes().ComputeDataRanges(theme);
+        patches.ShareXWith = partner;
+
+        var asked = patches.ComputeDataRanges(theme);
+
+        Assert.True(asked.XMax >= 25, $"the patch is not inside {asked}");
+        Assert.Equal(empty.YMin, asked.YMin);
+
+        patches.ShareXWith = other;
+        Assert.Equal(empty.XMax, patches.ComputeDataRanges(theme).XMax);
+    }
+
+    /// <summary>matplotlib's <c>_update_patch_limits</c> returns at once for a <c>Rectangle</c> with neither width nor height ("hist
+    /// can add zero height Rectangles ... it throws off log scaling"): <c>add_patch(Rectangle((50, 50), 0, 0)); plot([0, 1], [0,
+    /// 1])</c> has the data limits of the line alone, and the rectangle alone leaves the axes at 0 to 1. A rectangle with a width or
+    /// a height only is ranged.</summary>
+    [Theory]
+    [InlineData("v2")]
+    [InlineData("classic")]
+    public void UnderTheMatplotlibThemes_ARectangleOfNoSize_IsLeftOutOfTheRange(string name)
+    {
+        var theme = name.AsTheme();
+        var empty = Lines();
+        empty.AddPatch(new Rectangle(new(50, 50), 0, 0));
+        var thin = Lines();
+        thin.AddPatch(new Rectangle(new(50, 50), 0, 3));
+
+        Assert.Equal(Lines().ComputeDataRanges(theme), empty.ComputeDataRanges(theme));
+        Assert.True(thin.ComputeDataRanges(theme).XMax >= 50, "a rectangle with a height is ranged");
+    }
+
+    /// <summary>Under the library's own themes a rectangle of no size still counts in the range.</summary>
+    [Fact]
+    public void UnderTheLibrarysOwnThemes_ARectangleOfNoSize_CountsInTheRange()
+    {
+        var empty = Lines();
+        empty.AddPatch(new Rectangle(new(50, 50), 0, 0));
+
+        Assert.True(empty.ComputeDataRanges(Theme.Default).XMax >= 50, "the rectangle of no size is not in the range");
     }
 
     /// <summary>An axes that shares a scale with another ranges it over the other's patches too, as over its series.</summary>
@@ -195,7 +321,8 @@ public class DrawnRangeTests
     }
 
     /// <summary>A vertex at a value its axis cannot place (0 on a log axis) adds nothing to that axis' range, the rule a series'
-    /// values follow; the patch is still drawn, that vertex pinned to the edge where the axis begins.</summary>
+    /// values follow; the patch is still drawn, that vertex pinned to the edge where the axis begins. (Under the library's own theme,
+    /// which frames an axes of patches alone.)</summary>
     [Fact]
     public void APatchVertexALogAxisCannotPlace_AddsNothingToThatAxis()
     {
@@ -206,7 +333,7 @@ public class DrawnRangeTests
         line.YAxis.Scale = AxisScale.Log;
         line.Plot([1.0, 9.0], [10.0, 100.0]);
 
-        Assert.Equal(line.ComputeDataRanges(Theme.MatplotlibV2), patch.ComputeDataRanges(Theme.MatplotlibV2));
+        Assert.Equal(line.ComputeDataRanges(Theme.Default), patch.ComputeDataRanges(Theme.Default));
     }
 
     /// <summary>A patch that cannot be drawn (a coordinate that is not a number) adds nothing to the range.</summary>

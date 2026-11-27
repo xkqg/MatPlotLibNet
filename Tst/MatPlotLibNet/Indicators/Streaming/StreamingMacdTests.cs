@@ -8,29 +8,6 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 public sealed class StreamingMacdTests
 {
     [Fact]
-    public void OutputSeries_HasThree()
-    {
-        var macd = new StreamingMacd();
-        Assert.Equal(3, macd.OutputSeries.Count); // MACD, Signal, Histogram
-    }
-
-    [Fact]
-    public void BeforeWarmup_ReturnsNaN()
-    {
-        var macd = new StreamingMacd(12, 26, 9);
-        for (int i = 0; i < 20; i++) macd.Append(100 + i);
-        Assert.True(double.IsNaN(macd.GetLatest()));
-    }
-
-    [Fact]
-    public void AfterFullWarmup_ProducesValues()
-    {
-        var macd = new StreamingMacd(3, 5, 2);
-        for (int i = 0; i < 20; i++) macd.Append(100 + i);
-        Assert.False(double.IsNaN(macd.GetLatest()));
-    }
-
-    [Fact]
     public void RisingPrices_MacdPositive()
     {
         var macd = new StreamingMacd(3, 5, 2);
@@ -46,8 +23,4 @@ public sealed class StreamingMacdTests
         Assert.Contains("Signal", macd.OutputSeries[1].Label);
         Assert.Contains("Histogram", macd.OutputSeries[2].Label);
     }
-
-    [Fact]
-    public void WarmupPeriod_IsTheBarEveryLineHasAValue() =>
-        Assert.Equal(34, new StreamingMacd(12, 26, 9).WarmupPeriod);   // the line from bar 26, the signal 8 bars later
 }

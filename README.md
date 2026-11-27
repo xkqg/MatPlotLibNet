@@ -18,6 +18,30 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.30.0** cleans up, speeds up and makes the library object-oriented again. The releases before it added verbs, themes, legends,
+maps and indicators faster than the structure under them grew; now each rule has one owner that every reader asks, what differs
+between two themes or two kinds of series is a value and not a copied member, and each step was measured before and after by the
+processor time of the process (an axis with breaks maps its points 13 times faster, a force-directed graph lays itself out 4 to 5
+times faster, and nothing measured takes more CPU than in 1.29.0 beyond the spread of the measurement apart from the parse of a label
+that holds math, which now builds the boxes matplotlib's layout places). The speed is greatest in a live chart, which redraws
+only what changed. A figure drawn again draws only the axes that changed since its last draw and hands out the markup of every
+other one as it was: turning a 3-D surface beside three
+panels costs 0.9 to 1.0 ms of CPU a frame in SVG, where it cost 5.1 ms in 1.29.0. Every change reports itself (a property set, an
+item added to a list, a value changed in place in an array the figure holds, an interaction, a point a stream appends),
+so nothing an application changes is left out of the next picture. Over SignalR a viewer that subscribes with
+`SubscribeToParts` is sent only the parts that changed (one moved panel of seven: 14 % of the document), and nobody is sent
+anything when nothing changed; the Blazor, React, Vue and Angular clients do this already. The SVG writer formats its numbers straight into the
+document, copies each document once and draws the subplots one after another: a live wall of a trend, a tile row, seven
+panels, four log panels and a 3-D surface takes 57 % less CPU per round, and the SVG it writes is the same byte for byte. The
+WPF, Avalonia and Uno controls replay every subplot that did not change from a recording of it, the same pixels at any
+scale, and every target, from the SVG writer to the native controls, is drawn by one sequence; drawing a figure no longer
+writes anything into it, and a voxel chart is now drawn at its opacity. Every public interface can be implemented,
+proxied and mocked again, a math label
+reads its arguments as TeX does (`$a_\alpha$` is a subscript α), a date axis that runs past the year 9999 is drawn
+instead of failing, a style (`Plt.Style`) dresses the figure, the streaming controls raise `DataPointClicked`, and a
+figure shown in the browser is let go of when its handle is disposed. A logit axis spreads probabilities as matplotlib's logit
+scale does, where it was drawn as a linear one, and a linked X axis can stand below the plot (`WithAddBottomXAxis`).
+
 **1.29.0** puts shapes on an axes and lets an axis show another unit. A rectangle, a polygon, an arrow, a circle, an
 ellipse, a wedge and an arc (`AddPatch`) are placed in data coordinates and bend with the axes they stand on, as
 matplotlib's patches do: on a log axis a circle bends and a straight edge stays straight. They count in the automatic
@@ -91,8 +115,8 @@ over the grid and follows the limits you set. A series that cannot be drawn from
 it is built, and not when the chart is drawn, and the MCP server names the place in the spec where it stands. A stacked
 area names its layers in the legend, a state timeline's legend entry shows its states, and a series says for itself
 whether it needs axes around it. A map from `MatPlotLibNet.Geo` keeps its holes, comes back from JSON, colours its
-regions by a value (`Choropleth`) and takes points, bubbles, hexagon bins, flows along great circles, a cartogram and a
-Dorling map.
+regions by a value (`Choropleth`) and takes points, bubbles, hexagon bins, flows along great circles, a cartogram (one whose
+countries still meet at their borders too) and a Dorling map.
 
 **1.23.0** moves the technical indicators that read a candle's open, high, low, close and volume from separate
 array parameters to one `OhlcvBars` value, built with the factory that names the columns the indicator actually
@@ -146,8 +170,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,161 classes, at
-99.8 % line / 98.9 % branch) across 28,839 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (1,287 classes, at
+99.8 % line / 99.1 % branch) across 33,185 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib, and CI runs it.
 
 ---
@@ -189,6 +213,7 @@ rendering with reference images drawn by matplotlib, and CI runs it.
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
 | **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
 | **@matplotlibnet/vue** | `npm install @matplotlibnet/vue` | Vue 3 composables + TypeScript SignalR client |
+| **@matplotlibnet/client** | installed with each of the three above | The TypeScript SignalR client and SVG mount they share |
 
 ---
 
@@ -216,9 +241,9 @@ Plt.Create()
 
 **91 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, Point and Figure, treemap, sunburst, icicle, Sankey, chord, word cloud, ternary (scatter and line), Piper, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waffle, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, thirty-eight one-call chart verbs in six families are built from those series, so they add none to the count and travel through JSON as their parts: for data keyed by names `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates` and `Marimekko`; for a sample `Ridgeline`, `QQPlot`, `ProbabilityPlot`, `KaplanMeier`, `RiskTable`, `Raincloud` and `StemAndLeaf`; for x and y arrays `BumpChart`, `ControlChart`, `ShewhartChart`, `StreamGraph`, `Horizon`, `ConnectedScatter`, `VLines`, `HLines`, `Stairs` and `Triplot`; for the cells of a grid `CalendarHeatmap`, `Spy`, `MatShow` and `CalendarEvents`; for prices `Renko` and `Kagi`; and for a sampled signal `Psd`, `Csd`, `Cohere`, `MagnitudeSpectrum`, `PhaseSpectrum`, `AngleSpectrum`, `Acorr` and `Xcorr`.
 
-**Signals** — `Psd`, `Csd` and `Cohere` estimate a spectrum by Welch's method (one `SpectralOptions` value holds the sample rate, the segments, the window, the detrend, the padding and the scaling, its default matplotlib's), `MagnitudeSpectrum`, `PhaseSpectrum` and `AngleSpectrum` take one transform of the whole signal, and `Acorr` and `Xcorr` draw a correlation at each lag as stems or as markers. A missing sample leaves out what was worked out from it, never a zero. `Spectrogram` draws the short-time transform of a signal (`Fft.Stft`), each frame weighted once by its window and each row at its frequency.
+**Signals** — `Psd`, `Csd` and `Cohere` estimate a spectrum by Welch's method (one `SpectralOptions` value holds the sample rate, the segments, the window, the detrend, the padding, the scaling and the sides, its default matplotlib's), `MagnitudeSpectrum`, `PhaseSpectrum` and `AngleSpectrum` take one transform of the whole signal, and `Acorr` and `Xcorr` draw a correlation at each lag as stems or as markers. A missing sample leaves out what was worked out from it, never a zero. `Spectrogram` draws the short-time transform of a signal (`Fft.Stft`), each frame weighted once by its window and each row at its frequency.
 
-**On the figure itself** — `FigText`, `FigLegend` and `FigImage` put text, one legend for the series of every subplot and an image on the figure rather than in a subplot, in every output, and an inset marks the region it zooms into with `IndicateZoom`.
+**On the figure itself** — `FigText`, `FigLegend` and `FigImage` put text, legends for the series of every subplot (outside the axes with room kept by `ConstrainedLayout`) and an image on the figure rather than in a subplot, in every output, and an inset marks the region it zooms into with `IndicateZoom`.
 
 **Shapes and an axis in another unit** — `AddPatch` puts matplotlib's patches on an axes in data coordinates: a `Rectangle`, `Polygon`, `Arrow` (`FancyArrow`), `Circle`, `Ellipse`, `Wedge` or `Arc`, each styled through its own face, edge, dash, hatch and opacity. A patch is drawn through the axes' transform, its curves as matplotlib's Bézier curves with every vertex held to matplotlib's, so it follows a reversed, log or broken axis; it counts in the automatic range, has a row in the legend when it is labelled, and comes back from JSON. `Link` turns the top X axis or a Y axis past the primary into matplotlib's `secondary_xaxis` or `secondary_yaxis`: the primary's range written through an `AxisTransform` (`Linear`, `Reciprocal`, `Logarithm`, `Power` or a pair of functions), with each tick where the primary has the value it maps back to. See the cookbook's [shapes](docs/cookbook/patches.md) and [linked axes](docs/cookbook/linked-axes.md).
 
@@ -239,15 +264,15 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. The controls also have a toolbar state model, view history (back/forward), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart. A server-driven chart reports the same click to its `OnDataCursor` handler. Home goes back to the view the chart started with, however many zooms and repaints came between. A control's `ChartEventHandler` takes one `IChartEventHandler`, the interface a server session takes too, that is told of every gesture, not only the click; the WPF and MAUI controls carry it as well, and on MAUI a finger does what the mouse does (a drag pans, zooms into a rectangle or selects, a pinch zooms, a double tap is Home) once `IsInteractive` is set.
 
-**MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It supports 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
+**MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It reads the grammar of matplotlib's mathtext (all 634 of its symbol names, its 32 function names, its 23 accents and its 12 spaces) and lays math out as matplotlib does: fractions stacked over a rule, square roots with their bar, scripts raised and nested, limits above and below, delimiters grown to what they enclose, matrices in rows, on every surface.
 
 **International text** — labels, titles and legend entries in any script. Arabic and Hebrew work with the bundled font: the Unicode bidi algorithm (UAX #9, all 861,948 conformance cases) finds the reading direction, HarfBuzz shapes each run, and the runs are laid out in visual order. `SkiaFonts.Register(path)` adds a font file for Devanagari, Thai, Chinese and other scripts; the MCP server takes them from `MATPLOTLIBNET_FONTS`. The same shaping pass produces the text measurement, the SVG glyph outlines and the PNG pixels.
 
-**3-D charts** — 12 series types: Surface, Wireframe, Scatter3D, Stem3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). The 3-D support includes a full `Projection3D` pipeline, a `DepthQueue3D` painter's algorithm, shading from `Vec3.FaceNormal` plus the `Color.Shade()`/`Color.Modulate()` extension methods, `Svg3DRotationScript` for client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection`: the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, both server-side and during a drag), a configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
+**3-D charts** — 12 series types: Surface, Wireframe, Scatter3D, Stem3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). The 3-D support includes a full `Projection3D` pipeline, a `DepthQueue3D` painter's algorithm, shading from `Vec3.FaceNormal` plus the `Color.Shade`/`Color.Modulate` extension methods, a script for client-side rotation with depth re-sorting (`With3DRotation()`), camera-derived back faces (`CubeFaceSelection`: the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, both server-side and during a drag), a configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries` and `StreamingCandlestickSeries` are backed by `RingBuffer<T>` and add points with `AppendPoint(x, y)`. A `RingBuffer<T>` is a fixed-capacity circular sequence of any type (64 M appends/s, and it never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 57 of the 59 indicators have a streaming form, and `candles.WithStreaming(axes, indicator)` attaches any of them to candlestick data, feeding it the prices and the volume of each bar (the form of each indicator says the same as the batch indicator over every bar so far; `FibonacciRetracement` and `VolumeProfile` have none, and `StreamingMap` says why). Streaming controls exist for WPF, Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. The library includes an SVG diff engine to save bandwidth, and an Rx `IObservable<T>` adapter.
 
-**Geographic projections** — the `MatPlotLibNet.Geo` package has 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, EqualEarth, Mollweide, Natural Earth, Sinusoidal, Stereographic), a GeoJSON parser and writer, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A map axes has one projection that every layer reads, a region with a hole is drawn with the hole, the map comes back whole from JSON, and `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram` and `Dorling` put data on it. A symlog axis scale handles data that spans positive and negative ranges.
+**Geographic projections** — the `MatPlotLibNet.Geo` package has 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, EqualEarth, Mollweide, Natural Earth, Sinusoidal, Stereographic), a GeoJSON parser and writer, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A map axes has one projection that every layer reads, a region with a hole is drawn with the hole, the map comes back whole from JSON (the MCP server draws one from a spec, as `geo_polygon`), and `Points`, `Bubbles`, `HexBins`, `H3Cells`, `H3Bins`, `Flows`, `Cartogram`, `ContiguousCartogram` and `Dorling` put data on it (`H3Cells` and `H3Bins` draw the cells of Uber's H3 index, through a managed port of the H3 library that the package brings with it). A symlog axis scale handles data that spans positive and negative ranges.
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover, the clicked data point). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
 

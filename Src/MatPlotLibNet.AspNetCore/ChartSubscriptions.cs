@@ -29,6 +29,7 @@ public sealed class ChartSubscriptions : IChartSubscriptions
     private sealed class Viewers
     {
         internal readonly ConcurrentDictionary<string, int> Numbers = new();
+        internal readonly ConcurrentDictionary<string, byte> Parts = new();
         internal int Last;
     }
 
@@ -42,12 +43,32 @@ public sealed class ChartSubscriptions : IChartSubscriptions
         viewers.Numbers.GetOrAdd(connectionId, static (_, state) => Interlocked.Increment(ref state.Last), viewers);
     }
 
+    /// <summary>Record that <paramref name="connectionId"/> joined <paramref name="chartId"/> as a viewer that patches: it is
+    /// sent the whole document once, every drawn part in a named group, and after that only the parts that changed
+    /// (<see cref="IChartHubClient.UpdateChartParts"/>).</summary>
+    public void SubscribeToParts(string chartId, string connectionId)
+    {
+        Subscribe(chartId, connectionId);
+        _byChart[chartId].Parts.TryAdd(connectionId, 0);
+    }
+
+    /// <summary>Every connection in <paramref name="chartId"/>, the ones that patch included.</summary>
+    /// <param name="chartId">The chart.</param>
+    public IReadOnlyList<string> ConnectionsOf(string chartId) =>
+        _byChart.TryGetValue(chartId, out var viewers) ? [.. viewers.Numbers.Keys] : [];
+
+    /// <summary>The connections in <paramref name="chartId"/> that patch (<see cref="SubscribeToParts"/>).</summary>
+    /// <param name="chartId">The chart.</param>
+    public IReadOnlyList<string> PartsConnectionsOf(string chartId) =>
+        _byChart.TryGetValue(chartId, out var viewers) ? [.. viewers.Parts.Keys] : [];
+
     /// <summary>Record that <paramref name="connectionId"/> left <paramref name="chartId"/>.</summary>
     public void Unsubscribe(string chartId, string connectionId)
     {
         if (_byChart.TryGetValue(chartId, out var viewers))
         {
             viewers.Numbers.TryRemove(connectionId, out _);
+            viewers.Parts.TryRemove(connectionId, out _);
         }
     }
 
@@ -58,6 +79,7 @@ public sealed class ChartSubscriptions : IChartSubscriptions
         foreach (var viewers in _byChart.Values)
         {
             viewers.Numbers.TryRemove(connectionId, out _);
+            viewers.Parts.TryRemove(connectionId, out _);
         }
     }
 
@@ -71,7 +93,7 @@ public sealed class ChartSubscriptions : IChartSubscriptions
     /// <param name="connectionId">The connection.</param>
     public string? ViewerNameOf(string chartId, string connectionId) =>
         _byChart.TryGetValue(chartId, out var viewers) && viewers.Numbers.TryGetValue(connectionId, out int number)
-            ? $"Viewer {number.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+            ? $"Viewer {number.InvariantText()}"
             : null;
 
     /// <inheritdoc />

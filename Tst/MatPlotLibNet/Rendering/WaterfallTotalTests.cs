@@ -21,31 +21,27 @@ public class WaterfallTotalTests
     private const double NaN = double.NaN;
     private static readonly Rect Bounds = new(0, 0, 400, 300);
 
-    /// <summary>X 0..10 over 400 px, Y -10..10 over 300 px.</summary>
-    private static DataTransform Linear() => new(0, 10, -10, 10, Bounds);
+    private static double PixelY(double value) => Bounds.Linear(yMin: -10).DataToPixel(0, value).Y;
 
-    /// <summary>A log Y axis from 1 (the bottom edge, 300 px) to 100 (the top edge, 0 px).</summary>
-    private static DataTransform LogY() =>
-        new(0, 10, 0, 2, Bounds, null, null, 0, 10, 1, 100, AxisScale.Linear, AxisScale.Log, 1, 1);
-
-    private static double PixelY(double value) => Linear().DataToPixel(0, value).Y;
-
-    private static double LogPixelY(double value) => LogY().DataToPixel(0, value).Y;
+    private static double LogPixelY(double value) => Bounds.LogY().DataToPixel(0, value).Y;
 
     private static RecordingRenderContext Render(WaterfallSeries series, DataTransform? transform = null)
     {
         var ctx = new RecordingRenderContext();
-        new WaterfallSeriesRenderer(new SeriesRenderContext(transform ?? Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx))).Render(series);
+        new WaterfallSeriesRenderer(new SeriesRenderContext(transform ?? Bounds.Linear(yMin: -10), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx))).Render(series);
         return ctx;
     }
 
-    private static object? Arg(CallRecord call, string name) => call.Args!.GetType().GetProperty(name)!.GetValue(call.Args);
+    private static List<Color?> Fills(RecordingRenderContext ctx) => [.. ctx.Of<DrawRectangleCall>().Select(c => c.Fill)];
 
-    private static List<Rect> Rects(RecordingRenderContext ctx) => [.. ctx.OfKind("DrawRectangle").Select(c => (Rect)Arg(c, "rect")!)];
+    private static List<double> ConnectorLevels(RecordingRenderContext ctx) => [.. ctx.Of<DrawLineCall>().Select(c => c.P1.Y)];
 
-    private static List<Color?> Fills(RecordingRenderContext ctx) => [.. ctx.OfKind("DrawRectangle").Select(c => (Color?)Arg(c, "fill"))];
-
-    private static List<double> ConnectorLevels(RecordingRenderContext ctx) => [.. ctx.OfKind("DrawLine").Select(c => ((Point)Arg(c, "p1")!).Y)];
+    /// <summary>A bar stands between two levels of the data: its low end at <paramref name="low"/> and its high end at <paramref name="high"/>.</summary>
+    private static void AssertBar(Rect bar, double low, double high)
+    {
+        Assert.Equal(PixelY(low), Low(bar), 9);
+        Assert.Equal(PixelY(high), High(bar), 9);
+    }
 
     /// <summary>The pixel row of the bar's lower edge (the larger Y).</summary>
     private static double Low(Rect r) => Math.Max(r.Y, r.Y + r.Height);
@@ -69,10 +65,9 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(3, bars.Count);
-        Assert.Equal(PixelY(0), Low(bars[2]), 9);
-        Assert.Equal(PixelY(7), High(bars[2]), 9);
+        AssertBar(bars[2], low: 0, high: 7);
         Assert.Equal(series.TotalColor, Fills(ctx)[2]);
     }
 
@@ -83,11 +78,9 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
-        Assert.Equal(PixelY(0), Low(bars[0]), 9);
-        Assert.Equal(PixelY(4), High(bars[0]), 9);
-        Assert.Equal(PixelY(3), Low(bars[1]), 9);
-        Assert.Equal(PixelY(4), High(bars[1]), 9);
+        var bars = ctx.Rects();
+        AssertBar(bars[0], low: 0, high: 4);
+        AssertBar(bars[1], low: 3, high: 4);
         Assert.Equal([series.IncreaseColor, series.DecreaseColor, series.TotalColor], Fills(ctx));
     }
 
@@ -100,10 +93,9 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(4, bars.Count);
-        Assert.Equal(PixelY(5), Low(bars[3]), 9);
-        Assert.Equal(PixelY(7), High(bars[3]), 9);
+        AssertBar(bars[3], low: 5, high: 7);
         Assert.Equal(series.IncreaseColor, Fills(ctx)[3]);
     }
 
@@ -114,9 +106,8 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
-        Assert.Equal(PixelY(0), High(bars[2]), 9);
-        Assert.Equal(PixelY(-5), Low(bars[2]), 9);
+        var bars = ctx.Rects();
+        AssertBar(bars[2], low: -5, high: 0);
         Assert.Equal(series.TotalColor, Fills(ctx)[2]);
     }
 
@@ -127,7 +118,7 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(0.0, bars[2].Height, 9);
         Assert.Equal(PixelY(0), bars[2].Y, 9);
         Assert.Equal(series.TotalColor, Fills(ctx)[2]);
@@ -142,19 +133,14 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(5, bars.Count);
         Assert.Equal([series.TotalColor, series.IncreaseColor, series.TotalColor, series.DecreaseColor, series.TotalColor], Fills(ctx));
-        Assert.Equal(PixelY(0), Low(bars[0]), 9);
-        Assert.Equal(PixelY(4), High(bars[0]), 9);
-        Assert.Equal(PixelY(4), Low(bars[1]), 9);
-        Assert.Equal(PixelY(6), High(bars[1]), 9);
-        Assert.Equal(PixelY(0), Low(bars[2]), 9);
-        Assert.Equal(PixelY(3), High(bars[2]), 9);
-        Assert.Equal(PixelY(3), High(bars[3]), 9);
-        Assert.Equal(PixelY(2), Low(bars[3]), 9);
-        Assert.Equal(PixelY(0), Low(bars[4]), 9);
-        Assert.Equal(PixelY(5), High(bars[4]), 9);
+        AssertBar(bars[0], low: 0, high: 4);
+        AssertBar(bars[1], low: 4, high: 6);
+        AssertBar(bars[2], low: 0, high: 3);
+        AssertBar(bars[3], low: 2, high: 3);
+        AssertBar(bars[4], low: 0, high: 5);
     }
 
     // ---- the connectors ----------------------------------------------------------------------------------------------
@@ -182,7 +168,7 @@ public class WaterfallTotalTests
         var drawnEmpty = Render(empty);
 
         Assert.DoesNotContain((Color?)plain.TotalColor, Fills(drawn));
-        Assert.Equal(Rects(drawn), Rects(drawnEmpty));
+        Assert.Equal(drawn.Rects(), drawnEmpty.Rects());
         Assert.Equal(Fills(drawn), Fills(drawnEmpty));
         Assert.Equal(ConnectorLevels(drawn), ConnectorLevels(drawnEmpty));
     }
@@ -194,9 +180,8 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
-        Assert.Equal(PixelY(7), Low(bars[2]), 9);
-        Assert.Equal(PixelY(14), High(bars[2]), 9);
+        var bars = ctx.Rects();
+        AssertBar(bars[2], low: 7, high: 14);
         Assert.Equal(series.IncreaseColor, Fills(ctx)[2]);
     }
 
@@ -211,13 +196,11 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(3, bars.Count);   // the missing step is the one bar not drawn
-        Assert.Equal(PixelY(0), Low(bars[1]), 9);
-        Assert.Equal(PixelY(6), High(bars[1]), 9);
+        AssertBar(bars[1], low: 0, high: 6);
         Assert.Equal(series.TotalColor, Fills(ctx)[1]);
-        Assert.Equal(PixelY(6), Low(bars[2]), 9);
-        Assert.Equal(PixelY(8), High(bars[2]), 9);
+        AssertBar(bars[2], low: 6, high: 8);
     }
 
     [Fact]
@@ -227,12 +210,11 @@ public class WaterfallTotalTests
 
         var ctx = Render(series);
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(4, bars.Count);   // steps 0 and 1, the second total, and the step after it; step 3 is unknown
         Assert.Equal(series.TotalColor, Fills(ctx)[2]);
         Assert.Equal(PixelY(5), High(bars[2]), 9);
-        Assert.Equal(PixelY(5), Low(bars[3]), 9);
-        Assert.Equal(PixelY(6), High(bars[3]), 9);
+        AssertBar(bars[3], low: 5, high: 6);
     }
 
     [Fact]
@@ -240,7 +222,7 @@ public class WaterfallTotalTests
     {
         var ctx = Render(Series([4, double.PositiveInfinity], 1));
 
-        Assert.Single(Rects(ctx));
+        Assert.Single(ctx.Rects());
     }
 
     // ---- a log axis --------------------------------------------------------------------------------------------------
@@ -252,9 +234,9 @@ public class WaterfallTotalTests
     {
         var series = Series([10, 5, 15], 2);
 
-        var ctx = Render(series, LogY());
+        var ctx = Render(series, Bounds.LogY());
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(3, bars.Count);
         Assert.Equal(300.0, Low(bars[2]), 9);
         Assert.Equal(LogPixelY(15), High(bars[2]), 9);
@@ -342,12 +324,6 @@ public class WaterfallTotalTests
 
     // ---- the property ------------------------------------------------------------------------------------------------
 
-    [Fact]
-    public void TotalIndices_AreNullUntilTheSeriesMarksOne()
-    {
-        Assert.Null(new WaterfallSeries(["a"], [1.0]).TotalIndices);
-    }
-
     [Theory]
     [InlineData(-1)]
     [InlineData(3)]
@@ -360,7 +336,7 @@ public class WaterfallTotalTests
 
         Assert.Equal("value", refusal.ParamName);
         Assert.Contains($"{index}", refusal.Message);
-        Assert.Contains("the series has 3", refusal.Message);
+        Assert.Contains("must be from 0 to 2", refusal.Message);
         Assert.Null(series.TotalIndices);   // a refused list is not kept
     }
 
@@ -381,7 +357,7 @@ public class WaterfallTotalTests
         var once = Render(Series([4, 3, 7], 2));
         var twice = Render(Series([4, 3, 7], 2, 2));
 
-        Assert.Equal(Rects(once), Rects(twice));
+        Assert.Equal(once.Rects(), twice.Rects());
         Assert.Equal(Fills(once), Fills(twice));
     }
 
@@ -401,34 +377,30 @@ public class WaterfallTotalTests
     {
         var series = Series([4, 3, 7, -2, 5], 2, 4);
 
-        var read = Assert.IsType<WaterfallSeries>(Serializer.FromJson(Serializer.ToJson(FigureOf(series))).SubPlots[0].Series.Single());
+        var read = Assert.IsType<WaterfallSeries>(FigureOf(series).RoundTripped().SubPlots[0].Series.Single());
 
         Assert.NotNull(read.TotalIndices);
         Assert.Equal([2, 4], read.TotalIndices);
-        Assert.Equal(Rects(Render(series)), Rects(Render(read)));
+        Assert.Equal(Render(series).Rects(), Render(read).Rects());
         Assert.Equal(Fills(Render(series)), Fills(Render(read)));
     }
 
-    /// <summary>A figure that marks no total writes no field for it, so every JSON written before the field existed is what
-    /// is written now.</summary>
-    [Fact]
-    public void ASeriesThatMarksNoTotal_WritesNoTotalIndices()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Serializer.ToJson(FigureOf(Series([4, 3, 7])));
+        // A figure that marks no total writes no field for it, so every JSON written before the field existed is what is written now.
+        new DrawnToken("ASeriesThatMarksNoTotal_WritesNoTotalIndices", () => Serializer.ToJson(FigureOf(Series([4, 3, 7])))) { Absent = ["totalIndices"] },
+        new DrawnToken("ASeriesWithAnEmptyTotalList_WritesNoTotalIndices_ItMarksNone", () =>
+        {
+            var series = Series([4, 3, 7]);
+            series.TotalIndices = [];
+            return Serializer.ToJson(FigureOf(series));
+        }) { Absent = ["totalIndices"] },
+    };
 
-        Assert.DoesNotContain("totalIndices", json);
-    }
-
-    [Fact]
-    public void ASeriesWithAnEmptyTotalList_WritesNoTotalIndices_ItMarksNone()
-    {
-        var series = Series([4, 3, 7]);
-        series.TotalIndices = [];
-
-        string json = Serializer.ToJson(FigureOf(series));
-
-        Assert.DoesNotContain("totalIndices", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void JsonThatMarksATotalOutsideTheSteps_IsRefusedByTheNameOfTheField()

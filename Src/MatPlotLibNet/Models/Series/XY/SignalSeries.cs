@@ -13,10 +13,13 @@ namespace MatPlotLibNet.Models.Series;
 /// <see cref="IndexRangeFor"/> runs in O(1) and <see cref="XData"/> is computed lazily,
 /// keeping the hot-path (renderer) allocation-free for viewport slicing.
 /// </summary>
-public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
+public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor, ISeriesKind<SignalSeries>, IGivenStroked
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Line(this);
 
     private double[]? _materializedX;
 
@@ -27,21 +30,33 @@ public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
     public double XStart { get; }
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>The dash pattern of the line. Default solid.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
-    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
+
+    /// <summary>How many samples a signal holds per X-unit when it is told no rate: the default of the verbs, the streaming signal and the
+    /// reader.</summary>
+    internal const double RestingSampleRate = 1.0;
+
+    /// <summary>Where a signal's first sample stands on X when it is told none.</summary>
+    internal const double RestingXStart = 0.0;
 
     /// <summary>
     /// Initializes a new <see cref="SignalSeries"/> from Y samples.
     /// </summary>
     /// <param name="yData">Y values at each sample point.</param>
-    /// <param name="sampleRate">Samples per X-unit. Defaults to 1.</param>
-    /// <param name="xStart">X coordinate of the first sample. Defaults to 0.</param>
-    public SignalSeries(double[] yData, double sampleRate = 1.0, double xStart = 0.0)
+    /// <param name="sampleRate">Samples per X-unit. Defaults to <see cref="RestingSampleRate"/>.</param>
+    /// <param name="xStart">X coordinate of the first sample. Defaults to <see cref="RestingXStart"/>.</param>
+    public SignalSeries(double[] yData, double sampleRate = RestingSampleRate, double xStart = RestingXStart)
         : base(Array.Empty<double>(), yData)
     {
         SampleRate = sampleRate;
@@ -54,9 +69,12 @@ public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
         _materializedX ??= Enumerable.Range(0, YData.Length).Select(XAt).ToArray();
 
     /// <inheritdoc />
+    internal override bool HoldsNoData => YData.Length == 0;
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        if (YData.Length == 0) return new(0, 0, 0, 0);
+        if (HoldsNoData) return new(0, 0, 0, 0);
         // Over the drawable samples only: a missing sample (NaN) and an infinity are left out.
         var y = YData.DrawableRange();
         return new(XStart, XAt(YData.Length - 1), y?.Lo, y?.Hi);
@@ -85,35 +103,26 @@ public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
         return s >= e ? new(0, 0) : new(s, e);
     }
 
+    static string ISeriesKind<SignalSeries>.Kind => "signal";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "signal",
+        Type = this.WireKind(),
         YData = YData,
         SignalSampleRate = SampleRate,
-        SignalXStart = XStart == 0.0 ? null : XStart,
+        SignalXStart = XStart.OrNullAtRest(RestingXStart),
         Label = Label,
-        LineStyle = LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth,
+        Stroking = Stroke,
         Color = Color
     };
 
-    /// <summary>Reconstructs a <see cref="SignalSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="SignalSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static SignalSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Signal(dto.YData ?? [], dto.SignalSampleRate ?? 1.0, dto.SignalXStart ?? 0.0);
+        var s = axes.Signal(dto.YData ?? [], dto.SignalSampleRate ?? RestingSampleRate, dto.SignalXStart ?? RestingXStart);
         s.Color = dto.Color;
-        if (dto.LineWidth.HasValue)
-        {
-            s.LineWidth = dto.LineWidth.Value;
-        }
-        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls))
-        {
-            s.LineStyle = ls;
-        }
+        s.Stroke = dto.StrokeOver(s.Stroke);
         return s;
     }
 

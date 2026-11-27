@@ -37,10 +37,8 @@ public abstract record AxisRangeEvent(
     public sealed override void ApplyTo(Figure figure) => TryApplyTo(figure);
 
     /// <inheritdoc />
-    internal sealed override bool TryApplyTo(Figure figure)
+    internal sealed override bool TryApplyTo(Figure figure) => OnMovableAxes(figure, axes =>
     {
-        if (!TryTargetMovableAxes(figure, out var axes)) return false;
-
         var linkedAxes = XLinkedAxes(figure);
         if (RestoresHome)
         {
@@ -51,7 +49,7 @@ public abstract record AxisRangeEvent(
                 wentHome |= figure.Home.GoHome(linked);
             }
 
-            if (wentHome) return true;
+            if (wentHome) return;
         }
         else
         {
@@ -75,6 +73,5 @@ public abstract record AxisRangeEvent(
         }
 
         axes.ApplySecondaryRanges(SecondaryRanges);
-        return true;
-    }
+    });
 }

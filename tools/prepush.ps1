@@ -44,36 +44,49 @@ function Step {
     }
 }
 
+# The workflows install the 10.0 SDK, so a build here that warns on the runner must warn here too. A box with a newer SDK
+# beside it picks the newer one (the highest installed, no global.json) and its compiler reads nullability differently: a
+# build that was 0 warnings here gave 6 on the runner. When a 10.0 SDK is installed the builds below run through its host
+# (`dotnet <sdk>\dotnet.dll build ...`); without one the default SDK builds, as before.
+[string[]]$CiSdkHost = @(& dotnet --list-sdks 2>$null | ForEach-Object {
+        if ($_ -match '^(10\.0\.\d+)\S* \[(.+)\]$') { [pscustomobject]@{ Version = [version]$Matches[1]; Dll = Join-Path (Join-Path $Matches[2] $Matches[1]) "dotnet.dll" } }
+    } | Sort-Object Version -Descending | Select-Object -First 1 | ForEach-Object { $_.Dll })
+
+# -Rebuild builds the way a fresh checkout does: every project is built, so every package is packed and compared with the
+# release before it (Directory.Build.props, PackageValidationBaselineVersion). An incremental build over a warm tree skips
+# the pack of a project whose output is up to date, so a break of the public surface (CP0001 for a type that is gone, say)
+# passes it and shows only on the runner. Use it for everything that packs.
 function Assert-CleanBuild {
-    param([string]$Project)
-    $out = & dotnet build $Project -c $Configuration --nologo 2>&1 | Out-String
+    param([string]$Project, [switch]$Rebuild)
+    [string[]]$targets = if ($Rebuild) { "-t:Rebuild" } else { @() }   # typed: a lone string would splat as single characters
+    $out = & dotnet @CiSdkHost build $Project -c $Configuration --nologo @targets 2>&1 | Out-String
     $warnings = [regex]::Match($out, '(\d+) Warning\(s\)')
     $errors = [regex]::Match($out, '(\d+) Error\(s\)')
     if (-not $errors.Success) { throw "no build summary for $Project" }
     $w = [int]$warnings.Groups[1].Value
     $e = [int]$errors.Groups[1].Value
-    Write-Host ("    {0,-58} {1} warning(s), {2} error(s)" -f (Split-Path -Leaf $Project), $w, $e)
+    $how = if ($Rebuild) { "rebuilt" } else { "built" }
+    Write-Host ("    {0,-58} {1} {2} warning(s), {3} error(s)" -f (Split-Path -Leaf $Project), $how, $w, $e)
     if ($e -ne 0 -or $w -ne 0) {
         ($out -split "`n" | Where-Object { $_ -match ': (error|warning) ' } | Select-Object -First 8) | ForEach-Object { Write-Host "      $_" }
         throw "$Project is not 0 warnings / 0 errors"
     }
 }
 
-# --- 1. Everything CI builds, plus everything CI does NOT build but a contributor still breaks --------------
-Step "Build (CI solution filter)" { Assert-CleanBuild "MatPlotLibNet.CI.slnf" }
+# --- 1. Every project this box can build ---------------------------------------------------------------------
+# One filter owns the list: MatPlotLibNet.NoMaui.slnf holds every project of the solution but the Maui head, so it is a superset of what
+# CI builds (MatPlotLibNet.CI.slnf) and adds Wpf, Uno, Notebooks, the heads' suites, the samples and the benchmarks. The solution itself
+# is never built here: without the maui workload it stops at NETSDK1147 before it compiles any project, and a check that looks for that
+# one error reads a tree with errors as clean (Geo held 16 CS1574 for four rounds behind it). The Maui head is built by the windows-heads job.
+Step "Build (every project but the Maui head, rebuilt so package validation runs)" { Assert-CleanBuild "MatPlotLibNet.NoMaui.slnf" -Rebuild }
 
-Step "Build (projects outside the CI filter)" {
-    # MAUI is excluded on purpose: no workload on this box, and none on the Pages runner either.
-    $outside = @(
-        "Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj",
-        "Tst/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.Tests.csproj",
-        "Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj",
-        "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
-        "Benchmarks/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.csproj"
-    ) + (Get-ChildItem "Samples" -Directory | ForEach-Object {
+Step "Build (projects in no solution)" {
+    # The samples the solution does not hold (Playground, AspNetCore, Wpf) still build against the packages and still break.
+    $held = (Get-Content "MatPlotLibNet.NoMaui.slnf" -Raw | ConvertFrom-Json).solution.projects | ForEach-Object { $_ -replace '[\\]', '/' }
+    $outside = Get-ChildItem "Samples" -Directory | ForEach-Object {
         Get-ChildItem $_.FullName -Filter "*.csproj" -File | Select-Object -ExpandProperty FullName
-    })
-    foreach ($p in $outside) { if (Test-Path $p) { Assert-CleanBuild $p } }
+    } | Where-Object { $held -notcontains ($_.Substring($repoRoot.Length + 1) -replace '[\\]', '/') }
+    foreach ($p in $outside) { Assert-CleanBuild $p }
 }
 
 # --- 2. The eleven measured suites and the strict per-class gate ---------------------------------------------
@@ -178,7 +191,10 @@ Step "Samples that run: start and probe" {
 Step "docfx metadata + site" {
     $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
     if (-not (Get-Command docfx -ErrorAction SilentlyContinue)) { throw "docfx not installed: dotnet tool install -g docfx" }
-    Copy-Item -Recurse -Force images docs/images -ErrorAction SilentlyContinue
+    # The copy replaces the last one: with docs/images in place, Copy-Item puts the folder INSIDE it (docs/images/images) and the
+    # site keeps showing the pictures of the first run. A fresh checkout, which the Pages workflow builds from, has no such folder.
+    if (Test-Path docs/images) { Remove-Item -Recurse -Force docs/images }
+    Copy-Item -Recurse -Force images docs/images
     # Stale pages for types that no longer exist are gitignored, so only a local checkout ever sees them --
     # and they produce InvalidBookmark warnings that read exactly like a real broken link.
     $cutoff = (Get-Date).AddMinutes(-1)

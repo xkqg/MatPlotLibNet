@@ -11,6 +11,18 @@ public class MathTextParserTests
 {
     // --- Plain text (no $ delimiters) ---
 
+    /// <summary>The first span of what the parser reads from <paramref name="math"/> that <paramref name="which"/> picks, and its text.</summary>
+    private static TextSpan FirstSpan(string math, Func<TextSpan, bool> which)
+    {
+        var span = MathTextParser.Parse(math).Spans.FirstOrDefault(which);
+        Assert.NotNull(span);
+        return span!;
+    }
+
+    private static void AssertFirstSpanTextIs(string math, Func<TextSpan, bool> which, string text) => Assert.Equal(text, FirstSpan(math, which).Text);
+
+    private static void AssertFirstSpanTextHas(string math, Func<TextSpan, bool> which, string part) => Assert.Contains(part, FirstSpan(math, which).Text);
+
     [Fact]
     public void Parse_PlainText_SingleNormalSpan()
     {
@@ -24,6 +36,7 @@ public class MathTextParserTests
     public void Parse_EmptyString_EmptySpans()
     {
         Assert.Empty(MathTextParser.Parse("").Spans);
+        Assert.Empty(MathTextParser.Parse(null!).Spans);
     }
 
     // --- Dollar delimiter switches math mode ---
@@ -49,53 +62,42 @@ public class MathTextParserTests
 
     // --- Greek letters ---
 
-    [Fact]
-    public void Parse_GreekAlpha_ReturnsUnicode()
+    [Theory]
+    [InlineData("$\\alpha$", "\u03B1")] // Parse_GreekAlpha_ReturnsUnicode
+    [InlineData("$\\omega$", "\u03C9")] // Parse_GreekOmega_ReturnsUnicode
+    [InlineData("$\\Gamma$", "\u0393")] // Parse_GreekUppercaseGamma_ReturnsUnicode
+    [InlineData("$\\Delta$", "\u0394")] // Parse_GreekUppercaseDelta_ReturnsUnicode
+    [InlineData("$\\pm$", "\u00B1")] // Parse_PlusMinus_ReturnsUnicode
+    [InlineData("$\\infty$", "\u221E")] // Parse_Infty_ReturnsUnicode
+    [InlineData("$\\degree$", "\u00B0")] // Parse_Degree_ReturnsUnicode
+    [InlineData("$\\times$", "\u00D7")] // Parse_Times_ReturnsUnicode
+    [InlineData(@"$\Rightarrow$", "\u2009\u21D2\u2009")] // Parse_Rightarrow_ReturnsUnicode
+    [InlineData(@"$\otimes$", "\u2297")] // Parse_Otimes_ReturnsUnicode
+    [InlineData(@"$\emptyset$", "\u2205")] // Parse_Emptyset_ReturnsUnicode
+    public void Parse_NamesTheUnicodeCharacterItStandsFor(string source, string character)
     {
-        var result = MathTextParser.Parse("$\\alpha$");
-        Assert.Contains(result.Spans, s => s.Text == "\u03B1");
+        var result = MathTextParser.Parse(source);
+        Assert.Contains(result.Spans, s => s.Text == character);
     }
 
-    [Fact]
-    public void Parse_GreekOmega_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\omega$");
-        Assert.Contains(result.Spans, s => s.Text == "\u03C9");
-    }
+    [Theory]
+    [InlineData("$R^{2}$", TextSpanKind.Superscript, "2")]
+    [InlineData("$x^2$", TextSpanKind.Superscript, "2")]
+    [InlineData("$x_{i}$", TextSpanKind.Subscript, "i")]
+    [InlineData("$x_i$", TextSpanKind.Subscript, "i")]
+    [InlineData(@"$\sqrt{x}$", TextSpanKind.Radical, "x")]
+    public void Parse_AScriptOrARadical_ProducesItsSpan(string math, TextSpanKind kind, string text) =>
+        AssertFirstSpanTextIs(math, s => s.Kind == kind, text);
 
-    [Fact]
-    public void Parse_GreekUppercaseGamma_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\Gamma$");
-        Assert.Contains(result.Spans, s => s.Text == "\u0393");
-    }
-
-    [Fact]
-    public void Parse_GreekUppercaseDelta_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\Delta$");
-        Assert.Contains(result.Spans, s => s.Text == "\u0394");
-    }
+    [Theory]
+    [InlineData(@"$\mathrm{sin}$", FontVariant.Roman, "sin")]
+    [InlineData(@"$\mathbf{F}$", FontVariant.Bold, "F")]
+    [InlineData(@"$x = 1 \text{ if } y > 0$", FontVariant.Roman, " if ")]
+    [InlineData(@"$\mathcal{L}$", FontVariant.Calligraphic, "L")]
+    public void Parse_AFontCommand_ProducesItsVariantSpan(string math, FontVariant variant, string text) =>
+        AssertFirstSpanTextIs(math, s => s.Variant == variant, text);
 
     // --- Superscript ---
-
-    [Fact]
-    public void Parse_Superscript_BracedContent_ProducesSuperSpan()
-    {
-        var result = MathTextParser.Parse("$R^{2}$");
-        var sup = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Superscript);
-        Assert.NotNull(sup);
-        Assert.Equal("2", sup!.Text);
-    }
-
-    [Fact]
-    public void Parse_Superscript_SingleChar_ProducesSuperSpan()
-    {
-        var result = MathTextParser.Parse("$x^2$");
-        var sup = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Superscript);
-        Assert.NotNull(sup);
-        Assert.Equal("2", sup!.Text);
-    }
 
     [Fact]
     public void Parse_Superscript_FontSizeScale_IsLessThanOne()
@@ -106,54 +108,6 @@ public class MathTextParserTests
     }
 
     // --- Subscript ---
-
-    [Fact]
-    public void Parse_Subscript_BracedContent_ProducesSubSpan()
-    {
-        var result = MathTextParser.Parse("$x_{i}$");
-        var sub = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Subscript);
-        Assert.NotNull(sub);
-        Assert.Equal("i", sub!.Text);
-    }
-
-    [Fact]
-    public void Parse_Subscript_SingleChar_ProducesSubSpan()
-    {
-        var result = MathTextParser.Parse("$x_i$");
-        var sub = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Subscript);
-        Assert.NotNull(sub);
-        Assert.Equal("i", sub!.Text);
-    }
-
-    // --- Math symbols ---
-
-    [Fact]
-    public void Parse_PlusMinus_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\pm$");
-        Assert.Contains(result.Spans, s => s.Text == "\u00B1");
-    }
-
-    [Fact]
-    public void Parse_Infty_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\infty$");
-        Assert.Contains(result.Spans, s => s.Text == "\u221E");
-    }
-
-    [Fact]
-    public void Parse_Degree_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\degree$");
-        Assert.Contains(result.Spans, s => s.Text == "\u00B0");
-    }
-
-    [Fact]
-    public void Parse_Times_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse("$\\times$");
-        Assert.Contains(result.Spans, s => s.Text == "\u00D7");
-    }
 
     // --- Combined: Greek + superscript ---
 
@@ -206,16 +160,19 @@ public class MathTextParserTests
         Assert.Equal("\u03B1", num.Text); // α
     }
 
-    // --- v1.3.0: Square roots ---
-
+    /// <summary>An argument is read as math, recursively, as every row is (a named fix: a body was read for its symbols only, so
+    /// <c>\mathrm{sin}</c> inside a numerator was written as <c>\mathrmsin</c>).</summary>
     [Fact]
-    public void Parse_Sqrt_ProducesRadicalSpan()
+    public void Parse_ACommandInsideAnArgument_IsReadAsMath()
     {
-        var result = MathTextParser.Parse(@"$\sqrt{x}$");
-        var rad = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Radical);
-        Assert.NotNull(rad);
-        Assert.Equal("x", rad!.Text);
+        var spans = MathTextParser.Parse(@"$\frac{\mathrm{sin}(x)}{\sqrt{2}}$").Spans;
+
+        Assert.Contains(spans, s => s.Kind == TextSpanKind.FractionNumerator && s.Text == "sin" && s.Variant == FontVariant.Roman);
+        Assert.Contains(spans, s => s.Kind == TextSpanKind.Radical && s.Text == "2");
+        Assert.DoesNotContain(spans, s => s.Text.Contains('\\'));
     }
+
+    // --- v1.3.0: Square roots ---
 
     [Fact]
     public void Parse_SqrtWithIndex_ProducesIndexAndRadical()
@@ -232,22 +189,21 @@ public class MathTextParserTests
     [Fact]
     public void Parse_Sqrt_WithExpression()
     {
-        var result = MathTextParser.Parse(@"$\sqrt{x^2+y^2}$");
-        var rad = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Radical);
-        Assert.NotNull(rad);
-        Assert.Contains("x", rad!.Text);
+        AssertFirstSpanTextHas(@"$\sqrt{x^2+y^2}$", s => s.Kind == TextSpanKind.Radical, "x");
     }
 
     // --- v1.3.0: Accents ---
 
-    [Fact]
-    public void Parse_Hat_ProducesAccentSpan()
+    [Theory]
+    [InlineData(@"$\hat{x}$", 'x', "\u0302")] // combining circumflex
+    [InlineData(@"$\vec{v}$", 'v', "\u20D7")] // combining right arrow above
+    public void Parse_AnAccentOverALetter_ProducesAccentSpan(string source, char letter, string combining)
     {
-        var result = MathTextParser.Parse(@"$\hat{x}$");
+        var result = MathTextParser.Parse(source);
         var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
         Assert.NotNull(accent);
-        Assert.Equal('x', accent!.Text[0]);
-        Assert.True(accent.Text.Contains("\u0302", StringComparison.Ordinal)); // combining circumflex
+        Assert.Equal(letter, accent!.Text[0]);
+        Assert.True(accent.Text.Contains(combining, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -259,104 +215,31 @@ public class MathTextParserTests
         Assert.Equal('y', accent!.Text[0]);
     }
 
-    [Fact]
-    public void Parse_Vec_ProducesAccentSpan()
+    [Theory]
+    [InlineData(@"$\tilde{x}$", "\u0303")] // combining tilde
+    [InlineData(@"$\dot{x}$", "\u0307")]   // combining dot above
+    public void Parse_AnAccentOverAMark_ProducesAccentSpan(string source, string combining)
     {
-        var result = MathTextParser.Parse(@"$\vec{v}$");
+        var result = MathTextParser.Parse(source);
         var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
         Assert.NotNull(accent);
-        Assert.Equal('v', accent!.Text[0]);
-        Assert.True(accent.Text.Contains("\u20D7", StringComparison.Ordinal)); // combining right arrow above
-    }
-
-    [Fact]
-    public void Parse_Tilde_ProducesAccentSpan()
-    {
-        var result = MathTextParser.Parse(@"$\tilde{x}$");
-        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
-        Assert.NotNull(accent);
-        Assert.True(accent!.Text.Contains("\u0303", StringComparison.Ordinal)); // combining tilde
-    }
-
-    [Fact]
-    public void Parse_Dot_ProducesAccentSpan()
-    {
-        var result = MathTextParser.Parse(@"$\dot{x}$");
-        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
-        Assert.NotNull(accent);
-        Assert.True(accent!.Text.Contains("\u0307", StringComparison.Ordinal)); // combining dot above
+        Assert.True(accent!.Text.Contains(combining, StringComparison.Ordinal));
     }
 
     // --- v1.3.0: Font variants ---
 
-    [Fact]
-    public void Parse_Mathrm_ProducesRomanFontSpan()
-    {
-        var result = MathTextParser.Parse(@"$\mathrm{sin}$");
-        var roman = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Roman);
-        Assert.NotNull(roman);
-        Assert.Equal("sin", roman!.Text);
-    }
-
-    [Fact]
-    public void Parse_Mathbf_ProducesBoldFontSpan()
-    {
-        var result = MathTextParser.Parse(@"$\mathbf{F}$");
-        var bold = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Bold);
-        Assert.NotNull(bold);
-        Assert.Equal("F", bold!.Text);
-    }
-
-    [Fact]
-    public void Parse_Text_ProducesRomanFontSpan()
-    {
-        var result = MathTextParser.Parse(@"$x = 1 \text{ if } y > 0$");
-        var text = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Roman);
-        Assert.NotNull(text);
-        Assert.Equal(" if ", text!.Text);
-    }
-
-    [Fact]
-    public void Parse_Mathcal_ProducesCalligraphicSpan()
-    {
-        var result = MathTextParser.Parse(@"$\mathcal{L}$");
-        var cal = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Calligraphic);
-        Assert.NotNull(cal);
-        Assert.Equal("L", cal!.Text);
-    }
-
     // --- v1.3.0: Spacing ---
 
-    [Fact]
-    public void Parse_Quad_InsertsEmSpace()
+    [Theory]
+    [InlineData(@"$a\quad b$", "\u2003")] // Parse_Quad_InsertsEmSpace
+    [InlineData(@"$a\,b$", "\u2009")] // Parse_ThinSpace_InsertsUnicodeSpace
+    [InlineData(@"$a\:b$", "\u2005")] // Parse_MediumSpace_InsertsUnicodeSpace
+    [InlineData(@"$a\;b$", "\u2004")] // Parse_ThickSpace_InsertsUnicodeSpace
+    public void Parse_ASpaceCommand_InsertsItsUnicodeSpace(string source, string space)
     {
-        var result = MathTextParser.Parse(@"$a\quad b$");
+        var result = MathTextParser.Parse(source);
         var allText = string.Concat(result.Spans.Select(s => s.Text));
-        Assert.Contains("\u2003", allText); // em space
-    }
-
-    [Fact]
-    public void Parse_ThinSpace_InsertsUnicodeSpace()
-    {
-        var result = MathTextParser.Parse(@"$a\,b$");
-        var allText = string.Concat(result.Spans.Select(s => s.Text));
-        Assert.Contains("\u2009", allText); // thin space
-    }
-
-    [Fact]
-    public void Parse_MediumSpace_InsertsUnicodeSpace()
-    {
-        var result = MathTextParser.Parse(@"$a\:b$");
-        var allText = string.Concat(result.Spans.Select(s => s.Text));
-        Assert.Contains("\u2005", allText); // medium mathematical space
-    }
-
-    [Fact]
-    public void Parse_ThickSpace_InsertsUnicodeSpace()
-    {
-        var result = MathTextParser.Parse(@"$a\;b$");
-        var allText = string.Concat(result.Spans.Select(s => s.Text));
-        Assert.Contains("\u2004", allText); // thick mathematical space
+        Assert.Contains(space, allText); // em space
     }
 
     // --- v1.3.0: Additional symbols ---
@@ -372,27 +255,6 @@ public class MathTextParserTests
             result.Spans.Any(s => s.Variant == FontVariant.BlackboardBold)); // font variant
     }
 
-    [Fact]
-    public void Parse_Rightarrow_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse(@"$\Rightarrow$");
-        Assert.Contains(result.Spans, s => s.Text == "\u21D2"); // ⇒
-    }
-
-    [Fact]
-    public void Parse_Otimes_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse(@"$\otimes$");
-        Assert.Contains(result.Spans, s => s.Text == "\u2297"); // ⊗
-    }
-
-    [Fact]
-    public void Parse_Emptyset_ReturnsUnicode()
-    {
-        var result = MathTextParser.Parse(@"$\emptyset$");
-        Assert.Contains(result.Spans, s => s.Text == "\u2205"); // ∅
-    }
-
     // --- v1.3.0: Scaling delimiters ---
 
     [Fact]
@@ -402,7 +264,7 @@ public class MathTextParserTests
         var allText = string.Concat(result.Spans.Select(s => s.Text));
         Assert.Contains("(", allText);
         Assert.Contains(")", allText);
-        Assert.Contains("x+1", allText);
+        Assert.Contains("x\u2009+\u20091", allText); // matplotlib's 0.2 em around a binary operator
     }
 
     // --- v1.3.0: Nested superscript ---
@@ -430,58 +292,47 @@ public class MathTextParserTests
         Assert.True(MathTextParser.ContainsMath("$\\alpha$ = 0.05"));
     }
 
-    /// <summary>Explicit <c>\end{env}</c> consumes the brace group without crashing —
-    /// covers the <c>cmd == "end"</c> branch that ReadBraceGroup-then-continues.</summary>
-    [Fact]
-    public void Parse_BeginEnvWithExplicitEnd_DoesNotThrow()
+    [Theory]
+    [InlineData(@"$\begin{matrix}1\end{matrix}$")] // Parse_BeginEnvWithExplicitEnd_DoesNotThrow
+    [InlineData("$x^$")] // Parse_TrailingCaretWithNoContent_EmitsEmptySuperscript
+    [InlineData(@"$\end x$")] // Parse_EndWithoutBraces_DoesNotThrow
+    [InlineData(@"$\sqrt[3 x$")] // Parse_SqrtWithUnclosedIndex_DoesNotThrow
+    public void Parse_AMalformedCommand_DoesNotThrow(string source)
     {
-        var rt = MathTextParser.Parse(@"$\begin{matrix}1\end{matrix}$");
-        Assert.NotNull(rt);
-    }
-
-    /// <summary>Super/subscript with no following content (ends with $) — covers
-    /// the empty-string fallback branch in the super/subscript reader.</summary>
-    [Fact]
-    public void Parse_TrailingCaretWithNoContent_EmitsEmptySuperscript()
-    {
-        var rt = MathTextParser.Parse("$x^$");
-        Assert.NotNull(rt);
-    }
-
-    /// <summary>ReadBraceGroup called when the next char is NOT { — covers the
-    /// bare-character fallback branch.</summary>
-    [Fact]
-    public void Parse_EndWithoutBraces_DoesNotThrow()
-    {
-        // `\end x` — `\end` is followed by 'x' rather than `{...}`.
-        var rt = MathTextParser.Parse(@"$\end x$");
+        var rt = MathTextParser.Parse(source);
         Assert.NotNull(rt);
     }
 
     // ── Wave J.2 — branch close-out ──────────────────────────────────────
 
-    /// <summary>Text-form operators (\lim, \max … \tan) — each keyword hits one branch of the
-    /// large <c>cmd is "lim" or "max" or …</c> pattern match at MathTextParser.cs L226.
-    /// Each operator produces a LargeOperator span whose Text equals the command name.</summary>
+    /// <summary>A function name is set upright as the word; it is a large operator (its scripts are limits) only where matplotlib
+    /// sets limits: <c>matplotlib._mathtext.Parser._overunder_functions</c> = {lim, liminf, limsup, max, min, sup} (3.11.2, printed
+    /// with python). <c>\inf</c>, <c>\log</c> and the trigonometric names take scripts beside them.</summary>
     [Theory]
-    [InlineData("lim")]
-    [InlineData("max")]
-    [InlineData("min")]
-    [InlineData("sup")]
-    [InlineData("inf")]
-    [InlineData("log")]
-    [InlineData("ln")]
-    [InlineData("sin")]
-    [InlineData("cos")]
-    [InlineData("tan")]
-    public void Parse_TextOperator_ProducesLargeOperatorSpan(string op)
+    [InlineData("lim", TextSpanKind.LargeOperator)]
+    [InlineData("liminf", TextSpanKind.LargeOperator)]
+    [InlineData("limsup", TextSpanKind.LargeOperator)]
+    [InlineData("max", TextSpanKind.LargeOperator)]
+    [InlineData("min", TextSpanKind.LargeOperator)]
+    [InlineData("sup", TextSpanKind.LargeOperator)]
+    [InlineData("inf", TextSpanKind.Normal)]
+    [InlineData("log", TextSpanKind.Normal)]
+    [InlineData("ln", TextSpanKind.Normal)]
+    [InlineData("sin", TextSpanKind.Normal)]
+    [InlineData("cos", TextSpanKind.Normal)]
+    [InlineData("tan", TextSpanKind.Normal)]
+    [InlineData("exp", TextSpanKind.Normal)]
+    [InlineData("det", TextSpanKind.Normal)]
+    public void Parse_AFunctionName_IsTheWordUpright_ALargeOperatorWhereItsScriptsAreLimits(string name, TextSpanKind kind)
     {
-        var result = MathTextParser.Parse($@"$\{op}$");
-        Assert.Contains(result.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == op);
+        var spans = MathTextParser.Parse($@"$\{name}$").Spans;
+
+        Assert.Equal((name, kind, FontVariant.Roman), (spans[0].Text, spans[0].Kind, spans[0].Variant));
+        Assert.Equal("\u2006", spans[1].Text); // the thin space after a function name (Parser.operatorname)
     }
 
     /// <summary>Large-symbol operators (\int, \sum, \prod) — hit the <c>cmd is "int" or "sum" or "prod" …</c>
-    /// pattern match at L237 (each alternative is a separate branch).</summary>
+    /// pattern match (each alternative is a separate branch).</summary>
     [Theory]
     [InlineData("int")]
     [InlineData("sum")]
@@ -496,20 +347,22 @@ public class MathTextParserTests
     }
 
     /// <summary>ContainsMath(null) — hits the <c>if (text is null) return false</c>
-    /// true arm at L304.</summary>
+    /// true arm.</summary>
     [Fact]
     public void ContainsMath_Null_ReturnsFalse()
     {
         Assert.False(MathTextParser.ContainsMath(null!));
     }
 
-    /// <summary>\sqrt with optional index but no closing ']' — hits the
-    /// <c>if (end &lt; 0) end = text.Length</c> true arm at L139.</summary>
-    [Fact]
-    public void Parse_SqrtWithUnclosedIndex_DoesNotThrow()
+    /// <summary>A space typed in math and a brace that closes no group are not drawn: <c>$a b$</c> and <c>$a}b$</c> read as <c>$ab$</c>, as
+    /// TeX's math mode ignores the one and matplotlib's parser drops the other.</summary>
+    [Theory]
+    [InlineData("$a b$")]
+    [InlineData("$a}b$")]
+    public void Parse_ASpaceOrAStrayBraceInMath_IsNotDrawn(string source)
     {
-        // The '[' is found but ']' is absent → IndexOf returns -1 → end = text.Length
-        var rt = MathTextParser.Parse(@"$\sqrt[3 x$");
-        Assert.NotNull(rt);
+        static string Text(string math) => string.Concat(MathTextParser.Parse(math).Spans.Select(span => span.Text));
+
+        Assert.Equal(Text("$ab$"), Text(source));
     }
 }

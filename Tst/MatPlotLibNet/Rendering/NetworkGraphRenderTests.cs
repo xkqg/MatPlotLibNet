@@ -21,42 +21,41 @@ public class NetworkGraphRenderTests
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.NetworkGraph(nodes, edges, configure))
             .ToSvg();
-
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        int count = 0, idx = 0;
-        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            idx += needle.Length;
-        }
-        return count;
-    }
-
     // ── Smoke tests ──────────────────────────────────────────────────────────
 
-    [Fact]
-    public void SimpleGraph_RendersValidSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = RenderSvg([N("a"), N("b"), N("c")], [E("a", "b"), E("b", "c")]);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+        new DrawnToken("Layout_Circular_RendersValidSvg", () => RenderSvg([N("a"), N("b"), N("c"), N("d")], [],
+            s => s.Layout = GraphLayout.Circular), "<svg", "<circle "),
+        new DrawnToken("Layout_Hierarchical_RendersValidSvg", () => RenderSvg([N("a"), N("b"), N("c")], [E("a", "b"), E("b", "c")],
+            s => s.Layout = GraphLayout.Hierarchical), "<svg", "<circle "),
+        // With Manual layout the renderer reads each node's pre-set X/Y. Two distant
+        // nodes must produce visibly distant pixel positions.
+        new DrawnToken("Layout_Manual_UsesNodeCoordinates", () => RenderSvg([N("a", 0, 0), N("b", 10, 10)], [E("a", "b")],
+            s => s.Layout = GraphLayout.Manual), "<line "),
+        // Default ShowNodeLabels = true → <text> elements with node IDs.
+        // Axes also emit <text> for tick labels — just confirm "a" and "b" appear.
+        new DrawnToken("ShowNodeLabels_True_EmitsTextElements", () => RenderSvg([N("a"), N("b")], []), ">a<", ">b<"),
+        // Without labels the IDs don't appear as standalone <text> content.
+        new DrawnToken("ShowNodeLabels_False_OmitsNodeIdText", () => RenderSvg([N("a"), N("b")], [], s => s.ShowNodeLabels = false)) { Absent = [">a<", ">b<"] },
+        new DrawnToken("NodeLabel_OverrideId_RendersLabelNotId", () =>
+        {
+            var n = new GraphNode("n0", 0, 0, Label: "Custom Label");
+            return RenderSvg([n], []);
+        }, "Custom Label"),
+    };
 
-    [Fact]
-    public void EmptyNodes_RendersValidSvg()
-    {
-        string svg = RenderSvg([], []);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void DefaultRender_EmitsCircleElementsForNodes()
     {
         // 3 nodes → at least 3 <circle> elements.
         string svg = RenderSvg([N("a"), N("b"), N("c")], []);
-        int circles = CountOccurrences(svg, "<circle ");
+        int circles = svg.CountOf("<circle ");
         Assert.True(circles >= 3, $"Expected ≥3 circles for 3 nodes, got {circles}.");
     }
 
@@ -65,39 +64,11 @@ public class NetworkGraphRenderTests
     {
         // 2 edges → at least 2 <line> elements (axes also emit lines, so it's a lower bound).
         string svg = RenderSvg([N("a"), N("b"), N("c")], [E("a", "b"), E("b", "c")]);
-        int lines = CountOccurrences(svg, "<line ");
+        int lines = svg.CountOf("<line ");
         Assert.True(lines >= 2, $"Expected ≥2 lines for 2 edges, got {lines}.");
     }
 
     // ── Layout dispatch ──────────────────────────────────────────────────────
-
-    [Fact]
-    public void Layout_Circular_RendersValidSvg()
-    {
-        string svg = RenderSvg([N("a"), N("b"), N("c"), N("d")], [],
-            s => s.Layout = GraphLayout.Circular);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<circle ", svg);
-    }
-
-    [Fact]
-    public void Layout_Hierarchical_RendersValidSvg()
-    {
-        string svg = RenderSvg([N("a"), N("b"), N("c")], [E("a", "b"), E("b", "c")],
-            s => s.Layout = GraphLayout.Hierarchical);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<circle ", svg);
-    }
-
-    [Fact]
-    public void Layout_Manual_UsesNodeCoordinates()
-    {
-        // With Manual layout the renderer reads each node's pre-set X/Y. Two distant
-        // nodes must produce visibly distant pixel positions.
-        string svg = RenderSvg([N("a", 0, 0), N("b", 10, 10)], [E("a", "b")],
-            s => s.Layout = GraphLayout.Manual);
-        Assert.Contains("<line ", svg);
-    }
 
     [Fact]
     public void Layout_ForceDirected_PreActivation_FallsBackGracefully()
@@ -116,8 +87,8 @@ public class NetworkGraphRenderTests
         // Each directed edge → one extra <polygon> for the arrowhead.
         string svgUndirected = RenderSvg([N("a"), N("b")], [E("a", "b", directed: false)]);
         string svgDirected   = RenderSvg([N("a"), N("b")], [E("a", "b", directed: true)]);
-        int polysU = CountOccurrences(svgUndirected, "<polygon ");
-        int polysD = CountOccurrences(svgDirected,   "<polygon ");
+        int polysU = svgUndirected.CountOf("<polygon ");
+        int polysD = svgDirected.CountOf("<polygon ");
         Assert.True(polysD > polysU,
             $"Directed edge ({polysD} polygons) must emit more than undirected ({polysU}).");
     }
@@ -128,37 +99,8 @@ public class NetworkGraphRenderTests
         // No directed edges → polygon count comes only from non-edge sources (none for
         // a basic 2-node 1-edge graph).
         string svg = RenderSvg([N("a"), N("b")], [E("a", "b", directed: false)]);
-        int polygons = CountOccurrences(svg, "<polygon ");
+        int polygons = svg.CountOf("<polygon ");
         Assert.Equal(0, polygons);
-    }
-
-    // ── ShowNodeLabels ───────────────────────────────────────────────────────
-
-    [Fact]
-    public void ShowNodeLabels_True_EmitsTextElements()
-    {
-        // Default ShowNodeLabels = true → <text> elements with node IDs.
-        string svg = RenderSvg([N("a"), N("b")], []);
-        // Axes also emit <text> for tick labels — just confirm "a" and "b" appear.
-        Assert.Contains(">a<", svg);
-        Assert.Contains(">b<", svg);
-    }
-
-    [Fact]
-    public void ShowNodeLabels_False_OmitsNodeIdText()
-    {
-        string svg = RenderSvg([N("a"), N("b")], [], s => s.ShowNodeLabels = false);
-        // Without labels the IDs don't appear as standalone <text> content.
-        Assert.DoesNotContain(">a<", svg);
-        Assert.DoesNotContain(">b<", svg);
-    }
-
-    [Fact]
-    public void NodeLabel_OverrideId_RendersLabelNotId()
-    {
-        var n = new GraphNode("n0", 0, 0, Label: "Custom Label");
-        string svg = RenderSvg([n], []);
-        Assert.Contains("Custom Label", svg);
     }
 
     // ── ShowEdgeWeights ──────────────────────────────────────────────────────
@@ -173,8 +115,8 @@ public class NetworkGraphRenderTests
         var edges = new[] { new GraphEdge("a", "b", Weight: 1.5, IsDirected: false) };
         string svgOff = RenderSvg(nodes, edges, s => s.ShowEdgeWeights = false);
         string svgOn  = RenderSvg(nodes, edges, s => s.ShowEdgeWeights = true);
-        int textOff = CountOccurrences(svgOff, "<text ");
-        int textOn  = CountOccurrences(svgOn,  "<text ");
+        int textOff = svgOff.CountOf("<text ");
+        int textOn  = svgOn.CountOf("<text ");
         Assert.True(textOn > textOff,
             $"ShowEdgeWeights=true ({textOn} <text>) must add a label per edge over off ({textOff}).");
     }

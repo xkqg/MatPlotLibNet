@@ -16,6 +16,9 @@ public abstract class MultivariateIndicator<TResult> : Indicator<TResult>
     /// <summary>Number of time points (rows).</summary>
     protected int BarCount { get; }
 
+    /// <inheritdoc />
+    private protected override int BarsIn => BarCount;
+
     /// <summary>Number of features per bar (columns).</summary>
     protected int FeatureCount { get; }
 
@@ -23,25 +26,29 @@ public abstract class MultivariateIndicator<TResult> : Indicator<TResult>
     /// empty state (no throw) so downstream <c>Compute()</c> can return empty output
     /// without constructor gymnastics.</summary>
     /// <exception cref="ArgumentException">Thrown when rows have differing lengths.</exception>
-    protected MultivariateIndicator(double[][] features)
+    protected MultivariateIndicator(double[][] features) : this(features, IndicatorSpec.None) { }
+
+    /// <summary>An indicator of the library over a feature matrix, named and placed by its spec.</summary>
+    /// <param name="features">The feature matrix.</param>
+    /// <param name="spec">What the batch class's <c>Spec</c> factory said of the parameters.</param>
+    /// <exception cref="ArgumentException">Thrown when rows have differing lengths.</exception>
+    private protected MultivariateIndicator(double[][] features, IndicatorSpec spec) : base(spec)
     {
+        FeatureCount = FeatureCountOf(features);
         if (features is null || features.Length == 0)
         {
             Features = [];
             BarCount = 0;
-            FeatureCount = 0;
             return;
         }
 
         Features = features;
         BarCount = features.Length;
-        FeatureCount = features[0].Length;
-        for (int t = 1; t < BarCount; t++)
-        {
-            if (features[t].Length != FeatureCount)
-                throw new ArgumentException(
-                    $"All feature rows must have the same length; row 0 has {FeatureCount}, " +
-                    $"row {t} has {features[t].Length}.", nameof(features));
-        }
+        features.Select(row => row.Length).ThrowIfNotAllEqual(nameof(features));
     }
+
+    /// <summary>How many features a bar of the matrix has: the length of its first row, 0 for no matrix or an empty one.</summary>
+    /// <param name="features">The feature matrix.</param>
+    /// <returns>The count.</returns>
+    private protected static int FeatureCountOf(double[][]? features) => features is { Length: > 0 } ? features[0].Length : 0;
 }

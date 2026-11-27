@@ -32,24 +32,24 @@
                string name. OnThemeChanged resolves the index back to the typed Theme instance. *@
             <select @onchange="OnThemeChanged">
                 <optgroup label="Light">
-                    @for (int i = 0; i < LightThemeChoices.Length; i++)
+                    @for (int i = 0; i < ThemeChoices.Light.Count; i++)
                     {
                         var idx = i;
-                        <option value="@idx" selected="@(ReferenceEquals(_theme, LightThemeChoices[idx].Theme))">@LightThemeChoices[idx].Label</option>
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, ThemeChoices.Light[idx].Theme))">@ThemeChoices.Light[idx].Label</option>
                     }
                 </optgroup>
                 <optgroup label="Dark">
-                    @for (int i = 0; i < DarkThemeChoices.Length; i++)
+                    @for (int i = 0; i < ThemeChoices.Dark.Count; i++)
                     {
-                        var idx = i + LightThemeChoices.Length;
-                        <option value="@idx" selected="@(ReferenceEquals(_theme, DarkThemeChoices[i].Theme))">@DarkThemeChoices[i].Label</option>
+                        var idx = i + ThemeChoices.Light.Count;
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, ThemeChoices.Dark[i].Theme))">@ThemeChoices.Dark[i].Label</option>
                     }
                 </optgroup>
                 <optgroup label="Accessibility">
-                    @for (int i = 0; i < AccessibilityThemeChoices.Length; i++)
+                    @for (int i = 0; i < ThemeChoices.Accessibility.Count; i++)
                     {
-                        var idx = i + LightThemeChoices.Length + DarkThemeChoices.Length;
-                        <option value="@idx" selected="@(ReferenceEquals(_theme, AccessibilityThemeChoices[i].Theme))">@AccessibilityThemeChoices[i].Label</option>
+                        var idx = i + ThemeChoices.Light.Count + ThemeChoices.Dark.Count;
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, ThemeChoices.Accessibility[i].Theme))">@ThemeChoices.Accessibility[i].Label</option>
                     }
                 </optgroup>
             </select>
@@ -255,55 +255,6 @@
     private const int IntrinsicWidth  = 800;
     private const int IntrinsicHeight = 450;
 
-    // Phase N.1 + Phase P fix — typed choice arrays paired with display labels.
-    // Phase N.1 introduced Theme instances keyed by index. Phase P (2026-04-18)
-    // discovered Theme.Name returns the same base string for all community-derived
-    // themes (e.g. Theme.Solarize.Name == "custom-default" because the factory
-    // creates solarize/grayscale/paper/… from the same base). Using .Name as the
-    // dropdown label therefore produced 12 duplicate "custom-default" entries
-    // (light) and 8 "custom-dark" entries (dark). The label must be sourced
-    // independently — same pattern as PlaygroundExample's [Description] attribute.
-    private static readonly ThemeChoice[]LightThemeChoices =
-    {
-        new(Theme.Default,          "Default"),
-        new(Theme.Seaborn,           "Seaborn"),
-        new(Theme.Ggplot,            "Ggplot"),
-        new(Theme.FiveThirtyEight,   "FiveThirtyEight"),
-        new(Theme.Bmh,               "Bmh"),
-        new(Theme.Solarize,          "Solarize"),
-        new(Theme.Grayscale,         "Grayscale"),
-        new(Theme.Paper,             "Paper"),
-        new(Theme.Presentation,      "Presentation"),
-        new(Theme.Poster,            "Poster"),
-        new(Theme.GitHub,            "GitHub"),
-        new(Theme.Minimal,           "Minimal"),
-        new(Theme.Retro,             "Retro"),
-        new(Theme.MatplotlibClassic, "MatplotlibClassic"),
-        new(Theme.MatplotlibV2,      "MatplotlibV2"),
-    };
-
-    private static readonly ThemeChoice[]DarkThemeChoices =
-    {
-        new(Theme.Dark,       "Dark"),
-        new(Theme.Cyberpunk,  "Cyberpunk"),
-        new(Theme.Nord,       "Nord"),
-        new(Theme.Dracula,    "Dracula"),
-        new(Theme.Monokai,    "Monokai"),
-        new(Theme.Catppuccin, "Catppuccin"),
-        new(Theme.Gruvbox,    "Gruvbox"),
-        new(Theme.OneDark,    "OneDark"),
-        new(Theme.Neon,       "Neon"),
-    };
-
-    private static readonly ThemeChoice[]AccessibilityThemeChoices =
-    {
-        new(Theme.ColorBlindSafe, "ColorBlindSafe"),
-        new(Theme.HighContrast,   "HighContrast"),
-    };
-
-    private ThemeChoice[] AllThemeChoices =>
-        LightThemeChoices.Concat(DarkThemeChoices).Concat(AccessibilityThemeChoices).ToArray();
-
     private static readonly IColorMap[] ColorMapChoices =
     {
         ColorMaps.Viridis, ColorMaps.Plasma, ColorMaps.Inferno, ColorMaps.Magma,
@@ -367,7 +318,7 @@
 
     private void OnThemeChanged(ChangeEventArgs e)
     {
-        _theme = PlaygroundController.SelectThemeByIndex(e.Value?.ToString(), AllThemeChoices) ?? _theme;
+        _theme = PlaygroundController.SelectThemeByIndex(e.Value?.ToString(), ThemeChoices.All) ?? _theme;
         Rebuild();
     }
 

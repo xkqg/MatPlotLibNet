@@ -36,7 +36,7 @@ public static class AxesCategoricalVerbs
         /// <param name="data">The raw data values to bin into a histogram.</param>
         /// <param name="bins">The number of histogram bins.</param>
         /// <returns>The newly created <see cref="HistogramSeries"/> for further configuration.</returns>
-        public HistogramSeries Hist(double[] data, int bins = 10) => axes.AddSeries(new HistogramSeries(data) { Bins = bins });
+        public HistogramSeries Hist(double[] data, int bins = HistogramSeries.RestingBins) => axes.AddSeries(new HistogramSeries(data) { Bins = bins });
 
         /// <summary>Adds a waterfall chart showing cumulative positive and negative changes.</summary>
         public WaterfallSeries Waterfall(string[] categories, double[] values)

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -12,38 +13,30 @@ namespace MatPlotLibNet.Indicators;
 /// Reference: Garman &amp; Klass (1980), <i>Journal of Business</i> 53(1).</remarks>
 public sealed class GarmanKlass : CandleIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 20;
+
     private static readonly double TwoLn2Minus1 = 2 * Math.Log(2) - 1;
 
     private readonly int _period;
 
     /// <summary>Creates a new Garman-Klass volatility indicator.</summary>
     /// <param name="bars">Open, High, Low and Close (all strictly positive); built via <see cref="OhlcvBars.Ohlc"/>.</param>
-    /// <param name="period">Rolling window length in bars (default 20).</param>
+    /// <param name="period">Rolling window length in bars (default <see cref="DefaultPeriod"/>).</param>
     /// <exception cref="ArgumentException">Thrown when any input bar has a non-positive price.</exception>
-    public GarmanKlass(OhlcvBars bars, int period = 20)
-        : base(bars)
+    public GarmanKlass(OhlcvBars bars, int period = DefaultPeriod)
+        : base(bars, Spec(period))
     {
-        GuardPositive(bars.Open, bars.High, bars.Low, bars.Close);
+        bars.ThrowIfNotPositiveOhlc(nameof(GarmanKlass));
         _period = period;
-        Label = $"GK({period})";
     }
 
-    private static void GuardPositive(double[] o, double[] h, double[] l, double[] c)
-    {
-        int n = Math.Min(Math.Min(o.Length, h.Length), Math.Min(l.Length, c.Length));
-        for (int i = 0; i < n; i++)
-        {
-            if (o[i] <= 0 || h[i] <= 0 || l[i] <= 0 || c[i] <= 0)
-                throw new ArgumentException(
-                    $"GarmanKlass requires strictly positive OHLC; bar {i} has non-positive value.");
-        }
-    }
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfWindow("GK", period, period - 1);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
         int n = BarCount;
-        if (n < _period) return Array.Empty<double>();
 
         // Per-bar σ²_GK
         var sigma2 = new double[n];
@@ -54,19 +47,11 @@ public sealed class GarmanKlass : CandleIndicator<SignalResult>
             sigma2[i] = 0.5 * lhl * lhl - TwoLn2Minus1 * lco * lco;
         }
 
-        int outLen = n - _period + 1;
-        var result = new double[outLen];
-        double sum = 0;
-        for (int i = 0; i < _period; i++) sum += sigma2[i];
-        result[0] = Math.Sqrt(Math.Max(0, sum / _period));
-        for (int i = 1; i < outLen; i++)
-        {
-            sum += sigma2[i + _period - 1] - sigma2[i - 1];
-            result[i] = Math.Sqrt(Math.Max(0, sum / _period));
-        }
+        double[] result = sigma2.RollingMean(_period);
+        for (int i = 0; i < result.Length; i++) result[i] = Math.Sqrt(Math.Max(0, result[i]));
         return result;
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period - 1);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

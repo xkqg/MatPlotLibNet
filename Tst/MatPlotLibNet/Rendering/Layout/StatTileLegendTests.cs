@@ -9,6 +9,8 @@ using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Layout;
 
@@ -16,7 +18,7 @@ namespace MatPlotLibNet.Tests.Rendering.Layout;
 /// for it would be a second copy of that name, in a swatch colour the tile is not drawn in, and in the corner of
 /// the plot area it covers the number (the ops dashboard sample showed a swatch box over "12", "1" and "99.4").
 /// So a stat tile is never a legend entry, and the one place that decides it is the entry list the drawing, the
-/// hit-test and the margin reservation all read (<c>AxesLegendEntryExtensions.LegendEntries</c>).
+/// hit-test and the margin reservation all read (<c>SeriesLegendEntry.RowsOf</c>).
 /// <para>Every assertion reads the legend GROUP or that list: the tile's name is also in the SVG as the tile's own
 /// text, so "the name is somewhere in the SVG" cannot tell a legend entry from the tile.</para></summary>
 public class StatTileLegendTests
@@ -25,9 +27,8 @@ public class StatTileLegendTests
 
     /// <summary>The text of every entry inside <c>&lt;g class="legend"&gt;</c>; empty when no legend was drawn.</summary>
     private static List<string> LegendTexts(string svg) =>
-        XDocument.Parse(svg).Descendants()
-            .Where(e => e.Name.LocalName == "g" && (string?)e.Attribute("class") == "legend")
-            .SelectMany(g => g.Descendants().Where(t => t.Name.LocalName == "text"))
+        svg.Each("g").Where(e => (string?)e.Attribute("class") == "legend")
+            .SelectMany(g => g.Each("text"))
             .Select(t => t.Value)
             .ToList();
 
@@ -55,8 +56,8 @@ public class StatTileLegendTests
     {
         var axes = ThreeTiles().Build().SubPlots[0];
 
-        Assert.Empty(axes.LegendEntries(directLabelsDrawn: false));
-        Assert.Empty(axes.LegendEntries(directLabelsDrawn: true));
+        Assert.Empty(axes.LegendEntries(Theme.Default, directLabelsDrawn: false));
+        Assert.Empty(axes.LegendEntries(Theme.Default, directLabelsDrawn: true));
     }
 
     [Fact]
@@ -66,7 +67,7 @@ public class StatTileLegendTests
             .StatTile(5, t => t.Label = "Tile")
             .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "Line")).Build();
 
-        var entry = Assert.Single(figure.SubPlots[0].LegendEntries(directLabelsDrawn: false));
+        var entry = Assert.Single(figure.SubPlots[0].LegendEntries(Theme.Default, directLabelsDrawn: false));
         Assert.Equal("Line", entry.Label);
         Assert.Equal(1, entry.OriginalIndex);   // the tile ahead of it has no entry but still has slot 0
 
@@ -83,7 +84,7 @@ public class StatTileLegendTests
             .Build();
 
         // Sized: an outside legend reserves its margin from the same list, so a tile reserves none.
-        var measured = LegendMeasurer.MeasureBox(figure.SubPlots[0], new SvgRenderContext(), figure.Theme);
+        var measured = LegendLayoutCalculator.MeasureLegendBox(figure.SubPlots[0], new SvgRenderContext(), figure.Theme);
         Assert.Equal(0, measured.Width);
         Assert.Equal(0, measured.Height);
 
@@ -97,6 +98,6 @@ public class StatTileLegendTests
     {
         var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.StatTile(5)).Build().SubPlots[0];
 
-        Assert.Empty(axes.LegendEntries(directLabelsDrawn: false));
+        Assert.Empty(axes.LegendEntries(Theme.Default, directLabelsDrawn: false));
     }
 }

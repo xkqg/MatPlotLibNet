@@ -2,18 +2,21 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Builders;
+using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
+[Collection("ChartDiagnosticsGlobalState")]
 public class SubplotMosaicTests
 {
-    // --- SubplotMosaicParser ---
+    // --- the pattern of a mosaic (MosaicFigureBuilder.Parse) ---
 
     [Fact]
     public void Parser_Equal2x2_FourSingleCells()
     {
-        var result = SubplotMosaicParser.Parse("AB\nCD");
+        var result = MosaicFigureBuilder.Parse("AB\nCD");
         Assert.Equal(4, result.Count);
         Assert.Equal(new GridPosition(0, 1, 0, 1), result["A"]);
         Assert.Equal(new GridPosition(0, 1, 1, 2), result["B"]);
@@ -25,7 +28,7 @@ public class SubplotMosaicTests
     public void Parser_AsymmetricSpan_ASpansTwoColumns()
     {
         // "AAB\nCCB" — A spans (0,0)-(0,1), B spans (0,2)-(1,2), C spans (1,0)-(1,1)
-        var result = SubplotMosaicParser.Parse("AAB\nCCB");
+        var result = MosaicFigureBuilder.Parse("AAB\nCCB");
         Assert.Equal(new GridPosition(0, 1, 0, 2), result["A"]);
         Assert.Equal(new GridPosition(0, 2, 2, 3), result["B"]);
         Assert.Equal(new GridPosition(1, 2, 0, 2), result["C"]);
@@ -34,7 +37,7 @@ public class SubplotMosaicTests
     [Fact]
     public void Parser_SingleRow_Works()
     {
-        var result = SubplotMosaicParser.Parse("ABC");
+        var result = MosaicFigureBuilder.Parse("ABC");
         Assert.Equal(3, result.Count);
         Assert.Equal(new GridPosition(0, 1, 0, 1), result["A"]);
         Assert.Equal(new GridPosition(0, 1, 2, 3), result["C"]);
@@ -43,91 +46,44 @@ public class SubplotMosaicTests
     [Fact]
     public void Parser_FullSpan_SingleLabel()
     {
-        var result = SubplotMosaicParser.Parse("AAA\nAAA");
+        var result = MosaicFigureBuilder.Parse("AAA\nAAA");
         Assert.Single(result);
         Assert.Equal(new GridPosition(0, 2, 0, 3), result["A"]);
     }
 
-    [Fact]
-    public void Parser_EmptyPattern_Throws()
+    /// <summary>An empty pattern, a whitespace-only one (the early exit differs from an empty string, so both are read), rows of unequal
+    /// length, and a label with a hole in its bounding box (A has one at (0,1) in <c>ABA/AAA</c>) are refused.</summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("AB\nCCC")]
+    [InlineData("ABA\nAAA")]
+    public void Parser_APatternThatIsNoGrid_Throws(string pattern)
     {
-        Assert.Throws<ArgumentException>(() => SubplotMosaicParser.Parse(""));
+        Assert.Throws<ArgumentException>(() => MosaicFigureBuilder.Parse(pattern));
     }
 
-    [Fact]
-    public void Parser_UnequalRowLengths_Throws()
+    /// <summary>The grid is the rows that survive trimming: an empty pattern is 0 by 0, and a whitespace-only row between two others is dropped.</summary>
+    [Theory]
+    [InlineData("AAB\nCCB", 2, 3)]
+    [InlineData("", 0, 0)]
+    [InlineData("AB   \n   \nCD   ", 2, 2)]
+    public void Parser_GetDimensions_ReadsTheRowsThatSurviveTrimming(string pattern, int expectedRows, int expectedCols)
     {
-        Assert.Throws<ArgumentException>(() => SubplotMosaicParser.Parse("AB\nCCC"));
-    }
-
-    [Fact]
-    public void Parser_NonRectangularLabel_Throws()
-    {
-        // "ABA\nAAA" — A has a hole at (0,1) within its bounding box
-        Assert.Throws<ArgumentException>(() => SubplotMosaicParser.Parse("ABA\nAAA"));
-    }
-
-    [Fact]
-    public void Parser_GetDimensions_Returns2x3()
-    {
-        var (rows, cols) = SubplotMosaicParser.GetDimensions("AAB\nCCB");
-        Assert.Equal(2, rows);
-        Assert.Equal(3, cols);
+        var (rows, cols) = MosaicFigureBuilder.GetDimensions(pattern);
+        Assert.Equal(expectedRows, rows);
+        Assert.Equal(expectedCols, cols);
     }
 
     // --- MosaicFigureBuilder ---
-
-    [Fact]
-    public void Builder_AllPanels_AreRendered()
-    {
-        var svg = Plt.Mosaic("AB\nCD", m =>
-        {
-            m.Panel("A", ax => ax.WithTitle("A"));
-            m.Panel("B", ax => ax.WithTitle("B"));
-            m.Panel("C", ax => ax.WithTitle("C"));
-            m.Panel("D", ax => ax.WithTitle("D"));
-        }).ToSvg();
-
-        Assert.NotNull(svg);
-        Assert.NotEmpty(svg);
-    }
 
     [Fact]
     public void Builder_SvgContainsFourSubplots()
     {
         var svg = Plt.Mosaic("AB\nCD").ToSvg();
         // Each subplot emits one spine group per visible spine side (4 sides × 4 subplots = 16 minimum)
-        int spineCount = System.Text.RegularExpressions.Regex.Matches(svg, "class=\"spine\"").Count;
+        int spineCount = svg.CountOf("class=\"spine\"");
         Assert.True(spineCount >= 4, $"Expected at least 4 spine groups, got {spineCount}");
-    }
-
-    [Fact]
-    public void Builder_UnregisteredPanel_StillRenders()
-    {
-        // Panels without a configure action should render as empty axes (no throw)
-        string svg = Plt.Mosaic("AB").ToSvg();
-        Assert.NotEmpty(svg);
-    }
-
-    [Fact]
-    public void Builder_Build_ReturnsFigureBuilder()
-    {
-        var fb = Plt.Mosaic("AB\nCD").Build();
-        Assert.NotNull(fb);
-    }
-
-    [Fact]
-    public void Builder_WithSpan_ToSvgSucceeds()
-    {
-        double[] x = [1, 2, 3];
-        double[] y = [1, 4, 2];
-        string svg = Plt.Mosaic("AAB\nCCB", m =>
-        {
-            m.Panel("A", ax => ax.Plot(x, y).WithTitle("Wide Top"));
-            m.Panel("B", ax => ax.Bar(["X", "Y"], [10.0, 20.0]).WithTitle("Tall Right"));
-            m.Panel("C", ax => ax.Scatter(x, y).WithTitle("Wide Bottom"));
-        }).ToSvg();
-        Assert.NotEmpty(svg);
     }
 
     /// <summary>Covers <see cref="MosaicFigureBuilder.Configure"/> — figure-level customisation.</summary>
@@ -142,6 +98,70 @@ public class SubplotMosaicTests
         Assert.Equal("Mosaic Title", figure.Title);
         Assert.Equal(800, figure.Width);
         Assert.Equal(400, figure.Height);
+    }
+
+    /// <summary>A mosaic built twice gives the same panels each time: every build starts a figure builder of its own.</summary>
+    [Fact]
+    public void Build_Twice_GivesEachPanelOnce()
+    {
+        var mosaic = Plt.Mosaic("AB");
+        mosaic.Build();
+
+        Assert.Equal(2, mosaic.Build().Build().SubPlots.Count);
+    }
+
+    /// <summary>A second <c>ToSvg</c> draws what the first drew, not every panel twice.</summary>
+    [Fact]
+    public void ToSvg_Twice_DrawsTheSameFigure()
+    {
+        var mosaic = Plt.Mosaic("AB", m => m.Panel("A", ax => ax.Plot([1.0, 2.0], [2.0, 1.0])));
+
+        Assert.Equal(mosaic.ToSvg(), mosaic.ToSvg());
+    }
+
+    /// <summary>The figure-level configuration reaches every build, and an edit to the figure builder one build returned stays
+    /// in that builder.</summary>
+    [Fact]
+    public void Configure_ReachesEveryBuild_AndAnEditToOneBuildStaysThere()
+    {
+        var mosaic = Plt.Mosaic("AB").Configure(f => f.WithTitle("Mosaic"));
+
+        mosaic.Build().WithTitle("edited");
+        var figure = mosaic.Build().Build();
+
+        Assert.Equal("Mosaic", figure.Title);
+        Assert.Equal(2, figure.SubPlots.Count);
+    }
+
+    /// <summary>A label the pattern does not hold configures nothing and the build goes on, and the build reports each such label
+    /// through <see cref="ChartDiagnostics"/>, the library's one channel for input it cannot use, naming the label and the pattern.</summary>
+    [Fact]
+    public void APanelThePatternDoesNotHold_ConfiguresNothing_AndIsReportedOncePerLabel()
+    {
+        var mosaic = Plt.Mosaic("AB", m => m
+            .Panel("Z", ax => ax.WithTitle("never"))
+            .Panel("A", ax => ax.WithTitle("kept"))
+            .Panel("Y", ax => ax.WithTitle("never either")));
+
+        var (figure, diagnostics) = DiagnosticsCapture.Of(() => mosaic.Build().Build());
+
+        Assert.Equal(2, figure.SubPlots.Count);
+        Assert.Equal("kept", figure.SubPlots[0].Title);
+        Assert.Null(figure.SubPlots[1].Title);
+        Assert.Equal(2, diagnostics.Count);
+        Assert.All(diagnostics, d => Assert.Equal(nameof(MosaicFigureBuilder), d.Source));
+        Assert.Contains("'Z'", diagnostics[0].Message, StringComparison.Ordinal);
+        Assert.Contains("'Y'", diagnostics[1].Message, StringComparison.Ordinal);
+        Assert.Contains("\"AB\"", diagnostics[0].Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A mosaic whose every panel is in the pattern reports nothing.</summary>
+    [Fact]
+    public void AMosaicWhoseLabelsAreAllInThePattern_ReportsNothing()
+    {
+        var diagnostics = DiagnosticsCapture.During(() => Plt.Mosaic("AB", m => m.Panel("A", ax => ax.WithTitle("a")).Panel("B", ax => ax.WithTitle("b"))).Build());
+
+        Assert.Empty(diagnostics);
     }
 
     /// <summary>Covers <see cref="MosaicFigureBuilder.Save"/> — round-trips through the underlying
@@ -164,31 +184,35 @@ public class SubplotMosaicTests
 
     // --- Parser branch coverage ---
 
-    /// <summary>Covers the whitespace-only branch of <see cref="SubplotMosaicParser.Parse"/>.</summary>
-    [Fact]
-    public void Parser_WhitespaceOnly_Throws()
+    /// <summary>The cells <see cref="Builders.MosaicFigureBuilder.Parse"/> places and the grid <see cref="Builders.MosaicFigureBuilder.GetDimensions"/>
+    /// reports come from the same rows: whatever the pattern's line endings, blank lines and trailing blanks, the last row
+    /// and column a label reaches is inside the grid, and the grid is no larger than the cells reach.</summary>
+    [Theory]
+    [InlineData("AAB\nCCB")]
+    [InlineData("AAB\r\nCCB\r\n")]
+    [InlineData("\n\nAB  \n   \n\nCD\n\n")]
+    [InlineData("A")]
+    [InlineData("AB\nAB   \n")]
+    public void Parse_AndGetDimensions_ReadTheSameRows(string pattern)
     {
-        // string.IsNullOrWhiteSpace covers the early-exit branch differently from "" — exercise both
-        Assert.Throws<ArgumentException>(() => SubplotMosaicParser.Parse("   "));
+        var cells = MosaicFigureBuilder.Parse(pattern);
+        var (rows, cols) = MosaicFigureBuilder.GetDimensions(pattern);
+
+        Assert.Equal(cells.Values.Max(p => p.RowEnd), rows);
+        Assert.Equal(cells.Values.Max(p => p.ColEnd), cols);
     }
 
-    /// <summary>Covers <see cref="SubplotMosaicParser.GetDimensions"/> empty/whitespace path
-    /// where rows.Length == 0 and the ternary returns 0 columns.</summary>
-    [Fact]
-    public void Parser_GetDimensions_EmptyPattern_ReturnsZeroZero()
+    /// <summary>A pattern with no row left once blanks are stripped has no grid: the dimensions are 0 by 0, the rule
+    /// <see cref="Builders.MosaicFigureBuilder.Parse"/> refuses by throwing.</summary>
+    [Theory]
+    [InlineData("\n \n   \n")]
+    [InlineData("")]
+    public void APatternOfOnlyBlanks_HasNoGrid(string pattern)
     {
-        var (rows, cols) = SubplotMosaicParser.GetDimensions("");
+        var (rows, cols) = MosaicFigureBuilder.GetDimensions(pattern);
+
         Assert.Equal(0, rows);
         Assert.Equal(0, cols);
-    }
-
-    /// <summary>Covers <see cref="SubplotMosaicParser.GetDimensions"/> with whitespace-only rows
-    /// stripped by TrimEnd — verifies the row-count branch when only some rows survive.</summary>
-    [Fact]
-    public void Parser_GetDimensions_WhitespaceRowsStripped()
-    {
-        var (rows, cols) = SubplotMosaicParser.GetDimensions("AB   \n   \nCD   ");
-        Assert.Equal(2, rows); // middle whitespace-only row is dropped
-        Assert.Equal(2, cols);
+        Assert.Throws<ArgumentException>(() => MosaicFigureBuilder.Parse(pattern));
     }
 }

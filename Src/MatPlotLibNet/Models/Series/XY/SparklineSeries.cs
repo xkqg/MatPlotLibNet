@@ -9,10 +9,14 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a sparkline — a tiny, word-sized line chart with no axes, labels, or decorations.</summary>
 /// <remarks>Designed for inline dashboard use. Renders only the line within the full plot bounds.</remarks>
-public sealed class SparklineSeries : ChartSeries, IHasColor
+public sealed class SparklineSeries : ChartSeries, IHasColor, ISeriesKind<SparklineSeries>, IWidthGiven
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.SolidLine, LineWidth);
+    /// <remarks>2: a sparkline is a line, a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Of(LegendSwatchKind.SolidLine, this);
 
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
@@ -22,10 +26,15 @@ public sealed class SparklineSeries : ChartSeries, IHasColor
     public double[] Values { get; }
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
-    /// <summary>The thickness of the line, in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => GivenLineWidth = value; }
+
+    /// <summary>The line width that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenLineWidth { get; private set => Change(ref field, value); }
+
+    double? IWidthGiven.GivenLineWidth => GivenLineWidth;
 
     /// <summary>Creates a new sparkline series from the given values.</summary>
     public SparklineSeries(double[] values) => Values = values;
@@ -38,38 +47,28 @@ public sealed class SparklineSeries : ChartSeries, IHasColor
         return new(0, Values.Length - 1, y?.Lo, y?.Hi);
     }
 
+    static string ISeriesKind<SparklineSeries>.Kind => "sparkline";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "sparkline",
-        Values = Values, Color = Color, LineWidth = LineWidth
+        Type = this.WireKind(),
+        Values = Values, Color = Color, LineWidth = GivenLineWidth
     };
 
-    /// <summary>Reconstructs a <see cref="SparklineSeries"/> from its serialization DTO, including colour and line width, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="SparklineSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries colour and line width.</summary>
     internal static SparklineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Sparkline(dto.Values ?? []);
         s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
+        if (dto.LineWidth is { } width) s.LineWidth = width;
         return s;
     }
 
 
     /// <inheritdoc />
     /// <remarks>A sparkline has no x of its own: the index IS the x.</remarks>
-    public override ChartDataTable? ToDataTable()
-    {
-        var rows = new IReadOnlyList<DataCell>[Values.Length];
-        for (int i = 0; i < Values.Length; i++)
-        {
-            rows[i] = [DataCell.FromNumber(i), DataCell.FromNumber(Values[i])];
-        }
-
-        return new ChartDataTable(null, [new("index"), new(Label ?? "value")], rows);
-    }
+    public override ChartDataTable? ToDataTable() => ChartDataTable.FromIndexedValues(new(Label ?? "value"), Values);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -20,14 +20,8 @@ public sealed class StreamingIchimoku : WindowedStreamingIndicator<OhlcvBar>
     /// <param name="kijunPeriod">The window of the base line.</param>
     /// <param name="senkouBPeriod">The window of the second leading span.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingIchimoku(int tenkanPeriod = 9, int kijunPeriod = 26, int senkouBPeriod = 52, int capacity = 10_000)
-        : base(Math.Max(Math.Max(tenkanPeriod, kijunPeriod), senkouBPeriod), [
-            new StreamingLineSeries(capacity) { Label = "Tenkan" },
-            new StreamingLineSeries(capacity) { Label = "Kijun" },
-            new StreamingLineSeries(capacity) { Label = "Senkou A" },
-            new StreamingLineSeries(capacity) { Label = "Senkou B" },
-            new StreamingLineSeries(capacity) { Label = "Chikou" },
-        ])
+    public StreamingIchimoku(int tenkanPeriod = Ichimoku.DefaultTenkanPeriod, int kijunPeriod = Ichimoku.DefaultKijunPeriod, int senkouBPeriod = Ichimoku.DefaultSenkouBPeriod, int capacity = StreamingSeries.RestingCapacity)
+        : base(Ichimoku.Spec(tenkanPeriod, kijunPeriod, senkouBPeriod), capacity)
     {
         _tenkanPeriod = tenkanPeriod;
         _kijunPeriod = kijunPeriod;

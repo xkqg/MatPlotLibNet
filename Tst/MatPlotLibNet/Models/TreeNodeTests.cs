@@ -33,22 +33,6 @@ public class TreeNodeTests
         Assert.Equal(60, node.TotalValue);
     }
 
-    /// <summary>Verifies that Children defaults to an empty list.</summary>
-    [Fact]
-    public void EmptyChildren_DefaultsToEmptyList()
-    {
-        var node = new TreeNode { Label = "Leaf" };
-        Assert.Empty(node.Children);
-    }
-
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var node = new TreeNode { Label = "X" };
-        Assert.Null(node.Color);
-    }
-
     /// <summary>Verifies that nested trees compute TotalValue recursively.</summary>
     [Fact]
     public void NestedTree_TotalValue_IsRecursive()
@@ -69,14 +53,6 @@ public class TreeNodeTests
             ]
         };
         Assert.Equal(30, tree.TotalValue);
-    }
-
-    /// <summary>Verifies that Color can be set on a node.</summary>
-    [Fact]
-    public void Color_CanBeSet()
-    {
-        var node = new TreeNode { Label = "Colored", Value = 5, Color = Colors.Red };
-        Assert.Equal(Colors.Red, node.Color);
     }
 
     // ── Walk() extension (DFS pre-order) ─────────────────────────────────────

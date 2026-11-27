@@ -6,45 +6,18 @@ using MatPlotLibNet.Animation;
 
 namespace MatPlotLibNet.Wpf;
 
-/// <summary><see cref="IAnimationTimer"/> that fires on the WPF UI thread via
-/// <see cref="DispatcherTimer"/>. Use this when tick handlers must touch WPF controls.</summary>
-public sealed class WpfAnimationTimer : IAnimationTimer
+/// <summary>An <see cref="AnimationTimer"/> that ticks on the WPF UI thread, through <see cref="DispatcherTimer"/>. Use it when tick
+/// handlers must touch WPF controls.</summary>
+public sealed class WpfAnimationTimer : AnimationTimer
 {
-    private readonly DispatcherTimer _timer;
-    private bool _running;
-
-    /// <inheritdoc />
-    public TimeSpan Interval
-    {
-        get => _timer.Interval;
-        set => _timer.Interval = value;
-    }
-
-    /// <inheritdoc />
-    public event EventHandler? Tick;
+    private readonly DispatcherTimer _timer = new() { Interval = DefaultInterval };
 
     /// <summary>Creates a timer that ticks every 16 milliseconds (about 60 times a second) on the dispatcher, once it is started.</summary>
-    public WpfAnimationTimer()
-    {
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _timer.Tick += (_, _) => Tick?.Invoke(this, EventArgs.Empty);
-    }
+    public WpfAnimationTimer() => _timer.Tick += RaiseTick;
 
-    /// <inheritdoc />
-    public void Start()
-    {
-        if (_running) return;
-        _running = true;
-        _timer.Start();
-    }
+    private protected override void Begin() => _timer.Start();
 
-    /// <inheritdoc />
-    public void Stop()
-    {
-        _running = false;
-        _timer.Stop();
-    }
+    private protected override void End() => _timer.Stop();
 
-    /// <inheritdoc />
-    public void Dispose() => Stop();
+    private protected override void Retime(TimeSpan interval) => _timer.Interval = interval;
 }

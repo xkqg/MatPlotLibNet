@@ -34,16 +34,14 @@ public class IcicleSeriesTests
     private static Figure Of(TreeNode root, Action<IcicleSeries>? configure = null) => Plt.Create().WithSize(600, 400)
         .AddSubPlot(1, 1, 1, ax => ax.Icicle(root, configure)).Build();
 
-    private static Rect Plot(Figure figure) => new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
-
     /// <summary>The cells as drawn, in the order drawn: the rectangle and the fill each wears.</summary>
     private static List<(Rect Box, Color? Fill)> Cells(Figure figure)
     {
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
-        return [.. recording.OfKind("DrawRectangle").Select(call => (dynamic)call.Args!)
-            .Where(args => (Color?)args.stroke == Colors.White)
-            .Select(args => ((Rect)args.rect, (Color?)args.fill))];
+        return [.. recording.Of<DrawRectangleCall>()
+            .Where(args => args.Stroke == Colors.White)
+            .Select(args => (args.Rect, args.Fill))];
     }
 
     [Fact]
@@ -51,7 +49,7 @@ public class IcicleSeriesTests
     {
         var root = new TreeNode { Label = "Year", Children = [.. new[] { "Q1", "Q2", "Q3", "Q4" }.Select(q => new TreeNode { Label = q, Value = 1 })] };
         var figure = Of(root);
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var cells = Cells(figure);
 
@@ -74,7 +72,7 @@ public class IcicleSeriesTests
     {
         var figure = Of(Quarters());
         var cells = Cells(figure);
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         // The first row: four cells that tile the plot's width. The second row: the two months, tiling Q2's width.
         double rowHeight = plot.Height / 2;
@@ -96,7 +94,7 @@ public class IcicleSeriesTests
     public void TheRows_AreTheLevelsOfTheHierarchy_ShareThePlotHeight_AndALeafIsOneRowTall()
     {
         var figure = Of(Quarters());
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var cells = Cells(figure);
 
@@ -111,7 +109,7 @@ public class IcicleSeriesTests
     {
         var root = new TreeNode { Label = "Root", Children = [new TreeNode { Label = "big", Value = 3 }, new TreeNode { Label = "small", Value = 1 }, new TreeNode { Label = "medium", Value = 2 }] };
         var figure = Of(root);
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var cells = Cells(figure);
 
@@ -156,21 +154,31 @@ public class IcicleSeriesTests
         var without = new RecordingRenderContext();
         new ChartRenderer().Render(Of(Quarters(), s => s.ShowLabels = false), without);
 
-        var texts = withLabels.OfKind("DrawText").Select(call => (string)((dynamic)call.Args!).text).ToList();
+        var texts = withLabels.Of<DrawTextCall>().Select(call => call.Text).ToList();
         Assert.Contains("Q1", texts);
         Assert.Contains("April", texts);
-        Assert.DoesNotContain("Q1", without.OfKind("DrawText").Select(call => (string)((dynamic)call.Args!).text));
+        Assert.DoesNotContain("Q1", without.Of<DrawTextCall>().Select(call => call.Text));
     }
 
-    [Fact]
-    public void ANodeHatch_IsLaidOverItsCell()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var root = new TreeNode { Label = "Root", Children = [new TreeNode { Label = "a", Value = 1, Hatch = HatchPattern.Cross, HatchColor = Colors.Black }] };
+        //  The hatch rides in the ShapeStyle of the cell, which the SVG writes as a pattern.
+        new DrawnToken("ANodeHatch_IsLaidOverItsCell (#1)", () =>
+        {
+            var root = new TreeNode { Label = "Root", Children = [new TreeNode { Label = "a", Value = 1, Hatch = HatchPattern.Cross, HatchColor = Colors.Black }] };
+            return Of(root).ToSvg();
+        }, "<pattern"),
+        new DrawnToken("ANodeHatch_IsLaidOverItsCell (#2)", () =>
+        {
+            var root = new TreeNode { Label = "Root", Children = [new TreeNode { Label = "a", Value = 1, Hatch = HatchPattern.Cross, HatchColor = Colors.Black }] };
+            return Of(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "a", Value = 1 }] }).ToSvg();
+        }) { Absent = ["<pattern"] },
+    };
 
-        // The hatch rides in the ShapeStyle of the cell, which the SVG writes as a pattern.
-        Assert.Contains("<pattern", Of(root).ToSvg(), StringComparison.Ordinal);
-        Assert.DoesNotContain("<pattern", Of(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "a", Value = 1 }] }).ToSvg(), StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void TheTable_IsTheTreeFlattened_WithTheDepthKept()
@@ -188,7 +196,7 @@ public class IcicleSeriesTests
     {
         var figure = Of(Quarters(), s => { s.ShowLabels = false; s.VMin = 0; s.VMax = 4; });
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         var icicle = Assert.IsType<IcicleSeries>(Assert.Single(back.SubPlots[0].Series));
         Assert.False(icicle.ShowLabels);

@@ -16,6 +16,16 @@ public interface IChartHubClient
     /// <param name="svg">The SVG string for the updated chart.</param>
     Task UpdateChartSvg(string chartId, string svg);
 
+    /// <summary>Receives the parts of a chart's SVG that changed since the document the viewer holds; sent only to a viewer
+    /// that subscribed with <see cref="ChartHub.SubscribeToParts"/>, which puts every part in place of the element of the same
+    /// <c>data-mpl-part</c> name. A viewer that subscribed the old way never receives it and keeps getting the whole document
+    /// through <see cref="UpdateChartSvg"/>.
+    /// <para>Default interface member, as <see cref="ReceiveCursor"/> is: a class that implements this interface itself keeps
+    /// compiling.</para></summary>
+    /// <param name="chartId">The chart.</param>
+    /// <param name="parts">What changed.</param>
+    Task UpdateChartParts(string chartId, ChartSvgParts parts) => Task.CompletedTask;
+
     /// <summary>Receives a tooltip HTML fragment in response to a <see cref="Interaction.HoverEvent"/>.
     /// Delivered via <c>Clients.Client(connectionId)</c> to the originating caller only — not
     /// broadcast to the SignalR group. The client-side dispatcher script renders the fragment

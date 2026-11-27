@@ -23,21 +23,23 @@ public sealed class StyleSheet
     public StyleSheet(string name, Dictionary<string, object> parameters)
         : this(name, (IReadOnlyDictionary<string, object>)parameters) { }
 
-    /// <summary>Creates a <see cref="StyleSheet"/> from an existing <see cref="Theme"/> by mapping theme properties to rcParam keys.</summary>
-    public static StyleSheet FromTheme(Theme theme) => new(theme.Name, new Dictionary<string, object>
+    /// <summary>Creates a <see cref="StyleSheet"/> from an existing <see cref="Theme"/> by mapping theme properties to rcParam keys.
+    /// The font size, the grid width and the width of a line are written in points, the unit matplotlib's rcParams state them in, so
+    /// the sheet laid over any theme gives back this theme's sizes; the width of a line (<c>lines.linewidth</c>) only where the theme
+    /// names one, as the matplotlib themes do (a library theme names none and keeps each kind's own). As every key of a style, a value
+    /// equal to the library's defaults (<see cref="RcParams"/>) says nothing laid over a theme.</summary>
+    public static StyleSheet FromTheme(Theme theme)
     {
-        [RcParamKeys.FigureFaceColor]     = theme.Background,
-        [RcParamKeys.AxesFaceColor]       = theme.AxesBackground,
-        [RcParamKeys.TextColor]           = theme.ForegroundText,
-        [RcParamKeys.FontSize]            = theme.DefaultFont.Size,
-        [RcParamKeys.FontFamily]          = theme.DefaultFont.Family ?? "sans-serif",
-        [RcParamKeys.AxesGrid]            = theme.DefaultGrid.Visible,
-        [RcParamKeys.GridColor]           = theme.DefaultGrid.Color,
-        [RcParamKeys.GridLineWidth]       = theme.DefaultGrid.LineWidth,
-        [RcParamKeys.GridAlpha]           = theme.DefaultGrid.Alpha,
-    });
+        var parameters = new Dictionary<string, object>();
+        foreach (var key in ThemeRcKey.OfATheme)
+        {
+            if (key.ValueOf(theme) is { } value) parameters[key.Key] = value;
+        }
 
-    // ── Built-in style sheets ─────────────────────────────────────────────────
+        return new(theme.Name, parameters);
+    }
+
+    // ── Built-in style sheets: each is the sheet of the theme of its name, so a look is written once, as the theme ──────
 
     /// <summary>The style sheet of the default theme (<see cref="Theme.Default"/>).</summary>
     public static StyleSheet Default { get; } = FromTheme(Theme.Default);
@@ -45,28 +47,11 @@ public sealed class StyleSheet
     /// <summary>The style sheet of the dark theme (<see cref="Theme.Dark"/>).</summary>
     public static StyleSheet Dark { get; } = FromTheme(Theme.Dark);
 
-    /// <summary>A seaborn-like look: a light blue-grey figure and axes background, white grid lines, 11-point text in dark grey.</summary>
-    public static StyleSheet Seaborn { get; } = new("seaborn", new Dictionary<string, object>
-    {
-        [RcParamKeys.FigureFaceColor]  = Color.FromHex("#eaeaf2"),
-        [RcParamKeys.AxesFaceColor]    = Color.FromHex("#eaeaf2"),
-        [RcParamKeys.AxesGrid]         = true,
-        [RcParamKeys.GridColor]        = Colors.White,
-        [RcParamKeys.GridLineWidth]    = 1.0,
-        [RcParamKeys.LinesLineWidth]   = 1.5,
-        [RcParamKeys.FontSize]         = 11.0,
-        [RcParamKeys.TextColor]        = Color.FromHex("#262626"),
-    });
+    /// <summary>The style sheet of the seaborn theme (<see cref="Theme.Seaborn"/>): a white figure, light blue-grey axes with white
+    /// grid lines, and dark grey text.</summary>
+    public static StyleSheet Seaborn { get; } = FromTheme(Theme.Seaborn);
 
-    /// <summary>A ggplot-like look: a light grey figure and axes background with white grid lines of width 0.5, data lines 1.75 wide and 10-point text.</summary>
-    public static StyleSheet Ggplot { get; } = new("ggplot", new Dictionary<string, object>
-    {
-        [RcParamKeys.FigureFaceColor]  = Color.FromHex("#e5e5e5"),
-        [RcParamKeys.AxesFaceColor]    = Color.FromHex("#e5e5e5"),
-        [RcParamKeys.AxesGrid]         = true,
-        [RcParamKeys.GridColor]        = Colors.White,
-        [RcParamKeys.GridLineWidth]    = 0.5,
-        [RcParamKeys.LinesLineWidth]   = 1.75,
-        [RcParamKeys.FontSize]         = 10.0,
-    });
+    /// <summary>The style sheet of the ggplot theme (<see cref="Theme.Ggplot"/>): a white figure and grey axes with white grid
+    /// lines.</summary>
+    public static StyleSheet Ggplot { get; } = FromTheme(Theme.Ggplot);
 }

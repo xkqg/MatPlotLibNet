@@ -43,41 +43,38 @@ public class RenderContextGroupTests
         ctx.DrawTextWithLevel("Svc.Ingest", new Point(0, 0), new Font { Size = 12 }, level: 2); // should not throw
     }
 
-    /// <summary>Verifies that SvgRenderContext.BeginGroup emits a g element.</summary>
-    [Fact]
-    public void SvgRenderContext_BeginGroup_EmitsGElement()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var ctx = new SvgRenderContext();
-        ctx.BeginGroup("legend");
-        ctx.EndGroup();
-        string output = ctx.GetOutput();
-        Assert.Contains("<g class=\"legend\">", output);
-        Assert.Contains("</g>", output);
-    }
+        // Verifies that SvgRenderContext.BeginGroup emits a g element.
+        new DrawnToken("SvgRenderContext_BeginGroup_EmitsGElement", () =>
+        {
+            var ctx = new SvgRenderContext();
+            ctx.BeginGroup("legend");
+            ctx.EndGroup();
+            return ctx.GetOutput();
+        }, "<g class=\"legend\">", "</g>"),
+        // Verifies that spine rendering uses BeginGroup without type casts.
+        new DrawnToken("DrawSpineLine_NoTypeCast_StillEmitsGroup", () =>
+        {
+            var fig = new Figure();
+            var ax = fig.AddSubPlot();
+            ax.Plot([1.0, 2.0], [3.0, 4.0]);
+            return fig.ToSvg();
+        }, "class=\"spine\""),
+        // Verifies that legend rendering emits a group element.
+        new DrawnToken("RenderLegend_StillEmitsGroup", () =>
+        {
+            var fig = new Figure();
+            var ax = fig.AddSubPlot();
+            ax.Plot([1.0, 2.0], [3.0, 4.0]).Label = "Series 1";
+            return fig.ToSvg();
+        }, "class=\"legend\""),
+    };
 
-    /// <summary>Verifies that spine rendering uses BeginGroup without type casts.</summary>
-    [Fact]
-    public void DrawSpineLine_NoTypeCast_StillEmitsGroup()
-    {
-        var fig = new Figure();
-        var ax = fig.AddSubPlot();
-        ax.Plot([1.0, 2.0], [3.0, 4.0]);
-
-        string svg = fig.ToSvg();
-        Assert.Contains("class=\"spine\"", svg);
-    }
-
-    /// <summary>Verifies that legend rendering emits a group element.</summary>
-    [Fact]
-    public void RenderLegend_StillEmitsGroup()
-    {
-        var fig = new Figure();
-        var ax = fig.AddSubPlot();
-        ax.Plot([1.0, 2.0], [3.0, 4.0]).Label = "Series 1";
-
-        string svg = fig.ToSvg();
-        Assert.Contains("class=\"legend\"", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── Phase J — IRenderContext default-impl branch coverage ────────────────
 
@@ -100,40 +97,38 @@ public class RenderContextGroupTests
         ctx.SetNextElementData("data-x", "42");
     }
 
-    /// <summary>MeasureRichText default — empty spans → foreach body never executes.</summary>
+    /// <summary>MeasureRichText default — an empty rich text takes no width and the line of its font (1.2 font sizes).</summary>
     [Fact]
-    public void IRenderContext_MeasureRichText_EmptySpans_ReturnsZeroSize()
+    public void IRenderContext_MeasureRichText_EmptySpans_IsOneLineOfTheFont()
     {
         IRenderContext ctx = new NullRenderContext();
         var rt = new RichText([]);
         var size = ctx.MeasureRichText(rt, TestFont);
         Assert.Equal(0.0, size.Width);
-        Assert.Equal(0.0, size.Height);
+        Assert.Equal(12 * 1.2, size.Height, 9);
     }
 
-    /// <summary>MeasureRichText default — span with FontSizeScale == 1.0 (TRUE arm) and
-    /// FontSizeScale != 1.0 (FALSE arm); also exercises if(height &gt; maxHeight) TRUE and FALSE arms.</summary>
+    /// <summary>MeasureRichText default — each span of normal text at its own size, laid side by side: the widths summed, the letters
+    /// of each rising its own font size and the rest of its measured height below the baseline.</summary>
     [Fact]
-    public void IRenderContext_MeasureRichText_MultipleSpans_ScaleArms()
+    public void IRenderContext_MeasureRichText_MultipleSpans_EachAtItsOwnSize()
     {
         IRenderContext ctx = new NullRenderContext(); // MeasureText always returns (50, 12)
-        // Two spans: scale=1.0 (TRUE arm), scale=0.7 (FALSE arm).
-        // Both return height 12 from NullRenderContext; second span's height == maxHeight → if FALSE arm.
         var rt = new RichText([new TextSpan("A"), new TextSpan("B", FontSizeScale: 0.7)]);
         var size = ctx.MeasureRichText(rt, TestFont);
         Assert.Equal(100.0, size.Width);   // 50 + 50
-        Assert.Equal(12.0, size.Height);
+        Assert.Equal(12 + (12 - 12 * 0.7), size.Height, 9); // A rises 12; B, at 8.4, reaches 3.6 below the baseline
     }
 
-    /// <summary>DrawRichText 4-arg default — concatenates spans and calls DrawText.</summary>
+    /// <summary>DrawRichText 4-arg default — lays the spans out and draws each run through DrawText.</summary>
     [Fact]
-    public void IRenderContext_DrawRichText_DefaultConcatenatesAndDraws()
+    public void IRenderContext_DrawRichText_DefaultDrawsEachRun()
     {
         var ctx = new RecordingNullContext();
         IRenderContext iCtx = ctx;
         var rt = new RichText([new TextSpan("Hello"), new TextSpan(" World")]);
         iCtx.DrawRichText(rt, Origin, TestFont, TextAlignment.Left);
-        Assert.Equal("Hello World", ctx.LastDrawnText);
+        Assert.Equal(["Hello", " World"], ctx.Drawn);
     }
 
     /// <summary>DrawRichText 5-arg default — delegates to 4-arg, ignoring rotation.</summary>
@@ -147,38 +142,23 @@ public class RenderContextGroupTests
         Assert.Equal("Hi", ctx.LastDrawnText);
     }
 
-    /// <summary>A minimal IRenderContext that does nothing (verifies default interface methods work).</summary>
-    private sealed class NullRenderContext : IRenderContext
+    /// <summary>A surface that draws nothing and measures every text as 50 by 12 (verifies default interface methods work).</summary>
+    private sealed class NullRenderContext : SilentRenderContext
     {
-        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) { }
-        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) { }
-        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) { }
-        public void DrawCircle(Point center, double radius, ShapeStyle shape) { }
-        public void DrawRectangle(Rect rect, ShapeStyle shape) { }
-        public void DrawEllipse(Rect bounds, ShapeStyle shape) { }
-        public void DrawText(string text, Point position, Font font, TextAlignment alignment) { }
-        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) { }
-        public void PushClip(Rect clipRect) { }
-        public void PopClip() { }
-        public Size MeasureText(string text, Font font) => new(50, 12);
-        public void SetOpacity(double opacity) { }
+        public override Size MeasureText(string text, Font font) => new(50, 12);
     }
 
-    private sealed class RecordingNullContext : IRenderContext
+    private sealed class RecordingNullContext : SilentRenderContext
     {
         public string? LastDrawnText { get; private set; }
-        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) { }
-        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) { }
-        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) { }
-        public void DrawCircle(Point center, double radius, ShapeStyle shape) { }
-        public void DrawRectangle(Rect rect, ShapeStyle shape) { }
-        public void DrawEllipse(Rect bounds, ShapeStyle shape) { }
-        public void DrawText(string text, Point position, Font font, TextAlignment alignment)
-            => LastDrawnText = text;
-        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) { }
-        public void PushClip(Rect clipRect) { }
-        public void PopClip() { }
-        public Size MeasureText(string text, Font font) => new(50, 12);
-        public void SetOpacity(double opacity) { }
+        public List<string> Drawn { get; } = [];
+
+        public override void DrawText(string text, Point position, Font font, TextAlignment alignment)
+        {
+            LastDrawnText = text;
+            Drawn.Add(text);
+        }
+
+        public override Size MeasureText(string text, Font font) => new(50, 12);
     }
 }

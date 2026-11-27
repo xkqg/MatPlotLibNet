@@ -6,8 +6,8 @@ using System.Globalization;
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 
 /// <summary>Phase B of the v1.7.2 follow-on plan — pins the 3D drag-to-rotate math
-/// to matplotlib's canonical formula in <c>mpl_toolkits/mplot3d/axes3d.py:_on_move</c>
-/// (lines 1746–1843, roll = 0 case):
+/// to matplotlib's canonical formula in <c>mpl_toolkits/mplot3d/axes3d.py:_on_move</c> (lines 1746–1843,
+/// roll = 0 case):
 ///
 /// <code>
 /// delev = -(dy / h) * 180
@@ -23,14 +23,6 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// — instead the up-vector flips at the pole (Phase B.3 ports that).</para></summary>
 public class ThreeDRotationParityTests
 {
-    private static InteractionScriptHarness Build3DScene() =>
-        InteractionScriptHarness.FromBuilder(b => b
-            .WithSize(600, 500)
-            .WithBrowserInteraction()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithCamera(elevation: 30, azimuth: -60, distance: 8)
-                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } })));
-
     private static double Read(InteractionScriptHarness h, string attr) =>
         double.Parse(h.GetAttribute(".mpl-3d-scene", attr)!, CultureInfo.InvariantCulture);
 
@@ -48,7 +40,7 @@ public class ThreeDRotationParityTests
     public void Drag_AppliesMatplotlibFormula(double dxFraction, double dyFraction,
         double expectedDeltaAzim, double expectedDeltaElev)
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
 
         var plotW = Read(h, "data-plot-w");
         var plotH = Read(h, "data-plot-h");
@@ -71,7 +63,7 @@ public class ThreeDRotationParityTests
     [Fact]
     public void TwoConsecutiveDrags_AccumulateAngles()
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var plotW = Read(h, "data-plot-w");
         var azim0 = Read(h, "data-azimuth");
 
@@ -96,7 +88,7 @@ public class ThreeDRotationParityTests
     [Fact]
     public void Drag_PastTopPole_DoesNotClampElevation()
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var plotH = Read(h, "data-plot-h");
         var elev0 = Read(h, "data-elevation");
 
@@ -121,7 +113,7 @@ public class ThreeDRotationParityTests
     [Fact]
     public void Rotation_FullCircle_RestoresProjection()
     {
-        using var h = Build3DScene();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var plotH = Read(h, "data-plot-h");
 
         var before = SnapshotByV3d(h);
@@ -144,8 +136,8 @@ public class ThreeDRotationParityTests
             Assert.Equal(ptsBefore.Length, ptsAfter.Length);
             for (int i = 0; i < ptsBefore.Length; i++)
                 // Tolerance 1.0 (pixels): server renders at full precision, client uses
-                // toFixed(2) on each axis; combined with the 1.15× BOX_FILL rescale a single
-                // pixel can land on either side of a rounding boundary (492.498 vs 492.510).
+                // toFixed(2) on each axis; scaled to the plot a single pixel can land on either
+                // side of a rounding boundary (492.498 vs 492.510).
                 Assert.InRange(Math.Abs(ptsBefore[i] - ptsAfter[i]), 0.0, 1.0);
         }
     }
@@ -184,16 +176,7 @@ public class ThreeDRotationParityTests
     [Fact]
     public void PlaygroundSurfaceData_AfterDrag_MatchesServerAtNewAngle()
     {
-        const int n = 20;
-        var sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sy = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sz = new double[n, n];
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-            {
-                double r = Math.Sqrt(sx[i] * sx[i] + sy[j] * sy[j]);
-                sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
-            }
+        var (sx, sy, sz) = SampleSurface.Sinc();
 
         // Build the same figure twice: one at the INITIAL angle (driven by the harness
         // through a 100 px drag = -30° azim shift), one at the EXPECTED post-drag angle
@@ -246,16 +229,7 @@ public class ThreeDRotationParityTests
     [Fact]
     public void PlaygroundSurfaceData_NoRotation_ServerAndClientAgree()
     {
-        const int n = 20;
-        var sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sy = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-        var sz = new double[n, n];
-        for (int i = 0; i < n; i++)
-            for (int j = 0; j < n; j++)
-            {
-                double r = Math.Sqrt(sx[i] * sx[i] + sy[j] * sy[j]);
-                sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
-            }
+        var (sx, sy, sz) = SampleSurface.Sinc();
 
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithSize(600, 500)
@@ -288,5 +262,31 @@ public class ThreeDRotationParityTests
             }
         }
         Assert.Equal(0, driftCount);
+    }
+
+    /// <summary>A camera distance below the least the projection takes (2) is drawn at 2 by the server; the browser must turn
+    /// the scene from the same distance, or the first drag jumps.</summary>
+    [Fact]
+    public void ADistanceBelowTheLeast_NoRotation_ServerAndClientAgree()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithSize(600, 500)
+            .WithBrowserInteraction()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 35, azimuth: -50, distance: 1)
+                .Surface([0.0, 1.0, 2.0], [0.0, 1.0, 2.0], new double[,] { { 0, 1, 0 }, { 1, 2, 1 }, { 0, 1, 0 } })));
+
+        var before = SnapshotByV3d(h);
+        h.Simulate(".mpl-3d-scene", "pointerdown", e => { e.clientX = 100; e.clientY = 100; });
+        h.Simulate(".mpl-3d-scene", "pointermove", e => { e.clientX = 100; e.clientY = 100; });
+        h.Simulate(".mpl-3d-scene", "pointerup",   e => { e.clientX = 100; e.clientY = 100; });
+        var after = SnapshotByV3d(h);
+
+        Assert.Equal(before.Count, after.Count);
+        double maxDrift = 0;
+        foreach (var (v3d, ptsBefore) in before)
+            for (int i = 0; i < ptsBefore.Length; i++)
+                maxDrift = Math.Max(maxDrift, Math.Abs(ptsBefore[i] - after[v3d][i]));
+        Assert.True(maxDrift <= 1, $"the first frame moved a vertex by {maxDrift:F2} px");
     }
 }

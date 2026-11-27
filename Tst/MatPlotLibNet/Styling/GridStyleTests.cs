@@ -9,55 +9,6 @@ namespace MatPlotLibNet.Tests.Styling;
 public class GridStyleTests
 {
     [Fact]
-    public void GridStyle_Defaults_Which_Major_Axis_Both()
-    {
-        var gs = new GridStyle();
-        Assert.Equal(GridWhich.Major, gs.Which);
-        Assert.Equal(GridAxis.Both, gs.Axis);
-    }
-
-    [Fact]
-    public void GridStyle_Which_Minor_CanBeSet()
-    {
-        var gs = new GridStyle { Which = GridWhich.Minor };
-        Assert.Equal(GridWhich.Minor, gs.Which);
-    }
-
-    [Fact]
-    public void GridStyle_Axis_X_CanBeSet()
-    {
-        var gs = new GridStyle { Axis = GridAxis.X };
-        Assert.Equal(GridAxis.X, gs.Axis);
-    }
-
-    [Fact]
-    public void GridStyle_Axis_Y_CanBeSet()
-    {
-        var gs = new GridStyle { Axis = GridAxis.Y };
-        Assert.Equal(GridAxis.Y, gs.Axis);
-    }
-
-    [Fact]
-    public void GridWhich_HasThreeValues()
-    {
-        var values = Enum.GetValues<GridWhich>();
-        Assert.Equal(3, values.Length);
-        Assert.Contains(GridWhich.Major, values);
-        Assert.Contains(GridWhich.Minor, values);
-        Assert.Contains(GridWhich.Both, values);
-    }
-
-    [Fact]
-    public void GridAxis_HasThreeValues()
-    {
-        var values = Enum.GetValues<GridAxis>();
-        Assert.Equal(3, values.Length);
-        Assert.Contains(GridAxis.X, values);
-        Assert.Contains(GridAxis.Y, values);
-        Assert.Contains(GridAxis.Both, values);
-    }
-
-    [Fact]
     public void AxesBuilder_WithGrid_FuncOverload()
     {
         var figure = Plt.Create()
@@ -79,5 +30,58 @@ public class GridStyleTests
         var axes = figure.SubPlots[0];
         Assert.True(axes.Grid.Visible);
         Assert.Equal(GridWhich.Minor, axes.Grid.Which);
+    }
+
+    /// <summary>A grid's stroke is its colour, width and dash pattern: the one place a grid becomes a line.</summary>
+    [Fact]
+    public void Stroke_IsTheColourTheWidthAndTheLineStyle()
+    {
+        var grid = new GridStyle { Color = Colors.Red, LineWidth = 1.25, LineStyle = LineStyle.Dotted };
+
+        Assert.Equal(new StrokeStyle(Colors.Red, 1.25, LineStyle.Dotted), grid.Stroke);
+    }
+
+    /// <summary>The stroke follows a change of the grid, and does not read whether the grid is shown.</summary>
+    [Fact]
+    public void Stroke_FollowsTheGrid()
+    {
+        var grid = new GridStyle { Color = Colors.Blue, LineWidth = 2 };
+
+        Assert.Equal(Colors.Blue, (grid with { Visible = true }).Stroke.Color);
+        Assert.Equal(grid.Stroke, (grid with { Visible = true }).Stroke);
+        Assert.Equal(LineStyle.Solid, grid.Stroke.Style);
+    }
+
+    /// <summary>The plain grid is matplotlib's: <c>#B0B0B0</c>, solid, 0.8 wide. It is hidden until a theme shows it and keeps the
+    /// opacity every grid starts with.</summary>
+    [Fact]
+    public void Plain_IsMatplotlibsGridLook()
+    {
+        var plain = GridStyle.Plain;
+
+        Assert.Equal(Color.FromHex("#B0B0B0"), plain.Color);
+        Assert.Equal(LineStyle.Solid, plain.LineStyle);
+        Assert.Equal(0.8, plain.LineWidth);
+        Assert.False(plain.Visible);
+        Assert.Equal(new GridStyle().Alpha, plain.Alpha);
+    }
+
+    /// <summary>The two themes that wear the plain grid shown wear exactly it, shown.</summary>
+    [Fact]
+    public void TheDefaultThemes_WearThePlainGridShown()
+    {
+        var shown = GridStyle.Plain with { Visible = true };
+
+        Assert.Equal(shown, Theme.Default.DefaultGrid);
+        Assert.Equal(shown, Theme.ColorBlindSafe.DefaultGrid);
+    }
+
+    /// <summary>The grid a figure writes nothing for is the grid at rest: what a new <see cref="GridStyle"/> says.</summary>
+    [Fact]
+    public void AtRest_IsWhatANewGridSays()
+    {
+        Assert.Equal(new GridStyle(), GridStyle.AtRest);
+        Assert.Equal(Colors.GridGray, GridStyle.AtRest.Color);
+        Assert.Equal(0.5, GridStyle.AtRest.LineWidth);
     }
 }

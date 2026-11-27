@@ -3,7 +3,6 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -11,14 +10,6 @@ namespace MatPlotLibNet.Tests.Models.Series;
 public class ImageSeriesTests
 {
     private static readonly double[,] SampleData = { { 1, 2, 3 }, { 4, 5, 6 } };
-
-    /// <summary>Verifies that the constructor stores the 2D data array.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        var series = new ImageSeries(SampleData);
-        Assert.Equal(SampleData, series.Data);
-    }
 
     /// <summary>Verifies that ComputeDataRange returns pixel-coordinate bounds (0..cols, 0..rows).</summary>
     [Fact]
@@ -30,15 +21,6 @@ public class ImageSeriesTests
         Assert.Equal(3.0, range.XMax); // cols
         Assert.Equal(0.0, range.YMin);
         Assert.Equal(2.0, range.YMax); // rows
-    }
-
-    /// <summary>Verifies that the DTO type is "image".</summary>
-    [Fact]
-    public void ToSeriesDto_TypeIsImage()
-    {
-        var series = new ImageSeries(SampleData);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("image", dto.Type);
     }
 
     /// <summary>Verifies that explicit VMin/VMax override auto-detection in GetColorBarRange.</summary>
@@ -68,41 +50,22 @@ public class ImageSeriesTests
         Assert.Equal(6.0, partialMax);
     }
 
-    /// <summary>An image of one value has no range to show; its colour bar keeps 0..1.</summary>
+    /// <summary>An image of one value has a range of no width: under the library's own themes its colour bar runs from the value to one
+    /// above it, the range its cells are coloured over.</summary>
     [Fact]
-    public void GetColorBarRange_OfAConstantImage_IsZeroToOne() =>
-        Assert.Equal(new(0, 1), new ImageSeries(new double[,] { { 5, 5 } }).GetColorBarRange());
+    public void GetColorBarRange_OfAConstantImage_RunsFromTheValueToOneAboveIt() =>
+        Assert.Equal(new(5, 6), new ImageSeries(new double[,] { { 5, 5 } }).GetColorBarRange());
 
-    /// <summary>Verifies that JSON round-trip preserves the data, VMin, and VMax.</summary>
-    [Fact]
-    public void RoundTrip_PreservesData()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var fig = new Figure();
-        var axes = fig.AddSubPlot();
-        var img = axes.Image(SampleData);
-        img.VMin = -1;
-        img.VMax = 10;
-
-        var serializer = new ChartSerializer();
-        var json = serializer.ToJson(fig);
-        var restored = serializer.FromJson(json);
-
-        var restoredSeries = restored.SubPlots[0].Series.OfType<ImageSeries>().Single();
-        Assert.Equal(2, restoredSeries.Data.GetLength(0));
-        Assert.Equal(3, restoredSeries.Data.GetLength(1));
-        Assert.Equal(5.0, restoredSeries.Data[1, 1]);
-        Assert.Equal(-1.0, restoredSeries.VMin);
-        Assert.Equal(10.0, restoredSeries.VMax);
-    }
-
-    /// <summary>Verifies that rendering produces SVG output containing rect elements.</summary>
-    [Fact]
-    public void Render_ProducesSvg()
-    {
-        var svg = Plt.Create()
+        //  Verifies that rendering produces SVG output containing rect elements.
+        new DrawnToken("Render_ProducesSvg", () => Plt.Create()
             .Image(SampleData)
-            .ToSvg();
+            .ToSvg(), "rect"),
+    };
 
-        Assert.Contains("rect", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

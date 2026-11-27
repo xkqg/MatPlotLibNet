@@ -1,0 +1,15 @@
+{
+  "Aspect": "20",
+  "ColorMap": "null",
+  "DrawEdges": "false",
+  "Extend": "Neither",
+  "Label": "null",
+  "Locator": "null",
+  "Max": "1",
+  "Min": "0",
+  "Orientation": "Vertical",
+  "Padding": "10",
+  "Shrink": "1",
+  "Visible": "false",
+  "Width": "20"
+}

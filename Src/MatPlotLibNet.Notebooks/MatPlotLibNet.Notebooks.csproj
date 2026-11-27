@@ -13,7 +13,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <!-- Frozen at 1.17.1 (ReleaseContractTests.Frozen): the shared packs-are-validated baseline is the live line's
+    <!-- Frozen at 1.17.1 (ReleaseFiles.Frozen): the shared packs-are-validated baseline is the live line's
          previous release, which this package never had, so it would be looked up on nuget.org and not found. -->
     <EnablePackageValidation>false</EnablePackageValidation>
     <!-- Place DLL in interactive-extensions/dotnet so Polyglot Notebooks auto-discovers the kernel extension -->

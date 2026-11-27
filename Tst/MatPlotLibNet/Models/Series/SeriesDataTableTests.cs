@@ -3,17 +3,18 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Tests.Serialization;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
 /// <summary>Every series says its own data as a table, the way every series already says its own DTO — one
 /// definition per type, no central switch. This is the cross-cutting conformance run over
-/// <see cref="AllSeriesTests.AllSeriesInstances"/>: what a type returns is its business, but the SHAPE it returns
+/// <see cref="DrawnSeriesFixtures"/>, the one roster: what a type returns is its business, but the SHAPE it returns
 /// is the contract, and a series that quietly stops answering is a table that quietly loses a row.</summary>
 public class SeriesDataTableTests
 {
     /// <summary>The series types that have no tabular form. Kept here as the one list, and pinned against the
-    /// cookbook by <c>ReleaseContractTests</c> so the page and the code cannot drift.</summary>
+    /// cookbook by <c>ReleaseDocumentContractTests</c> so the page and the code cannot drift.</summary>
     public static readonly string[] WithoutATabularForm =
     [
         nameof(QuiverKeySeries),   // a reference arrow: an annotation, not data
@@ -21,12 +22,13 @@ public class SeriesDataTableTests
     ];
 
     [Theory]
-    [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void EverySeries_AnswersWithoutThrowing(ISeries series, string label)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void EverySeries_AnswersWithoutThrowing(string type)
     {
+        var series = DrawnSeriesFixtures.Instance(type);
         var table = series.ToDataTable();
 
-        if (WithoutATabularForm.Contains(label))
+        if (WithoutATabularForm.Contains(type))
         {
             Assert.Null(table);
             return;
@@ -36,9 +38,10 @@ public class SeriesDataTableTests
     }
 
     [Theory]
-    [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void ASeriesTable_HasColumnsAndNoCaption(ISeries series, string label)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void ASeriesTable_HasColumnsAndNoCaption(string type)
     {
+        var series = DrawnSeriesFixtures.Instance(type);
         var table = series.ToDataTable();
         if (table is null)
         {
@@ -48,13 +51,14 @@ public class SeriesDataTableTests
         // The series knows its data, never the figure's name: the caption is the figure's to add.
         Assert.Null(table.Caption);
         Assert.NotEmpty(table.Columns);
-        Assert.All(table.Columns, column => Assert.False(string.IsNullOrWhiteSpace(column.Header), label));
+        Assert.All(table.Columns, column => Assert.False(string.IsNullOrWhiteSpace(column.Header), type));
     }
 
     [Theory]
-    [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void ASeriesTable_NamesItsValueColumnAfterTheSeriesLabel(ISeries series, string _)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void ASeriesTable_NamesItsValueColumnAfterTheSeriesLabel(string type)
     {
+        var series = DrawnSeriesFixtures.Instance(type);
         series.Label = "Revenue";
         var table = series.ToDataTable();
         if (table is null || table.Columns.Count < 2)
@@ -166,14 +170,6 @@ public class SeriesDataTableTests
     }
 
     [Fact]
-    public void AFloatingBar_WhoseFootIsMissing_StartsAtZero()
-    {
-        var table = new BarSeries(["A", "B"], [3, 4]) { StackBaseline = [5] }.ToDataTable()!;
-
-        Assert.Equal([0.0, 4.0], table.Rows[1].Skip(1).Select(c => c.Number));
-    }
-
-    [Fact]
     public void AnOhlcSeries_IsFiveColumns()
     {
         var table = new CandlestickSeries([10], [15], [8], [13]).ToDataTable()!;
@@ -225,6 +221,8 @@ public class SeriesDataTableTests
 
         Assert.Equal(2, table.RowCount);
         Assert.Equal(20.0, table.Rows[1][1].Number);
+        // Its x and y are positions like any line's, so a date axis spells them as dates.
+        Assert.Equal([DataAxis.X, DataAxis.Y], table.Columns.Select(c => c.Axis));
     }
 
     [Fact]

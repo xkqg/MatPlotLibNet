@@ -1,12 +1,11 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Tests.TestFixtures;
@@ -15,7 +14,7 @@ namespace MatPlotLibNet.Tests.Rendering.Layout;
 
 /// <summary>The legend is described three times: drawn (<c>AxesRenderer.RenderLegend</c>), hit-tested
 /// (<c>AxesRenderer.ComputeLegendBounds</c>, which feeds <c>ChartRenderer.ComputeLayout</c>) and sized
-/// (<c>LegendMeasurer.MeasureBox</c>, which reserves the margin of an outside legend). The three used to walk
+/// (<c>LegendLayoutCalculator.MeasureLegendBox</c>, which reserves the margin of an outside legend). The three used to walk
 /// different lists — the measurer and the hit-test skipped the secondary-axis series and the legend-values
 /// suffix — so a click missed an entry that was on screen and an outside legend was reserved too narrow.
 /// These cases pin that all three read ONE list: the same entries, in the same order, with the same labels.</summary>
@@ -43,9 +42,9 @@ public class LegendEntryAgreementTests
         { "stackplot then line",        ["a", "b", "c", "line"],             [0, 0, 0, 1] },
         { "stackplot with a blank part", ["a", "c"],                         [0, 0] },
         { "stackplot named as one",     ["Stack"],                           [0] },
-        // A labelled patch is a row of the drawn and the measured legend but carries no index: the hit-test has no box for it.
-        { "patches after the series",   ["A", "B"],                          [0, 1] },
-        { "patches only",               [],                                  [] },
+        // A labelled patch is a row where it was added among the series, toggling the index after every series of its axes.
+        { "a patch between the series", ["A", "a patch with a long name", "B"], [0, 2, 1] },
+        { "patches only",               ["region", "slice"],                 [0, 1] },
     };
 
     public static TheoryData<string> CaseNames =>
@@ -53,7 +52,7 @@ public class LegendEntryAgreementTests
         "plain", "secondary series", "legend values suffix", "unlabelled series first", "all of them together",
         "direct-labelled series", "direct-labelled secondary", "second right axis", "left axis", "left and right together",
         "polar axes", "3-D axes", "stackplot 3 labelled", "stackplot then line", "stackplot with a blank part", "stackplot named as one",
-        "patches after the series",
+        "a patch between the series",
     ];
 
     private static FigureBuilder Build(string name) => name switch
@@ -117,7 +116,7 @@ public class LegendEntryAgreementTests
         // The series' own label is the entry of a stack whose layers are not named; it is not a second row beside them.
         "stackplot named as one" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .StackPlot(X, Layers(), s => s.Label = "Stack")),
-        "patches after the series" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+        "a patch between the series" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "A")
             .AddPatch(new Rectangle(new(1, 2), 1, 1) { Label = "a patch with a long name" })
             .Plot(X, [4.0, 5.0, 6.0], s => s.Label = "B")
@@ -129,9 +128,7 @@ public class LegendEntryAgreementTests
     };
 
     private static List<(int Index, string Label)> DrawnEntries(string svg) =>
-        Regex.Matches(svg, "data-legend-index=\"(?<i>\\d+)\"[^>]*aria-label=\"(?<l>[^\"]*)\"")
-            .Select(m => (int.Parse(m.Groups["i"].Value, CultureInfo.InvariantCulture), m.Groups["l"].Value))
-            .ToList();
+        [.. svg.LegendEntries().Select(entry => (entry.Index, entry.Label))];
 
     [Theory]
     [MemberData(nameof(Cases))]
@@ -152,12 +149,11 @@ public class LegendEntryAgreementTests
         Assert.Equal(indices, bounds.Select(b => b.SeriesIndex));
 
         // Sized: MeasureBox reserves the box the renderer draws, so it counted the same rows and the same labels.
-        var measured = LegendMeasurer.MeasureBox(figure.SubPlots[0], new SvgRenderContext(), figure.Theme);
-        var frame = Regex.Match(svg,
-            "<rect x=\"[0-9.]+\" y=\"[0-9.]+\" width=\"(?<w>[0-9.]+)\" height=\"(?<h>[0-9.]+)\"[^>]*stroke=\"#CCCCCC\"");
-        Assert.True(frame.Success, "legend frame rect not found");
-        double drawnW = double.Parse(frame.Groups["w"].Value, CultureInfo.InvariantCulture);
-        double drawnH = double.Parse(frame.Groups["h"].Value, CultureInfo.InvariantCulture);
+        var measured = LegendLayoutCalculator.MeasureLegendBox(figure.SubPlots[0], new SvgRenderContext(), figure.Theme);
+        var frame = svg.LegendFrame();
+        Assert.True(frame is not null, "legend frame not found");
+        double drawnW = frame!.Value.Width;
+        double drawnH = frame.Value.Height;
         Assert.True(Math.Abs(measured.Width - drawnW) < 0.5,
             $"{name}: measured width {measured.Width:F2} disagrees with drawn width {drawnW:F2}.");
         Assert.True(Math.Abs(measured.Height - drawnH) < 0.5,
@@ -195,10 +191,7 @@ public class LegendEntryAgreementTests
             .Build();
         string svg = figure.ToSvg();
         var layout = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext());
-        var frames = Regex.Matches(svg, @"<g class=""legend""[^>]*>\s*<rect x=""(?<x>[0-9.]+)"" y=""(?<y>[0-9.]+)"" width=""(?<w>[0-9.]+)"" height=""(?<h>[0-9.]+)""")
-            .Select(m => new Rect(double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture),
-                double.Parse(m.Groups["w"].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups["h"].Value, CultureInfo.InvariantCulture)))
-            .ToList();
+        var frames = svg.LegendFrames();
 
         Assert.Equal(2, frames.Count);
         for (int axes = 0; axes < 2; axes++)

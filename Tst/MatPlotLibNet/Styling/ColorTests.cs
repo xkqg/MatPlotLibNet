@@ -27,26 +27,16 @@ public class ColorTests
         Assert.Equal(255, color.A);
     }
 
-    /// <summary>Verifies that FromHex parses a 6-digit hex string into the correct RGB values.</summary>
-    [Fact]
-    public void FromHex_ParsesThreeByteHex()
+    [Theory]
+    [InlineData("#FF8000", 255)]
+    [InlineData("#FF8000C8", 200)]
+    public void FromHex_ParsesThreeAndFourByteHex(string hex, int alpha)
     {
-        var color = Color.FromHex("#FF8000");
+        var color = Color.FromHex(hex);
         Assert.Equal(255, color.R);
         Assert.Equal(128, color.G);
         Assert.Equal(0, color.B);
-        Assert.Equal(255, color.A);
-    }
-
-    /// <summary>Verifies that FromHex parses an 8-digit hex string including the alpha channel.</summary>
-    [Fact]
-    public void FromHex_ParsesFourByteHex()
-    {
-        var color = Color.FromHex("#FF8000C8");
-        Assert.Equal(255, color.R);
-        Assert.Equal(128, color.G);
-        Assert.Equal(0, color.B);
-        Assert.Equal(200, color.A);
+        Assert.Equal(alpha, color.A);
     }
 
     /// <summary>Verifies that FromHex works without a leading hash character.</summary>
@@ -127,6 +117,26 @@ public class ColorTests
         Assert.Equal(0, color.B);
         Assert.Equal(128, color.A);
     }
+
+    /// <summary>matplotlib's <c>to_rgba('#abc')</c> reads each digit doubled, (170, 187, 204, 255), and <c>to_rgba('#abcd')</c> adds
+    /// the alpha 221 (matplotlib 3.11.2); <c>FromHex</c> reads the same short forms, with or without the '#'.</summary>
+    [Theory]
+    [InlineData("#abc", 0xAA, 0xBB, 0xCC, 255)]
+    [InlineData("#ABC", 0xAA, 0xBB, 0xCC, 255)]
+    [InlineData("abc", 0xAA, 0xBB, 0xCC, 255)]
+    [InlineData("#abcd", 0xAA, 0xBB, 0xCC, 0xDD)]
+    [InlineData("#f008", 0xFF, 0x00, 0x00, 0x88)]
+    public void FromHex_AShortForm_DoublesEachDigit(string hex, int r, int g, int b, int a) =>
+        Assert.Equal(new Color((byte)r, (byte)g, (byte)b, (byte)a), Color.FromHex(hex));
+
+    /// <summary>Verifies that a length other than 3, 4, 6 and 8, and a digit that is not hexadecimal, are refused.</summary>
+    [Theory]
+    [InlineData("#ab")]
+    [InlineData("#abcde")]
+    [InlineData("#abcdeff")]
+    [InlineData("#ggg")]
+    public void FromHex_AnyOtherLengthOrDigit_Throws(string hex) =>
+        Assert.Throws<FormatException>(() => Color.FromHex(hex));
 
     /// <summary>Verifies that FromHex throws FormatException for an invalid hex string.</summary>
     [Fact]

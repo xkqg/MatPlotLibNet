@@ -3,6 +3,7 @@
 
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Packaging;
 
@@ -15,19 +16,7 @@ namespace MatPlotLibNet.Tests.Packaging;
 /// </summary>
 public class DependencyMajorContractTests
 {
-    private static readonly string Root = RepoRoot();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static readonly string Root = RepositoryRoot.Folder;
 
     /// <summary>One package reference in one project file, with the facts a pin is judged by.</summary>
     private readonly record struct PackageUse(string Project, string Package, string Version, bool ReasonWritten)
@@ -63,15 +52,11 @@ public class DependencyMajorContractTests
     }
 
     private static PackageUse[] AllUses() =>
-        [.. new[] { "Src", "Tst", "Samples", "Benchmarks" }
-            .Select(folder => Path.Combine(Root, folder))
-            .Where(Directory.Exists)
-            .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj", SearchOption.AllDirectories))
+        [.. ReleaseFiles.RepositoryProjects()
             // The props files at the root that projects import carry package references too (the native assets).
-            .Concat(Directory.EnumerateFiles(Root, "*.props", SearchOption.TopDirectoryOnly))
-            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
-            .SelectMany(file => ReferencesIn(XDocument.Load(file)).Select(reference => new PackageUse(
-                Path.GetRelativePath(Root, file).Replace('\\', '/'),
+            .Concat(RepositoryTree.Files("", "*.props").Where(file => !file.Path.Contains('/', StringComparison.Ordinal)))
+            .SelectMany(file => ReferencesIn(file.Text.Xml()).Select(reference => new PackageUse(
+                file.Path,
                 (string?)reference.Attribute("Include") ?? (string?)reference.Attribute("Update") ?? string.Empty,
                 (string?)reference.Attribute("Version") ?? string.Empty,
                 HasReasonAbove(reference))))];

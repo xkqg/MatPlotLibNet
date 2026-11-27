@@ -115,12 +115,37 @@ series, and a series on an axis that is linked (`Plot`, `Scatter` or `StreamingP
 changes. Called again, `Link` replaces the transform, as a second label replaces
 the first.
 
+## A linked axis below the plot
+
+`WithAddBottomXAxis` stacks a linked X axis below the plot, matplotlib's `secondary_xaxis('bottom')`. The first one stands
+below the primary X axis' tick labels and title, each further one below the one before, with the gap the Y axes stack by
+between them. `SetLocation` stands one at a fraction of the plot's height from the bottom spine instead, as matplotlib's
+`secondary_xaxis(-0.2)` does: −0.2 is a fifth of the plot's height below it. Each draws its line across the plot, its ticks
+where the primary has the value each maps back to, and its title below its tick labels, and the layout keeps the room
+they take.
+
+```csharp
+double[] celsius = [0, 25, 50, 75, 100];
+double[] rate = [1, 3, 4, 3, 2];
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(celsius, rate).SetXLabel("°C")
+        .WithAddBottomXAxis(f => f.SetXLabel("°F").Link(AxisTransform.Linear(1.8, 32)))
+        .WithAddBottomXAxis(k => k.SetXLabel("K").Link(AxisTransform.Linear(1, 273.15)).SetLocation(-0.4)))
+    .Save("linked_below.svg");
+```
+
+The axes below the plot stand in the same container as the Y axes, as `axes.YAxes.Bottom`; they hold no series, and adding
+one to such a slot is refused.
+
 ## A top axis with a range of its own
 
 A top X axis that is not linked keeps its own range, and follows its own settings: a tick locator, a tick spacing, a log,
 symlog or date scale and minor ticks set on `SecondaryXAxis` are drawn, and a series on it stands where the primary Y
-axis puts it, on a log, symlog or broken Y axis too. A top axis that sets none of them draws eight intervals across the
-plot, as it always did.
+axis puts it, on a log, symlog or broken Y axis too. A top axis that sets none of them places its ticks along the plot's width
+as the bottom axis does under the default (matplotlib v2) theme, as matplotlib's `twiny` does, and draws eight intervals across
+the plot under the library's own themes.
 
 ## In JSON and through the MCP server
 
@@ -135,6 +160,9 @@ or 10, the factories' defaults:
 }
 ```
 
+The linked X axes below the plot travel as `bottomXAxes`, each with its `axis` (its `link` in it) and, when it was given one,
+its `location`.
+
 A link made with `Of` is a pair of functions, which is code a JSON document cannot carry: it is left out, and the axis
 reads back unlinked. A kind the reader does not know is reported on `ChartDiagnostics` and the axis stays unlinked; a
 number the factory refuses is refused when it is read. The [MCP server](mcp.md) checks the kind of a link at every axis
@@ -142,8 +170,8 @@ of a spec.
 
 ## Where it differs from matplotlib
 
-- A linked axis is the top X axis or a Y axis past the primary one. matplotlib also puts one on the bottom, over the
-  primary's ticks, or at a place of your own; neither is offered here, and a link set on a primary axis is ignored.
+- A link set on a primary axis draws nothing, as the primary has nothing to link to, and the figure's diagnostics say so
+  once a draw.
 - `Power` is defined on 0 and above (above 0 for a negative exponent), where it runs one way.
 - matplotlib draws whatever its functions return. Here a transform that cannot place the range draws no ticks and says
   why; a figure or a spec written by hand that gives a linked axis a series draws the link.

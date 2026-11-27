@@ -1,0 +1,6 @@
+{
+  "Bottom": "{BoundsFrom: null, BoundsTo: null, Color: null, LineStyle: Solid, LineWidth: 0.8, Position: Edge, PositionValue: 0, Visible: true}",
+  "Left": "{BoundsFrom: null, BoundsTo: null, Color: null, LineStyle: Solid, LineWidth: 0.8, Position: Edge, PositionValue: 0, Visible: true}",
+  "Right": "{BoundsFrom: null, BoundsTo: null, Color: null, LineStyle: Solid, LineWidth: 0.8, Position: Edge, PositionValue: 0, Visible: true}",
+  "Top": "{BoundsFrom: null, BoundsTo: null, Color: null, LineStyle: Solid, LineWidth: 0.8, Position: Edge, PositionValue: 0, Visible: true}"
+}

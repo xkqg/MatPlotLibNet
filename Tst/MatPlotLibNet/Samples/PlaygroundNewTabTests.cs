@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Tests.Packaging;
+
 namespace MatPlotLibNet.Tests.Samples;
 
 /// <summary>
@@ -21,18 +23,10 @@ public class PlaygroundNewTabTests
     // `dotnet run` from the Tst project means cwd is that project; walk up.
     private static string PlaygroundRazorPath()
     {
-        // Walk up from AppContext.BaseDirectory to the repo root, identified by
-        // the presence of a .sln or CHANGELOG.md file at the top level.
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null
-               && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md"))
-               && !File.Exists(Path.Combine(dir.FullName, "MatPlotLibNet.sln")))
-            dir = dir.Parent;
-        Assert.NotNull(dir);
-        var razor = Path.Combine(dir!.FullName,
+        var razor = Path.Combine(RepositoryRoot.Folder,
             "Samples", "MatPlotLibNet.Playground", "Pages", "Playground.razor");
         Assert.True(File.Exists(razor),
-            $"Playground.razor not found at expected path: {razor} (repo root detected as {dir.FullName})");
+            $"Playground.razor not found at expected path: {razor} (repo root detected as {RepositoryRoot.Folder})");
         return razor;
     }
 

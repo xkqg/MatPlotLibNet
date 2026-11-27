@@ -6,45 +6,28 @@ namespace MatPlotLibNet.Interaction;
 /// <summary>Passive modifier that tracks the mouse position and exposes <see cref="ActiveCrosshair"/>
 /// for controls to draw vertical + horizontal crosshair lines at data coordinates.
 /// Does not claim any pointer events — runs alongside all other modifiers.</summary>
-public sealed class CrosshairModifier : IInteractionModifier
+public sealed class CrosshairModifier : InteractionModifier
 {
-    private readonly IChartLayout _layout;
     private CrosshairState? _state;
 
     /// <summary>Current crosshair state, or <c>null</c> when the mouse is outside the plot area.</summary>
     public CrosshairState? ActiveCrosshair => _state;
 
     /// <summary>Creates a crosshair modifier.</summary>
-    public CrosshairModifier(IChartLayout layout) => _layout = layout;
+    public CrosshairModifier(IChartLayout layout) : base(layout)
+    {
+    }
 
     /// <summary>Updates crosshair state on every pointer move (called by controller in passive block).</summary>
     public void UpdatePosition(double pixelX, double pixelY)
     {
-        var axesIndex = _layout.HitTestAxes(pixelX, pixelY);
+        var axesIndex = Layout.HitTestAxes(pixelX, pixelY);
         if (axesIndex is null) { _state = null; return; }
 
-        var plotArea = _layout.GetPlotArea(axesIndex.Value);
+        var plotArea = Layout.GetPlotArea(axesIndex.Value);
         // The value under the pointer by the rule every other modifier converts with: the range and scale drawn.
-        var data = _layout.ViewOf(axesIndex.Value).PixelToData(new Rendering.Point(pixelX, pixelY));
+        var data = Layout.ViewOf(axesIndex.Value).PixelToData(new Rendering.Point(pixelX, pixelY));
 
         _state = new CrosshairState(pixelX, pixelY, data.X, data.Y, axesIndex.Value, plotArea);
     }
-
-    // Passive modifier — does not claim any events
-    /// <inheritdoc />
-    public bool HandlesPointerPressed(PointerInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnPointerPressed(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public void OnPointerMoved(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public void OnPointerReleased(PointerInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesScroll(ScrollInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnScroll(ScrollInputArgs args) { }
-    /// <inheritdoc />
-    public bool HandlesKeyDown(KeyInputArgs args) => false;
-    /// <inheritdoc />
-    public void OnKeyDown(KeyInputArgs args) { }
 }

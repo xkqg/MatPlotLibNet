@@ -14,7 +14,7 @@ public class ViewportCullerTests
     {
         double[] x = [1, 2, 3, 4, 5];
         double[] y = [10, 20, 30, 40, 50];
-        var (outX, outY) = ViewportCuller.Cull(x, y, 0, 6);
+        var (outX, _) = ViewportCuller.Cull(x, y, 0, 6);
         Assert.Equal(5, outX.Length);
     }
 
@@ -24,7 +24,7 @@ public class ViewportCullerTests
     {
         double[] x = [100, 200, 300];
         double[] y = [1, 2, 3];
-        var (outX, outY) = ViewportCuller.Cull(x, y, 0, 10);
+        var (outX, _) = ViewportCuller.Cull(x, y, 0, 10);
         Assert.Empty(outX);
     }
 
@@ -37,7 +37,7 @@ public class ViewportCullerTests
         // The last point before the range start (x=0.5) should be kept
         double[] x = [-1, 0.5, 2, 3, 4];
         double[] y = [0, 1, 2, 3, 4];
-        var (outX, outY) = ViewportCuller.Cull(x, y, 1, 5);
+        var (outX, _) = ViewportCuller.Cull(x, y, 1, 5);
         // outX should include 0.5 (just before range) and 2,3,4
         Assert.Contains(0.5, outX);
     }
@@ -50,7 +50,7 @@ public class ViewportCullerTests
         // 5.5 and 10 are after range, first one after (5.5) should be kept
         double[] x = [1, 2, 3, 5.5, 10];
         double[] y = [1, 2, 3, 4, 5];
-        var (outX, outY) = ViewportCuller.Cull(x, y, 0, 4);
+        var (outX, _) = ViewportCuller.Cull(x, y, 0, 4);
         Assert.Contains(5.5, outX);
         Assert.DoesNotContain(10.0, outX);
     }

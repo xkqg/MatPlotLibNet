@@ -95,8 +95,10 @@ The `linthresh` parameter sets where the scale changes from linear to logarithmi
 
 | Method | Parameters | Description |
 |---|---|---|
-| `.WithSymlogYScale(linthresh)` | `double` (default `1.0`) | Symmetric log on Y-axis |
-| `.WithSymlogXScale(linthresh)` | `double` (default `1.0`) | Symmetric log on X-axis |
+| `.WithSymlogYScale()` | none | Symmetric log on Y-axis, linear within the theme's threshold (2 under the matplotlib themes, as matplotlib's `set_yscale('symlog')`; 1 under the library's own) |
+| `.WithSymlogXScale()` | none | Symmetric log on X-axis, linear within the theme's threshold |
+| `.WithSymlogYScale(linthresh)` | `double` | Symmetric log on Y-axis, linear within the threshold given under every theme |
+| `.WithSymlogXScale(linthresh)` | `double` | Symmetric log on X-axis, linear within the threshold given under every theme |
 | `.SetYScale(AxisScale.SymLog)` | `AxisScale` | Alternative via enum |
 | `.SetXScale(AxisScale.SymLog)` | `AxisScale` | Alternative via enum |
 

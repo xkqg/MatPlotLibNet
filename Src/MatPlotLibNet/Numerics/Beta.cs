@@ -19,7 +19,7 @@ internal static class Beta
     /// <returns>I_x(a, b) in [0, 1]; NaN for a shape at or below 0, or a missing number.</returns>
     internal static double RegularisedIncomplete(double a, double b, double x)
     {
-        if (double.IsNaN(a) || double.IsNaN(b) || double.IsNaN(x) || a <= 0 || b <= 0) return double.NaN;
+        if (a.IsUndefinedShape() || b.IsUndefinedShape() || double.IsNaN(x)) return double.NaN;
         if (x <= 0) return 0;
         if (x >= 1) return 1;
 

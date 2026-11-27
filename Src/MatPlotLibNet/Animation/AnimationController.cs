@@ -7,12 +7,20 @@ namespace MatPlotLibNet.Animation;
 
 /// <summary>Thread-safe animation playback controller.</summary>
 /// <typeparam name="TState">The animation state type.</typeparam>
+/// <remarks>Each <see cref="PlayAsync"/> is a run of its own, with its own cancellation. Starting a play while another runs
+/// ends the earlier one, and what the earlier run does as it winds down (a publish that did not listen to its token returns
+/// late) never touches the run that replaced it: a run puts the controller back to <see cref="AnimationPlaybackState.Stopped"/>
+/// only while it is still the current one.
+/// <para>A pause is whole: once <see cref="Pause"/> has returned no frame is generated, published or announced until
+/// <see cref="Resume"/>. A frame whose publish was under way when the pause landed finishes publishing, and its
+/// <see cref="FrameReady"/> is raised at the resume (a stop drops it). A <see cref="FrameReady"/> handler that has already
+/// started when the pause lands runs to its end, as any call that began before another returns does.</para></remarks>
 public sealed class AnimationController<TState> : IAsyncDisposable, IAnimationSource
 {
     private readonly IAnimation<TState> _animation;
     private readonly Func<Figure, CancellationToken, Task> _publishFrame;
     private volatile AnimationPlaybackState _state = AnimationPlaybackState.Stopped;
-    private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _current;
     private TaskCompletionSource? _pauseCompletion;
     private readonly object _pauseLock = new();
 
@@ -36,10 +44,19 @@ public sealed class AnimationController<TState> : IAsyncDisposable, IAnimationSo
     /// <summary>Plays the animation, pushing each frame through the publish callback. Returns when animation completes or is cancelled.</summary>
     public async Task PlayAsync(CancellationToken ct = default)
     {
-        Stop();
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _state = AnimationPlaybackState.Playing;
-        var token = _cts.Token;
+        var run = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        CancellationTokenSource? earlier;
+        TaskCompletionSource? pause;
+        lock (_pauseLock)
+        {
+            earlier = _current;
+            pause = _pauseCompletion;
+            _pauseCompletion = null;
+            _current = run;
+            _state = AnimationPlaybackState.Playing;
+        }
+        End(earlier, pause);
+        var token = run.Token;
 
         try
         {
@@ -55,6 +72,11 @@ public sealed class AnimationController<TState> : IAsyncDisposable, IAnimationSo
                     var frame = _animation.GenerateFrame(state, i);
                     CurrentFrame = i;
                     await _publishFrame(frame, token).ConfigureAwait(false);
+
+                    // A pause that landed while the frame was being published holds its notice until the resume: after Pause
+                    // returns no new FrameReady begins. A notice whose gate was passed before the pause is already under way.
+                    await WaitIfPausedAsync(token).ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
                     FrameReady?.Invoke(this, frame);
                     await Task.Delay(_animation.Interval, token).ConfigureAwait(false);
                 }
@@ -64,7 +86,19 @@ public sealed class AnimationController<TState> : IAsyncDisposable, IAnimationSo
         catch (OperationCanceledException) { }
         finally
         {
-            _state = AnimationPlaybackState.Stopped;
+            bool stillCurrent;
+            lock (_pauseLock)
+            {
+                stillCurrent = ReferenceEquals(_current, run);
+                if (stillCurrent)
+                {
+                    _current = null;
+                    _state = AnimationPlaybackState.Stopped;
+                }
+            }
+
+            // Whoever takes a run out of the controller ends it; a run that was replaced or stopped was ended by that.
+            if (stillCurrent) run.Dispose();
         }
     }
 
@@ -96,17 +130,26 @@ public sealed class AnimationController<TState> : IAsyncDisposable, IAnimationSo
     /// <summary>Stops playback by cancelling the internal token.</summary>
     public void Stop()
     {
-        TaskCompletionSource? tcs;
+        CancellationTokenSource? run;
+        TaskCompletionSource? pause;
         lock (_pauseLock)
         {
-            tcs = _pauseCompletion;
+            run = _current;
+            pause = _pauseCompletion;
+            _current = null;
             _pauseCompletion = null;
+            _state = AnimationPlaybackState.Stopped;
         }
-        tcs?.TrySetCanceled();
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
-        _state = AnimationPlaybackState.Stopped;
+        End(run, pause);
+    }
+
+    /// <summary>Ends a run taken out of the controller: releases a pause it waits on, cancels it and lets go of its token.</summary>
+    private static void End(CancellationTokenSource? run, TaskCompletionSource? pause)
+    {
+        pause?.TrySetCanceled();
+        if (run is null) return;
+        run.Cancel();
+        run.Dispose();
     }
 
     /// <inheritdoc />

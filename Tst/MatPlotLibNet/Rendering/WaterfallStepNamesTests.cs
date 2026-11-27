@@ -1,14 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering.SeriesRenderers;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -42,30 +41,26 @@ public class WaterfallStepNamesTests
             .Build();
     }
 
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     /// <summary>The bars of the waterfall in the order they were drawn: step 0 first. The colour of each is one of the
     /// series' three; nothing else in the figure wears them.</summary>
     private static (double X, double Y, double W, double H)[] Bars(string svg)
     {
         var series = new WaterfallSeries([], []);
         string[] fills = [series.IncreaseColor.ToHex(), series.DecreaseColor.ToHex(), series.TotalColor.ToHex()];
-        return [.. Regex
-            .Matches(svg, @"<rect x=""([0-9.eE+-]+)"" y=""([0-9.eE+-]+)"" width=""([0-9.eE+-]+)"" height=""([0-9.eE+-]+)"" fill=""(#[0-9A-Fa-f]{6})""")
-            .Where(m => fills.Contains(m.Groups[5].Value, StringComparer.OrdinalIgnoreCase))
-            .Select(m => (Number(m.Groups[1].Value), Number(m.Groups[2].Value), Number(m.Groups[3].Value), Number(m.Groups[4].Value)))];
+        return [.. svg.Elements("rect")
+            .Where(rect => rect["fill"] is { } fill && fills.Contains(fill, StringComparer.OrdinalIgnoreCase))
+            .Select(rect => (rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height")))];
     }
 
     /// <summary>Everything written under the plot's bottom edge and inside its width: the X axis' tick labels, left to
     /// right (the Y axis' labels stand left of the plot).</summary>
     private static string[] LabelsUnderThePlot(string svg)
     {
-        var plot = BarSeriesRendererTests.PlotArea(svg);
-        return [.. Regex
-            .Matches(svg, @"<text x=""([-0-9.eE+]+)"" y=""([-0-9.eE+]+)""[^>]*>([^<]*)</text>")
-            .Where(m => Number(m.Groups[2].Value) > plot.Y + plot.H && Number(m.Groups[1].Value) > plot.X)
-            .OrderBy(m => Number(m.Groups[1].Value))
-            .Select(m => m.Groups[3].Value)];
+        var plot = svg.PlotArea();
+        return [.. svg.Elements("text")
+            .Where(text => text.Number("y") > plot.Y + plot.Height && text.Number("x") > plot.X)
+            .OrderBy(text => text.Number("x"))
+            .Select(text => text.Text)];
     }
 
     // ---- the names -----------------------------------------------------------------------------------------------------
@@ -81,7 +76,7 @@ public class WaterfallStepNamesTests
         for (int i = 0; i < Steps.Length; i++)
         {
             var name = Assert.Single(BarSeriesRendererTests.Texts(svg, Steps[i]));
-            Assert.Equal(bars[i].X + bars[i].W / 2, name.X, 6);
+            Assert.Equal(bars[i].X + bars[i].W / 2, name.X, SvgMarkupExtensions.WrittenPrecision);
             Assert.Equal("middle", name.Anchor);
         }
     }
@@ -101,7 +96,7 @@ public class WaterfallStepNamesTests
         Assert.All(Steps, name =>
         {
             Assert.Equal("end", Assert.Single(BarSeriesRendererTests.Texts(svg, name)).Anchor);
-            Assert.Matches($@"<text [^>]*transform=""rotate\(-30,[^>]*>{name}</text>", svg);
+            Assert.Contains(svg.Elements("text"), text => text.Text == name && text["transform"]?.StartsWith("rotate(-30,", StringComparison.Ordinal) == true);
         });
     }
 
@@ -128,13 +123,13 @@ public class WaterfallStepNamesTests
         axis.MajorTicks = axis.MajorTicks with { Mirror = true };
 
         string svg = figure.ToSvg();
-        var plot = BarSeriesRendererTests.PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.All(Steps, name =>
         {
             var texts = BarSeriesRendererTests.Texts(svg, name);
             Assert.Equal(2, texts.Length);
-            Assert.Contains(texts, t => t.Y > plot.Y + plot.H);
+            Assert.Contains(texts, t => t.Y > plot.Y + plot.Height);
             Assert.Contains(texts, t => t.Y < plot.Y);
         });
     }
@@ -148,14 +143,10 @@ public class WaterfallStepNamesTests
 
         var bars = Bars(svg).Select(b => b.X + b.W / 2).ToArray();
         // A grid line runs the height of the plot (over 100 px here) in ggplot's white; a tick mark is a few pixels long.
-        var gridLines = Regex
-            .Matches(svg, @"<line x1=""([0-9.eE+-]+)"" y1=""([0-9.eE+-]+)"" x2=""\1"" y2=""([0-9.eE+-]+)""[^>]*stroke=""#FFFFFF""")
-            .Where(m => Math.Abs(Number(m.Groups[3].Value) - Number(m.Groups[2].Value)) > 100)
-            .Select(m => Number(m.Groups[1].Value))
-            .ToArray();
+        var gridLines = svg.VerticalLineXs("#FFFFFF", 100);
 
         Assert.Equal(Steps.Length, bars.Length);
-        Assert.Equal(bars, gridLines, (a, b) => Math.Abs(a - b) < 1e-6);
+        Assert.Equal(bars, gridLines, (a, b) => Math.Abs(a - b) <= SvgMarkupExtensions.WrittenPrecision);
     }
 
     /// <summary>A step whose value is missing is still a step with a name: the axis names the categories, whatever the
@@ -168,7 +159,7 @@ public class WaterfallStepNamesTests
             .ToSvg();
 
         Assert.Equal(["a", "b", "c"], LabelsUnderThePlot(svg));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>The names are not stored in the JSON of the figure: the series carries its categories, and the axis names
@@ -178,7 +169,7 @@ public class WaterfallStepNamesTests
     {
         var figure = Monthly();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(Steps, LabelsUnderThePlot(readBack));
         Assert.Equal(figure.ToSvg(), readBack);
@@ -225,15 +216,13 @@ public class WaterfallStepNamesTests
         Assert.Equal(9.0, range.XMax);
     }
 
-    private static List<CallRecord> Drawn(WaterfallSeries series, string kind)
+    private static List<TCall> Drawn<TCall>(WaterfallSeries series) where TCall : CallRecord
     {
         var ctx = new RecordingRenderContext();
         var transform = new DataTransform(0, series.Categories.Length, -10, 10, Bounds);
         new WaterfallSeriesRenderer(new SeriesRenderContext(transform, ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx))).Render(series);
-        return [.. ctx.OfKind(kind)];
+        return ctx.Of<TCall>();
     }
-
-    private static object? Arg(CallRecord call, string name) => call.Args!.GetType().GetProperty(name)!.GetValue(call.Args);
 
     /// <summary>Bar i stands centred in the slot of step i, as a bar of a bar chart and a count plot does, <c>BarWidth</c> of
     /// the slot wide: on a 400 px axis of four steps each slot is 100 px and the default bar 60 px.</summary>
@@ -242,7 +231,7 @@ public class WaterfallStepNamesTests
     {
         var series = new WaterfallSeries(["a", "b", "c", "d"], [1, 2, 3, 4]);
 
-        var bars = Drawn(series, "DrawRectangle").Select(c => (Rect)Arg(c, "rect")!).ToList();
+        var bars = Drawn<DrawRectangleCall>(series).Select(c => c.Rect).ToList();
 
         Assert.Equal(4, bars.Count);
         for (int i = 0; i < 4; i++)
@@ -259,13 +248,13 @@ public class WaterfallStepNamesTests
     {
         var series = new WaterfallSeries(["a", "b", "c"], [1, 2, 3]);
 
-        var lines = Drawn(series, "DrawLine");
+        var lines = Drawn<DrawLineCall>(series);
 
         Assert.Equal(2, lines.Count);
         for (int i = 0; i < 2; i++)
         {
-            var from = (Point)Arg(lines[i], "p1")!;
-            var to = (Point)Arg(lines[i], "p2")!;
+            var from = ((DrawLineCall)lines[i]).P1;
+            var to = ((DrawLineCall)lines[i]).P2;
             double slot = Bounds.Width / 3;
             Assert.Equal((i + 0.5) * slot + 0.3 * slot, from.X, 9);
             Assert.Equal((i + 1.5) * slot - 0.3 * slot, to.X, 9);

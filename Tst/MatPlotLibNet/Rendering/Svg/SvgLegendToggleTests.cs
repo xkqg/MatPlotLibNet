@@ -6,81 +6,38 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// <summary>Verifies SVG legend-toggle script injection and behavior.</summary>
 public class SvgLegendToggleTests
 {
-    /// <summary>Verifies that enabling legend-toggle injects a script element.</summary>
-    [Fact]
-    public void WithLegendToggle_InjectsScriptElement()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Verifies that enabling legend-toggle injects a script element.
+        new DrawnToken("WithLegendToggle_InjectsScriptElement", () => Plt.Create()
             .WithLegendToggle()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("<script", svg);
-    }
-
-    /// <summary>Verifies that the legend-toggle script queries elements by data-legend-index.</summary>
-    [Fact]
-    public void LegendToggleScript_QueriesDataLegendIndex()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "<script"),
+        // Verifies that the legend-toggle script queries elements by data-legend-index.
+        new DrawnToken("LegendToggleScript_QueriesDataLegendIndex", () => Plt.Create()
             .WithLegendToggle()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("data-legend-index", svg);
-    }
-
-    /// <summary>Verifies that the legend-toggle script queries elements by data-series-index.</summary>
-    [Fact]
-    public void LegendToggleScript_QueriesDataSeriesIndex()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "data-legend-index"),
+        // Verifies that the legend-toggle script uses a click event handler.
+        new DrawnToken("LegendToggleScript_UsesClickEvent", () => Plt.Create()
             .WithLegendToggle()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("data-series-index", svg);
-    }
-
-    /// <summary>Verifies that the legend-toggle script uses a click event handler.</summary>
-    [Fact]
-    public void LegendToggleScript_UsesClickEvent()
-    {
-        string svg = Plt.Create()
-            .WithLegendToggle()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        Assert.Contains("click", svg);
-    }
-
-    /// <summary>Verifies that without WithLegendToggle(), the legend-toggle script is not present.</summary>
-    [Fact]
-    public void WithoutLegendToggle_NoLegendToggleScript()
-    {
-        string svg = Plt.Create()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
-        // No interactivity at all — no script
-        Assert.DoesNotContain("<script", svg);
-    }
-
-    /// <summary>Verifies that WithLegendToggle(false) disables the feature.</summary>
-    [Fact]
-    public void WithLegendToggleFalse_NoScript()
-    {
-        string svg = Plt.Create()
+            .ToSvg(), "click"),
+        // Verifies that WithLegendToggle(false) disables the feature.
+        new DrawnToken("WithLegendToggleFalse_NoScript", () => Plt.Create()
             .WithLegendToggle(false)
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
+            .ToSvg()) { Absent = ["<script"] },
+    };
 
-        Assert.DoesNotContain("<script", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Phase S regression (2026-04-19): the frame <c>&lt;rect&gt;</c> must be a CHILD of
     /// <c>&lt;g class="legend"&gt;</c>, not a sibling. Pre-fix the renderer emitted the rect
-    /// BEFORE opening the group; <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendDragScript"/>
+    /// BEFORE opening the group; <see cref="Transforms.SvgTransform.LegendDragScript"/>
     /// applies <c>transform="translate(dx,dy)"</c> to the group, so a stranded sibling rect
     /// stayed put while items moved (reported by user mid-drag, fixed in Phase S commit
     /// 93c30e3, AxesRenderer.cs). This test pins the markup contract so a future renderer
@@ -101,10 +58,12 @@ public class SvgLegendToggleTests
         Assert.True(groupEnd > groupOpen, "Legend group closing tag not found.");
 
         var groupBody = svg.Substring(groupOpen, groupEnd - groupOpen);
-        Assert.Contains("<rect", groupBody);
-        // And the rect must precede the first legend-item entry — confirms it is the frame
+        // The frame is a <rect>, or a <path> where its corners are rounded (the matplotlib themes' default).
+        int rectAt = groupBody.IndexOf("<rect", StringComparison.Ordinal), pathAt = groupBody.IndexOf("<path", StringComparison.Ordinal);
+        int firstRect = rectAt < 0 ? pathAt : pathAt < 0 ? rectAt : Math.Min(rectAt, pathAt);
+        Assert.True(firstRect >= 0, "The legend group holds no frame.");
+        // And the frame must precede the first legend-item entry: confirms it is the frame
         // background, not a swatch belonging to an entry.
-        var firstRect = groupBody.IndexOf("<rect", StringComparison.Ordinal);
         var firstItem = groupBody.IndexOf("data-legend-index", StringComparison.Ordinal);
         Assert.True(firstItem < 0 || firstRect < firstItem,
             $"Frame rect must precede the first legend item, got rect at {firstRect}, item at {firstItem}.");

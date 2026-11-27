@@ -14,7 +14,7 @@ namespace MatPlotLibNet.Wiki.Tests;
 internal static class WikiProgramExtensions
 {
     // What a console project has without a using of its own: the SDK's implicit usings.
-    private static readonly SyntaxTree ImplicitUsings = CSharpSyntaxTree.ParseText("""
+    internal static readonly SyntaxTree ImplicitUsings = CSharpSyntaxTree.ParseText("""
         global using System;
         global using System.Collections.Generic;
         global using System.IO;
@@ -32,9 +32,10 @@ internal static class WikiProgramExtensions
         ["CS1702"] = ReportDiagnostic.Suppress,
     };
 
-    // Every assembly this suite runs with, the packages as built among them: read once per run, because each of the
-    // wiki's two hundred compilations would otherwise read the same few hundred files again.
-    private static readonly Lazy<MetadataReference[]> References = new(() =>
+    /// <summary>Every assembly this suite runs with, the packages as built among them: read once per run, because each of the wiki's two
+    /// hundred compilations (and the compilation of every call a document writes, <see cref="CallCompilation"/>) would otherwise read the
+    /// same few hundred files again.</summary>
+    internal static readonly Lazy<MetadataReference[]> References = new(() =>
     [
         .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
             .Split(Path.PathSeparator)

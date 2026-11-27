@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Geo.Projections;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -14,38 +15,13 @@ namespace MatPlotLibNet.Geo.Tests;
 /// <see cref="IGeoProjection"/>), and every current-state document that counts them is held to the number.</summary>
 public class ProjectionCountDocumentTests
 {
-    private static readonly string Root = RepoRoot();
-
-    private static string RepoRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "CHANGELOG.md")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-        return dir!.FullName;
-    }
+    private static readonly string Root = RepositoryRoot.Folder;
 
     /// <summary>What the Geo package ships: every public, concrete projection.</summary>
     private static int ShippedProjections() =>
-        typeof(IGeoProjection).Assembly.GetTypes()
-            .Count(type => type is { IsClass: true, IsAbstract: false, IsPublic: true } && typeof(IGeoProjection).IsAssignableFrom(type));
+        typeof(IGeoProjection).Assembly.ConcretePublicSubtypesOf(typeof(IGeoProjection)).Length;
 
     private static readonly Regex Claim = new(@"\b(\d+) (?:map |geographic )?projections\b", RegexOptions.Compiled);
-
-    /// <summary>The documents that describe what the library is today: every Markdown file but the changelog (a record of
-    /// what each release added) and the path manifests (working records).</summary>
-    private static string[] CurrentStateDocuments() =>
-        [.. Directory.EnumerateFiles(Root, "*.md", SearchOption.AllDirectories)
-            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
-            .Where(path => !path.Contains("/bin/", StringComparison.Ordinal)
-                        && !path.Contains("/obj/", StringComparison.Ordinal)
-                        && !path.Contains("node_modules/", StringComparison.Ordinal)
-                        && !path.StartsWith(".path-manifests/", StringComparison.Ordinal)
-                        && path != "CHANGELOG.md")
-            .OrderBy(path => path, StringComparer.Ordinal)];
 
     [Fact]
     public void TheProjectionsAreFound()
@@ -60,9 +36,9 @@ public class ProjectionCountDocumentTests
         var wrong = new List<string>();
         int stating = 0;
 
-        foreach (string path in CurrentStateDocuments())
+        foreach (var (path, text) in RepositoryTree.CurrentStateDocuments())
         {
-            foreach (Match match in Claim.Matches(File.ReadAllText(Path.Combine(Root, path))))
+            foreach (Match match in Claim.Matches(text))
             {
                 stating++;
                 if (int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) != shipped)

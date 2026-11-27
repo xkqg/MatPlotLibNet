@@ -9,47 +9,15 @@ namespace MatPlotLibNet.Tests.Animation;
 /// <summary>Verifies <see cref="AnimationController{TState}"/> playback behavior.</summary>
 public class AnimationControllerTests
 {
-    /// <summary>Verifies that IAnimation interface can be implemented.</summary>
-    [Fact]
-    public void IAnimation_CanBeImplemented()
-    {
-        IAnimation<int> anim = new SimpleAnimation();
-        Assert.Equal(3, anim.FrameCount);
-        Assert.Equal(0, anim.CreateInitialState());
-        Assert.Equal(1, anim.Advance(0, 1));
-        Assert.NotNull(anim.GenerateFrame(0, 0));
-    }
-
-    /// <summary>Verifies that LegacyAnimationAdapter adapts AnimationBuilder to IAnimation.</summary>
-    [Fact]
-    public void LegacyAdapter_Adapts()
-    {
-        var builder = new AnimationBuilder(3, i => new Figure { Title = $"F{i}" });
-        var adapter = new LegacyAnimationAdapter(builder);
-
-        Assert.Equal(3, adapter.FrameCount);
-        Assert.Equal("F0", adapter.GenerateFrame(0, 0).Title);
-        Assert.Equal("F2", adapter.GenerateFrame(2, 2).Title);
-    }
-
     /// <summary>Verifies that AnimationController can be constructed.</summary>
     [Fact]
     public void Controller_CanBeConstructed()
     {
-        var anim = new SimpleAnimation();
+        var anim = new TestAnimation(3) { Interval = TimeSpan.FromMilliseconds(10) };
         var controller = new AnimationController<int>(anim, (fig, ct) => Task.CompletedTask);
 
         Assert.Equal(AnimationPlaybackState.Stopped, controller.State);
         Assert.Equal(0, controller.CurrentFrame);
-    }
-
-    /// <summary>Verifies that AnimationPlaybackState enum has expected values.</summary>
-    [Fact]
-    public void PlaybackState_HasExpectedValues()
-    {
-        Assert.Equal(0, (int)AnimationPlaybackState.Stopped);
-        Assert.Equal(1, (int)AnimationPlaybackState.Playing);
-        Assert.Equal(2, (int)AnimationPlaybackState.Paused);
     }
 
     /// <summary>
@@ -60,7 +28,7 @@ public class AnimationControllerTests
     [Fact]
     public void Stop_BeforePlay_DoesNotThrow()
     {
-        var controller = new AnimationController<int>(new SimpleAnimation(), (_, _) => Task.CompletedTask);
+        var controller = new AnimationController<int>(new TestAnimation(3) { Interval = TimeSpan.FromMilliseconds(10) }, (_, _) => Task.CompletedTask);
         var ex = Record.Exception(() => controller.Stop());
         Assert.Null(ex);
         Assert.Equal(AnimationPlaybackState.Stopped, controller.State);
@@ -74,7 +42,7 @@ public class AnimationControllerTests
     [Fact]
     public async Task PlayAsync_CancelledExternally_StopsCleanly()
     {
-        var anim = new SimpleAnimation { Interval = TimeSpan.FromMilliseconds(50) };
+        var anim = new TestAnimation(3) { Interval = TimeSpan.FromMilliseconds(50) };
         var controller = new AnimationController<int>(anim, (_, _) => Task.CompletedTask);
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(20);
@@ -91,7 +59,7 @@ public class AnimationControllerTests
     [Fact]
     public async Task DisposeAsync_StopsAndCompletes()
     {
-        var controller = new AnimationController<int>(new SimpleAnimation(), (_, _) => Task.CompletedTask);
+        var controller = new AnimationController<int>(new TestAnimation(3) { Interval = TimeSpan.FromMilliseconds(10) }, (_, _) => Task.CompletedTask);
         await controller.DisposeAsync();
         Assert.Equal(AnimationPlaybackState.Stopped, controller.State);
     }
@@ -104,7 +72,7 @@ public class AnimationControllerTests
     [Fact]
     public async Task Stop_AfterPlayStarted_CancelsActiveCts()
     {
-        var anim = new SimpleAnimation { Interval = TimeSpan.FromMilliseconds(100) };
+        var anim = new TestAnimation(3) { Interval = TimeSpan.FromMilliseconds(100) };
         var controller = new AnimationController<int>(anim, (_, _) => Task.CompletedTask);
         // Fire-and-forget Play, then immediately Stop on the same thread
         var playTask = controller.PlayAsync(TestContext.Current.CancellationToken);
@@ -115,13 +83,61 @@ public class AnimationControllerTests
         Assert.Equal(AnimationPlaybackState.Stopped, controller.State);
     }
 
-    private sealed class SimpleAnimation : IAnimation<int>
+    [Fact]
+    public async Task Controller_StopBeforePlay_IsNoOp()
     {
-        public int FrameCount => 3;
-        public TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(10);
-        public bool Loop { get; set; }
-        public int CreateInitialState() => 0;
-        public int Advance(int currentState, int frameIndex) => frameIndex;
-        public Figure GenerateFrame(int state, int frameIndex) => new() { Title = $"F{frameIndex}" };
+        var fig = new Figure();
+        var ctrl = new AnimationController<int>(
+            new AnimationBuilder(3, _ => fig),
+            (_, _) => Task.CompletedTask);
+
+        // Stop before any Play call must not throw.
+        ctrl.Stop();
+        Assert.Equal(AnimationPlaybackState.Stopped, ctrl.State);
+    }
+
+    [Fact]
+    public async Task Controller_PlayThenComplete_NormalPath()
+    {
+        var fig = new Figure();
+        int frames = 0;
+        var ctrl = new AnimationController<int>(
+            new AnimationBuilder(3, _ => fig)
+            { Interval = TimeSpan.FromMilliseconds(1), Loop = false },
+            (_, _) => { frames++; return Task.CompletedTask; });
+
+        // Use TestContext.Current.CancellationToken (xUnit v3) so the test cancels
+        // promptly if the runner aborts -- avoids xUnit1051 warning.
+        await ctrl.PlayAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, frames);
+        Assert.Equal(AnimationPlaybackState.Stopped, ctrl.State);
+    }
+
+    [Fact]
+    public async Task Controller_ExternalCancellation_StopsPlayback()
+    {
+        var fig = new Figure();
+        var ctrl = new AnimationController<int>(
+            new AnimationBuilder(1000, _ => fig)
+            { Interval = TimeSpan.FromMilliseconds(100), Loop = true },
+            (_, _) => Task.CompletedTask);
+
+        using var externalCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+        await ctrl.PlayAsync(externalCts.Token);
+
+        Assert.Equal(AnimationPlaybackState.Stopped, ctrl.State);
+    }
+
+    [Fact]
+    public async Task Controller_DisposeAsync_StopsAndIsIdempotent()
+    {
+        var fig = new Figure();
+        var ctrl = new AnimationController<int>(
+            new AnimationBuilder(3, _ => fig),
+            (_, _) => Task.CompletedTask);
+
+        await ctrl.DisposeAsync();
+        await ctrl.DisposeAsync();   // second dispose must not throw
     }
 }

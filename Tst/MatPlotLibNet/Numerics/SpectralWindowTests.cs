@@ -41,11 +41,11 @@ public class SpectralWindowTests
 
     [Fact]
     public void Hamming_Five_IsNumpysHamming()
-        => AssertClose([0.08, 0.54, 1, 0.54, 0.08], SpectralWindow.Hamming.Coefficients(5));
+        => (new double[] { 0.08, 0.54, 1, 0.54, 0.08 }).AssertCloseTo(SpectralWindow.Hamming.Coefficients(5), 1e-12);
 
     [Fact]
     public void Blackman_Five_IsNumpysBlackman()
-        => AssertClose([0, 0.34, 1, 0.34, 0], SpectralWindow.Blackman.Coefficients(5));
+        => (new double[] { 0, 0.34, 1, 0.34, 0 }).AssertCloseTo(SpectralWindow.Blackman.Coefficients(5), 1e-12);
 
     [Fact]
     public void Rectangular_IsAllOnes()
@@ -80,12 +80,8 @@ public class SpectralWindowTests
     {
         var triangle = SpectralWindow.Of(n => [.. Enumerable.Range(0, n).Select(k => 1.0 - Math.Abs(k - (n - 1) / 2.0) / n)]);
 
-        AssertClose([0.6, 0.8, 1.0, 0.8, 0.6], triangle.Coefficients(5));
+        (new double[] { 0.6, 0.8, 1.0, 0.8, 0.6 }).AssertCloseTo(triangle.Coefficients(5), 1e-12);
     }
-
-    [Fact]
-    public void Of_NullFunction_Refuses()
-        => Assert.Throws<ArgumentNullException>(() => SpectralWindow.Of(null!));
 
     [Theory]
     [InlineData(3)]
@@ -108,10 +104,4 @@ public class SpectralWindowTests
     [InlineData(double.NegativeInfinity)]
     public void Of_NonFiniteCoefficient_Refuses(double bad)
         => Assert.Throws<InvalidOperationException>(() => SpectralWindow.Of(n => [1, bad, 1]).Coefficients(3));
-
-    private static void AssertClose(double[] expected, double[] actual)
-    {
-        Assert.Equal(expected.Length, actual.Length);
-        for (int k = 0; k < expected.Length; k++) Assert.Equal(expected[k], actual[k], 1e-12);
-    }
 }

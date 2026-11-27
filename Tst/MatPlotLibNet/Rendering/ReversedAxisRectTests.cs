@@ -2,13 +2,13 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Models.Series;
+using MatPlotLibNet.Tests.Serialization;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -23,10 +23,6 @@ public class ReversedAxisRectTests
 {
     private static readonly Rect Bounds = new(0, 0, 400, 300);
 
-    /// <summary>X from 4 (left edge, 0 px) down to 0 (right edge, 400 px): x lands at 400 - 100 x. Y from 10 (bottom edge,
-    /// 300 px) down to 0 (top edge, 0 px): y lands at 30 y. Both axes run backwards.</summary>
-    private static DataTransform Backwards() => new(4, 0, 10, 0, Bounds);
-
     private static RecordingRenderContext Render(DataTransform transform, Action<SeriesRenderContext> draw)
     {
         var ctx = new RecordingRenderContext();
@@ -34,12 +30,8 @@ public class ReversedAxisRectTests
         return ctx;
     }
 
-    private static object? Arg(CallRecord call, string name) => call.Args!.GetType().GetProperty(name)!.GetValue(call.Args);
-
-    private static List<Rect> Rects(RecordingRenderContext ctx) => [.. ctx.OfKind("DrawRectangle").Select(c => (Rect)Arg(c, "rect")!)];
-
     private static Rect RectFilled(RecordingRenderContext ctx, Color fill) =>
-        ctx.OfKind("DrawRectangle").Where(c => Equals(Arg(c, "fill"), fill)).Select(c => (Rect)Arg(c, "rect")!).Single();
+        ctx.Of<DrawRectangleCall>().Where(c => Equals(c.Fill, fill)).Select(c => c.Rect).Single();
 
     private static void AssertRect(Rect expected, Rect actual)
     {
@@ -55,19 +47,19 @@ public class ReversedAxisRectTests
     [Fact]
     public void ABar_IsTheAreaBetweenItsFootAndItsValue()
     {
-        var ctx = Render(Backwards(), c => new BarSeriesRenderer(c).Render(new BarSeries(["a"], [5.0])));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BarSeriesRenderer(c).Render(new BarSeries(["a"], [5.0])));
 
-        AssertRect(new Rect(310, 0, 80, 150), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(310, 0, 80, 150), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>A bar that lies down: its value 2 along X (200 to 400 px), its slot along Y (3 to 27 px).</summary>
     [Fact]
     public void ABarThatLiesDown_IsTheAreaBetweenItsFootAndItsValue()
     {
-        var ctx = Render(Backwards(), c => new BarSeriesRenderer(c).Render(
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BarSeriesRenderer(c).Render(
             new BarSeries(["a"], [2.0]) { Orientation = BarOrientation.Horizontal }));
 
-        AssertRect(new Rect(200, 3, 200, 24), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(200, 3, 200, 24), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>A box of 1..5 at position 0: quartiles 2 and 4 (60 to 120 px), half a width of 0.25 either side (375 to
@@ -75,18 +67,18 @@ public class ReversedAxisRectTests
     [Fact]
     public void ABox_IsTheAreaBetweenItsQuartiles()
     {
-        var ctx = Render(Backwards(), c => new BoxSeriesRenderer(c).Render(new BoxSeries([[1.0, 2, 3, 4, 5]])));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BoxSeriesRenderer(c).Render(new BoxSeries([[1.0, 2, 3, 4, 5]])));
 
-        AssertRect(new Rect(375, 60, 50, 60), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(375, 60, 50, 60), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>The same box lying down: quartiles along X (0 to 200 px), the position along Y (-7.5 to 7.5 px).</summary>
     [Fact]
     public void ABoxThatLiesDown_IsTheAreaBetweenItsQuartiles()
     {
-        var ctx = Render(Backwards(), c => new BoxSeriesRenderer(c).Render(new BoxSeries([[1.0, 2, 3, 4, 5]]) { Vert = false }));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BoxSeriesRenderer(c).Render(new BoxSeries([[1.0, 2, 3, 4, 5]]) { Vert = false }));
 
-        AssertRect(new Rect(0, -7.5, 200, 15), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(0, -7.5, 200, 15), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>Bins 1..2 and 2..3 hold 2 and 1 values: 200 to 300 px across and 0 to 60 px down, 100 to 200 px and 0 to
@@ -94,9 +86,9 @@ public class ReversedAxisRectTests
     [Fact]
     public void AHistogramsBars_AreTheAreasOfTheirBins()
     {
-        var ctx = Render(Backwards(), c => new HistogramSeriesRenderer(c).Render(new HistogramSeries([1.0, 1, 3]) { Bins = 2 }));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new HistogramSeriesRenderer(c).Render(new HistogramSeries([1.0, 1, 3]) { Bins = 2 }));
 
-        var bars = Rects(ctx);
+        var bars = ctx.Rects();
         Assert.Equal(2, bars.Count);
         AssertRect(new Rect(200, 0, 100, 60), bars[0]);
         AssertRect(new Rect(100, 0, 100, 30), bars[1]);
@@ -108,19 +100,19 @@ public class ReversedAxisRectTests
     [InlineData(BarOrientation.Horizontal, 200, 3, 200, 24)]
     public void ACountPlotsBar_IsTheAreaBetweenZeroAndItsCount(BarOrientation orientation, double x, double y, double w, double h)
     {
-        var ctx = Render(Backwards(), c => new CountSeriesRenderer(c).Render(
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new CountSeriesRenderer(c).Render(
             new CountSeries(["a", "a", "b"]) { Orientation = orientation }));
 
-        AssertRect(new Rect(x, y, w, h), Rects(ctx)[0]);
+        AssertRect(new Rect(x, y, w, h), ctx.Rects()[0]);
     }
 
     /// <summary>A step up from 0 to 4 (slot 0.2 to 0.8), then down to 3 (slot 1.2 to 1.8).</summary>
     [Fact]
     public void AWaterfallsSteps_AreTheAreasBetweenTheTotals()
     {
-        var ctx = Render(Backwards(), c => new WaterfallSeriesRenderer(c).Render(new WaterfallSeries(["a", "b"], [4.0, -1])));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new WaterfallSeriesRenderer(c).Render(new WaterfallSeries(["a", "b"], [4.0, -1])));
 
-        var steps = Rects(ctx);
+        var steps = ctx.Rects();
         Assert.Equal(2, steps.Count);
         AssertRect(new Rect(320, 0, 60, 120), steps[0]);
         AssertRect(new Rect(220, 90, 60, 30), steps[1]);
@@ -130,47 +122,47 @@ public class ReversedAxisRectTests
     [Fact]
     public void ACandlesBody_IsTheAreaBetweenItsOpenAndItsClose()
     {
-        var ctx = Render(Backwards(), c => new CandlestickSeriesRenderer(c).Render(new CandlestickSeries([2.0], [5.0], [1.0], [4.0])));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new CandlestickSeriesRenderer(c).Render(new CandlestickSeries([2.0], [5.0], [1.0], [4.0])));
 
-        AssertRect(new Rect(320, 60, 60, 60), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(320, 60, 60, 60), Assert.Single(ctx.Rects()));
     }
 
-    /// <summary>A task from 1 to 3 (100 to 300 px) on row 0, 0.6 high (-9 to 9 px).</summary>
+    /// <summary>A task from 1 to 3 (100 to 300 px) in its row's category slot, centred at 0.5, 0.6 high (0.2 to 0.8: 6 to 24 px).</summary>
     [Fact]
     public void AGanttBar_IsTheAreaBetweenItsStartAndItsEnd()
     {
-        var ctx = Render(Backwards(), c => new GanttSeriesRenderer(c).Render(new GanttSeries(["t"], [1.0], [3.0])));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new GanttSeriesRenderer(c).Render(new GanttSeries(["t"], [1.0], [3.0])));
 
-        AssertRect(new Rect(100, -9, 200, 18), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(100, 6, 200, 18), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>A segment from 1, 2 wide (100 to 300 px) on row 0, 0.8 high (-12 to 12 px).</summary>
     [Fact]
     public void ABrokenBarSegment_IsTheAreaItCovers()
     {
-        var ctx = Render(Backwards(), c => new BrokenBarSeriesRenderer(c).Render(new BrokenBarSeries([[new BarRange(1.0, 2.0)]])));
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BrokenBarSeriesRenderer(c).Render(new BrokenBarSeries([[new BarRange(1.0, 2.0)]])));
 
-        AssertRect(new Rect(100, -12, 200, 24), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(100, -12, 200, 24), Assert.Single(ctx.Rects()));
     }
 
     /// <summary>One cell from x 0 to 1 (300 to 400 px) and y 0 to 2 (0 to 60 px).</summary>
     [Fact]
     public void APcolormeshCell_IsTheAreaBetweenItsEdges()
     {
-        var ctx = Render(Backwards(), c => new PcolormeshSeriesRenderer(c).Render(
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new PcolormeshSeriesRenderer(c).Render(
             new PcolormeshSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 2.0 }, new double[,] { { 1 } })));
 
-        AssertRect(new Rect(300, 0, 100, 60), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(300, 0, 100, 60), Assert.Single(ctx.Rects()));
     }
 
     [Fact]
     public void ASpectrogramsCells_HaveAPositiveSize()
     {
         double[] signal = [.. Enumerable.Range(0, 64).Select(i => (i % 8) / 8.0 - 0.5)];
-        var ctx = Render(Backwards(), c => new SpectrogramSeriesRenderer(c).Render(
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new SpectrogramSeriesRenderer(c).Render(
             new SpectrogramSeries(signal) { WindowSize = 16, Overlap = 8 }));
 
-        var cells = Rects(ctx);
+        var cells = ctx.Rects();
         Assert.NotEmpty(cells);
         Assert.All(cells, cell => Assert.True(cell.Width > 0 && cell.Height > 0, $"a cell of {cell.Width} x {cell.Height}"));
     }
@@ -179,10 +171,10 @@ public class ReversedAxisRectTests
     [Fact]
     public void AStateSegment_IsTheAreaBetweenItsStartAndItsEnd()
     {
-        var ctx = Render(Backwards(), c => new StateTimelineSeriesRenderer(c).Render(
+        var ctx = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new StateTimelineSeriesRenderer(c).Render(
             new StateTimelineSeries([new StateSegment(0, 2, "Up", Colors.Tab10Green)])));
 
-        AssertRect(new Rect(200, 0, 200, 300), Assert.Single(Rects(ctx)));
+        AssertRect(new Rect(200, 0, 200, 300), Assert.Single(ctx.Rects()));
     }
 
     // ---- relative rotation quadrants ------------------------------------------------------------------------------------
@@ -227,7 +219,7 @@ public class ReversedAxisRectTests
             Assert.True(quadrant.Width >= 0 && quadrant.Height >= 0, $"a quadrant of {quadrant.Width} x {quadrant.Height}");
             Assert.Equal(0, quadrant.Width * quadrant.Height, 9);
         }
-        Assert.Empty(ctx.OfKind("DrawLine"));
+        Assert.Empty(ctx.Of<DrawLineCall>());
     }
 
     /// <summary>On upright axes from 98 to 102 the quadrants stand where they always stood: leading upper right.</summary>
@@ -240,7 +232,7 @@ public class ReversedAxisRectTests
         AssertRect(new Rect(200, 150, 200, 150), RectFilled(ctx, Weakening));
         AssertRect(new Rect(0, 150, 200, 150), RectFilled(ctx, Lagging));
         AssertRect(new Rect(0, 0, 200, 150), RectFilled(ctx, Improving));
-        Assert.Equal(2, ctx.CountOf("DrawLine"));
+        Assert.Equal(2, ctx.Count<DrawLineCall>());
     }
 
     // ---- bullet graph bands ---------------------------------------------------------------------------------------------
@@ -251,39 +243,36 @@ public class ReversedAxisRectTests
     public void ABulletGraphBand_CoversTheSameShare_LyingDownAndUpright()
     {
         GaugeBand[] bands = [new(80, Colors.Gray), new(40, Colors.LightGray)];
-        var lying = Render(Backwards(), c => new BulletGraphSeriesRenderer(c).Render(new BulletGraphSeries(50) { Bands = bands }));
-        var upright = Render(Backwards(), c => new BulletGraphSeriesRenderer(c).Render(
+        var lying = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BulletGraphSeriesRenderer(c).Render(new BulletGraphSeries(50) { Bands = bands }));
+        var upright = Render(Bounds.Linear(xMin: 4, xMax: 0, yMin: 10, yMax: 0), c => new BulletGraphSeriesRenderer(c).Render(
             new BulletGraphSeries(50) { Bands = bands, Orientation = Orientation.Vertical }));
 
-        AssertRect(new Rect(320, 0, 80, 300), Rects(lying)[1]);
-        AssertRect(new Rect(0, 0, 400, 60), Rects(upright)[1]);
+        AssertRect(new Rect(320, 0, 80, 300), lying.Rects()[1]);
+        AssertRect(new Rect(0, 0, 400, 60), upright.Rects()[1]);
     }
 
     // ---- the sweep ------------------------------------------------------------------------------------------------------
 
-    private static readonly Regex RectSize = new(
-        "<rect\\b[^>]*?\\bwidth=\"([^\"]+)\"[^>]*?\\bheight=\"([^\"]+)\"", RegexOptions.Compiled);
-
     /// <summary>The rectangles of <paramref name="svg"/> whose width or height is negative, as "width x height".</summary>
-    internal static List<string> NegativeRects(string svg) => RectSize.Matches(svg)
-        .Select(m => (W: double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-                      H: double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)))
+    internal static List<string> NegativeRects(string svg) => svg.Elements("rect").Where(rect => rect["width"] is not null && rect["height"] is not null)
+        .Select(rect => (W: rect.Number("width"), H: rect.Number("height")))
         .Where(r => r.W < 0 || r.H < 0)
         .Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.W} x {r.H}"))
         .ToList();
 
     /// <summary>Every series type alone on axes whose X and Y both run backwards writes no rectangle of negative size.</summary>
     [Theory]
-    [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
-    public void NoSeries_WritesARectangleOfNegativeSize_WhenBothAxesRunBackwards(ISeries series, string name)
+    [MemberData(nameof(DrawnSeriesFixtures.TypeNames), MemberType = typeof(DrawnSeriesFixtures))]
+    public void NoSeries_WritesARectangleOfNegativeSize_WhenBothAxesRunBackwards(string type)
     {
+        var series = DrawnSeriesFixtures.Instance(type);
         var figure = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax.AddSeries(series)).Build();
         figure.SubPlots[0].XAxis.Inverted = true;
         figure.SubPlots[0].YAxis.Inverted = true;
 
         var negative = NegativeRects(figure.ToSvg());
 
-        Assert.True(negative.Count == 0, $"{name} wrote {negative.Count} rectangle(s) of negative size: {string.Join(", ", negative)}");
+        Assert.True(negative.Count == 0, $"{type} wrote {negative.Count} rectangle(s) of negative size: {string.Join(", ", negative)}");
     }
 
     /// <summary>The figures the defect was measured on: two boxes under <c>SetYLim(15, 0)</c>, two lying boxes under

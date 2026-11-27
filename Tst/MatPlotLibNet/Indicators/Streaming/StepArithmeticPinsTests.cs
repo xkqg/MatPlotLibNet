@@ -37,6 +37,13 @@ public sealed class StepArithmeticPinsTests
             "Adx" => new Adx(hlc, 14).ComputeFull().Adx,
             "PlusDi" => new Adx(hlc, 14).ComputeFull().PlusDi,
             "MinusDi" => new Adx(hlc, 14).ComputeFull().MinusDi,
+            "MacdLine" => new Macd(b.Close, 12, 26, 9).Compute().MacdLine,
+            "MacdSignal" => new Macd(b.Close, 12, 26, 9).Compute().SignalLine,
+            "MacdHist" => new Macd(b.Close, 12, 26, 9).Compute().Histogram,
+            "StochK" => new Stochastic(hlc, 14, 3, 1).Compute().K,   // the raw (fast) %K, what the library drew before the default was the slow one
+            "StochD" => new Stochastic(hlc, 14, 3, 1).Compute().D,
+            "SlowK" => new Stochastic(hlc, 14, 3).Compute().K,
+            "SlowD" => new Stochastic(hlc, 14, 3).Compute().D,
             "KcM" => new KeltnerChannels(hlc, 20, 1.5).Compute().Middle,
             "KcU" => new KeltnerChannels(hlc, 20, 1.5).Compute().Upper,
             "KcL" => new KeltnerChannels(hlc, 20, 1.5).Compute().Lower,
@@ -89,12 +96,26 @@ public sealed class StepArithmeticPinsTests
     [InlineData("AdaptStoch3", 293, 9.90705980397014)]
     [InlineData("AdaptStoch1", 98, 35.714285714285715)]
     [InlineData("AdaptStoch1", 293, 8.695652173913043)]
-    [InlineData("Adx", 90, 35.994055899946154)]
-    [InlineData("Adx", 271, 14.416204645009786)]
+    [InlineData("Adx", 90, 29.412934368244155)]
+    [InlineData("Adx", 271, 20.61764304983558)]
     [InlineData("PlusDi", 90, 16.505097760093456)]
     [InlineData("PlusDi", 271, 12.631070118408172)]
     [InlineData("MinusDi", 90, 23.945574306239315)]
     [InlineData("MinusDi", 271, 26.051838565692826)]
+    [InlineData("MacdLine", 100, -0.8577820146772126)]
+    [InlineData("MacdLine", 270, -0.2823171958501902)]
+    [InlineData("MacdSignal", 100, -0.6354276397941347)]
+    [InlineData("MacdSignal", 260, 0.41569093917472805)]
+    [InlineData("MacdHist", 100, 0.45619285668378917)]
+    [InlineData("MacdHist", 260, -0.27410279800576126)]
+    [InlineData("StochK", 90, 20.588235294117645)]
+    [InlineData("StochK", 271, 87.8048780487805)]
+    [InlineData("StochD", 90, 23.50427350427354)]
+    [InlineData("StochD", 271, 73.9837398373984)]
+    [InlineData("SlowK", 90, 23.50427350427354)]
+    [InlineData("SlowK", 271, 73.9837398373984)]
+    [InlineData("SlowD", 90, 22.39514298337834)]
+    [InlineData("SlowD", 271, 65.04065040650413)]
     [InlineData("KcM", 93, 83.7164105657013)]
     [InlineData("KcM", 279, 57.38633040202218)]
     [InlineData("KcU", 93, 88.34187990773394)]
@@ -115,8 +136,8 @@ public sealed class StepArithmeticPinsTests
     [InlineData("SuL", 289, 62.68202084897327)]
     [InlineData("SuD", 96, -1.0)]
     [InlineData("SuD", 289, -1.0)]
-    [InlineData("Sar", 100, 90.2725)]
-    [InlineData("Sar", 299, 57.915440000000004)]
+    [InlineData("Sar", 100, 92.05080000000001)]   // TA-Lib 0.8.3 talib.SAR(high, low, 0.02, 0.2) over the same walk
+    [InlineData("Sar", 299, 60.26379123162514)]
     [InlineData("Bocpd", 99, 0.009999999999999998)]
     [InlineData("Bocpd", 298, 0.00999999999999999)]
     [InlineData("Bocpd2", 99, 0.050000000000000024)]

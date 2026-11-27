@@ -7,63 +7,12 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="FractionalDifferentiation"/> + its internal
-/// <c>ComputeWeights</c> helper. Covers branches enumerated in
-/// docs/contrib/indicator-tier-1b.md §2.</summary>
+/// <summary>Verifies <see cref="FractionalDifferentiation"/> + its internal <c>ComputeWeights</c> helper. Its arithmetic is held here
+/// against reference values; what it keeps with every indicator (its lines, its pane, its first value, the arguments it refuses)
+/// is held by <see cref="IndicatorContractTests"/>.</summary>
 public class FractionalDifferentiationTests
 {
     // ── Branch 1-3 — constructor guards ──
-
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-0.5)]
-    [InlineData(1.0)]
-    [InlineData(1.5)]
-    public void Constructor_DOutOfRange_Throws(double d)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new FractionalDifferentiation([100.0, 101, 102], d));
-    }
-
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-1e-6)]
-    public void Constructor_NonPositiveTolerance_Throws(double tolerance)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new FractionalDifferentiation([100.0, 101, 102], d: 0.4, tolerance));
-    }
-
-    // ── Branch 4 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var ffd = new FractionalDifferentiation([], d: 0.5, tolerance: 1e-3);
-        Assert.Empty(ffd.Compute().Values);
-    }
-
-    // ── Branch 5 — Length < weights.Length → empty ──
-    [Fact]
-    public void Compute_LengthBelowWeights_ReturnsEmpty()
-    {
-        // d=0.4 tol=1e-3 → weights.Length ≈ 100+. Only 2 prices → empty.
-        var ffd = new FractionalDifferentiation([100.0, 101], d: 0.4, tolerance: 1e-3);
-        Assert.Empty(ffd.Compute().Values);
-    }
-
-    // ── Branch 6 — Length == weights.Length → single output ──
-    [Fact]
-    public void Compute_LengthEqualsWeightsLength_ReturnsSingleValue()
-    {
-        // Build weights for d=0.4, tol=0.5 — with such a loose tolerance, only a
-        // few weights survive (probably 2-3). Then supply exactly weights.Length
-        // prices → single-output boundary.
-        var weights = FractionalDifferentiation.ComputeWeights(0.4, tolerance: 0.5);
-        var prices = new double[weights.Length];
-        for (int i = 0; i < prices.Length; i++) prices[i] = 100 + i;
-        var ffd = new FractionalDifferentiation(prices, d: 0.4, tolerance: 0.5);
-        Assert.Single(ffd.Compute().Values);
-    }
 
     // ── Branch 7 — Normal multi-bar output ──
     [Fact]
@@ -76,61 +25,10 @@ public class FractionalDifferentiationTests
         var weights = FractionalDifferentiation.ComputeWeights(0.4, tolerance: 1e-2);
         var result = ffd.Compute().Values;
         Assert.Equal(50 - weights.Length + 1, result.Length);
-        Assert.All(result, v => Assert.False(double.IsNaN(v)));
-    }
-
-    // ── Branch 8 — Apply path: warmup = weights.Length - 1 ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        var prices = new double[60];
-        for (int i = 0; i < 60; i++) prices[i] = 100 + 0.5 * i;
-        new FractionalDifferentiation(prices, d: 0.4, tolerance: 1e-2).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        var prices = new double[60];
-        for (int i = 0; i < 60; i++) prices[i] = 100 + 0.5 * i;
-        new FractionalDifferentiation(prices, d: 0.4, tolerance: 1e-2).Apply(axes);
-        Assert.Equal("FFD(d=0.40)", axes.Series[0].Label);
-    }
-
-    // ── Type system ──
-    [Fact]
-    public void InheritsPriceIndicator()
-    {
-        var prices = new double[10];
-        for (int i = 0; i < 10; i++) prices[i] = 100 + i;
-        Assert.IsAssignableFrom<PriceIndicator<SignalResult>>(
-            new FractionalDifferentiation(prices, d: 0.4));
-        Assert.IsAssignableFrom<IIndicator>(
-            new FractionalDifferentiation(prices, d: 0.4));
+        result.AssertAllFinite();
     }
 
     // ── ComputeWeights — Branch 1: d-boundary guard (defensive) ──
-
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(1.0)]
-    [InlineData(-0.1)]
-    [InlineData(1.5)]
-    public void ComputeWeights_DOutOfRange_Throws(double d)
-    {
-        Assert.Throws<ArgumentException>(() => FractionalDifferentiation.ComputeWeights(d, 1e-3));
-    }
-
-    [Fact]
-    public void ComputeWeights_NonPositiveTolerance_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => FractionalDifferentiation.ComputeWeights(0.5, 0));
-        Assert.Throws<ArgumentException>(() => FractionalDifferentiation.ComputeWeights(0.5, -1));
-    }
 
     // ── ComputeWeights — Branch 2: very small d, verify cap kicks in ──
 

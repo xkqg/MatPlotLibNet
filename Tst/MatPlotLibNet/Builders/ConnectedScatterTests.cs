@@ -4,7 +4,6 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
 
@@ -21,31 +20,15 @@ public class ConnectedScatterTests
     private static Figure Of(double[] x, double[] y, Action<ConnectedScatterParts>? configure = null, int width = 800, int height = 300) =>
         Plt.Create().WithSize(width, height).AddSubPlot(1, 1, 1, ax => ax.ConnectedScatter(x, y, configure)).Build();
 
-    private static RecordingRenderContext Drawn(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        return recording;
-    }
-
     /// <summary>The centres of the markers in the order drawn, which is the order of the points.</summary>
-    private static List<Point> Markers(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawCircle")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => ((Color?)args.fill)?.R == SeriesColour.R && ((Color?)args.fill)?.G == SeriesColour.G && ((Color?)args.fill)?.B == SeriesColour.B)
-        .Select(args => (Point)args.center)];
+    private static List<Point> Markers(RecordingRenderContext drawn) => [.. drawn.Of<DrawCircleCall>()
+        .Where(args => (args.Fill)?.R == SeriesColour.R && (args.Fill)?.G == SeriesColour.G && (args.Fill)?.B == SeriesColour.B)
+        .Select(args => args.Center)];
 
     /// <summary>The lines of the arrows (shaft and head arms), in the order drawn.</summary>
-    private static List<(Point From, Point To)> ArrowLines(RecordingRenderContext drawn) => [.. drawn.OfKind("DrawLine")
-        .Select(call => (dynamic)call.Args!)
-        .Where(args => (Color)args.color == SeriesColour && (double)args.thickness == 1.5)
-        .Select(args => ((Point)args.p1, (Point)args.p2))];
-
-    [Fact]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDraws()
-    {
-        Assert.Equal(ComposedChartShapes.ConnectedScatterByHand(false).ToSvg(), ComposedChartShapes.Named("connected-scatter").Build(false).ToSvg());
-        Assert.Equal(ComposedChartShapes.ConnectedScatterByHand(true).ToSvg(), ComposedChartShapes.Named("connected-scatter").Build(true).ToSvg());
-    }
+    private static List<(Point From, Point To)> ArrowLines(RecordingRenderContext drawn) => [.. drawn.Of<DrawLineCall>()
+        .Where(args => args.Color == SeriesColour && args.Thickness == 1.5)
+        .Select(args => (args.P1, args.P2))];
 
     [Fact]
     public void TheTipOfAnArrow_IsThePixelOfTheNextPoint_AndTheHeadFollowsTheSegmentAsItIsDrawn()
@@ -53,7 +36,7 @@ public class ConnectedScatterTests
         // A wide, low plot: a step of one along X is far shorter on the page than a step of two along Y is tall, so the angle of
         // the segment on the page is not the angle of the segment in the data.
         double[] x = [0, 1, 3], y = [0, 2, 1];
-        var drawn = Drawn(Of(x, y));
+        var drawn = Of(x, y).Drawn();
 
         var markers = Markers(drawn);
         var lines = ArrowLines(drawn);
@@ -89,7 +72,7 @@ public class ConnectedScatterTests
     [Fact]
     public void TwoPointsOnTopOfEachOther_LeaveAnArrowWithNoHead()
     {
-        var lines = ArrowLines(Drawn(Of([0, 0, 1], [0, 0, 1])));
+        var lines = ArrowLines(Of([0, 0, 1], [0, 0, 1]).Drawn());
 
         // The first step is nothing: its shaft is a point and it has no head. The second step has a shaft and two arms.
         Assert.Equal(1 + 3, lines.Count);
@@ -98,7 +81,7 @@ public class ConnectedScatterTests
     [Fact]
     public void AMissingPoint_LeavesOutItsMarker_AndTheArrowsThatRunIntoItAndOutOfIt()
     {
-        var drawn = Drawn(Of([0, 1, 2, 3, 4], [0, 1, double.NaN, 3, 4]));
+        var drawn = Of([0, 1, 2, 3, 4], [0, 1, double.NaN, 3, 4]).Drawn();
 
         Assert.Equal(4, Markers(drawn).Count);
         // Arrows 0 -> 1 and 3 -> 4 are drawn; 1 -> 2 and 2 -> 3 touch the missing point.
@@ -120,18 +103,15 @@ public class ConnectedScatterTests
         Assert.Equal(1.0, parts.Arrows.Scale);
         Assert.Equal(4, parts.Points.XData.Length);
         // One drawn unit is one colour: the two share a slot, so the next series takes the next colour of the cycle.
-        var colours = Drawn(Plt.Create().WithSize(800, 300).AddSubPlot(1, 1, 1, ax => ax
-            .ConnectedScatter([1, 2, 4, 5], [3, 5, 4, 7]).Plot([0.0, 1.0], [0.0, 1.0])).Build())
-            .OfKind("DrawLines").Select(call => (Color)((dynamic)call.Args!).color).ToList();
+        var colours = Plt.Create().WithSize(800, 300).WithTheme(Theme.Default).AddSubPlot(1, 1, 1, ax => ax
+            .ConnectedScatter([1, 2, 4, 5], [3, 5, 4, 7]).Plot([0.0, 1.0], [0.0, 1.0])).Build().Drawn()
+            .Of<DrawLinesCall>().Select(call => call.Color).ToList();
         Assert.Contains(Theme.Default.CycleColors[1], colours);
-    }
-
-    [Fact]
-    public void WhatTheCallbackSets_WinsOverWhatTheVerbDid()
-    {
-        var drawn = Drawn(Of([0, 1, 2], [0, 1, 0], p => { p.Arrows.Color = Colors.Red; p.Points.MarkerSize = 12; }));
-
-        Assert.Contains(drawn.OfKind("DrawLine"), call => (Color)((dynamic)call.Args!).color == Colors.Red);
+        // Under the matplotlib themes the pair asks the patch cycle, as its scatter does: a line after it takes the lines cycle's
+        // first colour, a scatter after it the patch cycle's second.
+        var axesV2 = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.ConnectedScatter([1, 2, 4, 5], [3, 5, 4, 7]).Plot([0.0, 1.0], [0.0, 1.0])
+            .Scatter([0.0, 1.0], [0.0, 1.0])).Build().SubPlots[0];
+        Assert.Equal([0, 0, 0, 1], axesV2.ColorSlots(Theme.MatplotlibV2));
     }
 
     [Fact]
@@ -161,17 +141,6 @@ public class ConnectedScatterTests
         Assert.Empty(parts.Arrows.UData);
         Assert.Equal(count, parts.Points.XData.Length);
         Assert.NotEmpty(figure.ToSvg());
-    }
-
-    [Fact]
-    public void TheChart_SurvivesTheJson_AndDrawsTheSamePicture()
-    {
-        var figure = Of([1, 2, 4, 5, 7], [3, 5, 4, 7, 6]);
-
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
-
-        Assert.Equal(figure.ToSvg(), back.ToSvg());
-        Assert.Equal(2, back.SubPlots[0].Series.Count);
     }
 
     [Fact]

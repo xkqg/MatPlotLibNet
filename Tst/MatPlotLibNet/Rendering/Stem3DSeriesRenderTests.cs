@@ -13,40 +13,14 @@ public class Stem3DSeriesRenderTests
     private static readonly double[] Y = [0.0, 1.0, 0.0];
     private static readonly double[] Z = [1.0, 2.0, 1.5];
 
-    [Fact]
-    public void Stem3D_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Stem3D(X, Y, Z))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        // Each stem is a line and each head a marker.
+        new DrawnToken("Stem3D_SvgContainsLinesAndCircles", () => TestFigures.OfOneVerb(ax => ax.Stem3D(X, Y, Z)).ToSvg(), "<line"),
+    };
 
-    [Fact]
-    public void Stem3D_SvgContainsLinesAndCircles()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Stem3D(X, Y, Z))
-            .ToSvg();
-        Assert.True(svg.Contains("<line") || svg.Contains("<circle"),
-            "Expected SVG to contain stem line and/or marker elements");
-    }
-
-    [Fact]
-    public void Stem3D_EmptyData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Stem3D([], [], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Stem3D_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Stem3D(X, Y, Z)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

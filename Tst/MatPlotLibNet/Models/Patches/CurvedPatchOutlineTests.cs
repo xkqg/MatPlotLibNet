@@ -324,26 +324,156 @@ public class CurvedPatchOutlineTests
         AssertVertices([new(0, -1), new(0, -1)], [Vertices(wholeFromBelow)[0], Vertices(wholeFromBelow)[^1]]);
     }
 
+    // ---- a negative size: mirrored, as matplotlib's patch transform scales ---------------------------------------------
+
+    // matplotlib's patch transform is Affine2D().scale(width / 2, height / 2) (a circle and a wedge: scale(r)), which a negative
+    // number mirrors: the shape stands where it would with the same size positive, its path run from the opposite side.
+
+    [Fact]
+    public void ACircleOfNegativeRadius_IsMatplotlibsCircleMirroredThroughItsCentre()
+    {
+        // matplotlib: Circle((2, 3), -1.5): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Circle(new(2, 3), -1.5);
+
+        AssertVertices(
+            [
+                new(2.0, 4.5), new(1.60219535, 4.5), new(1.2206301938227198, 4.341950537382362),
+                new(0.9393398282201786, 4.060660171779821), new(0.6580494626176374, 3.7793698061772805), new(0.5, 3.39780465),
+                new(0.5, 3.0), new(0.5, 2.60219535), new(0.6580494626176374, 2.2206301938227195),
+                new(0.9393398282201786, 1.9393398282201786), new(1.2206301938227198, 1.6580494626176374), new(1.60219535, 1.5),
+                new(2.0, 1.5), new(2.39780465, 1.5), new(2.7793698061772805, 1.6580494626176374),
+                new(3.0606601717798214, 1.9393398282201786), new(3.3419505373823624, 2.2206301938227195), new(3.5, 2.60219535),
+                new(3.5, 3.0), new(3.5, 3.39780465), new(3.3419505373823624, 3.7793698061772805),
+                new(3.0606601717798214, 4.060660171779821), new(2.7793698061772805, 4.341950537382362), new(2.39780465, 4.5),
+                new(2.0, 4.5),
+            ],
+            Vertices(patch));
+    }
+
+    [Fact]
+    public void AnEllipseOfNegativeWidth_IsTheEllipseMirroredAcrossItsHeightAxis()
+    {
+        // matplotlib: Ellipse((1, 2), -4, 2, angle=30): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Ellipse(new(1, 2), -4, 2) { Angle = 30 };
+
+        AssertVertices(
+            [
+                new(1.5, 1.1339745962155612), new(1.0406547564752302, 0.8687714962155613), new(0.5473781110046824, 0.7056446252182766),
+                new(0.12880851920168457, 0.6805207831176578), new(-0.28976107260131334, 0.6553969410170393), new(-0.5994492575688775, 0.7703273782376152),
+                new(-0.7320508075688774, 1.0), new(-0.8646523575688774, 1.229672621762385), new(-0.8093409433861667, 1.5553356758064776),
+                new(-0.5782982619848629, 1.9052656545092472), new(-0.3472555805835591, 2.2551956332120167), new(0.0406547564752302, 2.6008223037844385),
+                new(0.5, 2.866025403784439), new(0.9593452435247698, 3.1312285037844387), new(1.4526218889953175, 3.2943553747817234),
+                new(1.8711914807983154, 3.319479216882342), new(2.2897610726013133, 3.344603058982961), new(2.5994492575688772, 3.2296726217623846),
+                new(2.7320508075688776, 3.0), new(2.864652357568877, 2.770327378237615), new(2.8093409433861667, 2.444664324193522),
+                new(2.578298261984863, 2.0947343454907528), new(2.347255580583559, 1.7448043667879833), new(1.9593452435247698, 1.3991776962155613),
+                new(1.5, 1.1339745962155612),
+            ],
+            Vertices(patch));
+    }
+
+    [Fact]
+    public void AnEllipseOfNegativeHeight_IsTheEllipseMirroredAcrossItsWidthAxis()
+    {
+        // matplotlib: Ellipse((1, 2), 4, -2): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Ellipse(new(1, 2), 4, -2);
+
+        AssertVertices(
+            [
+                new(1.0, 3.0), new(1.5304062, 3.0), new(2.0391597415697067, 2.8946336915882416),
+                new(2.414213562373095, 2.7071067811865475), new(2.789267383176483, 2.5195798707848533), new(3.0, 2.2652031),
+                new(3.0, 2.0), new(3.0, 1.7347969), new(2.789267383176483, 1.4804201292151467),
+                new(2.414213562373095, 1.2928932188134525), new(2.0391597415697067, 1.1053663084117584), new(1.5304062, 1.0),
+                new(1.0, 1.0), new(0.46959379999999995, 1.0), new(-0.03915974156970692, 1.1053663084117584),
+                new(-0.41421356237309515, 1.2928932188134525), new(-0.7892673831764834, 1.4804201292151467), new(-1.0, 1.7347969),
+                new(-1.0, 2.0), new(-1.0, 2.2652031), new(-0.7892673831764834, 2.5195798707848533),
+                new(-0.41421356237309515, 2.7071067811865475), new(-0.03915974156970692, 2.8946336915882416), new(0.46959379999999995, 3.0),
+                new(1.0, 3.0),
+            ],
+            Vertices(patch));
+    }
+
+    [Fact]
+    public void AWedgeOfNegativeRadius_IsTheWedgeMirroredThroughItsCentre()
+    {
+        // matplotlib: Wedge((0, 0), -2, 30, 120): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Wedge(new(0, 0), -2, 30, 120);
+
+        AssertVertices(
+            [
+                new(-1.7320508075688774, -0.9999999999999999), new(-1.466936034077575, -1.4591922575240504), new(-1.029800503497093, -1.7946181475429563),
+                new(-0.5176380902050419, -1.9318516525781364), new(-0.00547567691299089, -2.0690851576133165), new(0.5408077424759491, -1.9971655810601798),
+                new(0.9999999999999996, -1.7320508075688774), new(0.0, 0.0),
+            ],
+            Vertices(patch));
+    }
+
+    [Fact]
+    public void ARingOfNegativeRadius_IsTheRingMirroredThroughItsCentre()
+    {
+        // matplotlib: Wedge((0, 0), -2, 30, 120, width=0.5): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Wedge(new(0, 0), -2, 30, 120) { Width = 0.5 };
+
+        AssertVertices(
+            [
+                new(-1.7320508075688774, -0.9999999999999999), new(-1.466936034077575, -1.4591922575240504), new(-1.029800503497093, -1.7946181475429563),
+                new(-0.5176380902050419, -1.9318516525781364), new(-0.00547567691299089, -2.0690851576133165), new(0.5408077424759491, -1.9971655810601798),
+                new(0.9999999999999996, -1.7320508075688774), new(1.2499999999999996, -2.165063509461097), new(0.6760096780949364, -2.496456976325225),
+                new(-0.0068445961412386125, -2.5863564470166454), new(-0.6470476127563024, -2.4148145657226703), new(-1.2872506293713661, -2.243272684428695),
+                new(-1.8336700425969688, -1.8239903219050628), new(-2.165063509461097, -1.2499999999999998),
+            ],
+            Vertices(patch));
+    }
+
+    [Fact]
+    public void AnArcOfNegativeWidth_IsTheArcMirroredAcrossItsHeightAxis()
+    {
+        // matplotlib: Arc((0, 0), -4, 2, theta1=20, theta2=200): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Arc(new(0, 0), -4, 2) { Theta1 = 20, Theta2 = 200 };
+
+        AssertVertices(
+            [
+                new(-1.6169584227309863, -0.5885247359201058), new(-1.9290116268459612, -0.37418495292651627), new(-2.0581292202849943, -0.10635728125340113),
+                new(-1.9756619289400423, 0.15553130113976335), new(-1.8931946375950905, 0.4174198835329278), new(-1.6057290378273918, 0.652452609308005),
+                new(-1.1770494718402131, 0.8084792113654926), new(-0.7483699058530344, 0.9645058134229803), new(-0.21271456250680237, 1.029064610142497),
+                new(0.3110626022795266, 0.9878309644700212), new(0.8348397670658556, 0.9465973187975453), new(1.3049052186160097, 0.8028645189136959),
+                new(1.616958422730985, 0.5885247359201066),
+            ],
+            Vertices(patch));
+    }
+
+    [Fact]
+    public void AnArcOfNegativeHeight_IsTheArcMirroredAcrossItsWidthAxis()
+    {
+        // matplotlib: Arc((0, 0), 4, -2, theta1=20, theta2=200): get_patch_transform().transform(get_path().vertices), the close left out.
+        var patch = new Arc(new(0, 0), 4, -2) { Theta1 = 20, Theta2 = 200 };
+
+        AssertVertices(
+            [
+                new(1.6169584227309863, 0.5885247359201058), new(1.9290116268459612, 0.37418495292651627), new(2.0581292202849943, 0.10635728125340113),
+                new(1.9756619289400423, -0.15553130113976335), new(1.8931946375950905, -0.4174198835329278), new(1.6057290378273918, -0.652452609308005),
+                new(1.1770494718402131, -0.8084792113654926), new(0.7483699058530344, -0.9645058134229803), new(0.21271456250680237, -1.029064610142497),
+                new(-0.3110626022795266, -0.9878309644700212), new(-0.8348397670658556, -0.9465973187975453), new(-1.3049052186160097, -0.8028645189136959),
+                new(-1.616958422730985, -0.5885247359201066),
+            ],
+            Vertices(patch));
+    }
+
     // ---- what cannot be drawn ------------------------------------------------------------------------------------------
 
     private static readonly Dictionary<string, Func<Patch>> CurvedPatchesThatCannotBeDrawn = new()
     {
         ["circle of radius 0"] = () => new Circle(new(0, 0), 0),
-        ["circle of negative radius"] = () => new Circle(new(0, 0), -1),
         ["circle centre NaN"] = () => new Circle(new(double.NaN, 0), 1),
         ["circle radius infinite"] = () => new Circle(new(0, 0), double.PositiveInfinity),
         ["ellipse of width 0"] = () => new Ellipse(new(0, 0), 0, 1),
-        ["ellipse of negative height"] = () => new Ellipse(new(0, 0), 1, -1),
         ["ellipse angle NaN"] = () => new Ellipse(new(0, 0), 2, 1) { Angle = double.NaN },
         ["ellipse centre infinite"] = () => new Ellipse(new(0, double.NegativeInfinity), 2, 1),
         ["wedge of radius 0"] = () => new Wedge(new(0, 0), 0, 0, 90),
-        ["wedge of negative radius"] = () => new Wedge(new(0, 0), -2, 0, 90),
         ["wedge first angle NaN"] = () => new Wedge(new(0, 0), 1, double.NaN, 90),
         ["wedge second angle infinite"] = () => new Wedge(new(0, 0), 1, 0, double.PositiveInfinity),
         ["wedge first angle infinite"] = () => new Wedge(new(0, 0), 1, double.NegativeInfinity, 90),
         ["wedge width NaN"] = () => new Wedge(new(0, 0), 1, 0, 90) { Width = double.NaN },
         ["arc of height 0"] = () => new Arc(new(0, 0), 2, 0),
-        ["arc of negative width"] = () => new Arc(new(0, 0), -2, 1),
         ["arc angle infinite"] = () => new Arc(new(0, 0), 2, 1) { Angle = double.PositiveInfinity },
         ["arc first angle NaN"] = () => new Arc(new(0, 0), 2, 1) { Theta1 = double.NaN },
         ["arc centre NaN"] = () => new Arc(new(0, double.NaN), 2, 2),

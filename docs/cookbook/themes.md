@@ -12,8 +12,9 @@ description: "Switch a C# chart between 30 themes, light and dark, and build a t
 ```csharp
 Plt.Create()
     .WithTheme(Theme.Dracula)
-    .Plot(x, y, s => s.Label = "Data")
-    .WithLegend()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "Data")
+        .WithLegend())
     .Save("dracula.svg");
 ```
 
@@ -37,7 +38,13 @@ Plt.Create()
 | `Theme.Minimal` | Tufte-inspired | No grid, size 11 |
 | `Theme.Retro` | Vintage | Warm yellows/browns |
 | `Theme.MatplotlibClassic` | Pre-2.0 matplotlib | bgrcmyk cycle |
-| `Theme.MatplotlibV2` | Modern matplotlib | tab10, soft-black |
+| `Theme.MatplotlibV2` | Modern matplotlib | tab10, black text |
+
+The two matplotlib themes hand out the colours of their cycle as matplotlib's axes does: a line takes the next colour of the
+cycle of the lines, a scatter, a bar, a pie's wedges and a fill the next of the cycle of the patches, so a scatter drawn after a
+line is blue too; a stem, a box plot, a quiver and a heat map take neither, and a series given its colour moves no cycle. A line on a
+second Y axis or on the top X axis starts the cycles again, as matplotlib's `twinx` and `twiny` are axes of their own. Every
+other theme keeps one cycle, in the order the series were added.
 
 ### Dark themes
 
@@ -84,8 +91,9 @@ foreach (var name in themes)
     Plt.Create()
         .WithTheme(theme!)
         .WithTitle(name)
-        .Plot(x, y, s => s.Label = "sin(x)")
-        .WithLegend()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(x, y, s => s.Label = "sin(x)")
+            .WithLegend())
         .Save($"theme_{name}.svg");
 }
 ```
@@ -114,9 +122,10 @@ var custom = Theme.CreateFrom(Theme.Dark)
 Plt.Create()
     .WithTheme(custom)
     .WithTitle("Custom Theme")
-    .Plot(x, y1, s => s.Label = "Series 1")
-    .Plot(x, y2, s => s.Label = "Series 2")
-    .WithLegend()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y1, s => s.Label = "Series 1")
+        .Plot(x, y2, s => s.Label = "Series 2")
+        .WithLegend())
     .Save("custom_theme.svg");
 ```
 
@@ -175,7 +184,7 @@ Plt.Create()
 
 | Method | Description |
 |---|---|
-| `.WithTheme(Theme preset)` | Apply a built-in or custom theme |
+| `.WithTheme(Theme theme)` | Apply a built-in or custom theme |
 | `.WithBackground(Color)` | Override figure background |
 | `Theme.CreateFrom(base)` | Start a ThemeBuilder from existing theme |
 | `.WithForegroundText(Color)` | Text/foreground color |

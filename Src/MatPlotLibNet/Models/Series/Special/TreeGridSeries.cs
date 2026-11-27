@@ -40,7 +40,7 @@ public readonly record struct TreeGridRow(string Label, IReadOnlyList<string> Ce
 ///
 /// <para>The grid carries no data of its own and contributes no axes range: it fills the region it is given.</para>
 /// </summary>
-public sealed class TreeGridSeries : ChartSeries
+public sealed class TreeGridSeries : ChartSeries, ISeriesKind<TreeGridSeries>, IGivenTextSize
 {
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
@@ -50,35 +50,52 @@ public sealed class TreeGridSeries : ChartSeries
     public IReadOnlyList<TreeGridRow> Rows { get; }
 
     /// <summary>The column titles over <see cref="TreeGridRow.Cells"/>, or null for a headerless grid.</summary>
-    public string[]? ColumnHeaders { get; set; }
+    public string[]? ColumnHeaders { get; set => Change(ref field, value); }
 
+    private const double RestingRowHeight = 22;
     /// <summary>The height of one row.</summary>
-    public double RowHeight { get; set; } = 22;
+    public double RowHeight { get; set => Change(ref field, value); } = RestingRowHeight;
 
+    private const double RestingIndentWidth = 18;
     /// <summary>How far one level of depth indents.</summary>
-    public double IndentWidth { get; set; } = 18;
+    public double IndentWidth { get; set => Change(ref field, value); } = RestingIndentWidth;
 
+    private const double RestingColumnWidth = 120;
     /// <summary>The width of one value column; the name column takes whatever is left.</summary>
-    public double ColumnWidth { get; set; } = 120;
+    public double ColumnWidth { get; set => Change(ref field, value); } = RestingColumnWidth;
 
-    /// <summary>The row text's point size.</summary>
-    public double FontSize { get; set; } = 12;
+    /// <summary>The size of the row text, in pixels (the unit of <see cref="Font.Size"/>). Default <see cref="RestingFontSize"/>. Given no size, the rows are
+    /// the size of the theme's text under the matplotlib themes (<c>TextLook.SeriesTextAtFontSize</c>: a chart's text is one
+    /// size there) and <see cref="RestingFontSize"/> under every other theme; a size that is given, the default included, is drawn as given.</summary>
+    public double FontSize { get => GivenFontSize ?? RestingFontSize; set => GivenFontSize = value; }
+
+    /// <summary>The row size a new grid holds under a theme that names none.</summary>
+    private const double RestingFontSize = 12;
+
+    /// <summary>The row size that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenFontSize { get; private set => Change(ref field, value); }
+
+    double? IGivenTextSize.GivenTextSize => GivenFontSize;
+
+    double IGivenTextSize.RestingTextSize => RestingFontSize;
 
     /// <summary>Creates a tree grid over <paramref name="rows"/>.</summary>
     public TreeGridSeries(IReadOnlyList<TreeGridRow> rows) => Rows = rows;
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
+
+    static string ISeriesKind<TreeGridSeries>.Kind => "treegrid";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "treegrid",
+        Type = this.WireKind(),
         ColumnHeaders = ColumnHeaders,
-        RowHeight = RowHeight.OrNullAtRest(22.0),
-        IndentWidth = IndentWidth.OrNullAtRest(18.0),
-        ColumnWidth = ColumnWidth.OrNullAtRest(120.0),
-        FontSize = FontSize.OrNullAtRest(12.0),
+        RowHeight = RowHeight.OrNullAtRest(RestingRowHeight),
+        IndentWidth = IndentWidth.OrNullAtRest(RestingIndentWidth),
+        ColumnWidth = ColumnWidth.OrNullAtRest(RestingColumnWidth),
+        FontSize = GivenFontSize,
         TreeGridRows = [.. Rows.Select(r => new TreeGridRowDto
         {
             Label = r.Label,
@@ -90,10 +107,7 @@ public sealed class TreeGridSeries : ChartSeries
         })],
     };
 
-    /// <summary>Reconstructs a <see cref="TreeGridSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="TreeGridSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static TreeGridSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var rows = (dto.TreeGridRows ?? []).Select(r => new TreeGridRow(r.Label, r.Cells ?? [])
@@ -105,22 +119,10 @@ public sealed class TreeGridSeries : ChartSeries
         }).ToList();
         var s = axes.TreeGrid(rows);
         s.ColumnHeaders = dto.ColumnHeaders;
-        if (dto.RowHeight.HasValue)
-        {
-            s.RowHeight = dto.RowHeight.Value;
-        }
-        if (dto.IndentWidth.HasValue)
-        {
-            s.IndentWidth = dto.IndentWidth.Value;
-        }
-        if (dto.ColumnWidth.HasValue)
-        {
-            s.ColumnWidth = dto.ColumnWidth.Value;
-        }
-        if (dto.FontSize.HasValue)
-        {
-            s.FontSize = dto.FontSize.Value;
-        }
+        if (dto.RowHeight is { } rowHeight) s.RowHeight = rowHeight;
+        if (dto.IndentWidth is { } indentWidth) s.IndentWidth = indentWidth;
+        if (dto.ColumnWidth is { } columnWidth) s.ColumnWidth = columnWidth;
+        if (dto.FontSize is { } fontSize) s.FontSize = fontSize;
         return s;
     }
 
@@ -136,9 +138,7 @@ public sealed class TreeGridSeries : ChartSeries
         var columns = new List<ChartDataColumn> { new("label", DataColumnKind.Text), new("depth") };
         for (int c = 0; c < width; c++)
         {
-            string header = ColumnHeaders is { } headers && c < headers.Length
-                ? headers[c]
-                : "column " + (c + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string header = ColumnHeaders.NameOr(c, "column ");
             columns.Add(new(header, DataColumnKind.Text));
         }
 
@@ -152,7 +152,7 @@ public sealed class TreeGridSeries : ChartSeries
             };
             for (int c = 0; c < width; c++)
             {
-                cells.Add(DataCell.FromText(c < row.Cells.Count ? row.Cells[c] : ""));
+                cells.Add(DataCell.FromText(row.Cells.ElementOr(c, "")));
             }
 
             rows.Add(cells);

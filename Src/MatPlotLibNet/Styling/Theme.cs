@@ -1,6 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Runtime.CompilerServices;
+using MatPlotLibNet.Styling.ColorMaps;
+
 namespace MatPlotLibNet.Styling;
 
 /// <summary>
@@ -43,12 +46,16 @@ public sealed class Theme
     /// </summary>
     public Models.SubPlotSpacing? DefaultSpacing { get; init; }
 
-    /// <summary>
-    /// Default edge (outline) color for patch-based series (histogram bars, filled areas).
-    /// Mirrors <c>patch.edgecolor</c> in matplotlib style sheets.
-    /// <see langword="null"/> means no edge is drawn unless the series specifies one explicitly.
-    /// </summary>
-    public Color? PatchEdgeColor { get; init; }
+    /// <summary>The colour a patch is edged in where its series names none: matplotlib's <c>patch.edgecolor</c>, black under both
+    /// matplotlib themes. Under the classic theme, which forces an edge on every patch, every bar, bin, wedge and fill is edged in it;
+    /// under the default theme only a patch whose author asks for an edge (a surface's outline) is. Under the library's own themes,
+    /// which name none (<see langword="null"/>), a histogram's bins are edged in it when it is set. One value with the theme's look of
+    /// a patch: setting it sets the colour the look draws with.</summary>
+    public Color? PatchEdgeColor
+    {
+        get => Looks.Patch.EdgeColor;
+        init => Looks = Looks with { Patch = Looks.Patch with { EdgeColor = value } };
+    }
 
     /// <summary>
     /// Override body fill color for violin plots.  When set, <c>ViolinSeriesRenderer</c>
@@ -67,7 +74,7 @@ public sealed class Theme
     /// <summary>
     /// Default X-axis margin (data padding as a fraction of the data range). Matches
     /// matplotlib's <c>axes.xmargin</c> rcParam — classic style uses <c>0.0</c>, v2+ uses <c>0.05</c>.
-    /// Consumed by <c>CartesianAxesRenderer.ComputeDataRanges</c> when <see cref="Models.Axis.Margin"/>
+    /// Consumed by <c>CartesianAxisPlacement.ComputeDataRanges</c> when <see cref="Models.Axis.Margin"/>
     /// is <see langword="null"/>.
     /// </summary>
     public double AxisXMargin { get; init; } = 0.05;
@@ -87,12 +94,67 @@ public sealed class Theme
     public Models.LegendPosition DefaultLegendPosition { get; init; } = Models.LegendPosition.Best;
 
     /// <summary>Default background color for 3D axes panes (floor, left wall, right wall).
-    /// When <c>null</c>, the renderer uses <c>#F5F5F5</c>. Override in custom themes for
+    /// When <c>null</c>, each pane wears matplotlib's shade of its axis over white: <c>#F8F8F8</c> for the X wall,
+    /// <c>#F2F2F2</c> for the Y wall and <c>#F5F5F5</c> for the floor. Override in custom themes for
     /// dark-mode 3D charts.</summary>
     public Color? Pane3DColor { get; init; }
 
+    private ListedColorMap? _cycleMap;
+
+    /// <summary>The theme's cycle as a colour map: the colours it hands out in turn to successive series (the cycler's when it has one,
+    /// else <see cref="CycleColors"/>), each an equal share of 0 to 1. What a series that colours its groups, clusters or assets by a
+    /// map falls back to when it was given none, so they wear the theme's colours as matplotlib's <c>C0</c>, <c>C1</c>... do. Made on
+    /// the first ask and kept, so a draw allocates none.</summary>
+    internal ListedColorMap CycleMap =>
+        _cycleMap ??= new ListedColorMap("cycle", PropCycler is { NamesColors: true } cycler ? [.. cycler.ColorCycle] : CycleColors);
+
+    /// <summary>Everything this theme says about how things are drawn beyond its colours, font, grid and margins: its ticks, its
+    /// patches, its colour bars, its dots and so on, one look for each concern. Every library theme wears
+    /// <see cref="ThemeLooks.Library"/>; the matplotlib themes wear matplotlib's.</summary>
+    internal ThemeLooks Looks { get; init; } = ThemeLooks.Library;
+
+    /// <summary>The size a series text is drawn at under this theme, in pixels: the one its author named, else the theme's font size
+    /// where its looks draw such text at it (<see cref="TextLook.SeriesTextAtFontSize"/>), else the size the series draws it at when
+    /// nothing is said.</summary>
+    /// <param name="given">The size the author named, <see langword="null"/> when none.</param>
+    /// <param name="resting">The size the series draws its text at under a theme that names none.</param>
+    /// <returns>The size, in the units of <see cref="Font.Size"/>.</returns>
+    internal double SeriesTextSizeOver(double? given, double resting) => given ?? (Looks.Text.SeriesTextAtFontSize ? DefaultFont.Size : resting);
+
+    /// <summary>The edge a patch is drawn with under this theme: the one rule every kind of patch shares. Where the theme draws patches
+    /// as matplotlib does (<see cref="PatchLook.EdgeOver"/>: the colour given, else the forced one, else none, at the opacity given to
+    /// the patch; the width given, else <c>patch.linewidth</c>) that is the edge; under the library's own themes it is the kind's own
+    /// (<see cref="IEdgedPatch.LibraryEdge"/>), with this theme's <see cref="PatchEdgeColor"/> at hand.</summary>
+    /// <param name="patch">What is drawn: what its author gave and its own library edge.</param>
+    /// <param name="fill">The colour it is filled with, <see langword="null"/> when it has several and its edge follows none.</param>
+    /// <returns>The edge; none is <see cref="PatchEdge.None"/>.</returns>
+    internal PatchEdge PatchEdgeOf(IEdgedPatch patch, Color? fill = null) =>
+        ResolvedPatchEdge.Resolve(patch, Looks.Patch.EdgeOver(patch.GivenEdge), PatchEdgeColor, fill);
+
+    /// <summary>The style of a shape of a series whose artist is <paramref name="artist"/>, joined at its corners as this theme joins what
+    /// the artist is (<see cref="StrokeLook.JoinedAs"/>): a collection's (a scatter marker, a hexagon, a barb, a 3-D face) by the theme's
+    /// join, a patch's mitre kept. A patch-like series asks it through <see cref="ResolvedPatchEdge.StyleOf(Color, PatchEdge, HatchFill)"/>.</summary>
+    /// <param name="artist">What the series is to matplotlib (<see cref="Models.Series.ChartSeries.Artist"/>).</param>
+    /// <param name="shape">The style of the shape.</param>
+    /// <returns>The style, its stroke joined as the artist's is under this theme.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ShapeStyle JoinedAs(in Models.Series.MatplotlibArtist artist, ShapeStyle shape) => Looks.Strokes.JoinedAs(in artist, shape);
+
+    /// <summary>The join a fresh shape of a series whose artist is <paramref name="artist"/> takes under this theme
+    /// (<see cref="StrokeLook.ShapeJoinOf"/>), for a renderer that lays it on every face it makes in one loop.</summary>
+    /// <param name="artist">What the series is to matplotlib.</param>
+    /// <returns>The join.</returns>
+    internal JoinStyle ShapeJoinOf(in Models.Series.MatplotlibArtist artist) => Looks.Strokes.ShapeJoinOf(in artist);
+
+    /// <summary>What this theme decides about the edge of <paramref name="patch"/>, worked out once: for a series that draws many
+    /// shapes, each then asks <see cref="ResolvedPatchEdge.Of"/>, which is <see cref="PatchEdgeOf"/> with the asking and the theme's rule
+    /// already done.</summary>
+    /// <param name="patch">What is drawn: what its author gave and its own library edge.</param>
+    /// <returns>The resolved edge rule of the series.</returns>
+    internal ResolvedPatchEdge PatchEdgesOf(IEdgedPatch patch) => new(patch, Looks.Patch.EdgeOver(patch.GivenEdge), PatchEdgeColor, Looks, patch.Artist);
+
     /// <summary>The grey that reference graphics drawn over the plot wear (reference lines, trendlines, price levels,
-    /// Fibonacci retracements, a waterfall's connectors, a stem's baseline, the lines of a contour without a colour map, a
+    /// Fibonacci retracements, a waterfall's connectors, a stem's baseline (under the matplotlib themes it is red, as matplotlib's is), the lines of a contour without a colour map, a
     /// dumbbell's connector, a map's outlines), when the theme names one. <see langword="null"/> (the default) lets the
     /// theme derive it from its plot: #808080 where that stands at 3 : 1 or more against the plot, as WCAG asks of a
     /// graphic, and otherwise the nearest grey that does. A colour set on the graphic itself always wins.</summary>
@@ -122,14 +184,11 @@ public sealed class Theme
         DefaultSpacing = defaultSpacing;
     }
 
-    /// <summary>Copy constructor: clones every property of <paramref name="other"/> under a new name.
-    /// <para>This exists because a hand-maintained argument list is a bug waiting to happen. <see cref="Theme"/>
-    /// carries a settable property for every setting (the neutral colour among them); <c>ThemeBuilder.Build()</c> used to construct
-    /// a fresh instance from 8 of them, so deriving a theme from <see cref="Dark"/> silently reset its spacing, its patch edge colour, its
-    /// violin colours and its axis margins to library defaults. Cloning cannot drift: a property added tomorrow
-    /// is copied without anyone remembering to update a list.</para></summary>
+    /// <summary>Copy constructor: clones every setting of <paramref name="other"/> under a new name: its colours, font, grid,
+    /// cycle, spacing and margins, and its looks as one value. A test reads the settings off the type, so a setting added to the
+    /// theme that the copy forgets is named the moment it is.</summary>
     /// <param name="name">The name of the clone.</param>
-    /// <param name="other">The theme to copy every property from.</param>
+    /// <param name="other">The theme to copy every setting from.</param>
     internal Theme(string name, Theme other)
     {
         Name = name;
@@ -141,7 +200,6 @@ public sealed class Theme
         DefaultGrid = other.DefaultGrid;
         PropCycler = other.PropCycler;
         DefaultSpacing = other.DefaultSpacing;
-        PatchEdgeColor = other.PatchEdgeColor;
         ViolinBodyColor = other.ViolinBodyColor;
         ViolinStatsColor = other.ViolinStatsColor;
         AxisXMargin = other.AxisXMargin;
@@ -150,6 +208,7 @@ public sealed class Theme
         Pane3DColor = other.Pane3DColor;
         NeutralColor = other.NeutralColor;
         Alarm = other.Alarm;
+        Looks = other.Looks;
     }
 
     /// <summary>The theme's alarm palette: the colours reserved for a state that needs attention, and the
@@ -162,30 +221,15 @@ public sealed class Theme
     /// <summary>Creates a <see cref="StyleSheet"/> that mirrors this theme's visual settings as rcParam keys.</summary>
     public StyleSheet ToStyleSheet() => StyleSheet.FromTheme(this);
 
-    // Matplotlib's default tab10 color cycle
-    private static readonly Color[] DefaultCycleColors =
-    [
-        Color.FromHex("#1f77b4"), // blue
-        Color.FromHex("#ff7f0e"), // orange
-        Color.FromHex("#2ca02c"), // green
-        Color.FromHex("#d62728"), // red
-        Color.FromHex("#9467bd"), // purple
-        Color.FromHex("#8c564b"), // brown
-        Color.FromHex("#e377c2"), // pink
-        Color.FromHex("#7f7f7f"), // gray
-        Color.FromHex("#bcbd22"), // olive
-        Color.FromHex("#17becf"), // cyan
-    ];
-
     /// <summary>The library's plain light theme: white figure and axes, black text, matplotlib's <c>tab10</c> colour cycle and a light-grey grid.</summary>
     public static Theme Default { get; } = new(
         name: "default",
         background: Colors.White,
         foregroundText: Colors.Black,
         axesBackground: Colors.White,
-        cycleColors: DefaultCycleColors,
+        cycleColors: QualitativeColorMaps.Tab10Cycle(),
         defaultFont: new Font(),
-        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#B0B0B0"), LineStyle = LineStyle.Solid, LineWidth = 0.8 });
+        defaultGrid: GridStyle.Plain with { Visible = true });
 
     /// <summary>A dark theme: a near-black figure (<c>#1C1C1C</c>), dark grey axes (<c>#2D2D2D</c>), light grey text, the <c>tab10</c> colour cycle and a dark grey grid.</summary>
     public static Theme Dark { get; } = new(
@@ -193,11 +237,11 @@ public sealed class Theme
         background: Color.FromHex("#1C1C1C"),
         foregroundText: Color.FromHex("#E0E0E0"),
         axesBackground: Color.FromHex("#2D2D2D"),
-        cycleColors: DefaultCycleColors,
+        cycleColors: QualitativeColorMaps.Tab10Cycle(),
         defaultFont: new Font { Color = Color.FromHex("#E0E0E0") },
         defaultGrid: new GridStyle { Color = Color.FromHex("#404040"), Visible = true });
 
-    /// <summary>A seaborn-like look: white figure, light blue-grey axes, seaborn's ten-colour cycle, white grid lines and 11-point text.</summary>
+    /// <summary>A seaborn-like look: white figure, light blue-grey axes, seaborn's ten-colour cycle, white grid lines and dark grey text 11 pixels high.</summary>
     public static Theme Seaborn { get; } = new(
         name: "seaborn",
         background: Colors.White,
@@ -285,29 +329,11 @@ public sealed class Theme
         defaultFont: new Font { Size = 14 },
         defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#CBCBCB") });
 
-    private static readonly Color[] ColorBlindSafeCycleColors =
-    [
-        Color.FromHex("#E69F00"), // orange
-        Color.FromHex("#56B4E9"), // sky blue
-        Color.FromHex("#009E73"), // bluish green
-        Color.FromHex("#F0E442"), // yellow
-        Color.FromHex("#0072B2"), // blue
-        Color.FromHex("#D55E00"), // vermillion
-        Color.FromHex("#CC79A7"), // reddish purple
-        Color.FromHex("#000000"), // black
-    ];
-
     /// <summary>
-    /// Okabe-Ito color-blind safe theme — safe for all three common forms of color vision deficiency.
+    /// Okabe-Ito color-blind safe theme — safe for all three common forms of color vision deficiency: the default theme cycling
+    /// the eight Okabe-Ito colours.
     /// </summary>
-    public static Theme ColorBlindSafe { get; } = new(
-        name: "colorblind-safe",
-        background: Colors.White,
-        foregroundText: Colors.Black,
-        axesBackground: Colors.White,
-        cycleColors: ColorBlindSafeCycleColors,
-        defaultFont: new Font(),
-        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#B0B0B0"), LineStyle = LineStyle.Solid, LineWidth = 0.8 });
+    public static Theme ColorBlindSafe { get; } = Default.Preset("colorblind-safe").WithCycleColors(QualitativeColorMaps.OkabeItoCycle()).Build();
 
     private static readonly Color[] HighContrastCycleColors =
     [
@@ -332,7 +358,7 @@ public sealed class Theme
         axesBackground: Colors.White,
         cycleColors: HighContrastCycleColors,
         defaultFont: new Font { Family = "DejaVu Sans, sans-serif", Size = 13, Weight = FontWeight.Bold },
-        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#666666"), LineStyle = LineStyle.Solid, LineWidth = 1.5 });
+        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#666666"), LineWidth = 1.5 });
 
     /// <summary>
     /// Matplotlib classic (pre-2.0) look — white background, the iconic <c>bgrcmyk</c> 7-color
@@ -342,46 +368,78 @@ public sealed class Theme
     public static Theme MatplotlibClassic { get; } = Themes.MatplotlibThemeFactory.CreateClassic();
 
     /// <summary>
-    /// The look matplotlib has had by default since version 2.0 (2017) — white background, soft-black <c>#262626</c>
-    /// text, the modern <c>tab10</c> 10-color cycle, and grid hidden by default. The look every
-    /// Jupyter notebook ships with today.
+    /// The look matplotlib has had by default since version 2.0 — white background, black text and axis lines, the
+    /// <c>tab10</c> 10-colour cycle, and grid hidden by default. The look every Jupyter notebook ships with today.
     /// </summary>
     public static Theme MatplotlibV2 { get; } = Themes.MatplotlibThemeFactory.CreateV2();
 
-    // ── v1.7.0 theme presets (21 new) ──
+    // ── Presets: each is a base theme under its own name with only what differs from the base ──
 
     /// <summary>Solarized palette — cream background with blue/orange tones.</summary>
-    public static Theme Solarize { get; } = ThemePresets.CommunityThemes.Solarize();
+    public static Theme Solarize { get; } = Default.Preset("solarize").WithGround(ThemeGround.Hex("#FDF6E3", "#FDF6E3", "#657B83")).Build();
     /// <summary>Grayscale only — print-friendly, no color.</summary>
-    public static Theme Grayscale { get; } = ThemePresets.CommunityThemes.Grayscale();
+    public static Theme Grayscale { get; } = Default.Preset("grayscale")
+        .WithForegroundText(Color.FromHex("#333333"))
+        .WithCycleColors(
+            Color.FromHex("#000000"), Color.FromHex("#444444"),
+            Color.FromHex("#777777"), Color.FromHex("#AAAAAA"),
+            Color.FromHex("#555555"), Color.FromHex("#888888"),
+            Color.FromHex("#222222"), Color.FromHex("#666666"))
+        .Build();
     /// <summary>Academic paper — minimal, clean, thin lines.</summary>
-    public static Theme Paper { get; } = ThemePresets.CommunityThemes.Paper();
+    public static Theme Paper { get; } = Default.Preset("paper")
+        .WithForegroundText(Color.FromHex("#222222"))
+        .WithFont(f => f with { Family = "serif", Size = 11 })
+        .WithGrid(g => g with { Visible = false })
+        .Build();
     /// <summary>Presentation/slides — large fonts, bold colors.</summary>
-    public static Theme Presentation { get; } = ThemePresets.CommunityThemes.Presentation();
+    public static Theme Presentation { get; } = Default.Preset("presentation")
+        .WithForegroundText(Color.FromHex("#111111"))
+        .WithFont(f => f with { Size = 16, Weight = FontWeight.Bold })
+        .Build();
     /// <summary>Conference poster — extra-large fonts, high contrast.</summary>
-    public static Theme Poster { get; } = ThemePresets.CommunityThemes.Poster();
+    public static Theme Poster { get; } = Default.Preset("poster")
+        .WithFont(f => f with { Size = 20, Weight = FontWeight.Bold })
+        .WithGrid(g => g with { LineWidth = 1.5, Alpha = 0.4 })
+        .Build();
     /// <summary>Cyberpunk — neon green on deep purple/black.</summary>
-    public static Theme Cyberpunk { get; } = ThemePresets.CommunityThemes.Cyberpunk();
+    public static Theme Cyberpunk { get; } = Dark.Preset("cyberpunk").WithGround(ThemeGround.Hex("#0D0221", "#0D0221", "#00FF41")).Build();
     /// <summary>Nord palette — arctic blues and greens on dark.</summary>
-    public static Theme Nord { get; } = ThemePresets.CommunityThemes.Nord();
+    public static Theme Nord { get; } = Dark.Preset("nord").WithGround(ThemeGround.Hex("#2E3440", "#3B4252", "#D8DEE9")).Build();
     /// <summary>Dracula palette — purple/pink/cyan on dark.</summary>
-    public static Theme Dracula { get; } = ThemePresets.CommunityThemes.Dracula();
+    public static Theme Dracula { get; } = Dark.Preset("dracula").WithGround(ThemeGround.Hex("#282A36", "#44475A", "#F8F8F2")).Build();
     /// <summary>Monokai palette — developer-favorite dark theme.</summary>
-    public static Theme Monokai { get; } = ThemePresets.CommunityThemes.Monokai();
+    public static Theme Monokai { get; } = Dark.Preset("monokai").WithGround(ThemeGround.Hex("#272822", "#3E3D32", "#F8F8F2")).Build();
     /// <summary>Catppuccin — warm pastels on dark.</summary>
-    public static Theme Catppuccin { get; } = ThemePresets.CommunityThemes.Catppuccin();
+    public static Theme Catppuccin { get; } = Dark.Preset("catppuccin").WithGround(ThemeGround.Hex("#1E1E2E", "#313244", "#CDD6F4")).Build();
     /// <summary>Gruvbox — retro warm tones on dark.</summary>
-    public static Theme Gruvbox { get; } = ThemePresets.CommunityThemes.Gruvbox();
+    public static Theme Gruvbox { get; } = Dark.Preset("gruvbox").WithGround(ThemeGround.Hex("#282828", "#3C3836", "#EBDBB2")).Build();
     /// <summary>Atom One Dark — subtle dark with muted colors.</summary>
-    public static Theme OneDark { get; } = ThemePresets.CommunityThemes.OneDark();
+    public static Theme OneDark { get; } = Dark.Preset("one-dark").WithGround(ThemeGround.Hex("#282C34", "#21252B", "#ABB2BF")).Build();
     /// <summary>GitHub — clean white with blue accents.</summary>
-    public static Theme GitHub { get; } = ThemePresets.CommunityThemes.GitHub();
+    public static Theme GitHub { get; } = Default.Preset("github")
+        .WithForegroundText(Color.FromHex("#24292E"))
+        .WithCycleColors(
+            Color.FromHex("#0366D6"),  // GitHub blue
+            Color.FromHex("#28A745"),  // GitHub green
+            Color.FromHex("#6F42C1"),  // GitHub purple
+            Color.FromHex("#D73A49"),  // GitHub red
+            Color.FromHex("#E36209"),  // GitHub orange
+            Color.FromHex("#005CC5"),  // GitHub deep blue
+            Color.FromHex("#22863A"),  // GitHub deep green
+            Color.FromHex("#B08800"))  // GitHub yellow
+        .WithGrid(g => g with { Color = Color.FromHex("#E1E4E8"), Alpha = 1.0 })
+        .Build();
     /// <summary>Edward Tufte minimal — maximum data-ink ratio, no grid.</summary>
-    public static Theme Minimal { get; } = ThemePresets.CommunityThemes.Minimal();
+    public static Theme Minimal { get; } = Default.Preset("minimal")
+        .WithForegroundText(Color.FromHex("#333333"))
+        .WithGrid(g => g with { Visible = false })
+        .WithFont(f => f with { Size = 11 })
+        .Build();
     /// <summary>Vintage — warm yellows/browns, retro feel.</summary>
-    public static Theme Retro { get; } = ThemePresets.CommunityThemes.Retro();
+    public static Theme Retro { get; } = Default.Preset("retro").WithGround(ThemeGround.Hex("#FFF8DC", "#FAEBD7", "#8B4513")).Build();
     /// <summary>Bright neon on black — cyberpunk variant.</summary>
-    public static Theme Neon { get; } = ThemePresets.CommunityThemes.Neon();
+    public static Theme Neon { get; } = Dark.Preset("neon").WithGround(new(Colors.Black, Color.FromHex("#0A0A0A"), Color.FromHex("#39FF14"))).Build();
 
     // ── Operator backgrounds ──────────────────────────────────────────────────────────────────────
     // Four grounds an operator may choose between; one alarm contract they may not.
@@ -396,26 +454,17 @@ public sealed class Theme
     // contrast that the one thing going wrong needs to borrow.
 
     /// <summary>Operator background — cool dark neutral, for a dimmed room. The default control-room ground.</summary>
-    public static Theme OpsNight { get; } = CreateFrom(Dark)
-        .WithName("ops-night")
-        .WithBackground(Color.FromHex("#191C1E"))
-        .WithAxesBackground(Color.FromHex("#22262A"))
-        .WithForegroundText(Color.FromHex("#C8CFD4"))
-        .WithGrid(g => g with { Color = Color.FromHex("#2A3035"), Visible = true })
-        .WithAlarmPalette(new AlarmPalette(
-            Resting: Color.FromHex("#8C979E"),
-            Warning: Color.FromHex("#E69F00"),
-            Critical: Color.FromHex("#D55E00"),
-            Unknown: Color.FromHex("#79838A")))
+    public static Theme OpsNight { get; } = Dark.Preset("ops-night")
+        .WithGround(ThemeGround.Hex("#191C1E", "#22262A", "#C8CFD4"))
+        .WithGrid(g => g with { Color = Color.FromHex("#2A3035") })
+        // The library's own amber and vermillion; only the resting and unknown shades are tuned to the ground.
+        .WithAlarmPalette(AlarmPalette.Default with { Resting = Color.FromHex("#8C979E"), Unknown = Color.FromHex("#79838A") })
         .Build();
 
     /// <summary>Operator background — the classic ISA-101 daylight grey of a physical panel.</summary>
-    public static Theme OpsPanel { get; } = CreateFrom(Default)
-        .WithName("ops-panel")
-        .WithBackground(Color.FromHex("#C6CACC"))
-        .WithAxesBackground(Color.FromHex("#D2D6D8"))
-        .WithForegroundText(Color.FromHex("#22282B"))
-        .WithGrid(g => g with { Color = Color.FromHex("#B7BDC0"), Visible = true })
+    public static Theme OpsPanel { get; } = Default.Preset("ops-panel")
+        .WithGround(ThemeGround.Hex("#C6CACC", "#D2D6D8", "#22282B"))
+        .WithGrid(g => g with { Color = Color.FromHex("#B7BDC0") })
         .WithAlarmPalette(new AlarmPalette(
             // Deepened against a light ground: the same hues at the same salience, not the same numbers.
             Resting: Color.FromHex("#5C6469"),
@@ -425,12 +474,9 @@ public sealed class Theme
         .Build();
 
     /// <summary>Operator background — warm dark, for whom a cool grey reads clinical.</summary>
-    public static Theme OpsWarm { get; } = CreateFrom(Dark)
-        .WithName("ops-warm")
-        .WithBackground(Color.FromHex("#1E1B18"))
-        .WithAxesBackground(Color.FromHex("#272320"))
-        .WithForegroundText(Color.FromHex("#D3CCC2"))
-        .WithGrid(g => g with { Color = Color.FromHex("#332E28"), Visible = true })
+    public static Theme OpsWarm { get; } = Dark.Preset("ops-warm")
+        .WithGround(ThemeGround.Hex("#1E1B18", "#272320", "#D3CCC2"))
+        .WithGrid(g => g with { Color = Color.FromHex("#332E28") })
         .WithAlarmPalette(new AlarmPalette(
             Resting: Color.FromHex("#9A9186"),
             Warning: Color.FromHex("#E9A21B"),
@@ -440,12 +486,9 @@ public sealed class Theme
 
     /// <summary>Operator background — near-black with brightened alarms, for a video wall read from across
     /// the room or a desk under daylight.</summary>
-    public static Theme OpsContrast { get; } = CreateFrom(Dark)
-        .WithName("ops-contrast")
-        .WithBackground(Color.FromHex("#0B0D0E"))
-        .WithAxesBackground(Color.FromHex("#14171A"))
-        .WithForegroundText(Color.FromHex("#E7EDF0"))
-        .WithGrid(g => g with { Color = Color.FromHex("#1E252A"), Visible = true })
+    public static Theme OpsContrast { get; } = Dark.Preset("ops-contrast")
+        .WithGround(ThemeGround.Hex("#0B0D0E", "#14171A", "#E7EDF0"))
+        .WithGrid(g => g with { Color = Color.FromHex("#1E252A") })
         .WithAlarmPalette(new AlarmPalette(
             // Brightened so they survive ten metres and a reflection, without becoming a different colour.
             Resting: Color.FromHex("#A9B4BA"),
@@ -453,6 +496,12 @@ public sealed class Theme
             Critical: Color.FromHex("#FF5A1F"),
             Unknown: Color.FromHex("#939EA5")))
         .Build();
+
+    /// <summary>A preset of this theme: a builder seeded from it under <paramref name="name"/>, to which a preset adds only what
+    /// differs from this theme.</summary>
+    /// <param name="name">The preset's name.</param>
+    /// <returns>The builder.</returns>
+    internal ThemeBuilder Preset(string name) => CreateFrom(this).WithName(name);
 
     /// <summary>
     /// Creates a <see cref="ThemeBuilder"/> initialized from the specified base theme.
@@ -467,11 +516,20 @@ public sealed class Theme
 /// </summary>
 public sealed record GridStyle
 {
+    /// <summary>The grid matplotlib draws by default: <c>#B0B0B0</c>, solid, 0.8 wide. It is hidden, as every new grid is, and keeps the
+    /// opacity every grid starts with; a theme that shows it says <c>GridStyle.Plain with { Visible = true }</c>. The one place the
+    /// plain grid's colour is written, for the library's default themes, the matplotlib themes and the style sheet's defaults.</summary>
+    public static GridStyle Plain { get; } = new() { Color = Color.FromHex("#B0B0B0"), LineWidth = 0.8 };
+
+    /// <summary>The grid nothing was said about: what a new <see cref="GridStyle"/> holds. A figure writes the grid's properties that
+    /// differ from it, and a radar chart whose theme names no ring locator draws its web with it.</summary>
+    internal static GridStyle AtRest { get; } = new();
+
     /// <summary>Whether grid lines are drawn at all. A new <see cref="GridStyle"/> hides them; the built-in themes set this as they see fit.</summary>
     public bool Visible { get; init; }
 
     /// <summary>The colour of the grid lines. Light grey (<c>#CCCCCC</c>) by default.</summary>
-    public Color Color { get; init; } = Color.FromHex("#CCCCCC");
+    public Color Color { get; init; } = Colors.GridGray;
 
     /// <summary>The dash pattern of the grid lines. Solid by default.</summary>
     public LineStyle LineStyle { get; init; } = LineStyle.Solid;
@@ -482,11 +540,16 @@ public sealed record GridStyle
     /// <summary>The opacity of the grid lines, from 0 (transparent) to 1 (opaque), 0.7 by default. It is kept by themes, style sheets
     /// (<c>grid.alpha</c>) and JSON, but the Cartesian renderer draws the grid in the alpha of <see cref="Color"/> itself and does not
     /// read this value.</summary>
-    public double Alpha { get; init; } = 0.7;
+    /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
+    public double Alpha { get; init => field = value.ThrowIfNotOpacity(nameof(Alpha)); } = 0.7;
 
     /// <summary>Which ticks the grid lines stand on: the major ticks, the minor ticks or both. Major by default.</summary>
     public GridWhich Which { get; init; } = GridWhich.Major;
 
     /// <summary>Which axes get grid lines: X, Y or both. Both by default.</summary>
     public GridAxis Axis { get; init; } = GridAxis.Both;
+
+    /// <summary>The line a grid line of this style is drawn with: its colour, width and dash pattern. The one place a grid becomes a
+    /// stroke.</summary>
+    public StrokeStyle Stroke => StrokeStyle.Of(Color, LineWidth, LineStyle);
 }

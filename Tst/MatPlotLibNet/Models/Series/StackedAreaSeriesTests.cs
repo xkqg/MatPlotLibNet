@@ -3,7 +3,18 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Interaction;
+using MatPlotLibNet.Models.Streaming;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -12,15 +23,6 @@ public class StackedAreaSeriesTests
 {
     private static readonly double[] X = [1.0, 2.0, 3.0];
     private static readonly double[][] YSets = [[1.0, 2.0, 3.0], [2.0, 3.0, 1.0]];
-
-    /// <summary>Verifies that the constructor stores X and YSets data.</summary>
-    [Fact]
-    public void Constructor_StoresData()
-    {
-        var series = new StackedAreaSeries(X, YSets);
-        Assert.Equal(X, series.X);
-        Assert.Equal(YSets, series.YSets);
-    }
 
     /// <summary>Verifies that the Y data range is 0 to the max cumulative sum across all X positions.</summary>
     [Fact]
@@ -33,60 +35,18 @@ public class StackedAreaSeriesTests
         Assert.Equal(5.0, range.YMax);
     }
 
-    /// <summary>Verifies that the DTO type is "stackedarea".</summary>
-    [Fact]
-    public void ToSeriesDto_TypeIsStackedarea()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var series = new StackedAreaSeries(X, YSets);
-        var dto = series.ToSeriesDto();
-        Assert.Equal("stackedarea", dto.Type);
-    }
-
-    /// <summary>Verifies that Labels property is stored correctly.</summary>
-    [Fact]
-    public void Labels_StoredCorrectly()
-    {
-        var labels = new[] { "Layer A", "Layer B" };
-        var series = new StackedAreaSeries(X, YSets) { Labels = labels };
-        Assert.Equal(labels, series.Labels);
-
-        var dto = series.ToSeriesDto();
-        Assert.Equal(labels, dto.PieLabels);
-    }
-
-    /// <summary>Verifies that JSON round-trip preserves the data.</summary>
-    [Fact]
-    public void RoundTrip_PreservesData()
-    {
-        var fig = new Figure();
-        var axes = fig.AddSubPlot();
-        var original = axes.StackPlot(X, YSets);
-        original.Labels = ["A", "B"];
-        original.Alpha = 0.5;
-
-        var serializer = new ChartSerializer();
-        var json = serializer.ToJson(fig);
-        var restored = serializer.FromJson(json);
-
-        var restoredSeries = restored.SubPlots[0].Series.OfType<StackedAreaSeries>().Single();
-        Assert.Equal(X, restoredSeries.X);
-        Assert.Equal(YSets.Length, restoredSeries.YSets.Length);
-        for (int i = 0; i < YSets.Length; i++)
-            Assert.Equal(YSets[i], restoredSeries.YSets[i]);
-        Assert.Equal(["A", "B"], restoredSeries.Labels!);
-        Assert.Equal(0.5, restoredSeries.Alpha);
-    }
-
-    /// <summary>Verifies that rendering produces SVG output containing a polygon element.</summary>
-    [Fact]
-    public void Render_ProducesSvg()
-    {
-        var svg = Plt.Create()
+        //  Verifies that rendering produces SVG output containing a polygon element.
+        new DrawnToken("Render_ProducesSvg", () => Plt.Create()
             .StackPlot(X, YSets)
-            .ToSvg();
+            .ToSvg(), "polygon"),
+    };
 
-        Assert.Contains("polygon", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that three layers produce the correct cumulative sums.</summary>
     [Fact]
@@ -118,5 +78,82 @@ public class StackedAreaSeriesTests
         // yMax = max(5, 3, 0+0) = 5; yMin = 0 (Zero baseline, all non-negative)
         Assert.Equal(5.0, range.YMax);
         Assert.Equal(0.0, range.YMin);
+    }
+
+    [Fact]
+    public void StackedAreaSeries_NonZeroBaseline_NoStickyYMin()
+    {
+        // `Baseline == Zero && yMin >= 0 ? 0 : null`
+        // Wiggle baseline → false arm → stickyYMin = null
+        var s = new StackedAreaSeries(
+            x: [1.0, 2, 3],
+            ySets: [[1.0, 2.0, 1.5]])
+        {
+            Baseline = StackedBaseline.Wiggle
+        };
+        var dr = s.ComputeDataRange(null!);
+        Assert.Null(dr.StickyYMin);
+    }
+
+    [Fact]
+    public void StackedAreaSeries_PositiveValues_HasStickyZeroBaseline()
+    {
+        // True arm → stickyYMin = 0
+        var s = new StackedAreaSeries(
+            x: [1.0, 2, 3],
+            ySets: [[1.0, 2.0, 1.5], [0.5, 0.8, 0.6]]);
+        var dr = s.ComputeDataRange(null!);
+        Assert.Equal(0, dr.StickyYMin);
+    }
+
+    /// <summary>StackedAreaSeries.ComputeDataRange — a layer with no drawable value has no top to reach: the range takes
+    /// the drawable layer edges only, so an all-NaN layer adds no top of its own (it used to report the sentinel 1, a top
+    /// nothing was drawn at). A single Zero-baseline layer's `bot` is the constant 0 (see
+    /// <c>StackedBaselineExtensions.ComputeZero</c>), the one edge left, so the range is 0 to 0, as matplotlib's data
+    /// limits keep the finite baseline of a fill whose top is missing.</summary>
+    [Fact]
+    public void StackedAreaSeries_AllNaNLayer_ContributesNoTopOfItsOwn()
+    {
+        var s = new StackedAreaSeries(
+            x: [1.0, 2.0],
+            ySets: [[double.NaN, double.NaN]]);
+        var dr = s.ComputeDataRange(new TestAxesContext());
+        Assert.Equal(0, dr.YMax);
+        Assert.Equal(0, dr.YMin);
+    }
+
+    /// <summary>StackedAreaSeries — empty-X early-return. Returns the
+    /// (0,1,0,1) sentinel range without touching the baseline helper.</summary>
+    [Fact]
+    public void StackedAreaSeries_EmptyX_ReturnsSentinelRange()
+    {
+        var s = new StackedAreaSeries([], [[1.0, 2.0]]);
+        var range = s.ComputeDataRange(new TestAxesContext());
+        Assert.Equal(0, range.XMin);
+        Assert.Equal(1, range.XMax);
+    }
+
+    /// <summary>StackedAreaSeries — empty YSets early-return (second arm).</summary>
+    [Fact]
+    public void StackedAreaSeries_EmptyYSets_ReturnsSentinelRange()
+    {
+        var s = new StackedAreaSeries([1.0, 2.0], []);
+        var range = s.ComputeDataRange(new TestAxesContext());
+        Assert.Equal(0, range.XMin);
+        Assert.Equal(1, range.XMax);
+    }
+
+    /// <summary>StackedAreaSeries — negative Y-min branch: the
+    /// `Baseline == StackedBaseline.Zero &amp;&amp; yMin &gt;= 0` ternary's false arm
+    /// when stacked values include negatives. StickyYMin must be null in that case.</summary>
+    [Fact]
+    public void StackedAreaSeries_NegativeBottom_StickyYMinIsNull()
+    {
+        var s = new StackedAreaSeries([0.0, 1.0], [[-1.0, -2.0], [3.0, 4.0]])
+        {
+            Baseline = StackedBaseline.Zero
+        };
+        var range = s.ComputeDataRange(new TestAxesContext());
+        Assert.Null(range.StickyYMin);
     }
 }

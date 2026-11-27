@@ -105,20 +105,19 @@ public class NpStatsTests
 
     // ---- Unique --------------------------------------------------------------
 
-    [Fact]
-    public void Unique_ReturnsDistinctValues()
+    public static TheoryData<Func<UniqueResult, IEnumerable<double>>, double[]> WhatUniqueReports => new()
     {
-        Vec v = new double[] { 3, 1, 2, 1, 3, 3 };
-        UniqueResult r = NpStats.Unique(v);
-        Assert.Equal([1.0, 2.0, 3.0], r.Values);
-    }
+        { r => r.Values, [1.0, 2.0, 3.0] },
+        { r => r.Counts.Select(count => (double)count), [2.0, 1.0, 3.0] },
+    };
 
-    [Fact]
-    public void Unique_CountsAreCorrect()
+    [Theory]
+    [MemberData(nameof(WhatUniqueReports))]
+    public void Unique_ReportsTheDistinctValuesAndTheirCounts(Func<UniqueResult, IEnumerable<double>> report, double[] expected)
     {
         Vec v = new double[] { 3, 1, 2, 1, 3, 3 };
         UniqueResult r = NpStats.Unique(v);
-        Assert.Equal([2, 1, 3], r.Counts);
+        Assert.Equal(expected, report(r));
     }
 
     // ---- Cov -----------------------------------------------------------------
@@ -139,33 +138,26 @@ public class NpStatsTests
 
     // ---- Corrcoef ------------------------------------------------------------
 
-    [Fact]
-    public void Corrcoef_PerfectlyCorrelated_ReturnsOne()
+    /// <summary>Two perfectly correlated columns are one off the diagonal, and any two columns are one on it.</summary>
+    [Theory]
+    [InlineData(2.0, 4.0, 6.0, 0, 1, 1, 0)]
+    [InlineData(3.0, 1.0, 2.0, 0, 0, 1, 1)]
+    public void Corrcoef_IsOneWhereTheColumnsAreTheSame(double y0, double y1, double y2, int row, int column, int otherRow, int otherColumn)
     {
-        double[][] cols = [[1, 2, 3], [2, 4, 6]];
-        Mat r = NpStats.Corrcoef(cols);
-        Assert.Equal(1.0, r[0, 1], Tol);
-        Assert.Equal(1.0, r[1, 0], Tol);
+        Mat r = NpStats.Corrcoef([[1, 2, 3], [y0, y1, y2]]);
+        Assert.Equal(1.0, r[row, column], Tol);
+        Assert.Equal(1.0, r[otherRow, otherColumn], Tol);
     }
 
     [Fact]
-    public void Corrcoef_Diagonal_IsAlwaysOne()
+    public void Histogram_AllEqualValues_FallInTheMiddleOfARangeWidenedByAHalf()
     {
-        double[][] cols = [[1, 2, 3], [3, 1, 2]];
-        Mat r = NpStats.Corrcoef(cols);
-        Assert.Equal(1.0, r[0, 0], Tol);
-        Assert.Equal(1.0, r[1, 1], Tol);
-    }
-
-    /// <summary>All-equal data has width=0 — covers the `width > 0 ? ... : 0`
-    /// ternary's false arm and the Math.Clamp behaviour.</summary>
-    [Fact]
-    public void Histogram_AllEqualValues_PutsAllInOneBin()
-    {
+        // numpy widens a range of no width by a half either side: np.histogram([5, 5, 5, 5], bins=4) is [0, 0, 4, 0] over the
+        // edges [4.5, 4.75, 5, 5.25, 5.5].
         Vec v = new double[] { 5, 5, 5, 5 };
         HistogramResult h = NpStats.Histogram(v, 4);
-        Assert.Equal(4, h.Counts.Sum());
-        Assert.Equal(4.0, h.Counts[0]);   // all in first (and only) bin
+        Assert.Equal([0.0, 0, 4, 0], h.Counts);
+        Assert.Equal([4.5, 4.75, 5, 5.25, 5.5], h.Edges);
     }
 
     /// <summary>A zero-variance column makes std[i]=0 — covers the false arm of

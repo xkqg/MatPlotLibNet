@@ -12,7 +12,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>
 /// Covers the v1.1.4 Sankey overhaul: multi-column BFS + explicit-column override, node
 /// alignment modes, iterative vertical relaxation, link colour modes (source / target /
-/// gradient), sub-labels, and <see cref="AxesBuilder.HideAllAxes"/> integration.
+/// gradient), sub-labels, and <see cref="AxesBuilderFrameVerbs.HideAllAxes"/> integration.
 /// </summary>
 public class SankeySeriesRenderTests
 {
@@ -35,61 +35,124 @@ public class SankeySeriesRenderTests
     // Baseline render
     // ──────────────────────────────────────────────────────────────────────────
 
-    [Fact]
-    public void Sankey_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // links are paths
+        // nodes are rects
+        new DrawnToken("Sankey_RendersWithoutError", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<path", svg);  // links are paths
-        Assert.Contains("<rect", svg);  // nodes are rects
-    }
+            .ToSvg(), "<svg", "<path", "<rect"),
+        new DrawnToken("Sankey_GradientMode_EmitsLinearGradientDefs", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks(),
+                s => s.LinkColorMode = SankeyLinkColorMode.Gradient))
+            .ToSvg(), "<linearGradient", "<stop", "url(#grad-"),
+        new DrawnToken("Sankey_SourceMode_DoesNotEmitGradientDefs", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks(),
+                s => s.LinkColorMode = SankeyLinkColorMode.Source))
+            .ToSvg()) { Absent = ["<linearGradient"] },
+        new DrawnToken("Sankey_TargetMode_DoesNotEmitGradientDefs", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks(),
+                s => s.LinkColorMode = SankeyLinkColorMode.Target))
+            .ToSvg()) { Absent = ["<linearGradient"] },
+        // Every link should carry data-sankey-link-source + data-sankey-link-target, and
+        // every node should carry data-sankey-node-id. 3 links + 4 nodes in the linear
+        // sample.
+        new DrawnToken("Sankey_EmitsDataAttributesForHoverTopology", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
+            .ToSvg(), "data-sankey-node-id=\"0\"", "data-sankey-link-source=\"0\"", "data-sankey-link-target=\"1\""),
+        // hover script installs mouseenter handlers
+        new DrawnToken("WithSankeyHover_EmbedsHoverScript", () => Plt.Create()
+            .WithSankeyHover()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
+            .ToSvg(), "data-sankey-node-id", "mouseenter"),
+        // Data attributes are always emitted (the Sankey renderer doesn't gate them), but
+        // the interactive script should only appear when WithSankeyHover() is called.
+        new DrawnToken("WithoutSankeyHover_NoHoverScriptEmbedded", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
+            .ToSvg()) { Absent = ["mouseenter"] },
+        new DrawnToken("Sankey_Vertical_RendersWithoutError", () => Plt.Create()
+            .WithSize(400, 600)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .HideAllAxes()
+                .Sankey(LinearNodes(), LinearLinks(), s => s.Orient = SankeyOrientation.Vertical))
+            .ToSvg(), "<svg", "<rect", "<path"),
+        // Gradient defs should still be emitted; in vertical mode the gradient direction
+        // runs along the Y axis instead of X but the def structure is identical.
+        new DrawnToken("Sankey_Vertical_Gradient_EmitsLinearGradientDefs", () => Plt.Create()
+            .WithSize(400, 600)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .HideAllAxes()
+                .Sankey(LinearNodes(), LinearLinks(), s =>
+                {
+                    s.Orient = SankeyOrientation.Vertical;
+                    s.LinkColorMode = SankeyLinkColorMode.Gradient;
+                }))
+            .ToSvg(), "<linearGradient", "url(#grad-"),
+        // Non-gradient link color mode (Source) — `LinkColorMode == Gradient` false arm.
+        new DrawnToken("Sankey_LinkColorModeSource_NoGradientDefs", () => Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .HideAllAxes()
+                .Sankey(LinearNodes(), LinearLinks(),
+                    s => s.LinkColorMode = SankeyLinkColorMode.Source))
+            .Build().ToSvg(), "<svg") { Absent = ["<linearGradient"] },
+        // Node with no SubLabel — `if (string.IsNullOrEmpty(node.SubLabel)) return` true arm.
+        new DrawnToken("Sankey_NodeWithNoSubLabel_SkipsSubLabelDraw", () =>
+        {
+            SankeyNode[] nodes = [new("A", Colors.Teal), new("B", Colors.Orange)];
+            SankeyLink[] links = [new(0, 1, 10)];
+            return Plt.Create()
+                .WithSize(400, 300)
+                .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+                .Build().ToSvg();
+        }, "<svg") { Absent = ["SubLabel"] },
+        // Dense Sankey with many nodes in a tiny figure — forces LabelLayoutEngine to push labels more than 6 px from their anchors,
+        // triggering the LeaderLineStart non-null arm. HideAllAxes() ensures the only <line> elements in the SVG are leader lines.
+        // Leader lines render as <line> elements; HideAllAxes ensures no spine/tick <line>s
+        new DrawnToken("Sankey_DenseLabels_DrawsLeaderLines", () =>
+        {
+            // 8 labeled nodes packed into 150×120 px — labels must collide and be displaced
+            SankeyNode[] nodes =
+            [
+                new("Alpha", Colors.Red),   new("Beta",    Colors.Green),
+                new("Gamma", Colors.Blue),  new("Delta",   Colors.Yellow),
+                new("Epsilon", Colors.Cyan), new("Zeta",   Colors.Magenta),
+                new("Eta", Colors.Orange),  new("Theta",   Colors.Gray),
+            ];
+            SankeyLink[] links =
+            [
+                new(0, 2, 5), new(0, 3, 3), new(1, 2, 4), new(1, 3, 2),
+                new(2, 4, 6), new(2, 5, 3), new(3, 6, 2), new(3, 7, 1),
+            ];
+            return Plt.Create()
+                .WithSize(150, 120)
+                .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+                .Build().ToSvg();
+        }, "<line"),
+        // All nodes have empty labels — outerCandidates.Count == 0 → the batch-place block is skipped entirely.
+        new DrawnToken("Sankey_AllNodesEmptyLabels_SkipsBatchLabelPlace", () =>
+        {
+            SankeyNode[] nodes =
+            [
+                new("", Color.FromHex("#1F77B4")),
+                new("", Color.FromHex("#FF7F0E")),
+                new("", Color.FromHex("#2CA02C")),
+            ];
+            SankeyLink[] links = [new(0, 1, 5), new(1, 2, 3)];
+            return Plt.Create()
+                .WithSize(400, 300)
+                .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+                .Build().ToSvg();
+        }, "<rect"),
+    };
 
-    [Fact]
-    public void Sankey_EmptyNodes_DoesNotThrow()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey([], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ──────────────────────────────────────────────────────────────────────────
     // Link colour modes
-    // ──────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Sankey_GradientMode_EmitsLinearGradientDefs()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks(),
-                s => s.LinkColorMode = SankeyLinkColorMode.Gradient))
-            .ToSvg();
-        Assert.Contains("<linearGradient", svg);
-        Assert.Contains("<stop", svg);
-        Assert.Contains("url(#grad-", svg);
-    }
-
-    [Fact]
-    public void Sankey_SourceMode_DoesNotEmitGradientDefs()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks(),
-                s => s.LinkColorMode = SankeyLinkColorMode.Source))
-            .ToSvg();
-        Assert.DoesNotContain("<linearGradient", svg);
-    }
-
-    [Fact]
-    public void Sankey_TargetMode_DoesNotEmitGradientDefs()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks(),
-                s => s.LinkColorMode = SankeyLinkColorMode.Target))
-            .ToSvg();
-        Assert.DoesNotContain("<linearGradient", svg);
-    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Sub-labels
@@ -212,67 +275,13 @@ public class SankeySeriesRenderTests
 
     // ──────────────────────────────────────────────────────────────────────────
     // HideAllAxes integration
-    // ──────────────────────────────────────────────────────────────────────────
 
     // ──────────────────────────────────────────────────────────────────────────
     // Hover emphasis wiring
-    // ──────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Sankey_EmitsDataAttributesForHoverTopology()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
-            .ToSvg();
-
-        // Every link should carry data-sankey-link-source + data-sankey-link-target, and
-        // every node should carry data-sankey-node-id. 3 links + 4 nodes in the linear
-        // sample.
-        Assert.Contains("data-sankey-node-id=\"0\"", svg);
-        Assert.Contains("data-sankey-link-source=\"0\"", svg);
-        Assert.Contains("data-sankey-link-target=\"1\"", svg);
-    }
-
-    [Fact]
-    public void WithSankeyHover_EmbedsHoverScript()
-    {
-        string svg = Plt.Create()
-            .WithSankeyHover()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
-            .ToSvg();
-        Assert.Contains("data-sankey-node-id", svg);
-        Assert.Contains("mouseenter", svg);  // hover script installs mouseenter handlers
-    }
-
-    [Fact]
-    public void WithoutSankeyHover_NoHoverScriptEmbedded()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
-            .ToSvg();
-        // Data attributes are always emitted (the Sankey renderer doesn't gate them), but
-        // the interactive script should only appear when WithSankeyHover() is called.
-        Assert.DoesNotContain("mouseenter", svg);
-    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Vertical orientation
     // ──────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Sankey_Vertical_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .WithSize(400, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .HideAllAxes()
-                .Sankey(LinearNodes(), LinearLinks(), s => s.Orient = SankeyOrientation.Vertical))
-            .ToSvg();
-
-        Assert.Contains("<svg", svg);
-        Assert.Contains("<rect", svg);
-        Assert.Contains("<path", svg);
-    }
 
     [Fact]
     public void Sankey_Vertical_ProducesDifferentLayoutThanHorizontal()
@@ -295,26 +304,6 @@ public class SankeySeriesRenderTests
             .ToSvg();
 
         Assert.NotEqual(horiz, vert);
-    }
-
-    [Fact]
-    public void Sankey_Vertical_Gradient_EmitsLinearGradientDefs()
-    {
-        string svg = Plt.Create()
-            .WithSize(400, 600)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .HideAllAxes()
-                .Sankey(LinearNodes(), LinearLinks(), s =>
-                {
-                    s.Orient = SankeyOrientation.Vertical;
-                    s.LinkColorMode = SankeyLinkColorMode.Gradient;
-                }))
-            .ToSvg();
-
-        // Gradient defs should still be emitted; in vertical mode the gradient direction
-        // runs along the Y axis instead of X but the def structure is identical.
-        Assert.Contains("<linearGradient", svg);
-        Assert.Contains("url(#grad-", svg);
     }
 
     [Fact]
@@ -347,176 +336,32 @@ public class SankeySeriesRenderTests
 
     // ── Wave J.2 — missing SankeySeriesRenderer branches ─────────────────
 
-    /// <summary>Node with empty label — L195 `if (string.IsNullOrEmpty(label)) continue` true arm.</summary>
-    [Fact]
-    public void Sankey_NodeWithEmptyLabel_SkipsLabelDraw()
-    {
-        SankeyNode[] nodes = [new("", Colors.Teal), new("B", Colors.Orange)];
-        SankeyLink[] links = [new(0, 1, 10)];
-        var svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
-            .Build().ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>InsideLabels=true — L202 true arm (label draws inside node rect).</summary>
-    [Fact]
-    public void Sankey_InsideLabels_DrawsLabelsInsideNodes()
-    {
-        var svg = Plt.Create()
-            .WithSize(600, 400)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .HideAllAxes()
-                .Sankey(LinearNodes(), LinearLinks(), s => s.InsideLabels = true))
-            .Build().ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>Node with no SubLabel — L267 `if (string.IsNullOrEmpty(node.SubLabel)) return` true arm.</summary>
-    [Fact]
-    public void Sankey_NodeWithNoSubLabel_SkipsSubLabelDraw()
-    {
-        SankeyNode[] nodes = [new("A", Colors.Teal), new("B", Colors.Orange)];
-        SankeyLink[] links = [new(0, 1, 10)];
-        var svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
-            .Build().ToSvg();
-        Assert.Contains("<svg", svg);
-        Assert.DoesNotContain("SubLabel", svg);
-    }
-
-    /// <summary>Link with zero-value source or target — L97 continue arm.</summary>
-    [Fact]
-    public void Sankey_LinkWithZeroSourceValue_SkipsLink()
-    {
-        SankeyNode[] nodes = [new("A", Colors.Teal), new("B", Colors.Orange), new("C", Colors.Violet)];
-        // Node 0 only receives, never sends → nodeValue[0] = 0 as source
-        SankeyLink[] links = [new(1, 0, 5), new(2, 0, 3)];
-        var svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
-            .Build().ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>Non-gradient link color mode (Source) — L140 `LinkColorMode == Gradient` false arm.</summary>
-    [Fact]
-    public void Sankey_LinkColorModeSource_NoGradientDefs()
-    {
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .HideAllAxes()
-                .Sankey(LinearNodes(), LinearLinks(),
-                    s => s.LinkColorMode = SankeyLinkColorMode.Source))
-            .Build().ToSvg();
-        Assert.Contains("<svg", svg);
-        Assert.DoesNotContain("<linearGradient", svg);
-    }
-
     // ── Wave J.1 — remaining branch arms ────────────────────────────────────
-
-    /// <summary>Node.SubLabelColor set explicitly — L268 non-null arm in DrawSubLabelIfAny.
-    /// Asserts SVG output is longer when a custom sub-label colour is applied.</summary>
-    [Fact]
-    public void Sankey_SubLabelWithExplicitColor_UsesNodeSubLabelColor()
-    {
-        SankeyNode[] nodesWithColor =
-        [
-            new("Revenue", Color.FromHex("#2A9D55"), SubLabel: "$21.4B", SubLabelColor: Colors.Red),
-            new("Cost",    Color.FromHex("#D62828"), SubLabel: "$6.5B"),
-        ];
-        SankeyLink[] links = [new(0, 1, 10)];
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodesWithColor, links))
-            .Build().ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    /// <summary>Dense Sankey with many nodes in a tiny figure — forces LabelLayoutEngine to push
-    /// labels more than 6 px from their anchors, triggering the L245 LeaderLineStart non-null arm.
-    /// HideAllAxes() ensures the only &lt;line&gt; elements in the SVG are leader lines.</summary>
-    [Fact]
-    public void Sankey_DenseLabels_DrawsLeaderLines()
-    {
-        // 8 labeled nodes packed into 150×120 px — labels must collide and be displaced
-        SankeyNode[] nodes =
-        [
-            new("Alpha", Colors.Red),   new("Beta",    Colors.Green),
-            new("Gamma", Colors.Blue),  new("Delta",   Colors.Yellow),
-            new("Epsilon", Colors.Cyan), new("Zeta",   Colors.Magenta),
-            new("Eta", Colors.Orange),  new("Theta",   Colors.Gray),
-        ];
-        SankeyLink[] links =
-        [
-            new(0, 2, 5), new(0, 3, 3), new(1, 2, 4), new(1, 3, 2),
-            new(2, 4, 6), new(2, 5, 3), new(3, 6, 2), new(3, 7, 1),
-        ];
-        var svg = Plt.Create()
-            .WithSize(150, 120)
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
-            .Build().ToSvg();
-        // Leader lines render as <line> elements; HideAllAxes ensures no spine/tick <line>s
-        Assert.Contains("<line", svg);
-    }
-
-    /// <summary>All nodes have empty labels — outerCandidates.Count == 0 → L241 FALSE arm,
-    /// the batch-place block is skipped entirely.</summary>
-    [Fact]
-    public void Sankey_AllNodesEmptyLabels_SkipsBatchLabelPlace()
-    {
-        SankeyNode[] nodes =
-        [
-            new("", Color.FromHex("#1F77B4")),
-            new("", Color.FromHex("#FF7F0E")),
-            new("", Color.FromHex("#2CA02C")),
-        ];
-        SankeyLink[] links = [new(0, 1, 5), new(1, 2, 3)];
-        string svg = Plt.Create()
-            .WithSize(400, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
-            .Build().ToSvg();
-        Assert.Contains("<rect", svg);
-    }
 
     // ── ComputeNodeLabelAnchor (L.3, 2026-04-21) ─────────────────────────────
 
     private static readonly Rect NodeRect = new(50, 100, 20, 40);
 
+    /// <summary>Beside a node of a flow along X the label is centred on the node's middle (the box's centre rule), 4 px off its side.</summary>
+    [Theory]
+    [InlineData(true, 46, TextAlignment.Right)]
+    [InlineData(false, 74, TextAlignment.Left)]
+    public void ComputeNodeLabelAnchor_Horizontal_BesideTheNode_CentredOnItsMiddle(bool onFarEdge, double x, TextAlignment alignment) =>
+        Assert.Equal(new TextPlacement(new Point(x, 120), alignment) { Vertical = TextVerticalAlignment.Center },
+            SankeySeriesRenderer.ComputeNodeLabelAnchor(NodeRect, onFarEdge, SankeyOrientation.Horizontal));
+
+    /// <summary>Under the last node of a flow down the page the label hangs 2 px below it (its box's ascent below that point).</summary>
     [Fact]
-    public void ComputeNodeLabelAnchor_Horizontal_FarEdge_AlignmentIsRight()
+    public void ComputeNodeLabelAnchor_Vertical_FarEdge_HangsBelowTheNode()
     {
-        var (_, alignment) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
-            NodeRect, onFarEdge: true, SankeyOrientation.Horizontal, measuredLabelHeight: 10);
-        Assert.Equal(TextAlignment.Right, alignment);
+        Assert.Equal(new TextPlacement(new Point(60, 142), TextAlignment.Center) { Vertical = TextVerticalAlignment.Top },
+            SankeySeriesRenderer.ComputeNodeLabelAnchor(NodeRect, onFarEdge: true, SankeyOrientation.Vertical));
     }
 
     [Fact]
-    public void ComputeNodeLabelAnchor_Horizontal_NotFarEdge_AlignmentIsLeft()
+    public void ComputeNodeLabelAnchor_Vertical_NotFarEdge_StandsAboveTheNode()
     {
-        var (_, alignment) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
-            NodeRect, onFarEdge: false, SankeyOrientation.Horizontal, measuredLabelHeight: 10);
-        Assert.Equal(TextAlignment.Left, alignment);
-    }
-
-    [Fact]
-    public void ComputeNodeLabelAnchor_Vertical_FarEdge_AnchorIsBelowRect()
-    {
-        var (anchor, _) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
-            NodeRect, onFarEdge: true, SankeyOrientation.Vertical, measuredLabelHeight: 10);
-        // Below: anchor.Y > nodeRect.Y + nodeRect.Height
-        Assert.True(anchor.Y > NodeRect.Y + NodeRect.Height);
-    }
-
-    [Fact]
-    public void ComputeNodeLabelAnchor_Vertical_NotFarEdge_AnchorIsAboveRect()
-    {
-        var (anchor, _) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
-            NodeRect, onFarEdge: false, SankeyOrientation.Vertical, measuredLabelHeight: 10);
-        // Above: anchor.Y < nodeRect.Y
-        Assert.True(anchor.Y < NodeRect.Y);
+        Assert.Equal(new TextPlacement(new Point(60, 96), TextAlignment.Center),
+            SankeySeriesRenderer.ComputeNodeLabelAnchor(NodeRect, onFarEdge: false, SankeyOrientation.Vertical));
     }
 }

@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using BenchmarkDotNet.Attributes;
+using MatPlotLibNet.Data;
 using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Indicators.Streaming;
 
 namespace MatPlotLibNet.Benchmarks;
 
@@ -95,4 +97,56 @@ public class IndicatorBenchmarks
 
     [Benchmark]
     public Indicators.ParabolicSarResult ParabolicSar_() => new Indicators.ParabolicSar(_high, _low).Compute();
+
+    // --- Streaming forms that read a window of highs and lows: the cost of one bar at a time ---
+
+    [Benchmark]
+    public double StreamingStochastic_14()
+    {
+        var form = new StreamingStochastic(14, 3, DataSize);
+        for (int i = 0; i < DataSize; i++) form.AppendCandle(new OhlcBar(_close[i], _high[i], _low[i], _close[i]));
+        return form.GetLatest();
+    }
+
+    [Benchmark]
+    public double StreamingWilliamsR_14()
+    {
+        var form = new StreamingWilliamsR(14, DataSize);
+        for (int i = 0; i < DataSize; i++) form.AppendCandle(new OhlcBar(_close[i], _high[i], _low[i], _close[i]));
+        return form.GetLatest();
+    }
+
+    // --- Streaming forms that keep a window of their inputs: the cost of one input at a time ---
+
+    [Benchmark]
+    public double StreamingBollinger_20()
+    {
+        var form = new StreamingBollinger(20, 2.0, DataSize);
+        for (int i = 0; i < DataSize; i++) form.Append(_close[i]);
+        return form.GetLatest();
+    }
+
+    [Benchmark]
+    public double StreamingCci_20()
+    {
+        var form = new StreamingCci(20, DataSize);
+        for (int i = 0; i < DataSize; i++) form.AppendCandle(new OhlcBar(_close[i], _high[i], _low[i], _close[i]));
+        return form.GetLatest();
+    }
+
+    [Benchmark]
+    public double StreamingAroonOscillator_25()
+    {
+        var form = new StreamingAroonOscillator(25, DataSize);
+        for (int i = 0; i < DataSize; i++) form.AppendCandle(new OhlcBar(_close[i], _high[i], _low[i], _close[i]));
+        return form.GetLatest();
+    }
+
+    [Benchmark]
+    public int RingBuffer_Append()
+    {
+        var ring = new RingBuffer<double>(1_000);
+        for (int i = 0; i < DataSize; i++) ring.Append(_close[i]);
+        return ring.Count;
+    }
 }

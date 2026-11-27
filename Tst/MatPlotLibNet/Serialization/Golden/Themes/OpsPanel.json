@@ -1,0 +1,1 @@
+{"name":"ops-panel","background":"#C6CACC","foregroundText":"#22282B","axesBackground":"#D2D6D8","defaultGrid":{"visible":true,"color":"#B7BDC0","lineWidth":0.8},"alarm":{"resting":"#5C6469","warning":"#A96A00","critical":"#93380A","unknown":"#8E9599"}}

@@ -3,14 +3,11 @@
 
 namespace MatPlotLibNet.Geo;
 
-/// <summary>Degrees/radians conversion extensions on <see cref="double"/>. Introduced to DRY out
-/// the <c>DegToRad</c>/<c>RadToDeg</c> private consts that were duplicated across the projection
-/// files in <c>MatPlotLibNet.Geo.Projections</c> — pure formatting change, no behavioural difference.</summary>
+/// <summary>Degrees/radians conversion extensions on <see cref="double"/>, the one conversion every projection of this package reads:
+/// one multiply by a precomputed factor. It is the package's own rule, not the core's two-operation <c>degrees * Math.PI / 180</c>: the
+/// two differ in the last bit for about one input in four, and every place a map's JSON carries is held to this one.</summary>
 public static class AngleExtensions
 {
-    // Precomputed single-constant factors (not an inline `x * Math.PI / 180.0` two-op
-    // expression) so every call site folds to the same one-multiply IL the former
-    // per-file `DegToRad`/`RadToDeg` consts produced — bit-identical output, pure DRY.
     private const double DegToRadFactor = Math.PI / 180.0;
     private const double RadToDegFactor = 180.0 / Math.PI;
 

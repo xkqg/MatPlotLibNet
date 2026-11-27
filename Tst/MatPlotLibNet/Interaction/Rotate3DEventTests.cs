@@ -27,31 +27,17 @@ public sealed class Rotate3DEventTests
         Assert.Equal(-45.0, figure.SubPlots[0].Azimuth);
     }
 
-    [Fact]
-    public void ApplyTo_MutatesElevation()
+    /// <summary>The elevation moves by the delta from 30 and is held to -90..90.</summary>
+    [Theory]
+    [InlineData(10.0, 40.0)]
+    [InlineData(100.0, 90.0)]
+    [InlineData(-200.0, -90.0)]
+    public void ApplyTo_MovesTheElevationByTheDelta_HeldToNinety(double delta, double expected)
     {
         var figure = CreateFigureWith3DAxes();
-        var evt = new Rotate3DEvent("test", 0, DeltaAzimuth: 0, DeltaElevation: 10.0);
+        var evt = new Rotate3DEvent("test", 0, DeltaAzimuth: 0, DeltaElevation: delta);
         evt.ApplyTo(figure);
-        Assert.Equal(40.0, figure.SubPlots[0].Elevation);
-    }
-
-    [Fact]
-    public void ApplyTo_ClampsElevationToPositive90()
-    {
-        var figure = CreateFigureWith3DAxes();
-        var evt = new Rotate3DEvent("test", 0, DeltaAzimuth: 0, DeltaElevation: 100.0);
-        evt.ApplyTo(figure);
-        Assert.Equal(90.0, figure.SubPlots[0].Elevation);
-    }
-
-    [Fact]
-    public void ApplyTo_ClampsElevationToNegative90()
-    {
-        var figure = CreateFigureWith3DAxes();
-        var evt = new Rotate3DEvent("test", 0, DeltaAzimuth: 0, DeltaElevation: -200.0);
-        evt.ApplyTo(figure);
-        Assert.Equal(-90.0, figure.SubPlots[0].Elevation);
+        Assert.Equal(expected, figure.SubPlots[0].Elevation);
     }
 
     [Fact]

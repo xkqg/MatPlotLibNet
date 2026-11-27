@@ -11,115 +11,59 @@ namespace MatPlotLibNet;
 /// Extension methods that turn any <see cref="IEnumerable{T}"/> directly into a <see cref="FigureBuilder"/>,
 /// using selector lambdas for X, Y, and an optional hue (group-by) key.
 /// Each method returns a <see cref="FigureBuilder"/> that can be further customised before calling
-/// <c>Build()</c>, <c>ToSvg()</c>, or <c>Save()</c>.
+/// <c>Build()</c>, <c>ToSvg()</c>, or <c>Save(path)</c>.
 /// </summary>
 public static class EnumerableFigureExtensions
 {
-    /// <summary>Plots <paramref name="data"/> as one or more line series.</summary>
     /// <typeparam name="T">Element type.</typeparam>
     /// <param name="data">The source sequence.</param>
-    /// <param name="x">X value selector.</param>
-    /// <param name="y">Y value selector.</param>
-    /// <param name="hue">Optional group-by selector. When supplied, one <see cref="LineSeries"/> per
-    /// unique key is added; each series is labeled and color-coded from <paramref name="palette"/>.</param>
-    /// <param name="palette">Optional color palette. Defaults to Tab10 when <see langword="null"/>.</param>
-    public static FigureBuilder Line<T>(
-        this IEnumerable<T> data,
-        Func<T, double> x,
-        Func<T, double> y,
-        Func<T, string>? hue  = null,
-        Color[]?         palette = null)
+    extension<T>(IEnumerable<T> data)
     {
-        var fb = Plt.Create();
-        if (hue is null)
-        {
-            var arr = data.ToArray();
-            fb.Plot(arr.Select(x).ToArray(), arr.Select(y).ToArray());
-        }
-        else
-        {
-            foreach (var g in HueGrouper.GroupBy(data, hue, x, y, palette))
-                fb.Plot(g.X, g.Y, s => { s.Color = g.Color; s.Label = g.Label; });
-        }
-        return fb;
-    }
+        /// <summary>Plots <paramref name="data"/> as one or more line series.</summary>
+        /// <param name="x">X value selector.</param>
+        /// <param name="y">Y value selector.</param>
+        /// <param name="hue">Optional group-by selector. When supplied, one <see cref="LineSeries"/> per
+        /// unique key is added; each series is labeled and color-coded from <paramref name="palette"/>.</param>
+        /// <param name="palette">Optional color palette. Defaults to Tab10 when <see langword="null"/>.</param>
+        public FigureBuilder Line(
+            Func<T, double> x,
+            Func<T, double> y,
+            Func<T, string>? hue  = null,
+            Color[]?         palette = null) =>
+            data.Split(x, y, hue, palette).Lines();
 
-    /// <summary>Plots <paramref name="data"/> as one or more scatter series.</summary>
-    /// <typeparam name="T">Element type.</typeparam>
-    /// <param name="data">The source sequence.</param>
-    /// <param name="x">X value selector.</param>
-    /// <param name="y">Y value selector.</param>
-    /// <param name="hue">Optional group-by selector.</param>
-    /// <param name="palette">Optional color palette. Defaults to Tab10 when <see langword="null"/>.</param>
-    public static FigureBuilder Scatter<T>(
-        this IEnumerable<T> data,
-        Func<T, double> x,
-        Func<T, double> y,
-        Func<T, string>? hue  = null,
-        Color[]?         palette = null)
-    {
-        var fb = Plt.Create();
-        if (hue is null)
-        {
-            var arr = data.ToArray();
-            fb.Scatter(arr.Select(x).ToArray(), arr.Select(y).ToArray());
-        }
-        else
-        {
-            foreach (var g in HueGrouper.GroupBy(data, hue, x, y, palette))
-                fb.Scatter(g.X, g.Y, s => { s.Color = g.Color; s.Label = g.Label; });
-        }
-        return fb;
-    }
+        /// <summary>Plots <paramref name="data"/> as one or more scatter series.</summary>
+        /// <param name="x">X value selector.</param>
+        /// <param name="y">Y value selector.</param>
+        /// <param name="hue">Optional group-by selector.</param>
+        /// <param name="palette">Optional color palette. Defaults to Tab10 when <see langword="null"/>.</param>
+        public FigureBuilder Scatter(
+            Func<T, double> x,
+            Func<T, double> y,
+            Func<T, string>? hue  = null,
+            Color[]?         palette = null) =>
+            data.Split(x, y, hue, palette).Scatters();
 
-    /// <summary>Plots the distribution of <paramref name="data"/> as one or more histogram series.</summary>
-    /// <typeparam name="T">Element type.</typeparam>
-    /// <param name="data">The source sequence.</param>
-    /// <param name="value">Numeric value selector.</param>
-    /// <param name="bins">Number of bins (default 30).</param>
-    /// <param name="hue">Optional group-by selector. When supplied, one overlapping
-    /// <see cref="HistogramSeries"/> per unique key is added with alpha 0.7 for legibility.</param>
-    /// <param name="palette">Optional color palette. Defaults to Tab10 when <see langword="null"/>.</param>
-    public static FigureBuilder Hist<T>(
-        this IEnumerable<T> data,
-        Func<T, double>  value,
-        int              bins    = 30,
-        Func<T, string>? hue     = null,
-        Color[]?         palette = null)
-    {
-        var fb = Plt.Create();
-        if (hue is null)
-        {
-            var arr = data.Select(value).ToArray();
-            fb.Hist(arr, bins);
-        }
-        else
-        {
-            // Convert to HueGroup via a dummy XY grouping; only Y (value) matters for histograms
-            var colors   = palette is { Length: > 0 } ? palette : HueGrouper.DefaultPalette;
-            var buckets  = new Dictionary<string, List<double>>();
-            var keyOrder = new List<string>();
+        /// <summary>Plots the distribution of <paramref name="data"/> as one or more histogram series.</summary>
+        /// <param name="value">Numeric value selector.</param>
+        /// <param name="bins">Number of bins (default <see cref="HistogramSeries.RestingBins"/>).</param>
+        /// <param name="hue">Optional group-by selector. When supplied, one <see cref="HistogramSeries"/> per unique key is added,
+        /// drawn see-through so the groups show through each other.</param>
+        /// <param name="palette">Optional color palette. Defaults to Tab10 when <see langword="null"/>.</param>
+        public FigureBuilder Hist(
+            Func<T, double>  value,
+            int              bins    = HistogramSeries.RestingBins,
+            Func<T, string>? hue     = null,
+            Color[]?         palette = null) =>
+            data.Split(value, null, hue, palette).Histograms(bins);
 
-            foreach (var item in data)
-            {
-                var key = hue(item);
-                if (!buckets.TryGetValue(key, out var list))
-                {
-                    list = [];
-                    buckets[key] = list;
-                    keyOrder.Add(key);
-                }
-                list.Add(value(item));
-            }
-
-            for (int i = 0; i < keyOrder.Count; i++)
-            {
-                var key   = keyOrder[i];
-                var vals  = buckets[key].ToArray();
-                var color = colors[i % colors.Length];
-                fb.Hist(vals, bins, s => { s.Color = color; s.Label = key; s.Alpha = 0.7; });
-            }
+        /// <summary>The observations of <paramref name="data"/> by the selectors, each selector run once per observation, with their
+        /// hue labels when a hue selector is given; with no second selector the second value is the first (a histogram's).</summary>
+        private HueSplit Split(Func<T, double> x, Func<T, double>? y, Func<T, string>? hue, Color[]? palette)
+        {
+            var rows = data.ToArray();
+            double[] xs = [.. rows.Select(x)];
+            return new HueSplit(xs, y is null ? xs : [.. rows.Select(y)], hue is null ? null : [.. rows.Select(hue)], palette);
         }
-        return fb;
     }
 }

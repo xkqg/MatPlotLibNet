@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Geo;
+using MatPlotLibNet.Geo.Data;
+using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Indicators.Streaming;
 using MatPlotLibNet.Models;
@@ -48,10 +51,13 @@ internal static class WikiPictures
         yield return new("psd_vibration", PsdVibration());
         yield return new("csd_casing", CsdCasing());
         yield return new("cohere_casing", CohereCasing());
+        yield return new("psd_two_sided", PsdTwoSided());
         yield return new("echo_spectra", EchoSpectra());
         yield return new("correlation_lags", CorrelationLags());
         yield return new("figure_overlays", FigureOverlays());
         yield return new("inset_zoom", InsetZoom());
+        yield return new("h3_bins", H3CoastlineBins());
+        yield return new("cartogram_contiguous", ContiguousPopulation());
         yield return new("spectrogram_tone", SpectrogramTone());
         yield return new("survey_words", SurveyWords());
         yield return new("region_chord", RegionChord());
@@ -66,7 +72,6 @@ internal static class WikiPictures
         yield return new("budget_waterfall", BudgetWaterfall());
         yield return new("calendar_events", CalendarEventsPicture());
         yield return new("connected_scatter", ConnectedScatterPicture());
-        yield return new("fidelity_waterfall", FidelityWaterfall());
         yield return new("fill_betweenx_speed", FillBetweenXSpeed());
         yield return new("gradient_fills", GradientFills());
         yield return new("heating_waffle", HeatingWaffle());
@@ -115,6 +120,7 @@ internal static class WikiPictures
         yield return new("right_ticks", RightTicks());
         yield return new("routes_raincloud", RoutesRaincloud());
         yield return new("satisfaction_dumbbell", SatisfactionDumbbell());
+        yield return new("scatter3d_markers", Scatter3DMarkers());
         yield return new("scores_lollipop", ScoresLollipop());
         yield return new("sensor_gap", SensorGap());
         yield return new("signal_streaming_roundtrip", SignalStreamingRoundtrip());
@@ -122,6 +128,34 @@ internal static class WikiPictures
         yield return new("top_axis", TopAxis());
         yield return new("upload_log_bars", UploadLogBars());
         yield return new("williams_r_ohlcv_bars", WilliamsROhlcvBars());
+        yield return new("annotation_offset", AnnotationOffset());
+        yield return new("cycled_secondary", CycledSecondary());
+        yield return new("decline", Decline());
+        yield return new("figure_legend_outside", FigureLegendOutside());
+        yield return new("gantt_release_plan", GanttReleasePlan());
+        yield return new("growth", Growth());
+        yield return new("ichimoku", IchimokuCloud());
+        yield return new("image_filling_the_plot", ImageFillingThePlot());
+        yield return new("inverted_labels_on_top", InvertedLabelsOnTop());
+        yield return new("last_values", LastValues());
+        yield return new("legend_toggle", LegendToggle());
+        yield return new("revenue", Revenue());
+        yield return new("waits_violins", WaitsViolins());
+        yield return new("browser_figure_updated", BrowserFigureUpdated());
+        yield return new("calendar_table", CalendarTable());
+        yield return new("dates_in_year_9999", DatesInYear9999());
+        yield return new("ggplot_axes_background", GgplotAxesBackground());
+        yield return new("ggplot_heatmap_missing", GgplotHeatmapMissing());
+        yield return new("legend_toggle_load", LegendToggleLoad());
+        yield return new("load_panels", LoadPanels());
+        yield return new("marimekko_table", MarimekkoTable());
+        yield return new("mathtext_subscript_title", MathtextSubscriptTitle());
+        yield return new("patch_polar_and_3d", PatchPolarAnd3D());
+        yield return new("patch_zorder_rotation", PatchZOrderRotation());
+        yield return new("polar_rings_and_colorbar", PolarRingsAndColorBar());
+        yield return new("polar_rorigin", PolarROrigin());
+        yield return new("shared_view_cursors", SharedViewCursors());
+        yield return new("weather_data_cursor", WeatherDataCursor());
     }
 
     // The gallery tiles of Chart-Types: one small figure for each chart type, drawn at the default size.
@@ -155,7 +189,7 @@ internal static class WikiPictures
     private static Figure GalleryPie() =>
         Plt.Create()
             .WithTitle("Pie chart")
-            .AddSubPlot(1, 1, 1, ax => ax.Pie([35, 25, 20, 15, 5], ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"], s => s.AutoPct = "%.1f%%"))
+            .AddSubPlot(1, 1, 1, ax => ax.Pie([35, 25, 20, 15, 5], ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"], s => s.AutoPct = "{0:F1}%"))
             .Build();
 
     private static Figure GalleryPolarScatter()
@@ -1221,25 +1255,6 @@ internal static class WikiPictures
         return figure;
     }
 
-    private static Figure FidelityWaterfall()
-    {
-        var figure = Plt.Create()
-            .WithSize(800, 600)
-            .WithTheme(Theme.MatplotlibV2)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithTitle("Waterfall chart")
-                .Waterfall(["Start", "A", "B", "C", "D", "End"], [100, 30, -20, 40, -10, 140], s =>
-                {
-                    s.TotalIndices = [0, 5];
-                    s.IncreaseColor = Color.FromHex("#2CA02C");
-                    s.DecreaseColor = Color.FromHex("#D62728");
-                    s.TotalColor = Color.FromHex("#1F77B4");
-                    s.BarWidth = 0.8;
-                }))
-            .Build();
-        return figure;
-    }
-
     private static Figure SurveyWords()
     {
         string[] words = ["price", "support", "speed", "design", "docs", "bugs", "export", "themes", "charts", "install", "license", "maps"];
@@ -1405,6 +1420,7 @@ internal static class WikiPictures
             .WithSize(900, 560)
             .AddSubPlot(1, 1, 1, ax => ax
                 .SetAspect(1)
+                .SetXLim(0, 15).SetYLim(0, 8)
                 .AddPatch(new Rectangle(new(0.8, 0.8), 3, 1.6) { Angle = 15, FaceColor = Colors.Tab10Blue, Label = "Rectangle" })
                 .AddPatch(new Polygon([new(5, 0.8), new(8, 0.8), new(8.4, 2.6), new(6.6, 3.6), new(4.8, 2.6)]) { FaceColor = Colors.Tab10Orange, Label = "Polygon" })
                 .AddPatch(new Arrow(new(9.2, 0.9), 1.6, 1.2) { Width = 0.3, HeadWidth = 0.9, FaceColor = Colors.Tab10Green, Label = "Arrow" })
@@ -1424,12 +1440,14 @@ internal static class WikiPictures
             .TightLayout()
             .AddSubPlot(1, 2, 1, ax => ax
                 .WithTitle("Linear X axis")
+                .SetXLim(0, 12).SetYLim(0, 9)
                 .AddPatch(new Circle(new(4, 6), 2.5))
                 .AddPatch(new Rectangle(new(7, 1), 4, 2))
                 .AddPatch(new Polygon([new(1, 1), new(5, 1), new(1, 4)])))
             .AddSubPlot(1, 2, 2, ax => ax
                 .WithTitle("Log X axis")
                 .SetXScale(AxisScale.Log)
+                .SetXLim(0.8, 12).SetYLim(0, 9)
                 .AddPatch(new Circle(new(4, 6), 2.5))
                 .AddPatch(new Rectangle(new(7, 1), 4, 2))
                 .AddPatch(new Polygon([new(1, 1), new(5, 1), new(1, 4)])))
@@ -1583,6 +1601,75 @@ internal static class WikiPictures
         return figure;
     }
 
+    private static Figure Scatter3DMarkers()
+    {
+        double[] x = [1, 2, 3, 4, 5, 6];
+        double[] y = [2, 5, 3, 6, 4, 7];
+        double[] z = [1, 3, 2, 5, 4, 6];
+
+        return Plt.Create()
+            .WithTitle("Two groups of points, two markers")
+            .WithSize(640, 480)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 25, azimuth: -60)
+                .Scatter3D(x[..3], y[..3], z[..3], s => { s.Label = "round"; s.MarkerStyle = MarkerStyle.Circle; })
+                .Scatter3D(x[3..], y[3..], z[3..], s => { s.Label = "square"; s.MarkerStyle = MarkerStyle.Square; })
+                .WithLegend())
+            .Build();
+    }
+
+    private static Figure H3CoastlineBins()
+    {
+        var coast = NaturalEarth110m.Coastlines().SelectMany(line => line.Geometry.PositionRings).SelectMany(ring => ring).ToArray();
+        double[] lat = [.. coast.Select(p => p.Lat)];
+        double[] lon = [.. coast.Select(p => p.Lon)];
+
+        var figure = Plt.Create()
+            .WithTitle("Coastline points in each H3 cell at resolution 1")
+            .WithSize(1000, 560)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithProjection(GeoProjection.Robinson)
+                .Ocean(Color.FromHex("#dfeaf5"))
+                .Land(Color.FromHex("#cfcfcf"))
+                .H3Bins(lat, lon, 1, cells => cells.ColorMap = ColorMaps.Viridis)
+                .WithColorBar()
+                .WithLegend(visible: false))
+            .Build();
+        return figure;
+    }
+
+    private static Figure ContiguousPopulation()
+    {
+        var populationOf = NaturalEarth110m.Countries()
+            .Where(country => country.NumberOf("POP_EST") > 0)
+            .ToDictionary(country => country.Properties["ADM0_A3"], country => country.NumberOf("POP_EST"));
+
+        return Plt.Create()
+            .WithTitle("Population — the countries resized, still meeting at their borders")
+            .WithSize(1000, 560)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithProjection(GeoProjection.Robinson)
+                .Ocean(Color.FromHex("#dfeaf5"))
+                .ContiguousCartogram(populationOf, s => { s.Color = Color.FromHex("#d95f02"); s.StrokeColor = Colors.White; })
+                .WithLegend(visible: false))
+            .Build();
+    }
+
+    private static Figure PsdTwoSided()
+    {
+        var (vibration, _, options) = MachineSignals();
+
+        var figure = Plt.Create()
+            .WithTitle("The vibration's power at negative frequencies too")
+            .WithSize(760, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Psd(vibration, options with { Sides = SpectralSides.TwoSided }, line => line.Label = "vibration")
+                .SetXLabel("Frequency (Hz)")
+                .WithLegend())
+            .Build();
+        return figure;
+    }
+
     private static Figure CsdCasing()
     {
         var (vibration, casing, options) = MachineSignals();
@@ -1686,8 +1773,8 @@ internal static class WikiPictures
             .AddSubPlot(1, 2, 2, ax => ax
                 .WithTitle("Revenue")
                 .WithLegend(visible: false)
-                .Plot(month, northRevenue, s => s.Label = "North")
-                .Plot(month, southRevenue, s => s.Label = "South")
+                .Plot(month, northRevenue)
+                .Plot(month, southRevenue)
                 .SetXLabel("Month"))
             .FigLegend(legend => legend with { Position = LegendPosition.UpperRight })
             .FigText("Source: field survey", 0.01, 0.01)
@@ -1735,5 +1822,313 @@ internal static class WikiPictures
                 .SetYLabel("Frequency (Hz)"))
             .Build();
         return figure;
+    }
+
+    // The pictures of the Examples page that stand under a block saving an SVG: each is the block's own code, built and not saved.
+    private static Figure GanttReleasePlan() =>
+        Plt.Create()
+            .WithTitle("Release plan")
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Gantt(["Design", "Build", "Test", "Ship"], [0.0, 3.0, 8.0, 11.0], [3.0, 8.0, 11.0, 13.0])
+                .SetXLabel("day"))
+            .Build();
+
+    private static Figure InvertedLabelsOnTop() =>
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0]).InvertYAxis().WithXTickLabelsOnTop())
+            .Build();
+
+    private static Figure ImageFillingThePlot()
+    {
+        double[,] cells = { { 1, 2, 3, 4 }, { 5, 6, 7, 8 } };
+
+        return Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Image(cells).SetAspectAuto())
+            .Build();
+    }
+
+    private static Figure IchimokuCloud()
+    {
+        double[] x = new double[80];
+        double[] close = new double[80];
+        double[] high = new double[80];
+        double[] low = new double[80];
+        for (int i = 0; i < 80; i++)
+        {
+            x[i] = i;
+            close[i] = 100 + 5 * Math.Sin(i / 4.0);
+            high[i] = close[i] + 1;
+            low[i] = close[i] - 1;
+        }
+
+        var bars = OhlcvBars.Hlc(high, low, close);
+
+        return Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, close, s => s.Label = "close")
+                .Indicator(new Ichimoku(bars) { Color = Colors.Red, CloudColor = Colors.Green }))
+            .Build();
+    }
+
+    private static Figure FigureLegendOutside()
+    {
+        double[] month = [1, 2, 3, 4, 5, 6];
+        double[] observed = [12, 15, 14, 18, 21, 24];
+        double[] fitted = [12.5, 14.2, 15.6, 17.9, 20.8, 23.6];
+
+        return Plt.Create()
+            .WithSize(860, 400)
+            .ConstrainedLayout()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .WithLegend(visible: false)
+                .Plot(month, observed, s => s.Label = "Observed")
+                .Plot(month, fitted, s => s.Label = "Fitted"))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .WithLegend(visible: false)
+                .Plot(month, observed)
+                .Plot(month, fitted))
+            .FigLegend(legend => legend with { Position = LegendPosition.OutsideRight })
+            .Build();
+    }
+
+    private static Figure Growth() =>
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2.0, 3.0], [1.0, 4.0, 9.0]))
+            .Build();
+
+    private static Figure Decline() =>
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2.0, 3.0], [9.0, 4.0, 1.0]))
+            .Build();
+
+    private static Figure AnnotationOffset()
+    {
+        double[] x = [1, 2, 3, 4, 5];
+        double[] y = [2, 3, 5, 4, 6];
+
+        return Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, y)
+                .Annotate("Launch", 3.0, 5.0, ann =>
+                {
+                    ann.OffsetX = 12;
+                    ann.OffsetY = -10;
+                    ann.VerticalAlignment = TextVerticalAlignment.Bottom;
+                }))
+            .Build();
+    }
+
+    private static Figure Revenue()
+    {
+        double[] quarter = [1, 2, 3, 4];
+        double[] revenue = [12, 15, 14, 18];
+
+        return Plt.Create()
+            .WithSize(500, 350)
+            .WithDpi(192)
+            .Plot(quarter, revenue)
+            .Build();
+    }
+
+    private static Figure WaitsViolins()
+    {
+        double[][] waits =
+        [
+            [4, 5, 5, 6, 7, 7, 8, 9, 12],
+            [2, 3, 3, 4, 4, 5, 5, 6, 8],
+            [6, 7, 9, 9, 10, 11, 12, 14, 15],
+        ];
+
+        return Plt.Create()
+            .WithSize(600, 380)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Violin(waits, s => { s.Positions = [10, 20, 30]; s.Widths = 6; s.Side = ViolinSide.High; })
+                .SetXLabel("Floor")
+                .SetYLabel("Wait (min)"))
+            .Build();
+    }
+
+    private static Figure LastValues()
+    {
+        double[] day = [1, 2, 3, 4, 5];
+        double[] visitors = [120, 135, 128, 150, 162];
+        double[] orders = [31, 38, 35, 44, 47];
+
+        return Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(day, visitors, s => { s.Label = "Visitors"; s.LabelPlacement = SeriesLabelPlacement.LineEnd; })
+                .Plot(day, orders, s => { s.Label = "Orders"; s.LabelPlacement = SeriesLabelPlacement.LineEnd; })
+                .WithLegendValues())
+            .Build();
+    }
+
+    private static Figure LegendToggle()
+    {
+        double[] hour = [0, 4, 8, 12, 16, 20, 24];
+        double[] temperature = [12, 10, 14, 21, 23, 17, 13];
+        double[] humidity = [88, 92, 75, 52, 47, 63, 81];
+
+        return Plt.Create()
+            .WithBrowserInteraction()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(hour, temperature, s => s.Label = "Temperature")
+                .SetYLabel("Temperature (°C)")
+                .WithAddRightYAxis(right => right
+                    .Plot(hour, humidity, s => s.Label = "Humidity")
+                    .SetYLabel("Relative humidity (%)"))
+                .WithLegend())
+            .Build();
+    }
+
+    private static Figure CycledSecondary()
+    {
+        double[] x = [1, 2, 3, 4, 5];
+        double[] sales = [12, 15, 14, 18, 21];
+        double[] margin = [0.31, 0.29, 0.33, 0.35, 0.34];
+
+        var theme = Theme.CreateFrom(Theme.Default)
+            .WithPropCycler(new PropCyclerBuilder().WithColors(Colors.Red, Colors.Green, Colors.Blue).Build())
+            .Build();
+
+        return Plt.Create()
+            .WithTheme(theme)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, sales, s => s.Label = "Sales")
+                .WithAddRightYAxis(right => right.Plot(x, margin, s => s.Label = "Margin"))
+                .WithLegend())
+            .Build();
+    }
+
+    private static Figure GgplotAxesBackground()
+    {
+        using (Plt.Style.Context(StyleSheet.Ggplot))
+        {
+            return Plt.Create().Plot([1.0, 2, 3], [2.0, 4, 3]).Build();
+        }
+    }
+
+    private static Figure BrowserFigureUpdated()
+    {
+        var figure = Plt.Create().Plot([1.0, 2, 3], [2.0, 4, 3]).Build();
+        figure.Title = "Updated";
+
+        return figure;
+    }
+
+    private static Figure PolarRingsAndColorBar() =>
+        Plt.Create()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .Heatmap(new double[,] { { 0, 10 }, { 15, 20 } })
+                .WithColorBar(cb => cb with { Locator = new MultipleLocator(5) }))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .PolarPlot([10.0, 10, 10], [0.0, 1, 2])
+                .SetYTickLocator(new MultipleLocator(3)))
+            .Build();
+
+    private static Figure PolarROrigin() =>
+        Plt.Create()
+            .AddSubPlot(1, 2, 1, ax => ax.PolarPlot([-20.0, -10, -3], [0.0, 2, 4]))
+            .AddSubPlot(1, 2, 2, ax => ax.PolarPlot([1.0, 5, 9], [0.0, 2, 4]).SetROrigin(-3))
+            .Build();
+
+    private static Figure LoadPanels()
+    {
+        double[] hours = [0, 1, 2, 3, 4, 5];
+        double[] load = [41, 44, 52, 49, 58, 61];
+        double[] queue = [3, 2, 4, 3, 5, 4];
+
+        var figure = Plt.Create()
+            .WithSize(800, 600)
+            .AddSubPlot(2, 1, 1, ax => ax.Plot(hours, load).WithTitle("Load (%)"))
+            .AddSubPlot(2, 1, 2, ax => ax.Plot(hours, queue).WithTitle("Queue"))
+            .Build();
+
+        load[^1] = 66;
+
+        return figure;
+    }
+
+    private static Figure PatchZOrderRotation() =>
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 1, 2, 3], [1.0, 3, 2, 4])
+                .Bar(["a", "b", "c", "d"], [2.0, 1, 3, 2])
+                .AddPatch(new Rectangle(new(1.2, 2.2), 0.6, 0.6)
+                    { FaceColor = Colors.White, EdgeColor = Colors.Black, ZOrder = 3, Angle = 45, RotationPoint = RotationPoint.Center })
+                .ShowGrid())
+            .Build();
+
+    private static Figure PatchPolarAnd3D() =>
+        Plt.Create()
+            .AddSubPlot(1, 2, 1, ax => ax
+                .PolarPlot([1.0, 3.0, 5.0], [0.0, 1.0, 2.0])
+                .AddPatch(new Rectangle(new(0.5, 2), 0.8, 1.5) { Label = "sector" }))
+            .AddSubPlot(1, 2, 2, ax => ax
+                .Plot3D([0.0, 4.0], [0.0, 4.0], [0.0, 4.0])
+                .AddPatch(new Circle(new(2, 2), 1) { Z = 1, ZDir = ZDirection.X }))
+            .Build();
+
+    private static Figure LegendToggleLoad() =>
+        Plt.Create()
+            .WithLegendToggle()
+            .Plot([1.0, 2, 3], [2.0, 4, 3], s => s.Label = "load")
+            .Build();
+
+    private static Figure MathtextSubscriptTitle() =>
+        Plt.Create().WithTitle(@"$a_\alpha$").Plot([1.0, 2, 3], [2.0, 4, 3]).Build();
+
+    private static Figure DatesInYear9999()
+    {
+        DateTime[] days = [new(9999, 12, 1), new(9999, 12, 31)];
+
+        return Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(days, [1.0, 2.0])).Build();
+    }
+
+    private static Figure SharedViewCursors() =>
+        Plt.Create()
+            .Plot([0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 4.0, 9.0])
+            .WithServerInteraction("shared", i => i.EnableBrushSelect().EnableViewerCursors())
+            .Build();
+
+    private static Figure CalendarTable()
+    {
+        DateTime[] days = [new(2025, 1, 6), new(2025, 1, 7), new(2025, 1, 8), new(2025, 1, 13)];
+        double[] commits = [3, 0, 5, 2];
+
+        return Plt.Create().AddSubPlot(1, 1, 1, ax => ax.CalendarHeatmap(days, commits)).Build();
+    }
+
+    private static Figure MarimekkoTable() =>
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Marimekko(
+                ["Retail", "Online"],
+                [new BarGroup("Brand A", [30, 15]), new BarGroup("Brand B", [20, 25])]))
+            .Build();
+
+    private static Figure GgplotHeatmapMissing()
+    {
+        double[,] load = { { 0.2, 0.5, double.NaN }, { 0.7, 0.9, 0.4 } };
+        var map = new LinearColorMap("white-to-teal", [Colors.White, Colors.Teal]) { BadColor = Colors.LightGray };
+
+        return Plt.Create()
+            .WithTheme(Theme.Ggplot)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Heatmap(load, s => s.ColorMap = map)
+                .WithColorBar())
+            .Build();
+    }
+
+    private static Figure WeatherDataCursor()
+    {
+        double[] hour = [0, 4, 8, 12, 16, 20, 24];
+        double[] temperature = [12, 10, 14, 21, 23, 17, 13];
+        double[] humidity = [88, 92, 75, 52, 47, 63, 81];
+
+        return Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(hour, temperature, s => s.Label = "Temperature")
+                .WithAddRightYAxis(right => right.Plot(hour, humidity, s => s.Label = "Humidity")))
+            .WithServerInteraction("weather", i => i.EnableDataCursor())
+            .Build();
     }
 }

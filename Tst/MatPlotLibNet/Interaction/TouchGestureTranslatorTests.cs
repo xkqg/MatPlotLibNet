@@ -21,18 +21,9 @@ public class TouchGestureTranslatorTests
         var figure = given ?? Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([10.0, 50.0, 90.0], [10.0, 25.0, 40.0]).SetXLim(0, 100).SetYLim(0, 50)).Build();
         figure.ChartId = "c";
         var events = new List<FigureInteractionEvent>();
-        var host = new InteractionHost { Handler = new Collect(events) };
+        var host = new InteractionHost { Handler = new RecordingChartEventHandler(events) };
         host.Update(figure, ChartLayout.Create(figure, [Area]));
         return (figure, host, new TouchGestureTranslator(host), events);
-    }
-
-    private sealed class Collect(List<FigureInteractionEvent> into) : IChartEventHandler
-    {
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            into.Add(evt);
-            return default;
-        }
     }
 
     /// <summary>How far the data moves when a finger drags a pan by <paramref name="pixels"/>: the pixels as a share of the

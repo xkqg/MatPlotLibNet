@@ -59,43 +59,6 @@ public class NeutralDrawSiteTests
     public void ASite_WearsTheLibrarysGrey_UnderTheDefaultTheme(string site) =>
         Assert.Contains(Stroke(Color.FromHex("#808080")), Svg(site, Theme.Default));
 
-    /// <summary>The control: a chart with none of the sites draws neither grey, so the strokes found above are the sites'.</summary>
-    [Fact]
-    public void AChartWithNoSite_DrawsNeitherGrey()
-    {
-        string svg = Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y)).Build().ToSvg();
-
-        Assert.DoesNotContain(Stroke(Color.FromHex("#8D8D8D")), svg);
-        Assert.DoesNotContain(Stroke(Color.FromHex("#808080")), svg);
-    }
-
-    // ── a colour of its own wins ─────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void AColourSetOnTheGraphic_WinsOverTheNeutral()
-    {
-        var red = Colors.Red;
-        string svg = Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax
-            .Plot(X, Y)
-            .AxHLine(2.5, l => l.Color = red)
-            .AddLevel(2.0, l => l.Color = red)
-            .AddTrendline(1, 1, 4, 4, t => t.Color = red)).Build().ToSvg();
-
-        Assert.Contains(Stroke(red), svg);
-        Assert.DoesNotContain(Stroke(Color.FromHex("#8D8D8D")), svg);
-        Assert.DoesNotContain(Stroke(Color.FromHex("#808080")), svg);
-    }
-
-    [Fact]
-    public void AStemBaselineColour_WinsOverTheNeutral()
-    {
-        string svg = Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord)
-            .AddSubPlot(1, 1, 1, ax => ax.Stem(X, Y, s => s.BaselineColor = Colors.Red)).Build().ToSvg();
-
-        Assert.Contains(Stroke(Colors.Red), svg);
-        Assert.DoesNotContain(Stroke(Color.FromHex("#8D8D8D")), svg);
-    }
-
     // ── the dumbbell's connector wears the neutral of whatever theme is set after the verb ───────────
 
     private static Figure Dumbbell(Theme theme) => Plt.Create().WithSize(800, 450).WithTheme(theme)
@@ -110,54 +73,18 @@ public class NeutralDrawSiteTests
     [InlineData("Dracula", "#949494")]
     public void TheDumbbellConnector_WearsTheNeutralOfTheTheme_ItIsDrawnUnder(string theme, string neutral)
     {
-        var figure = Dumbbell((Theme)typeof(Theme).GetProperty(theme)!.GetValue(null)!);
+        var figure = Dumbbell(theme.AsTheme());
 
         Assert.Null(ConnectorOf(figure).Color);
         Assert.Contains(Stroke(Color.FromHex(neutral)), figure.ToSvg());
     }
 
-    [Fact]
-    public void TheDumbbellConnector_FollowsATheme_SetAfterTheVerbAndChangedAfterTheBuild()
-    {
-        var figure = Dumbbell(Theme.Default);
-        Assert.Contains(Stroke(Color.FromHex("#808080")), figure.ToSvg());
-
-        figure.Theme = Theme.Nord;
-
-        Assert.Contains(Stroke(Color.FromHex("#8D8D8D")), figure.ToSvg());
-        Assert.DoesNotContain(Stroke(Color.FromHex("#808080")), figure.ToSvg());
-    }
-
-    /// <summary>Measured before the change: the connector's explicit grey took the colour slot after the dots, so a series
-    /// added after the dumbbell skipped one colour of the cycle.</summary>
-    [Fact]
-    public void TheDumbbellConnector_TakesNoColourSlot()
-    {
-        var figure = Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
-            .Dumbbell(["a", "b", "c"], new BarGroup("before", [1.0, 4, 2]), new BarGroup("after", [3.0, 2, 5]))
-            .Plot([0.0, 1, 2], [1.0, 2, 3])).Build();
-
-        string svg = figure.ToSvg();
-
-        Assert.Contains(Stroke(figure.Theme.CycleColors[2]), svg);
-        Assert.DoesNotContain(Stroke(figure.Theme.CycleColors[3]), svg);
-    }
-
     // ── on the wire ──────────────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void TheNeutralRole_IsWrittenAsAFlag_NotAsAColour()
-    {
-        string json = Dumbbell(Theme.Default).ToJson();
-
-        Assert.Contains("\"wearsNeutral\":true", json);
-        Assert.DoesNotContain("#808080", json, StringComparison.OrdinalIgnoreCase);
-    }
 
     [Fact]
     public void TheNeutralRole_ReadsBack_AndStillFollowsTheTheme()
     {
-        var read = new ChartSerializer().FromJson(Dumbbell(Theme.Default).ToJson());
+        var read = Dumbbell(Theme.Default).RoundTripped();
 
         Assert.True(ConnectorOf(read).Color is null);
         read.Theme = Theme.Nord;
@@ -172,17 +99,45 @@ public class NeutralDrawSiteTests
         var figure = Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax
             .AddSeries(new ErrorBarSeries([1.0, 2], [1.0, 2], new double[2], [1.0, 1.0]) { Color = Colors.Gray, LineWidth = 3 })).Build();
 
-        var read = new ChartSerializer().FromJson(figure.ToJson());
+        var read = figure.RoundTripped();
 
         Assert.Equal(Colors.Gray, ConnectorOf(read).Color);
         Assert.Contains(Stroke(Colors.Gray), read.ToSvg());
     }
 
-    [Fact]
-    public void ASeriesThatWearsNothing_WritesNoFlag()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y)).Build().ToJson();
+        new DrawnToken("ASeriesThatWearsNothing_WritesNoFlag", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y)).Build().ToJson()) { Absent = ["wearsNeutral"] },
+        new DrawnToken("TheNeutralRole_IsWrittenAsAFlag_NotAsAColour (the flag)", () => Dumbbell(Theme.Default).ToJson(), "\"wearsNeutral\":true"),
+        new DrawnToken("TheNeutralRole_IsWrittenAsAFlag_NotAsAColour (no colour)", () => Dumbbell(Theme.Default).ToJson()) { Absent = ["#808080"], Comparison = StringComparison.OrdinalIgnoreCase },
+        // The control: a chart with none of the sites draws neither grey, so the strokes found above are the sites'.
+        new DrawnToken("AChartWithNoSite_DrawsNeitherGrey", () => Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y)).Build().ToSvg()) { Absent = [Stroke(Color.FromHex("#8D8D8D")), Stroke(Color.FromHex("#808080"))] },
+        new DrawnToken("AStemBaselineColour_WinsOverTheNeutral", () => Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord)
+            .AddSubPlot(1, 1, 1, ax => ax.Stem(X, Y, s => s.BaselineColor = Colors.Red)).Build().ToSvg(), Stroke(Colors.Red)) { Absent = [Stroke(Color.FromHex("#8D8D8D"))] },
+        new DrawnToken("AColourSetOnTheGraphic_WinsOverTheNeutral", () => Plt.Create().WithSize(500, 350).WithTheme(Theme.Nord).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, Y)
+            .AxHLine(2.5, l => l.Color = Colors.Red)
+            .AddLevel(2.0, l => l.Color = Colors.Red)
+            .AddTrendline(1, 1, 4, 4, t => t.Color = Colors.Red)).Build().ToSvg(), Stroke(Colors.Red)) { Absent = [Stroke(Color.FromHex("#8D8D8D")), Stroke(Color.FromHex("#808080"))] },
+        // Measured before the change: the connector's explicit grey took the colour slot after the dots, so a series added after the
+        // dumbbell skipped one colour of the cycle.
+        // Measured before the change: the connector's explicit grey took the colour slot after the dots, so a series added after the
+        // dumbbell skipped one colour of the cycle.
+        new DrawnToken("TheDumbbellConnector_TakesNoColourSlot", () => Plt.Create().WithSize(800, 450).WithTheme(Theme.Default).AddSubPlot(1, 1, 1, ax => ax
+            .Dumbbell(["a", "b", "c"], new BarGroup("before", [1.0, 4, 2]), new BarGroup("after", [3.0, 2, 5]))
+            .Plot([0.0, 1, 2], [1.0, 2, 3])).Build().ToSvg(), Stroke(Theme.Default.CycleColors[2])) { Absent = [Stroke(Theme.Default.CycleColors[3])] },
+        new DrawnToken("TheDumbbellConnector_FollowsATheme_SetAfterTheVerbAndChangedAfterTheBuild (before the change)", () => Dumbbell(Theme.Default).ToSvg(), Stroke(Color.FromHex("#808080"))),
+        new DrawnToken("TheDumbbellConnector_FollowsATheme_SetAfterTheVerbAndChangedAfterTheBuild (after the change)", () =>
+        {
+            var figure = Dumbbell(Theme.Default);
+            figure.ToSvg();
+            figure.Theme = Theme.Nord;
+            return figure.ToSvg();
+        }, Stroke(Color.FromHex("#8D8D8D"))) { Absent = [Stroke(Color.FromHex("#808080"))] },
+    };
 
-        Assert.DoesNotContain("wearsNeutral", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

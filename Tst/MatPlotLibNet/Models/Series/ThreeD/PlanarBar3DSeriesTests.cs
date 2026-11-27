@@ -17,25 +17,16 @@ public class PlanarBar3DSeriesTests
     private static readonly double[] Y = [0.0, 0.0, 0.0];
     private static readonly double[] Z = [3.0, 5.0, 2.0];
 
-    [Fact]
-    public void Constructor_StoresXYZ()
-    {
-        var s = new PlanarBar3DSeries(X, Y, Z);
-        Assert.Equal(X, (double[])s.X);
-        Assert.Equal(Y, (double[])s.Y);
-        Assert.Equal(Z, (double[])s.Z);
-    }
-
     /// <summary>
-    /// Z range must register a sticky-zero baseline so bars touch the ground plane —
-    /// matplotlib's <c>ax.bar(..., bottom=0)</c> convention.
+    /// Z runs from the ground plane the bars rise from (matplotlib's <c>ax.bar(..., bottom=0)</c>), with no sticky edge:
+    /// matplotlib's 3-D axes pads below it, <c>ax.bar([1, 2, 3], [2, 5, 3], zs=0, zdir='y')</c> draws Z from -0.1042.
     /// </summary>
     [Fact]
-    public void ComputeDataRange_ZMin_IsStickyZero()
+    public void ComputeDataRange_Z_RunsFromZero_WithNoStickyEdge()
     {
         var s = new PlanarBar3DSeries(X, Y, Z);
         var c = s.ComputeDataRange(null!);
-        Assert.Equal(0.0, c.StickyZMin);
+        Assert.Null(c.StickyZMin);
         Assert.Equal(0.0, c.ZMin);
         Assert.Equal(5.0, c.ZMax);
     }
@@ -55,18 +46,4 @@ public class PlanarBar3DSeriesTests
         Assert.Null(c.YMin);
         Assert.Null(c.YMax);
     }
-
-    [Fact]
-    public void ToSeriesDto_ReturnsTypePlanarbar3d()
-        => Assert.Equal("planarbar3d", new PlanarBar3DSeries(X, Y, Z).ToSeriesDto().Type);
-
-    [Fact]
-    public void ToSeriesDto_PropagatesBarWidthAndColor()
-    {
-        var s = new PlanarBar3DSeries(X, Y, Z) { BarWidth = 1.2, Color = Colors.Crimson };
-        var dto = s.ToSeriesDto();
-        Assert.Equal(1.2, dto.BarWidth);
-        Assert.Equal(Colors.Crimson, dto.Color);
-    }
-
 }

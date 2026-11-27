@@ -14,18 +14,32 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 /// text only, and a context that draws no <c>&lt;text&gt;</c> ignores it.</summary>
 public class SvgTextLengthTests
 {
-    [Fact]
-    public void TheNextText_IsAskedToBeAsWideAsSaid()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var ctx = new SvgRenderContext();
+        new DrawnToken("TheNextText_IsAskedToBeAsWideAsSaid", () =>
+        {
+            var ctx = new SvgRenderContext();
+            ctx.SetNextTextLength(123.5);
+            ctx.DrawText("hello", new Point(10, 20), new Font(), TextAlignment.Left);
+            return ctx.GetOutput();
+        }, "textLength=\"123.5\"", "lengthAdjust=\"spacingAndGlyphs\""),
+        new DrawnToken("ALengthThatIsNotAPositiveNumber_IsLeftOut", () =>
+        {
+            var ctx = new SvgRenderContext();
+            ctx.SetNextTextLength(double.NaN);
+            ctx.DrawText("a", new Point(0, 10), new Font(), TextAlignment.Left);
+            ctx.SetNextTextLength(0);
+            ctx.DrawText("b", new Point(0, 30), new Font(), TextAlignment.Left);
+            ctx.SetNextTextLength(-4);
+            ctx.DrawText("c", new Point(0, 50), new Font(), TextAlignment.Left);
+            return ctx.GetOutput();
+        }) { Absent = ["textLength"] },
+    };
 
-        ctx.SetNextTextLength(123.5);
-        ctx.DrawText("hello", new Point(10, 20), new Font(), TextAlignment.Left);
-
-        string svg = ctx.GetOutput();
-        Assert.Contains("textLength=\"123.5\"", svg, StringComparison.Ordinal);
-        Assert.Contains("lengthAdjust=\"spacingAndGlyphs\"", svg, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void OnlyTheNextText_IsFitted()
@@ -36,22 +50,7 @@ public class SvgTextLengthTests
         ctx.DrawText("first", new Point(0, 10), new Font(), TextAlignment.Left);
         ctx.DrawText("second", new Point(0, 30), new Font(), TextAlignment.Left);
 
-        Assert.Single(System.Text.RegularExpressions.Regex.Matches(ctx.GetOutput(), "textLength="));
-    }
-
-    [Fact]
-    public void ALengthThatIsNotAPositiveNumber_IsLeftOut()
-    {
-        var ctx = new SvgRenderContext();
-
-        ctx.SetNextTextLength(double.NaN);
-        ctx.DrawText("a", new Point(0, 10), new Font(), TextAlignment.Left);
-        ctx.SetNextTextLength(0);
-        ctx.DrawText("b", new Point(0, 30), new Font(), TextAlignment.Left);
-        ctx.SetNextTextLength(-4);
-        ctx.DrawText("c", new Point(0, 50), new Font(), TextAlignment.Left);
-
-        Assert.DoesNotContain("textLength", ctx.GetOutput(), StringComparison.Ordinal);
+        Assert.Equal(1, ctx.GetOutput().CountOf("textLength="));
     }
 
     [Fact]

@@ -15,16 +15,16 @@ internal sealed record ZoomIndicatorDto
     /// <summary>The colour of the rectangle and the connectors; absent for the theme's neutral grey.</summary>
     public Color? Color { get; init; }
 
-    /// <summary>The opacity of the rectangle and the connectors; absent for 0.5.</summary>
+    /// <summary>The opacity of the rectangle and the connectors; absent for what a new <see cref="ZoomIndicator"/> holds.</summary>
     public double? Alpha { get; init; }
 
-    /// <summary>The width of their lines in pixels; absent for 1.</summary>
+    /// <summary>The width of their lines in pixels; absent for what a new <see cref="ZoomIndicator"/> holds.</summary>
     public double? LineWidth { get; init; }
 
     /// <summary>The dash pattern of their lines; absent for solid.</summary>
     public LineStyle? LineStyle { get; init; }
 
-    /// <summary>Whether the connectors are drawn; absent for <see langword="true"/>.</summary>
+    /// <summary>Whether the connectors are drawn; absent for what a new <see cref="ZoomIndicator"/> holds.</summary>
     public bool? Connectors { get; init; }
 
     private static readonly ZoomIndicator Rest = new();

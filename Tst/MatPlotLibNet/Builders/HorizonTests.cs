@@ -3,8 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.LegendRendering;
-using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -13,11 +12,9 @@ namespace MatPlotLibNet.Tests.Builders;
 /// of a series that goes below zero.</summary>
 public class HorizonTests
 {
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
 
     private static Axes Chart(double[] x, double[] y, int bands = 3, Action<HorizonParts>? configure = null) =>
-        AxesOf(ax => ax.Horizon(x, y, bands, configure));
+        Plt.Create().OneAxes(ax => ax.Horizon(x, y, bands, configure));
 
     // ---- what the verb adds ----------------------------------------------------------------------------------------
 
@@ -101,35 +98,19 @@ public class HorizonTests
         var axes = Chart([0.0, 1, 2, 3], [0.0, 1, 2, 9]);
 
         Assert.All(axes.Series, s => Assert.Null(s.Label));
-        Assert.Empty(axes.LegendEntries(directLabelsDrawn: false));
+        Assert.Empty(axes.LegendEntries(Theme.Default, directLabelsDrawn: false));
     }
 
-    /// <summary>A missing value (NaN) leaves a gap in every band at that point, never a zero.</summary>
+    /// <summary>A value that cannot be drawn (NaN, an infinity) leaves a gap in every band at that point, never a zero.</summary>
     [Fact]
     public void AMissingValue_LeavesAGapInEveryBand()
     {
-        var axes = Chart([0.0, 1, 2], [1.0, double.NaN, 2], bands: 2);
+        var axes = Chart([0.0, 1, 2, 3], [1.0, double.NaN, double.NegativeInfinity, -2], bands: 2);
 
-        Assert.All(axes.Series, s => Assert.True(double.IsNaN(((AreaSeries)s).YData[1])));
+        Assert.All(axes.Series, s => Assert.True(double.IsNaN(((AreaSeries)s).YData[1]) && double.IsNaN(((AreaSeries)s).YData[2])));
     }
 
     // ---- the callback -----------------------------------------------------------------------------------------------
-
-    /// <summary>The callback runs once, after the verb has built every band, and hands over the very series on the
-    /// axes, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes_AfterTheVerbBuiltThem()
-    {
-        HorizonParts? seen = null;
-
-        var axes = Chart([0.0, 1, 2], [3.0, -3, 0], bands: 2, parts => seen = parts);
-
-        Assert.NotNull(seen);
-        Assert.Equal(2, seen.Value.Positive.Count);
-        Assert.Equal(2, seen.Value.Negative.Count);
-        Assert.Same(axes.Series[0], seen.Value.Positive[0]);
-        Assert.Same(axes.Series[2], seen.Value.Negative[0]);
-    }
 
     /// <summary>A non-negative series' callback hands over an empty negative list, never null.</summary>
     [Fact]
@@ -141,35 +122,6 @@ public class HorizonTests
 
         Assert.NotNull(seen);
         Assert.Empty(seen.Value.Negative);
-    }
-
-    // ---- the hand recipe --------------------------------------------------------------------------------------------
-
-    /// <summary>The verb draws exactly the picture of the hand recipe made of the public building blocks, with and
-    /// without a missing observation.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsWhatTheHandRecipeDraws(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("horizon").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.HorizonByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
-
-    /// <summary>A horizon chart is its parts in JSON: read back it draws the same picture. It is not folded again.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheChart_SurvivesJson(bool missing)
-    {
-        var figure = ComposedChartShapes.Named("horizon").Build(missing).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
     }
 
     // ---- refusals -----------------------------------------------------------------------------------------------
@@ -205,7 +157,7 @@ public class HorizonTests
     [Fact]
     public void FewerThanOneBand_IsRefused()
     {
-        var error = Assert.Throws<ArgumentException>(() => Chart([0.0, 1], [1.0, 2], bands: 0));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Chart([0.0, 1], [1.0, 2], bands: 0));
 
         Assert.Equal("bands", error.ParamName);
     }

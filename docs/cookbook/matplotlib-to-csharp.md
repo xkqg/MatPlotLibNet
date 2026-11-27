@@ -16,8 +16,8 @@ Two differences are worth reading before the tables, because they explain almost
 
 **There is no global current figure.** In pyplot, `plt.plot(...)` draws on whichever figure is current, and
 `plt.gca()` hands you the axes behind it. Here you always hold the object you are drawing on, so there is
-nothing to get and nothing to close. That removes `plt.gca`, `plt.gcf`, `plt.cla`, `plt.clf`, `plt.close`
-and `plt.hold` from the table: none of them has an equivalent, because none of them has anything to do.
+nothing to get and nothing to close. That removes `plt.gca`, `plt.gcf`, `plt.cla`, `plt.clf` and
+`plt.close` from the table: none of them has an equivalent, because none of them has anything to do.
 
 **Calls chain.** Every verb returns the thing you called it on, so a chart is one expression instead of a
 paragraph of statements. That is why the C# column reads `ax.Plot(...).WithTitle(...)` where Python reads
@@ -68,18 +68,20 @@ Plt.Create()
 | `plt.figure(dpi=150)` | `figure.WithDpi(150)` | A PNG, and each frame of a GIF, is drawn with dpi / 96 pixels per unit: 800 × 600 at 150 dpi is a 1250 × 938 PNG with the same layout, text and line widths. An SVG, a PDF page and JSON have no pixels, so the resolution changes none of them. |
 | `fig.savefig('c.png', dpi=300)` | `figure.Build().Save("c.png", new SaveOptions { Dpi = 300 })` | The resolution for this one save. `SaveOptions` also carries an SVG's indentation and decimals, and a title and author that go into an SVG, a PNG and a PDF. |
 | `fig.suptitle('…')` | `figure.WithTitle("…")` | The figure's own title, above the panels. |
-| `plt.tight_layout()` | `figure.TightLayout()` | |
+| `plt.tight_layout()` | `figure.TightLayout()` | Under the matplotlib themes it keeps `tight_layout`'s pad, 1.08 times the font size. |
+| `fig.suptitle(t, fontsize=14, fontweight='bold')` | `figure.WithTitle(t, s => s with { FontSize = 14 * 100.0 / 72, FontWeight = FontWeight.Bold })` | The layout measures and reserves the title in its style. |
+| `fig.tight_layout(rect=(0, 0, 1, 0.93))` | `figure.TightLayout(new LayoutRect(0, 0, 1, 0.93))` | The figure outside the rectangle is kept free on top of what the layout needs. |
 | `plt.subplots(constrained_layout=True)` | `figure.ConstrainedLayout()` | |
 | `gridspec.GridSpec(2, 2, height_ratios=…)` | `figure.WithGridSpec(2, 2, heightRatios)` | Ratios are arrays, same meaning. |
-| `plt.subplots_adjust(hspace=…)` | `figure.WithSubPlotSpacing(sp => sp with { VerticalGap = … })` | |
+| `plt.subplots_adjust(hspace=…)` | `figure.WithSubPlotSpacing(sp => sp with { VerticalGap = … })` | Pixels. matplotlib's `hspace` and `wspace` are shares of the average axes: `sp with { VerticalGapFraction = 0.2 }` and `HorizontalGapFraction`, the 0.2 both matplotlib themes rest at. |
 | `plt.subplot_mosaic('AB;CC')` | `Plt.Mosaic("AB;CC")` | Same string layout language. |
 | `fig.add_axes([…])` | `ax.AddInset(bounds, inset => …)` | An inset belongs to the axes it sits in. |
 | `ax.indicate_inset_zoom(inset)` | `ax.IndicateZoom()` | Called on the inset's own builder, inside `AddInset`: the parent draws the region the inset shows and the two connectors matplotlib keeps. See [insets](subplots.md#zoom-indicator). |
 | `fig.text(0.5, 0.97, '…')` / `plt.figtext` | `figure.FigText("…", 0.5, 0.97)` | Fractions of the figure from its bottom-left corner, as in matplotlib. |
-| `fig.legend()` / `plt.figlegend` | `figure.FigLegend()` | One legend for the labelled series of every subplot. It reserves no room, and a second call replaces the first. |
+| `fig.legend()` / `plt.figlegend` | `figure.FigLegend()` | A legend for the labelled series of every subplot; each call adds one. `loc='outside right upper'` and its kin are `LegendPosition.OutsideRight` and the other outside places, for which `ConstrainedLayout()` keeps room. |
 | `fig.figimage(data, xo, yo)` | `figure.FigImage(data, xo, yo)` | One pixel for each value, the offsets in pixels from the bottom-left corner, under every subplot. |
 | `plt.savefig('c.png')` | `figure.Save("c.png")` | The extension picks the format: `.svg` and `.json` from core, `.png` and `.pdf` with the `MatPlotLibNet.Skia` package loaded (without it they are refused, not written as SVG); an animation is saved as `.gif` from its builder. |
-| `fig.canvas.tostring_rgb()` | `figure.ToSvg()` | The markup as a string, for a web response. |
+| `fig.savefig(buffer, format='svg')` | `figure.ToSvg()` | The markup as a string, for a web response. |
 | `plt.show()` | — | Nothing renders to a screen by itself; see the [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) or the Blazor, WPF, MAUI, Avalonia and Uno controls. |
 | `plt.gca()`, `plt.gcf()` | — | There is no current figure to get. |
 | `plt.close()`, `plt.clf()` | — | Nothing is held open. |
@@ -94,6 +96,7 @@ Plt.Create()
 | `ax.bar(labels, heights)` | `ax.Bar(labels, heights)` | |
 | `ax.bar` with an offset per group | `ax.GroupedBar(categories, groups)` | The offset arithmetic every grouped bar chart repeats is done for you. |
 | `ax.barh(labels, widths)` | `ax.Bar(labels, values, s => s.Orientation = BarOrientation.Horizontal)` | One series flag rather than a second verb. |
+| one `ax.barh(i, end - start, left=start)` a task, `set_yticks` with the names, `invert_yaxis()` | `ax.Gantt(tasks, starts, ends)` | The rows named by the tasks, the first on top, each task its own colour of the cycle. |
 | `ax.step(x, y)` | `ax.Step(x, y)` | |
 | `ax.stairs(values, edges)` | `ax.Stairs(values, edges)` | One more edge than values. Left out, `baseline` draws the outline alone (matplotlib's `baseline=None`); given, the staircase is filled down to it. |
 | `ax.vlines(x, ymin, ymax)` | `ax.VLines(x, yMin, yMax)` | One line series for all the segments; a limit given as one value serves every segment. |
@@ -133,7 +136,7 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | `scipy.stats.probplot(x, dist=stats.expon, plot=ax)` | `ax.ProbabilityPlot(sample, QQReference.Exponential)` | The same, against an exponential, uniform, log-normal or Student t distribution, or one of your own (`QQReference.Of`). |
 | `ax.stackplot(x, ys, baseline='wiggle')` | `ax.StreamGraph(x, layers)` | One area per layer, each named in the legend. |
 | `pandas.plotting.parallel_coordinates(df, 'class')` | `ax.ParallelCoordinates(dimensions, rows)` | Each column scaled to 0..1; rows that share a name are one class. |
-| `lifelines.KaplanMeierFitter().fit(t, e).plot_survival_function()` | `ax.KaplanMeier(groups)` | The product-limit curve only, no band or censor marks. |
+| the Kaplan-Meier fitter of lifelines and its survival plot | `ax.KaplanMeier(groups)` | The product-limit curve only, no band or censor marks. |
 | `joypy.joyplot(df)` | `ax.Ridgeline(groups)` | One shared grid and bandwidth, so the ridges compare. |
 | sorted `ax.bar` plus a `twinx` cumulative line | `ax.Pareto(categories, counts)` | Sorts, accumulates to exactly 100 % and aligns both axes. |
 | `ax.stem` over category positions | `ax.Lollipop(categories, values)` | One stem series: one colour, one legend entry. |
@@ -186,14 +189,15 @@ matplotlib's patches live in the namespace `MatPlotLibNet.Models.Patches` and ar
 
 | matplotlib | MatPlotLibNet | Notes |
 |---|---|---|
-| `ax.add_patch(Rectangle((x, y), w, h, angle=a))` | `ax.AddPatch(new Rectangle(new(x, y), w, h) { Angle = a })` | Turned about the corner; `rotation_point` is not offered (a rectangle turned about its centre is a `Polygon`). |
+| `ax.add_patch(Rectangle((x, y), w, h, angle=a))` | `ax.AddPatch(new Rectangle(new(x, y), w, h) { Angle = a })` | Turned about the corner; `rotation_point='center'` is `{ Angle = a, RotationPoint = RotationPoint.Center }` and an `(x, y)` pair is `RotationPoint.At(new(x, y))`. |
 | `ax.add_patch(Polygon(xy, closed=True))` | `ax.AddPatch(new Polygon(vertices))` | `Closed = false` leaves it open. |
 | `ax.arrow(x, y, dx, dy)` | `ax.AddPatch(new Arrow(new(x, y), dx, dy))` | matplotlib's `FancyArrow`, its sizes in data units and its defaults: a shaft 0.001 wide, a head three times as wide and one and a half times as long as it is wide. |
 | `ax.add_patch(Circle((x, y), r))` | `ax.AddPatch(new Circle(new(x, y), r))` | Round on the page where a unit of x is as long as a unit of y: `ax.SetAspect(1)`. |
 | `ax.add_patch(Ellipse((x, y), w, h, angle=a))` | `ax.AddPatch(new Ellipse(new(x, y), w, h) { Angle = a })` | The width and the height are diameters. |
 | `ax.add_patch(Wedge((x, y), r, t1, t2, width=w))` | `ax.AddPatch(new Wedge(new(x, y), r, t1, t2) { Width = w })` | Counter-clockwise from `t1` to `t2`, in degrees; without `Width` the slice reaches the centre. |
 | `ax.add_patch(Arc((x, y), w, h, theta1=t1, theta2=t2))` | `ax.AddPatch(new Arc(new(x, y), w, h) { Theta1 = t1, Theta2 = t2 })` | An open curve with no face, as in matplotlib. |
-| `ax.secondary_xaxis('top', functions=(f, g))` | `ax.WithSecondaryXAxis(top => top.Link(AxisTransform.Of(f, g)))` | `AxisTransform.Linear`, `Reciprocal`, `Logarithm` and `Power` name the common pairs and travel through JSON; `Of` takes your own. A bottom or floating secondary axis is not offered. |
+| `ax.secondary_xaxis('top', functions=(f, g))` | `ax.WithSecondaryXAxis(top => top.Link(AxisTransform.Of(f, g)))` | `AxisTransform.Linear`, `Reciprocal`, `Logarithm` and `Power` name the common pairs and travel through JSON; `Of` takes your own. |
+| `ax.secondary_xaxis('bottom', functions=(f, g))`, `ax.secondary_xaxis(-0.2, functions=(f, g))` | `ax.WithAddBottomXAxis(below => below.Link(AxisTransform.Of(f, g)))`, `.SetLocation(-0.2)` on the same builder | Stacked below the primary X axis' tick labels and title when it is given no location. |
 | `ax.secondary_yaxis('right', functions=(f, g))` | `ax.WithAddRightYAxis(right => right.Link(AxisTransform.Of(f, g)))` | `WithAddLeftYAxis` for the left side. A linked axis has no range and no series of its own. |
 
 ## Colour and style
@@ -239,18 +243,21 @@ matplotlib's patches live in the namespace `MatPlotLibNet.Models.Patches` and ar
 
 | matplotlib | MatPlotLibNet | Notes |
 |---|---|---|
-| `ax.imshow(matrix)` | `ax.Image(matrix)` | |
-| `ax.matshow(matrix)` | `ax.MatShow(matrix)` | Square cells, first row on top, numbered from 0, with a colour bar. |
+| `ax.imshow(matrix)` | `ax.Image(matrix)` | `interpolation=` is the series' `Interpolation`; left alone it is the theme's, as `image.interpolation` is. Under the matplotlib themes the extent is imshow's, -0.5 to the columns less a half and the rows less a half down to -0.5, the first row on top, and the cells are square (`image.aspect: equal`). |
+| `ax.matshow(matrix)` | `ax.MatShow(matrix)` | Square cells, first row on top, numbered from 0 (the columns along the top only), with a colour bar. |
 | `ax.set_aspect(1)` | `ax.SetAspect(1)` | A unit of Y as long as a unit of X on the page; the plot is the largest rectangle of that shape that fits. |
+| `ax.set_aspect('auto')`, `imshow(..., aspect='auto')` | `ax.SetAspectAuto()` | The plot fills its cell whatever its series ask (an image under the matplotlib themes asks square cells). |
+| `ax.invert_xaxis()`, `ax.invert_yaxis()` | `ax.InvertXAxis()`, `ax.InvertYAxis()` | A toggle, as matplotlib's: a second call turns the axis back. |
+| `ax.xaxis.tick_top()` then `set_ticks_position('both')`, `tick_params(labelbottom=False)` | `ax.WithXTickLabelsOnTop()`, `TickConfig.LabelsOnOwnSide` | The labels on the far side only, the marks on both edges; `WithYTickLabelsOnRight()` for Y. |
 | `ax.spines['left'].set_bounds(lo, hi)` | `ax.WithSpines(s => s with { Left = s.Left with { BoundsFrom = lo, BoundsTo = hi } })` | An axis line that spans only part of its axis, in data units. |
 | `ax.pcolormesh(x, y, z)` | `ax.Pcolormesh(xEdges, yEdges, values)` | |
 | `ax.contour(x, y, z)` | `ax.Contour(x, y, z)` | |
 | `ax.clabel(cs)` | `ax.Contour(x, y, z, s => s.ShowLabels = true)` | Each label stands at the middle of its line, turned along it, as `clabel` places it inline; `LabelFormat` and `LabelFontSize` set the text. |
 | `ax.contourf(x, y, z)` | `ax.Contourf(x, y, z)` | |
-| `ax.quiver(x, y, u, v)` | `ax.Quiver(x, y, u, v)` | |
-| `ax.quiverkey(q, …)` | `ax.QuiverKey(x, y, u, "5 m/s")` | |
-| `ax.streamplot(x, y, u, v)` | `ax.Streamplot(x, y, u, v)` | |
-| `ax.barbs(x, y, u, v)` | `ax.Barbs(x, y, u, v)` | |
+| `ax.quiver(x, y, u, v)` | `ax.Quiver(x, y, u, v)` | Given no scale it is drawn as matplotlib's: the arrows autoscaled to the width of the axes (a typical arrow spans `1 / (1.8 * max(10, sqrt(N)))` of it), along each vector as it stands on the screen and drawn as filled polygons, the axes ranged over the tails and the arrows clipped to them. A `Scale` you set is data units along the axes and wins; `AutoScale = false` asks for data units, `true` for the autoscale, under any theme. The library's own themes draw data units. |
+| `ax.quiverkey(q, …)` | `ax.QuiverKey(x, y, u, "5 m/s")` | The key stands for the last quiver drawn before it: its arrow is as long as the arrow of a vector of length `u` in that quiver. |
+| `ax.streamplot(x, y, u, v)` | `ax.Streamplot(x, y, u, v)` | The streamlines are laid out as matplotlib's: 30 x 30 cells times `Density`, each crossed by one streamline, seeded from the edge inward, with one arrow halfway along each; the axes span the grid with no margin. The grid is read as evenly spaced from its first step. Under the matplotlib themes the lines are `lines.linewidth` wide and the arrows matplotlib's filled heads. |
+| `ax.barbs(x, y, u, v)` | `ax.Barbs(x, y, speed, direction)` | The speed is `hypot(u, v)`; the direction is where the staff points, in degrees clockwise from north, which in matplotlib is where the wind comes from: `(270 - atan2(v, u) in degrees) mod 360`. Under the matplotlib themes each barb is matplotlib's glyph (a staff 24.5 pt long, a flag for each 50, a full barb for each 10 and a half barb for 5, the speed rounded to the nearest 5, a calm drawn as a small circle), clipped to the axes. |
 | `ax.tricontour(…)` | `ax.Tricontour(x, y, z)` | |
 | `ax.tripcolor(…)` | `ax.Tripcolor(x, y, z)` | |
 | `ax.triplot(x, y)` | `ax.Triplot(x, y)` | The edges of the mesh, each once. Give the triangles as a flat list of indices, or leave them out for the Delaunay triangulation `Tripcolor` uses. |

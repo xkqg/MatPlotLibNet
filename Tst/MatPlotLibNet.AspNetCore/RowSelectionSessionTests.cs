@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Collections.Concurrent;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 
@@ -12,39 +11,10 @@ namespace MatPlotLibNet.AspNetCore.Tests;
 /// and naming the same viewer. The figure is not touched, so nothing is republished for it.</summary>
 public class RowSelectionSessionTests
 {
-    private sealed class Recording : IChartEventHandler
+    private static async Task<(RecordingChartEventHandler Handler, RecordingChartPublisher Publisher)> Run(Figure figure, params FigureInteractionEvent[] events)
     {
-        public ConcurrentQueue<(FigureInteractionEvent Event, ChartEventContext Context)> Seen { get; } = new();
-
-        public ValueTask OnEventAsync(FigureInteractionEvent evt, ChartEventContext context)
-        {
-            Seen.Enqueue((evt, context));
-            return default;
-        }
-    }
-
-    private sealed class Publisher : IChartPublisher
-    {
-        public int Svgs;
-
-        public Task PublishAsync(string chartId, Figure figure, CancellationToken ct = default) => Task.CompletedTask;
-
-        public Task PublishSvgAsync(string chartId, Figure figure, CancellationToken ct = default)
-        {
-            Interlocked.Increment(ref Svgs);
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class Callers : ICallerPublisher
-    {
-        public Task SendTooltipAsync(string connectionId, string chartId, string html, CancellationToken ct = default) => Task.CompletedTask;
-    }
-
-    private static async Task<(Recording Handler, Publisher Publisher)> Run(Figure figure, params FigureInteractionEvent[] events)
-    {
-        var handler = new Recording();
-        var publisher = new Publisher();
+        var handler = new RecordingChartEventHandler();
+        var publisher = new RecordingChartPublisher();
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var options = new ChartSessionOptions().OnDataCursor(_ =>
         {
@@ -52,7 +22,7 @@ public class RowSelectionSessionTests
             return default;
         });
         options.Handle(handler);
-        await using var session = new ChartSession("c", figure, publisher, new Callers(), options);
+        await using var session = new ChartSession("c", figure, publisher, NullCallerPublisher.Instance, options);
 
         foreach (var evt in events) Assert.True(session.Events.Writer.TryWrite(evt));
         Assert.True(session.Events.Writer.TryWrite(new DataCursorEvent("c", 0, new PinnedAnnotation("end", 0, 0, 0, 0, 0))));
@@ -74,7 +44,7 @@ public class RowSelectionSessionTests
 
         var (handler, _) = await Run(Keyed(), brush);
 
-        var seen = handler.Seen.ToArray();
+        var seen = handler.Handled.ToArray();
         Assert.IsType<BrushSelectEvent>(seen[0].Event);
         var rows = Assert.IsType<RowSelectionEvent>(seen[1].Event);
         Assert.Equal(["b", "c"], rows.Rows);
@@ -91,8 +61,8 @@ public class RowSelectionSessionTests
 
         var (handler, _) = await Run(figure, new BrushSelectEvent("c", 0, 0, 0, 5, 50));
 
-        Assert.DoesNotContain(handler.Seen, s => s.Event is RowSelectionEvent);
-        Assert.Contains(handler.Seen, s => s.Event is BrushSelectEvent);
+        Assert.DoesNotContain(handler.Handled, s => s.Event is RowSelectionEvent);
+        Assert.Contains(handler.Handled, s => s.Event is BrushSelectEvent);
     }
 
     [Fact]
@@ -100,6 +70,6 @@ public class RowSelectionSessionTests
     {
         var (_, publisher) = await Run(Keyed(), new BrushSelectEvent("c", 0, 1.5, 5, 3.5, 35));
 
-        Assert.Equal(0, publisher.Svgs);   // a brush and the rows it covers observe the figure; they never change it
+        Assert.Empty(publisher.Calls);   // a brush and the rows it covers observe the figure; they never change it
     }
 }

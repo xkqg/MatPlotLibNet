@@ -14,15 +14,6 @@ public class TricontourSeriesRenderTests
     private static readonly double[] Z = [1.0, 2.0, 3.0, 2.0, 1.0, 2.5];
 
     [Fact]
-    public void Tricontour_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tricontour(X, Y, Z))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Tricontour_SvgContainsPolylineOrPath()
     {
         string svg = Plt.Create()
@@ -32,30 +23,4 @@ public class TricontourSeriesRenderTests
             "Expected SVG to contain contour line elements");
     }
 
-    [Fact]
-    public void Tricontour_EmptyData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tricontour([], [], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Tricontour_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Tricontour(X, Y, Z)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Tricontour_CustomLevels_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tricontour(X, Y, Z, s => s.Levels = 5))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

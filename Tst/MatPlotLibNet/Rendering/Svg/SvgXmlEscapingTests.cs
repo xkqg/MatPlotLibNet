@@ -3,6 +3,7 @@
 
 using System.Xml.Linq;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
@@ -29,7 +30,7 @@ public class SvgXmlEscapingTests
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Q1 \"net\"")
             .ToSvg();
 
-        var doc = XDocument.Parse(svg);
+        var doc = svg.Xml();
 
         var group = doc.Descendants().First(e => e.Attribute("aria-label") is not null && e.Attribute("class")?.Value == "series");
         Assert.Equal("Q1 \"net\"", group.Attribute("aria-label")!.Value);
@@ -40,8 +41,8 @@ public class SvgXmlEscapingTests
     {
         string svg = Plt.Create().WithTitle("The \"quick\" chart").Plot([1.0], [2.0]).ToSvg();
 
-        var doc = XDocument.Parse(svg);
+        var doc = svg.Xml();
 
-        Assert.Equal("The \"quick\" chart", doc.Descendants().First(e => e.Name.LocalName == "title").Value);
+        Assert.Equal("The \"quick\" chart", doc.Each("title").First().Value);
     }
 }

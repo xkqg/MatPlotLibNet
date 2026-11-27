@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="SurfaceSeries"/> as colored quadrilaterals projected from 3D to 2D.</summary>
-internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
+internal sealed class SurfaceSeriesRenderer : SceneSeriesRenderer<SurfaceSeries>
 {
     /// <inheritdoc />
     public SurfaceSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -20,85 +20,62 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         int rows = series.Z.GetLength(0), cols = series.Z.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
-        // The Z range for colour mapping and the extent span the values that are there: a missing value (NaN) and an
-        // infinity are left out.
-        var z = series.Z.DrawableRange();
-        double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
-        var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), z);
-        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
-        var normalizer = series.NormalizerOrLinear();
+        // The extent spans the values that are there: a missing value (NaN) and an infinity are left out.
+        var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), series.Z.DrawableRange());
 
-        int rowStride = Math.Max(1, series.RowStride);
-        int colStride = Math.Max(1, series.ColStride);
+        // What the camera does not move — each face's colour after the light and its vertex data — is kept on the series
+        // from the draw before and made again only when the data or what colours it changed. Turning the surface then
+        // only projects and sorts. The vertex data is asked for only by a draw that writes it.
+        var faces = SurfaceFaces.For(series.DrawnFaces, series, proj,
+            new(SurfaceFaces.Strides.Of(series, Context.Theme.Looks.Cube.SurfaceStride), series.ColorMappingUnder(Context.Theme), Context.LightSource));
+        series.DrawnFaces = faces;
+        var vertexData = Context.Emit3DData ? faces.VertexData(series, proj) : null;
 
-        bool useLighting = Context.LightSource is not null;
-        bool emitV3d = Context.Emit3DData;
-
-        // Build quads with average depth for painter's algorithm sorting
-        var quads = new List<ShadedQuad>((rows - 1) * (cols - 1));
-        for (int r = 0; r < rows - 1; r += rowStride)
-            for (int c = 0; c < cols - 1; c += colStride)
+        // Every patch projected along its perimeter, with its mean depth for the painter's sort.
+        var cells = faces.Faces;
+        var quads = new List<ProjectedQuad>(cells.Length);
+        int longest = SurfaceFaces.LongestPerimeter(cells);
+        Span<SurfaceFaces.GridPoint> walk = longest <= SurfaceFaces.MostOnTheStack
+            ? stackalloc SurfaceFaces.GridPoint[SurfaceFaces.MostOnTheStack] : new SurfaceFaces.GridPoint[longest];
+        double[] xs = series.X, ys = series.Y;
+        double[,] zs = series.Z;
+        for (int i = 0; i < cells.Length; i++)
+        {
+            if (!cells[i].Finite) continue;
+            int n = cells[i].Perimeter(walk);
+            var vertices = new Point[n];
+            double depth = 0;
+            bool drawable = true;
+            for (int k = 0; k < n; k++)
             {
-                double x0 = series.X[c], x1 = series.X[c + 1];
-                double y0 = series.Y[r], y1 = series.Y[r + 1];
-                double z00 = series.Z[r, c], z10 = series.Z[r + 1, c];
-                double z01 = series.Z[r, c + 1], z11 = series.Z[r + 1, c + 1];
-
-                var vertices = new[]
-                {
-                    proj.Project(x0, y0, z00),
-                    proj.Project(x1, y0, z01),
-                    proj.Project(x1, y1, z11),
-                    proj.Project(x0, y1, z10)
-                };
-
-                // A quad with a vertex that cannot be placed is skipped, as matplotlib masks it.
-                if (!vertices.IsDrawable()) continue;
-
-                double avgZ = (z00 + z10 + z01 + z11) / 4.0;
-                double avgDepth = (proj.Depth(x0, y0, z00) + proj.Depth(x1, y0, z01)
-                    + proj.Depth(x0, y1, z10) + proj.Depth(x1, y1, z11)) / 4.0;
-
-                double nx = 0, ny = 0, nz = 0;
-                if (useLighting)
-                    (nx, ny, nz) = Vec3.FaceNormal(
-                        new(x0, y0, z00), new(x1, y0, z01), new(x0, y1, z10));
-
-                string? v3d = null;
-                if (emitV3d)
-                {
-                    var n0 = proj.Normalize(x0, y0, z00);
-                    var n1 = proj.Normalize(x1, y0, z01);
-                    var n2 = proj.Normalize(x1, y1, z11);
-                    var n3 = proj.Normalize(x0, y1, z10);
-                    v3d = FormattableString.Invariant(
-                        $"{n0.Nx:G4},{n0.Ny:G4},{n0.Nz:G4} {n1.Nx:G4},{n1.Ny:G4},{n1.Nz:G4} {n2.Nx:G4},{n2.Ny:G4},{n2.Nz:G4} {n3.Nx:G4},{n3.Ny:G4},{n3.Nz:G4}");
-                }
-
-                quads.Add(new(avgDepth, vertices, avgZ, nx, ny, nz, v3d));
+                var p = walk[k];
+                double px = xs[p.Col], py = ys[p.Row], pz = zs[p.Row, p.Col];
+                var at = proj.Project(px, py, pz);
+                drawable &= at.IsDrawable();
+                vertices[k] = at;
+                depth += proj.Depth(px, py, pz);
             }
 
-        // Sort back-to-front (painter's algorithm)
-        quads.Sort((a, b) => a.Depth.CompareTo(b.Depth));
+            // A patch with a vertex that cannot be placed is skipped.
+            if (!drawable) continue;
 
-        Ctx.SetOpacity(series.Alpha);
-
-        foreach (var q in quads)
-        {
-            // A lit face is shaded by the light it is lit by, whichever light that is.
-            var baseColor = cmap.ColorOf(q.AvgZ, normalizer, zMin, zMax);
-            var color = Context.LightSource is { } light ? light.Shade(baseColor, q.Nx, q.Ny, q.Nz) : baseColor;
-            if (q.V3d is not null)
-                Ctx.SetNextElementData("v3d", q.V3d);
-            Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
-            double strokeWidth = series.ShowWireframe ? 0.5 : 0;
-            Ctx.DrawPolygon(q.Vertices, new ShapeStyle(color, stroke, strokeWidth));
+            quads.Add(new(depth / n, vertices, i));
         }
 
-        Ctx.SetOpacity(1.0);
+        var edge = Context.Theme.Looks.Patch.SurfaceEdgeOver(series.GivenWireframe, series.EdgeColor);
+        Color? stroke = edge?.Color;
+        double strokeWidth = edge?.Thickness ?? 0;
+        var theme = Context.Theme;
+        var join = theme.ShapeJoinOf(series.Artist);
+        DrawBackToFront(quads, q =>
+        {
+            if (vertexData?[q.Face] is { } v3d)
+                Ctx.SetNextElementData("v3d", v3d);
+            Ctx.DrawPolygon(q.Vertices, ShapeStyle.Edged(cells[q.Face].Fill, stroke, strokeWidth, join));
+        }, series.OpacityUnder(theme));
     }
 
-    private readonly record struct ShadedQuad(
-        double Depth, Point[] Vertices, double AvgZ,
-        double Nx, double Ny, double Nz, string? V3d);
+    /// <summary>A drawable face where this camera puts it: its depth, its corners on the canvas and its index among the
+    /// kept faces.</summary>
+    private readonly record struct ProjectedQuad(double Depth, Point[] Vertices, int Face) : IDepthMark;
 }

@@ -1,7 +1,6 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Streaming;
@@ -9,7 +8,15 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet;
 
-/// <summary>Fluent builder for constructing a <see cref="Models.Figure"/> with a chainable API.</summary>
+/// <summary>Fluent builder for constructing a <see cref="Models.Figure"/> with a chainable API. The class is the figure itself: its
+/// canvas and document (size, resolution, theme, background, the texts that describe it), its subplots and its builds. Every other
+/// verb is an extension member in the class of its concern, in the namespace of the builder, so a call reads the same as a method of
+/// the class: the layout (<see cref="FigureBuilderLayoutVerbs"/>), what is drawn outside the subplots
+/// (<see cref="FigureBuilderDecorationVerbs"/>), what a viewer can do in a browser (<see cref="FigureBuilderInteractionVerbs"/>), the
+/// export (<see cref="FigureBuilderExportVerbs"/>), and the verbs that draw on the default axes (<c>Plt.Create().Plot(x, y)</c>,
+/// <c>AxHLine</c>, <c>WithCamera</c>, ...: <see cref="FigureBuilderDefaultAxesVerbs"/>), each the <see cref="AxesBuilder"/> verb of
+/// the same name, taken on the default axes at every <see cref="Build"/>: the two builders draw a series the same way because there
+/// is one way written.</summary>
 /// <example>
 /// Two-panel financial dashboard with interactive zoom/pan and tooltips:
 /// <code>
@@ -40,669 +47,87 @@ namespace MatPlotLibNet;
 /// </example>
 public sealed class FigureBuilder
 {
-    private string? _title;
-    private string? _altText;
-    private string? _description;
-    private double _width = 800;
-    private double _height = 600;
-    private double _dpi = Figure.ReferenceDpi;
-    private Color? _background;
-    private Theme _theme = Theme.MatplotlibV2;
-    private Axes? _defaultAxes;
+    /// <summary>The theme asked for; <see langword="null"/> lets <see cref="Build"/> dress the figure in the one the style
+    /// parameters describe (<c>RcParams.ThemeOver</c>), which is read only when no theme was asked for.</summary>
+    private Theme? _theme;
+    private readonly List<Action<AxesBuilder>> _defaultAxesSteps = [];
     private readonly List<SubPlotSpec> _subPlots = [];
-    private GridSpec? _gridSpec;
+    private readonly List<Action<Figure>> _figureSteps = [];
 
-    /// <summary>Sets the figure title.</summary>
-    public FigureBuilder WithTitle(string title) { _title = title; return this; }
+    /// <summary>The spacing asked for; kept here because the layout verbs edit the spacing the calls before them left
+    /// (<see cref="FigureBuilderLayoutVerbs"/>).</summary>
+    internal SubPlotSpacing? Spacing { get; set; }
+
+    /// <summary>The figure's colour bar asked for; kept here because a second call edits the bar the first one made
+    /// (<see cref="FigureBuilderDecorationVerbs"/>).</summary>
+    internal ColorBar? FigureColorBar { get; set; }
 
     /// <summary>Sets the short alternative text rendered as the SVG <c>&lt;title&gt;</c> element.</summary>
-    public FigureBuilder WithAltText(string altText) { _altText = altText; return this; }
+    public FigureBuilder WithAltText(string altText) => OnFigure(f => f.AltText = altText);
 
     /// <summary>Sets the longer description rendered as the SVG <c>&lt;desc&gt;</c> element.</summary>
-    public FigureBuilder WithDescription(string description) { _description = description; return this; }
+    public FigureBuilder WithDescription(string description) => OnFigure(f => f.Description = description);
 
     /// <summary>Sets the figure dimensions in pixels.</summary>
-    public FigureBuilder WithSize(double width, double height) { _width = width; _height = height; return this; }
+    public FigureBuilder WithSize(double width, double height) => OnFigure(f => { f.Width = width; f.Height = height; });
 
-    /// <summary>Sizes the figure canvas to fit a treemap of
-    /// <paramref name="root"/>'s leaves at the default 12 pt label font without overflow.
+    /// <summary>Sizes the figure canvas to fit a treemap of <paramref name="root"/>'s leaves at the treemap's resting label font
+    /// (<see cref="TreemapSeries.RestingFontSize"/>) without overflow.
     /// Most useful for static SVG output where the user can't pan/zoom — the canvas grows
     /// with leaf count and average label length so labels fit cleanly. With
-    /// <see cref="WithBrowserInteraction(bool)"/> enabled this is optional (the user can
+    /// <see cref="FigureBuilderInteractionVerbs.extension(FigureBuilder).WithBrowserInteraction(bool)"/> enabled this is optional (the user can
     /// pan/zoom to read overflowing labels) but still gives a more-readable initial view.
     /// Floors at 800×600. 16:9 aspect ratio.</summary>
     public FigureBuilder WithAutoSize(TreeNode root)
     {
-        var leafCount = CountLeaves(root);
-        var avgChars = AverageLabelChars(root);
-        // 12 pt char ≈ 7 px wide; pad 8 px each side. Each leaf needs roughly
-        // (avgChars * 7 + 16) px width × 22 px height to render its label cleanly.
-        var leafArea = (avgChars * 7.0 + 16.0) * 22.0;
-        // 1.5× slack for parent header strips that consume vertical space at every depth.
-        var canvasArea = leafCount * leafArea * 1.5;
+        // The size at which every leaf has room for its label at the resting font, from the leaf count and the average length of
+        // the labels of all the nodes, worked out in one walk of the tree: a character is about 7 px wide, a leaf gets 8 px of
+        // padding each side and 22 px of height, the parent header strips add half again, the shape is 16:9.
+        int leaves = 0, characters = 0, nodes = 0;
+        Visit(root);
+        double averageChars = (double)characters / nodes;
+        double leafArea = (averageChars * 7.0 + 16.0) * 22.0;
+        double canvasArea = leaves * leafArea * 1.5;
         const double aspect = 16.0 / 9.0;
-        var w = (int)Math.Sqrt(canvasArea * aspect);
-        var h = (int)(w / aspect);
-        return WithSize(Math.Max(800, w), Math.Max(600, h));
+        int width = (int)Math.Sqrt(canvasArea * aspect);
+        int height = (int)(width / aspect);
+        return WithSize(Math.Max(AutoSizeMinWidth, width), Math.Max(AutoSizeMinHeight, height));
 
-        static int CountLeaves(TreeNode n) =>
-            n.Children.Count == 0 ? 1 : n.Children.Sum(CountLeaves);
-
-        static double AverageLabelChars(TreeNode n)
+        void Visit(TreeNode node)
         {
-            int sum = 0, count = 0;
-            void Walk(TreeNode x)
+            nodes++;
+            characters += node.Label?.Length ?? 0;
+            if (node.Children.Count == 0)
             {
-                sum += (x.Label ?? string.Empty).Length;
-                count++;
-                foreach (var c in x.Children) Walk(c);
+                leaves++;
+                return;
             }
-            Walk(n);
-            return count == 0 ? 8.0 : (double)sum / count;
+
+            foreach (var child in node.Children)
+            {
+                Visit(child);
+            }
         }
     }
 
-    /// <summary>Sets the resolution of the figure in dots per inch (<see cref="Figure.Dpi"/>, 96 by default). A raster
+    /// <summary>The narrowest canvas <see cref="WithAutoSize"/> gives a treemap.</summary>
+    private const int AutoSizeMinWidth = 800;
+
+    /// <summary>The shortest canvas <see cref="WithAutoSize"/> gives a treemap.</summary>
+    private const int AutoSizeMinHeight = 600;
+
+    /// <summary>Sets the resolution of the figure in dots per inch (<see cref="Figure.Dpi"/>). A raster
     /// export, a PNG or the frames of an animated GIF, is drawn with <c>dpi / 96</c> pixels for each unit of
     /// <see cref="WithSize"/>: <c>WithSize(500, 350).WithDpi(192)</c> saves as a 1000 by 700 PNG with the same layout.
     /// An SVG, a PDF page and the JSON have no pixels, so for them it changes nothing; the JSON keeps it with the
     /// figure. It is refused when a PNG is exported if it is not a positive, finite number.</summary>
-    public FigureBuilder WithDpi(double dpi) { _dpi = dpi; return this; }
+    public FigureBuilder WithDpi(double dpi) => OnFigure(f => f.Dpi = dpi);
 
     /// <summary>Sets the theme used for styling the figure.</summary>
     public FigureBuilder WithTheme(Theme theme) { _theme = theme; return this; }
 
     /// <summary>Sets the figure background color.</summary>
-    public FigureBuilder WithBackground(Color color) { _background = color; return this; }
-
-    /// <summary>Adds a line series to the default axes.</summary>
-    public FigureBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null) =>
-        AddSeries(ax => ax.Plot(x, y), configure);
-
-    /// <summary>Adds a scatter series to the default axes.</summary>
-    public FigureBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null) =>
-        AddSeries(ax => ax.Scatter(x, y), configure);
-
-    /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values to the default axes.</summary>
-    public FigureBuilder SignalXY(double[] x, double[] y, Action<SignalXYSeries>? configure = null) =>
-        AddSeries(ax => ax.SignalXY(x, y), configure);
-
-    /// <summary>Adds a <see cref="SignalSeries"/> with uniform sample rate to the default axes.</summary>
-    public FigureBuilder Signal(double[] y, double sampleRate = 1.0, double xStart = 0.0, Action<SignalSeries>? configure = null) =>
-        AddSeries(ax => ax.Signal(y, sampleRate, xStart), configure);
-
-    /// <summary>Adds a line series with DateTime X values to the default axes; automatically activates the date X-axis.</summary>
-    public FigureBuilder Plot(DateTime[] dates, double[] y, Action<LineSeries>? configure = null)
-    {
-        double[] x = dates.Select(d => d.ToOADate()).ToArray();
-        ApplyDateXAxis(EnsureDefaultAxes());
-        return AddSeries(ax => ax.Plot(x, y), configure);
-    }
-
-    /// <summary>Adds a scatter series with DateTime X values to the default axes; automatically activates the date X-axis.</summary>
-    public FigureBuilder Scatter(DateTime[] dates, double[] y, Action<ScatterSeries>? configure = null)
-    {
-        double[] x = dates.Select(d => d.ToOADate()).ToArray();
-        ApplyDateXAxis(EnsureDefaultAxes());
-        return AddSeries(ax => ax.Scatter(x, y), configure);
-    }
-
-    private static void ApplyDateXAxis(Axes axes)
-    {
-        if (axes.XAxis.Scale == AxisScale.Date) return; // already set
-        var locator = new Rendering.TickLocators.AutoDateLocator();
-        axes.XAxis.Scale = AxisScale.Date;
-        axes.XAxis.TickLocator = locator;
-        axes.XAxis.TickFormatter = new Rendering.TickFormatters.AutoDateFormatter(locator);
-    }
-
-    /// <summary>Adds a bar series to the default axes.</summary>
-    public FigureBuilder Bar(string[] categories, double[] values, Action<BarSeries>? configure = null) =>
-        AddSeries(ax => ax.Bar(categories, values), configure);
-
-    /// <summary>Adds a single-value stat tile (a big headline number + label) to the default axes.</summary>
-    public FigureBuilder StatTile(double value, Action<StatTileSeries>? configure = null) =>
-        AddSeries(ax => ax.StatTile(value), configure);
-
-    /// <summary>Adds a single-row discrete-state timeline of coloured segments along the X axis to the default axes.</summary>
-    /// <param name="segments">Ordered state segments; each defines a coloured rectangle spanning
-    /// <c>[Start, End]</c> in data units with a centred label.</param>
-    /// <param name="configure">Optional post-construction configurator.</param>
-    public FigureBuilder StateTimeline(IReadOnlyList<StateSegment> segments, Action<StateTimelineSeries>? configure = null) =>
-        AddSeries(ax => ax.StateTimeline(segments), configure);
-
-    /// <summary>Adds a histogram series to the default axes.</summary>
-    public FigureBuilder Hist(double[] data, int bins = 10, Action<HistogramSeries>? configure = null) =>
-        AddSeries(ax => ax.Hist(data, bins), configure);
-
-    /// <summary>Adds an ECDF series to the default axes.</summary>
-    public FigureBuilder Ecdf(double[] data, Action<EcdfSeries>? configure = null) =>
-        AddSeries(ax => ax.Ecdf(data), configure);
-
-    /// <summary>Adds a stacked area (stackplot) series to the default axes.</summary>
-    public FigureBuilder StackPlot(double[] x, double[][] ySets, Action<StackedAreaSeries>? configure = null) =>
-        AddSeries(ax => ax.StackPlot(x, ySets), configure);
-
-    /// <summary>Adds a pie series to the default axes.</summary>
-    public FigureBuilder Pie(double[] sizes, string[]? labels = null, Action<PieSeries>? configure = null) =>
-        AddSeries(ax => ax.Pie(sizes, labels), configure);
-
-    /// <summary>Adds an image series to the default axes.</summary>
-    public FigureBuilder Image(double[,] data, Action<ImageSeries>? configure = null) =>
-        AddSeries(ax => ax.Image(data), configure);
-
-    /// <summary>Adds a 2D histogram (density) series to the default axes.</summary>
-    public FigureBuilder Histogram2D(double[] x, double[] y, int bins = 20, Action<Histogram2DSeries>? configure = null) =>
-        AddSeries(ax => ax.Histogram2D(x, y, bins), configure);
-
-    /// <summary>Enables interactive zoom and pan via JavaScript in SVG output.</summary>
-    public FigureBuilder WithZoomPan(bool enabled = true) { _enableZoomPan = enabled; return this; }
-    private bool _enableZoomPan;
-
-    /// <summary>Enables click-to-toggle legend entries in SVG output.</summary>
-    public FigureBuilder WithLegendToggle(bool enabled = true) { _enableLegendToggle = enabled; return this; }
-    private bool _enableLegendToggle;
-
-    /// <summary>Enables styled HTML tooltip overlays (replacing native browser tooltips) in SVG output.</summary>
-    public FigureBuilder WithRichTooltips(bool enabled = true) { _enableRichTooltips = enabled; return this; }
-    private bool _enableRichTooltips;
-
-    /// <summary>Enables series highlight-on-hover (dims sibling series) in SVG output.</summary>
-    public FigureBuilder WithHighlight(bool enabled = true) { _enableHighlight = enabled; return this; }
-    private bool _enableHighlight;
-
-    /// <summary>Enables Shift+drag rectangular data selection in SVG output.</summary>
-    public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
-    private bool _enableSelection;
-
-    /// <summary>Links the chart to the others of the same data on a page: a brush on it lights the same rows (<c>RowKeys</c>) on every
-    /// chart that shares <paramref name="group"/>, and theirs light the rows on it. Switches the brush
-    /// (<see cref="WithSelection"/>) on, because the brush is how rows are selected.</summary>
-    /// <param name="group">The name the charts share.</param>
-    /// <param name="selectedRows">The rows the chart starts with selected; none by default.</param>
-    /// <exception cref="ArgumentException">The group is blank, or a row key is blank.</exception>
-    public FigureBuilder LinkSelection(string group, IReadOnlyList<string>? selectedRows = null)
-    {
-        if (string.IsNullOrWhiteSpace(group))
-            throw new ArgumentException("A selection group needs a name.", nameof(group));
-        _selectionGroup = group;
-        _selectedRows = selectedRows;
-        _enableSelection = true;
-        return this;
-    }
-
-    private string? _selectionGroup;
-    private IReadOnlyList<string>? _selectedRows;
-
-    /// <summary>Controls whether the emitted SVG's root element carries an inline
-    /// <c>style="max-width:100%;height:auto"</c> declaration so the chart resizes
-    /// fluidly with its container. Default is <see langword="true"/>; set to
-    /// <see langword="false"/> to leave the declaration out, for the same bytes the library wrote
-    /// before it carried one (e.g. pixel-diff fixtures that pin the SVG string).</summary>
-    public FigureBuilder WithResponsiveSvg(bool enabled = true) { _responsiveSvg = enabled; return this; }
-    private bool _responsiveSvg = true;
-
-    /// <summary>Convenience that enables ALL browser-side interactions in one call:
-    /// <see cref="WithZoomPan"/>, <see cref="WithRichTooltips"/>, <see cref="WithLegendToggle"/>,
-    /// <see cref="WithHighlight"/>, <see cref="WithSelection"/>, plus the chart-type-specific
-    /// <see cref="With3DRotation"/> (drag to rotate 3D scenes), <see cref="WithTreemapDrilldown"/>
-    /// (click a parent tile to expand/collapse its children), and
-    /// <see cref="WithSankeyHover"/> (highlight upstream/downstream flows). Each chart-type-specific
-    /// script is inert when its element is absent, so a 2D line chart with this convenience pays
-    /// no runtime cost for the 3D / treemap / sankey scripts. The resulting SVG works standalone
-    /// in any browser — no .NET runtime needed on the client. Adds ~5 KB of inline JS in total.</summary>
-    public FigureBuilder WithBrowserInteraction(bool enabled = true)
-    {
-        _enableZoomPan = enabled;
-        _enableRichTooltips = enabled;
-        _enableLegendToggle = enabled;
-        _enableHighlight = enabled;
-        _enableSelection = enabled;
-        _enable3DRotation = enabled;
-        _enableTreemapDrilldown = enabled;
-        _enableSankeyHover = enabled;
-        return this;
-    }
-
-    private string? _chartId;
-    private bool _serverInteraction;
-
-    /// <summary>Opts the figure into bidirectional SignalR interaction under the supplied
-    /// <paramref name="chartId"/>. Interaction events (zoom, pan, reset, legend-toggle) selected
-    /// in <paramref name="configure"/> are routed through the ChartHub to the server's
-    /// <c>FigureRegistry</c>, which mutates the registered figure and re-publishes the updated
-    /// SVG. When this method is called, the SVG output embeds the SignalR dispatcher script
-    /// instead of the local client-side IIFE scripts.</summary>
-    public FigureBuilder WithServerInteraction(string chartId, Action<ServerInteractionBuilder> configure)
-    {
-        _chartId = chartId;
-        _serverInteraction = true;
-        var builder = new ServerInteractionBuilder();
-        configure(builder);
-        if (builder.Zoom || builder.Pan || builder.Reset)
-            _enableZoomPan = true;
-        if (builder.LegendToggle)
-            _enableLegendToggle = true;
-        if (builder.BrushSelect)
-            _enableSelection = true;
-        if (builder.Hover)
-            _enableRichTooltips = true;
-        if (builder.DataCursor)
-            _enableDataCursor = true;
-        if (builder.ViewerCursors)
-            _enableViewerCursors = true;
-        return this;
-    }
-
-    private bool _enableDataCursor;
-
-    private bool _enableViewerCursors;
-
-    private bool _enable3DRotation;
-
-    /// <summary>Enables tight layout, which computes minimal margins automatically.</summary>
-    public FigureBuilder TightLayout() { _spacing = _spacing with { TightLayout = true }; return this; }
-
-    /// <summary>Enables constrained layout, which adjusts margins to fit tick labels and axis labels.</summary>
-    public FigureBuilder ConstrainedLayout() { _spacing = _spacing with { ConstrainedLayout = true }; return this; }
-
-    /// <summary>Configures custom subplot spacing (margins and gaps).</summary>
-    public FigureBuilder WithSubPlotSpacing(Func<SubPlotSpacing, SubPlotSpacing>? configure = null) { if (configure is not null) _spacing = configure(_spacing); return this; }
-    private SubPlotSpacing _spacing = new();
-
-    /// <summary>Adds an error bar series to the default axes.</summary>
-    public FigureBuilder ErrorBar(double[] x, double[] y, double[] yErrorLow, double[] yErrorHigh, Action<ErrorBarSeries>? configure = null) =>
-        AddSeries(ax => ax.ErrorBar(x, y, yErrorLow, yErrorHigh), configure);
-
-    /// <summary>Adds a step-function series to the default axes.</summary>
-    public FigureBuilder Step(double[] x, double[] y, Action<StepSeries>? configure = null) =>
-        AddSeries(ax => ax.Step(x, y), configure);
-
-    /// <summary>Adds a filled area (fill-between) series to the default axes.</summary>
-    public FigureBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null) =>
-        AddSeries(ax => ax.FillBetween(x, y, y2), configure);
-
-    /// <summary>Adds a filled contour series to the default axes.</summary>
-    public FigureBuilder Contourf(double[] x, double[] y, double[,] z, Action<ContourfSeries>? configure = null) =>
-        AddSeries(ax => ax.Contourf(x, y, z), configure);
-
-    /// <summary>Adds a kernel density estimation (KDE) series to the default axes.</summary>
-    public FigureBuilder Kde(double[] data, Action<KdeSeries>? configure = null) =>
-        AddSeries(ax => ax.Kde(data), configure);
-
-    /// <summary>Adds a treemap series to the default axes.</summary>
-    public FigureBuilder Treemap(TreeNode root, Action<TreemapSeries>? configure = null) =>
-        AddSeries(ax => ax.Treemap(root), configure);
-
-    /// <summary>Adds a sunburst series to the default axes.</summary>
-    public FigureBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null) =>
-        AddSeries(ax => ax.Sunburst(root), configure);
-
-    /// <summary>Adds a dendrogram series to the default axes.</summary>
-    /// <param name="root">The root <see cref="TreeNode"/>. Internal nodes carry their merge distance in <see cref="TreeNode.Value"/>.</param>
-    /// <param name="configure">Optional callback to configure orientation, cut-height, and clustering colours.</param>
-    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
-    public FigureBuilder Dendrogram(TreeNode root, Action<DendrogramSeries>? configure = null) =>
-        AddSeries(ax => ax.Dendrogram(root), configure);
-
-    /// <summary>Adds a clustermap series to the default axes (heatmap with optional row/column dendrograms).</summary>
-    /// <param name="data">The 2D data matrix to render as the heatmap.</param>
-    /// <param name="configure">Optional configuration callback for the series.</param>
-    public FigureBuilder Clustermap(double[,] data, Action<ClustermapSeries>? configure = null) =>
-        AddSeries(ax => ax.Clustermap(data), configure);
-
-    /// <summary>Adds a pair-grid series to the default axes (N×N matrix of histograms + scatters).</summary>
-    /// <param name="variables">The N input variables (one <c>double[]</c> per variable, all equal length).</param>
-    /// <param name="configure">Optional configuration callback for the series.</param>
-    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
-    public FigureBuilder PairGrid(double[][] variables, Action<PairGridSeries>? configure = null) =>
-        AddSeries(ax => ax.PairGrid(variables), configure);
-
-    /// <summary>Adds a network-graph series to the default axes (nodes + edges in 2D).</summary>
-    /// <param name="nodes">The graph's nodes.</param>
-    /// <param name="edges">The graph's edges.</param>
-    /// <param name="configure">Optional configuration callback for the series.</param>
-    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
-    public FigureBuilder NetworkGraph(
-        IReadOnlyList<GraphNode> nodes,
-        IReadOnlyList<GraphEdge> edges,
-        Action<NetworkGraphSeries>? configure = null) =>
-        AddSeries(ax => ax.NetworkGraph(nodes, edges), configure);
-
-    /// <summary>Adds a Relative Rotation Graph series to the default axes.</summary>
-    /// <param name="assetCloses">Per-asset close price series.</param>
-    /// <param name="benchmarkCloses">Benchmark close price series (e.g. BTC).</param>
-    /// <param name="assetLabels">Display labels — one per asset.</param>
-    /// <param name="configure">Optional configuration callback.</param>
-    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
-    public FigureBuilder RelativeRotation(
-        double[][] assetCloses,
-        double[] benchmarkCloses,
-        string[] assetLabels,
-        Action<RelativeRotationSeries>? configure = null) =>
-        AddSeries(ax => ax.RelativeRotation(assetCloses, benchmarkCloses, assetLabels), configure);
-
-    /// <summary>Adds a Sankey diagram series to the default axes.</summary>
-    public FigureBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null) =>
-        AddSeries(ax => ax.Sankey(nodes, links), configure);
-
-    /// <summary>Adds a word cloud to the default axes: each word set in a size that follows its weight.</summary>
-    public FigureBuilder WordCloud(string[] words, double[] weights, Action<WordCloudSeries>? configure = null) =>
-        AddSeries(ax => ax.WordCloud(words, weights), configure);
-
-    /// <summary>Adds a chord diagram of the flows between groups to the default axes.</summary>
-    public FigureBuilder Chord(string[] names, double[,] flows, Action<ChordSeries>? configure = null) =>
-        AddSeries(ax => ax.Chord(names, flows), configure);
-
-    /// <summary>Adds a polar line series to the default axes.</summary>
-    public FigureBuilder PolarPlot(double[] r, double[] theta, Action<PolarLineSeries>? configure = null) =>
-        AddSeries(ax => ax.PolarPlot(r, theta), configure);
-
-    /// <summary>Adds a polar scatter series to the default axes.</summary>
-    public FigureBuilder PolarScatter(double[] r, double[] theta, Action<PolarScatterSeries>? configure = null) =>
-        AddSeries(ax => ax.PolarScatter(r, theta), configure);
-
-    /// <summary>Adds a line through compositions of three parts to the default axes, which becomes a ternary diagram.</summary>
-    public FigureBuilder TernaryPlot(double[] top, double[] left, double[] right, Action<TernaryLineSeries>? configure = null) =>
-        AddSeries(ax => ax.TernaryPlot(top, left, right), configure);
-
-    /// <summary>Adds a marker on each composition of three parts to the default axes, which becomes a ternary diagram.</summary>
-    public FigureBuilder TernaryScatter(double[] top, double[] left, double[] right, Action<TernaryScatterSeries>? configure = null) =>
-        AddSeries(ax => ax.TernaryScatter(top, left, right), configure);
-
-    /// <summary>Adds a Piper diagram of the given waters (in mg/L) to the default axes.</summary>
-    public FigureBuilder Piper(IReadOnlyList<WaterSample> samples, Action<PiperSeries>? configure = null) =>
-        AddSeries(ax => ax.Piper(samples), configure);
-
-    /// <summary>Adds a polar bar series to the default axes.</summary>
-    public FigureBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null) =>
-        AddSeries(ax => ax.PolarBar(r, theta), configure);
-
-    /// <summary>Adds a 3D surface series to the default axes.</summary>
-    public FigureBuilder Surface(double[] x, double[] y, double[,] z, Action<SurfaceSeries>? configure = null) =>
-        AddSeries(ax => ax.Surface(x, y, z), configure);
-
-    /// <summary>Adds a 3D wireframe series to the default axes.</summary>
-    public FigureBuilder Wireframe(double[] x, double[] y, double[,] z, Action<WireframeSeries>? configure = null) =>
-        AddSeries(ax => ax.Wireframe(x, y, z), configure);
-
-    /// <summary>Adds a 3D scatter series to the default axes.</summary>
-    public FigureBuilder Scatter3D(double[] x, double[] y, double[] z, Action<Scatter3DSeries>? configure = null) =>
-        AddSeries(ax => ax.Scatter3D(x, y, z), configure);
-
-    /// <summary>Adds a 3D stem series to the default axes.</summary>
-    public FigureBuilder Stem3D(double[] x, double[] y, double[] z, Action<Stem3DSeries>? configure = null) =>
-        AddSeries(ax => ax.Stem3D(x, y, z), configure);
-
-    /// <summary>Adds a 3D bar series to the default axes.</summary>
-    public FigureBuilder Bar3D(double[] x, double[] y, double[] z, Action<Bar3DSeries>? configure = null) =>
-        AddSeries(ax => ax.Bar3D(x, y, z), configure);
-
-    /// <summary>Sets camera elevation, azimuth, and optional perspective distance on the default axes.</summary>
-    /// <param name="elevation">Camera elevation above the XY plane in degrees.</param>
-    /// <param name="azimuth">Camera azimuth rotation around the Z axis in degrees.</param>
-    /// <param name="distance">Perspective camera distance. Null = orthographic. Minimum clamped to 2.0.</param>
-    public FigureBuilder WithCamera(double elevation = 30, double azimuth = -60, double? distance = null)
-    {
-        var axes = EnsureDefaultAxes();
-        axes.Elevation = elevation;
-        axes.Azimuth = azimuth;
-        axes.CameraDistance = distance;
-        return this;
-    }
-
-    /// <summary>Enables interactive 3D rotation via mouse drag and keyboard arrow keys in the SVG output.</summary>
-    public FigureBuilder With3DRotation(bool enabled = true)
-    {
-        _enable3DRotation = enabled;
-        return this;
-    }
-
-    /// <summary>Enables expand/collapse interaction on treemap rectangles in the SVG output.
-    /// <para>The initial interactive view is pixel-identical to the static SVG — every node at
-    /// every depth is visible on first paint (z-order paints children over parents, so the
-    /// deepest visible label wins in any overlapping region). Clicking a parent rect
-    /// <em>collapses</em> its entire subtree (transitively — descendants' own expansion state is
-    /// preserved); clicking again restores. Multiple subtrees can be collapsed independently.
-    /// Leaves are not toggleable. Requires a <c>TreemapSeries</c> on the figure.</para>
-    /// <para>The method is named <c>WithTreemapDrilldown</c> from the time a click zoomed into a
-    /// node instead of collapsing it; the name was kept so existing callers still compile.</para></summary>
-    public FigureBuilder WithTreemapDrilldown(bool enabled = true)
-    {
-        _enableTreemapDrilldown = enabled;
-        return this;
-    }
-    private bool _enableTreemapDrilldown;
-
-    /// <summary>Enables Sankey hover emphasis in the SVG output: hovering a node dims every
-    /// link not reachable upstream or downstream from it (ECharts <c>focus: adjacency</c>).
-    /// Requires a <c>SankeySeries</c> on the figure.</summary>
-    public FigureBuilder WithSankeyHover(bool enabled = true)
-    {
-        _enableSankeyHover = enabled;
-        return this;
-    }
-    private bool _enableSankeyHover;
-
-    /// <summary>Configures opacity / transition tokens for the embedded browser-side
-    /// interaction scripts. Defaults match the values the scripts hard-coded before they were
-    /// configurable, so calling this is only necessary if you want different fade opacities,
-    /// transition durations, or tooltip offsets.</summary>
-    public FigureBuilder WithInteractionTheme(Models.InteractionTheme theme)
-    {
-        _interactionTheme = theme;
-        return this;
-    }
-    private Models.InteractionTheme _interactionTheme = Models.InteractionTheme.Default;
-
-    /// <summary>Attaches a directional light source for per-face shading on 3D surfaces and bars on the default axes.</summary>
-    /// <param name="dx">X component of the light direction.</param>
-    /// <param name="dy">Y component of the light direction.</param>
-    /// <param name="dz">Z component of the light direction.</param>
-    /// <param name="ambient">Ambient light intensity [0, 1]. Default 0.3.</param>
-    /// <param name="diffuse">Diffuse light intensity [0, 1]. Default 0.7.</param>
-    public FigureBuilder WithLighting(double dx, double dy, double dz,
-        double ambient = 0.3, double diffuse = 0.7)
-    {
-        EnsureDefaultAxes().LightSource = new Rendering.Lighting.DirectionalLight(dx, dy, dz, ambient, diffuse);
-        return this;
-    }
-
-    // --- v0.8.0 shortcuts ---
-
-    /// <summary>Adds a rug plot series to the default axes.</summary>
-    public FigureBuilder Rugplot(double[] data, Action<RugplotSeries>? configure = null) =>
-        AddSeries(ax => ax.Rugplot(data), configure);
-
-    /// <summary>Adds a strip plot series to the default axes.</summary>
-    public FigureBuilder Stripplot(double[][] datasets, Action<StripplotSeries>? configure = null) =>
-        AddSeries(ax => ax.Stripplot(datasets), configure);
-
-    /// <summary>Adds an event plot series to the default axes.</summary>
-    public FigureBuilder Eventplot(double[][] positions, Action<EventplotSeries>? configure = null) =>
-        AddSeries(ax => ax.Eventplot(positions), configure);
-
-    /// <summary>Adds a broken-bar series to the default axes (matplotlib <c>broken_barh</c>).</summary>
-    /// <param name="ranges">One <see cref="BarRange"/> array per row; each inner entry defines a
-    /// horizontal segment by <c>(Start, Width)</c> in data units.</param>
-    /// <param name="configure">Optional post-construction configurator (colour, labels, bar height).</param>
-    public FigureBuilder BrokenBarH(BarRange[][] ranges, Action<BrokenBarSeries>? configure = null) =>
-        AddSeries(ax => ax.BrokenBarH(ranges), configure);
-
-    /// <summary>Adds a count plot series to the default axes.</summary>
-    public FigureBuilder Countplot(string[] values, Action<CountSeries>? configure = null) =>
-        AddSeries(ax => ax.Countplot(values), configure);
-
-    /// <summary>Adds a pseudocolor mesh series to the default axes.</summary>
-    public FigureBuilder Pcolormesh(double[] x, double[] y, double[,] c, Action<PcolormeshSeries>? configure = null) =>
-        AddSeries(ax => ax.Pcolormesh(x, y, c), configure);
-
-    /// <summary>Adds a residual plot series to the default axes.</summary>
-    public FigureBuilder Residplot(double[] x, double[] y, Action<ResidualSeries>? configure = null) =>
-        AddSeries(ax => ax.Residplot(x, y), configure);
-
-    /// <summary>Adds a point plot series to the default axes.</summary>
-    public FigureBuilder Pointplot(double[][] datasets, Action<PointplotSeries>? configure = null) =>
-        AddSeries(ax => ax.Pointplot(datasets), configure);
-
-    /// <summary>Adds a swarm plot series to the default axes.</summary>
-    public FigureBuilder Swarmplot(double[][] datasets, Action<SwarmplotSeries>? configure = null) =>
-        AddSeries(ax => ax.Swarmplot(datasets), configure);
-
-    /// <summary>Adds a spectrogram series to the default axes.</summary>
-    public FigureBuilder Spectrogram(double[] signal, int sampleRate = 1, Action<SpectrogramSeries>? configure = null) =>
-        AddSeries(ax => ax.Spectrogram(signal, sampleRate), configure);
-
-    /// <summary>Adds a table series to the default axes.</summary>
-    public FigureBuilder Table(string[][] cellData, Action<TableSeries>? configure = null) =>
-        AddSeries(ax => ax.Table(cellData), configure);
-
-    /// <summary>Adds a contour series on a triangular mesh to the default axes.</summary>
-    public FigureBuilder Tricontour(double[] x, double[] y, double[] z, Action<TricontourSeries>? configure = null) =>
-        AddSeries(ax => ax.Tricontour(x, y, z), configure);
-
-    /// <summary>Adds a pseudocolor series on a triangular mesh to the default axes.</summary>
-    public FigureBuilder Tripcolor(double[] x, double[] y, double[] z, Action<TripcolorSeries>? configure = null) =>
-        AddSeries(ax => ax.Tripcolor(x, y, z), configure);
-
-    /// <summary>Adds a quiver key series to the default axes.</summary>
-    public FigureBuilder QuiverKey(double x, double y, double u, string label, Action<QuiverKeySeries>? configure = null) =>
-        AddSeries(ax => ax.QuiverKey(x, y, u, label), configure);
-
-    /// <summary>Adds a wind barb series to the default axes.</summary>
-    public FigureBuilder Barbs(double[] x, double[] y, double[] speed, double[] direction, Action<BarbsSeries>? configure = null) =>
-        AddSeries(ax => ax.Barbs(x, y, speed, direction), configure);
-
-    /// <summary>Sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
-    /// <param name="rows">Number of rows in the grid.</param>
-    /// <param name="cols">Number of columns in the grid.</param>
-    /// <param name="heightRatios">Relative row heights (length must equal <paramref name="rows"/>); <see langword="null"/> gives equal heights.</param>
-    /// <param name="widthRatios">Relative column widths (length must equal <paramref name="cols"/>); <see langword="null"/> gives equal widths.</param>
-    public FigureBuilder WithGridSpec(int rows, int cols, double[]? heightRatios = null, double[]? widthRatios = null)
-    {
-        _gridSpec = new GridSpec { Rows = rows, Cols = cols, HeightRatios = heightRatios, WidthRatios = widthRatios };
-        return this;
-    }
-
-    /// <summary>Adds a figure-level color bar rendered outside all subplots.</summary>
-    /// <param name="configure">Optional function to customise the color bar (label, orientation, shrink, etc.).</param>
-    public FigureBuilder WithColorBar(Func<ColorBar, ColorBar>? configure = null)
-    {
-        var cb = _figureColorBar ?? new ColorBar { Visible = true };
-        if (configure is not null) cb = configure(cb);
-        _figureColorBar = cb;
-        return this;
-    }
-
-    private ColorBar? _figureColorBar;
-
-    /// <summary>Places a text on the figure itself rather than in a subplot (matplotlib's <c>figtext</c>): a note, a source
-    /// line, a panel letter. The position is a pair of fractions of the figure counted from its bottom-left corner, so
-    /// (0.5, 0.97) is centred just under the top edge whatever the subplots show. The text is drawn in the theme's text font
-    /// above every subplot and the figure's colour bar, in the SVG and in every raster or native output alike, and it is
-    /// drawn on a figure that has no subplot at all. A position outside 0 to 1, or one that is not a number, draws nothing.</summary>
-    /// <param name="text">The text to draw.</param>
-    /// <param name="x">The horizontal position as a fraction of the figure's width, from the left.</param>
-    /// <param name="y">The vertical position as a fraction of the figure's height, from the bottom.</param>
-    /// <param name="configure">Optional action that sets the text's font, colour, alignment or rotation.</param>
-    /// <returns>This builder, for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="text"/> is <see langword="null"/>.</exception>
-    /// <example>
-    /// A source line in the bottom-left corner and a centred note across the top:
-    /// <code>
-    /// string svg = Plt.Create()
-    ///     .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0])
-    ///     .FigText("Source: field survey", 0.01, 0.01)
-    ///     .FigText("Preliminary", 0.5, 0.97, t =>
-    ///     {
-    ///         t.Alignment = TextAlignment.Center;
-    ///         t.VerticalAlignment = TextVerticalAlignment.Top;
-    ///         t.Color = Colors.Red;
-    ///     })
-    ///     .ToSvg();
-    /// </code>
-    /// </example>
-    public FigureBuilder FigText(string text, double x, double y, Action<FigureText>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        _pendingTexts.Add(new(text, x, y, configure));
-        return this;
-    }
-
-    private readonly record struct PendingText(string Text, double X, double Y, Action<FigureText>? Configure);
-
-    private readonly List<PendingText> _pendingTexts = [];
-
-    /// <summary>Gives the figure a legend of its own (matplotlib's <c>figlegend</c>) that lists the labelled series of every
-    /// subplot, in subplot order, each entry that looks the same once. It stands in the rectangle that is the figure, at the
-    /// place its <see cref="Legend.Position"/> names (<see cref="LegendPosition.Best"/> is the upper right here: a figure has no
-    /// marks of one axes to keep clear of), above the subplots, the colour bar and the figure's texts, in the SVG and in every
-    /// raster or native output alike. It is static, as in matplotlib: clicking an entry hides nothing. It reserves no room, so
-    /// turn the legends of the subplots off with <c>WithLegend(visible: false)</c> and leave a margin for it with
-    /// <c>WithSubPlotSpacing</c>, or stand it in a corner the charts leave free.
-    /// <para>A deviation from matplotlib, for simplicity: a figure has ONE legend. A second call replaces the first, starting
-    /// again from a new legend, instead of adding another.</para></summary>
-    /// <param name="configure">Optional function that changes the legend (its position, title, columns, fonts, frame and
-    /// whether the entries carry their last value), given a new default <see cref="Legend"/>.</param>
-    /// <returns>This builder, for chaining.</returns>
-    /// <example>
-    /// A grid of two charts that share one legend, in the lower centre of the figure:
-    /// <code>
-    /// string svg = Plt.Create()
-    ///     .AddSubPlot(1, 2, 1, ax => ax.WithLegend(visible: false)
-    ///         .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0], s => s.Label = "Observed"))
-    ///     .AddSubPlot(1, 2, 2, ax => ax.WithLegend(visible: false)
-    ///         .Plot([1.0, 2.0, 3.0], [3.0, 1.0, 2.0], s => s.Label = "Observed"))
-    ///     .FigLegend(legend => legend with { Position = LegendPosition.LowerCenter, NCols = 2 })
-    ///     .ToSvg();
-    /// </code>
-    /// </example>
-    public FigureBuilder FigLegend(Func<Legend, Legend>? configure = null)
-    {
-        var legend = new Legend();
-        _figureLegend = configure is null ? legend : configure(legend);
-        return this;
-    }
-
-    private Legend? _figureLegend;
-
-    /// <summary>Places an image on the figure itself rather than in a subplot (matplotlib's <c>figimage</c>): a logo, a
-    /// watermark, a texture behind the charts. Each value of <paramref name="data"/> is one pixel of the figure, drawn at its
-    /// native size with no resampling and coloured through a colour map as an image series is (viridis unless the
-    /// configuration names another), the first row on top. The offsets are pixels (the units of the figure's size) from the
-    /// bottom-left corner of the figure. The image stands under every subplot, in the SVG and in every raster or native output
-    /// alike, and it is drawn on a figure that has no subplot at all. A NaN value is a gap, an offset that is not a number draws
-    /// nothing, and an image that reaches past the figure is cut at its edge.</summary>
-    /// <param name="data">The pixel values, indexed [row, column].</param>
-    /// <param name="xOffset">The distance from the left edge of the figure to the left edge of the image, in pixels.</param>
-    /// <param name="yOffset">The distance from the bottom edge of the figure to the bottom edge of the image, in pixels.</param>
-    /// <param name="configure">Optional action that sets the image's colour map, normalizer, colour range or opacity.</param>
-    /// <returns>This builder, for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="data"/> is <see langword="null"/>.</exception>
-    /// <example>
-    /// A small gradient in the lower-left corner, under a chart:
-    /// <code>
-    /// var gradient = new double[8, 32];
-    /// for (int row = 0; row &lt; 8; row++)
-    ///     for (int column = 0; column &lt; 32; column++)
-    ///         gradient[row, column] = column;
-    ///
-    /// string svg = Plt.Create()
-    ///     .Plot([1.0, 2.0, 3.0], [2.0, 4.0, 3.0])
-    ///     .FigImage(gradient, 20, 20, image => image.Alpha = 0.6)
-    ///     .ToSvg();
-    /// </code>
-    /// </example>
-    public FigureBuilder FigImage(double[,] data, double xOffset = 0, double yOffset = 0, Action<FigureImage>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        _pendingImages.Add(new(data, xOffset, yOffset, configure));
-        return this;
-    }
-
-    private readonly record struct PendingImage(double[,] Data, double XOffset, double YOffset, Action<FigureImage>? Configure);
-
-    private readonly List<PendingImage> _pendingImages = [];
+    public FigureBuilder WithBackground(Color color) => OnFigure(f => f.BackgroundColor = color);
 
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
@@ -742,61 +167,23 @@ public sealed class FigureBuilder
     /// <returns>The fully constructed figure.</returns>
     public Figure Build()
     {
-        var figure = new Figure
-        {
-            Title = _title,
-            AltText = _altText,
-            Description = _description,
-            Width = _width,
-            Height = _height,
-            Dpi = _dpi,
-            BackgroundColor = _background,
-            Theme = _theme,
-            ChartId = _chartId,
-            ServerInteraction = _serverInteraction,
-            EnableZoomPan = _enableZoomPan,
-            EnableLegendToggle = _enableLegendToggle,
-            EnableRichTooltips = _enableRichTooltips,
-            EnableHighlight = _enableHighlight,
-            EnableSelection = _enableSelection,
-            SelectionGroup = _selectionGroup,
-            SelectedRows = _selectedRows,
-            EnableDataCursor = _enableDataCursor,
-            EnableViewerCursors = _enableViewerCursors,
-            Enable3DRotation = _enable3DRotation,
-            EnableTreemapDrilldown = _enableTreemapDrilldown,
-            EnableSankeyHover = _enableSankeyHover,
-            InteractionTheme = _interactionTheme,
-            ResponsiveSvg = _responsiveSvg,
-            Spacing = _spacing,
-            GridSpec = _gridSpec,
-            FigureColorBar = _figureColorBar,
-            Legend = _figureLegend
-        };
-
-        // Each build gets texts and images of its own, so a figure built twice from one builder shares nothing it can change.
-        foreach (var pending in _pendingTexts)
-        {
-            var text = figure.AddText(pending.Text, pending.X, pending.Y);
-            pending.Configure?.Invoke(text);
-        }
-
-        foreach (var pending in _pendingImages)
-        {
-            var image = figure.AddImage(pending.Data, pending.XOffset, pending.YOffset);
-            pending.Configure?.Invoke(image);
-        }
+        // The figure's own defaults stand unless a call asked for something else: the builder restates none of them.
+        var figure = new Figure { Theme = _theme ?? RcParams.Current.ThemeOver(Theme.MatplotlibV2) };
+        if (Spacing is not null) figure.Spacing = Spacing;
+        if (FigureColorBar is not null) figure.FigureColorBar = FigureColorBar;
 
         // Only add the default axes when it carries actual series OR when no subplots were
-        // defined. FigureBuilder-level helpers (WithCamera, WithLighting, …) call
-        // EnsureDefaultAxes() as a convenience side-effect, leaving an empty Cartesian axes
-        // in the model that would otherwise be rendered as ghost 2-D ticks on top of 3-D plots.
-        if (_defaultAxes is not null &&
-            (_defaultAxes.Series.Count > 0 || _subPlots.Count == 0))
-            figure.AddAxes(_defaultAxes);
-
-        var keyedAxes = new Dictionary<string, Axes>();
-        var deferredSharing = new List<DeferredShare>();
+        // defined. FigureBuilder-level helpers (WithCamera, WithLighting, …) touch the default
+        // axes as a convenience side-effect, leaving an empty Cartesian axes in the model that
+        // would otherwise be rendered as ghost 2-D ticks on top of 3-D plots.
+        if (_defaultAxesSteps.Count > 0)
+        {
+            var defaultAxes = new Axes();
+            var defaultAxesBuilder = new AxesBuilder(defaultAxes);
+            foreach (var step in _defaultAxesSteps) step(defaultAxesBuilder);
+            if (defaultAxes.Series.Count > 0 || _subPlots.Count == 0)
+                figure.AddAxes(defaultAxes);
+        }
 
         foreach (var spec in _subPlots)
         {
@@ -809,217 +196,65 @@ public sealed class FigureBuilder
             else
                 axes = builder.Build(spec.Rows, spec.Cols, spec.Index);
 
-            if (spec.Key is not null)
-            {
-                axes.Key = spec.Key;
-                keyedAxes[spec.Key] = axes;
-            }
-
-            if (builder.ShareXKey is not null || builder.ShareYKey is not null)
-                deferredSharing.Add(new(axes, builder.ShareXKey, builder.ShareYKey));
-
+            if (spec.Key is not null) axes.Key = spec.Key;
             figure.AddAxes(axes);
         }
 
-        // Resolve sharing references by key
-        foreach (var share in deferredSharing)
-        {
-            if (share.ShareXKey is not null && keyedAxes.TryGetValue(share.ShareXKey, out var xTarget))
-                share.Axes.ShareXWith = xTarget;
-            if (share.ShareYKey is not null && keyedAxes.TryGetValue(share.ShareYKey, out var yTarget))
-                share.Axes.ShareYWith = yTarget;
-        }
+        // A subplot that asked to share a scale is joined to the subplot of its key once every subplot stands.
+        figure.ShareByKeys();
 
-        // Apply pending insets
-        foreach (var inset in _pendingInsets)
-        {
-            if (inset.SubplotIndex >= 0 && inset.SubplotIndex < figure.SubPlots.Count)
-            {
-                var insetAxes = figure.SubPlots[inset.SubplotIndex].AddInset(inset.X, inset.Y, inset.Width, inset.Height);
-                inset.Configure?.Invoke(insetAxes);
-            }
-        }
+        // The figure-level steps, in the order they were asked for, once the subplots stand (an inset is placed in one). Each
+        // build takes them again, so it gets texts, images and insets of its own: two figures built from one builder share
+        // nothing either can change.
+        foreach (var step in _figureSteps) step(figure);
 
         return figure;
     }
 
-    // --- Annotation / reference line / span convenience methods on default axes ---
-
-    /// <summary>Adds a text annotation at the specified data coordinates on the default axes.</summary>
-    public FigureBuilder Annotate(string text, double x, double y, Action<Annotation>? configure = null)
-    {
-        var ann = EnsureDefaultAxes().Annotate(text, x, y);
-        configure?.Invoke(ann);
-        return this;
-    }
-
-    /// <summary>Adds a text annotation with an arrow pointing to the given target coordinates on the default axes.</summary>
-    public FigureBuilder Annotate(string text, double x, double y, double arrowX, double arrowY,
-        Action<Annotation>? configure = null)
-    {
-        var ann = EnsureDefaultAxes().Annotate(text, x, y);
-        ann.ArrowTargetX = arrowX;
-        ann.ArrowTargetY = arrowY;
-        configure?.Invoke(ann);
-        return this;
-    }
-
-    /// <summary>Adds a horizontal reference line at the specified Y value on the default axes.
-    /// <para>The automatic range of the Y axis holds the line, as matplotlib's <c>axhline</c> updates the data limits,
-    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
-    /// label.</para></summary>
-    public FigureBuilder AxHLine(double y, Action<ReferenceLine>? configure = null)
-    {
-        var line = EnsureDefaultAxes().AxHLine(y);
-        configure?.Invoke(line);
-        return this;
-    }
-
-    /// <summary>Adds a vertical reference line at the specified X value on the default axes.
-    /// <para>The automatic range of the X axis holds the line, as matplotlib's <c>axvline</c> updates the data limits,
-    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
-    /// label.</para></summary>
-    public FigureBuilder AxVLine(double x, Action<ReferenceLine>? configure = null)
-    {
-        var line = EnsureDefaultAxes().AxVLine(x);
-        configure?.Invoke(line);
-        return this;
-    }
-
-    /// <summary>Adds a horizontal shaded span between the specified Y values on the default axes.</summary>
-    public FigureBuilder AxHSpan(double yMin, double yMax, Action<SpanRegion>? configure = null)
-    {
-        var span = EnsureDefaultAxes().AxHSpan(yMin, yMax);
-        configure?.Invoke(span);
-        return this;
-    }
-
-    /// <summary>Adds a vertical shaded span between the specified X values on the default axes.</summary>
-    public FigureBuilder AxVSpan(double xMin, double xMax, Action<SpanRegion>? configure = null)
-    {
-        var span = EnsureDefaultAxes().AxVSpan(xMin, xMax);
-        configure?.Invoke(span);
-        return this;
-    }
-
-    /// <summary>Adds a patch the caller has made (a rectangle, a polygon, an arrow: a shape in data coordinates) to the default
-    /// axes, as matplotlib's <c>add_patch</c> does; <see cref="AxesBuilder.AddPatch"/> adds one to a subplot.</summary>
-    /// <param name="patch">The patch to add.</param>
+    /// <summary>Records what a figure-level call asks of the figure: a setting, a text, an image, an inset. The steps are taken
+    /// on each new figure at every <see cref="Build"/>, in the order of the calls, once the subplots are added, so the figure
+    /// keeps its own defaults for whatever no call asked for, and every build gets texts, images and insets of its own.</summary>
+    /// <param name="step">What the call does to the figure.</param>
     /// <returns>This builder, for chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="patch"/> is null.</exception>
-    /// <example>
-    /// <code>
-    /// Plt.Create()
-    ///     .Plot(x, y)
-    ///     .AddPatch(new Polygon([new(0, 0), new(2, 0), new(1, 1.5)]) { Alpha = 0.4 })
-    ///     .ToSvg();
-    /// </code>
-    /// </example>
-    public FigureBuilder AddPatch(Models.Patches.Patch patch)
+    internal FigureBuilder OnFigure(Action<Figure> step)
     {
-        EnsureDefaultAxes().AddPatch(patch);
+        _figureSteps.Add(step);
         return this;
     }
 
-    /// <summary>Adds a threshold marker on the default axes: a dashed <see cref="Models.ReferenceLine"/>
-    /// at <paramref name="value"/> plus a shaded <see cref="Models.SpanRegion"/> covering the breach
-    /// zone on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is added
-    /// as an annotation at the threshold value.</summary>
-    /// <param name="value">The threshold value in data coordinates.</param>
-    /// <param name="orientation">Horizontal (constant Y) or Vertical (constant X).</param>
-    /// <param name="breach">Which side of the threshold is the breach zone.</param>
-    /// <param name="color">Optional color for the line and span. Null uses the renderer cycle color.</param>
-    /// <param name="label">Optional label text. Null adds no annotation.</param>
-    public FigureBuilder Threshold(double value, Models.Orientation orientation, Models.ThresholdBreach breach,
-        Styling.Color? color = null, string? label = null)
+    /// <summary>Records a step that a figure-level verb takes on the default axes: the subplot verb of the same name, on the
+    /// <see cref="AxesBuilder"/> of the default axes, so what each verb does is written once, in the subplot's builder. The
+    /// steps are taken again on a new axes at every <see cref="Build"/>, as a subplot's configuration is, so two figures built
+    /// from one builder never share an axes (nor a series on it) that one of them could change.</summary>
+    /// <param name="step">The subplot verb to take.</param>
+    /// <returns>This builder, for chaining.</returns>
+    internal FigureBuilder OnDefaultAxes(Action<AxesBuilder> step)
     {
-        EnsureDefaultAxes().AddThreshold(value, orientation, breach, color, label);
+        _defaultAxesSteps.Add(step);
         return this;
     }
 
-    /// <summary>Enables or disables the legend-values suffix on the default axes — appends each
-    /// labelled series' last data value to its legend entry, e.g. "Signal" becomes "Signal = 2.70"
-    /// (InvariantCulture, F2 format). Default is <see langword="false"/>.</summary>
-    public FigureBuilder WithLegendValues(bool enabled = true)
+    /// <summary>Describes a subplot position and configuration within a figure grid.</summary>
+    private readonly record struct SubPlotSpec
     {
-        var axes = EnsureDefaultAxes();
-        axes.Legend = axes.Legend with { LegendValues = enabled };
-        return this;
+        public int Rows { get; init; }
+
+        public int Cols { get; init; }
+
+        public int Index { get; init; }
+
+        public GridPosition? Position { get; init; }
+
+        public string? Key { get; init; }
+
+        public Action<AxesBuilder> Configure { get; init; }
+
+        /// <summary>Creates a legacy grid-index spec.</summary>
+        public SubPlotSpec(int rows, int cols, int index, Action<AxesBuilder> configure)
+            : this() { Rows = rows; Cols = cols; Index = index; Configure = configure; }
+
+        /// <summary>Creates a GridPosition-based spec.</summary>
+        public SubPlotSpec(GridPosition position, Action<AxesBuilder> configure)
+            : this() { Position = position; Configure = configure; }
     }
-
-    // --- Output convenience methods (delegate to Figure extensions via Build()) ---
-
-    /// <summary>Builds the figure and renders it as an SVG string.</summary>
-    public string ToSvg() => Build().ToSvg();
-
-    /// <summary>Builds the figure and serializes it to JSON.</summary>
-    public string ToJson(bool indented = false) => Build().ToJson(indented);
-
-    /// <summary>Builds the figure and saves it to a file. Format auto-detected from extension.</summary>
-    public void Save(string path) => Build().Save(path);
-
-    private FigureBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries
-    {
-        var series = factory(EnsureDefaultAxes());
-        configure?.Invoke(series);
-        return this;
-    }
-
-    /// <summary>Adds an inset axes to the subplot at the given zero-based index. This is the
-    /// canonical form; the loose-doubles
-    /// <see cref="AddInset(int,double,double,double,double,System.Action{Axes})"/> overload forwards here.</summary>
-    /// <param name="subplotIndex">Zero-based index of the parent subplot.</param>
-    /// <param name="bounds">The fractional position and size of the inset within the parent subplot (0–1).</param>
-    /// <param name="configure">Optional action to configure the inset axes.</param>
-    public FigureBuilder AddInset(int subplotIndex, InsetBounds bounds, Action<Axes>? configure = null)
-    {
-        _pendingInsets.Add(new(subplotIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height, configure));
-        return this;
-    }
-
-    /// <summary>Adds an inset axes to the subplot at the given zero-based index.
-    /// The bounds are fractional positions within the parent subplot (0–1). Convenience overload
-    /// that forwards to <see cref="AddInset(int,InsetBounds,System.Action{Axes})"/>.</summary>
-    /// <param name="subplotIndex">Zero-based index of the parent subplot.</param>
-    /// <param name="x">Horizontal position as a fraction of parent width.</param>
-    /// <param name="y">Vertical position as a fraction of parent height.</param>
-    /// <param name="width">Width as a fraction of parent width.</param>
-    /// <param name="height">Height as a fraction of parent height.</param>
-    /// <param name="configure">Optional action to configure the inset axes.</param>
-    public FigureBuilder AddInset(int subplotIndex, double x, double y, double width, double height,
-        Action<Axes>? configure = null)
-        => AddInset(subplotIndex, new InsetBounds(x, y, width, height), configure);
-
-    private readonly record struct DeferredShare(Axes Axes, string? ShareXKey, string? ShareYKey);
-
-    private readonly record struct PendingInset(
-        int SubplotIndex, double X, double Y, double Width, double Height, Action<Axes>? Configure);
-
-    private readonly List<PendingInset> _pendingInsets = [];
-
-    private Axes EnsureDefaultAxes() => _defaultAxes ??= new Axes();
-}
-
-/// <summary>Describes a subplot position and configuration within a figure grid.</summary>
-internal readonly record struct SubPlotSpec
-{
-    public int Rows { get; init; }
-
-    public int Cols { get; init; }
-
-    public int Index { get; init; }
-
-    public GridPosition? Position { get; init; }
-
-    public string? Key { get; init; }
-
-    public Action<AxesBuilder> Configure { get; init; }
-
-    /// <summary>Creates a legacy grid-index spec.</summary>
-    public SubPlotSpec(int rows, int cols, int index, Action<AxesBuilder> configure)
-        : this() { Rows = rows; Cols = cols; Index = index; Configure = configure; }
-
-    /// <summary>Creates a GridPosition-based spec.</summary>
-    public SubPlotSpec(GridPosition position, Action<AxesBuilder> configure)
-        : this() { Position = position; Configure = configure; }
 }

@@ -8,29 +8,24 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// chart entirely off-screen.</summary>
 public class TwoDZoomCompletenessTests
 {
-    [Fact]
-    public void ZoomPanScript_ContainsMinMaxClamp()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
         // Min/max scale tracked against the original viewBox extents — assert the script
         // captures origVb.slice() AND consults it during scaling.
-        Assert.Contains("origVb", svg);
         // Hard-cap values (arbitrary but documented in the script comments).
-        Assert.Contains("MIN_ZOOM", svg);
-        Assert.Contains("MAX_ZOOM", svg);
-    }
-
-    [Fact]
-    public void ZoomPanScript_ContainsAspectLockBranch()
-    {
-        var svg = Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
+        new DrawnToken("ZoomPanScript_ContainsMinMaxClamp", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "origVb", "MIN_ZOOM", "MAX_ZOOM"),
         // Aspect-lock toggled via data-aspect-lock="true" on the SVG element.
-        Assert.Contains("data-aspect-lock", svg);
-    }
+        new DrawnToken("ZoomPanScript_ContainsAspectLockBranch", () => Plt.Create().WithZoomPan().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg(), "data-aspect-lock"),
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Phase C.1 of v1.7.2 follow-on — wheel-zoom rate matches matplotlib's
-    /// <c>0.85^step</c> (mpl_toolkits, see <c>backend_bases.py:NavigationToolbar2.scroll_handler</c>
-    /// L2635). Pre-fix used 1.10/0.90 (≈10% per notch); matplotlib uses ≈15% which feels
+    /// <c>0.85^step</c> (mpl_toolkits, see <c>backend_bases.py:NavigationToolbar2.scroll_handler</c> L2635).
+    /// Pre-fix used 1.10/0.90 (≈10% per notch); matplotlib uses ≈15% which feels
     /// snappier and matches user expectations in cross-tool workflows.</summary>
     [Theory]
     [InlineData(-100,  0.85)] // wheel up   (deltaY < 0) → zoom in,  scale = 0.85

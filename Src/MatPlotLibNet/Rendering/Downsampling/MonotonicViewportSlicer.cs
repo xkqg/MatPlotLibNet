@@ -7,8 +7,8 @@ namespace MatPlotLibNet.Rendering.Downsampling;
 
 /// <summary>
 /// Stateless helper that slices a monotonic-X series to the visible viewport and optionally
-/// downsamples the result via LTTB. Used by <see cref="T:MatPlotLibNet.Rendering.SeriesRenderers.XY.SignalSeriesRenderer"/> and
-/// <see cref="T:MatPlotLibNet.Rendering.SeriesRenderers.XY.SignalXYSeriesRenderer"/> in place of the linear-scan <see cref="ViewportCuller"/>.
+/// downsamples the result via LTTB. Used by the line renderers of a series of monotonic X
+/// in place of the linear-scan <see cref="ViewportCuller"/>.
 /// </summary>
 public static class MonotonicViewportSlicer
 {
@@ -24,7 +24,7 @@ public static class MonotonicViewportSlicer
         var range = src.IndexRangeFor(xMin, xMax);
         if (range.IsEmpty) return new([], []);
 
-        int start = range.StartInclusive, end = range.EndExclusive;
+        int start = range.StartInclusive;
         int len = range.Count;
         var x = new double[len];
         var y = new double[len];
@@ -34,7 +34,6 @@ public static class MonotonicViewportSlicer
             y[i] = src.YAt(start + i);
         }
 
-        if (maxPoints is null || len <= maxPoints.Value) return new(x, y);
-        return new LttbDownsampler().Downsample(x, y, maxPoints.Value);
+        return new XYData(x, y).AtMost(maxPoints);
     }
 }

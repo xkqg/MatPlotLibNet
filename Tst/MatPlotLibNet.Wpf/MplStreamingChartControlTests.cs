@@ -2,59 +2,24 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Windows;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Models.Streaming;
-using SkiaSharp;
-using SkiaSharp.Views.Desktop;
 
 namespace MatPlotLibNet.Wpf.Tests;
 
 /// <summary>
 /// WPF was the only one of the four native heads without a streaming control: Avalonia, MAUI and Uno each
 /// ship one beside the ordinary chart, so a reader binds a <see cref="StreamingFigure"/> once and the chart
-/// follows the data. Without it a WPF application had to fake a new figure — <c>Figure = null</c> and back —
-/// because the <c>Figure</c> dependency property only raises its callback on a reference change. Reported as
-/// discussion #20.
-/// <para>These tests hold the three decisions the control makes: it subscribes to the figure it is given, it
-/// lets go of the one it is given up, and it lets go when the control itself is unloaded. That last one is the
-/// leak a council found in all three siblings — the figure outlives the control, so a control that never
-/// detaches keeps being invalidated after it is gone.</para>
+/// follows the data (discussion #20). What the streaming control says of itself is where its figure comes from: it follows the
+/// figure it is given, lets go of the one it is given up and of the last one when it is unloaded (the figure outlives the control,
+/// so a control that never detaches keeps being invalidated after it is gone), and is painted again through the follower, which
+/// sets the limits from the data before the draw.
 /// </summary>
 public class MplStreamingChartControlTests
 {
-    /// <summary>Runs the body on an STA thread, because a WPF <see cref="FrameworkElement"/> cannot be
-    /// constructed anywhere else: its keyboard-navigation service demands the single-threaded apartment.
-    /// The dispatcher it creates there never pumps, which is exactly right — these tests are about what the
-    /// control subscribes to, not about what it paints.</summary>
-    private static void OnStaThread(Action body)
-    {
-        Exception? failure = null;
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                body();
-            }
-            catch (Exception ex)
-            {
-                failure = ex;
-            }
-        });
-
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-
-        if (failure is not null)
-        {
-            ExceptionDispatchInfo.Capture(failure).Throw();
-        }
-    }
-
     /// <summary>How many handlers the figure is holding — the only way to see a leak from outside.</summary>
     private static int SubscriberCount(StreamingFigure sf)
     {
@@ -71,118 +36,69 @@ public class MplStreamingChartControlTests
     }
 
     [Fact]
-    public void StreamingFigureProperty_Set_SubscribesToRenderRequested()
+    public void TheBoundFigureIsFollowed_TheOneReplacedIsLetGo_AndUnloadingLetsGoOfTheLast() => new Action(() =>
     {
-        OnStaThread(() =>
-        {            using var sf = NewStreamingFigure();
+        using var first = NewStreamingFigure();
+        using var second = NewStreamingFigure();
+        var control = new MplStreamingChartControl { StreamingFigure = first };
+        Assert.Same(first, control.StreamingFigure);
+        Assert.Equal(1, SubscriberCount(first));
 
-            var control = new MplStreamingChartControl { StreamingFigure = sf };
+        control.StreamingFigure = second;
+        Assert.Equal(0, SubscriberCount(first));
+        Assert.Equal(1, SubscriberCount(second));
 
-            Assert.Same(sf, control.StreamingFigure);
-            Assert.Equal(1, SubscriberCount(sf));    });
-    }
+        control.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
+        Assert.Equal(0, SubscriberCount(second));
+    }).OnStaThread();
 
     [Fact]
-    public void StreamingFigureChange_UnsubscribesTheOldFigure()
+    public void APaint_WritesNothingIntoTheFigure_TheLimitsFollowTheDataBeforeIt() => new Action(() =>
     {
-        OnStaThread(() =>
-        {            using var first = NewStreamingFigure();
-            using var second = NewStreamingFigure();
-            var control = new MplStreamingChartControl { StreamingFigure = first };
-
-            control.StreamingFigure = second;
-
-            Assert.Equal(0, SubscriberCount(first));
-            Assert.Equal(1, SubscriberCount(second));    });
-    }
-
-    [Fact]
-    public void StreamingFigureClearedToNull_LetsGoOfTheFigure()
-    {
-        OnStaThread(() =>
-        {            using var sf = NewStreamingFigure();
-            var control = new MplStreamingChartControl { StreamingFigure = sf };
-
-            control.StreamingFigure = null;
-
-            Assert.Equal(0, SubscriberCount(sf));    });
-    }
-
-    [Fact]
-    public void Unloaded_LetsGoEvenWhenTheFigureNeverChanges()
-    {
-        OnStaThread(() =>
-        {            // The leak that matters: the figure outlives the control, so a control torn down with its figure
-            // still attached would keep receiving render requests — and keep the dead control alive.
-            using var sf = NewStreamingFigure();
-            var control = new MplStreamingChartControl { StreamingFigure = sf };
-
-            control.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
-
-            Assert.Equal(0, SubscriberCount(sf));    });
-    }
-
-    [Fact]
-    public void AppendingData_ReachesTheControlWithoutHandingItANewFigure()
-    {
-        OnStaThread(() =>
-        {            // The whole point of the control. The ordinary MplChartControl redraws only when the Figure
-            // *reference* changes; here the same figure keeps its identity and the data alone moves the chart.
-            using var sf = NewStreamingFigure();
-            var series = (StreamingLineSeries)sf.Figure.SubPlots[0].Series[0];
-            var control = new MplStreamingChartControl { StreamingFigure = sf };
-
-            int invalidations = 0;
-            var field = typeof(StreamingFigure).GetField(nameof(StreamingFigure.RenderRequested),
-                BindingFlags.NonPublic | BindingFlags.Instance)!;
-            var handler = (Action)field.GetValue(sf)!;
-
-            sf.RenderRequested += () => Interlocked.Increment(ref invalidations);
-            series.AppendPoint(5.0, 42.0);
-            Thread.Sleep(400);
-
-            Assert.NotNull(handler);
-            Assert.True(Volatile.Read(ref invalidations) >= 1,
-                "appending a point must reach the subscribers of the figure the control is bound to");    });
-    }
-
-    /// <summary>Paints the control once, the way WPF does, and returns the host it built.</summary>
-    private static InteractionHost Painted(MplStreamingChartControl control)
-    {
-        using var surface = SKSurface.Create(new SKImageInfo(800, 600));
-        typeof(MplStreamingChartControl).GetMethod("OnPaintSurface", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(control, [new SKPaintSurfaceEventArgs(surface, new SKImageInfo(800, 600))]);
-        return (InteractionHost)typeof(MplStreamingChartControl)
-            .GetField("_host", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;
-    }
-
-    [Fact]
-    public void AnInteractiveStreamingChart_StaysWhereTheReaderZoomedItWhileDataKeepsArriving()
-    {
-        OnStaThread(() =>
+        var figure = new Figure();
+        var series = figure.AddSubPlot().AddSeries(new StreamingLineSeries(100));
+        for (int i = 0; i < 10; i++) series.AppendPoint(i, i * 2.0);
+        using var stream = new StreamingFigure(figure)
         {
-            var figure = new Figure();
-            var series = figure.AddSubPlot().AddSeries(new StreamingLineSeries(100));
-            figure.ChartId = "c";
-            for (int i = 0; i < 10; i++) series.AppendPoint(i, i * 2.0);
-            using var stream = new StreamingFigure(figure)
-            {
-                DefaultConfig = new StreamingAxesConfig(new AxisScaleMode.AutoScale(), new AxisScaleMode.AutoScale()),
-            };
-            var control = new MplStreamingChartControl { StreamingFigure = stream, IsInteractive = true };
-            var host = Painted(control);
+            DefaultConfig = new StreamingAxesConfig(new AxisScaleMode.AutoScale(), new AxisScaleMode.AutoScale()),
+        };
+        var control = new MplStreamingChartControl { StreamingFigure = stream };
+        Assert.Equal(9.0, figure.SubPlots[0].XAxis.Max);   // bound: the limits follow the data that is there
 
-            host.HandleScroll(new ScrollInputArgs(400, 300, 0, -3.0, MatPlotLibNet.Interaction.ModifierKeys.None));
-            double? zoomedMax = figure.SubPlots[0].XAxis.Max;
-            for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
-            Painted(control);
+        for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
+        var axes = figure.SubPlots[0];
+        var before = (axes.XAxis.Min, axes.XAxis.Max, axes.YAxis.Min, axes.YAxis.Max);
+        control.PaintedOnce();
 
-            Assert.NotNull(zoomedMax);
-            Assert.Equal(zoomedMax, figure.SubPlots[0].XAxis.Max);   // the next frame did not overrule the reader
+        // The paint drew and wrote no limit: the next request to draw moves them, on the dispatcher, before that draw.
+        Assert.Equal(before, (axes.XAxis.Min, axes.XAxis.Max, axes.YAxis.Min, axes.YAxis.Max));
+        Assert.Equal(9.0, axes.XAxis.Max);
+    }).OnStaThread();
 
-            host.HandleKeyDown(new KeyInputArgs("Home"));
-            Painted(control);
-            Assert.Equal(19.0, figure.SubPlots[0].XAxis.Max);        // Home handed the axes back to the scale mode
-        });
-    }
+    [Fact]
+    public void AnInteractiveStreamingChart_StaysWhereTheReaderZoomedItWhileDataKeepsArriving() => new Action(() =>
+    {
+        var figure = new Figure();
+        var series = figure.AddSubPlot().AddSeries(new StreamingLineSeries(100));
+        figure.ChartId = "c";
+        for (int i = 0; i < 10; i++) series.AppendPoint(i, i * 2.0);
+        using var stream = new StreamingFigure(figure)
+        {
+            DefaultConfig = new StreamingAxesConfig(new AxisScaleMode.AutoScale(), new AxisScaleMode.AutoScale()),
+        };
+        var control = new MplStreamingChartControl { StreamingFigure = stream, IsInteractive = true };
+        var host = control.PaintedOnce();
+
+        host.HandleScroll(new ScrollInputArgs(400, 300, 0, -3.0, ModifierKeys.None));
+        double? zoomedMax = figure.SubPlots[0].XAxis.Max;
+        for (int i = 10; i < 20; i++) series.AppendPoint(i, i * 2.0);
+        control.PaintedOnce();
+
+        Assert.NotNull(zoomedMax);
+        Assert.Equal(zoomedMax, figure.SubPlots[0].XAxis.Max);   // the next frame did not overrule the reader
+
+        host.HandleKeyDown(new KeyInputArgs("Home"));
+        control.PaintedOnce();
+        Assert.Equal(19.0, figure.SubPlots[0].XAxis.Max);        // Home handed the axes back to the scale mode
+    }).OnStaThread();
 }

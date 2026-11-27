@@ -75,9 +75,7 @@ internal static class StandardNormal
     /// <returns>The quantile <c>z</c> with <c>P(Z &lt;= z) = p</c>. It is odd around the median: <c>Quantile(p) = -Quantile(1 - p)</c>.</returns>
     internal static double Quantile(double p)
     {
-        if (double.IsNaN(p)) return double.NaN;
-        if (p <= 0) return double.NegativeInfinity;
-        if (p >= 1) return double.PositiveInfinity;
+        if (p.Saturated(atZero: double.NegativeInfinity, atOne: double.PositiveInfinity) is { } edge) return edge;
 
         double q = p - 0.5;
         if (Math.Abs(q) <= CentreLimit)

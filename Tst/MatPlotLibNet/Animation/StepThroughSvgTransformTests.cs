@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Animation;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Tests.Rendering;
 using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Tests.Animation;
@@ -32,10 +32,10 @@ public class StepThroughSvgTransformTests
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static XElement Root(string svg) => XDocument.Parse(svg).Root!;
+    private static XElement Root(string svg) => svg.Xml().Root!;
 
     private static IEnumerable<XElement> FrameGroups(XElement root) =>
-        root.Descendants().Where(e => e.Name.LocalName == "g" && e.Attribute("data-frame") is not null);
+        root.Each("g").Where(e => e.Attribute("data-frame") is not null);
 
     // ── the document ────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ public class StepThroughSvgTransformTests
         var frames = FrameGroups(root).ToArray();
         Assert.Equal(3, frames.Length);
         Assert.Equal(["0", "1", "2"], frames.Select(f => f.Attribute("data-frame")!.Value));
-        Assert.All(frames, f => Assert.Single(f.Elements(), e => e.Name.LocalName == "svg"));   // each frame is a whole SVG
+        Assert.All(frames, f => Assert.Single(f.Children("svg")));   // each frame is a whole SVG
         Assert.Equal("group", root.Attribute("role")!.Value);
         Assert.Contains("3 frames", root.Attribute("aria-label")!.Value, StringComparison.Ordinal);
     }
@@ -84,8 +84,8 @@ public class StepThroughSvgTransformTests
         var root = Root(svg);
         var ids = root.DescendantsAndSelf().Select(e => e.Attribute("id")?.Value).Where(id => id is not null).ToHashSet(StringComparer.Ordinal);
 
-        foreach (Match reference in Regex.Matches(svg, @"url\(#([^)]+)\)"))
-            Assert.Contains(reference.Groups[1].Value, ids);
+        foreach (string reference in svg.UrlReferences())
+            Assert.Contains(reference, ids);
         foreach (var element in root.DescendantsAndSelf())
         {
             foreach (string id in (element.Attribute("aria-labelledby")?.Value ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries))
@@ -112,7 +112,7 @@ public class StepThroughSvgTransformTests
     {
         string svg = Steps([Frame(1, interactive: true), Frame(2, interactive: true)]);
 
-        Assert.Single(Regex.Matches(svg, "<script"));   // the frames are pictures; their interactivity is not stepped through
+        Assert.Single(svg.Elements("script"));   // the frames are pictures; their interactivity is not stepped through
         Assert.DoesNotContain("mpl:selection", svg, StringComparison.Ordinal);
     }
 

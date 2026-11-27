@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series.Streaming;
+
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming WaveletEnergyRatio: the Haar wavelet energy of one band over the last <c>window</c> prices, as a share of the energy of all bands. It keeps the inputs the value depends on (<see cref="WindowedStreamingIndicator{TInput}.Width"/>)
@@ -11,16 +13,18 @@ public sealed class StreamingWaveletEnergyRatio : WindowedStreamingIndicator<dou
     private readonly int _window;
     private readonly int _level;
 
+    /// <inheritdoc />
+    internal override PaneRange? PinnedRange => WaveletEnergyRatio.Pane;
+
     /// <summary>Creates a streaming WaveletEnergyRatio.</summary>
     /// <param name="window">How many prices the transform is taken over; a power of 2 of at least 4.</param>
     /// <param name="level">The band whose share of the energy is read.</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingWaveletEnergyRatio(int window = 64, int level = 0, int capacity = 10_000)
-        : base(window, capacity)
+    public StreamingWaveletEnergyRatio(int window = WaveletEnergyRatio.DefaultWindow, int level = WaveletEnergyRatio.DefaultLevel, int capacity = StreamingSeries.RestingCapacity)
+        : base(WaveletEnergyRatio.Spec(window, level), capacity)
     {
         _window = window;
         _level = level;
-        Label = $"WER(W={window},L={level})";
     }
 
     /// <inheritdoc />

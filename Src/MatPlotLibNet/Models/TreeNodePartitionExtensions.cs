@@ -3,11 +3,6 @@
 
 namespace MatPlotLibNet.Models;
 
-/// <summary>One child of a node and the share of its parent's extent it takes.</summary>
-/// <param name="Node">The child.</param>
-/// <param name="Share">The child's <see cref="TreeNode.TotalValue"/> over the sum of its siblings', between 0 and 1.</param>
-internal readonly record struct PartitionShare(TreeNode Node, double Share);
-
 /// <summary>The one rule that cuts a tree into cells: the children of a node divide the extent of their parent in proportion
 /// to their total values, in the order they are stored. A sunburst reads the extent as an angle and an icicle as a width; the
 /// rule is the same for both, so the two cannot partition one tree differently.</summary>
@@ -24,7 +19,7 @@ internal static class TreeNodePartitionExtensions
         {
             if (node.Children.Count == 0) return [];
             double total = node.TotalValue;
-            if (!(total > 0) || !double.IsFinite(total)) return [];
+            if (!total.IsPositiveFinite()) return [];
 
             var shares = new PartitionShare[node.Children.Count];
             for (int i = 0; i < shares.Length; i++)
@@ -39,4 +34,9 @@ internal static class TreeNodePartitionExtensions
         /// <returns>The height of the node's subtree.</returns>
         internal int Levels() => node.Children.Count == 0 ? 0 : 1 + node.Children.Max(child => child.Levels());
     }
+
+    /// <summary>One child of a node and the share of its parent's extent it takes.</summary>
+    /// <param name="Node">The child.</param>
+    /// <param name="Share">The child's <see cref="TreeNode.TotalValue"/> over the sum of its siblings', between 0 and 1.</param>
+    internal readonly record struct PartitionShare(TreeNode Node, double Share);
 }

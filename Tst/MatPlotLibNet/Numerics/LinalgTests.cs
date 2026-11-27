@@ -35,6 +35,64 @@ public class LinalgTests
         Assert.Equal(-1.0, x[2], Tol);
     }
 
+    /// <summary>The one solver of a linear system the library has: a pivot too small to divide by is a singular direction, and the
+    /// unknown it would fix is left at 0 rather than at a quotient of nothing (a fit through values of one x is a flat line through their
+    /// mean, not a line of NaN). The normal equations of a fit through four points of one x are <c>[[4, 4], [4, 4]]</c> and
+    /// <c>[10, 10]</c>.</summary>
+    [Fact]
+    public void Solve_ASingularMatrix_LeavesTheUnknownItCannotFixAtZero()
+    {
+        var A = Mat.FromRows([[4, 4], [4, 4]]);
+        Vec b = new double[] { 10, 10 };
+
+        Vec x = Linalg.Solve(A, b);
+
+        Assert.Equal(2.5, x[0], Tol);
+        Assert.Equal(0.0, x[1]);
+    }
+
+    [Fact]
+    public void Inv_ASingularMatrix_HasNoNotANumberAndNoInfinity()
+    {
+        var A = Mat.FromRows([[4, 4], [4, 4]]);
+
+        Mat inv = Linalg.Inv(A);
+
+        for (int r = 0; r < 2; r++)
+        {
+            for (int c = 0; c < 2; c++) inv[r, c].AssertFinite($"[{r},{c}]");
+        }
+    }
+
+    /// <summary>A singular direction in the middle of the elimination fixes nothing and eliminates nothing: the unknown of the empty column
+    /// is 0 and the others are what the rest of the system says.</summary>
+    [Fact]
+    public void Solve_ASingularDirectionInTheMiddle_LeavesOnlyItsUnknownAtZero()
+    {
+        var A = Mat.FromRows([[1, 0, 0], [0, 0, 0], [0, 0, 1]]);
+        Vec b = new double[] { 1, 2, 3 };
+
+        Vec x = Linalg.Solve(A, b);
+
+        Assert.Equal(1.0, x[0], Tol);
+        Assert.Equal(0.0, x[1]);
+        Assert.Equal(3.0, x[2], Tol);
+    }
+
+    /// <summary>A pivot is singular below one tolerance whatever the system's shape: a matrix of tiny but real entries (a covariance of
+    /// returns of 1e-8 variance) is solved, not mistaken for a singular one.</summary>
+    [Fact]
+    public void Solve_ATinyButRealMatrix_IsSolved()
+    {
+        var A = Mat.FromRows([[2e-8, 1e-8], [1e-8, 3e-8]]);
+        Vec b = new double[] { 5e-8, 10e-8 };
+
+        Vec x = Linalg.Solve(A, b);
+
+        Assert.Equal(1.0, x[0], Tol);
+        Assert.Equal(3.0, x[1], Tol);
+    }
+
     // ---- Inv -----------------------------------------------------------------
 
     [Fact]

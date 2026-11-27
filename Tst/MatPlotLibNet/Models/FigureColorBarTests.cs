@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Tests.Models;
 public class FigureColorBarTests
 {
     [Fact]
-    public void FigureColorBar_DefaultsToNull()
+    public void AFigure_HasNoColourBar_UntilOneIsAskedFor()
     {
         var fig = new Figure();
         Assert.Null(fig.FigureColorBar);
@@ -34,40 +34,22 @@ public class FigureColorBarTests
         Assert.Equal("Intensity", fig.FigureColorBar!.Label);
     }
 
-    [Fact]
-    public void FigureColorBar_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        double[,] data = { { 0.1, 0.5 }, { 0.7, 1.0 } };
-        var svg = Plt.Create()
-            .WithColorBar(cb => cb with { Label = "Value" })
-            .AddSubPlot(1, 1, 1, ax => ax.Heatmap(data))
-            .Build()
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+        new DrawnToken("FigureColorBar_WithLabel_RendersLabel", () =>
+        {
+            double[,] data = { { 0.0, 1.0 }, { 0.5, 0.8 } };
+            return Plt.Create()
+                .WithColorBar(cb => cb with { Label = "Temperature" })
+                .AddSubPlot(1, 1, 1, ax => ax.Heatmap(data))
+                .Build()
+                .ToSvg();
+        }, "Temperature"),
+    };
 
-    [Fact]
-    public void FigureColorBar_WithLabel_RendersLabel()
-    {
-        double[,] data = { { 0.0, 1.0 }, { 0.5, 0.8 } };
-        var svg = Plt.Create()
-            .WithColorBar(cb => cb with { Label = "Temperature" })
-            .AddSubPlot(1, 1, 1, ax => ax.Heatmap(data))
-            .Build()
-            .ToSvg();
-        Assert.Contains("Temperature", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void FigureColorBar_MultipleSubplots_ProducesValidSvg()
-    {
-        double[,] data = { { 0.0, 1.0 }, { 0.5, 0.8 } };
-        var svg = Plt.Create()
-            .WithColorBar()
-            .AddSubPlot(1, 2, 1, ax => ax.Heatmap(data))
-            .AddSubPlot(1, 2, 2, ax => ax.Heatmap(data))
-            .Build()
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

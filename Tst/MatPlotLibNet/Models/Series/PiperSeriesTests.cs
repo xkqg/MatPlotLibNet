@@ -84,65 +84,32 @@ public class PiperSeriesTests
 
     // ── from mg/L to the diagram ────────────────────────────────────────────────
 
-    [Fact]
-    public void P3_OneMilliequivalentOfEach_IsAThirdOfEachTriangle_AndBalances()
+    /// <summary>The six shares a water reads as, its charge balance error, and where the diagram puts its cation, its anion and its diamond
+    /// point (each as x then y): the one reading of a reference water.</summary>
+    private static void AssertReadsAs(PiperShares shares, double[] percentages, double chargeBalance, int balanceDigits, double[] places, double tolerance)
     {
-        var shares = OneEach.ToShares();
-
-        Assert.Equal(100.0 / 3, shares.Ca, 3);
-        Assert.Equal(100.0 / 3, shares.Mg, 3);
-        Assert.Equal(100.0 / 3, shares.NaK, 3);
-        Assert.Equal(100.0 / 3, shares.HCO3CO3, 3);
-        Assert.Equal(100.0 / 3, shares.SO4, 3);
-        Assert.Equal(100.0 / 3, shares.Cl, 3);
-        Assert.Equal(0.0, shares.ChargeBalance, 3);
-        Assert.Equal(0.5, shares.CationPlace().X, 2e-6);
-        Assert.Equal(0.288675, shares.CationPlace().Y, 2e-6);
-        Assert.Equal(1.7, shares.AnionPlace().X, 2e-6);
-        Assert.Equal(0.288675, shares.AnionPlace().Y, 2e-6);
-        Assert.Equal(1.1, shares.DiamondPlace().X, 2e-6);
-        Assert.Equal(1.327906, shares.DiamondPlace().Y, 2e-6);
+        double[] read = [shares.Ca, shares.Mg, shares.NaK, shares.HCO3CO3, shares.SO4, shares.Cl];
+        for (int i = 0; i < read.Length; i++) Assert.Equal(percentages[i], read[i], 3);
+        Assert.Equal(chargeBalance, shares.ChargeBalance, balanceDigits);
+        double[] placed =
+            [shares.CationPlace().X, shares.CationPlace().Y, shares.AnionPlace().X, shares.AnionPlace().Y, shares.DiamondPlace().X, shares.DiamondPlace().Y];
+        for (int i = 0; i < placed.Length; i++) Assert.Equal(places[i], placed[i], tolerance);
     }
 
     [Fact]
-    public void P4_Seawater_IsMostlySodiumChloride()
-    {
-        var shares = Seawater.ToShares();
-
-        Assert.Equal(3.391, shares.Ca, 3);
-        Assert.Equal(17.549, shares.Mg, 3);
-        Assert.Equal(79.061, shares.NaK, 3);
-        Assert.Equal(0.385, shares.HCO3CO3, 3);
-        Assert.Equal(9.333, shares.SO4, 3);
-        Assert.Equal(90.282, shares.Cl, 3);
-        Assert.Equal(0.03, shares.ChargeBalance, 2);
-        Assert.Equal(0.878351, shares.CationPlace().X, 1e-5);
-        Assert.Equal(0.151975, shares.CationPlace().Y, 1e-5);
-        Assert.Equal(2.149486, shares.AnionPlace().X, 1e-5);
-        Assert.Equal(0.080826, shares.AnionPlace().Y, 1e-5);
-        Assert.Equal(1.493379, shares.DiamondPlace().X, 1e-5);
-        Assert.Equal(1.217235, shares.DiamondPlace().Y, 1e-5);
-    }
+    public void P3_OneMilliequivalentOfEach_IsAThirdOfEachTriangle_AndBalances() =>
+        AssertReadsAs(OneEach.ToShares(), [.. Enumerable.Repeat(100.0 / 3, 6)], 0.0, 3,
+            [0.5, 0.288675, 1.7, 0.288675, 1.1, 1.327906], 2e-6);
 
     [Fact]
-    public void P5_ACalciumBicarbonateWater_StandsLowOnTheLeft()
-    {
-        var shares = CalciumBicarbonate.ToShares();
+    public void P4_Seawater_IsMostlySodiumChloride() =>
+        AssertReadsAs(Seawater.ToShares(), [3.391, 17.549, 79.061, 0.385, 9.333, 90.282], 0.03, 2,
+            [0.878351, 0.151975, 2.149486, 0.080826, 1.493379, 1.217235], 1e-5);
 
-        Assert.Equal(71.016, shares.Ca, 3);
-        Assert.Equal(19.517, shares.Mg, 3);
-        Assert.Equal(9.467, shares.NaK, 3);
-        Assert.Equal(82.434, shares.HCO3CO3, 3);
-        Assert.Equal(10.472, shares.SO4, 3);
-        Assert.Equal(7.094, shares.Cl, 3);
-        Assert.Equal(2.929, shares.ChargeBalance, 3);
-        Assert.Equal(0.192253, shares.CationPlace().X, 1e-5);
-        Assert.Equal(0.169023, shares.CationPlace().Y, 1e-5);
-        Assert.Equal(1.323298, shares.AnionPlace().X, 1e-5);
-        Assert.Equal(0.090691, shares.AnionPlace().Y, 1e-5);
-        Assert.Equal(0.735163, shares.DiamondPlace().X, 1e-5);
-        Assert.Equal(1.109370, shares.DiamondPlace().Y, 1e-5);
-    }
+    [Fact]
+    public void P5_ACalciumBicarbonateWater_StandsLowOnTheLeft() =>
+        AssertReadsAs(CalciumBicarbonate.ToShares(), [71.016, 19.517, 9.467, 82.434, 10.472, 7.094], 2.929, 3,
+            [0.192253, 0.169023, 1.323298, 0.090691, 0.735163, 1.109370], 1e-5);
 
     [Fact]
     public void P6_ASodiumChlorideBrine_StandsOnTheRightOfTheDiamond()
@@ -241,21 +208,22 @@ public class PiperSeriesTests
     {
         var series = new Axes().Piper([OneEach with { Label = "well 1" }, Seawater, CalciumBicarbonate with { Label = "spring" }]);
 
-        var parts = series.LegendParts;
+        var parts = series.LegendPartsUnder(Theme.Default);
 
         Assert.Equal(["well 1", "spring"], parts.Select(p => p.Label));
         Assert.Equal([0, 2], parts.Select(p => p.ColorSlotOffset));
     }
 
     [Fact]
-    public void TheTable_HasTheSixPercentagesAndTheBalance_ForEachSample()
+    public void TheTable_HasTheSixPercentagesAndTheBalance_ForEachSample_AndNumbersASampleWithoutALabel()
     {
-        var table = new Axes().Piper([OneEach with { Label = "well 1" }, SodiumBicarbonate with { Label = "borehole" }]).ToDataTable();
+        var table = new Axes().Piper([OneEach with { Label = "well 1" }, SodiumBicarbonate]).ToDataTable();
 
         Assert.NotNull(table);
         Assert.Equal(["sample", "Ca %", "Mg %", "Na+K %", "HCO3+CO3 %", "SO4 %", "Cl %", "CBE %", "balance"], table!.Columns.Select(c => c.Header));
         Assert.Equal(2, table.Rows.Count);
         Assert.Equal("well 1", table.Rows[0][0].Text);
+        Assert.Equal("sample 2", table.Rows[1][0].Text);
         Assert.Equal(100.0 / 3, table.Rows[0][1].Number, 3);
         Assert.Equal("balanced", table.Rows[0][8].Text);
         Assert.Equal(9.161, table.Rows[1][7].Number, 3);
@@ -265,63 +233,46 @@ public class PiperSeriesTests
     [Fact]
     public void ARangeIsContributedToNoAxis_BecauseTheDiagramFillsItsPlot()
     {
-        var contribution = new Axes().Piper([OneEach]).ComputeDataRange(new NoLimits());
+        var contribution = new Axes().Piper([OneEach]).ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(new DataRangeContribution(null, null, null, null), contribution);
     }
 
-    private sealed class NoLimits : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => default;
-        public IReadOnlyList<ISeries> AllSeries => [];
-    }
-
     [Fact]
-    public void TheSamples_RoundTripThroughTheJson_WithTheirColoursAndMarkerSize()
+    public void TheSamples_RoundTripThroughTheJson()
     {
         var figure = new Figure { Width = 600, Height = 400 };
         var series = figure.AddSubPlot(1, 1, 1).Piper([OneEach with { Label = "well 1" }, Seawater with { Label = "sea", CO3 = 5 }]);
-        series.Colors = [Color.FromHex("#C03030"), Color.FromHex("#3030C0")];
-        series.MarkerSize = 9;
 
-        var read = new ChartSerializer().FromJson(figure.ToJson());
+        var read = figure.RoundTripped();
 
         var back = Assert.IsType<PiperSeries>(Assert.Single(read.SubPlots[0].Series));
         Assert.Equal(series.Samples, back.Samples);
-        Assert.Equal(series.Colors, back.Colors);
-        Assert.Equal(9.0, back.MarkerSize);
     }
 
     [Fact]
-    public void WhatIsAtRest_IsLeftOutOfTheJson()
+    public void AnIonThatIsNotThere_IsLeftOutOfTheJson()
     {
         var dto = new Axes().Piper([new WaterSample { Ca = 20, HCO3 = 60, Label = "x" }]).ToSeriesDto();
 
-        Assert.Equal("piper", dto.Type);
-        Assert.Null(dto.MarkerSize);
-        Assert.Null(dto.Colors);
         var sample = Assert.Single(dto.WaterSamples!);
         Assert.Equal(20.0, sample.Ca);
         Assert.Null(sample.Mg);   // an ion that is not there is not written
         Assert.Null(sample.CO3);
     }
 
-    [Fact]
-    public void TheIonsAreWrittenUnderTheirOwnLowerCaseSymbols()
+    /// <summary>What the text a figure writes carries, as one row: how it is drawn and the tokens it must carry.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = new Figure { Width = 600, Height = 400 };
-        figure.AddSubPlot(1, 1, 1).Piper([new WaterSample { Ca = 60, HCO3 = 200, CO3 = 5, SO4 = 20, Cl = 10, Na = 8, K = 2 }]);
+        new DrawnToken("TheIonsAreWrittenUnderTheirOwnLowerCaseSymbols", () =>
+        {
+            var figure = new Figure { Width = 600, Height = 400 };
+            figure.AddSubPlot(1, 1, 1).Piper([new WaterSample { Ca = 60, HCO3 = 200, CO3 = 5, SO4 = 20, Cl = 10, Na = 8, K = 2 }]);
+            return figure.ToJson();
+        }, "\"ca\":60", "\"na\":8", "\"k\":2", "\"hco3\":200", "\"co3\":5", "\"cl\":10", "\"so4\":20"),
+    };
 
-        string json = figure.ToJson();
-
-        foreach (string name in new[] { "\"ca\":60", "\"na\":8", "\"k\":2", "\"hco3\":200", "\"co3\":5", "\"cl\":10", "\"so4\":20" })
-            Assert.Contains(name, json, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ThePiperKind_IsInTheRegistry() => Assert.Contains("piper", SeriesRegistry.Discriminators);
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheText_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

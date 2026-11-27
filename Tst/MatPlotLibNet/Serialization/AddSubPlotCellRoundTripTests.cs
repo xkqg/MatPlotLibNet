@@ -19,8 +19,6 @@ public class AddSubPlotCellRoundTripTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     /// <summary>One cell of a grid: the grid's rows and columns and the cell's one-based index.</summary>
     private readonly record struct Cell(int Rows, int Cols, int Index);
 
@@ -69,7 +67,7 @@ public class AddSubPlotCellRoundTripTests
         var figure = FigureOf(Grids[grid], constrained);
         string drawn = figure.ToSvg();
 
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.True(drawn == readBack, $"{grid} ({(constrained ? "constrained" : "default")} layout): the picture changed in the round trip, first difference at char {FirstDifference(drawn, readBack)}.");
     }
@@ -83,7 +81,7 @@ public class AddSubPlotCellRoundTripTests
     {
         var figure = FigureOf([new(1, 2, 2)], constrained);
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     /// <summary>Two subplots added to the one cell of a 1 by 1 grid stand over each other; read back they still do, rather than
@@ -93,7 +91,7 @@ public class AddSubPlotCellRoundTripTests
     {
         var figure = FigureOf([new(1, 1, 1), new(1, 1, 1)], constrained: false);
 
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     /// <summary>The cell is written as matplotlib's <c>add_subplot(rows, cols, index)</c> names it.</summary>
@@ -114,7 +112,7 @@ public class AddSubPlotCellRoundTripTests
     [Fact]
     public void ACellOfAGrid_ReadsBackIntoThatCell()
     {
-        var axes = RoundTrip(FigureOf([new(2, 3, 5)], constrained: false)).SubPlots.Single();
+        var axes = FigureOf([new(2, 3, 5)], constrained: false).RoundTripped().SubPlots.Single();
 
         Assert.Equal(2, axes.GridRows);
         Assert.Equal(3, axes.GridCols);
@@ -140,21 +138,24 @@ public class AddSubPlotCellRoundTripTests
         Assert.DoesNotContain("\"subplot\"", json);
     }
 
-    /// <summary>A subplot placed by a grid specification names its cells there (<c>gridPosition</c>), not as a cell of a
-    /// rows-by-columns grid, so it writes no cell.</summary>
-    [Fact]
-    public void ASubplotPlacedByAGridSpecification_WritesNoSubplotField()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().WithGridSpec(2, 2)
-            .AddSubPlot(new GridPosition(0, 1, 0, 2), ax => ax.Plot([1.0, 2], [1.0, 2]))
-            .AddSubPlot(GridPosition.Single(1, 1), ax => ax.Plot([1.0, 2], [2.0, 1]))
-            .Build();
+        //  A subplot placed by a grid specification names its cells there (gridPosition), not as a cell of a rows-by-columns grid, so it
+        // writes no cell.
+        new DrawnToken("ASubplotPlacedByAGridSpecification_WritesNoSubplotField", () =>
+        {
+            var figure = Plt.Create().WithGridSpec(2, 2)
+                .AddSubPlot(new GridPosition(0, 1, 0, 2), ax => ax.Plot([1.0, 2], [1.0, 2]))
+                .AddSubPlot(GridPosition.Single(1, 1), ax => ax.Plot([1.0, 2], [2.0, 1]))
+                .Build();
+            return Serializer.ToJson(figure);
+        }, "\"gridPosition\"") { Absent = ["\"subplot\""] },
+    };
 
-        string json = Serializer.ToJson(figure);
-
-        Assert.DoesNotContain("\"subplot\"", json);
-        Assert.Contains("\"gridPosition\"", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     private static int FirstDifference(string a, string b)
     {

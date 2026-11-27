@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Indicators.Wavelet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -13,6 +13,12 @@ namespace MatPlotLibNet.Indicators;
 /// Processing</i>.</summary>
 public sealed class WaveletEnergyRatio : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>window</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultWindow = 64;
+
+    /// <summary>The <c>level</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultLevel = 0;
+
     private readonly int _window;
     private readonly int _level;
     private readonly int _levels;
@@ -21,28 +27,25 @@ public sealed class WaveletEnergyRatio : PriceIndicator<SignalResult>
     /// <param name="prices">Price series.</param>
     /// <param name="window">Rolling window length; must be a power of 2 ≥ 4.</param>
     /// <param name="level">Target detail level in <c>[0, log2(window))</c>.</param>
-    public WaveletEnergyRatio(double[] prices, int window = 64, int level = 0) : base(prices)
+    public WaveletEnergyRatio(double[] prices, int window = DefaultWindow, int level = DefaultLevel) : base(prices, Spec(window, level))
     {
-        if (window < 4 || (window & (window - 1)) != 0)
-            throw new ArgumentException(
-                $"window must be a power of 2 and >= 4 (got {window}).", nameof(window));
-        int levels = (int)Math.Log2(window);
-        if (level < 0 || level >= levels)
-            throw new ArgumentException(
-                $"level must be in [0, {levels}) (got {level}).", nameof(level));
+        int levels = int.Log2(window);
         _window = window;
         _level = level;
         _levels = levels;
-        Label = $"WER(W={window},L={level})";
+    }
+
+    internal static IndicatorSpec Spec(int window, int level)
+    {
+        window.ThrowIfNotPowerOfTwo(4, nameof(window));
+        level.ThrowIfNotIn(0, int.Log2(window) - 1, nameof(level));
+        return IndicatorSpec.Of(window - 1, string.Invariant($"WER(W={window},L={level})"));
     }
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
-        if (n < _window) return Array.Empty<double>();
-
-        int outLen = n - _window + 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
         for (int t = 0; t < outLen; t++)
         {
@@ -55,11 +58,13 @@ public sealed class WaveletEnergyRatio : PriceIndicator<SignalResult>
         return result;
     }
 
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingWaveletEnergyRatio"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Unit;
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), warmup: _window - 1);
-        axes.YAxis.Min = 0;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

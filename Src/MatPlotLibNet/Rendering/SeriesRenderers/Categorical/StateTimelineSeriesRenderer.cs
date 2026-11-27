@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -40,10 +41,9 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
             // Centre the label text inside the rectangle
             if (!string.IsNullOrEmpty(seg.Label))
             {
-                double textX = segment.X + segment.Width / 2.0;
-                double textY = segment.Y + segment.Height / 2.0;
-                Ctx.DrawText(seg.Label, new Point(textX, textY),
-                    new Font { Size = 11 }, TextAlignment.Center);
+                double textX = segment.Center.X;
+                double textY = segment.Center.Y;
+                Ctx.Draw(TextLabel.Of(seg.Label), Context.Theme.DataTextFontOn(seg.Color, series.TextSizeUnder(Context.Theme), GroundInk.Readable), new TextPlacement(new Point(textX, textY), TextAlignment.Center) { Vertical = TextVerticalAlignment.Center });
             }
         }
     }

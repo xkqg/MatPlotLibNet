@@ -7,15 +7,14 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.CartesianParts;
 
 /// <summary>
-/// Abstract base for a single responsibility within <c>CartesianAxesRenderer.Render</c>.
-/// The Composite pattern — the orchestrator (<see cref="CartesianAxesRenderer"/>) walks
-/// an ordered list of parts and calls <see cref="Render"/> on each, rather than
-/// inlining 23 distinct steps in one method.
+/// Abstract base for one thing <c>CartesianAxesRenderer.Render</c> draws on a Cartesian axes. The renderer
+/// (<see cref="CartesianAxesRenderer"/>) keeps the order the things are drawn in: at its place in that order it makes the
+/// part, with the transform of this draw, and calls <see cref="Render"/> on it.
 /// </summary>
 /// <remarks>
-/// Each concrete subclass owns ONE responsibility: Annotations, Spans, Patches,
-/// ReferenceLines, the Y axis slots, SecondaryXAxis, Signals. The orchestrator
-/// keeps the overall sequencing + delegates to the parts.
+/// Each concrete part draws one thing: the spans, the patches, the reference lines, the drawing tools, the axis break
+/// marks, the annotations and the signal markers; every axis is drawn by the axis part (<c>CartesianAxisPart</c>). Every part is
+/// internal to the library and is built from the render's context (<c>CartesianPartContext</c>).
 /// </remarks>
 public abstract class CartesianAxesPart
 {
@@ -44,11 +43,17 @@ public abstract class CartesianAxesPart
         Transform = transform;
     }
 
+    /// <summary>The constructor every part of the library takes: the render's context, which holds the axes, the plot area, the
+    /// surface, the theme and the transform the part draws through.</summary>
+    /// <param name="context">What the render draws with.</param>
+    private protected CartesianAxesPart(in CartesianPartContext context)
+        : this(context.Axes, context.PlotArea, context.Ctx, context.Theme, context.Transform) { }
+
     /// <summary>Returns the tick font from the theme (shared convenience).</summary>
-    protected Font TickFont() => ThemedFontProvider.TickFont(Theme);
+    protected Font TickFont() => Theme.TickFont();
 
     /// <summary>Returns the axis-label font from the theme (shared convenience).</summary>
-    protected Font LabelFont() => ThemedFontProvider.LabelFont(Theme);
+    protected Font LabelFont() => Theme.LabelFont();
 
     /// <summary>Renders this part's responsibility onto <see cref="Ctx"/>.</summary>
     public abstract void Render();

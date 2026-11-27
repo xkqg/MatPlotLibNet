@@ -16,7 +16,7 @@ namespace MatPlotLibNet.Interaction;
 public abstract record FigureInteractionEvent(string ChartId, int AxesIndex)
 {
     /// <summary>The identity of the viewer who did this: for a browser, the connection the server received it on. The hub
-    /// writes it over whatever the payload carried (<see cref="StampedBy"/>), so a client cannot speak for another
+    /// writes it over whatever the payload carried, so a client cannot speak for another
     /// viewer; <see langword="null"/> for an event that did not come over a connection, as on a native control.</summary>
     public string? ViewerId { get; init; }
 
@@ -77,7 +77,7 @@ public abstract record FigureInteractionEvent(string ChartId, int AxesIndex)
 
     /// <summary>Resolves the target <see cref="Axes"/> of an event that moves the view (a zoom, a pan, a reset), without
     /// throwing: <see langword="false"/> when there is no such subplot, and also when the axes has a fixed frame
-    /// (<see cref="Axes.HasFixedFrame"/>, the triangle of a ternary diagram), where there is nothing to move. The ONE place
+    /// (the triangle of a ternary diagram), where there is nothing to move. The ONE place
     /// that rule is applied, so a modifier, a server and a script all get the same answer and none of them asks the coordinate
     /// system for itself.</summary>
     /// <param name="figure">The figure the event is applied to.</param>
@@ -92,10 +92,27 @@ public abstract record FigureInteractionEvent(string ChartId, int AxesIndex)
         return false;
     }
 
+    /// <summary>Applies <paramref name="apply"/> to the subplot this event names and says whether there was one: the one body of an
+    /// event of the library, which is dropped, changing nothing, when the figure has no such subplot (<see cref="TryTargetAxes"/>).</summary>
+    /// <returns><see langword="false"/> when the event was dropped.</returns>
+    private protected bool OnTargetAxes(Figure figure, Action<Axes> apply) => Applied(TryTargetAxes(figure, out var axes) ? axes : null, apply);
+
+    /// <summary><see cref="OnTargetAxes"/> for an event that moves the view: dropped also when the subplot's frame is fixed
+    /// (<see cref="TryTargetMovableAxes"/>).</summary>
+    private protected bool OnMovableAxes(Figure figure, Action<Axes> apply) =>
+        Applied(TryTargetMovableAxes(figure, out var axes) ? axes : null, apply);
+
+    private static bool Applied(Axes? target, Action<Axes> apply)
+    {
+        if (target is null) return false;
+        apply(target);
+        return true;
+    }
+
     /// <summary>The target axes together with every axes linked to it by <c>ShareX</c>, in either direction and
     /// through any number of links. They show one stretch of the X axis, so a pan or zoom of one is a pan or zoom
     /// of all: before this, <c>ShareX</c> shared only the automatic scale and the lanes of a stacked timeline
-    /// drifted apart at the first scroll. An axes whose frame is fixed (<see cref="Axes.HasFixedFrame"/>) is not carried
+    /// drifted apart at the first scroll. An axes whose frame is fixed is not carried
     /// along. Empty when the event names no subplot.</summary>
     protected IReadOnlyList<Axes> XLinkedAxes(Figure figure)
     {

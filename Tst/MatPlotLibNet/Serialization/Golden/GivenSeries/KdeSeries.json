@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"kde","label":"text 4","data":[2,4,3],"color":"#22BE42","lineStyle":"none","lineWidth":0.34375,"alpha":0.25,"bandwidth":0.265625,"zOrder":10,"visible":false,"fill":false}]}]}

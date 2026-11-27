@@ -15,14 +15,6 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// Home = restore initial el/az/distance.</para></summary>
 public class ThreeDKeyboardTests
 {
-    private static InteractionScriptHarness Build3D() =>
-        InteractionScriptHarness.FromBuilder(b => b
-            .WithSize(600, 500)
-            .WithBrowserInteraction()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithCamera(elevation: 30, azimuth: -60, distance: 8)
-                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } })));
-
     private static double Read(InteractionScriptHarness h, string attr) =>
         double.Parse(h.GetAttribute(".mpl-3d-scene", attr)!, CultureInfo.InvariantCulture);
 
@@ -39,7 +31,7 @@ public class ThreeDKeyboardTests
     [MemberData(nameof(RotationKeyCases))]
     public void ArrowKeys_RotateCameraByFiveDegrees(string key, double expectedDaz, double expectedDel)
     {
-        using var h = Build3D();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var az0 = Read(h, "data-azimuth");
         var el0 = Read(h, "data-elevation");
 
@@ -60,7 +52,7 @@ public class ThreeDKeyboardTests
     [MemberData(nameof(ZoomKeyCases))]
     public void PlusMinusKeys_ChangeCameraDistance(string key, double expectedDdist)
     {
-        using var h = Build3D();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var d0 = Read(h, "data-distance");
 
         h.Simulate(".mpl-3d-scene", "keydown", e => { e.key = key; });
@@ -71,7 +63,7 @@ public class ThreeDKeyboardTests
     [Fact]
     public void HomeKey_RestoresInitialCameraState()
     {
-        using var h = Build3D();
+        using var h = InteractionScriptHarness.ThreeDScene();
         var az0 = Read(h, "data-azimuth");
         var el0 = Read(h, "data-elevation");
         var d0  = Read(h, "data-distance");

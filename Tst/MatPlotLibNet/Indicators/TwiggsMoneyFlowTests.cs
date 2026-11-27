@@ -7,58 +7,13 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="TwiggsMoneyFlow"/>. Covers all 9 branches in
-/// docs/contrib/indicator-tier-3a.md §2.</summary>
+/// <summary>Verifies <see cref="TwiggsMoneyFlow"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class TwiggsMoneyFlowTests
 {
     private static double[] Flat(double v, int n) => Enumerable.Repeat(v, n).ToArray();
     private static double[] Ramp(double start, double step, int n)
         => Enumerable.Range(0, n).Select(i => start + step * i).ToArray();
-
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv([], [], [], []));
-        Assert.Empty(tmf.Compute().Values);
-    }
-
-    // ── Branch 2 — HLCV length mismatch → throw ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new TwiggsMoneyFlow(OhlcvBars.Hlcv([1.0, 2], [1.0, 2, 3], [1.0, 2], [1.0, 2])));
-    }
-
-    // ── Branch 3 — BarCount < 2 → empty ──
-    [Fact]
-    public void Compute_SingleBar_ReturnsEmpty()
-    {
-        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv([100.0], [99.0], [99.5], [1000.0]));
-        Assert.Empty(tmf.Compute().Values);
-    }
-
-    // ── Branch 4 — period < 2 → throw ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    public void Constructor_PeriodBelowTwo_Throws(int period)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new TwiggsMoneyFlow(OhlcvBars.Hlcv(Flat(100, 5), Flat(100, 5), Flat(100, 5), Flat(1000, 5)), period));
-    }
-
-    // ── Branch 5 — Flat prices + positive volume → TR = 0 → AD = 0 → TMF = 0 ──
-    [Fact]
-    public void Compute_FlatPricesPositiveVolume_ReturnsZero()
-    {
-        int n = 50;
-        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(Flat(100, n), Flat(100, n), Flat(100, n), Flat(1000, n)), period: 10)
-            .Compute().Values;
-        Assert.Equal(n - 1, tmf.Length);
-        Assert.All(tmf, v => Assert.Equal(0.0, v, precision: 10));
-    }
 
     // ── Branch 6 — Flat prices + zero volume → EMAs both 0 → TMF = 0 via guard ──
     [Fact]
@@ -68,12 +23,7 @@ public class TwiggsMoneyFlowTests
         var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(Flat(100, n), Flat(100, n), Flat(100, n), Flat(0, n)), period: 10)
             .Compute().Values;
         Assert.Equal(n - 1, tmf.Length);
-        Assert.All(tmf, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.False(double.IsInfinity(v));
-            Assert.Equal(0.0, v, precision: 10);
-        });
+        Assert.All(tmf, v => Assert.Equal(0.0, v, precision: 10));
     }
 
     // ── Branch 7 — Pure uptrend (C == TH each bar) → TMF → +1 ──
@@ -119,39 +69,6 @@ public class TwiggsMoneyFlowTests
         }
         var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(h, l, c, v), period: 10).Compute().Values;
         Assert.Equal(n - 1, tmf.Length);
-        Assert.All(tmf, x =>
-        {
-            Assert.False(double.IsNaN(x));
-            Assert.False(double.IsInfinity(x));
-            Assert.InRange(x, -1.0, 1.0);
-        });
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeriesAndSetsYRange()
-    {
-        var axes = new Axes();
-        int n = 30;
-        new TwiggsMoneyFlow(OhlcvBars.Hlcv(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n))).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-        Assert.Equal(-1, axes.YAxis.Min);
-        Assert.Equal(1, axes.YAxis.Max);
-    }
-
-    [Fact]
-    public void DefaultLabel_HasPeriod()
-    {
-        var t = new TwiggsMoneyFlow(OhlcvBars.Hlcv([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
-        Assert.Equal("TMF(21)", t.Label);
-    }
-
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        var t = new TwiggsMoneyFlow(OhlcvBars.Hlcv([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(t);
-        Assert.IsAssignableFrom<IIndicator>(t);
+        Assert.All(tmf, x => Assert.InRange(x, -1.0, 1.0));
     }
 }

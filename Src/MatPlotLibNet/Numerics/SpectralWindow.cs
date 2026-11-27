@@ -46,7 +46,7 @@ public readonly record struct SpectralWindow
     public static SpectralWindow Of(Func<int, double[]> coefficients)
     {
         ArgumentNullException.ThrowIfNull(coefficients);
-        return new(n => Checked(coefficients(n), n));
+        return new(n => coefficients(n).ThrowIfNotGivenFor(n, "The window function"));
     }
 
     /// <summary>The weights of a window of <paramref name="n"/> samples.</summary>
@@ -55,7 +55,7 @@ public readonly record struct SpectralWindow
     /// <paramref name="n"/>, or one that is not a finite number.</exception>
     internal double[] Coefficients(int n)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(n, 1);
+        n.ThrowIfBelow(1, nameof(n));
         return _coefficients is null ? Cosine(n, 0.5, 0.5, 0) : _coefficients(n);
     }
 
@@ -74,23 +74,4 @@ public readonly record struct SpectralWindow
         return w;
     }
 
-    private static double[] Checked(double[]? weights, int n)
-    {
-        if (weights is null || weights.Length != n)
-        {
-            throw new InvalidOperationException(
-                $"The window function gave {(weights is null ? "no" : weights.Length.ToString(CultureInfo.InvariantCulture))} weights for a window of {n.ToString(CultureInfo.InvariantCulture)} samples.");
-        }
-
-        foreach (double weight in weights)
-        {
-            if (!double.IsFinite(weight))
-            {
-                throw new InvalidOperationException(
-                    $"The window function gave a weight of {weight.ToString(CultureInfo.InvariantCulture)}; every weight is a finite number.");
-            }
-        }
-
-        return weights;
-    }
 }

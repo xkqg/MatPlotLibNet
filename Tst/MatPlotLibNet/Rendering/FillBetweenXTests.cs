@@ -24,8 +24,6 @@ public class FillBetweenXTests
     private static Figure Of(Action<AxesBuilder> fill) => Plt.Create().WithSize(600, 400)
         .AddSubPlot(1, 1, 1, ax => { fill(ax); ax.SetXLim(0, 10).SetYLim(0, 4); }).Build();
 
-    private static Rect Plot(Figure figure) => new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
-
     private static double PxX(Rect plot, double x) => plot.X + x / 10 * plot.Width;
 
     private static double PxY(Rect plot, double y) => plot.Y + plot.Height - y / 4 * plot.Height;
@@ -35,10 +33,9 @@ public class FillBetweenXTests
         var recording = new RecordingRenderContext();
         new ChartRenderer().Render(figure, recording);
         var polygons = new List<Point[]>();
-        foreach (var call in recording.OfKind("DrawPolygon"))
+        foreach (var call in recording.Of<DrawPolygonCall>())
         {
-            dynamic args = call.Args!;
-            polygons.Add((Point[])args.points);
+            polygons.Add(call.Points);
         }
 
         return polygons;
@@ -59,7 +56,7 @@ public class FillBetweenXTests
     public void ThePolygon_RunsDownTheFirstCurveAndBackUpTheSecond()
     {
         var figure = Of(ax => ax.FillBetweenX(Y, X1, X2));
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var polygon = Polygons(figure).Single();
 
@@ -80,7 +77,7 @@ public class FillBetweenXTests
     public void WithoutASecondCurve_TheFillStandsOnTheYAxis_AtXEqualsZero()
     {
         var figure = Of(ax => ax.FillBetweenX(Y, X1));
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var polygon = Polygons(figure).Single();
 
@@ -114,7 +111,7 @@ public class FillBetweenXTests
     {
         var series = new Axes().FillBetweenX(Y, X1);
 
-        var range = series.ComputeDataRange(new RangeContext());
+        var range = series.ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(0, range.XMin);
         Assert.Equal(5, range.XMax);
@@ -151,7 +148,7 @@ public class FillBetweenXTests
     {
         var figure = Of(ax => ax.FillBetweenX(Y, X1, X2));
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         var area = Assert.IsType<AreaSeries>(Assert.Single(back.SubPlots[0].Series));
         Assert.Equal(BarOrientation.Horizontal, area.Orientation);
@@ -159,14 +156,15 @@ public class FillBetweenXTests
         Assert.Equal(figure.ToSvg(), back.ToSvg());
     }
 
-    [Fact]
-    public void AnUprightFill_LeavesTheNewFieldsOutOfItsJson()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2], [3.0, 4])).Build().ToJson();
+        new DrawnToken("AnUprightFill_LeavesTheNewFieldsOutOfItsJson", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2], [3.0, 4])).Build().ToJson()) { Absent = ["orientation", "xData2"] },
+    };
 
-        Assert.DoesNotContain("orientation", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("xData2", json, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void PositionsAndCurvesOfAnotherLength_AreRefusedByName()
@@ -196,15 +194,6 @@ public class FillBetweenXTests
     }
 
     [Fact]
-    public void ASecondCurveOfNoPoints_IsNoSecondCurve_InTheTable()
-    {
-        var series = new Axes().FillBetweenX(Y, X1);
-        series.XData2 = [];
-
-        Assert.Equal(["y", "x"], series.ToDataTable()!.Columns.Select(c => c.Header));
-    }
-
-    [Fact]
     public void TheTableTheAxesNames_OfAFillThatLiesDown_IsThePlainTable()
     {
         var axes = new Axes();
@@ -229,13 +218,45 @@ public class FillBetweenXTests
         Assert.Equal(orientation is null ? BarOrientation.Vertical : BarOrientation.Horizontal, read.Orientation);
     }
 
-    private sealed class RangeContext : IAxesContext
+    /// <summary>A record read back is refused as its verb refuses it: positions and a first curve of other lengths, or a second curve the
+    /// fill draws of another length than the positions, with the counts in the order the verb names them. A second curve the fill does
+    /// not draw (the Y one of a fill that lies down) is carried, not checked.</summary>
+    [Theory]
+    [InlineData("horizontal", new[] { 1.0, 2 }, new[] { 1.0, 2, 3 }, null, null, "Got 3 and 2.")]
+    [InlineData("horizontal", new[] { 1.0, 2 }, new[] { 1.0, 2 }, new[] { 1.0 }, null, "Got 2 and 1.")]
+    [InlineData(null, new[] { 1.0, 2 }, new[] { 1.0, 2, 3 }, null, null, "Got 2 and 3.")]
+    [InlineData(null, new[] { 1.0, 2 }, new[] { 1.0, 2 }, null, new[] { 1.0 }, "Got 2 and 1.")]
+    public void ARecordOfCurvesOfAnotherLength_IsRefusedAsItsVerbRefusesIt(
+        string? orientation, double[] x, double[] y, double[]? x2, double[]? y2, string message)
     {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => BarMode.Grouped;
-        public IReadOnlyList<ISeries> AllSeries => [];
+        var axes = new Axes();
+
+        var refused = Assert.Throws<ArgumentException>(() => AreaSeries.FromSeriesDto(axes,
+            new SeriesDto { Type = "area", Orientation = orientation, XData = x, YData = y, XData2 = x2, YData2 = y2 }));
+
+        Assert.EndsWith(message, refused.Message, StringComparison.Ordinal);
+        Assert.Empty(axes.Series);
+    }
+
+    [Theory]
+    [InlineData("horizontal", null, new[] { 9.0 })]
+    [InlineData(null, new[] { 9.0 }, null)]
+    public void ASecondCurveTheFillDoesNotDraw_IsCarried_NotChecked(string? orientation, double[]? x2, double[]? y2)
+    {
+        var read = AreaSeries.FromSeriesDto(new Axes(),
+            new SeriesDto { Type = "area", Orientation = orientation, XData = [1.0, 2], YData = [3.0, 4], XData2 = x2, YData2 = y2 });
+
+        Assert.Equal(x2, read.XData2);
+        Assert.Equal(y2, read.YData2);
+    }
+
+    [Fact]
+    public void TheCurvesOfAFill_RefuseAFirstOrASecondCurveOfAnotherLengthThanThePositions()
+    {
+        new AreaCurves([1.0, 2], [3.0, 4], [5.0, 6]).ThrowIfMisaligned();
+        new AreaCurves([1.0, 2], [3.0, 4], null).ThrowIfMisaligned();
+
+        Assert.EndsWith("Got 2 and 3.", Assert.Throws<ArgumentException>(() => new AreaCurves([1.0, 2], [3.0, 4, 5], null).ThrowIfMisaligned()).Message, StringComparison.Ordinal);
+        Assert.EndsWith("Got 2 and 1.", Assert.Throws<ArgumentException>(() => new AreaCurves([1.0, 2], [3.0, 4], [5.0]).ThrowIfMisaligned()).Message, StringComparison.Ordinal);
     }
 }

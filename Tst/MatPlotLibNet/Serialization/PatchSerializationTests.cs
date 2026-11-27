@@ -24,8 +24,6 @@ public class PatchSerializationTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     /// <summary>A new patch of each kind, at rest, by the kind's name.</summary>
     private static readonly IReadOnlyDictionary<string, Func<Patch>> Leaves = new Dictionary<string, Func<Patch>>(StringComparer.Ordinal)
     {
@@ -75,30 +73,13 @@ public class PatchSerializationTests
 
     private static string[] FieldNames(JsonElement entry) => [.. entry.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal)];
 
-    private static List<ChartDiagnostic> Announced(Action act)
-    {
-        var seen = new List<ChartDiagnostic>();
-        void Collect(ChartDiagnostic d) => seen.Add(d);
-        ChartDiagnostics.Emitted += Collect;
-        try
-        {
-            act();
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Collect;
-        }
-
-        return seen;
-    }
-
     // ---- every kind, every property ---------------------------------------------------------------------------------
 
     /// <summary>The fixture holds one patch of each kind, so a kind added tomorrow turns this red until a row of it is listed.</summary>
     [Fact]
     public void EveryKindOfPatchTheLibraryShips_HasARow()
     {
-        var shipped = typeof(Patch).Assembly.GetTypes().Where(type => type.IsPublic && !type.IsAbstract && typeof(Patch).IsAssignableFrom(type))
+        var shipped = typeof(Patch).Assembly.ConcretePublicSubtypesOf(typeof(Patch))
             .Select(type => type.Name).Order(StringComparer.Ordinal);
 
         Assert.Equal(shipped, Leaves.Keys.Order(StringComparer.Ordinal));
@@ -120,7 +101,7 @@ public class PatchSerializationTests
 
         var figure = FigureOf(patch);
         string drawn = figure.ToSvg();
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         var back = Assert.Single(read.SubPlots[0].Patches);
         Assert.IsType(patch.GetType(), back);
@@ -147,7 +128,7 @@ public class PatchSerializationTests
         var property = patch.GetType().GetProperty(changed)!;
         property.SetValue(patch, DrawnSeriesFixtures.NotTheDefault(property, property.GetValue(patch), k: 3));
 
-        var back = Assert.Single(RoundTrip(FigureOf(patch)).SubPlots[0].Patches);
+        var back = Assert.Single(FigureOf(patch).RoundTripped().SubPlots[0].Patches);
 
         Assert.IsType(patch.GetType(), back);
         foreach (var other in DrawnSeriesFixtures.DrawnProperties(patch.GetType()))
@@ -187,14 +168,20 @@ public class PatchSerializationTests
         Assert.Equal(type, entry.GetProperty("type").GetString());
     }
 
-    /// <summary>A figure without patches writes no list, so every figure written before patches reached the JSON keeps its bytes.</summary>
-    [Fact]
-    public void AnAxesWithoutPatches_WritesNoPatchesField()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2]).AddInset(0.5, 0.5, 0.3, 0.3, inset => inset.Plot([1.0, 2], [2.0, 1]))).Build();
+        //  A figure without patches writes no list, so every figure written before patches reached the JSON keeps its bytes.
+        new DrawnToken("AnAxesWithoutPatches_WritesNoPatchesField", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2]).AddInset(0.5, 0.5, 0.3, 0.3, inset => inset.Plot([1.0, 2], [2.0, 1]))).Build();
+            return Serializer.ToJson(figure);
+        }) { Absent = ["patches"] },
+    };
 
-        Assert.DoesNotContain("patches", Serializer.ToJson(figure), StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The enum-valued fields travel as lower-camel names, never as numbers, so a reader outside .NET and the MCP spec
     /// reader see the same words.</summary>
@@ -222,7 +209,7 @@ public class PatchSerializationTests
         var blackCircle = new Circle(new(0, 0), 1) { EdgeColor = Colors.Black };
         var clearArc = new Arc(new(0, 0), 2, 1) { EdgeColor = Colors.Transparent };
 
-        var read = RoundTrip(FigureOf(arrow, clearArrow, blackCircle, clearArc)).SubPlots[0].Patches;
+        var read = FigureOf(arrow, clearArrow, blackCircle, clearArc).RoundTripped().SubPlots[0].Patches;
 
         Assert.DoesNotContain("edgeColor", FieldNames(WrittenPatches(FigureOf(arrow))[0]));
         Assert.Contains("edgeColor", FieldNames(WrittenPatches(FigureOf(clearArrow))[0]));
@@ -280,7 +267,7 @@ public class PatchSerializationTests
         var noHead = new Arrow(new(0, 0), 3, 2) { Width = 0.1, HeadWidth = 0, HeadLength = 0 };
 
         var written = WrittenPatches(FigureOf(toTheCentre, noRing, followsTheShaft, noHead));
-        var read = RoundTrip(FigureOf(toTheCentre, noRing, followsTheShaft, noHead)).SubPlots[0].Patches;
+        var read = FigureOf(toTheCentre, noRing, followsTheShaft, noHead).RoundTripped().SubPlots[0].Patches;
 
         Assert.DoesNotContain("width", FieldNames(written[0]));
         Assert.Contains("width", FieldNames(written[1]));
@@ -292,6 +279,74 @@ public class PatchSerializationTests
         Assert.Null(((Arrow)read[2]).HeadLength);
         Assert.Equal(0, ((Arrow)read[3]).HeadWidth);
         Assert.Equal(0, ((Arrow)read[3]).HeadLength);
+    }
+
+    // ---- the opacity of a patch ----------------------------------------------------------------------------------------
+
+    /// <summary>The opacity a patch was given replaces the opacity of its colours, and a given 1 is as much a given value as 0.5:
+    /// it is written and read back, so a translucent face made opaque comes back opaque. A patch that was given none writes none.</summary>
+    [Fact]
+    public void AnAlphaOfOneThatWasGiven_IsWritten_AndKeepsATranslucentFaceOpaqueAfterARoundTrip()
+    {
+        var given = FigureOf(new Rectangle(new(1, 1), 2, 1) { FaceColor = Colors.Red.WithAlpha(100), Alpha = 1.0 });
+        var none = FigureOf(new Rectangle(new(1, 1), 2, 1) { FaceColor = Colors.Red.WithAlpha(100) });
+
+        Assert.Contains("alpha", FieldNames(Assert.Single(WrittenPatches(given))));
+        Assert.DoesNotContain("alpha", FieldNames(Assert.Single(WrittenPatches(none))));
+        Assert.Equal(1.0, given.RoundTripped().SubPlots[0].Patches[0].Alpha);
+        Assert.Equal(given.ToSvg(), given.RoundTripped().ToSvg());
+        Assert.NotEqual(given.ToSvg(), none.ToSvg());
+        Assert.Equal(none.ToSvg(), none.RoundTripped().ToSvg());
+    }
+
+    // ---- the rotation point of a rectangle ---------------------------------------------------------------------------
+
+    /// <summary>The three values of a rectangle's rotation point travel and come back as themselves: the anchor is written as
+    /// nothing, the centre as a flag, a point as the point.</summary>
+    [Theory]
+    [InlineData("anchor", new string[0])]
+    [InlineData("center", new[] { "rotationCenter" })]
+    [InlineData("point", new[] { "rotationPoint" })]
+    public void ARectanglesRotationPoint_IsWrittenOnlyWhileItIsNotTheAnchor_AndReadsBackAsItself(string which, string[] written)
+    {
+        var rotationPoint = which switch
+        {
+            "center" => RotationPoint.Center,
+            "point" => RotationPoint.At(new(3, -0.5)),
+            _ => RotationPoint.Anchor,
+        };
+        var figure = FigureOf(new Rectangle(new(1, 1), 2, 1) { Angle = 30, RotationPoint = rotationPoint });
+
+        var entry = Assert.Single(WrittenPatches(figure));
+        var back = (Rectangle)Assert.Single(figure.RoundTripped().SubPlots[0].Patches);
+
+        Assert.Equal(new[] { "angle", "anchor", "height", "type", "width" }.Concat(written).Order(StringComparer.Ordinal), FieldNames(entry));
+        Assert.Equal(rotationPoint, back.RotationPoint);
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
+    }
+
+    /// <summary>A turned rectangle is a different picture about its centre than about its anchor, and the reader gives the
+    /// point the last word when a document holds both fields.</summary>
+    [Fact]
+    public void ARectangleTurnedAboutItsCentre_DrawsDifferentlyFromOneTurnedAboutItsAnchor()
+    {
+        string aboutTheAnchor = FigureOf(new Rectangle(new(1, 1), 2, 1) { Angle = 30 }).ToSvg();
+        string aboutTheCentre = FigureOf(new Rectangle(new(1, 1), 2, 1) { Angle = 30, RotationPoint = RotationPoint.Center }).ToSvg();
+
+        Assert.NotEqual(aboutTheAnchor, aboutTheCentre);
+    }
+
+    [Fact]
+    public void ADocumentThatNamesTheCentreAndAPoint_ReadsThePoint()
+    {
+        const string json = """
+            {"subPlots":[{"patches":[{"type":"rectangle","anchor":{"dataX":1,"dataY":1},"width":2,"height":1,"angle":30,
+            "rotationCenter":true,"rotationPoint":{"dataX":3,"dataY":0}}]}]}
+            """;
+
+        var back = (Rectangle)Assert.Single(Serializer.FromJson(json).SubPlots[0].Patches);
+
+        Assert.Equal(RotationPoint.At(new(3, 0)), back.RotationPoint);
     }
 
     // ---- the picture ---------------------------------------------------------------------------------------------------
@@ -311,7 +366,7 @@ public class PatchSerializationTests
             .AddPatch(new Polygon([new(0, 0), new(1, 0), new(0.5, 0.8)]) { Closed = false })).Build();
         string drawn = figure.ToSvg();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.Equal(figure.SubPlots[0].Patches.Select(patch => patch.GetType()), read.SubPlots[0].Patches.Select(patch => patch.GetType()));
         Assert.Equal(drawn, read.ToSvg());
@@ -328,7 +383,7 @@ public class PatchSerializationTests
             .AddPatch(new Arc(new(2, 2), 1, 1))).Build();
         string drawn = figure.ToSvg();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.Equal(["region", "_hidden", null], read.SubPlots[0].Patches.Select(patch => patch.Label));
         Assert.Contains(">region<", drawn, StringComparison.Ordinal);
@@ -340,7 +395,7 @@ public class PatchSerializationTests
     [Fact]
     public void AnEmptyLabel_StaysEmpty()
     {
-        var read = RoundTrip(FigureOf(new Circle(new(0, 0), 1) { Label = "" })).SubPlots[0].Patches;
+        var read = (FigureOf(new Circle(new(0, 0), 1) { Label = "" })).RoundTripped().SubPlots[0].Patches;
 
         Assert.Equal("", Assert.Single(read).Label);
     }
@@ -354,7 +409,7 @@ public class PatchSerializationTests
             .AddInset(0.55, 0.1, 0.4, 0.3, inset => inset.Plot([0.0, 1], [1.0, 0.0]).AddPatch(new Circle(new(0.5, 0.5), 0.25) { FaceColor = Colors.Tab10Green }))).Build();
         string drawn = figure.ToSvg();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.IsType<Circle>(Assert.Single(read.SubPlots[0].Insets.Single().Patches));
         Assert.Equal(drawn, read.ToSvg());
@@ -368,7 +423,7 @@ public class PatchSerializationTests
         var figure = FigureOf(new Rectangle(new(double.NaN, 1), 2, 1), new Polygon([new(0, 0), new(1, double.PositiveInfinity), new(1, 0)]));
         string drawn = figure.ToSvg();
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         Assert.True(double.IsNaN(((Rectangle)read.SubPlots[0].Patches[0]).Anchor.DataX));
         Assert.True(double.IsPositiveInfinity(((Polygon)read.SubPlots[0].Patches[1]).Vertices[1].DataY));
@@ -393,7 +448,7 @@ public class PatchSerializationTests
         """;
 
         Figure? read = null;
-        var seen = Announced(() => read = Serializer.FromJson(json));
+        var seen = DiagnosticsCapture.During(() => read = Serializer.FromJson(json));
 
         var patches = read!.SubPlots[0].Patches;
         Assert.Equal([typeof(Circle), typeof(Rectangle)], patches.Select(patch => patch.GetType()));

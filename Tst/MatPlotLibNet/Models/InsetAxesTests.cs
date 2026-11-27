@@ -9,28 +9,11 @@ namespace MatPlotLibNet.Tests.Models;
 public class InsetAxesTests
 {
     [Fact]
-    public void InsetBounds_StoresValues()
-    {
-        var bounds = new InsetBounds(0.6, 0.6, 0.35, 0.35);
-        Assert.Equal(0.6, bounds.X);
-        Assert.Equal(0.6, bounds.Y);
-        Assert.Equal(0.35, bounds.Width);
-        Assert.Equal(0.35, bounds.Height);
-    }
-
-    [Fact]
     public void InsetBounds_RecordEquality_Works()
     {
         var a = new InsetBounds(0.6, 0.6, 0.35, 0.35);
         var b = new InsetBounds(0.6, 0.6, 0.35, 0.35);
         Assert.Equal(a, b);
-    }
-
-    [Fact]
-    public void Axes_Insets_DefaultEmpty()
-    {
-        var axes = new Axes();
-        Assert.Empty(axes.Insets);
     }
 
     [Fact]

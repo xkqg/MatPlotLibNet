@@ -1,18 +1,17 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>
 /// The text a chart draws among its data (annotations, bar labels, radar spokes, pie percentages, funnel stages, graph
-/// node names) is as large as the tick labels of the same theme: one role, <see cref="ThemedFontProvider.DataTextFont"/>,
+/// node names) is as large as the tick labels of the same theme: one role, <see cref="ThemeFontExtensions.DataTextFont"/>,
 /// so a poster theme grows it and a paper theme shrinks it along with everything else, as matplotlib's one text size does.
 /// </summary>
 public class DataTextFontTests
@@ -28,18 +27,7 @@ public class DataTextFontTests
 
     public static TheoryData<string> ThemeNames => [.. Themes.Keys];
 
-    private static string TextTag(string svg, string text)
-    {
-        var match = Regex.Match(svg, "<text [^>]*>" + Regex.Escape(text) + "</text>");
-        Assert.True(match.Success, $"no <text> reading '{text}' in the picture");
-        return match.Value;
-    }
-
-    private static string Attribute(string tag, string name) =>
-        Regex.Match(tag, name + "=\"([^\"]*)\"").Groups[1].Value;
-
-    private static double SizeOf(string svg, string text) =>
-        double.Parse(Attribute(TextTag(svg, text), "font-size"), CultureInfo.InvariantCulture);
+    private static double SizeOf(string svg, string text) => svg.TextReading(text).Number("font-size");
 
     private static FigureBuilder On(Theme theme) => Plt.Create().WithSize(600, 450).WithTheme(theme);
 
@@ -49,7 +37,7 @@ public class DataTextFontTests
     {
         var theme = Themes[themeName];
 
-        var font = ThemedFontProvider.DataTextFont(theme);
+        var font = theme.DataTextFont();
 
         Assert.Equal(theme.DefaultFont.Family, font.Family);
         Assert.Equal(theme.DefaultFont.Size, font.Size);
@@ -62,23 +50,34 @@ public class DataTextFontTests
     [Fact]
     public void APlacedTextWithoutAFont_TakesTheThemesTextFont_InTheColourBesideIt()
     {
-        var font = ThemedFontProvider.DataTextFont(Theme.Default, null, Colors.Red);
+        var font = Theme.Default.DataTextFont(null, Colors.Red);
 
-        Assert.Equal(ThemedFontProvider.DataTextFont(Theme.Default) with { Color = Colors.Red }, font);
+        Assert.Equal(Theme.Default.DataTextFont() with { Color = Colors.Red }, font);
+    }
+
+    /// <summary>A series text with a size of its own keeps that size, weight and colour, and takes only the family from the theme; one
+    /// with no colour of its own is in the theme's text colour, as a text written with no fill would be black on any theme.</summary>
+    [Fact]
+    public void ASeriesTextWithASizeOfItsOwn_TakesTheThemesFamily_AndKeepsSizeWeightAndColour()
+    {
+        var theme = Theme.CreateFrom(Theme.Default).WithFont(f => f with { Family = "serif" }).Build();
+
+        Assert.Equal(new Font { Family = "serif", Size = 9, Weight = FontWeight.Bold, Color = Colors.Red }, theme.DataTextFont(9, Colors.Red, FontWeight.Bold));
+        Assert.Equal(new Font { Family = "serif", Size = 11, Color = theme.ForegroundText }, theme.DataTextFont(11));
     }
 
     [Fact]
     public void APlacedTextWithoutAFontOrAColour_TakesTheThemesTextFont() =>
-        Assert.Equal(ThemedFontProvider.DataTextFont(Theme.Default), ThemedFontProvider.DataTextFont(Theme.Default, null, null));
+        Assert.Equal(Theme.Default.DataTextFont(), Theme.Default.DataTextFont(null, null));
 
     [Fact]
     public void ASuppliedFontWithoutAColour_TakesTheColourBesideIt_ElseTheThemes()
     {
         var supplied = new Font { Family = "serif", Size = 20 };
 
-        Assert.Equal(supplied with { Color = Colors.Red }, ThemedFontProvider.DataTextFont(Theme.Default, supplied, Colors.Red));
+        Assert.Equal(supplied with { Color = Colors.Red }, Theme.Default.DataTextFont(supplied, Colors.Red));
         Assert.Equal(supplied with { Color = Theme.Default.ForegroundText },
-            ThemedFontProvider.DataTextFont(Theme.Default, supplied, null));
+            Theme.Default.DataTextFont(supplied, null));
     }
 
     [Fact]
@@ -86,7 +85,7 @@ public class DataTextFontTests
     {
         var supplied = new Font { Family = "serif", Size = 20, Color = Colors.Blue };
 
-        Assert.Equal(supplied, ThemedFontProvider.DataTextFont(Theme.Default, supplied, Colors.Red));
+        Assert.Equal(supplied, Theme.Default.DataTextFont(supplied, Colors.Red));
     }
 
     [Theory]
@@ -96,7 +95,7 @@ public class DataTextFontTests
         var theme = Themes[themeName];
         string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 10.0], [0.0, 10.0]).Annotate("peak", 5, 5)).ToSvg();
 
-        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "peak"), 9);
+        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "peak"), SvgMarkupExtensions.WrittenPrecision);
     }
 
     [Theory]
@@ -106,8 +105,8 @@ public class DataTextFontTests
         var theme = Themes[themeName];
         string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.Bar(["a", "b"], [1234.0, 777.0], s => s.ShowLabels = true)).ToSvg();
 
-        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "1234"), 9);
-        Assert.Equal(ThemedFontProvider.DataTextFont(theme).Color!.Value.ToHex(), Attribute(TextTag(svg, "1234"), "fill"));
+        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "1234"), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(theme.DataTextFont().Color!.Value.ToHex(), svg.TextReading("1234")["fill"]);
     }
 
     [Theory]
@@ -117,18 +116,18 @@ public class DataTextFontTests
         var theme = Themes[themeName];
         string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.Radar(["alpha", "beta", "gamma"], [1.0, 2.0, 3.0])).ToSvg();
 
-        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "alpha"), 9);
+        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "alpha"), SvgMarkupExtensions.WrittenPrecision);
     }
 
     [Theory]
     [MemberData(nameof(ThemeNames))]
-    public void APiePercentage_IsDrawnAtTheSizeOfTheThemesText_InWhite(string themeName)
+    public void APiePercentage_IsDrawnAtTheSizeOfTheThemesText_InTheInkItsThemesWedgeLookNames(string themeName)
     {
         var theme = Themes[themeName];
-        string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.Pie([1.0, 3.0], null, s => s.AutoPct = "{0:F0}%")).ToSvg();
+        string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.Pie([1.0, 3.0], null, s => { s.AutoPct = "{0:F0}%"; s.Colors = [Colors.Navy, Colors.Navy]; })).ToSvg();
 
-        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "25%"), 9);
-        Assert.Equal("#FFFFFF", Attribute(TextTag(svg, "25%"), "fill"));
+        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "25%"), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(theme.DataTextFontOn(Colors.Navy, theme.DefaultFont.Size, theme.Looks.Wedges.PercentInk).Color!.Value.ToHex(), svg.TextReading("25%")["fill"]);
     }
 
     [Theory]
@@ -138,7 +137,7 @@ public class DataTextFontTests
         var theme = Themes[themeName];
         string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.Funnel(["Visited", "Bought"], [100.0, 40.0])).ToSvg();
 
-        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "Visited"), 9);
+        Assert.Equal(theme.DefaultFont.Size, SizeOf(svg, "Visited"), SvgMarkupExtensions.WrittenPrecision);
     }
 
     [Theory]
@@ -150,10 +149,10 @@ public class DataTextFontTests
         var edges = new[] { new GraphEdge("alpha", "beta", 1.0, false) };
         string svg = On(theme).AddSubPlot(1, 1, 1, ax => ax.NetworkGraph(nodes, edges, s => s.Layout = GraphLayout.Manual)).ToSvg();
 
-        var tag = TextTag(svg, "alpha");
-        Assert.Equal(theme.DefaultFont.Size, double.Parse(Attribute(tag, "font-size"), CultureInfo.InvariantCulture), 9);
-        Assert.Equal(theme.DefaultFont.Family, Attribute(tag, "font-family"));
-        Assert.Equal(theme.ForegroundText.ToHex(), Attribute(tag, "fill"));
+        var tag = svg.TextReading("alpha");
+        Assert.Equal(theme.DefaultFont.Size, tag.Number("font-size"), SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(theme.DefaultFont.Family, tag["font-family"]);
+        Assert.Equal(theme.ForegroundText.ToHex(), tag["fill"]);
     }
 
     /// <summary>A Sankey node name is capped below the theme's size on purpose (the cap keeps a long name inside its band),

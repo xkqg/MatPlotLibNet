@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"polarbar","label":"text 3","color":"#22BE42","barWidth":0.265625,"alpha":0.25,"zOrder":7,"visible":false,"rData":[5,10,7],"thetaData":[0,1,2]}],"coordinateSystem":"polar"}]}

@@ -7,92 +7,23 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="EaseOfMovement"/>. Covers all 9 branches in
-/// docs/contrib/indicator-tier-3a.md §3.</summary>
+/// <summary>Verifies <see cref="EaseOfMovement"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class EaseOfMovementTests
 {
     private static double[] Flat(double v, int n) => Enumerable.Repeat(v, n).ToArray();
 
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var emv = new EaseOfMovement(OhlcvBars.Hlv([], [], []));
-        Assert.Empty(emv.Compute().Values);
-    }
-
-    // ── Branch 2 — HLV length mismatch → throw ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2, 3], [1000.0, 1000])));
-        Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2], [1000.0, 1000, 1000])));
-    }
-
-    // ── Branch 3 — BarCount <= period → empty ──
-    [Fact]
-    public void Compute_BarCountAtOrBelowPeriod_ReturnsEmpty()
-    {
-        // period=14 default, 14 bars → BarCount == period → empty
-        var emv = new EaseOfMovement(OhlcvBars.Hlv(Flat(100, 14), Flat(99, 14), Flat(1000, 14)));
-        Assert.Empty(emv.Compute().Values);
-    }
-
-    // ── Branch 4 — period < 2 → throw ──
+    // ── Branches 6 and 7 — Zero volume (BoxRatio = 0) and zero range (H == L, BoxRatio = ∞): each guard gives EMV_1 = 0 ──
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    public void Constructor_PeriodBelowTwo_Throws(int period)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement(OhlcvBars.Hlv(Flat(100, 20), Flat(99, 20), Flat(1000, 20)), period));
-    }
-
-    // ── Branch 5 — scale <= 0 → throw ──
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-1.0)]
-    public void Constructor_NonPositiveScale_Throws(double scale)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement(OhlcvBars.Hlv(Flat(100, 20), Flat(99, 20), Flat(1000, 20)), scale: scale));
-    }
-
-    // ── Branch 6 — Zero volume → BoxRatio = 0 → EMV_1 = 0 (division guard) ──
-    [Fact]
-    public void Compute_ZeroVolume_NoDivisionByZero()
+    [InlineData(1.0, 0.0)]      // the high above the low, no volume
+    [InlineData(0.0, 1000.0)]   // the high on the low, the midpoint still moving
+    public void Compute_ADegenerateBar_GivesZero_NotNaNOrInfinity(double range, double volume)
     {
         int n = 30;
-        // Non-flat H/L so MidpointMove is non-zero, but zero volume → BoxRatio = 0.
-        var h = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
-        var l = Enumerable.Range(0, n).Select(i => 99.0 + i).ToArray();
-        var v = Flat(0, n);
-        var emv = new EaseOfMovement(OhlcvBars.Hlv(h, l, v), period: 10).Compute().Values;
-        Assert.All(emv, x =>
-        {
-            Assert.False(double.IsNaN(x));
-            Assert.False(double.IsInfinity(x));
-            Assert.Equal(0.0, x, precision: 10);
-        });
-    }
-
-    // ── Branch 7 — Zero range (H == L) → BoxRatio = ∞ → EMV_1 = 0 (guard) ──
-    [Fact]
-    public void Compute_ZeroRange_NoInfinity()
-    {
-        int n = 30;
-        // H == L on every bar but midpoint moves (via increasing common value).
-        var same = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
-        var v = Flat(1000, n);
-        var emv = new EaseOfMovement(OhlcvBars.Hlv(same, same, v), period: 10).Compute().Values;
-        Assert.All(emv, x =>
-        {
-            Assert.False(double.IsNaN(x));
-            Assert.False(double.IsInfinity(x));
-            Assert.Equal(0.0, x, precision: 10);
-        });
+        var high = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
+        var low = high.Select(h => h - range).ToArray();
+        var emv = new EaseOfMovement(OhlcvBars.Hlv(high, low, Flat(volume, n)), period: 10).Compute().Values;
+        Assert.All(emv, x => Assert.Equal(0.0, x, precision: 10));
     }
 
     // ── Branch 8 — Flat midpoints → MidpointMove = 0 → EMV = 0 ──
@@ -116,40 +47,8 @@ public class EaseOfMovementTests
         var v = Flat(1000, n);
         var emv = new EaseOfMovement(OhlcvBars.Hlv(h, l, v), period: 14, scale: 1e6).Compute().Values;
         Assert.Equal(n - 14, emv.Length);
-        Assert.All(emv, x =>
-        {
-            Assert.False(double.IsNaN(x));
-            Assert.False(double.IsInfinity(x));
-        });
+        emv.AssertAllFinite();
         // Rising midpoints + constant volume + constant range → positive EMV.
         Assert.True(emv[^1] > 0, $"expected positive EMV on rising midpoint, got {emv[^1]}");
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        int n = 30;
-        var h = Enumerable.Range(0, n).Select(i => 101.0 + i).ToArray();
-        var l = Enumerable.Range(0, n).Select(i => 99.0 + i).ToArray();
-        new EaseOfMovement(OhlcvBars.Hlv(h, l, Flat(1000, n))).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void DefaultLabel_HasPeriod()
-    {
-        var emv = new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2], [1000.0, 1000]));
-        Assert.Equal("EMV(14)", emv.Label);
-    }
-
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        var emv = new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2], [1000.0, 1000]));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(emv);
-        Assert.IsAssignableFrom<IIndicator>(emv);
     }
 }

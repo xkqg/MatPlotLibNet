@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Indicators.Wavelet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -11,29 +11,31 @@ namespace MatPlotLibNet.Indicators;
 /// Reference: Rosso et al. (2001), <i>Journal of Neuroscience Methods</i> 105(1).</summary>
 public sealed class WaveletEntropy : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>window</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultWindow = 64;
+
     private readonly int _window;
     private readonly int _levels;
 
     /// <summary>Creates a new Wavelet Entropy indicator.</summary>
     /// <param name="prices">Price series.</param>
     /// <param name="window">Rolling window length; must be a power of 2 ≥ 4.</param>
-    public WaveletEntropy(double[] prices, int window = 64) : base(prices)
+    public WaveletEntropy(double[] prices, int window = DefaultWindow) : base(prices, Spec(window))
     {
-        if (window < 4 || (window & (window - 1)) != 0)
-            throw new ArgumentException(
-                $"window must be a power of 2 and >= 4 (got {window}).", nameof(window));
         _window = window;
-        _levels = (int)Math.Log2(window);
-        Label = $"WEnt(W={window})";
+        _levels = int.Log2(window);
+    }
+
+    internal static IndicatorSpec Spec(int window)
+    {
+        window.ThrowIfNotPowerOfTwo(4, nameof(window));
+        return IndicatorSpec.Of(window - 1, string.Invariant($"WEnt(W={window})"));
     }
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
-        if (n < _window) return Array.Empty<double>();
-
-        int outLen = n - _window + 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
         double normalizer = Math.Log(_levels + 1);
 
@@ -61,11 +63,13 @@ public sealed class WaveletEntropy : PriceIndicator<SignalResult>
         return result;
     }
 
+    /// <summary>The range the values of the indicator live in: its pane, and the pane of <see cref="Streaming.StreamingWaveletEntropy"/>, are pinned to it.</summary>
+    internal static PaneRange Pane { get; } = PaneRange.Unit;
+
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        PlotSignal(axes, Compute(), warmup: _window - 1);
-        axes.YAxis.Min = 0;
-        axes.YAxis.Max = 1;
+        PlotLine(axes, Compute());
+        Pane.Pin(axes);
     }
 }

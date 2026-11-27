@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
@@ -17,10 +18,8 @@ namespace MatPlotLibNet.Models.Series;
 /// <para>The diagram fills the plot as a whole, at one scale, so the triangles are equilateral at any size of the figure, and
 /// the axes around it draw no grid, ticks or frame. The table gives each sample's six percentages and its charge balance
 /// error, and flags a water that does not balance.</para></summary>
-public sealed class PiperSeries : ChartSeries
+public sealed class PiperSeries : ChartSeries, ISeriesKind<PiperSeries>
 {
-    private const double RestingMarkerSize = 6;
-
     /// <inheritdoc />
     internal override bool DrawsWithoutAxes => true;
 
@@ -33,10 +32,10 @@ public sealed class PiperSeries : ChartSeries
     /// <summary>The colour of each sample, by position; <see langword="null"/> (the default) names none. A sample past the end
     /// of the array, or every sample when it is <see langword="null"/>, wears what the figure's theme hands out at its own
     /// position.</summary>
-    public Color[]? Colors { get; set; }
+    public Color[]? Colors { get; set => Change(ref field, value); }
 
-    /// <summary>The diameter of a marker, in points; 6 unless said otherwise.</summary>
-    public double MarkerSize { get; set; } = RestingMarkerSize;
+    /// <summary>The diameter of a marker, in points; <see cref="MarkerLook.RestingSize"/> unless said otherwise.</summary>
+    public double MarkerSize { get; set => Change(ref field, value); } = MarkerLook.RestingSize;
 
     /// <summary>Initializes a Piper diagram of the given waters. Built through <c>Axes.Piper</c>, which refuses a water that has
     /// no place on the diagram.</summary>
@@ -45,34 +44,30 @@ public sealed class PiperSeries : ChartSeries
 
     /// <inheritdoc />
     /// <remarks>An entry for every sample that has a name, as a marker in the colour the sample wears on all three panels.</remarks>
-    internal override IReadOnlyList<LegendPart> LegendParts =>
+    internal override IReadOnlyList<LegendPart> LegendPartsUnder(Theme theme) =>
         [.. Samples.Select((sample, position) => new LegendPart(sample.Label ?? "", new LegendSwatch(LegendSwatchKind.Marker, MarkerSize: MarkerSize), position))
             .Where(part => !string.IsNullOrEmpty(part.Label))];
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
+
+    static string ISeriesKind<PiperSeries>.Kind => "piper";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "piper",
+        Type = this.WireKind(),
         WaterSamples = [.. Samples.Select(WaterSampleDto.From)],
         Colors = Colors?.ToList(),
-        MarkerSize = MarkerSize.OrNullAtRest(RestingMarkerSize),
+        MarkerSize = MarkerSize.OrNullAtRest(MarkerLook.RestingSize),
     };
 
-    /// <summary>Reconstructs a <see cref="PiperSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="PiperSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static PiperSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Piper([.. (dto.WaterSamples ?? []).Select(sample => sample.ToWaterSample())]);
         s.Colors = dto.Colors?.ToArray();
-        if (dto.MarkerSize.HasValue)
-        {
-            s.MarkerSize = dto.MarkerSize.Value;
-        }
+        if (dto.MarkerSize is { } markerSize) s.MarkerSize = markerSize;
 
         return s;
     }
@@ -92,7 +87,7 @@ public sealed class PiperSeries : ChartSeries
             var shares = Samples[i].ToShares();
             rows[i] =
             [
-                DataCell.FromText(Samples[i].Label ?? $"sample {(i + 1).ToString(CultureInfo.InvariantCulture)}"),
+                DataCell.FromText(Samples[i].Label.NameOr(i, "sample ")),
                 DataCell.FromNumber(shares.Ca), DataCell.FromNumber(shares.Mg), DataCell.FromNumber(shares.NaK),
                 DataCell.FromNumber(shares.HCO3CO3), DataCell.FromNumber(shares.SO4), DataCell.FromNumber(shares.Cl),
                 DataCell.FromNumber(shares.ChargeBalance),
@@ -115,19 +110,19 @@ public sealed class PiperSeries : ChartSeries
     /// <exception cref="ArgumentException">A water has no cations or no anions; the message names the row.</exception>
     internal static void RefuseUnplaceable(IReadOnlyList<WaterSample> samples)
     {
+        static string Amount((int Row, string Ion) at) => string.Invariant($"Row {at.Row}: the {at.Ion} amount");
         for (int row = 0; row < samples.Count; row++)
         {
             foreach (var amount in samples[row].Ions())
             {
-                if (!double.IsFinite(amount.MgPerLitre) || amount.MgPerLitre < 0)
-                    throw new ArgumentOutOfRangeException(amount.Ion, amount.MgPerLitre, $"Row {row}: the {amount.Ion} amount of a water is a concentration in mg/L, a finite number that is not negative.");
+                amount.MgPerLitre.ThrowIfNotFinite(amount.Ion, (row, amount.Ion), Amount).ThrowIfBelow(0, amount.Ion, (row, amount.Ion), Amount);
             }
 
             var shares = samples[row].ToShares();
             if (double.IsNaN(shares.Ca))
-                throw new ArgumentException($"Row {row} has no cations (Ca, Mg, Na, K), so it has no place on the cation triangle.");
+                throw new ArgumentException(string.Invariant($"Row {row} has no cations (Ca, Mg, Na, K), so it has no place on the cation triangle."));
             if (double.IsNaN(shares.Cl))
-                throw new ArgumentException($"Row {row} has no anions (HCO3, CO3, SO4, Cl), so it has no place on the anion triangle.");
+                throw new ArgumentException(string.Invariant($"Row {row} has no anions (HCO3, CO3, SO4, Cl), so it has no place on the anion triangle."));
         }
     }
 }

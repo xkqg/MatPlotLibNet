@@ -4,13 +4,18 @@
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a pseudocolor series on a triangular mesh, coloring each triangle by the mean Z value.</summary>
-public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
+public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColorScaled, IColormappable, INormalizable, ISeriesKind<TripcolorSeries>
 {
+    /// <inheritdoc />
+    /// <remarks>matplotlib's <c>tripcolor</c> asks neither cycle.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Mesh;
+
     /// <summary>The x coordinate of each mesh point, in data units.</summary>
     public Vec X { get; }
 
@@ -23,19 +28,32 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
 
     /// <summary>The triangles as a flat list of point indices, three per triangle (into <see cref="X"/>, <see cref="Y"/>
     /// and <see cref="Z"/>). When null, the mesh is built by Delaunay triangulation of the points.</summary>
-    public int[]? Triangles { get; set; }
+    /// <exception cref="ArgumentException">The list is not whole triangles (a multiple of three indices), or an index names a
+    /// point there is not; the list is refused when it is set, and so when a document that carries it is read, and not when the
+    /// figure is drawn.</exception>
+    public int[]? Triangles
+    {
+        get;
+        set
+        {
+            value?.ThrowIfNotCornersOf(X.Length);
+            Change(ref field, value);
+        }
+    }
 
     /// <inheritdoc />
-    public IColorMap? ColorMap { get; set; }
+    public IColorMap? ColorMap { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
-    public INormalizer? Normalizer { get; set; }
+    public INormalizer? Normalizer { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
     /// <remarks>Over the drawable Z values only, so a missing value (NaN) does not turn the whole range into NaN; the
     /// renderer colours the triangles over this same range.</remarks>
-    public MinMaxRange GetColorBarRange() =>
-        Z.Data.DrawableRange() is { } z ? new(z.Lo, z.Hi) : new(0, 1);
+    public MinMaxRange GetColorBarRange() => this.ColourRangeUnder(Theme.Default);
+
+    /// <inheritdoc />
+    MinMaxRange IColorScaled.ColourRangeOver(ColorMapping mapping) => mapping.RangeOf(Z.Data);
 
     /// <summary>Initializes a new instance of <see cref="TripcolorSeries"/>.</summary>
     public TripcolorSeries(Vec x, Vec y, Vec z)
@@ -44,41 +62,30 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context)
-    {
-        if (X.Length == 0) return new(0, 1, 0, 1);
-        // Over the drawable points only: a missing coordinate (NaN) and an infinity are left out.
-        var x = X.Data.DrawableRange();
-        var y = Y.Data.DrawableRange();
-        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
-    }
+    internal override bool HoldsNoData => X.Length == 0;
+
+    /// <inheritdoc />
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => OverItsPoints(X.Data, Y.Data);
+
+    static string ISeriesKind<TripcolorSeries>.Kind => "tripcolor";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "tripcolor",
+        Type = this.WireKind(),
         XData = X,
         YData = Y,
         ZData = Z,
         Triangles = Triangles,
-        ColorMapName = ColorMap.NameForJson(),
-        ColorMap = ColorMap.DescriptionForJson(),
-        Normalizer = this.DescribeNormalizer(),
+        ColorScale = this.ColorScaleOnTheWire(),
     };
 
-    /// <summary>Reconstructs a <see cref="TripcolorSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="TripcolorSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static TripcolorSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Tripcolor(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? []);
-        if (dto.Triangles is not null)
-        {
-            s.Triangles = dto.Triangles;
-        }
-        s.RestoreColorMap(dto);
-        s.RestoreNormalizer(dto);
+        if (dto.Triangles is { } triangles) s.Triangles = triangles;
+        s.RestoreColorScale(dto);
         return s;
     }
 
@@ -86,8 +93,7 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
     /// <inheritdoc />
     /// <remarks>The unstructured points the triangulation is built over.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns(
-            [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new(Label ?? "z")], [X.Data, Y.Data, Z.Data]);
+        ChartDataTable.XYZ(X.Data, Y.Data, Z.Data, Label ?? "z");
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -5,7 +5,7 @@ namespace MatPlotLibNet.Numerics;
 
 /// <summary>Paired X/Y sample arrays of equal length describing a sampled curve. Returned by
 /// numerical routines that produce a curve, including
-/// <see cref="MonotoneCubicSpline.Interpolate"/> and <see cref="GaussianKde.Evaluate"/>.
+/// the monotone cubic spline and the Gaussian kernel density estimate.
 /// Deconstructs as <c>var (x, y) = curve;</c>.</summary>
 /// <param name="X">Sample X coordinates.</param>
 /// <param name="Y">Sample Y coordinates. Same length as <paramref name="X"/>.</param>

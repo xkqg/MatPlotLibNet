@@ -6,59 +6,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="TransferEntropy"/>. Covers all 9 branches in
-/// docs/contrib/indicator-tier-3c.md §4.</summary>
+/// <summary>Verifies <see cref="TransferEntropy"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class TransferEntropyTests
 {
-    // ── Branch 1 — Null inputs → throw ──
-    [Fact]
-    public void Constructor_NullSource_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new TransferEntropy(null!, [1.0, 2, 3]));
-    }
-
-    [Fact]
-    public void Constructor_NullTarget_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new TransferEntropy([1.0, 2, 3], null!));
-    }
-
-    // ── Branch 2 — Length mismatch → throw ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new TransferEntropy([1.0, 2, 3], [1.0, 2]));
-    }
-
-    // ── Branch 3 — Length < lag + 2 → throw ──
-    [Fact]
-    public void Constructor_LengthBelowLagPlusTwo_Throws()
-    {
-        // lag=1 → need at least 3 aligned samples. 2 is insufficient.
-        Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy([1.0, 2], [1.0, 2], bins: 8, lag: 1));
-    }
-
-    // ── Branch 4 — bins < 2 → throw ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    public void Constructor_BinsBelowTwo_Throws(int bins)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5], bins));
-    }
-
-    // ── Branch 5 — lag < 1 → throw ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_LagBelowOne_Throws(int lag)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new TransferEntropy([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5], bins: 4, lag: lag));
-    }
-
     // ── Branch 6 — Identical series (X == Y) → TE is non-negative and bounded ──
     [Fact]
     public void Compute_IdenticalSeries_ReturnsNonNegative()
@@ -67,7 +18,7 @@ public class TransferEntropyTests
         var x = Enumerable.Range(0, 500).Select(_ => rng.NextDouble()).ToArray();
         var te = new TransferEntropy(x, x, bins: 4, lag: 1).Compute().Values;
         Assert.Single(te);
-        Assert.False(double.IsNaN(te[0]));
+        te[0].AssertFinite();
         Assert.True(te[0] >= 0, $"TE must be non-negative, got {te[0]}");
     }
 
@@ -135,30 +86,5 @@ public class TransferEntropyTests
         var x = Enumerable.Range(0, 200).Select(i => i * 0.01).ToArray();
         new TransferEntropy(x, x).Apply(axes);
         Assert.Empty(axes.Series);
-    }
-
-    [Fact]
-    public void DefaultLabel_HasBinsAndLag()
-    {
-        var te = new TransferEntropy([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5]);
-        Assert.Equal("TE(bins=8,lag=1)", te.Label);
-    }
-
-    [Fact]
-    public void InheritsIndicator()
-    {
-        var te = new TransferEntropy([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5]);
-        Assert.IsAssignableFrom<Indicator<SignalResult>>(te);
-        Assert.IsAssignableFrom<IIndicator>(te);
-    }
-
-    [Fact]
-    public void TheBinnedEstimate_ThroughTheOptions_RefusesSeriesTooShortToFormTriples()
-    {
-        var options = new TransferEntropyOptions(Estimator: TransferEntropyEstimator.Binned, Lag: 2);
-
-        var refused = Assert.Throws<ArgumentException>(() => new TransferEntropy([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], options));
-
-        Assert.Equal("source", refused.ParamName);
     }
 }

@@ -52,13 +52,13 @@ public class ChordSeriesTests
     {
         Assert.Throws<ArgumentException>(() => new Axes().Chord(["A", "B"], new double[2, 3]));
         Assert.Throws<ArgumentException>(() => new Axes().Chord(["A", "B"], new double[2, 2]));   // all zero
-        Assert.Throws<ArgumentException>(() => new Axes().Chord(["A", "B"], new double[,] { { 1, -1 }, { 0, 1 } }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Axes().Chord(["A", "B"], new double[,] { { 1, -1 }, { 0, 1 } }));
     }
 
     [Fact]
     public void TheLegend_HasAnEntryForEachGroup_InTheColourItsArcWears()
     {
-        var parts = new Axes().Chord(["North", "", "East"], Flows).LegendParts;
+        var parts = new Axes().Chord(["North", "", "East"], Flows).LegendPartsUnder(Theme.Default);
 
         Assert.Equal(["North", "East"], parts.Select(p => p.Label));   // a group with no name has no entry
         Assert.Equal([0, 2], parts.Select(p => p.ColorSlotOffset));
@@ -79,30 +79,18 @@ public class ChordSeriesTests
     [Fact]
     public void ARangeIsContributedToNoAxis()
     {
-        var contribution = new Axes().Chord(Names, Flows).ComputeDataRange(new NoLimits());
+        var contribution = new Axes().Chord(Names, Flows).ComputeDataRange(new TestAxesContext());
 
         Assert.Equal(new DataRangeContribution(null, null, null, null), contribution);
-    }
-
-    private sealed class NoLimits : IAxesContext
-    {
-        public double? XAxisMin => null;
-        public double? XAxisMax => null;
-        public double? YAxisMin => null;
-        public double? YAxisMax => null;
-        public BarMode BarMode => default;
-        public IReadOnlyList<ISeries> AllSeries => [];
     }
 
     // ── what can be set ─────────────────────────────────────────────────────────
 
     [Fact]
-    public void ThePaddingAndTheRibbonOpacity_HaveTheirRestingValues_AndRefuseWhatCannotBeDrawn()
+    public void ThePaddingAndTheRibbonOpacity_RefuseWhatCannotBeDrawn()
     {
         var series = new Axes().Chord(Names, Flows);
 
-        Assert.Equal(0.05, series.Padding);
-        Assert.Equal(0.67, series.RibbonAlpha);
         Assert.Throws<ArgumentOutOfRangeException>(() => series.Padding = -0.1);
         Assert.Throws<ArgumentOutOfRangeException>(() => series.Padding = 2.1);   // three groups: 3 * 2.1 is more than the circle
         Assert.Throws<ArgumentOutOfRangeException>(() => series.RibbonAlpha = 1.5);
@@ -112,43 +100,4 @@ public class ChordSeriesTests
         Assert.Equal(0.2, series.Padding);
         Assert.Equal(0.0, series.RibbonAlpha);
     }
-
-    // ── the JSON ────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void TheSeries_RoundTripsThroughTheJson_WithWhatItDraws()
-    {
-        var figure = new Figure { Width = 500, Height = 500 };
-        var series = figure.AddSubPlot(1, 1, 1).Chord(Names, Flows);
-        series.Padding = 0.1;
-        series.RibbonAlpha = 0.5;
-        series.Colors = [Color.FromHex("#C03030"), Color.FromHex("#30C030")];
-        series.Label = "traffic";
-
-        var read = new ChartSerializer().FromJson(figure.ToJson());
-
-        var back = Assert.IsType<ChordSeries>(Assert.Single(read.SubPlots[0].Series));
-        Assert.Equal(Names, back.Names);
-        Assert.Equal(Flows, back.Flows);
-        Assert.Equal(0.1, back.Padding);
-        Assert.Equal(0.5, back.RibbonAlpha);
-        Assert.Equal(series.Colors, back.Colors);
-        Assert.Equal("traffic", back.Label);
-    }
-
-    [Fact]
-    public void WhatIsAtRest_IsLeftOutOfTheJson()
-    {
-        var dto = new Axes().Chord(Names, Flows).ToSeriesDto();
-
-        Assert.Equal("chord", dto.Type);
-        Assert.Null(dto.ChordPadding);
-        Assert.Null(dto.Alpha);
-        Assert.Null(dto.Colors);
-        Assert.Equal(Names, dto.Categories);
-        Assert.Equal(3, dto.ChordFlows!.Count);
-    }
-
-    [Fact]
-    public void TheChordKind_IsInTheRegistry() => Assert.Contains("chord", SeriesRegistry.Discriminators);
 }

@@ -9,67 +9,63 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 
 /// <summary>A streaming line series that accepts data via <see cref="IStreamingSeries.AppendPoint"/>,
 /// backed by a ring buffer. Visual properties mirror <see cref="LineSeries"/>.</summary>
-public sealed class StreamingLineSeries : StreamingSeries, IHasColor, IHasLabelPlacement
+public sealed class StreamingLineSeries : StreamingSeries, IHasColor, IHasLabelPlacement, IHasLinePoints, ISeriesKind<StreamingLineSeries>, IGivenStroked
 {
-    /// <summary>Line color. When <c>null</c> the theme's prop-cycler assigns one.</summary>
-    public Color? Color { get; set; }
+    /// <inheritdoc />
+    /// <remarks>2: a line, as <c>plot</c> draws a <c>Line2D</c>.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
 
     /// <inheritdoc />
-    public SeriesLabelPlacement LabelPlacement { get; set; } = SeriesLabelPlacement.Legend;
+    /// <remarks>The handle of the line it is drawn as (a <see cref="LineSeries"/> with its stroke and no marker of its own): a line from
+    /// the stroke it was given, with the marker its colour slot cycles to, if any, at a line's resting size.</remarks>
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, Stroke, MarkerSize: LineSeries.RestingMarkerSize);
+
+    /// <summary>Line color. When <c>null</c> the theme's prop-cycler assigns one.</summary>
+    public Color? Color { get; set => Change(ref field, value); }
+
+    /// <inheritdoc />
+    public SeriesLabelPlacement LabelPlacement { get; set => Change(ref field, value); } = RestingLabelPlacement;
 
     /// <inheritdoc />
     /// <remarks>One snapshot of the ring buffer: the points the next render draws, never x and y from two
     /// different moments.</remarks>
-    LinePoints IHasLabelPlacement.LinePoints()
+    LinePoints IHasLinePoints.LinePoints()
     {
         var snapshot = CreateSnapshot();
         return new(snapshot.XData, snapshot.YData);
     }
 
-    /// <summary>Line dash pattern. Default <see cref="Styling.LineStyle.Solid"/>.</summary>
-    public LineStyle LineStyle { get; set; } = LineStyle.Solid;
+    /// <summary>Line dash pattern. Default <see cref="GivenStroke.RestingStyle"/>. Given none, the line takes its slot's, as a
+    /// <see cref="LineSeries"/> does.</summary>
+    public LineStyle LineStyle { get => Stroke.StyleOrResting; set => Stroke = Stroke with { Style = value }; }
 
-    /// <summary>Line width in pixels. Default 1.5.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <inheritdoc cref="LineSeries.LineWidth"/>
+    public double LineWidth { get => this.ReportedLineWidth; set => Stroke = Stroke with { Width = value }; }
+
+    /// <summary>The width and the dash pattern the line was given, each <see langword="null"/> while it was not.</summary>
+    internal GivenStroke Stroke { get; set => Change(ref field, value); }
+
+    GivenStroke IGivenStroked.Stroke => Stroke;
 
     /// <summary>Initializes a new streaming line series with the specified buffer capacity.</summary>
-    /// <param name="capacity">Maximum data points retained. Default 10,000.</param>
-    public StreamingLineSeries(int capacity = 10_000) : base(capacity) { }
+    /// <param name="capacity">Maximum data points retained. Default <see cref="StreamingSeries.RestingCapacity"/>.</param>
+    public StreamingLineSeries(int capacity = RestingCapacity) : base(capacity) { }
+
+    static string ISeriesKind<StreamingLineSeries>.Kind => "streaming_line";
 
     /// <inheritdoc />
     /// <remarks>Its own discriminator and the ring buffer's current snapshot: a shared base implementation once
     /// wrote "streaming" for both this and <see cref="StreamingScatterSeries"/>, which collided on read; this
     /// override gives the line its own name and carries what a restored stream needs to start from the picture
     /// it was, not empty.</remarks>
-    public override SeriesDto ToSeriesDto()
-    {
-        // ONE snapshot: X and Y from the same moment, the invariant this series exists to keep (see the
-        // class remarks on StreamingSeries about reading two buffers separately).
-        var snapshot = CreateSnapshot();
-        return new()
-        {
-            Type = "streaming_line",
-            XData = snapshot.XData,
-            YData = snapshot.YData,
-            Capacity = Capacity,
-            Color = Color,
-            LineStyle = LineStyle.ToString().ToLowerInvariant(),
-            LineWidth = LineWidth,
-        };
-    }
+    public override SeriesDto ToSeriesDto() =>
+        StreamDto(this.WireKind(), Color) with { Stroking = Stroke };
 
-    /// <summary>Reconstructs a <see cref="StreamingLineSeries"/> at the capacity and the snapshot it was written
-    /// with, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="StreamingLineSeries"/> that <see cref="SeriesRegistry"/> takes; it restores the capacity and the snapshot it was written with.</summary>
     internal static StreamingLineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.AddSeries(new StreamingLineSeries(dto.Capacity ?? 10_000));
-        s.AppendPoints(dto.XData ?? [], dto.YData ?? []);
-        if (dto.Color.HasValue) s.Color = dto.Color.Value;
-        dto.LineStyle.ApplyEnum<Styling.LineStyle>(v => s.LineStyle = v);
-        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        var s = FromStreamDto(axes, dto, static capacity => new StreamingLineSeries(capacity));
+        s.Stroke = dto.StrokeOver(s.Stroke);
         return s;
     }
 

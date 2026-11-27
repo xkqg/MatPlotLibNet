@@ -3,7 +3,7 @@
 
 import { defineComponent, h, ref, watchEffect } from 'vue';
 import { useMplLiveChart } from './use-mpl-live-chart';
-import { mountSvg } from './mount-svg';
+import { mountSvg } from '@matplotlibnet/client';
 
 /**
  * Live chart component that receives real-time updates via SignalR.

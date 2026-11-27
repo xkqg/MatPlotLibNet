@@ -55,12 +55,7 @@ public sealed class CategoryFormatter : ITickFormatter, IJsonDescribed<TickForma
     {
         ArgumentNullException.ThrowIfNull(labels);
         ArgumentNullException.ThrowIfNull(positions);
-        if (positions.Length != labels.Length)
-        {
-            throw new ArgumentException(
-                $"{positions.Length} positions were given for {labels.Length} labels; there must be one position per label.",
-                nameof(positions));
-        }
+        positions.Length.ThrowIfMisaligned(labels.Length, nameof(positions));
 
         _labels    = labels;
         _positions = positions;
@@ -75,6 +70,6 @@ public sealed class CategoryFormatter : ITickFormatter, IJsonDescribed<TickForma
         int idx = _positions is not null ? Array.IndexOf(_positions, value)
             : _reversed ? _labels.Length - 1 - (int)value
             : (int)value;
-        return idx >= 0 && idx < _labels.Length ? _labels[idx] : string.Empty;
+        return _labels.ElementOr(idx, string.Empty);
     }
 }

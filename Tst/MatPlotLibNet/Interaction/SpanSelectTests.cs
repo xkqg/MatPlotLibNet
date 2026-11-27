@@ -28,12 +28,4 @@ public sealed class SpanSelectTests
         Assert.Equal(0.0, figure.SubPlots[0].XAxis.Min); // unchanged
         Assert.Equal(10.0, figure.SubPlots[0].XAxis.Max);
     }
-
-    [Fact]
-    public void SpanSelectState_StoresPixelRange()
-    {
-        var state = new SpanSelectState(100, 300, 0, new MatPlotLibNet.Rendering.Rect(50, 50, 400, 400));
-        Assert.Equal(100, state.StartPixelX);
-        Assert.Equal(300, state.CurrentPixelX);
-    }
 }

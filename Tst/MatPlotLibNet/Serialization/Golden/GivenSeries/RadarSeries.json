@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"radar","label":"text 3","values":[2,4,3],"categories":["A","B","C"],"color":"#1BC33F","lineWidth":0.3125,"alpha":0.2578125,"fillColor":"#22BE42","maxValue":0.328125,"zOrder":9,"visible":false}]}]}

@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -65,11 +63,8 @@ public class DirectLabelMarginTests
         string svg = new MatPlotLibNet.Transforms.SvgTransform().Render(figure);
 
         // The first rect off the origin is the axes background, i.e. the plot area.
-        var rect = Regex.Matches(svg,
-                @"<rect x=""(?<x>[0-9.]+)"" y=""(?<y>[0-9.]+)"" width=""(?<w>[0-9.]+)""")
-            .Select(m => (X: double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture),
-                          Y: double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture),
-                          W: double.Parse(m.Groups["w"].Value, CultureInfo.InvariantCulture)))
+        var rect = svg.Elements("rect").Where(element => element["x"] is not null && element["y"] is not null && element["width"] is not null)
+            .Select(element => (X: element.Number("x"), Y: element.Number("y"), W: element.Number("width")))
             .First(r => r.X > 0 && r.Y > 0);
 
         double needed = DirectLabelMetrics.Gap + LabelWidth(figure, LongName);
@@ -143,17 +138,17 @@ public class DirectLabelMarginTests
 
         var area = PlotAreas(figure)[0];
         double plotRight = area.X + area.Width;
-        var tickLabels = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
-            .Where(a => (double)a.position.X > plotRight).ToList();
+        var tickLabels = ctx.Of<DrawTextCall>()
+            .Where(a => (double)a.Position.X > plotRight).ToList();
         Assert.NotEmpty(tickLabels);
         foreach (var a in tickLabels)
         {
-            double rightEdge = (double)a.position.X + ctx.MeasureText((string)a.text, (MatPlotLibNet.Styling.Font)a.font).Width;
-            Assert.True(rightEdge <= FigureWidth, $"secondary tick label '{a.text}' ends at {rightEdge:F2} > {FigureWidth}");
+            double rightEdge = (double)a.Position.X + ctx.MeasureText(a.Text, (MatPlotLibNet.Styling.Font)a.Font).Width;
+            Assert.True(rightEdge <= FigureWidth, $"secondary tick label '{a.Text}' ends at {rightEdge:F2} > {FigureWidth}");
         }
     }
 
-    // â”€â”€ (f) nothing at the right edge: the default path keeps the spacing exactly as given â”€â”€
+    // ── (f) nothing at the right edge: the default path keeps the spacing exactly as given ──
 
     public static TheoryData<string> PlainFigures => ["plain", "legend label", "fractional", "polar line end", "no label", "hidden"];
 
@@ -163,7 +158,7 @@ public class DirectLabelMarginTests
         "legend label" => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "in the legend")).Build(),
         "grid" => Plt.Create()
             .AddSubPlot(1, 2, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "a"))
-            .AddSubPlot(1, 2, 2, ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "b")).Build(),
+            .AddSubPlot(1, 2, 2, ax => ax.Plot(X, [100000.0, 200000.0, 300000.0], s => s.Label = "b")).Build(),
         "fractional" => Plt.Create().WithSubPlotSpacing(_ => SubPlotSpacing.FromFractions(0.1, 0.02, 0.1, 0.12))
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])).Build(),
         // Polar axes draw no end labels (the series keeps its legend entry), so they reserve nothing for one.
@@ -185,7 +180,7 @@ public class DirectLabelMarginTests
     {
         var figure = Plain(kind);
 
-        var spacing = new ChartRenderer().PrepareSpacing(figure, new SvgRenderContext());
+        var spacing = new ChartRenderer().PrepareSpacing(figure, new SvgRenderContext(), new FigureRanges(figure), new FigureGrid(figure));
 
         // What the default path returned before 1.19.0: the figure's own spacing, or the theme's when the figure kept
         // the library default, resolved to pixels.
@@ -197,27 +192,29 @@ public class DirectLabelMarginTests
 
     /// <summary>A grid with nothing at its right edges: the default path keeps the given spacing on every edge, and the
     /// gutter holds the left stack of the right subplot's Y axis container, as the tight layout's gutter does: its Y tick
-    /// labels (the mark, the pad and the widest label, as drawn) and the layout's left pad. Here the theme's 40 px gutter
-    /// is narrower than that, so the gutter widens to it and nothing else moves.</summary>
+    /// labels (the mark, the pad and the widest label, as drawn) and the layout's left pad. Here the gutter the theme leaves
+    /// (0.2 of the average axes) is narrower than that for the six-digit labels of the right subplot, so the gutter widens to it and
+    /// nothing else moves.</summary>
     [Fact]
     public void AGrid_TheDefaultPathWidensOnlyTheGutter_ToTheRightSubplotsTickLabelsAndThePad()
     {
         var figure = Plain("grid");
-        var given = (figure.Theme.DefaultSpacing ?? figure.Spacing).Resolve(figure.Width, figure.Height);
+        var grid = new FigureGrid(figure);
+        var given = (figure.Theme.DefaultSpacing ?? figure.Spacing).Resolve(figure.Width, figure.Height, grid.Rows, grid.Cols);
 
         // One context lays the figure out and draws it, so the labels are measured as the layout measured them.
         var ctx = new RecordingRenderContext();
-        var spacing = new ChartRenderer().PrepareSpacing(figure, ctx);
+        var spacing = new ChartRenderer().PrepareSpacing(figure, ctx, new FigureRanges(figure), grid);
 
         Assert.Equal(given with { HorizontalGap = spacing.HorizontalGap }, spacing);
         new ChartRenderer().Render(figure, ctx);
         var right = new ChartRenderer().ComputeLayout(figure, ctx).PlotAreas[1];
-        var labels = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
-            .Where(a => (double)a.position.X < right.X && (double)a.position.X > right.X - spacing.HorizontalGap
-                        && (TextAlignment)a.alignment == TextAlignment.Right).ToList();
+        var labels = ctx.Of<DrawTextCall>()
+            .Where(a => (double)a.Position.X < right.X && (double)a.Position.X > right.X - spacing.HorizontalGap
+                        && a.Alignment == TextAlignment.Right).ToList();
         Assert.NotEmpty(labels);
         var ticks = figure.SubPlots[1].YAxis.MajorTicks;
-        double band = ticks.Length + ticks.Pad + labels.Max(a => ctx.MeasureText((string)a.text, (MatPlotLibNet.Styling.Font)a.font).Width);
+        double band = ticks.Length + ticks.Pad + labels.Max(a => ctx.MeasureText(a.Text, (MatPlotLibNet.Styling.Font)a.Font).Width);
         Assert.Equal(Math.Max(given.HorizontalGap, band + ConstrainedLayoutEngine.PadLeft), spacing.HorizontalGap, 6);
         Assert.True(spacing.HorizontalGap > given.HorizontalGap, $"precondition: the band ({band:F2}) and the pad exceed the theme's gutter");
     }

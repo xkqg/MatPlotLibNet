@@ -1,8 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
@@ -20,6 +19,14 @@ public class ZoomIndicatorTests
     private static readonly Rect ParentArea = new(100, 100, 400, 400);
 
     private const string Group = "zoom-indicator";
+
+    /// <summary>The group of the zoom indicator the picture draws; the test fails when it holds none.</summary>
+    private static XElement ZoomGroup(string svg)
+    {
+        var group = svg.Each("g").FirstOrDefault(element => (string?)element.Attribute("class") == Group);
+        Assert.True(group is not null, "the SVG holds no zoom indicator");
+        return group!;
+    }
 
     /// <summary>A figure whose one subplot shows 0 to 10 on both axes (or what <paramref name="parent"/> sets) and holds one
     /// inset at <paramref name="bounds"/> that plots a line, is set up by <paramref name="inset"/> and indicates its zoom.</summary>
@@ -45,17 +52,17 @@ public class ZoomIndicatorTests
     /// <summary>The calls drawn inside the zoom indicator's group, or <see langword="null"/> when there is none.</summary>
     private static List<CallRecord>? Indicator(RecordingRenderContext ctx)
     {
-        int begin = ctx.Calls.FindIndex(c => c.Kind == "BeginGroup" && (string)((dynamic)c.Args!).cssClass == Group);
+        int begin = ctx.Calls.FindIndex(c => c is BeginGroupCall k && k.CssClass == Group);
         if (begin < 0) return null;
-        int end = ctx.Calls.FindIndex(begin, c => c.Kind == "EndGroup");
+        int end = ctx.Calls.FindIndex(begin, c => c is EndGroupCall);
         return ctx.Calls.GetRange(begin + 1, end - begin - 1);
     }
 
     private static Point[] Outline(List<CallRecord> indicator) =>
-        (Point[])((dynamic)indicator.Single(c => c.Kind == "DrawLines").Args!).points;
+        indicator.OfType<DrawLinesCall>().Single().Points;
 
     private static (Point From, Point To)[] Connectors(List<CallRecord> indicator) =>
-        [.. indicator.Where(c => c.Kind == "DrawLine").Select(c => ((Point)((dynamic)c.Args!).p1, (Point)((dynamic)c.Args!).p2))];
+        [.. indicator.OfType<DrawLineCall>().Select(c => (c.P1, c.P2))];
 
     /// <summary>The closed outline of the pixel rectangle from <paramref name="left"/> to <paramref name="right"/> and
     /// <paramref name="top"/> to <paramref name="bottom"/>.</summary>
@@ -79,6 +86,18 @@ public class ZoomIndicatorTests
         Assert.Equal(onRegion.X, connector.To.X, precision);
         Assert.Equal(onRegion.Y, connector.To.Y, precision);
     }
+
+    /// <summary>Two connectors, the first from <paramref name="firstOnInset"/> to <paramref name="firstOnRegion"/>, the second likewise.</summary>
+    private static void AssertTwoConnectors((Point From, Point To)[] connectors, Point firstOnInset, Point firstOnRegion, Point secondOnInset, Point secondOnRegion)
+    {
+        Assert.Equal(2, connectors.Length);
+        AssertConnector(connectors[0], onInset: firstOnInset, onRegion: firstOnRegion);
+        AssertConnector(connectors[1], onInset: secondOnInset, onRegion: secondOnRegion);
+    }
+
+    /// <summary>The inset's frame stands at 120..280 both ways and the region at 380..460: the lower-left and the upper-right connector.</summary>
+    private static void AssertTheLowerLeftAndUpperRightConnectors((Point From, Point To)[] connectors) =>
+        AssertTwoConnectors(connectors, new Point(120, 280), new Point(380, 460), new Point(280, 120), new Point(460, 380));
 
     // ---- the rectangle is what the inset draws ------------------------------------------------------------------
 
@@ -127,9 +146,8 @@ public class ZoomIndicatorTests
         var connectors = Connectors(Indicator(DrawAxes(figure))!);
 
         // The inset's frame: 320..480 across, 120..280 down.
-        Assert.Equal(2, connectors.Length);
-        AssertConnector(connectors[0], onInset: new Point(320, 120), onRegion: new Point(140, 380));
-        AssertConnector(connectors[1], onInset: new Point(480, 280), onRegion: new Point(220, 460));
+        AssertTwoConnectors(connectors, new Point(320, 120), new Point(140, 380),
+            new Point(480, 280), new Point(220, 460));
     }
 
     /// <summary>The inset stands up and to the left of its region: [LL, UL, LR, UR] = [T, F, F, T].</summary>
@@ -141,9 +159,7 @@ public class ZoomIndicatorTests
         var connectors = Connectors(Indicator(DrawAxes(figure))!);
 
         // The inset's frame: 120..280 both ways; the region 380..460 both ways.
-        Assert.Equal(2, connectors.Length);
-        AssertConnector(connectors[0], onInset: new Point(120, 280), onRegion: new Point(380, 460));
-        AssertConnector(connectors[1], onInset: new Point(280, 120), onRegion: new Point(460, 380));
+        AssertTheLowerLeftAndUpperRightConnectors(connectors);
     }
 
     /// <summary>On a parent whose X axis runs backwards the region of x 1..3 lands on the right, so the choice is made where
@@ -158,9 +174,25 @@ public class ZoomIndicatorTests
         var connectors = Connectors(indicator);
 
         AssertOutline(Outline(indicator), left: 380, top: 380, right: 460, bottom: 460);
-        Assert.Equal(2, connectors.Length);
-        AssertConnector(connectors[0], onInset: new Point(120, 280), onRegion: new Point(380, 460));
-        AssertConnector(connectors[1], onInset: new Point(280, 120), onRegion: new Point(460, 380));
+        AssertTheLowerLeftAndUpperRightConnectors(connectors);
+    }
+
+    /// <summary>On a parent whose Y axis runs backwards the region of y 1..3 lands near the top, and matplotlib's
+    /// <c>ey = 1 - ey</c> keeps each connector on the corner where the region is drawn: the inset beside and below its region keeps
+    /// the lower-left and the upper-left connector.</summary>
+    [Fact]
+    public void OnAParentWhoseYRunsBackwards_TheConnectorsFollowWhereTheRegionIsDrawn()
+    {
+        var figure = WithInset(new InsetBounds(0.55, 0.05, 0.4, 0.4), i => i.Plot([1.0, 3.0], [1.0, 3.0]).SetXLim(1, 3).SetYLim(1, 3),
+            parent: ax => ax.SetXLim(0, 10).SetYLim(10, 0));
+
+        var indicator = Indicator(DrawAxes(figure))!;
+        var connectors = Connectors(indicator);
+
+        // y 1..3 -> 140..220 down the plot (0 at the top); x 1..3 -> 140..220.
+        AssertOutline(Outline(indicator), left: 140, top: 140, right: 220, bottom: 220);
+        AssertTwoConnectors(connectors, new Point(320, 280), new Point(140, 220),
+            new Point(320, 120), new Point(140, 140));
     }
 
     [Fact]
@@ -175,25 +207,18 @@ public class ZoomIndicatorTests
         AssertOutline(Outline(indicator), left: 140, top: 500 - 800 / 3.0, right: 220, bottom: 500 - 400 / 3.0, precision: 1e-6);
     }
 
-    [Fact]
-    public void AnInsetWhollyInsideItsRegion_DrawsTheRectangleAndNoConnector()
+    /// <summary>An inset wholly inside its region, and a region wholly inside its inset, draw the rectangle and no connector.</summary>
+    [Theory]
+    [InlineData(0.4, 0.2, 0.5, 9.5, 120, 480)]
+    [InlineData(0.1, 0.8, 4.0, 6.0, 260, 340)]
+    public void AnInsetAndItsRegion_OneWhollyInsideTheOther_DrawTheRectangleAndNoConnector(
+        double inset, double insetSize, double low, double high, double near, double far)
     {
-        var figure = WithInset(new InsetBounds(0.4, 0.4, 0.2, 0.2), i => i.Plot([0.5, 9.5], [0.5, 9.5]).SetXLim(0.5, 9.5).SetYLim(0.5, 9.5));
+        var figure = WithInset(new InsetBounds(inset, inset, insetSize, insetSize), i => i.Plot([low, high], [low, high]).SetXLim(low, high).SetYLim(low, high));
 
         var indicator = Indicator(DrawAxes(figure))!;
 
-        AssertOutline(Outline(indicator), left: 120, top: 120, right: 480, bottom: 480);
-        Assert.Empty(Connectors(indicator));
-    }
-
-    [Fact]
-    public void ARegionWhollyInsideItsInset_DrawsTheRectangleAndNoConnector()
-    {
-        var figure = WithInset(new InsetBounds(0.1, 0.1, 0.8, 0.8), i => i.Plot([4.0, 6.0], [4.0, 6.0]).SetXLim(4, 6).SetYLim(4, 6));
-
-        var indicator = Indicator(DrawAxes(figure))!;
-
-        AssertOutline(Outline(indicator), left: 260, top: 260, right: 340, bottom: 340);
+        AssertOutline(Outline(indicator), left: near, top: near, right: far, bottom: far);
         Assert.Empty(Connectors(indicator));
     }
 
@@ -209,34 +234,162 @@ public class ZoomIndicatorTests
         Assert.Empty(Connectors(indicator));
     }
 
-    // ---- nothing is drawn where the indicator has no place --------------------------------------------------
+    // ---- a corner the parent's scale cannot place -----------------------------------------------------------
 
-    /// <summary>A limit of the inset that the parent's axis cannot place (below zero on a log axis) leaves a corner of the
-    /// rectangle without a place, and nothing is drawn rather than a broken shape.</summary>
-    [Fact]
-    public void ACornerTheParentCannotPlace_DrawsNoIndicator()
-    {
-        var figure = WithInset(new InsetBounds(0.55, 0.05, 0.4, 0.4), i => i.Plot([-1.0, 2.0], [1.0, 3.0]).SetXLim(-1, 2).SetYLim(1, 3),
+    /// <summary>The figure of the log cases: a parent whose X is a log axis over 1 to 100 (200 pixels a decade from x = 100) and
+    /// an inset whose X limits run from -1 to 2.</summary>
+    private static Figure OnALogParent() =>
+        WithInset(new InsetBounds(0.55, 0.05, 0.4, 0.4), i => i.Plot([-1.0, 2.0], [1.0, 3.0]).SetXLim(-1, 2).SetYLim(1, 3),
             parent: ax => ax.SetXScale(AxisScale.Log).SetXLim(1, 100).SetYLim(0, 10));
+
+    /// <summary>A limit at or below zero on a log parent stands where matplotlib's log scale puts it, a thousand decades below the
+    /// axis: <c>LogTransform</c> with <c>nonpositive='clip'</c> (the default of <c>set_xscale('log')</c>) writes <c>out[values &lt;= 0]
+    /// = -1000</c>, and the indicator's rectangle is not clipped (<c>clip_on False</c>). Printed, matplotlib 3.11.2: a parent over
+    /// x 1..100 at (75, 44, 465, 308) and an inset over -1..2 give the rectangle's vertices x = -232425.0 and 144.99 (75 + 465 * -1000
+    /// / 2, and log10 2 of the way), and the connectors [LL, UL, LR, UR] visible = [False, True, True, False]: the rectangle runs off
+    /// the left of the figure and two of its lines with it.</summary>
+    [Fact]
+    public void ACornerAtOrBelowZeroOnALogParent_StandsAThousandDecadesBelowTheAxis_AsMatplotlibClipsIt()
+    {
+        var indicator = Indicator(DrawAxes(OnALogParent()))!;
+
+        double left = 100 + 200 * -1000.0, right = 100 + 200 * Math.Log10(2);
+        AssertOutline(Outline(indicator), left: left, top: 380, right: right, bottom: 460, precision: 1e-6);
+        var connectors = Connectors(indicator);
+        Assert.Equal(2, connectors.Length);
+        AssertConnector(connectors[0], onInset: new Point(320, 120), onRegion: new Point(left, 380), precision: 1e-6);
+        AssertConnector(connectors[1], onInset: new Point(480, 280), onRegion: new Point(right, 460), precision: 1e-6);
+    }
+
+    /// <summary>A logit parent masks a limit outside 0 to 1 (<c>LogitTransform</c> with matplotlib's default <c>nonpositive='mask'</c>
+    /// gives NaN), and matplotlib draws what is left: printed, matplotlib 3.11.2, a logit parent over 0.01 .. 0.99 and an inset over
+    /// -0.1 .. 0.5 give the rectangle's vertices [nan, (307.5, 114), (307.5, 170), nan, nan] (its right side alone) and the connectors
+    /// [LL, UL, LR, UR] visible = [False, True, False, True], the upper left one ending at the masked corner and so drawing nothing.</summary>
+    [Fact]
+    public void ACornerALogitParentMasks_LeavesTheSidesAndLinesThatEndThere_Undrawn()
+    {
+        var figure = WithInset(new InsetBounds(0.55, 0.55, 0.4, 0.4), i => i.Plot([0.0, 0.5], [2.0, 4.0]).SetXLim(-0.1, 0.5).SetYLim(2, 4),
+            parent: ax => ax.SetXScale(AxisScale.Logit).SetXLim(0.01, 0.99).SetYLim(0, 10));
+
+        var indicator = Indicator(DrawAxes(figure))!;
+
+        var side = Assert.Single(indicator.OfType<DrawLinesCall>());
+        var points = side.Points;
+        Assert.Equal(2, points.Length);
+        Assert.Equal(points[0].X, points[1].X);
+        Assert.Equal(300, points[0].X, 1e-9);
+        Assert.Equal([340.0, 420.0], points.Select(p => p.Y).Order());
+        var connector = Assert.Single(Connectors(indicator));
+        AssertConnector(connector, onInset: new Point(480, 320), onRegion: points.MinBy(p => p.Y));
+    }
+
+    /// <summary>With one corner placed, no side has two ends to join, so the outline draws nothing; the rule keeps the upper left
+    /// and lower right lines (every comparison with a masked corner is false), and both end at a masked corner, so neither is
+    /// drawn.</summary>
+    [Fact]
+    public void WithOneCornerPlaced_NoSideAndNoLineToAMaskedCornerIsDrawn()
+    {
+        var nowhere = new Point(double.NaN, double.NaN);
+        var path = new ChartRenderer.ZoomIndicatorPath(new ChartRenderer.ZoomIndicatorPath.ZoomCorners(nowhere, nowhere, nowhere, new Point(200, 300)), new Rect(320, 120, 160, 160));
+        var ctx = new RecordingRenderContext();
+
+        path.Draw(ctx, new ZoomIndicator(), Theme.MatplotlibV2);
+
+        Assert.Equal(2, path.Connectors.Count);
+        Assert.Equal(0, ctx.Count<DrawLinesCall>());
+        Assert.Equal(0, ctx.Count<DrawLineCall>());
+    }
+
+    /// <summary>A parent that places no corner at all (a logit parent over limits all outside 0 to 1) draws no indicator.</summary>
+    [Fact]
+    public void AParentThatPlacesNoCorner_DrawsNoIndicator()
+    {
+        var figure = WithInset(new InsetBounds(0.55, 0.55, 0.4, 0.4), i => i.Plot([2.0, 3.0], [2.0, 4.0]).SetXLim(2, 3).SetYLim(2, 4),
+            parent: ax => ax.SetXScale(AxisScale.Logit).SetXLim(0.01, 0.99).SetYLim(0, 10));
 
         Assert.Null(Indicator(DrawAxes(figure)));
     }
 
-    /// <summary>A polar (or 3-D, or ternary) parent has no data rectangle to draw the region in, so its inset indicates
-    /// nothing; the inset itself is still drawn.</summary>
-    [Theory]
-    [InlineData(CoordinateSystem.Polar)]
-    [InlineData(CoordinateSystem.ThreeD)]
-    [InlineData(CoordinateSystem.Ternary)]
-    public void ANonCartesianParent_DrawsNoIndicator(CoordinateSystem system)
+    /// <summary>Read back from its JSON, the figure draws the indicator of a log parent the same, a thousand decades out.</summary>
+    [Fact]
+    public void AFigureReadBackFromJson_DrawsTheIndicatorOfALogParentTheSame()
+    {
+        var figure = OnALogParent();
+
+        var read = figure.RoundTripped();
+
+        Assert.Equal(Outline(Indicator(DrawAxes(figure))!), Outline(Indicator(DrawAxes(read))!));
+        Assert.Equal(figure.ToSvg(), read.ToSvg());
+        var polyline = ZoomGroup(figure.ToSvg()).Each("polyline").First();
+        Assert.True(polyline.Attribute("points")!.Value.Split(' ', ',').Select(n => n.Number()).Min() < -100_000, "the left side stands a thousand decades out");
+    }
+
+    /// <summary>A 3-D parent draws no indicator: matplotlib 3.11.2 adds the rectangle of an <c>indicate_inset_zoom</c> on an
+    /// <c>Axes3D</c> through the flat 2-D <c>transData</c> of the axes, not through its projection (printed: the limits 0.2 to 0.4 of
+    /// an inset land at the pixels (812, 722) to (892, 802) whatever the 3-D data show), so there is no region of the data to mark.
+    /// The inset itself is still drawn.</summary>
+    [Fact]
+    public void AThreeDParent_DrawsNoIndicator()
     {
         var figure = WithInset(new InsetBounds(0.55, 0.05, 0.4, 0.4), i => i.Plot([1.0, 3.0], [1.0, 3.0]).SetXLim(1, 3).SetYLim(1, 3));
-        figure.SubPlots[0].CoordinateSystem = system;
+        figure.SubPlots[0].CoordinateSystem = CoordinateSystem.ThreeD;
 
         var ctx = DrawAxes(figure);
 
         Assert.Null(Indicator(ctx));
-        Assert.Contains(ctx.OfKind("DrawRectangle"), c => (Rect)((dynamic)c.Args!).rect == new Rect(320, 120, 160, 160));
+        Assert.Contains(ctx.Of<DrawRectangleCall>(), c => c.Rect == new Rect(320, 120, 160, 160));
+    }
+
+    /// <summary>A polar parent draws the region through its own transform, as matplotlib's <c>InsetIndicator</c> does: the
+    /// rectangle is a <c>Rectangle</c> patch in the parent's data (x the angle, y the radius), and matplotlib 3.11.2 maps a path
+    /// with one interpolation step vertex by vertex (<c>PolarTransform.transform_path_non_affine</c>: <c>if path._interpolation_steps
+    /// == 1: return Path(self.transform_non_affine(path.vertices), path.codes)</c>), so the region is the four corners mapped by
+    /// angle and radius, joined straight. Each connector runs from a corner of the inset to the corner of the region that
+    /// <c>(x0 + ex * w, y0 + ey * h)</c> maps to, and matplotlib keeps them by its rule over the mapped lower left, upper left and
+    /// lower right corners: printed for an inset at [0.65, 0.65, 0.3, 0.3] of a polar axes of radius 5 over the angles 3.0 to 3.3
+    /// and the radii 2 to 3, [LL, UL, LR, UR] visible = [False, True, True, False].</summary>
+    [Fact]
+    public void OnAPolarParent_TheRegionIsTheLimitsMappedByAngleAndRadius_WithMatplotlibsConnectors()
+    {
+        var figure = WithInset(new InsetBounds(0.65, 0.05, 0.3, 0.3), i => i.Plot([3.0, 3.3], [2.0, 3.0]).SetXLim(3.0, 3.3).SetYLim(2, 3),
+            parent: ax => ax.SetYLim(0, 5));
+        figure.SubPlots[0].CoordinateSystem = CoordinateSystem.Polar;
+        var polar = new PolarTransform(ParentArea, 5);
+        Point At(double theta, double r) => polar.PolarToPixel(r, theta);
+
+        var indicator = Indicator(DrawAxes(figure))!;
+
+        // The inset's frame: 360..480 across, 120..240 down.
+        var outline = Outline(indicator);
+        Point[] expected = [At(3.0, 3), At(3.3, 3), At(3.3, 2), At(3.0, 2), At(3.0, 3)];
+        Assert.Equal(expected.Length, outline.Length);
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i].X, outline[i].X, 1e-9);
+            Assert.Equal(expected[i].Y, outline[i].Y, 1e-9);
+        }
+
+        var connectors = Connectors(indicator);
+        Assert.Equal(2, connectors.Length);
+        AssertConnector(connectors[0], onInset: new Point(360, 120), onRegion: At(3.0, 3));
+        AssertConnector(connectors[1], onInset: new Point(480, 240), onRegion: At(3.3, 2));
+    }
+
+    /// <summary>A ternary parent draws the region in the triangle's own frame, one unit wide and the height of the triangle, where
+    /// it draws its patches: the limits of the inset are a rectangle of that frame.</summary>
+    [Fact]
+    public void OnATernaryParent_TheRegionStandsInTheFrameOfTheTriangle()
+    {
+        var figure = WithInset(new InsetBounds(0.6, 0.05, 0.3, 0.3), i => i.Plot([0.2, 0.4], [0.1, 0.3]).SetXLim(0.2, 0.4).SetYLim(0.1, 0.3));
+        figure.SubPlots[0].CoordinateSystem = CoordinateSystem.Ternary;
+        var frame = new DataTransform(0, 1, 0, TernaryFrame.Height, ParentArea);
+        var low = frame.DataToPixel(0.2, 0.1);
+        var high = frame.DataToPixel(0.4, 0.3);
+
+        var indicator = Indicator(DrawAxes(figure))!;
+
+        AssertOutline(Outline(indicator), left: low.X, top: high.Y, right: high.X, bottom: low.Y, precision: 1e-9);
+        Assert.Equal(2, Connectors(indicator).Length);
     }
 
     /// <summary>A polar, 3-D or ternary inset shows no data rectangle (a ternary frame's transform maps the triangle, not
@@ -261,30 +414,35 @@ public class ZoomIndicatorTests
         var parent = new Axes();
         var inset = parent.AddInset(0.5, 0.1, 0.3, 0.3);
         var area = new Rect(0, 0, 100, 100);
-        var view = new DrawnView(area, new DataTransform(0, 1, 0, 1, area));
+        var view = new ChartRenderer.DrawnView(area, new DataTransform(0, 1, 0, 1, area));
 
-        Assert.Null(ZoomIndicatorPath.Of(parent, new DrawnView(area, null), inset, view));
-        Assert.Null(ZoomIndicatorPath.Of(parent, view, inset, new DrawnView(area, null)));
-        Assert.NotNull(ZoomIndicatorPath.Of(parent, view, inset, view));
+        Assert.Null(ChartRenderer.ZoomIndicatorPath.Of(new ChartRenderer.DrawnView(area, null), inset, view));
+        Assert.Null(ChartRenderer.ZoomIndicatorPath.Of(view, inset, new ChartRenderer.DrawnView(area, null)));
+        Assert.NotNull(ChartRenderer.ZoomIndicatorPath.Of(view, inset, view));
     }
 
-    /// <summary>Each corner of the region is checked: a limit the parent's log axes cannot place, at either end of either
-    /// axis (a limit set high to low puts the low one last), leaves no geometry.</summary>
+    /// <summary>Each corner of the region is placed: a limit at or below zero on the parent's log axes, at either end of either
+    /// axis (a limit set high to low puts the low one last), stands a thousand decades below that axis (here 50 pixels a decade
+    /// from the left edge, from the bottom edge 100).</summary>
     [Theory]
     [InlineData(-1.0, 2.0, 1.0, 2.0)]
     [InlineData(2.0, -1.0, 1.0, 2.0)]
     [InlineData(1.0, 2.0, -1.0, 2.0)]
     [InlineData(1.0, 2.0, 2.0, -1.0)]
-    public void ALimitTheParentCannotPlace_AtAnyCorner_LeavesNoGeometry(double xMin, double xMax, double yMin, double yMax)
+    public void ALimitAtOrBelowZeroOnALogParent_AtAnyCorner_StandsAThousandDecadesOut(double xMin, double xMax, double yMin, double yMax)
     {
         var parent = new Axes();
         var inset = parent.AddInset(0.5, 0.1, 0.3, 0.3);
         var area = new Rect(0, 0, 100, 100);
-        var logParent = new DrawnView(area, new DataTransform(0, 2, 0, 2, area, null, null, 1, 100, 1, 100,
-            AxisScale.Log, AxisScale.Log, 1, 1));
-        var insetView = new DrawnView(new Rect(50, 10, 30, 30), new DataTransform(xMin, xMax, yMin, yMax, new Rect(50, 10, 30, 30)));
+        var logParent = new ChartRenderer.DrawnView(area, area.LogLog());
+        var insetView = new ChartRenderer.DrawnView(new Rect(50, 10, 30, 30), new DataTransform(xMin, xMax, yMin, yMax, new Rect(50, 10, 30, 30)));
 
-        Assert.Null(ZoomIndicatorPath.Of(parent, logParent, inset, insetView));
+        var region = ChartRenderer.ZoomIndicatorPath.Of(logParent, inset, insetView)!.Value.Region;
+
+        Point[] corners = [region.LowerLeft, region.UpperLeft, region.LowerRight, region.UpperRight];
+        Assert.All(corners, corner => Assert.True(corner.IsDrawable()));
+        if (Math.Min(xMin, xMax) < 0) Assert.Equal(-50_000, region.LowerLeft.X, 1e-6);
+        else Assert.Equal(100 + 50_000, region.LowerLeft.Y, 1e-6);
     }
 
     [Fact]
@@ -306,13 +464,13 @@ public class ZoomIndicatorTests
 
         var indicator = Indicator(DrawAxes(figure))!;
 
-        Assert.Equal(0.5, (double)((dynamic)indicator.First(c => c.Kind == "SetOpacity").Args!).opacity);
-        Assert.Equal(1.0, (double)((dynamic)indicator.Last(c => c.Kind == "SetOpacity").Args!).opacity);
-        foreach (var stroke in indicator.Where(c => c.Kind is "DrawLines" or "DrawLine").Select(c => (dynamic)c.Args!))
+        Assert.Equal(0.5, indicator.OfType<SetOpacityCall>().First().Opacity);
+        Assert.Equal(1.0, indicator.OfType<SetOpacityCall>().Last().Opacity);
+        foreach (var stroke in indicator.OfType<StrokeCall>())
         {
-            Assert.Equal(figure.Theme.Neutral, (Color)stroke.color);
-            Assert.Equal(1.0, (double)stroke.thickness);
-            Assert.Equal(LineStyle.Solid, (LineStyle)stroke.style);
+            Assert.Equal(figure.Theme.Neutral, stroke.Color);
+            Assert.Equal(1.0, stroke.Thickness);
+            Assert.Equal(LineStyle.Solid, stroke.Style);
         }
     }
 
@@ -324,14 +482,14 @@ public class ZoomIndicatorTests
 
         var indicator = Indicator(DrawAxes(figure))!;
 
-        Assert.Equal(0.8, (double)((dynamic)indicator.First(c => c.Kind == "SetOpacity").Args!).opacity);
-        var strokes = indicator.Where(c => c.Kind is "DrawLines" or "DrawLine").Select(c => (dynamic)c.Args!).ToList();
+        Assert.Equal(0.8, indicator.OfType<SetOpacityCall>().First().Opacity);
+        var strokes = indicator.OfType<StrokeCall>().ToList();
         Assert.Equal(3, strokes.Count);
         foreach (var stroke in strokes)
         {
-            Assert.Equal(Colors.Red, (Color)stroke.color);
-            Assert.Equal(2.0, (double)stroke.thickness);
-            Assert.Equal(LineStyle.Dashed, (LineStyle)stroke.style);
+            Assert.Equal(Colors.Red, stroke.Color);
+            Assert.Equal(2.0, stroke.Thickness);
+            Assert.Equal(LineStyle.Dashed, stroke.Style);
         }
     }
 
@@ -352,14 +510,37 @@ public class ZoomIndicatorTests
 
         var ctx = DrawAxes(figure);
 
-        int parentLine = ctx.Calls.FindIndex(c => c.Kind == "DrawLines");
-        int indicator = ctx.Calls.FindIndex(c => c.Kind == "BeginGroup" && (string)((dynamic)c.Args!).cssClass == Group);
+        int parentLine = ctx.Calls.FindIndex(c => c is DrawLinesCall);
+        int indicator = ctx.Calls.FindIndex(c => c is BeginGroupCall k && k.CssClass == Group);
         Assert.InRange(parentLine, 0, indicator - 1);
+    }
+
+    /// <summary>The indicator stands under the inset, as matplotlib's: <c>indicate_inset_zoom</c> returns an InsetIndicator at
+    /// zorder 4.99 and the inset axes stands at 5 (matplotlib 3.11.2: <c>ins.get_zorder()</c> 5, <c>ind.get_zorder()</c> 4.99), so
+    /// the inset's background covers whatever part of the region it overlaps. The whole indicator is drawn before the inset's
+    /// first mark, its background.</summary>
+    [Theory]
+    [InlineData("default")]
+    [InlineData("v2")]
+    [InlineData("classic")]
+    public void TheIndicator_IsDrawnBeforeTheInset(string theme)
+    {
+        var figure = WithInset(new InsetBounds(0.4, 0.4, 0.3, 0.3), i => i.Plot([4.0, 6.0], [4.0, 6.0]).SetXLim(3, 7).SetYLim(3, 7));
+        figure.Theme = theme.AsTheme();
+
+        var ctx = DrawAxes(figure);
+
+        // The inset's frame: 260..380 both ways; its background is the first thing its render draws.
+        int insetBackground = ctx.Calls.FindIndex(c => c is DrawRectangleCall k && k.Rect == new Rect(260, 260, 120, 120));
+        int begin = ctx.Calls.FindIndex(c => c is BeginGroupCall k && k.CssClass == Group);
+        int end = ctx.Calls.FindIndex(begin, c => c is EndGroupCall);
+        Assert.True(begin >= 0, "no indicator was drawn");
+        Assert.True(insetBackground > end, $"the indicator ends at call {end}, after the inset's background at {insetBackground}");
     }
 
     // ---- one geometry on every path -------------------------------------------------------------------------
 
-    /// <summary>The SVG writer lays the subplots out in parallel and <see cref="ChartRenderer.Render"/> (PNG, PDF, the native
+    /// <summary>The SVG writer lays the subplots out in its own loop and <see cref="ChartRenderer.Render"/> (PNG, PDF, the native
     /// controls) serially; both reach the indicator through the one render pass, so both draw it at the same place.</summary>
     [Fact]
     public void TheSvgAndTheRendererPath_DrawTheSameIndicator()
@@ -369,15 +550,12 @@ public class ZoomIndicatorTests
         new ChartRenderer().Render(figure, ctx);
         var recorded = Indicator(ctx)!;
 
-        var group = Regex.Match(figure.ToSvg(), $"<g class=\"{Group}\">(.*?)</g>", RegexOptions.Singleline);
-        Assert.True(group.Success, "the SVG holds no zoom indicator");
-        var polyline = Regex.Match(group.Value, "<polyline points=\"([^\"]+)\"");
-        var svgOutline = polyline.Groups[1].Value.Split(' ').Select(pair => pair.Split(','))
-            .Select(xy => new Point(double.Parse(xy[0], CultureInfo.InvariantCulture), double.Parse(xy[1], CultureInfo.InvariantCulture)))
+        var group = ZoomGroup(figure.ToSvg());
+        var svgOutline = group.Each("polyline").First().Attribute("points")!.Value.Split(' ').Select(pair => pair.Split(','))
+            .Select(xy => new Point(xy[0].Number(), xy[1].Number()))
             .ToArray();
-        var svgLines = Regex.Matches(group.Value, "<line x1=\"([^\"]+)\" y1=\"([^\"]+)\" x2=\"([^\"]+)\" y2=\"([^\"]+)\"")
-            .Select(m => (From: new Point(Number(m.Groups[1].Value), Number(m.Groups[2].Value)),
-                          To: new Point(Number(m.Groups[3].Value), Number(m.Groups[4].Value))))
+        var svgLines = group.Each("line")
+            .Select(line => (From: new Point(line.Number("x1"), line.Number("y1")), To: new Point(line.Number("x2"), line.Number("y2"))))
             .ToArray();
 
         var outline = Outline(recorded);
@@ -395,33 +573,34 @@ public class ZoomIndicatorTests
             AssertConnector(svgLines[i], connectors[i].From, connectors[i].To, precision: 0.01);
     }
 
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     /// <summary>Read back from its JSON, the figure draws the same picture, indicator included.</summary>
     [Fact]
     public void AFigureReadBackFromJson_DrawsTheSameIndicator()
     {
         var figure = WithInset(new InsetBounds(0.55, 0.05, 0.4, 0.4), i => i.Plot([2.0, 4.0], [3.0, 5.0]),
             zoom: z => { z.Color = Colors.Red; z.Alpha = 0.7; z.LineWidth = 1.5; z.LineStyle = LineStyle.Dotted; z.Connectors = false; });
-        var serializer = new ChartSerializer();
 
-        var read = serializer.FromJson(serializer.ToJson(figure));
+        var read = figure.RoundTripped();
 
         string svg = figure.ToSvg();
         Assert.Contains(Group, svg);
         Assert.Equal(svg, read.ToSvg());
     }
 
-    [Fact]
-    public void AnInsetWithoutAnIndicator_WritesNoZoomIndicatorField()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 10.0], [0.0, 10.0])
-            .AddInset(0.55, 0.05, 0.4, 0.4, i => i.Plot([1.0, 3.0], [1.0, 3.0]))).Build();
+        new DrawnToken("AnInsetWithoutAnIndicator_WritesNoZoomIndicatorField", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 10.0], [0.0, 10.0])
+                .AddInset(0.55, 0.05, 0.4, 0.4, i => i.Plot([1.0, 3.0], [1.0, 3.0]))).Build();
+            return new ChartSerializer().ToJson(figure);
+        }) { Absent = ["zoomIndicator"] },
+    };
 
-        string json = new ChartSerializer().ToJson(figure);
-
-        Assert.DoesNotContain("zoomIndicator", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>An indicator at its defaults is a setting by being there, so it is written as an empty object and read back
     /// as an indicator, not left out.</summary>
@@ -445,19 +624,6 @@ public class ZoomIndicatorTests
 
     // ---- the model and the builder ---------------------------------------------------------------------------
 
-    [Fact]
-    public void ANewIndicator_HasMatplotlibsDefaults()
-    {
-        var zoom = new ZoomIndicator();
-
-        Assert.Null(zoom.Color);
-        Assert.Equal(0.5, zoom.Alpha);
-        Assert.Equal(1.0, zoom.LineWidth);
-        Assert.Equal(LineStyle.Solid, zoom.LineStyle);
-        Assert.True(zoom.Connectors);
-        Assert.Null(new Axes().ZoomIndicator);
-    }
-
     [Theory]
     [InlineData(-0.1)]
     [InlineData(1.1)]
@@ -468,7 +634,7 @@ public class ZoomIndicatorTests
 
         var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => zoom.Alpha = alpha);
 
-        Assert.Equal("value", refusal.ParamName);
+        Assert.Equal("Alpha", refusal.ParamName);
         Assert.Equal(0.5, zoom.Alpha);
     }
 
@@ -482,7 +648,7 @@ public class ZoomIndicatorTests
 
         var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => zoom.LineWidth = width);
 
-        Assert.Equal("value", refusal.ParamName);
+        Assert.Equal(nameof(ZoomIndicator.LineWidth), refusal.ParamName);
         Assert.Equal(1.0, zoom.LineWidth);
     }
 

@@ -7,6 +7,7 @@ using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -20,19 +21,10 @@ public class ContourLabelTests
 {
     private static readonly Rect Bounds = new(0, 0, 400, 300);
 
-    /// <summary>Data 0..10 on both axes: 40 pixels per unit across, 30 down.</summary>
-    private static DataTransform Linear() => new(0, 10, 0, 10, Bounds);
-
-    /// <summary>The same, with the Y axis drawn upside down (larger values lower).</summary>
-    private static DataTransform InvertedY() => new(0, 10, 10, 0, Bounds);
-
-    private static T Arg<T>(CallRecord call, string name) =>
-        (T)call.Args!.GetType().GetProperty(name)!.GetValue(call.Args)!;
-
     private static RecordingRenderContext Render(ContourSeries series, DataTransform? transform = null, Theme? theme = null)
     {
         var ctx = new RecordingRenderContext();
-        var context = new SeriesRenderContext(transform ?? Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx))
+        var context = new SeriesRenderContext(transform ?? Bounds.Linear(), ctx, Colors.Tab10Blue, new RenderArea(Bounds, ctx))
         {
             Theme = theme ?? Theme.Default,
         };
@@ -87,7 +79,7 @@ public class ContourLabelTests
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo("de-DE");
-            var text = Arg<string>(Assert.Single(Render(Ramp(0.5)).OfKind("DrawText")), "text");
+            var text = Assert.Single(Render(Ramp(0.5)).Of<DrawTextCall>()).Text;
 
             Assert.Equal("0.5", text);
         }
@@ -104,10 +96,10 @@ public class ContourLabelTests
     [Fact]
     public void AVerticalLine_IsLabelledAtItsMiddle_TurnedToMinus90()
     {
-        var label = Assert.Single(Render(Ramp(5)).OfKind("DrawText"));
+        var label = Assert.Single(Render(Ramp(5)).Of<DrawTextCall>());
 
-        Assert.Equal(-90, Arg<double>(label, "rotation"), 1e-6);
-        var at = Arg<Point>(label, "position");
+        Assert.Equal(-90, label.Rotation, 1e-6);
+        var at = label.Position;
         // the baseline stands 0.35 of the font size below the middle, in the text's own frame: to the left when turned -90
         Assert.Equal(100 - 0.35 * 10, at.X, 1e-6);
         Assert.Equal(255, at.Y, 1e-6);
@@ -118,9 +110,9 @@ public class ContourLabelTests
     [Fact]
     public void ADiagonal_IsTurnedToItsPixelChord()
     {
-        var label = Assert.Single(Render(Diagonal()).OfKind("DrawText"));
+        var label = Assert.Single(Render(Diagonal()).Of<DrawTextCall>());
 
-        Assert.Equal(ScreenAngle(40, -30), Arg<double>(label, "rotation"), 1e-6);
+        Assert.Equal(ScreenAngle(40, -30), label.Rotation, 1e-6);
     }
 
     /// <summary>With the Y axis upside down the same diagonal runs (40, 30) in pixels, so the label turns the other way:
@@ -128,9 +120,9 @@ public class ContourLabelTests
     [Fact]
     public void AnInvertedYAxis_TurnsTheLabelAsTheLineStandsOnTheScreen()
     {
-        var label = Assert.Single(Render(Diagonal(), InvertedY()).OfKind("DrawText"));
+        var label = Assert.Single(Render(Diagonal(), Bounds.Linear(yMin: 10, yMax: 0)).Of<DrawTextCall>());
 
-        Assert.Equal(ScreenAngle(40, 30), Arg<double>(label, "rotation"), 1e-6);
+        Assert.Equal(ScreenAngle(40, 30), label.Rotation, 1e-6);
     }
 
     /// <summary>A bend at the middle: the turn is the chord from 10 pixels before the middle to 10 after (label width 20),
@@ -140,7 +132,7 @@ public class ContourLabelTests
     {
         Point[] bend = [new(0, 0), new(100, 0), new(100, 100)];
 
-        var placement = ContourLabelPlacement.Along(bend, 20)!.Value;
+        var placement = ContourSeriesRenderer.LabelAlong(bend, 20)!.Value;
 
         Assert.Equal(new Point(100, 0), placement.Centre);
         // chord (90, 0) → (100, 10): (10, 10) on the screen, -45 degrees
@@ -159,8 +151,8 @@ public class ContourLabelTests
     [MemberData(nameof(Polylines))]
     public void TheSameLineRunBackwards_GetsTheSameLabel(Point[] line)
     {
-        var forward = ContourLabelPlacement.Along(line, 20)!.Value;
-        var backward = ContourLabelPlacement.Along([.. line.Reverse()], 20)!.Value;
+        var forward = ContourSeriesRenderer.LabelAlong(line, 20)!.Value;
+        var backward = ContourSeriesRenderer.LabelAlong([.. line.Reverse()], 20)!.Value;
 
         Assert.Equal(forward.Centre.X, backward.Centre.X, 1e-9);
         Assert.Equal(forward.Centre.Y, backward.Centre.Y, 1e-9);
@@ -175,7 +167,7 @@ public class ContourLabelTests
     {
         Point[] square = [new(0, 0), new(100, 0), new(100, 100), new(0, 100), new(0, 0)];
 
-        var placement = ContourLabelPlacement.Along(square, 20)!.Value;
+        var placement = ContourSeriesRenderer.LabelAlong(square, 20)!.Value;
 
         Assert.Equal(new Point(100, 100), placement.Centre);
         // chord (100, 90) → (90, 100) points down-left; folded upright it reads up-right, 45 degrees
@@ -189,10 +181,10 @@ public class ContourLabelTests
     {
         var ctx = Render(Cone(11));
 
-        var box = Arg<Point[]>(Assert.Single(ctx.OfKind("DrawPolygon")), "points");
+        var box = Assert.Single(ctx.Of<DrawPolygonCall>()).Points;
         var centre = new Point(box.Average(p => p.X), box.Average(p => p.Y));
-        var data = Linear().PixelToData(centre);
-        Assert.Single(ctx.OfKind("DrawText"));
+        var data = Bounds.Linear().PixelToData(centre);
+        Assert.Single(ctx.Of<DrawTextCall>());
         // the box is centred near the line: within a third of the font size of the ring
         Assert.InRange(Math.Abs(Math.Abs(data.X - 3) + Math.Abs(data.Y - 3) - 0.5), 0, 0.15);
     }
@@ -204,16 +196,16 @@ public class ContourLabelTests
     [InlineData(5.0, true)]
     public void ALine_IsLabelledOnlyWhenItIsAtLeast1point2TimesTheLabelWidth(double timesTheMinimum, bool labelled)
     {
-        Assert.Equal(1.2, ContourLabelPlacement.MinimumLengthRatio);
-        Point[] line = [new(0, 0), new(timesTheMinimum * ContourLabelPlacement.MinimumLengthRatio * 20, 0)];
+        Assert.Equal(1.2, ContourSeriesRenderer.MinimumLengthRatio);
+        Point[] line = [new(0, 0), new(timesTheMinimum * ContourSeriesRenderer.MinimumLengthRatio * 20, 0)];
 
-        Assert.Equal(labelled, ContourLabelPlacement.Along(line, 20).HasValue);
+        Assert.Equal(labelled, ContourSeriesRenderer.LabelAlong(line, 20).HasValue);
     }
 
     /// <summary>A line of no length carries no label, even an empty one.</summary>
     [Fact]
     public void ALineOfNoLength_GetsNoLabel() =>
-        Assert.Null(ContourLabelPlacement.Along([new(5, 5), new(5, 5)], 0));
+        Assert.Null(ContourSeriesRenderer.LabelAlong([new(5, 5), new(5, 5)], 0));
 
     /// <summary>The cone's level 11.9 is a ring of 10 pixels round; its label "11.9" is 24 wide, so the ring is drawn and
     /// carries none.</summary>
@@ -222,8 +214,8 @@ public class ContourLabelTests
     {
         var ctx = Render(Cone(11.9, 7));
 
-        Assert.Equal(2, ctx.CountOf("DrawLines"));
-        Assert.Equal(["7"], ctx.OfKind("DrawText").Select(c => Arg<string>(c, "text")));
+        Assert.Equal(2, ctx.Count<DrawLinesCall>());
+        Assert.Equal(["7"], ctx.Of<DrawTextCall>().Select(c => c.Text));
     }
 
     /// <summary>matplotlib's fold, <c>(angle + 90) % 180 - 90</c>: every direction reads left to right.</summary>
@@ -238,7 +230,7 @@ public class ContourLabelTests
     [InlineData(180, 0)]
     [InlineData(-180, 0)]
     public void TheTurn_IsFoldedIntoMinus90To90(double angle, double folded) =>
-        Assert.Equal(folded, ContourLabelPlacement.Upright(angle), 1e-9);
+        Assert.Equal(folded, ContourSeriesRenderer.Upright(angle), 1e-9);
 
     // ---- colour and background ----------------------------------------------------------------------------------------
 
@@ -253,35 +245,26 @@ public class ContourLabelTests
         if (colourMap) series.ColorMap = ColorMaps.Plasma;
         var ctx = Render(series);
 
-        var lines = ctx.OfKind("DrawLines").Select(c => Arg<Color>(c, "color")).ToList();
-        var texts = ctx.OfKind("DrawText").Select(c => Arg<Font>(c, "font").Color).ToList();
+        var lines = ctx.Of<DrawLinesCall>().Select(c => c.Color).ToList();
+        var texts = ctx.Of<DrawTextCall>().Select(c => c.Font.Color).ToList();
         Assert.Equal(3, texts.Count);
         Assert.Equal(lines.Cast<Color?>(), texts);
         if (colourMap) Assert.Equal(3, lines.Distinct().Count());
     }
 
-    public static TheoryData<string> Themes { get; } = new("default", "dark", "seaborn");
-
-    private static Theme ThemeNamed(string name) => name switch
-    {
-        "dark" => Theme.Dark,
-        "seaborn" => Theme.Seaborn,
-        _ => Theme.Default,
-    };
-
     /// <summary>The box behind a label is the theme's plot background, not white: on the dark theme a white box was a
     /// patch of light under every label.</summary>
     [Theory]
-    [MemberData(nameof(Themes))]
+    [MemberData(nameof(ThemeCases.Library), MemberType = typeof(ThemeCases))]
     public void TheBoxBehindALabel_IsTheThemesPlotBackground(string themeName)
     {
-        var theme = ThemeNamed(themeName);
+        var theme = themeName.AsTheme();
 
-        var boxes = Render(Ramp(1, 5, 9), theme: theme).OfKind("DrawPolygon");
+        var boxes = Render(Ramp(1, 5, 9), theme: theme).Of<DrawPolygonCall>();
 
         Assert.Equal(3, boxes.Count);
-        Assert.All(boxes, b => Assert.Equal(theme.AxesBackground, Arg<Color?>(b, "fill")));
-        Assert.All(boxes, b => Assert.Null(Arg<Color?>(b, "stroke")));
+        Assert.All(boxes, b => Assert.Equal(theme.AxesBackground, b.Fill));
+        Assert.All(boxes, b => Assert.Null(b.Stroke));
     }
 
     /// <summary>The box is turned with its text: four corners, its long side along the label's turn, and the label's
@@ -290,15 +273,15 @@ public class ContourLabelTests
     public void TheBoxBehindALabel_IsTurnedWithIt()
     {
         var ctx = Render(Diagonal());
-        var label = Assert.Single(ctx.OfKind("DrawText"));
-        var box = Arg<Point[]>(Assert.Single(ctx.OfKind("DrawPolygon")), "points");
+        var label = Assert.Single(ctx.Of<DrawTextCall>());
+        var box = Assert.Single(ctx.Of<DrawPolygonCall>()).Points;
 
         Assert.Equal(4, box.Length);
-        double rotation = Arg<double>(label, "rotation");
+        double rotation = label.Rotation;
         Assert.Equal(rotation, ScreenAngle(box[1].X - box[0].X, box[1].Y - box[0].Y), 1e-6);
         Assert.Equal(rotation, ScreenAngle(box[2].X - box[3].X, box[2].Y - box[3].Y), 1e-6);
         // the box is wider than the text: the measured width ("0.5" = 18 pixels) plus 5 pixels each side
-        Assert.Equal(18 + 2 * ContourLabelPlacement.InlineSpacing,
+        Assert.Equal(18 + 2 * ContourSeriesRenderer.InlineSpacing,
             Math.Sqrt(Math.Pow(box[1].X - box[0].X, 2) + Math.Pow(box[1].Y - box[0].Y, 2)), 1e-6);
     }
 
@@ -310,10 +293,10 @@ public class ContourLabelTests
     {
         var calls = Render(Ramp(1, 3, 5, 7, 9)).Calls;
 
-        int lastLine = calls.FindLastIndex(c => c.Kind == "DrawLines");
-        int firstLabel = calls.FindIndex(c => c.Kind is "DrawPolygon" or "DrawText");
-        Assert.Equal(5, calls.Count(c => c.Kind == "DrawLines"));
-        Assert.Equal(5, calls.Count(c => c.Kind == "DrawText"));
+        int lastLine = calls.FindLastIndex(c => c is DrawLinesCall);
+        int firstLabel = calls.FindIndex(c => c is DrawPolygonCall or DrawTextCall);
+        Assert.Equal(5, calls.Count(c => c is DrawLinesCall));
+        Assert.Equal(5, calls.Count(c => c is DrawTextCall));
         Assert.True(lastLine < firstLabel, $"a line at call {lastLine} was drawn after a label at call {firstLabel}");
     }
 }

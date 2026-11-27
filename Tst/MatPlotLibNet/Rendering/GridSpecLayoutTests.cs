@@ -14,6 +14,15 @@ public class GridSpecLayoutTests
     private static readonly double PlotAreaTop = 70; // MarginTop(40) + TitleHeight(30)
 
     /// <summary>Verifies that GridSpec with null ratios produces equal-sized cells matching legacy behavior.</summary>
+    /// <summary>The cells of a figure of 800 by 600 that lays its subplots out on a grid, one for each position.</summary>
+    private static IReadOnlyList<Rect> AreasOf(GridSpec gs, params GridPosition[] positions)
+    {
+        var fig = new Figure { Width = 800, Height = 600 };
+        fig.GridSpec = gs;
+        foreach (var position in positions) fig.AddSubPlot(gs, position);
+        return new ChartRenderer().ComputeSubPlotLayout(fig, PlotAreaTop);
+    }
+
     [Fact]
     public void ComputeLayout_EqualRatios_MatchesLegacy()
     {
@@ -50,14 +59,9 @@ public class GridSpecLayoutTests
     [Fact]
     public void ComputeLayout_WidthRatios_ProducesUnequalWidths()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
-        var gs = new GridSpec { Rows = 1, Cols = 2, WidthRatios = [1, 2] };
-        fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Single(0, 0));
-        fig.AddSubPlot(gs, GridPosition.Single(0, 1));
-
-        var renderer = new ChartRenderer();
-        var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
+        var areas = AreasOf(new GridSpec { Rows = 1, Cols = 2, WidthRatios = [1, 2] },
+            GridPosition.Single(0, 0),
+            GridPosition.Single(0, 1));
 
         // Total width = 800 - 60 - 20 = 720, gap = 40 -> available = 680
         // Ratio 1:2 -> col0 = 680/3 ≈ 226.67, col1 = 680*2/3 ≈ 453.33
@@ -69,14 +73,9 @@ public class GridSpecLayoutTests
     [Fact]
     public void ComputeLayout_HeightRatios_ProducesUnequalHeights()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
-        var gs = new GridSpec { Rows = 2, Cols = 1, HeightRatios = [1, 3] };
-        fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Single(0, 0));
-        fig.AddSubPlot(gs, GridPosition.Single(1, 0));
-
-        var renderer = new ChartRenderer();
-        var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
+        var areas = AreasOf(new GridSpec { Rows = 2, Cols = 1, HeightRatios = [1, 3] },
+            GridPosition.Single(0, 0),
+            GridPosition.Single(1, 0));
 
         Assert.Equal(2, areas.Count);
         Assert.Equal(3.0, areas[1].Height / areas[0].Height, 0.01);
@@ -86,16 +85,11 @@ public class GridSpecLayoutTests
     [Fact]
     public void ComputeLayout_BothRatios_ProducesCorrectRects()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
-        var gs = new GridSpec { Rows = 2, Cols = 2, WidthRatios = [1, 3], HeightRatios = [1, 2] };
-        fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Single(0, 0));
-        fig.AddSubPlot(gs, GridPosition.Single(0, 1));
-        fig.AddSubPlot(gs, GridPosition.Single(1, 0));
-        fig.AddSubPlot(gs, GridPosition.Single(1, 1));
-
-        var renderer = new ChartRenderer();
-        var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
+        var areas = AreasOf(new GridSpec { Rows = 2, Cols = 2, WidthRatios = [1, 3], HeightRatios = [1, 2] },
+            GridPosition.Single(0, 0),
+            GridPosition.Single(0, 1),
+            GridPosition.Single(1, 0),
+            GridPosition.Single(1, 1));
 
         // Width ratio 1:3, height ratio 1:2
         Assert.Equal(3.0, areas[1].Width / areas[0].Width, 0.01);
@@ -106,38 +100,31 @@ public class GridSpecLayoutTests
     [Fact]
     public void ComputeLayout_SpanningTwoColumns_ProducesWideRect()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
-        var gs = new GridSpec { Rows = 2, Cols = 3 };
-        fig.GridSpec = gs;
-        fig.AddSubPlot(gs, new GridPosition(0, 1, 0, 2)); // top row, cols 0-1
-        fig.AddSubPlot(gs, GridPosition.Single(0, 2));       // top row, col 2
-        fig.AddSubPlot(gs, new GridPosition(1, 2, 0, 3)); // bottom row, all cols
+        var areas = AreasOf(new GridSpec { Rows = 2, Cols = 3 },
+            new GridPosition(0, 1, 0, 2),
+            GridPosition.Single(0, 2),
+            new GridPosition(1, 2, 0, 3));
 
-        var renderer = new ChartRenderer();
-        var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
-
-        // Spanning cols 0-1 should be ~2x single col width + 1 gap
+        // Spanning cols 0-1 should be ~2x single col width + 1 gap (the gap the theme lays between the columns: the span ends
+        // where the gap before column 2 starts)
         var singleColWidth = areas[1].Width;
         var spanWidth = areas[0].Width;
-        Assert.Equal(spanWidth, singleColWidth * 2 + fig.Spacing.HorizontalGap, 0.01);
+        double gap = areas[1].X - (areas[0].X + areas[0].Width);
+        Assert.Equal(spanWidth, singleColWidth * 2 + gap, 0.01);
     }
 
     /// <summary>Verifies that an axes spanning two rows gets a tall rect including the gap.</summary>
     [Fact]
     public void ComputeLayout_SpanningTwoRows_ProducesTallRect()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
-        var gs = new GridSpec { Rows = 3, Cols = 1 };
-        fig.GridSpec = gs;
-        fig.AddSubPlot(gs, new GridPosition(0, 2, 0, 1)); // rows 0-1
-        fig.AddSubPlot(gs, GridPosition.Single(2, 0));       // row 2
-
-        var renderer = new ChartRenderer();
-        var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
+        var areas = AreasOf(new GridSpec { Rows = 3, Cols = 1 },
+            new GridPosition(0, 2, 0, 1),
+            GridPosition.Single(2, 0));
 
         var singleRowHeight = areas[1].Height;
         var spanHeight = areas[0].Height;
-        Assert.Equal(spanHeight, singleRowHeight * 2 + fig.Spacing.VerticalGap, 0.01);
+        double gap = areas[1].Y - (areas[0].Y + areas[0].Height);
+        Assert.Equal(spanHeight, singleRowHeight * 2 + gap, 0.01);
     }
 
     /// <summary>Verifies that an axes spanning all columns fills the available width.</summary>

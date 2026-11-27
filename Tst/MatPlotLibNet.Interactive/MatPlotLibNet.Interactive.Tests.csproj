@@ -24,7 +24,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The animation the core suite writes once. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\TestAnimation.cs" LinkBase="Shared" />
+    <!-- A fact that only draws and looks for tokens is a row of a theory over this one type. -->
+    <Compile Include="..\MatPlotLibNet\TestFixtures\DrawnToken.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\TestFixtures\FiniteAssertions.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\Rendering\SvgMarkupExtensions.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\..\MatPlotLibNet.AspNetCore\TestFixtures\SignalRTestHost.cs" LinkBase="Shared" />
+    <Compile Include="..\MatPlotLibNet\..\MatPlotLibNet.AspNetCore\TestFixtures\HubConnections.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="MatPlotLibNet.Tests" />
   </ItemGroup>
 
 </Project>

@@ -16,13 +16,6 @@ internal readonly record struct BidiParagraph(byte[] Levels, byte ParagraphLevel
     /// <summary>The level a code unit holds when rule X9 removed its character from the ordering.</summary>
     public const byte Removed = 0xFF;
 
-    /// <summary>Whether the paragraph reads right to left.</summary>
-    public bool IsRightToLeft => (ParagraphLevel & 1) == 1;
-
-    /// <summary>The characters in visual order, left to right, each named by the index of its first code unit.
-    /// Characters removed by X9 are absent: they have no position of their own.</summary>
-    public int[] VisualOrder() => Order;
-
     /// <summary>The levels a renderer hands to a shaper: every code unit gets a real level. A removed character
     /// takes the level of the character before it, or the paragraph level at the very start, so a zero width
     /// joiner stays inside the run whose letters it joins.</summary>

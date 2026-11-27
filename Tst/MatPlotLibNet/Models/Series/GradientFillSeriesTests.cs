@@ -8,6 +8,7 @@ using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -69,10 +70,10 @@ public class GradientFillSeriesTests
         {
             double x = bar.Shape.Number("x"), y = bar.Shape.Number("y"), w = bar.Shape.Number("width"), h = bar.Shape.Number("height");
             double[] line = Line(bar.Gradient);
-            Assert.Equal(y + h / 2, line[1], 6);
-            Assert.Equal(y + h / 2, line[3], 6);
-            Assert.Equal(expectsRise ? x : x + w, line[0], 6);
-            Assert.Equal(expectsRise ? x + w : x, line[2], 6);
+            Assert.Equal(y + h / 2, line[1], SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(y + h / 2, line[3], SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(expectsRise ? x : x + w, line[0], SvgMarkupExtensions.WrittenPrecision);
+            Assert.Equal(expectsRise ? x + w : x, line[2], SvgMarkupExtensions.WrittenPrecision);
         }
     }
 
@@ -208,20 +209,22 @@ public class GradientFillSeriesTests
             .Bar(["a", "b"], [3.0, -2.0], s => { s.Color = Foot; s.GradientColor = Tip; })
             .FillBetween([0, 1, 2], [1.0, 4.0, 2.0], null, s => { s.Color = Foot; s.GradientColor = Tip; })).Build();
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         Assert.Equal(Tip, Assert.IsType<BarSeries>(back.SubPlots[0].Series[0]).GradientColor);
         Assert.Equal(Tip, Assert.IsType<AreaSeries>(back.SubPlots[0].Series[1]).GradientColor);
         Assert.Equal(figure.ToSvg(), back.ToSvg());
     }
 
-    [Fact]
-    public void AFlatFill_LeavesTheGradientColourOutOfTheJson()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Bar(["a"], [1.0])).ToJson();
+        new DrawnToken("AFlatFill_LeavesTheGradientColourOutOfTheJson", () => Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Bar(["a"], [1.0])).ToJson()) { Absent = ["gradientColor"], Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.DoesNotContain("gradientColor", json, StringComparison.OrdinalIgnoreCase);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     private static List<Point> Points(SvgElement polygon) =>
     [

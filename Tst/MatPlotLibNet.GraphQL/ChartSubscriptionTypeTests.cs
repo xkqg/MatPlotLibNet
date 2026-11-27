@@ -10,28 +10,18 @@ namespace MatPlotLibNet.GraphQL.Tests;
 /// <summary>Verifies <see cref="ChartSubscriptionType"/> behavior.</summary>
 public class ChartSubscriptionTypeTests
 {
-    /// <summary>Verifies that OnChartSvgUpdated returns the SVG payload from the event message.</summary>
-    [Fact]
-    public void OnChartSvgUpdated_ReturnsMessagePayload()
+    /// <summary>Verifies that OnChartSvgUpdated returns the SVG payload and OnChartUpdated the JSON payload from the event message.</summary>
+    [Theory]
+    [InlineData(true, "<svg>updated</svg>")]
+    [InlineData(false, "{\"title\":\"Live\"}")]
+    public void AnUpdate_ReturnsMessagePayload(bool svg, string payload)
     {
-        var message = new ChartEventMessage("test-chart", "<svg>updated</svg>");
+        var message = new ChartEventMessage("test-chart", payload);
         var subscription = new ChartSubscriptionType();
 
-        var result = subscription.OnChartSvgUpdated(message);
+        var result = svg ? subscription.OnChartSvgUpdated(message) : subscription.OnChartUpdated(message);
 
-        Assert.Equal("<svg>updated</svg>", result);
-    }
-
-    /// <summary>Verifies that OnChartUpdated returns the JSON payload from the event message.</summary>
-    [Fact]
-    public void OnChartUpdated_ReturnsMessagePayload()
-    {
-        var message = new ChartEventMessage("test-chart", "{\"title\":\"Live\"}");
-        var subscription = new ChartSubscriptionType();
-
-        var result = subscription.OnChartUpdated(message);
-
-        Assert.Equal("{\"title\":\"Live\"}", result);
+        Assert.Equal(payload, result);
     }
 
     /// <summary>Verifies that ChartEventMessage correctly stores the chart ID and payload.</summary>
@@ -51,47 +41,22 @@ public class ChartSubscriptionTypeTests
     /// (internal), so we subscribe through the receiver to the same topic shape and
     /// publish a message — the helpers' topic-name format ("ChartSvg:{id}",
     /// "ChartJson:{id}") is verified by the round-trip.</summary>
-    [Fact]
-    public async Task SvgSubscription_RoundTrip_VerifiesTopicNameShape()
+    [Theory]
+    [InlineData("ChartSvg", "chart-X", "<svg/>", true)]
+    [InlineData("ChartJson", "chart-Y", "{\"k\":1}", false)]
+    public async Task ASubscription_RoundTrip_VerifiesTopicNameShape(string topic, string chart, string body, bool asSvg)
     {
         var sp = BuildProvider();
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
         var sender = sp.GetRequiredService<ITopicEventSender>();
 
         var ct = TestContext.Current.CancellationToken;
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-X", ct);
-        _ = Task.Run(async () => { await Task.Delay(50, ct); await sender.SendAsync("ChartSvg:chart-X", new ChartEventMessage("chart-X", "<svg/>"), ct); }, ct);
-
-        await foreach (var msg in stream.ReadEventsAsync())
-        {
-            Assert.Equal("chart-X", msg.ChartId);
-            // Mirror what OnChartSvgUpdated would have returned.
-            var subscription = new ChartSubscriptionType();
-            Assert.Equal("<svg/>", subscription.OnChartSvgUpdated(msg));
-            return;
-        }
-        Assert.Fail("No event delivered");
-    }
-
-    [Fact]
-    public async Task JsonSubscription_RoundTrip_VerifiesTopicNameShape()
-    {
-        var sp = BuildProvider();
-        var receiver = sp.GetRequiredService<ITopicEventReceiver>();
-        var sender = sp.GetRequiredService<ITopicEventSender>();
-
-        var ct = TestContext.Current.CancellationToken;
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-Y", ct);
-        _ = Task.Run(async () => { await Task.Delay(50, ct); await sender.SendAsync("ChartJson:chart-Y", new ChartEventMessage("chart-Y", "{\"k\":1}"), ct); }, ct);
-
-        await foreach (var msg in stream.ReadEventsAsync())
-        {
-            Assert.Equal("chart-Y", msg.ChartId);
-            var subscription = new ChartSubscriptionType();
-            Assert.Equal("{\"k\":1}", subscription.OnChartUpdated(msg));
-            return;
-        }
-        Assert.Fail("No event delivered");
+        string name = topic + ":" + chart;
+        var msg = await receiver.FirstEventAsync(name, async () => await sender.SendAsync(name, new ChartEventMessage(chart, body), ct), ct);
+        Assert.Equal(chart, msg.ChartId);
+        // Mirror what OnChartSvgUpdated or OnChartUpdated would have returned.
+        var subscription = new ChartSubscriptionType();
+        Assert.Equal(body, asSvg ? subscription.OnChartSvgUpdated(msg) : subscription.OnChartUpdated(msg));
     }
 
     /// <summary>Phase X.10.d (v1.7.2, 2026-04-19) — direct call to the
@@ -101,22 +66,17 @@ public class ChartSubscriptionTypeTests
     /// because external GraphQL pipelines invoke it via reflection (HotChocolate's
     /// subscription resolver); only an IVT-enabled direct call exercises the body
     /// for cobertura.</summary>
-    [Fact]
-    public async Task SubscribeToChartSvg_DirectCall_ReturnsSourceStream()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SubscribeToChart_DirectCall_ReturnsSourceStream(bool svg)
     {
         var sp = BuildProvider();
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
-        await using var stream = await ChartSubscriptionType.SubscribeToChartSvg("chart-direct-svg", receiver, TestContext.Current.CancellationToken);
-        Assert.NotNull(stream);
-    }
-
-    /// <summary>X.10.d sibling — direct call to <see cref="ChartSubscriptionType.SubscribeToChartJson"/>.</summary>
-    [Fact]
-    public async Task SubscribeToChartJson_DirectCall_ReturnsSourceStream()
-    {
-        var sp = BuildProvider();
-        var receiver = sp.GetRequiredService<ITopicEventReceiver>();
-        await using var stream = await ChartSubscriptionType.SubscribeToChartJson("chart-direct-json", receiver, TestContext.Current.CancellationToken);
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await (svg
+            ? ChartSubscriptionType.SubscribeToChartSvg("chart-direct-svg", receiver, ct)
+            : ChartSubscriptionType.SubscribeToChartJson("chart-direct-json", receiver, ct));
         Assert.NotNull(stream);
     }
 

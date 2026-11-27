@@ -88,8 +88,22 @@ public sealed record TextSpan(
     string Text,
     TextSpanKind Kind = TextSpanKind.Normal,
     double FontSizeScale = 1.0,
-    FontVariant Variant = FontVariant.Default);
+    FontVariant Variant = FontVariant.Default)
+{
+    /// <summary>Whether the span is the label's text outside <c>$...$</c>, which <see cref="MathTextParser.Parse"/> marks: it stays
+    /// in the label's face under every math font set. A span built any other way is math.</summary>
+    internal bool OutsideMath { get; init; }
+}
 
 /// <summary>Parsed representation of a potentially math-mode label, consisting of one or more <see cref="TextSpan"/> objects.</summary>
 /// <param name="Spans">The ordered sequence of text spans.</param>
-public sealed record RichText(IReadOnlyList<TextSpan> Spans);
+public sealed record RichText(IReadOnlyList<TextSpan> Spans)
+{
+    /// <summary>The tree of boxes the spans were written from (<see cref="MathTextParser.Parse"/>), which the layout reads; a rich text
+    /// made by hand has none and is read into one (<see cref="MathBoxes.Of"/>).</summary>
+    internal LineBox? Box { get; init; }
+
+    /// <summary>The text of every span one after the other, as a surface that cannot set a span draws and shapes it. A text of one span
+    /// is that span's own string.</summary>
+    public string PlainText => Spans.Count == 1 ? Spans[0].Text : string.Concat(Spans.Select(span => span.Text));
+}

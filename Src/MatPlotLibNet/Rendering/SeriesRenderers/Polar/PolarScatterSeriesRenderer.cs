@@ -18,15 +18,20 @@ internal sealed class PolarScatterSeriesRenderer : SeriesRenderer<PolarScatterSe
     /// <inheritdoc />
     public override void Render(PolarScatterSeries series)
     {
-        var color = ResolveColor(series.Color);
-        var transform = Context.PolarTransformFor(series);
+        var slot = Slot;
+        var color = ColorOf(series);
+        var transform = PolarTransform.For(Context, series);
+        // The size is the marker's width in points (matplotlib's markersize: scatter's s = markersize ** 2 points squared, and a
+        // circle marker is sqrt(s) across), drawn at 100 / 72 pixels to the point: the size the series was given, or the theme's when it was given none.
+        double radius = slot.ScatterSizeOf(series.GivenMarkerSize).PointsInPixels / 2;
+        var style = slot.ScatterStyleOf(color);
 
         for (int i = 0; i < series.R.Length; i++)
         {
             // A point at a radius or an angle that cannot be placed is skipped, as a cartesian marker is.
             var pt = transform.PolarToPixel(series.R[i], series.Theta[i]);
             if (!pt.IsDrawable()) continue;
-            Ctx.DrawCircle(pt, series.MarkerSize / 2, new ShapeStyle(color, null, 0));
+            Ctx.DrawCircle(pt, radius, style);
         }
     }
 }

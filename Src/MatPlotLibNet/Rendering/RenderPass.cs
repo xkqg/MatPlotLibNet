@@ -19,4 +19,9 @@ namespace MatPlotLibNet.Rendering;
 /// <c>(Axes, Rect, IRenderContext, Theme)</c> shape and unwrap a <see cref="RenderPass"/>
 /// at the call boundary.
 /// </remarks>
-internal readonly record struct RenderPass(Rect PlotArea, IRenderContext Context, Theme Theme);
+internal readonly record struct RenderPass(Rect PlotArea, IRenderContext Context, Theme Theme)
+{
+    /// <summary>How far a layout stretched the axes from where the subplot parameters put it (<see cref="AxesRenderer.Stretch"/>), which
+    /// every series of the pass is handed (<see cref="SeriesRenderers.SeriesRenderContext.Stretch"/>).</summary>
+    internal double Stretch { get; init; } = 1;
+}

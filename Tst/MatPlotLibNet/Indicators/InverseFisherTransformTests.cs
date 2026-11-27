@@ -7,33 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="InverseFisherTransform"/>. Covers all 8 branches in
-/// docs/contrib/indicator-tier-3b.md §3.</summary>
+/// <summary>Verifies <see cref="InverseFisherTransform"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class InverseFisherTransformTests
 {
-    // ── Branch 1 — Null input → throw ──
-    [Fact]
-    public void Constructor_NullInput_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new InverseFisherTransform(null!));
-    }
-
-    // ── Branch 2 — Empty input → throw ──
-    [Fact]
-    public void Constructor_EmptyInput_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new InverseFisherTransform([]));
-    }
-
-    // ── Branch 3 — scale <= 0 → throw ──
-    [Theory]
-    [InlineData(0.0)]
-    [InlineData(-1.0)]
-    public void Constructor_NonPositiveScale_Throws(double scale)
-    {
-        Assert.Throws<ArgumentException>(() => new InverseFisherTransform([0.5], scale));
-    }
-
     // ── Branch 4 — Single value → length-1 output ──
     [Fact]
     public void Compute_SingleValue_ReturnsSingle()
@@ -43,28 +20,14 @@ public class InverseFisherTransformTests
         Assert.Equal(Math.Tanh(0.5), ift[0], precision: 9);
     }
 
-    // ── Branch 5 — Very large positive input → output → +1 ──
-    [Fact]
-    public void Compute_LargePositive_ApproachesOne()
+    [Theory]
+    [InlineData(100.0, 1.0, 6)]     // a very large positive input approaches +1
+    [InlineData(-100.0, -1.0, 6)]   // a very large negative input approaches -1
+    [InlineData(0.0, 0.0, 10)]      // zero stays zero
+    public void Compute_AnInputOfOneValue_IsItsTanh(double input, double expected, int precision)
     {
-        var ift = new InverseFisherTransform([100.0]).Compute().Values;
-        Assert.Equal(1.0, ift[0], precision: 6);
-    }
-
-    // ── Branch 6 — Very large negative input → output → -1 ──
-    [Fact]
-    public void Compute_LargeNegative_ApproachesMinusOne()
-    {
-        var ift = new InverseFisherTransform([-100.0]).Compute().Values;
-        Assert.Equal(-1.0, ift[0], precision: 6);
-    }
-
-    // ── Branch 7 — Zero input → output = 0 ──
-    [Fact]
-    public void Compute_Zero_ReturnsZero()
-    {
-        var ift = new InverseFisherTransform([0.0]).Compute().Values;
-        Assert.Equal(0.0, ift[0], precision: 10);
+        var ift = new InverseFisherTransform([input]).Compute().Values;
+        Assert.Equal(expected, ift[0], precision);
     }
 
     // ── Branch 8 — Normal mixed input + scale > 1 ──
@@ -85,32 +48,5 @@ public class InverseFisherTransformTests
     {
         var ift = new InverseFisherTransform([0.5], scale: 2.0).Compute().Values;
         Assert.Equal(Math.Tanh(2.0 * 0.5), ift[0], precision: 9);
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeriesAndSetsYRange()
-    {
-        var axes = new Axes();
-        new InverseFisherTransform([0.0, 0.5, 1.0, -0.5, -1.0]).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-        Assert.Equal(-1, axes.YAxis.Min);
-        Assert.Equal(1, axes.YAxis.Max);
-    }
-
-    [Fact]
-    public void DefaultLabel_HasScale()
-    {
-        var ift = new InverseFisherTransform([0.5]);
-        Assert.Equal("IFT(scale=1)", ift.Label);
-    }
-
-    [Fact]
-    public void InheritsIndicator()
-    {
-        var ift = new InverseFisherTransform([0.5]);
-        Assert.IsAssignableFrom<Indicator<SignalResult>>(ift);
-        Assert.IsAssignableFrom<IIndicator>(ift);
     }
 }

@@ -28,7 +28,7 @@ public sealed class PercentFormatter : ITickFormatter, IJsonDescribed<TickFormat
         double pct = _max == 0 ? 0 : value / _max * 100;
         // Strip unnecessary decimals
         if (pct == Math.Floor(pct))
-            return $"{(long)pct}%";
-        return $"{pct.ToString("G4", CultureInfo.InvariantCulture)}%";
+            return string.Invariant($"{(long)pct}%");
+        return $"{pct.InvariantText("G4")}%";
     }
 }

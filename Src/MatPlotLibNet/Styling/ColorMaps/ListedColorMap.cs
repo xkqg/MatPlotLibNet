@@ -21,6 +21,9 @@ public sealed class ListedColorMap : IColorMap, IJsonDescribed<ColorMapDto>
 
     private readonly Color[] _colors;
 
+    /// <summary>How many colours the map lists (matplotlib's <c>ListedColormap.N</c>).</summary>
+    internal int ColorCount => _colors.Length;
+
     /// <summary>The colour of values below the scale; <see langword="null"/> draws them in the first colour.</summary>
     public Color? UnderColor { get; init; }
 
@@ -42,7 +45,7 @@ public sealed class ListedColorMap : IColorMap, IJsonDescribed<ColorMapDto>
     {
         // A colour index is never computed from NaN: net10.0 cast it to 0 (the first colour), net8.0 threw.
         if (value.IsMissing()) return this.MissingValueColor();
-        value = Math.Clamp(value, 0, 1);
+        value = value.Saturate();
         int n = _colors.Length;
         int index = Math.Min((int)(value * n), n - 1);
         return _colors[index];

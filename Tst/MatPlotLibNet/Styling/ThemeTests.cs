@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
@@ -11,61 +10,65 @@ namespace MatPlotLibNet.Tests.Styling;
 /// <summary>Verifies <see cref="Theme"/> behavior.</summary>
 public class ThemeTests
 {
-    /// <summary>Verifies that the default theme has a white background.</summary>
-    [Fact]
-    public void DefaultTheme_HasWhiteBackground()
+    /// <summary>What a theme is, as its row states it: the name it answers to, the ground of its figure and of its axes, its text
+    /// colour, its font (a family it names and its size in pixels), and whether its grid shows before it is asked for. A theme's colour
+    /// cycle is held by the owner of its table (<c>Tab10CycleOwnerTests</c>, the Okabe-Ito and classic cycle facts).</summary>
+    /// <param name="Theme">The theme, as <see cref="ThemeCases"/> reads a name.</param>
+    /// <param name="Name">The name it answers to.</param>
+    /// <param name="Background">The figure's ground.</param>
+    /// <param name="AxesBackground">The axes' ground.</param>
+    /// <param name="Foreground">The colour of its text.</param>
+    /// <param name="FontFamily">A family its font names.</param>
+    /// <param name="FontPixels">The size of its font in pixels.</param>
+    /// <param name="GridShown">Whether its grid shows before it is asked for.</param>
+    public readonly record struct ThemeFact(string Theme, string Name, string Background, string AxesBackground, string Foreground,
+        string FontFamily, double FontPixels, bool GridShown);
+
+    /// <summary>One row per theme. matplotlib's default style sets font.size 10 and its classic one 12, in points, turned into pixels at
+    /// 100 dpi; both keep the grid hidden until it is asked for, and classic grounds its figure in grey (figure.facecolor 0.75).</summary>
+    public static TheoryData<ThemeFact> Facts => new()
     {
-        Assert.Equal(Colors.White, Theme.Default.Background);
+        new ThemeFact("default", "default", "#FFFFFF", "#FFFFFF", "#000000", "sans-serif", 13, true),
+        new ThemeFact("dark", "dark", "#1C1C1C", "#2D2D2D", "#E0E0E0", "sans-serif", 13, true),
+        new ThemeFact("v2", "matplotlib-v2", "#FFFFFF", "#FFFFFF", "#000000", "DejaVu Sans", 10.0 * 100 / 72, false),
+        new ThemeFact("classic", "matplotlib-classic", "#BFBFBF", "#FFFFFF", "#000000", "DejaVu Sans", 12.0 * 100 / 72, false),
+        new ThemeFact("HighContrast", "high-contrast", "#FFFFFF", "#FFFFFF", "#000000", "DejaVu Sans", 13, true),
+        new ThemeFact("ColorBlindSafe", "colorblind-safe", "#FFFFFF", "#FFFFFF", "#000000", "sans-serif", 13, true),
+    };
+
+    [Theory]
+    [MemberData(nameof(Facts))]
+    public void ATheme_IsWhatItsRowSays(ThemeFact row)
+    {
+        var theme = row.Theme.AsTheme();
+
+        Assert.Equal(row.Name, theme.Name);
+        Assert.Equal(Color.FromHex(row.Background), theme.Background);
+        Assert.Equal(Color.FromHex(row.AxesBackground), theme.AxesBackground);
+        Assert.Equal(Color.FromHex(row.Foreground), theme.ForegroundText);
+        Assert.Contains(row.FontFamily, theme.DefaultFont.Family);
+        Assert.Equal(row.FontPixels, theme.DefaultFont.Size, 3);
+        Assert.Equal(row.GridShown, theme.DefaultGrid.Visible);
     }
 
-    /// <summary>Verifies that the default theme has at least 10 cycle colors.</summary>
-    [Fact]
-    public void DefaultTheme_HasColorCycle()
+    /// <summary>matplotlib's two styles write their text black (text.color is 'black' in both) and draw, when the grid is asked for, the
+    /// grid each one names (matplotlib 3.11.2): the default style <c>grid.color '#b0b0b0'</c>, solid, <c>grid.linewidth 0.8</c>; the classic
+    /// one black, dotted (<c>grid.linestyle ':'</c>), half a point; <c>grid.alpha</c> is 1.0 in both. A grid width is in pixels, so the
+    /// points are turned into pixels at 100 dpi, as for the spine and the fonts (a polar chart's rings and spokes and a 3-D box's walls
+    /// always wear this grid).</summary>
+    [Theory]
+    [InlineData("v2", "#B0B0B0", LineStyle.Solid, 0.8)]
+    [InlineData("classic", "#000000", LineStyle.Dotted, 0.5)]
+    public void AMatplotlibStyle_WritesBlack_AndDrawsTheGridItNames(string style, string gridColour, LineStyle gridStyle, double gridPoints)
     {
-        Assert.NotEmpty(Theme.Default.CycleColors);
-        Assert.True(Theme.Default.CycleColors.Length >= 10);
-    }
+        var theme = style.AsTheme();
+        var grid = theme.DefaultGrid;
 
-    /// <summary>Verifies that the default theme has black foreground text.</summary>
-    [Fact]
-    public void DefaultTheme_HasBlackForeground()
-    {
-        Assert.Equal(Colors.Black, Theme.Default.ForegroundText);
-    }
-
-    /// <summary>Verifies that the default theme provides a non-null default font.</summary>
-    [Fact]
-    public void DefaultTheme_HasDefaultFont()
-    {
-        Assert.NotNull(Theme.Default.DefaultFont);
-    }
-
-    /// <summary>Verifies that the dark theme has a non-white background.</summary>
-    [Fact]
-    public void DarkTheme_HasDarkBackground()
-    {
-        Assert.NotEqual(Colors.White, Theme.Dark.Background);
-    }
-
-    /// <summary>Verifies that the dark theme has a non-black foreground text.</summary>
-    [Fact]
-    public void DarkTheme_HasLightForeground()
-    {
-        Assert.NotEqual(Colors.Black, Theme.Dark.ForegroundText);
-    }
-
-    /// <summary>Verifies that the Seaborn theme is available.</summary>
-    [Fact]
-    public void SeabornTheme_Exists()
-    {
-        Assert.NotNull(Theme.Seaborn);
-    }
-
-    /// <summary>Verifies that the Ggplot theme is available.</summary>
-    [Fact]
-    public void GgplotTheme_Exists()
-    {
-        Assert.NotNull(Theme.Ggplot);
+        Assert.Equal(Colors.Black, theme.DefaultFont.Color);
+        Assert.Equal(Color.FromHex(gridColour), grid.Color);
+        Assert.Equal(gridStyle, grid.LineStyle);
+        Assert.Equal(gridPoints.PointsInPixels, grid.LineWidth);
+        Assert.Equal(1.0, grid.Alpha);
     }
 
     /// <summary>Verifies that the theme builder can override the background color.</summary>
@@ -128,13 +131,15 @@ public class ThemeTests
     }
 
     /// <summary>
-    /// Verifies that Theme.MatplotlibClassic carries a fractional DefaultSpacing that
-    /// scales left margin to 12.5% of figure width — matching matplotlib's subplot.left=0.125.
+    /// Verifies that the matplotlib themes carry a fractional DefaultSpacing: the classic one scales its
+    /// left margin to 12.5% of figure width — matching matplotlib's subplot.left=0.125.
     /// </summary>
-    [Fact]
-    public void MatplotlibClassic_DefaultSpacing_IsFractional()
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
+    public void AMatplotlibTheme_DefaultSpacing_IsFractional(string themeId)
     {
-        var sp = Theme.MatplotlibClassic.DefaultSpacing;
+        var sp = themeId.AsTheme().DefaultSpacing;
         Assert.NotNull(sp);
         Assert.True(sp.IsFractional);
     }
@@ -147,26 +152,32 @@ public class ThemeTests
     }
 
     /// <summary>
-    /// Verifies that resolving Theme.MatplotlibClassic spacing at 800×600 gives the
-    /// correct absolute left margin: Math.Round(800 × 0.125) = 100 px.
+    /// Resolving a matplotlib theme's spacing at 800×600 gives matplotlib's subplot params: <c>plt.style.use('classic')</c> sets figure.subplot
+    /// left 0.125, right 0.9, bottom 0.1, top 0.9 (60 above and 60 below); the default style sets bottom 0.11 and top 0.88 (72 above, 66 below).
     /// </summary>
-    [Fact]
-    public void MatplotlibClassic_Spacing_ResolvesCorrectly_At800x600()
+    [Theory]
+    [InlineData("classic", 60.0, 60.0)]
+    [InlineData("v2", 72.0, 66.0)]
+    public void AMatplotlibTheme_Spacing_ResolvesCorrectly_At800x600(string themeId, double top, double bottom)
     {
-        var sp = Theme.MatplotlibClassic.DefaultSpacing!.Resolve(800, 600);
+        var sp = themeId.AsTheme().DefaultSpacing!.Resolve(800, 600);
         Assert.Equal(100.0, sp.MarginLeft);   // 800 * 0.125
-        Assert.Equal(80.0,  sp.MarginRight);  // 800 * 0.10
-        Assert.Equal(72.0,  sp.MarginTop);    // 600 * 0.12  (matplotlib top=0.88 → margin=0.12)
-        Assert.Equal(66.0,  sp.MarginBottom); // 600 * 0.11  (matplotlib bottom=0.11)
+        Assert.Equal(80.0,  sp.MarginRight);  // 800 * (1 - 0.9)
+        Assert.Equal(top,   sp.MarginTop);
+        Assert.Equal(bottom, sp.MarginBottom);
     }
 
-    /// <summary>Verifies that Theme.MatplotlibV2 also carries a fractional DefaultSpacing.</summary>
-    [Fact]
-    public void MatplotlibV2_DefaultSpacing_IsFractional()
+    /// <summary>matplotlib 3.11.2 keeps <c>figure.subplot.wspace</c> and <c>figure.subplot.hspace</c> at 0.2 in the default style
+    /// and in the classic one; both themes carry them as shares of the average axes (the library's own themes carry none).</summary>
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
+    public void TheMatplotlibThemes_CarryTheGapsAsSharesOfTheAverageAxes(string themeId)
     {
-        var sp = Theme.MatplotlibV2.DefaultSpacing;
-        Assert.NotNull(sp);
-        Assert.True(sp.IsFractional);
+        var sp = themeId.AsTheme().DefaultSpacing!;
+
+        Assert.Equal(0.2, sp.HorizontalGapFraction);
+        Assert.Equal(0.2, sp.VerticalGapFraction);
     }
 
     /// <summary>
@@ -184,7 +195,7 @@ public class ThemeTests
 
         var renderer = new ChartRenderer();
         var ctx = new SvgRenderContext();
-        double plotAreaTop = renderer.RenderBackground(figure, ctx);
+        double plotAreaTop = renderer.FrameOf(figure, ctx).PlotAreaTop;
         var plotAreas = renderer.ComputeSubPlotLayout(figure, plotAreaTop);
 
         // Left edge should come from 800 * 0.125 = 100 px, not the default 60 px
@@ -209,7 +220,7 @@ public class ThemeTests
 
         var renderer = new ChartRenderer();
         var ctx = new SvgRenderContext();
-        double plotAreaTop = renderer.RenderBackground(figure, ctx);
+        double plotAreaTop = renderer.FrameOf(figure, ctx).PlotAreaTop;
         var plotAreas = renderer.ComputeSubPlotLayout(figure, plotAreaTop);
 
         Assert.Equal(60.0, plotAreas[0].X); // default MarginLeft = 60

@@ -11,39 +11,16 @@ public class SwarmplotSeriesRenderTests
 {
     private static readonly double[][] Datasets = [[1.0, 2.0, 2.0, 3.0], [4.0, 5.0, 5.0]];
 
-    [Fact]
-    public void Swarmplot_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        new DrawnToken("Swarmplot_SvgContainsCircles", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Swarmplot(Datasets))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
+            .ToSvg(), "<circle"),
+    };
 
-    [Fact]
-    public void Swarmplot_SvgContainsCircles()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Swarmplot(Datasets))
-            .ToSvg();
-        Assert.Contains("<circle", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
-    [Fact]
-    public void Swarmplot_EmptyDatasets_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Swarmplot([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Swarmplot_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Swarmplot(Datasets)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
 }

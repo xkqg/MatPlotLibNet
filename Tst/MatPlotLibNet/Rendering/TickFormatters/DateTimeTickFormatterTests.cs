@@ -19,12 +19,15 @@ public class DateTimeTickFormatterTests
 
     // ── FromArray — happy path ────────────────────────────────────────────────
 
-    [Fact]
-    public void FromArray_Format_ReturnsFormattedDate()
+    [Theory]
+    [InlineData(0, "2024-01-01")]
+    [InlineData(2, "2024-12-31")]
+    [InlineData(0.4, "2024-01-01")] // rounds to 0
+    [InlineData(0.6, "2024-06-15")] // rounds to 1
+    public void FromArray_Format_ReturnsTheFormattedDateOfTheNearestIndex(double index, string expected)
     {
         var f = DateTimeTickFormatter.FromArray(Timestamps);
-        Assert.Equal("2024-01-01", f.Format(0));
-        Assert.Equal("2024-12-31", f.Format(2));
+        Assert.Equal(expected, f.Format(index));
     }
 
     [Fact]
@@ -37,29 +40,17 @@ public class DateTimeTickFormatterTests
 
     // ── FromArray — bounds ────────────────────────────────────────────────────
 
-    [Fact]
-    public void FromArray_Format_IndexBelowZero_ReturnsEmpty()
-    {
-        var f = DateTimeTickFormatter.FromArray(Timestamps);
-        Assert.Equal(string.Empty, f.Format(-1));
-    }
+    public static TheoryData<int> IndicesOutsideTheTimestamps => new() { -1, Timestamps.Length };
 
-    [Fact]
-    public void FromArray_Format_IndexAboveLength_ReturnsEmpty()
+    [Theory]
+    [MemberData(nameof(IndicesOutsideTheTimestamps))]
+    public void FromArray_Format_IndexOutsideTheTimestamps_ReturnsEmpty(int index)
     {
         var f = DateTimeTickFormatter.FromArray(Timestamps);
-        Assert.Equal(string.Empty, f.Format(Timestamps.Length));
+        Assert.Equal(string.Empty, f.Format(index));
     }
 
     // ── FromArray — rounding ──────────────────────────────────────────────────
-
-    [Fact]
-    public void FromArray_Format_FractionalRoundsToNearest()
-    {
-        var f = DateTimeTickFormatter.FromArray(Timestamps);
-        Assert.Equal("2024-01-01", f.Format(0.4));   // rounds to 0
-        Assert.Equal("2024-06-15", f.Format(0.6));   // rounds to 1
-    }
 
     // ── FromArray — constructor validation ───────────────────────────────────
 

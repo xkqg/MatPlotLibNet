@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -12,7 +13,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <remarks>Quadrant fills use the StockCharts canonical palette (green/yellow/red/blue at low
 /// opacity). The fading tail alpha ramps from 0.2 (oldest) to 1.0 (most recent head).
 /// One <see cref="IRenderContext.DrawLine"/> call per tail segment so each segment can have
-/// its own alpha. <see cref="IRenderContext.SetOpacity"/> is reset to 1.0 after each asset.</remarks>
+/// its own alpha. Each mark is drawn in a scope of its own alpha (<c>WithOpacity</c>) that puts the surface back to 1.0 after it.</remarks>
 internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRotationSeries>
 {
     // Quadrant fill colours (very low alpha so the series remains readable on top).
@@ -22,10 +23,9 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
     private static readonly Color ImprovingColor = new(0,   100, 200, 20);  // -/+ blue
     private static readonly Color CrosshairColor = new(100, 100, 100, 120);
 
-    private const double CrosshairThickness = 0.5;
     private const double HeadRadius         = 5.0;
     private const double TailThickness      = 1.2;
-    private const double LabelFontSize      = 9.0;
+    private const double HeadDotEdge        = 1.5;  // the outline of the latest point's dot
 
     // ENB radius: ENB=1 → ~1.5px, ENB=5 → ~7.5px (ENB * sqrt(7/π) ≈ ENB * 1.49).
     private static double EnbToRadius(double enb) => Math.Max(1.5, enb * 1.5);
@@ -42,7 +42,7 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
     /// <inheritdoc />
     public override void Render(RelativeRotationSeries series)
     {
-        var rsData = series.ComputeRsData();
+        var rsData = series.Rotation();
 
         // Determine the visible window: union of last TailLength valid points across assets.
         // Axes scaling is driven by ComputeDataRange; we just paint inside the current area.
@@ -50,13 +50,13 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
         if (series.ShowQuadrantGrid)
             DrawQuadrantGrid();
 
-        var cmap = series.ColorMap ?? QualitativeColorMaps.Tab10;
+        var cmap = series.ColorMap ?? Context.Theme.CycleMap;
 
         for (int a = 0; a < rsData.Length; a++)
         {
             var (rsRatio, rsMom) = rsData[a];
             double hue = rsData.Length > 1 ? (double)a / (rsData.Length - 1) : 0.0;
-            var assetColor = cmap.GetColor(Math.Clamp(hue, 0.0, 1.0));
+            var assetColor = cmap.GetColor(hue.Saturate());
             DrawAsset(series, rsRatio, rsMom, assetColor, series.AssetLabels[a]);
         }
     }
@@ -78,12 +78,12 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
         double highX = xRunsRight ? b.Right : b.X, lowX = xRunsRight ? b.X : b.Right;
         double highY = yRunsUp ? b.Y : b.Bottom, lowY = yRunsUp ? b.Bottom : b.Y;
 
-        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(highX, highY)), new ShapeStyle(LeadingColor, null, 0));   // +/+
-        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(highX, lowY)), new ShapeStyle(WeakeningColor, null, 0));  // +/-
-        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(lowX, lowY)), new ShapeStyle(LaggingColor, null, 0));     // -/-
-        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(lowX, highY)), new ShapeStyle(ImprovingColor, null, 0));  // -/+
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(highX, highY)), ShapeStyle.Filled(LeadingColor));   // +/+
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(highX, lowY)), ShapeStyle.Filled(WeakeningColor));  // +/-
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(lowX, lowY)), ShapeStyle.Filled(LaggingColor));     // -/-
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(lowX, highY)), ShapeStyle.Filled(ImprovingColor));  // -/+
 
-        var crosshair = new StrokeStyle(CrosshairColor, CrosshairThickness, LineStyle.Dashed);
+        var crosshair = Slot.StrokeOf(CrosshairColor, LineWidthRule.OwnHairline, LineStyle.Dashed);
         if (center.Y >= b.Y && center.Y <= b.Bottom)
             Ctx.DrawLine(new Point(b.X, center.Y), new Point(b.Right, center.Y), crosshair);
         if (center.X >= b.X && center.X <= b.Right)
@@ -95,14 +95,16 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
         double[] rsRatio, double[] rsMom,
         Color color, string label)
     {
-        // Collect the last TailLength valid (pixel, time-index) pairs, oldest first.
+        // Collect the last TailLength valid bars, oldest first: where each lands on the plot, and its index in time.
         int tail = series.TailLength;
-        var points = new List<(Point Pixel, int T)>(tail);
+        var points = new List<Point>(tail);
+        var bars = new List<int>(tail);
 
         for (int t = rsRatio.Length - 1; t >= 0 && points.Count < tail; t--)
         {
             if (double.IsNaN(rsRatio[t]) || double.IsNaN(rsMom[t])) continue;
-            points.Insert(0, (Transform.DataToPixel(rsRatio[t], rsMom[t]), t));
+            points.Insert(0, Transform.DataToPixel(rsRatio[t], rsMom[t]));
+            bars.Insert(0, t);
         }
 
         if (points.Count == 0) return;
@@ -117,19 +119,19 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
             for (int i = 0; i < points.Count - 1; i++)
             {
                 double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
-                Ctx.SetOpacity(alpha);
-                Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel,
-                    new StrokeStyle(new Color(160, 160, 160), TailThickness, LineStyle.Solid));
+                using var opacity = Ctx.WithOpacity(alpha);
+                Ctx.DrawLine(points[i], points[i + 1],
+                    StrokeStyle.Solid(new Color(160, 160, 160), TailThickness));
             }
 
             // Per-point dots.
-            bool isLast = false;
             for (int i = 0; i < points.Count; i++)
             {
-                isLast = i == points.Count - 1;
-                var (pixel, t) = points[i];
+                bool isLast = i == points.Count - 1;
+                var pixel = points[i];
+                int t = bars[i];
                 double alpha = isLast ? 1.0 : 0.2 + 0.8 * ((double)i / (points.Count - 1));
-                Ctx.SetOpacity(alpha);
+                using var opacity = Ctx.WithOpacity(alpha);
 
                 Color fill = color;
                 if (hasAbsorption)
@@ -141,8 +143,8 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
                     ? EnbToRadius(series.EnbPerBar![t]) * (isLast ? 1.5 : 1.0)
                     : HeadRadius * (isLast ? 1.0 : 0.6);
 
-                double stroke = isLast ? 1.5 : 0.5;
-                Ctx.DrawCircle(pixel, radius, new ShapeStyle(fill, color, stroke));
+                double stroke = isLast ? HeadDotEdge : Slot.LineWidthOf(LineWidthRule.OwnHairline);
+                Ctx.DrawCircle(pixel, radius, ShapeStyle.Edged(fill, color, stroke));
             }
         }
         else
@@ -151,18 +153,14 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
             for (int i = 0; i < points.Count - 1; i++)
             {
                 double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
-                Ctx.SetOpacity(alpha);
-                Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel, new StrokeStyle(color, TailThickness, LineStyle.Solid));
+                using var opacity = Ctx.WithOpacity(alpha);
+                Ctx.DrawLine(points[i], points[i + 1], StrokeStyle.Solid(color, TailThickness));
             }
-            Ctx.SetOpacity(1.0);
-            Ctx.DrawCircle(points[^1].Pixel, HeadRadius, new ShapeStyle(color, Colors.Black, 0.5));
+            Ctx.DrawCircle(points[^1], HeadRadius, ShapeStyle.Edged(color, Colors.Black, Slot.LineWidthOf(LineWidthRule.OwnHairline)));
         }
 
-        // Label always at head, full opacity.
-        Ctx.SetOpacity(1.0);
-        var head = points[^1].Pixel;
-        Ctx.DrawText(label, new Point(head.X + HeadRadius + 2.0, head.Y),
-            new Font { Family = "sans-serif", Size = LabelFontSize, Color = Colors.Black },
-            TextAlignment.Left);
+        // Label always at head, full opacity: every opacity above ended with its mark.
+        var head = points[^1];
+        Ctx.Draw(TextLabel.Of(label), Context.Theme.DataTextFont(series.TextSizeUnder(Context.Theme)), new TextPlacement(new Point(head.X + HeadRadius + 2.0, head.Y), TextAlignment.Left) { Vertical = TextVerticalAlignment.Center });
     }
 }

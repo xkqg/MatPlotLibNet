@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"quiverkey","color":"#14C83C","markerSize":0.265625,"quiverKeyX":0.34375,"quiverKeyY":0.359375,"quiverKeyU":0.3125,"quiverKeyLabel":"text 2","quiverKeyLabelPosition":"left","zOrder":10,"visible":false}]}]}

@@ -1,9 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Builders;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -112,16 +110,17 @@ public class ChartSummarizerTests
         Assert.Null(series.YRange);
     }
 
-    [Fact]
-    public void TheSummaryReadsAsOneLinePerSeries()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().WithTitle("Revenue").Plot([1.0, 2], [3.0, 4], s => s.Label = "Q1").Build();
+        new DrawnToken("TheSummaryReadsAsOneLinePerSeries", () =>
+        {
+            var figure = Plt.Create().WithTitle("Revenue").Plot([1.0, 2], [3.0, 4], s => s.Label = "Q1").Build();
+            return Summarizer.Describe(figure).ToText();
+        }, "Revenue", "line", "Q1", "2 points"),
+    };
 
-        string text = Summarizer.Describe(figure).ToText();
-
-        Assert.Contains("Revenue", text);
-        Assert.Contains("line", text);
-        Assert.Contains("Q1", text);
-        Assert.Contains("2 points", text);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

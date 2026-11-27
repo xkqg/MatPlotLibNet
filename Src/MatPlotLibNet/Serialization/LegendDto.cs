@@ -19,6 +19,10 @@ internal sealed record LegendDto
     public bool? FrameOn { get; init; }
     public double? FrameAlpha { get; init; }
     public bool? FancyBox { get; init; }
+    /// <summary>How many markers the handle of a line shows.</summary>
+    public int? NumPoints { get; init; }
+    /// <summary>How many markers the handle of a scatter shows.</summary>
+    public int? ScatterPoints { get; init; }
     public bool? Shadow { get; init; }
     public Color? EdgeColor { get; init; }
     public Color? FaceColor { get; init; }
@@ -30,7 +34,12 @@ internal sealed record LegendDto
     private static readonly Legend Rest = new();
 
     /// <summary>The JSON's form of <paramref name="legend"/>, or <see langword="null"/> when it is a new legend's.</summary>
-    internal static LegendDto? From(Legend legend) => legend == Rest ? null : new()
+    /// <param name="legend">The legend of the axes.</param>
+    /// <returns>The record of the legend.</returns>
+    internal static LegendDto? From(Legend legend) => legend.DescribedUnlessAtRest(Rest, Describe);
+
+    /// <summary>The JSON's form of a legend away from a new legend's.</summary>
+    private static LegendDto Describe(Legend legend) => new()
     {
         Visible = legend.Visible.OrNullAtRest(Rest.Visible),
         Position = legend.Position.OrNullAtRest(Rest.Position),
@@ -39,8 +48,10 @@ internal sealed record LegendDto
         Title = legend.Title,
         TitleFontSize = legend.TitleFontSize,
         FrameOn = legend.FrameOn.OrNullAtRest(Rest.FrameOn),
-        FrameAlpha = legend.FrameAlpha.OrNullAtRest(Rest.FrameAlpha),
-        FancyBox = legend.FancyBox.OrNullAtRest(Rest.FancyBox),
+        FrameAlpha = legend.GivenFrameAlpha,
+        FancyBox = legend.GivenFancyBox,
+        NumPoints = legend.NumPoints,
+        ScatterPoints = legend.ScatterPoints,
         Shadow = legend.Shadow.OrNullAtRest(Rest.Shadow),
         EdgeColor = legend.EdgeColor,
         FaceColor = legend.FaceColor,
@@ -57,24 +68,32 @@ internal sealed record LegendDto
     /// <param name="legend">The legend, or <see langword="null"/> for none.</param>
     internal static LegendDto? FromPresent(Legend? legend) => legend is null ? null : From(legend) ?? new LegendDto();
 
-    /// <summary>The legend this record describes.</summary>
-    internal Legend ToLegend() => new()
+    /// <summary>The legend this record describes. A frame opacity and a rounded frame are set only when the record names them, so a
+    /// legend that was given neither is read back as given neither.</summary>
+    /// <returns>The legend of the record.</returns>
+    internal Legend ToLegend()
     {
-        Visible = Visible ?? Rest.Visible,
-        Position = Position ?? Rest.Position,
-        NCols = NCols ?? Rest.NCols,
-        FontSize = FontSize,
-        Title = Title,
-        TitleFontSize = TitleFontSize,
-        FrameOn = FrameOn ?? Rest.FrameOn,
-        FrameAlpha = FrameAlpha ?? Rest.FrameAlpha,
-        FancyBox = FancyBox ?? Rest.FancyBox,
-        Shadow = Shadow ?? Rest.Shadow,
-        EdgeColor = EdgeColor,
-        FaceColor = FaceColor,
-        MarkerScale = MarkerScale ?? Rest.MarkerScale,
-        LabelSpacing = LabelSpacing ?? Rest.LabelSpacing,
-        ColumnSpacing = ColumnSpacing ?? Rest.ColumnSpacing,
-        LegendValues = LegendValues ?? Rest.LegendValues,
-    };
+        var legend = new Legend
+        {
+            Visible = Visible ?? Rest.Visible,
+            Position = Position ?? Rest.Position,
+            NCols = NCols ?? Rest.NCols,
+            FontSize = FontSize,
+            Title = Title,
+            TitleFontSize = TitleFontSize,
+            FrameOn = FrameOn ?? Rest.FrameOn,
+            Shadow = Shadow ?? Rest.Shadow,
+            EdgeColor = EdgeColor,
+            FaceColor = FaceColor,
+            MarkerScale = MarkerScale ?? Rest.MarkerScale,
+            LabelSpacing = LabelSpacing ?? Rest.LabelSpacing,
+            ColumnSpacing = ColumnSpacing ?? Rest.ColumnSpacing,
+            LegendValues = LegendValues ?? Rest.LegendValues,
+            NumPoints = NumPoints,
+            ScatterPoints = ScatterPoints,
+        };
+        if (FrameAlpha is { } alpha) legend = legend with { FrameAlpha = alpha };
+        if (FancyBox is { } fancy) legend = legend with { FancyBox = fancy };
+        return legend;
+    }
 }

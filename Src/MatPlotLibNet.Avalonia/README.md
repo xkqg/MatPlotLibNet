@@ -44,9 +44,18 @@ Set `IsInteractive="True"` and the control handles pan, zoom, reset, and brush-s
 | Home / Escape | Reset to original limits |
 | Shift + left-drag | Brush select (fires `BrushSelectEvent` to your custom sink) |
 
-## Custom event sink (server mode)
+## Server mode
 
-For SignalR-connected charts, construct the `InteractionController` with your own sink:
+`WithServerInteraction` makes a control (`MplChartControl` or `MplStreamingChartControl`) interactive and sends each gesture
+through the delegate you give it, instead of applying it to the figure; whoever receives it applies it:
+
+```csharp
+chart.WithServerInteraction((method, payload) => hubConnection.SendAsync(method, payload));
+```
+
+## Custom event sink
+
+To take the gestures yourself, construct the `InteractionController` with your own sink:
 
 ```csharp
 var ctrl = InteractionController.Create(figure, layout, evt =>

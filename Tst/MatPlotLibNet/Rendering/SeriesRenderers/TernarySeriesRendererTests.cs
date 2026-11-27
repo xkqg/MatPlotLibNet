@@ -24,13 +24,6 @@ public class TernarySeriesRendererTests
         return axes;
     }
 
-    private static RecordingRenderContext Draw(Axes axes)
-    {
-        var ctx = new RecordingRenderContext();
-        AxesRenderer.Create(axes, Box, ctx, Theme.Default).Render();
-        return ctx;
-    }
-
     private static Point PixelOf(double top, double left, double right)
     {
         var frame = new TernaryPoint(top, left, right).Closed().InFrame();
@@ -44,14 +37,14 @@ public class TernarySeriesRendererTests
         series.MarkerSize = 10;
         series.Color = Color.FromHex("#C03030");
 
-        var circles = Draw(axes).OfKind("DrawCircle").Select(c => (dynamic)c.Args!).ToArray();
+        var circles = axes.Drawn(Box).Of<DrawCircleCall>().ToArray();
 
         Assert.Equal(2, circles.Length);
         var first = PixelOf(0.2, 0.5, 0.3);
-        Assert.Equal(first.X, ((Point)circles[0].center).X, 6);
-        Assert.Equal(first.Y, ((Point)circles[0].center).Y, 6);
-        Assert.Equal(5.0, (double)circles[0].radius);
-        Assert.Equal(Color.FromHex("#C03030"), (Color?)circles[0].fill);
+        Assert.Equal(first.X, (circles[0].Center).X, 6);
+        Assert.Equal(first.Y, (circles[0].Center).Y, 6);
+        Assert.Equal(10 * (100.0 / 72.0) / 2, circles[0].Radius, 9);   // 10 points across
+        Assert.Equal(Color.FromHex("#C03030"), circles[0].Fill);
     }
 
     [Fact]
@@ -59,12 +52,12 @@ public class TernarySeriesRendererTests
     {
         var axes = ScatterAxes(out _);   // the second sample is (0, 1, 0): the bottom left corner
 
-        var ctx = Draw(axes);
+        var ctx = axes.Drawn(Box);
 
-        var corner = ctx.OfKind("DrawCircle").Select(c => (Point)((dynamic)c.Args!).center)
+        var corner = ctx.Of<DrawCircleCall>().Select(c => c.Center)
             .Single(p => Math.Abs(p.X - Box.X) < 1e-6);
         Assert.Equal(Box.Y + Box.Height, corner.Y, 6);
-        Assert.Equal(0, ctx.CountOf("PushClip"));   // T6: nothing cuts the marker at the edge of the box
+        Assert.Equal(0, ctx.Count<PushClipCall>());   // T6: nothing cuts the marker at the edge of the box
     }
 
     [Fact]
@@ -74,15 +67,14 @@ public class TernarySeriesRendererTests
         var line = axes.TernaryPlot([0.2, 1.0, 0.0], [0.5, 0.0, 1.0], [0.3, 0.0, 0.0]);
         line.LineWidth = 3;
 
-        var polyline = Assert.Single(Draw(axes).OfKind("DrawLines"));
+        var polyline = Assert.Single(axes.Drawn(Box).Of<DrawLinesCall>());
 
-        dynamic args = polyline.Args!;
-        Point[] points = args.points;
+        Point[] points = polyline.Points;
         Assert.Equal(3, points.Length);
         Assert.Equal(PixelOf(0.2, 0.5, 0.3).X, points[0].X, 6);
         Assert.Equal(PixelOf(1, 0, 0).Y, points[1].Y, 6);   // the apex
         Assert.Equal(PixelOf(0, 1, 0).X, points[2].X, 6);   // the bottom left corner
-        Assert.Equal(3.0, (double)args.thickness);
+        Assert.Equal(3.0, polyline.Thickness);
     }
 
     [Fact]
@@ -92,7 +84,7 @@ public class TernarySeriesRendererTests
         var axes = new Axes { CoordinateSystem = CoordinateSystem.Ternary };
         axes.AddSeries(series);
 
-        Assert.Equal(2, Draw(axes).CountOf("DrawCircle"));
+        Assert.Equal(2, axes.Drawn(Box).Count<DrawCircleCall>());
     }
 
     [Fact]
@@ -103,7 +95,7 @@ public class TernarySeriesRendererTests
 
         string svg = figure.ToSvg();
 
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(svg, "<circle").Count);
+        Assert.Equal(2, svg.Elements("circle").Count);
         Assert.DoesNotContain("clip-path", svg, StringComparison.Ordinal);
     }
 

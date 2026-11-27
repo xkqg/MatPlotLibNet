@@ -64,7 +64,7 @@ public class StftReplayTests
             ctx, Colors.Tab10Blue, new RenderArea(bounds, ctx));
         new SpectrogramSeriesRenderer(context).Render(
             new SpectrogramSeries(signal) { SampleRate = SampleRate, WindowSize = windowSize, Overlap = 0 });
-        return [.. ctx.OfKind("DrawRectangle").Select(c => (Rect)c.Args!.GetType().GetProperty("rect")!.GetValue(c.Args)!)];
+        return [.. ctx.Rects()];
     }
 
     [Fact]

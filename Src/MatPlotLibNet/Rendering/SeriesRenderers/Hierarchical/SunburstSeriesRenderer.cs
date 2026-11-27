@@ -9,8 +9,9 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="SunburstSeries"/> as concentric ring segments.</summary>
-internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
+internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
 {
+
     /// <inheritdoc />
     public SunburstSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -21,9 +22,9 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
     public override void Render(SunburstSeries series)
     {
         var bounds = Context.Area.PlotBounds;
-        double cx = bounds.X + bounds.Width / 2;
-        double cy = bounds.Y + bounds.Height / 2;
-        double maxRadius = Math.Min(bounds.Width, bounds.Height) / 2 - HierarchicalLayout.Sunburst.OuterRingInsetPx;
+        var frame = RoundFrame.In(bounds, RoundFrame.FullShare, OuterRingInsetPx);
+        double cx = frame.Centre.X, cy = frame.Centre.Y;
+        double maxRadius = frame.Radius;
 
         // Count max depth
         int maxDepth = series.Root.Levels();
@@ -38,7 +39,7 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
         RenderRing(series.Root, cx, cy, 0, 360, 0, series, ringWidth, maxRadius, labelCandidates);
 
         if (labelCandidates is { Count: > 0 })
-            PlaceOuterLabels(labelCandidates, bounds);
+            DrawPlacedLabels(PlaceLabels(labelCandidates, bounds));
     }
 
     private void RenderRing(TreeNode node, double cx, double cy,
@@ -53,34 +54,28 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
         double innerR = series.InnerRadius * maxRadius + depth * ringWidth;
         double outerR = innerR + ringWidth;
 
-        // Reuse the cached label font so every ring uses the same metrics, and so the
-        // text-size measurement inside the LabelLayoutEngine matches what the renderer
-        // will eventually draw (both go through FontMetricsDefault.Current).
-        Font? labelFont = null;
-        if (labelCandidates is not null)
-        {
-            var f = Context.Theme.DefaultFont;
-            labelFont = new Font { Family = f.Family, Size = Math.Max(9, f.Size - 1), Color = Colors.White };
-        }
+        // Every label has the same size, so the text-size measurement inside the LabelLayoutEngine matches what the renderer
+        // will eventually draw (both go through the surface); its ink is the one that reads against its segment.
+        double labelSize = series.LabelSizeUnder(Context.Theme);
 
         double currentAngle = startAngle;
         foreach (var (child, share) in shares)
         {
             double childSweep = sweepAngle * share;
-            var color = child.Color ?? ResolveColor(null);
+            var color = child.Color ?? SeriesColor;
 
-            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, currentAngle, currentAngle + childSweep), new ShapeStyle(color, Colors.White, 1));
+            Ctx.DrawPath(new RingWedge(cx, cy, innerR, outerR, currentAngle, currentAngle + childSweep).Path(), ShapeStyle.Edged(color, Colors.White, Slot.LineWidthOf(LineWidthRule.OwnPixel)));
 
             // Collect a label for this ring segment when labels are enabled and the wedge
             // is wide enough to plausibly host one. Anchor at the radial+angular midpoint.
-            if (labelCandidates is not null && labelFont is not null
+            if (labelCandidates is not null
                 && childSweep >= series.MinLabelSweepDegrees
                 && !string.IsNullOrEmpty(child.Label))
             {
-                double midAngle = (currentAngle + childSweep / 2) * Math.PI / 180.0;
+                double midAngle = (currentAngle + childSweep / 2).ToRadians();
                 double midR = (innerR + outerR) / 2.0;
-                var anchor = new Point(cx + midR * Math.Cos(midAngle), cy + midR * Math.Sin(midAngle));
-                labelCandidates.Add(new LabelCandidate(anchor, child.Label, labelFont, TextAlignment.Center));
+                var anchor = new Point(cx, cy).AtAngle(midR, midAngle);
+                labelCandidates.Add(new LabelCandidate(anchor, child.Label, Context.Theme.DataTextFontOn(color, labelSize, GroundInk.Readable), TextAlignment.Center) { VerticalAlignment = TextVerticalAlignment.Center });
             }
 
             // Recurse
@@ -88,4 +83,8 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
             currentAngle += childSweep;
         }
     }
+
+    /// <summary>Pixel inset subtracted from the plot's half-extent before computing
+    /// the outermost ring radius — leaves visible clearance for outer labels.</summary>
+    private const double OuterRingInsetPx = 10.0;
 }

@@ -1,20 +1,19 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>A mark that stands on a base (a bar, a histogram's bin, a count plot's bar, a waterfall step, an area filled
 /// down to a floor, a stacked layer) is drawn from its base to the value it reaches, so its range holds both, as far as the
 /// axis can place them: matplotlib's data limits are the union of what is drawn. A log axis has no place for 0: the base
-/// is drawn at the edge where the axis begins (<see cref="DataTransform.DataToPixelClippedY"/>) and takes no part in the
+/// is drawn at the edge where the axis begins (<see cref="DataTransform.DataToPixelClippedAlong"/>) and takes no part in the
 /// range, which starts at the lowest value the marks reach, matplotlib's floor (the smallest positive value, its
 /// <c>minpos</c>). Before, the base 0 was handed to the range as it is, the log axis lifted that floor to three decades under
 /// the top, and every mark shorter than that hung below the plot: <c>Bar(["1 KB", "1 MB", "1 GB"], [0.4, 35, 41000])</c>
@@ -226,7 +225,7 @@ public class StandingMarkRangeTests
         var axes = LogY();
         axes.Bar(Sizes, Small);
 
-        var range = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2)
+        var range = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2)
             .ComputeDataRanges();
 
         double decades = Math.Log10(41000) - Math.Log10(0.4);
@@ -247,7 +246,7 @@ public class StandingMarkRangeTests
         Assert.Equal(0, range.YMax);
         Assert.Equal(0, range.StickyYMax);
 
-        var drawn = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2)
+        var drawn = new CartesianAxisPlacement(axes, new Rect(80, 60, 700, 400), new SvgRenderContext(), Theme.MatplotlibV2)
             .ComputeDataRanges();
         Assert.Equal(0, drawn.YMax);
     }
@@ -315,12 +314,12 @@ public class StandingMarkRangeTests
 
     // ---- what a figure draws: every mark inside the plot -----------------------------------------------------------------
 
-    private static readonly Regex RectRe = new(
-        "<rect x=\"([^\"]+)\" y=\"([^\"]+)\" width=\"([^\"]+)\" height=\"([^\"]+)\"", RegexOptions.Compiled);
+    private static List<Rect> Rects(string svg) =>
+        [.. svg.Elements("rect").Where(rect => rect["x"] is not null && rect["y"] is not null && rect["width"] is not null && rect["height"] is not null)
+            .Select(rect => new Rect(rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height")))];
 
-    private static readonly Regex PointsRe = new("<(?:polygon|polyline) points=\"([^\"]+)\"", RegexOptions.Compiled);
-
-    private static double N(string s) => double.Parse(s, CultureInfo.InvariantCulture);
+    private static List<SvgElement> PointMarks(string svg) =>
+        [.. svg.Elements("polygon").Concat(svg.Elements("polyline")).Where(mark => mark["points"] is not null)];
 
     private static void Draw(string kind, AxesBuilder ax)
     {
@@ -370,14 +369,19 @@ public class StandingMarkRangeTests
     [InlineData("stacked area with a falling layer")]
     public void EveryStandingMark_IsDrawnInsideThePlot(string kind)
     {
+        // The plot's own background, written to the hundredth: a plot whose edges are not whole pixels (an axis title beside it)
+        // is written a rounding away from the rectangle the layout made.
+        static bool WrittenAs(Rect plot, Rect written) =>
+            Math.Abs(written.X - plot.X) < SvgMarkupExtensions.WrittenPrecision && Math.Abs(written.Y - plot.Y) < SvgMarkupExtensions.WrittenPrecision
+            && Math.Abs(written.Width - plot.Width) < SvgMarkupExtensions.WrittenPrecision && Math.Abs(written.Height - plot.Height) < SvgMarkupExtensions.WrittenPrecision;
+
         var figure = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => Draw(kind, ax)).Build();
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         string svg = figure.ToSvg();
         const double Tolerance = 1e-6;
 
-        var marks = RectRe.Matches(svg).Select(m => new Rect(N(m.Groups[1].Value), N(m.Groups[2].Value), N(m.Groups[3].Value), N(m.Groups[4].Value)))
-            .Where(r => r != new Rect(0, 0, 500, 350) && r != plot).ToList();
-        Assert.True(marks.Count + PointsRe.Matches(svg).Count > 0, $"{kind}: no mark was drawn");
+        var marks = Rects(svg).Where(r => r != new Rect(0, 0, 500, 350) && !WrittenAs(plot, r)).ToList();
+        Assert.True(marks.Count + PointMarks(svg).Count > 0, $"{kind}: no mark was drawn");
         foreach (var r in marks)
         {
             Assert.True(r.Width >= 0 && r.Height >= 0, $"{kind}: a rectangle of {r.Width} x {r.Height}");
@@ -385,13 +389,11 @@ public class StandingMarkRangeTests
                      && r.Y >= plot.Y - Tolerance && r.Bottom <= plot.Bottom + Tolerance,
                 $"{kind}: a rectangle at {r} outside the plot {plot}");
         }
-        foreach (Match m in PointsRe.Matches(svg))
+        foreach (var mark in PointMarks(svg))
         {
-            foreach (var pair in m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var point in mark.Points())
             {
-                var xy = pair.Split(',');
-                double y = N(xy[1]);
-                Assert.True(y >= plot.Y - Tolerance && y <= plot.Bottom + Tolerance, $"{kind}: a point at y = {y} outside the plot {plot}");
+                Assert.True(point.Y >= plot.Y - Tolerance && point.Y <= plot.Bottom + Tolerance, $"{kind}: a point at y = {point.Y} outside the plot {plot}");
             }
         }
     }
@@ -403,11 +405,10 @@ public class StandingMarkRangeTests
     {
         var figure = Plt.Create().WithSize(500, 350)
             .AddSubPlot(1, 1, 1, ax => ax.Bar(Sizes, Small).SetYScale(AxisScale.Log).SetYLim(1, 100000)).Build();
-        var plot = new ChartRenderer().ComputeLayout(figure, new SvgRenderContext()).PlotAreas[0];
+        var plot = figure.FirstPlotArea();
         string svg = figure.ToSvg();
 
-        var first = RectRe.Matches(svg).Select(m => new Rect(N(m.Groups[1].Value), N(m.Groups[2].Value), N(m.Groups[3].Value), N(m.Groups[4].Value)))
-            .First(r => r.Width < plot.Width && r.Height != plot.Height && r != new Rect(0, 0, 500, 350));
+        var first = Rects(svg).First(r => r.Width < plot.Width && r.Height != plot.Height && r != new Rect(0, 0, 500, 350));
         Assert.True(first.Height > 0, $"the bar below the limit is {first.Height} high");
         Assert.Equal(plot.Bottom, first.Y, 9);
         Assert.Contains("clip-path=", svg);

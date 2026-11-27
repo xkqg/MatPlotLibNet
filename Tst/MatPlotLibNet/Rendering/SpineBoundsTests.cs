@@ -20,8 +20,6 @@ public class SpineBoundsTests
         })
         .Build();
 
-    private static Rect Plot(Figure figure) => new ChartRenderer().ComputeLayout(figure, new MatPlotLibNet.Rendering.Svg.SvgRenderContext()).PlotAreas[0];
-
     /// <summary>The lines the spines drew, in the order they were drawn.</summary>
     private static List<(Point From, Point To)> SpineLines(Figure figure)
     {
@@ -30,11 +28,8 @@ public class SpineBoundsTests
         var lines = new List<(Point, Point)>();
         for (int i = 0; i < recording.Calls.Count - 1; i++)
         {
-            if (recording.Calls[i].Kind != "BeginGroup" || recording.Calls[i + 1].Kind != "DrawLine") continue;
-            string cssClass = ((dynamic)recording.Calls[i].Args!).cssClass;
-            if (cssClass != "spine") continue;
-            dynamic args = recording.Calls[i + 1].Args!;
-            lines.Add(((Point)args.p1, (Point)args.p2));
+            if (recording.Calls[i] is BeginGroupCall { CssClass: "spine" } && recording.Calls[i + 1] is DrawLineCall line)
+                lines.Add((line.P1, line.P2));
         }
 
         return lines;
@@ -48,7 +43,7 @@ public class SpineBoundsTests
     public void ASpineWithoutBounds_SpansThePlot()
     {
         var figure = Of(s => s);
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var bottom = SpineLines(figure).First(line => line.From.Y == line.To.Y && line.From.Y > plot.Y + 1);
 
@@ -60,7 +55,7 @@ public class SpineBoundsTests
     public void ABottomSpineWithBounds_SpansOnlyThoseDataValues()
     {
         var figure = Of(s => s with { Bottom = s.Bottom with { BoundsFrom = 2, BoundsTo = 8 } });
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var bottom = SpineLines(figure).First(line => line.From.Y == line.To.Y && line.From.Y > plot.Y + 1);
 
@@ -73,7 +68,7 @@ public class SpineBoundsTests
     public void ALeftSpineWithBounds_SpansThoseValuesOfTheYAxis()
     {
         var figure = Of(s => s with { Left = s.Left with { BoundsFrom = 3, BoundsTo = 7 } });
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var left = SpineLines(figure).First(line => line.From.X == line.To.X && line.From.X < plot.X + 1);
 
@@ -85,7 +80,7 @@ public class SpineBoundsTests
     public void OneBound_LeavesTheOtherAtTheEdge()
     {
         var figure = Of(s => s with { Bottom = s.Bottom with { BoundsFrom = 4 } });
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var bottom = SpineLines(figure).First(line => line.From.Y == line.To.Y && line.From.Y > plot.Y + 1);
 
@@ -96,7 +91,7 @@ public class SpineBoundsTests
     [Fact]
     public void BoundsGivenTheOtherWayRound_DrawTheSameLine()
     {
-        var plot = Plot(Of(s => s));
+        var plot = Of(s => s).FirstPlotArea();
         var forward = SpineLines(Of(s => s with { Bottom = s.Bottom with { BoundsFrom = 2, BoundsTo = 8 } })).First(l => l.From.Y > plot.Y + 1 && l.From.Y == l.To.Y);
         var backward = SpineLines(Of(s => s with { Bottom = s.Bottom with { BoundsFrom = 8, BoundsTo = 2 } })).First(l => l.From.Y > plot.Y + 1 && l.From.Y == l.To.Y);
 
@@ -108,7 +103,7 @@ public class SpineBoundsTests
     public void OnABackwardsAxis_TheBoundsStillStandAtTheirDataValues()
     {
         var figure = Of(s => s with { Bottom = s.Bottom with { BoundsFrom = 2, BoundsTo = 8 } }, ax => ax.SetXLim(10, 0));
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var bottom = SpineLines(figure).First(line => line.From.Y == line.To.Y && line.From.Y > plot.Y + 1);
 
@@ -122,7 +117,7 @@ public class SpineBoundsTests
         var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 100.0], [1.0, 100.0]).SetXScale(AxisScale.Log).SetXLim(1, 100).SetYLim(0, 10)
             .WithSpines(s => s with { Bottom = s.Bottom with { BoundsFrom = 10, BoundsTo = 100 } })).Build();
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var bottom = SpineLines(figure).First(line => line.From.Y == line.To.Y && line.From.Y > plot.Y + 1);
 
@@ -134,7 +129,7 @@ public class SpineBoundsTests
     public void ASpineMovedToAData_StillSpansItsBounds()
     {
         var figure = Of(s => s with { Bottom = s.Bottom with { Position = SpinePosition.Data, PositionValue = 5, BoundsFrom = 2, BoundsTo = 8 } });
-        var plot = Plot(figure);
+        var plot = figure.FirstPlotArea();
 
         var moved = SpineLines(figure).First(line => line.From.Y == line.To.Y && Math.Abs(line.From.Y - PxY(plot, 5)) < 1e-6);
 
@@ -160,18 +155,90 @@ public class SpineBoundsTests
     {
         var figure = Of(s => s with { Bottom = s.Bottom with { BoundsFrom = 2, BoundsTo = 8 } });
 
-        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
+        var back = figure.RoundTripped();
 
         Assert.Equal(2, back.SubPlots[0].Spines.Bottom.BoundsFrom);
         Assert.Equal(8, back.SubPlots[0].Spines.Bottom.BoundsTo);
         Assert.Equal(figure.ToSvg(), back.ToSvg());
     }
 
-    [Fact]
-    public void BoundsAtRest_AreLeftOutOfTheJson()
+    // ── RenderSpines, straight on a context ───────────────────────────────────────────────────────────────────────
+
+    private static readonly Rect Area = new(100, 50, 400, 300);
+
+    private static List<(Point From, Point To, MatPlotLibNet.Styling.Color Color)> Drawn(SpinesConfig spines)
     {
-        Assert.DoesNotContain("bounds", Of(s => s).ToJson(), StringComparison.OrdinalIgnoreCase);
+        var ctx = new RecordingRenderContext();
+        ctx.RenderSpines(spines, new DataTransform(0, 10, 0, 10, Area), MatPlotLibNet.Styling.Theme.Default);
+        return [.. ctx.Of<DrawLineCall>()
+            .Select(a => (a.P1, a.P2, (MatPlotLibNet.Styling.Color)a.Color))];
     }
+
+    [Fact]
+    public void RenderSpines_DrawsTheFourEdges_BottomTopLeftRight_EachInItsOwnGroup()
+    {
+        var recording = new RecordingRenderContext();
+        recording.RenderSpines(new SpinesConfig(), new DataTransform(0, 10, 0, 10, Area), MatPlotLibNet.Styling.Theme.Default);
+        var lines = Drawn(new SpinesConfig());
+
+        Assert.Equal(4, recording.Count<BeginGroupCall>());
+        Assert.Equal(4, recording.Count<EndGroupCall>());
+        Assert.Equal(
+            [(new Point(100, 350), new Point(500, 350)), (new Point(100, 50), new Point(500, 50)),
+             (new Point(100, 50), new Point(100, 350)), (new Point(500, 50), new Point(500, 350))],
+            lines.Select(l => (l.From, l.To)));
+    }
+
+    [Theory]
+    [InlineData("bottom")]
+    [InlineData("top")]
+    [InlineData("left")]
+    [InlineData("right")]
+    public void RenderSpines_LeavesOutASpineThatIsNotVisible(string hidden)
+    {
+        var off = new SpineConfig { Visible = false };
+        var spines = hidden switch
+        {
+            "bottom" => new SpinesConfig { Bottom = off },
+            "top" => new SpinesConfig { Top = off },
+            "left" => new SpinesConfig { Left = off },
+            _ => new SpinesConfig { Right = off },
+        };
+
+        Assert.Equal(3, Drawn(spines).Count);
+    }
+
+    [Fact]
+    public void RenderSpines_DrawsASpineInItsOwnColour_ElseTheForeground()
+    {
+        var lines = Drawn(new SpinesConfig { Left = new SpineConfig { Color = MatPlotLibNet.Styling.Colors.Red } });
+
+        Assert.Equal(MatPlotLibNet.Styling.Colors.Red, lines[2].Color);
+        Assert.All(lines.Where((_, i) => i != 2), l => Assert.Equal(MatPlotLibNet.Styling.Theme.Default.ForegroundText, l.Color));
+    }
+
+    /// <summary>A left spine moved to the data value 5 of [0, 10], or to a quarter of the axes' width, over a plot from 100 to
+    /// 500 px.</summary>
+    [Theory]
+    [InlineData(SpinePosition.Data, 5.0, 300.0)]
+    [InlineData(SpinePosition.Axes, 0.25, 200.0)]
+    public void RenderSpines_StandsAMovedLeftSpine_WhereItWasMoved(SpinePosition position, double value, double x)
+    {
+        var lines = Drawn(new SpinesConfig { Left = new SpineConfig { Position = position, PositionValue = value } });
+
+        Assert.Equal(x, lines[2].From.X);
+        Assert.Equal(x, lines[2].To.X);
+    }
+
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
+    {
+        new DrawnToken("BoundsAtRest_AreLeftOutOfTheJson", () => Of(s => s).ToJson()) { Absent = ["bounds"], Comparison = StringComparison.OrdinalIgnoreCase },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     [Fact]
     public void ASpineWrittenWithoutAWidth_ReadsBackAsWideAsTheModelsSpine()
@@ -184,65 +251,3 @@ public class SpineBoundsTests
     }
 }
 
-/// <summary>Tick marks stand on the line of the spine they belong to: a spine moved to a data value or to a fraction of the
-/// axes takes its ticks and their labels with it, as matplotlib's do.</summary>
-public class TicksStandOnAMovedSpineTests
-{
-    private static Figure Moved(SpinePosition position, double value) => Plt.Create().WithSize(600, 400)
-        .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 10.0], [0.0, 10.0]).SetXLim(0, 10).SetYLim(0, 10)
-            .WithSpines(s => s with { Bottom = s.Bottom with { Position = position, PositionValue = value } }))
-        .Build();
-
-    private static List<(Point From, Point To)> VerticalMarks(Figure figure)
-    {
-        var recording = new RecordingRenderContext();
-        new ChartRenderer().Render(figure, recording);
-        var marks = new List<(Point From, Point To)>();
-        foreach (var call in recording.OfKind("DrawLine"))
-        {
-            dynamic args = call.Args!;
-            Point from = args.p1, to = args.p2;
-            if (from.X == to.X && Math.Abs(to.Y - from.Y) is > 2 and < 12) marks.Add((from, to));
-        }
-
-        return marks;
-    }
-
-    private static Rect Plot(Figure figure) => new ChartRenderer().ComputeLayout(figure, new MatPlotLibNet.Rendering.Svg.SvgRenderContext()).PlotAreas[0];
-
-    [Fact]
-    public void WhenTheBottomSpineStandsAtADataValue_TheXTickMarksStandOnIt()
-    {
-        var figure = Moved(SpinePosition.Data, 5);
-        var plot = Plot(figure);
-        double spineY = plot.Y + plot.Height / 2;
-
-        var marks = VerticalMarks(figure).Where(mark => mark.From.X > plot.X + 1 && mark.From.X < plot.X + plot.Width - 1).ToArray();
-
-        Assert.NotEmpty(marks);
-        Assert.Contains(marks, mark => Math.Abs(Math.Min(mark.From.Y, mark.To.Y) - spineY) < 1.5 || Math.Abs(Math.Max(mark.From.Y, mark.To.Y) - spineY) < 1.5);
-        Assert.DoesNotContain(marks, mark => Math.Abs(Math.Max(mark.From.Y, mark.To.Y) - (plot.Y + plot.Height + 3.5)) < 0.6);
-    }
-
-    [Fact]
-    public void WhenTheBottomSpineStandsAtAFractionOfTheAxes_TheXTickMarksStandOnIt()
-    {
-        var figure = Moved(SpinePosition.Axes, 0.25);
-        var plot = Plot(figure);
-        double spineY = plot.Y + 0.75 * plot.Height;
-
-        var marks = VerticalMarks(figure).Where(mark => mark.From.X > plot.X + 1 && mark.From.X < plot.X + plot.Width - 1).ToArray();
-
-        Assert.Contains(marks, mark => Math.Abs(Math.Min(mark.From.Y, mark.To.Y) - spineY) < 1.5 || Math.Abs(Math.Max(mark.From.Y, mark.To.Y) - spineY) < 1.5);
-    }
-
-    [Fact]
-    public void WithTheSpineAtTheEdge_TheTicksAreWhereTheyAlwaysWere()
-    {
-        var edge = Moved(SpinePosition.Edge, 0);
-        var plain = Plt.Create().WithSize(600, 400)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 10.0], [0.0, 10.0]).SetXLim(0, 10).SetYLim(0, 10)).Build();
-
-        Assert.Equal(plain.ToSvg(), edge.ToSvg());
-    }
-}

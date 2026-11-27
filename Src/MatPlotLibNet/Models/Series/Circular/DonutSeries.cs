@@ -8,88 +8,60 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a donut chart — a pie chart with a hollow center for displaying a summary value.</summary>
-public sealed class DonutSeries : ChartSeries
+public sealed class DonutSeries : WedgeSeries, ISeriesKind<DonutSeries>, IGivenTextSize
 {
-    /// <inheritdoc />
-    internal override int ColorSlotSpan => Math.Max(1, Sizes.Length);
-
-    /// <inheritdoc />
-    internal override bool DrawsWithoutAxes => true;
-
-    /// <summary>The size of each slice, in any unit: a slice covers its share of the total. A slice that cannot be
-    /// drawn (NaN or infinite) counts as zero and draws no wedge.</summary>
-    public double[] Sizes { get; }
-    /// <summary>The name of each slice, by position; it names the slices in the series' data table and in the saved
-    /// chart, but the donut draws no text beside its wedges. <see langword="null"/> leaves the slices
-    /// unnamed.</summary>
-    public string[]? Labels { get; set; }
-    /// <summary>The colour of each slice, by position; a slice past the end of the array, or every slice when this is
-    /// <see langword="null"/>, takes the colour the figure's theme hands out at its position.</summary>
-    public Color[]? Colors { get; set; }
+    /// <summary>The hole a new donut leaves, as a fraction of the outer radius.</summary>
+    private const double RestingInnerRadius = 0.4;
     /// <summary>Radius of the hole as a fraction of the outer radius: 0 is a full pie, values towards 1 give a thinner
-    /// ring. Default 0.4.</summary>
-    public double InnerRadius { get; set; } = 0.4;
+    /// ring. Default <see cref="RestingInnerRadius"/>.</summary>
+    public double InnerRadius { get; set => Change(ref field, value); } = RestingInnerRadius;
     /// <summary>Text drawn in bold in the middle of the hole, such as a total; <see langword="null"/> (the default)
     /// draws none.</summary>
-    public string? CenterText { get; set; }
-    /// <summary>The angle in degrees at which the first slice begins; the default 90 is straight up. The slices follow
-    /// in the order of <see cref="Sizes"/>.</summary>
-    public double StartAngle { get; set; } = 90;
+    public string? CenterText { get; set => Change(ref field, value); }
 
     /// <summary>Initializes a new <see cref="DonutSeries"/> with the given slice sizes.</summary>
     /// <param name="sizes">Fractional or absolute size of each slice; they will be normalized automatically.</param>
-    public DonutSeries(double[] sizes) => Sizes = sizes;
-
-    /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
-
-    /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new()
+    public DonutSeries(double[] sizes) : base(sizes)
     {
-        Type = "donut",
-        Sizes = Sizes, PieLabels = Labels,
-        InnerRadius = InnerRadius, CenterText = CenterText,
-        StartAngle = StartAngle,
-        Colors = Colors?.ToList(),
+    }
+
+    static string ISeriesKind<DonutSeries>.Kind => "donut";
+
+    /// <summary>The size of the text in the hole (<see cref="CenterText"/>), in pixels (the unit of <see cref="Font.Size"/>). Default <see cref="RestingFontSize"/>. Given no size, the text in the hole (<see cref="CenterText"/>)
+    /// is the size of the theme's text under the matplotlib themes, as matplotlib draws the text it writes beside its data
+    /// (<c>font.size</c>), and <see cref="RestingFontSize"/> under every other theme; a size that is given, the default included, is drawn as given.</summary>
+    public double FontSize { get => GivenFontSize ?? RestingFontSize; set => GivenFontSize = value; }
+
+    /// <summary>The size the text in the hole takes under a theme that names none.</summary>
+    private const double RestingFontSize = 14;
+
+    /// <summary>The size that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenFontSize { get; private set => Change(ref field, value); }
+
+    double? IGivenTextSize.GivenTextSize => GivenFontSize;
+
+    double IGivenTextSize.RestingTextSize => RestingFontSize;
+
+    /// <inheritdoc />
+    public override SeriesDto ToSeriesDto() => WedgesOnTheWire() with
+    {
+        Type = this.WireKind(),
+        FontSize = GivenFontSize,
+        InnerRadius = InnerRadius.OrNullAtRest(RestingInnerRadius),
+        CenterText = CenterText,
     };
 
-    /// <summary>Reconstructs a <see cref="DonutSeries"/> from its serialization DTO, including inner radius and center text, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="DonutSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries inner radius and center text.</summary>
     internal static DonutSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Donut(dto.Sizes ?? [], dto.PieLabels);
-        if (dto.InnerRadius.HasValue)
-        {
-            s.InnerRadius = dto.InnerRadius.Value;
-        }
+        s.RestoreWedges(dto);
+        if (dto.InnerRadius is { } innerRadius) s.InnerRadius = innerRadius;
         s.CenterText = dto.CenterText;
-        if (dto.StartAngle.HasValue)
-        {
-            s.StartAngle = dto.StartAngle.Value;
-        }
-        s.Colors = dto.Colors?.ToArray();
+        if (dto.FontSize is { } fontSize) s.FontSize = fontSize;
         return s;
     }
 
-
-    /// <inheritdoc />
-    /// <remarks>One row per slice: its label - or "slice N" when the series carries none - and its size.</remarks>
-    public override ChartDataTable? ToDataTable()
-    {
-        var rows = new IReadOnlyList<DataCell>[Sizes.Length];
-        for (int i = 0; i < Sizes.Length; i++)
-        {
-            string label = Labels is { } labels && i < labels.Length
-                ? labels[i]
-                : "slice " + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            rows[i] = [DataCell.FromText(label), DataCell.FromNumber(Sizes[i])];
-        }
-
-        return new ChartDataTable(null, [new("label", DataColumnKind.Text), new(Label ?? "size")], rows);
-    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

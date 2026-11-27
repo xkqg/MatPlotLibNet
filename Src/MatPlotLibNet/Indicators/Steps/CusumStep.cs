@@ -13,7 +13,7 @@ internal readonly record struct CusumPoint(double Signal, double SPos, double SN
 /// <see cref="Streaming.StreamingCusum"/> takes one price at a time. Each log return, less the drift, is added to an upward sum that
 /// is never below 0, and, plus the drift, to a downward sum that is never above 0; when one crosses the threshold the step signals
 /// and that sum starts again at 0. The first price only gives the price before, so the step says NaN for it.</summary>
-internal struct CusumStep
+internal struct CusumStep : IPriceStep<CusumPoint>
 {
     private readonly double _threshold;
     private readonly double _drift;
@@ -33,7 +33,7 @@ internal struct CusumStep
 
     /// <summary>Takes one price (above 0) and returns the signal and the two sums, NaN for the first price.</summary>
     /// <param name="price">The price.</param>
-    internal CusumPoint Next(double price)
+    public CusumPoint Next(double price)
     {
         if (_count++ == 0)
         {

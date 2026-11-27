@@ -9,12 +9,6 @@ obj/
 .mcp.json
 
 
-## Graphify (knowledge graph tool — generated artifacts)
-.graphify/
-.graphify_detect.json
-.graphify_python
-.graphifyignore
-graphify-out/
 
 ## IDE
 .vs/

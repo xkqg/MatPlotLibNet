@@ -1,851 +1,557 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Patches;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Lighting;
-using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
+using System.Text;
 
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>Renders axes using the 3D (X, Y, Z) coordinate system with projection.</summary>
-public sealed class ThreeDAxesRenderer : AxesRenderer
+public sealed partial class ThreeDAxesRenderer : AxesRenderer
 {
     /// <summary>Initializes a new 3D axes renderer.</summary>
     public ThreeDAxesRenderer(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
         : base(axes, plotArea, ctx, theme) { }
 
-    /// <summary>Cached raw series data minimum per axis, used to filter tick labels below the data floor.</summary>
-    private double _rawXMin, _rawYMin, _rawZMin;
-
-    /// <summary>Where the 3-D scene stands: the projection every series is drawn through, the square the cube fills, the data
-    /// range it spans and the camera.</summary>
-    private readonly record struct Scene(Projection3D Projection, Rect CubeBounds, DataRange3D Range, double Elevation, double Azimuth, double? Distance);
+    /// <summary>Where the 3-D scene stands: the projection every series is drawn through (with the camera it looks from) and the
+    /// range of each axis of the cube. The square the cube fills is the plot area: the layout gives a 3-D axes the centred
+    /// square of its cell (<see cref="PlotAspectExtensions"/>), as matplotlib's <c>Axes3D.apply_aspect</c> does.</summary>
+    private readonly record struct Scene(Projection3D Projection, Box3D Cube);
 
     /// <summary>Works the scene out from the axes without drawing or measuring anything: the one place the projection is
     /// built, which <see cref="Render"/> draws through and <see cref="LegendObstacles"/> hands to a legend.</summary>
     private Scene ComputeScene()
     {
-        // Compute 3D data ranges from all 3D series
-        var range3D = Compute3DDataRanges();
-
-        // Port of matplotlib's axes3d layout algorithm: the 3-D axes bbox is ALWAYS SQUARE,
-        // computed from a fixed subplot rect (0.125, 0.11, 0.775, 0.77) of the figure:
-        //   subW = figW * 0.775, subH = figH * 0.77
-        //   side = min(subW, subH)
-        //   x    = 0.125 * figW + (subW - side) / 2
-        //   y    = 0.11  * figH + (subH - side) / 2   (bottom-up → convert to top-down)
-        // Verified across figsize (7, 5.5), (8, 6), (10, 6), (7, 7) — matches matplotlib's
-        // get_window_extent() to the pixel.
-        Rect cubeBounds = PlotArea;
-        if (FigureSize.HasValue)
-        {
-            double figW = FigureSize.Value.Width;
-            double figH = FigureSize.Value.Height;
-            const double subLeft = 0.125, subBottom = 0.11, subWidth = 0.775, subHeight = 0.77;
-            double subW = figW * subWidth;
-            double subH = figH * subHeight;
-            double side = Math.Min(subW, subH);
-            double squareX = subLeft * figW + (subW - side) / 2.0;
-            double squareYBottomUp = subBottom * figH + (subH - side) / 2.0;
-            double squareYTopDown = figH - squareYBottomUp - side;
-            cubeBounds = new Rect(squareX, squareYTopDown, side, side);
-        }
-
-        double elevation = Axes.Projection?.Elevation ?? Axes.Elevation;
-        double azimuth = Axes.Projection?.Azimuth ?? Axes.Azimuth;
-        double? distance = Axes.CameraDistance;
-        var proj = new Projection3D(elevation, azimuth, cubeBounds,
-            range3D.XMin, range3D.XMax, range3D.YMin, range3D.YMax, range3D.ZMin, range3D.ZMax, distance);
-
-        return new Scene(proj, cubeBounds, range3D, elevation, azimuth, distance);
+        var box = Axes.ComputeCubeRange(Theme);
+        return new Scene(Axes.Camera.DrawnView.ProjectionOver(PlotArea, box), box);
     }
 
     /// <inheritdoc />
     /// <remarks>Every 3-D series, hidden ones too, through the projection <see cref="Render"/> draws them through; nothing is
     /// drawn.</remarks>
-    internal override MarkObstacles LegendObstacles()
+    internal override MarkObstacles LegendObstacles() =>
+        CollectMarks(Axes.Series, SeriesPass.UnitSquare(PlotArea), new(), ComputeScene().Projection).Build();
+
+    /// <inheritdoc />
+    /// <remarks>A 3-D axes stands each patch on its plane (<see cref="Patch.Z"/> across <see cref="Patch.ZDir"/>), as matplotlib's
+    /// <c>pathpatch_2d_to_3d</c> does.</remarks>
+    internal override bool DrawsPatches => true;
+
+    /// <inheritdoc />
+    /// <remarks>The outline's points in data (<see cref="PathSegmentExtensions"/>' <c>Flattened</c>: a curve cut into short straight
+    /// pieces) are placed on the patch's plane by matplotlib's <c>juggle_axes</c> (across X: (z, x, y); across Y: (x, z, y); across Z:
+    /// (x, y, z)) and projected one by one; the patch joins the one depth queue the series draw into, at its nearest point
+    /// (matplotlib's <c>PathPatch3D.do_3d_projection</c> returns <c>min(vzs)</c>). A closed outline is a polygon, an open one (an
+    /// arc) a line, a filled open one a polygon under its line; in a scene the browser turns each carries its points
+    /// (<c>data-v3d</c>), so it turns with the scene. A patch with a point that cannot be projected is not drawn.</remarks>
+    private protected override int DrawLayerAt(in SeriesPass pass, ReadOnlySpan<LayerStep> steps, int at)
     {
-        var marks = new MarkObstacles.Builder();
-        CollectMarks(Axes.Series, new DataTransform(0, 1, 0, 1, PlotArea), marks, ComputeScene().Projection);
-        return marks.Build();
+        DrawPatch(pass, steps[at].Index);
+        return at;
+    }
+
+    /// <summary>Draws patch <paramref name="index"/> of <see cref="Axes.Patches"/> on its plane into the pass' depth queue (the one step
+    /// of a 3-D pass that is not a series: a 3-D pass draws no grid among its series).</summary>
+    private void DrawPatch(in SeriesPass pass, int index)
+    {
+        var patch = Axes.Patches[index];
+        if (!patch.Visible) return;
+        var proj = pass.Projection!;
+        var queue = pass.DepthQueue!;
+        var flat = patch.Outline().Flattened();
+        if (!flat.Points.FormsALine) return;
+
+        var points = new Vec3[flat.Points.Length];
+        var pixels = new Point[flat.Points.Length];
+        double nearest = double.NegativeInfinity;
+        for (int i = 0; i < points.Length; i++)
+        {
+            var p = flat.Points[i];
+            points[i] = patch.ZDir switch
+            {
+                ZDirection.X => new Vec3(patch.Z, p.X, p.Y),
+                ZDirection.Y => new Vec3(p.X, patch.Z, p.Y),
+                _ => new Vec3(p.X, p.Y, patch.Z),
+            };
+            pixels[i] = proj.Project(points[i].X, points[i].Y, points[i].Z);
+            if (!pixels[i].IsDrawable()) return;
+            nearest = Math.Max(nearest, proj.Depth(points[i].X, points[i].Y, points[i].Z));
+        }
+
+        var drawing = new PatchDrawing(Axes, Ctx, Theme);
+        var style = patch.DrawnStyleUnder(Theme);
+        var vertices = new SceneVertexWriter(Ctx, proj, pass.Emit3D);
+        bool closed = flat.Closed;
+        queue.Add(nearest, () =>
+        {
+            bool grouped = drawing.OpenGroup(index);
+            if (closed || style.Fill is not null)
+            {
+                vertices.Vertices(PinnedAxes.None, points);
+                Ctx.DrawPolygon(pixels, closed ? style : style with { Stroke = null });
+            }
+
+            if (!closed && style.Stroke is not null)
+            {
+                vertices.Vertices(PinnedAxes.None, points);
+                Ctx.DrawLines(pixels, style.OutlineStroke());
+            }
+
+            if (grouped) Ctx.EndGroup();
+        });
     }
 
     /// <inheritdoc />
     public override void Render()
     {
-        var axesBg = Theme.AxesBackground;
-        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
+        // matplotlib draws a 3-D axes' background patch at its active position, the square the layout gives it.
+        FillAxesBackground();
 
-        var (proj, cubeBounds, range3D, elevation, azimuth, distance) = ComputeScene();
+        var (proj, box) = ComputeScene();
 
-        var edgeColor = Colors.EdgeGray;
+        // Open the scene BEFORE the axis frame (panes, edges, grid, labels, ticks), so all of it carries vertex data and turns
+        // with the scene in the browser. The scene is fitted to the plot area (the square of the subplot's cell), the
+        // rectangle the projection was built with. A surface without markup opens no scene and writes no vertex data.
+        // The browser turns the scene from the camera the projection draws from: its distance is the one it took (at least 2).
+        bool sceneGroup = Emit.VertexData3D
+            && Ctx.Begin3DSceneGroup(proj.Elevation, proj.Azimuth, proj.Distance, PlotArea, proj.Faces);
+        var vertices = new SceneVertexWriter(Ctx, proj, sceneGroup);
 
-        // Draw 3D bounding box (12 edges of a cube)
-        double x0 = range3D.XMin, x1 = range3D.XMax;
-        double y0 = range3D.YMin, y1 = range3D.YMax;
-        double z0 = range3D.ZMin, z1 = range3D.ZMax;
+        // Three tiers in matplotlib's draw order (axes3d.py): the axis frame at the back, the series in the middle (the only
+        // tier the browser's depth sort touches), the ticks in front, so a back pane never paints over a back-corner face.
+        if (sceneGroup) Ctx.Begin3DSubgroup("mpl-3d-back");
 
-        // Which three faces the camera puts at the back. Everything below — panes, the nine drawn
-        // cube edges, the wall grids, the tick rows and the axis titles — reads THIS instead of a
-        // literal, so the axis frame follows the camera out of the default quadrant (issue #18).
-        var box = new Box3D(x0, x1, y0, y1, z0, z1);
-        var faces = proj.Faces;
-        double xBack = faces.X.Coordinate(box, faces.X.Back), xFront = faces.X.Coordinate(box, faces.X.Front);
-        double yBack = faces.Y.Coordinate(box, faces.Y.Back), yFront = faces.Y.Coordinate(box, faces.Y.Front);
-        double zBack = faces.Z.Coordinate(box, faces.Z.Back), zFront = faces.Z.Coordinate(box, faces.Z.Front);
+        // Which three faces the camera puts at the back: the panes, the nine edges, the wall grids, the tick rows and the axis
+        // titles all read it, so the frame follows the camera out of the default quadrant.
+        var frame = new CubeFrame(proj, box, Ctx, vertices);
+        frame.DrawPanes(Axes.Pane3D, Theme.Pane3DColor);
+        if (Theme.Looks.Cube.AxisLineWidth is null) frame.DrawEdges(Colors.EdgeGray);
 
-        // Phase 3 of v1.7.2 plan — open the scene group BEFORE drawing axes
-        // infrastructure (panes, edges, grid, labels, ticks) so all of them get
-        // data-v3d attributes and re-project under interactive rotation. Pre-Phase-3
-        // these were drawn outside the scene group and stayed static during drag.
-        bool sceneGroup = Axes.Emit3DVertexData && Ctx is SvgRenderContext;
-        var svgCtx = Ctx as SvgRenderContext;
-        if (sceneGroup)
-            // Pass cubeBounds (the square inscribed in the subplot region) — NOT PlotArea —
-            // because Projection3D was constructed with cubeBounds, so the JS reproject must
-            // use the same rectangle for fit-to-plot. Phase B.4 of v1.7.2 follow-on plan.
-            svgCtx!.Begin3DSceneGroup(elevation, azimuth, distance, cubeBounds, proj.Faces);
+        // The row of each axis, worked out once for this draw: its tick values, its edge on the screen, the way out of the
+        // cube and the one rule for where a mark, a label or a grid line of it stands. The grid, the axis titles and the tick
+        // marks and labels all read these.
+        var centroid = proj.Project((box.X.Lo + box.X.Hi) / 2, (box.Y.Lo + box.Y.Hi) / 2, (box.Z.Lo + box.Z.Hi) / 2);
+        var xRow = CubeAxisRow.Of(CubeAxis.X, Axes.XAxis, box, proj, centroid, Theme, vertices, PlotArea.Width);
+        var yRow = CubeAxisRow.Of(CubeAxis.Y, Axes.YAxis, box, proj, centroid, Theme, vertices, PlotArea.Width);
+        var zRow = CubeAxisRow.Of(CubeAxis.Z, Axes.ZAxis, box, proj, centroid, Theme, vertices, PlotArea.Width);
 
-        // Phase F of v1.7.2 follow-on plan — three-tier subgroup structure mirrors
-        // matplotlib's draw order (axes3d.py:458-470). Axis infra goes in mpl-3d-back,
-        // series in mpl-3d-data (the only tier the JS depth-resort touches), ticks in
-        // mpl-3d-front. Ensures back panes never paint over back-corner surface quads
-        // when the JS resort runs on interactive rotation.
-        if (sceneGroup) svgCtx!.Begin3DSubgroup("mpl-3d-back");
+        // The grid on the back faces, before the series so they paint over it; then, under a theme that bounds the box as
+        // matplotlib does, the axis line of each row over it (axis3d.py draws pane, grid, then the axis and its line).
+        frame.DrawGrid(Axes.WallGridUnder(Theme), xRow, yRow, zRow);
+        if (Theme.Looks.Cube.AxisLineWidth is { } axisLine)
+            frame.DrawAxisLines(xRow, yRow, zRow, StrokeStyle.Solid(Theme.ForegroundText, axisLine));
 
-        // Light-grey background panes on the three back-facing cube faces — matches
-        // matplotlib's default 3-D "shaded walls" look. Drawn BEFORE grid lines and edges
-        // so both paint on top. Colour is matplotlib's rcParams['axes3d.xaxis.panecolor']
-        // = (0.95, 0.95, 0.95, 0.5) which composites to ~#F5F5F5 on a white figure.
-        Render3DPanes(proj, faces, box);
-
-        // Draw only the 9 cube edges that bound the three back panes. The other 3 edges form the
-        // cube's front silhouette and are NOT part of any back pane; drawing them would cut visible
-        // diagonals across the data area (matplotlib omits them for the same reason). Which 9 those
-        // are follows the camera: the floor quad contributes all four of its edges, each wall
-        // contributes its top edge, and three of the four verticals touch a back pane.
-
-        // Floor quad (z = zBack) — all 4 edges are part of the floor pane.
-        DrawCubeEdge3D(proj, new(x0, yFront, zBack), new(x1, yFront, zBack), PinnedAxes.Y | PinnedAxes.Z, edgeColor);
-        DrawCubeEdge3D(proj, new(x1, yFront, zBack), new(x1, yBack, zBack), PinnedAxes.Z, edgeColor);
-        DrawCubeEdge3D(proj, new(x1, yBack, zBack), new(x0, yBack, zBack), PinnedAxes.Y | PinnedAxes.Z, edgeColor);
-        DrawCubeEdge3D(proj, new(x0, yBack, zBack), new(x0, yFront, zBack), PinnedAxes.Z, edgeColor);
-
-        // Top edge of each wall pane (z = zFront) — 2 edges.
-        DrawCubeEdge3D(proj, new(x1, yBack, zFront), new(x0, yBack, zFront), PinnedAxes.Y | PinnedAxes.Z, edgeColor);
-        DrawCubeEdge3D(proj, new(xBack, yBack, zFront), new(xBack, yFront, zFront), PinnedAxes.X | PinnedAxes.Z, edgeColor);
-
-        // Vertical edges — the 3 that touch a wall pane.
-        DrawCubeEdge3D(proj, new(xBack, yFront, zBack), new(xBack, yFront, zFront), PinnedAxes.X | PinnedAxes.Y, edgeColor);
-        DrawCubeEdge3D(proj, new(xFront, yBack, zBack), new(xFront, yBack, zFront), PinnedAxes.X | PinnedAxes.Y, edgeColor);
-        DrawCubeEdge3D(proj, new(xBack, yBack, zBack), new(xBack, yBack, zFront), PinnedAxes.X | PinnedAxes.Y, edgeColor);
-
-        // Grid lines on the three back cube faces — drawn BEFORE series so series paint
-        // on top of them.
-        Render3DGrid(proj, faces, box);
-
-        // Axis title labels — must live on the SAME cube edges where the ticks are drawn.
+        // The axis titles stand on the edges their ticks stand on, pushed out far enough to clear the labels the row draws
+        // (CubeAxisRow.TitlePad). The Y title sits at 0.35 along its edge, clear of the corner where the X and Y rows meet,
+        // as matplotlib puts it; X and Z sit at their middles.
         var labelFont = LabelFont();
-        var cubeCentroidForLabels = proj.Project((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-        // Phase F.2 — axis-title labels use the same perpendicular-pad emission as tick
-        // labels so they stay outside the cube on interactive rotation; EmitTextWithPerpPad + the
-        // JS reproject reconstruct the per-frame direction from the axis edge endpoints.
-        // The pad is MEASURED, not constant: it clears the tick-label band this axis actually
-        // draws (issue #18 follow-up — the old constants, 42 px for X and 60 for Y/Z, sat inside
-        // that band, so a title printed straight through a tick label at every camera).
-        // The Y title sits at 0.35 along its edge rather than the midpoint (matplotlib puts it
-        // clear of the corner where the X and Y rows meet); X and Z sit at their midpoints.
-        RenderAxisTitle(proj, CubeAxis.X, Axes.XAxis.Label, faces.AxisEdge(CubeAxis.X, box), 0.5,
-            TitlePad(Axes.XAxis, CubeAxis.X, box.X, proj, faces, box, cubeCentroidForLabels), cubeCentroidForLabels, labelFont);
-        RenderAxisTitle(proj, CubeAxis.Y, Axes.YAxis.Label, faces.AxisEdge(CubeAxis.Y, box), 0.35,
-            TitlePad(Axes.YAxis, CubeAxis.Y, box.Y, proj, faces, box, cubeCentroidForLabels), cubeCentroidForLabels, labelFont);
-        RenderAxisTitle(proj, CubeAxis.Z, Axes.ZAxis.Label, faces.AxisEdge(CubeAxis.Z, box), 0.5,
-            TitlePad(Axes.ZAxis, CubeAxis.Z, ZRange(box), proj, faces, box, cubeCentroidForLabels), cubeCentroidForLabels, labelFont);
+        string? xTitle = Axes.TitleOf(Axes.XAxis, Theme), yTitle = Axes.TitleOf(Axes.YAxis, Theme), zTitle = Axes.TitleOf(Axes.ZAxis, Theme);
+        RenderAxisTitle(xRow, xTitle, 0.5, xRow.TitlePad(Ctx, Axes.XAxis, xTitle, labelFont), labelFont, vertices);
+        RenderAxisTitle(yRow, yTitle, 0.35, yRow.TitlePad(Ctx, Axes.YAxis, yTitle, labelFont), labelFont, vertices);
+        RenderAxisTitle(zRow, zTitle, 0.5, zRow.TitlePad(Ctx, Axes.ZAxis, zTitle, labelFont), labelFont, vertices);
 
-        // Phase F of v1.7.2 follow-on — close mpl-3d-back tier, open mpl-3d-data.
-        if (sceneGroup) { svgCtx!.End3DSubgroup(); svgCtx.Begin3DSubgroup("mpl-3d-data"); }
+        if (sceneGroup) { Ctx.End3DSubgroup(); Ctx.Begin3DSubgroup("mpl-3d-data"); }
 
-        // Render series using unified projection and optional lighting. All 3-D series
-        // push their drawable primitives into a shared depth queue instead of drawing
-        // immediately; after the loop we flush the queue in one back-to-front sort so
-        // faces from different series interleave correctly (e.g. a front Bar3D row paints
-        // over a back Bar3D row regardless of insertion order).
+        // Every 3-D series pushes what it draws into one depth queue, flushed back to front in one sort, so the faces of
+        // different series interleave (a front bar row paints over a back one whatever order they were added in).
         var depthQueue = new DepthQueue3D();
         RenderSeries(proj, Axes.LightSource, depthQueue);
-        depthQueue.Flush();
+        depthQueue.Flush(Ctx);
 
-        // Phase F — close mpl-3d-data, open mpl-3d-front for ticks.
-        if (sceneGroup) { svgCtx!.End3DSubgroup(); svgCtx.Begin3DSubgroup("mpl-3d-front"); }
+        if (sceneGroup) { Ctx.End3DSubgroup(); Ctx.Begin3DSubgroup("mpl-3d-front"); }
 
-        // Tick marks + tick labels — drawn LAST so they paint on top of the series.
-        // Phase 3 of v1.7.2: now INSIDE the scene group so they reproject under rotation.
-        Render3DAxisTicks(proj, faces, box);
+        // The tick marks and labels last, on top of the series.
+        RenderAxisEdgeTicks(Axes.XAxis, xRow, proj, vertices);
+        RenderAxisEdgeTicks(Axes.YAxis, yRow, proj, vertices);
+        RenderAxisEdgeTicks(Axes.ZAxis, zRow, proj, vertices);
 
-        if (sceneGroup) { svgCtx!.End3DSubgroup(); Ctx.EndGroup(); }
+        if (sceneGroup) { Ctx.End3DSubgroup(); Ctx.EndGroup(); }
 
-        // Legend
         RenderLegend();
-
-        // ColorBar (v1.5.0 — was previously skipped for 3D axes)
         RenderColorBar();
-
-        // Title
         RenderTitle();
     }
 
-    /// <summary>The Z range the tick row uses — user limits win over the padded data range.</summary>
-    private Range1D ZRange(Box3D box) => new(Axes.ZAxis.Min ?? box.Z.Lo, Axes.ZAxis.Max ?? box.Z.Hi);
-
-    /// <summary>Extra breathing room between the tick-label band and the axis title, in pixels.</summary>
-    private const double TitleGapPx = 8;
-
-    /// <summary>
-    /// Extra 3-D tick-label pad: pushes labels outside the cube silhouette so they do not overlap
-    /// bars/surfaces drawn inside it. matplotlib uses a similar offset to keep the X/Y labels in the
-    /// margin below the cube rather than along the bottom edge where bar front faces live.
-    /// </summary>
-    private const double ThreeDExtraPad = 14;
-
-    /// <summary>
-    /// The perpendicular distance at which an axis title clears its own tick labels.
-    /// <para>
-    /// Both sit on the SAME outward perpendicular — the labels at <c>labelOffset</c> from their own
-    /// tick, the title at this pad from the edge midpoint — so in the worst case (a tick right at the
-    /// midpoint) only the difference between the two offsets separates them. Text boxes are
-    /// axis-aligned on screen, so they are clear as soon as they separate on EITHER screen axis:
-    /// take the cheaper of the two, and let the camera's perpendicular decide which one that is.
-    /// </para>
-    /// Measured per render because it depends on the camera, the tick values and the font — the three
-    /// things a constant cannot know (issue #18 follow-up).
-    /// </summary>
-    private double TitlePad(Axis axis, CubeAxis cubeAxis, Range1D range, Projection3D proj,
-        CubeFaceSelection faces, Box3D box, Point cubeCentroid)
-    {
-        string? title = axis.Label;
-        var major = axis.MajorTicks;
-        var edge = faces.AxisEdge(cubeAxis, box);
-        var edgeA = proj.Project(edge.From.X, edge.From.Y, edge.From.Z);
-        var edgeB = proj.Project(edge.To.X, edge.To.Y, edge.To.Z);
-        var perp = OutwardPerp(edgeA, edgeB, cubeCentroid);
-        double labelOffset = major.Length + major.Pad + ThreeDExtraPad;
-        if (title is null || !major.Visible) return labelOffset + TitleGapPx;
-
-        var labelFont = TickFont();
-        if (major.LabelSize.HasValue) labelFont = labelFont with { Size = major.LabelSize.Value };
-
-        var ticks = ComputeAxisTicks(axis, range, PixelLength(edgeA, edgeB), labelFont.Size);
-        var format = BuildUniformTickFormatter(ticks);
-        double labelW = 0, labelH = 0;
-        foreach (double t in ticks)
-        {
-            var size = Ctx.MeasureText(axis.TickFormatter?.Format(t) ?? format(t), labelFont);
-            if (size.Width > labelW) labelW = size.Width;
-            if (size.Height > labelH) labelH = size.Height;
-        }
-
-        // Separating-axis test along the perpendicular itself: project both boxes onto it (an
-        // axis-aligned box of w×h reaches |perp.X|·w + |perp.Y|·h along a direction) and keep the
-        // two projections apart. Separation on that ONE axis is enough to prove the boxes are
-        // disjoint, whatever position along the edge a tick label happens to sit at — which is why
-        // the cheaper "separate horizontally OR vertically" test does not hold here: the title is
-        // centred on the edge midpoint while its labels are spread along the whole edge.
-        var titleSize = Ctx.MeasureText(title, LabelFont());
-        double perpX = Math.Abs(perp.X), perpY = Math.Abs(perp.Y);
-        double labelReach = perpX * labelW + perpY * labelH;
-        double titleReach = perpX * titleSize.Width + perpY * titleSize.Height;
-
-        return labelOffset + (labelReach + titleReach) / 2 + TitleGapPx;
-    }
-
-    /// <summary>
-    /// Draws one axis title along its tick-bearing cube edge, pushed perpendicular away from the
-    /// cube so it clears the data. <paramref name="fraction"/> positions it along the edge.
-    /// </summary>
-    private void RenderAxisTitle(Projection3D proj, CubeAxis cubeAxis, string? label, AxisEdge3D edge,
-        double fraction, double padPx, Point cubeCentroid, Font font)
+    /// <summary>Draws one axis title along the edge of its row, at <paramref name="fraction"/> of the edge, pushed out of the
+    /// cube by <paramref name="padPx"/> the way the row's labels leave it. In the browser the title moves with the faces its
+    /// row is pinned to, so it does not stay on the side the server picked while the ticks below it jump to the other.</summary>
+    private void RenderAxisTitle(in CubeAxisRow row, string? label, double fraction, double padPx, Font font,
+        SceneVertexWriter vertices)
     {
         if (label is null) return;
 
-        var a = proj.Project(edge.From.X, edge.From.Y, edge.From.Z);
-        var b = proj.Project(edge.To.X, edge.To.Y, edge.To.Z);
-        var mid = new Point(a.X + (b.X - a.X) * fraction, a.Y + (b.Y - a.Y) * fraction);
-        var perp = PerpAwayFromCentroid(a, b, mid, cubeCentroid, padPx);
+        var a = row.From;
+        var b = row.To;
+        var at = new Point(a.X + (b.X - a.X) * fraction, a.Y + (b.Y - a.Y) * fraction);
+        var edge = row.Line;
         var anchor = new Vec3(
             edge.From.X + (edge.To.X - edge.From.X) * fraction,
             edge.From.Y + (edge.To.Y - edge.From.Y) * fraction,
             edge.From.Z + (edge.To.Z - edge.From.Z) * fraction);
-        // A title is pinned to the same two selected faces as its tick row, so the browser mirror
-        // must move it with them — without this it stays on the face the server picked while the
-        // ticks below it jump to the other side.
-        EmitTextWithPerpPad(proj, anchor, edge, padPx, cubeAxis.OtherAxes());
-        Ctx.DrawText(label, new Point(mid.X + perp.X, mid.Y + perp.Y), font, TextAlignment.Center);
-    }
-
-    // ── Phase 3 of v1.7.2 plan — data-v3d emission helpers ────────────────────
-    // Back-facing pane fills follow the camera (see CubeFaceSelection): matplotlib's default 3-D
-    // "shaded panes" look uses rcParams['axes3d.xaxis.panecolor'] = (0.95, 0.95, 0.95, 0.5), which
-    // composites to #F5F5F5 on a white figure.
-    // Each axis-infrastructure draw call (cube edges, grid lines, tick marks, text)
-    // is preceded by a call to SetNextElementData("v3d", "...") so the JS reproject
-    // can move the element under interactive rotation. The helpers below bundle the
-    // emit + draw into one call so the rendering code stays readable.
-
-    /// <summary>Emits a "data-v3d" attribute for the next drawn element, encoding the
-    /// supplied normalized 3D points as <c>nx,ny,nz nx,ny,nz ...</c>. No-op when
-    /// vertex emission is disabled (static render path).</summary>
-    private void EmitV3D(Projection3D proj, PinnedAxes pinned, params Vec3[] pts)
-    {
-        if (!Axes.Emit3DVertexData || Ctx is not SvgRenderContext svgCtx) return;
-        var sb = new System.Text.StringBuilder(pts.Length * 24);
-        for (int i = 0; i < pts.Length; i++)
-        {
-            var n = proj.Normalize(pts[i].X, pts[i].Y, pts[i].Z);
-            if (i > 0) sb.Append(' ');
-            sb.Append(n.Nx.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(n.Ny.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(n.Nz.ToString("G6", System.Globalization.CultureInfo.InvariantCulture));
-        }
-        svgCtx.SetNextElementData("v3d", sb.ToString());
-        // Which components of these vertices sit ON a camera-selected cube face. The browser
-        // mirror re-runs the face selection every frame and negates exactly these components
-        // (centred coordinates make the opposite plane the exact negation) so panes, edges,
-        // grid lines and tick rows JUMP to the other side mid-drag instead of staying behind.
-        if (pinned != PinnedAxes.None)
-            svgCtx.SetNextElementData("v3d-pinned", pinned.ToWire());
-    }
-
-    /// <summary>Cube edge — projects both endpoints, emits data-v3d, then draws the line.</summary>
-    private void DrawCubeEdge3D(Projection3D proj, Vec3 from, Vec3 to, PinnedAxes pinned, Color color)
-    {
-        EmitV3D(proj, pinned, from, to);
-        Ctx.DrawLine(proj.Project(from.X, from.Y, from.Z), proj.Project(to.X, to.Y, to.Z),
-            new StrokeStyle(color, 0.5, LineStyle.Solid));
-    }
-
-    /// <summary>Single line at known 3D endpoints (for grid lines + tick marks).</summary>
-    private void DrawLine3DAt(Projection3D proj, Vec3 from, Vec3 to, PinnedAxes pinned, Color color, double width, LineStyle style)
-    {
-        EmitV3D(proj, pinned, from, to);
-        Ctx.DrawLine(proj.Project(from.X, from.Y, from.Z), proj.Project(to.X, to.Y, to.Z),
-            new StrokeStyle(color, width, style));
-    }
-
-    /// <summary>Emits <c>data-v3d</c> + <c>data-v3d-edge</c>
-    /// + <c>data-pad</c> so the JS reproject can preserve the perpendicular pad that
-    /// pushes tick labels and axis titles outside the cube silhouette. Without these
-    /// extra attrs the JS would set text x/y to the projected tick anchor only, and
-    /// labels would collapse onto the axis edge on every drag.</summary>
-    /// <param name="proj">Projection used to normalize points into centered-world coords.</param>
-    /// <param name="anchor">The tick's / label's 3D anchor (the point the label names).</param>
-    /// <param name="edge">The axis edge the label sits next to; its direction defines the 2-D screen
-    /// perpendicular the JS flips away from the cube centroid.</param>
-    /// <param name="padPx">Pixel magnitude of the perpendicular offset (the server's
-    /// <c>labelOffset = tickLength + tick.Pad + threeDExtraPad</c>).</param>
-    /// <param name="pinned">Which components of the anchor sit on a camera-selected cube face.</param>
-    private void EmitTextWithPerpPad(Projection3D proj, Vec3 anchor, AxisEdge3D edge, double padPx,
-        PinnedAxes pinned = PinnedAxes.None)
-    {
-        if (!Axes.Emit3DVertexData || Ctx is not SvgRenderContext svgCtx) return;
-        EmitV3D(proj, pinned, anchor);
-        var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var nA = proj.Normalize(edge.From.X, edge.From.Y, edge.From.Z);
-        var nB = proj.Normalize(edge.To.X, edge.To.Y, edge.To.Z);
-        var wire = string.Create(inv, $"{nA.Nx:G6},{nA.Ny:G6},{nA.Nz:G6} {nB.Nx:G6},{nB.Ny:G6},{nB.Nz:G6}");
-        svgCtx.SetNextElementData("v3d-edge", wire);
-        svgCtx.SetNextElementData("pad", padPx.ToString("G6", inv));
+        if (vertices.PadWire(padPx) is { } pad)
+            vertices.TextAnchor(anchor, row.EdgeWire!, pad, OtherAxes(row.Axis));
+        Ctx.Draw(TextLabel.Of(label), font, new TextPlacement(new Point(at.X + row.Outward.X * padPx, at.Y + row.Outward.Y * padPx), TextAlignment.Center));
     }
 
     /// <summary>
-    /// Shades the three cube faces the camera puts at the back — the floor (Z pane) and the two
-    /// walls (X and Y panes). Which side of each axis that is follows the camera; the colour is
-    /// bound to the AXIS, never to a fixed side, so a wall keeps its colour when it swaps sides.
+    /// Draws the major marks with their labels, and the minor marks when they are visible, along the edge of one row: each
+    /// where a tick of the row stands (<see cref="Rendering.ThreeDAxesRenderer.CubeAxisRow.Holds"/>), out of the cube the way the row leaves it, by the
+    /// axis' <see cref="TickConfig"/> (length, width, colour, label size and colour, pad) and its formatter. The minor values
+    /// are those of the walk the 2-D axes take (the axis' own minor spacing, the five-way split otherwise, none on a major).
+    /// A mark's two ends share the tick's point, so the browser moves it with the tick.
     /// </summary>
-    private void Render3DPanes(Projection3D proj, CubeFaceSelection faces, Box3D box)
-    {
-        var pane = Axes.Pane3D;
-        if (!pane.Visible) return;
-
-        var defaultColor = Theme.Pane3DColor ?? Color.FromHex("#F5F5F5");
-
-        // Each pane is tagged class="mpl-pane" so (1) the JS depth-sort can skip
-        // them (Phase F.3), (2) the ThreeDPaneOcclusionTests can assert DOM order.
-        var svgCtx = Ctx as SvgRenderContext;
-
-        // Floor first, then the X wall, then the Y wall — the paint order the depth-sort and the
-        // occlusion tests rely on.
-        foreach (var axis in (ReadOnlySpan<CubeAxis>)[CubeAxis.Z, CubeAxis.X, CubeAxis.Y])
-        {
-            var quad = PaneQuad(faces, box, axis);
-            EmitV3D(proj, PinnedAxes.X | PinnedAxes.Y | PinnedAxes.Z, quad);
-            svgCtx?.SetNextElementClass("mpl-pane");
-            Ctx.DrawPolygon(
-                [proj.Project(quad[0].X, quad[0].Y, quad[0].Z), proj.Project(quad[1].X, quad[1].Y, quad[1].Z),
-                 proj.Project(quad[2].X, quad[2].Y, quad[2].Z), proj.Project(quad[3].X, quad[3].Y, quad[3].Z)],
-                new ShapeStyle(Fade(pane.ColorFor(axis) ?? defaultColor, pane.Alpha), null, 0));
-        }
-    }
-
-    /// <summary>Scales a pane colour's own alpha by <see cref="Pane3DConfig.Alpha"/>. A full-opacity
-    /// setting returns the colour untouched, so a caller-supplied translucent colour keeps its alpha.</summary>
-    private static Color Fade(Color color, double alpha) =>
-        alpha >= 1.0 ? color : color.WithAlpha((byte)Math.Round(color.A * Math.Clamp(alpha, 0.0, 1.0)));
-
-    /// <summary>The four corners of one back pane, wound so the polygon is convex on screen.</summary>
-    private static Vec3[] PaneQuad(CubeFaceSelection faces, Box3D box, CubeAxis axis)
-    {
-        double xBack = faces.X.Coordinate(box, faces.X.Back), xFront = faces.X.Coordinate(box, faces.X.Front);
-        double yBack = faces.Y.Coordinate(box, faces.Y.Back), yFront = faces.Y.Coordinate(box, faces.Y.Front);
-        double zBack = faces.Z.Coordinate(box, faces.Z.Back), zFront = faces.Z.Coordinate(box, faces.Z.Front);
-        return axis switch
-        {
-            // Floor: z = zBack, winding in the XY plane.
-            CubeAxis.Z => [new(xBack, yFront, zBack), new(xFront, yFront, zBack),
-                           new(xFront, yBack, zBack), new(xBack, yBack, zBack)],
-            // X wall: x = xBack, winding in the YZ plane.
-            CubeAxis.X => [new(xBack, yFront, zBack), new(xBack, yBack, zBack),
-                           new(xBack, yBack, zFront), new(xBack, yFront, zFront)],
-            // Y wall: y = yBack, winding in the XZ plane.
-            _ => [new(xBack, yBack, zBack), new(xFront, yBack, zBack),
-                  new(xFront, yBack, zFront), new(xBack, yBack, zFront)],
-        };
-    }
-
-    /// <summary>
-    /// Renders grid lines on the three cube faces the camera puts at the back, at every major tick.
-    /// The grid is drawn unless the author switched it off, independent of the theme's own
-    /// <see cref="GridStyle.Visible"/>, matching matplotlib's <c>rcParams['axes3d.grid'] = True</c>; its style is the grid of
-    /// the theme this is drawn under with the author's change on top (<see cref="Axes.ShapeGridUnder"/>).
-    /// </summary>
-    private void Render3DGrid(Projection3D proj, CubeFaceSelection faces, Box3D box)
-    {
-        var grid = Axes.ShapeGridUnder(Theme);
-        if (!grid.Visible) return;
-
-        var majorColor = grid.Color;
-        double majorWidth = Math.Max(1.0, grid.LineWidth);
-
-        double x0 = box.X.Lo, x1 = box.X.Hi;
-        double y0 = box.Y.Lo, y1 = box.Y.Hi;
-        double zMin = Axes.ZAxis.Min ?? box.Z.Lo;
-        double zMax = Axes.ZAxis.Max ?? box.Z.Hi;
-
-        // Same MaxNLocator as the edge tick renderer so grid lines line up with ticks — and the
-        // same tick-bearing edges, so the two never disagree about where an axis runs.
-        double labelFontSize = Theme.DefaultFont.Size;
-        double xEdgePx = ProjectedEdgeLength(proj, faces.AxisEdge(CubeAxis.X, box));
-        double yEdgePx = ProjectedEdgeLength(proj, faces.AxisEdge(CubeAxis.Y, box));
-        double zEdgePx = ProjectedEdgeLength(proj, faces.AxisEdge(CubeAxis.Z, box));
-        var xTicks = Axes.XAxis.TickLocator?.Locate(x0, x1) ?? ComputeMaxNTicks(x0, x1, xEdgePx, labelFontSize);
-        var yTicks = Axes.YAxis.TickLocator?.Locate(y0, y1) ?? ComputeMaxNTicks(y0, y1, yEdgePx, labelFontSize);
-        var zTicks = Axes.ZAxis.TickLocator?.Locate(zMin, zMax) ?? ComputeMaxNTicks(zMin, zMax, zEdgePx, labelFontSize);
-
-        // Matplotlib's Axes3D draws grid lines on wall panes at MAJOR ticks only by default
-        // (rcParams['axes.grid'] applies to major, minor grid requires explicit
-        // `ax.grid(which='both')`). Drawing minor grid lines on 3-D walls produces the
-        // "tussen grid" clutter between major gridlines that the user flagged — every wall
-        // ends up with ~2× the expected line density. Minor tick MARKS are still drawn
-        // on the axis edges by Render3DAxisTicks; only the minor GRID LINES on the wall
-        // panes are suppressed here.
-        DrawCubeFaceLines(proj, faces, box, xTicks, yTicks, zTicks, zMin, zMax, majorColor, majorWidth);
-    }
-
-    /// <summary>
-    /// Draws the six per-axis grid-line families on the three back cube faces. Endpoints matching
-    /// the cube edges are skipped — those are already drawn as bounding-box edges.
-    /// </summary>
-    private void DrawCubeFaceLines(Projection3D proj, CubeFaceSelection faces, Box3D box,
-        IReadOnlyList<double> xs, IReadOnlyList<double> ys, IReadOnlyList<double> zs,
-        double zMin, double zMax, Color color, double width)
-    {
-        double x0 = box.X.Lo, x1 = box.X.Hi;
-        double y0 = box.Y.Lo, y1 = box.Y.Hi;
-        double xBack = faces.X.Coordinate(box, faces.X.Back);
-        double yBack = faces.Y.Coordinate(box, faces.Y.Back);
-        double zBack = faces.Z.Coordinate(box, faces.Z.Back);
-
-        // Floor face (z = zBack): X stripes and Y stripes.
-        foreach (var t in xs)
-        {
-            if (t <= x0 || t >= x1) continue;
-            DrawLine3DAt(proj, new(t, y0, zBack), new(t, y1, zBack), PinnedAxes.Z, color, width, LineStyle.Solid);
-        }
-        foreach (var t in ys)
-        {
-            if (t <= y0 || t >= y1) continue;
-            DrawLine3DAt(proj, new(x0, t, zBack), new(x1, t, zBack), PinnedAxes.Z, color, width, LineStyle.Solid);
-        }
-
-        // X wall (x = xBack): Y stripes and Z stripes.
-        foreach (var t in ys)
-        {
-            if (t <= y0 || t >= y1) continue;
-            DrawLine3DAt(proj, new(xBack, t, zMin), new(xBack, t, zMax), PinnedAxes.X, color, width, LineStyle.Solid);
-        }
-        foreach (var t in zs)
-        {
-            if (t <= zMin || t >= zMax) continue;
-            DrawLine3DAt(proj, new(xBack, y0, t), new(xBack, y1, t), PinnedAxes.X, color, width, LineStyle.Solid);
-        }
-
-        // Y wall (y = yBack): X stripes and Z stripes.
-        foreach (var t in xs)
-        {
-            if (t <= x0 || t >= x1) continue;
-            DrawLine3DAt(proj, new(t, yBack, zMin), new(t, yBack, zMax), PinnedAxes.Y, color, width, LineStyle.Solid);
-        }
-        foreach (var t in zs)
-        {
-            if (t <= zMin || t >= zMax) continue;
-            DrawLine3DAt(proj, new(x0, yBack, t), new(x1, yBack, t), PinnedAxes.Y, color, width, LineStyle.Solid);
-        }
-    }
-
-    /// <summary>Screen-space length of a projected cube edge.</summary>
-    private static double ProjectedEdgeLength(Projection3D proj, AxisEdge3D edge) => PixelLength(
-        proj.Project(edge.From.X, edge.From.Y, edge.From.Z),
-        proj.Project(edge.To.X, edge.To.Y, edge.To.Z));
-
-    /// <summary>
-    /// Computes major tick positions using matplotlib's exact 3-D <c>get_tick_space()</c> +
-    /// <c>MaxNLocator</c> algorithm with the full 10-entry ladder
-    /// <c>{1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10}</c>. <paramref name="edgePx"/> is the
-    /// projected screen-space length of the axis edge; matplotlib derives its tick target
-    /// as <c>floor(edgePx / (labelFontSize * 3))</c>, which is what makes the Y axis end
-    /// up with 12 ticks while X only gets 7 for the same bar3d scene — Y's edge happens
-    /// to project longer in screen pixels even though its data range is smaller.
-    /// </summary>
-    private static double[] ComputeMaxNTicks(double lo, double hi, double edgePx, double labelFontSize)
-    {
-        double range = hi - lo;
-
-        // We keep edgePx + labelFontSize in the signature for future callers that want
-        // the matplotlib axis3d.py get_tick_space() dynamic behaviour, but the default
-        // gives better parity on the bar3d reference scene.
-        _ = edgePx; _ = labelFontSize;
-        int tickSpace = 10;
-
-        // matplotlib MaxNLocator default ladder.
-        double[] stepLadder = [1.0, 2.0, 2.5, 5.0, 10.0];
-
-        // Walk from finest to coarsest. Pick the first step that yields ≥2 and ≤tickSpace+1
-        // intervals — matches matplotlib MaxNLocator for the bar3d reference scene:
-        //   X range 2.98 → step 0.5 (6 ticks)   [matches matplotlib]
-        //   Y range 1.83 → step 0.2 (10 ticks)  [matches matplotlib]
-        //   Z range 6.25 → step 1   (7 ticks)   [matches matplotlib]
-        double magnitude = Math.Pow(10, Math.Floor(Math.Log10(range / tickSpace)));
-        double chosenStep = 10 * magnitude;
-        foreach (double s in stepLadder)
-        {
-            double step = s * magnitude;
-            double niceLo = Math.Floor(lo / step + 1e-9) * step;
-            double niceHi = Math.Ceiling(hi / step - 1e-9) * step;
-            int count = (int)Math.Round((niceHi - niceLo) / step);
-            // matplotlib MaxNLocator: accepts `nbins + 1` intervals. Critical for Y
-            // range 1.83: step 0.2 yields 11 intervals which exceeds strict nbins=10
-            // but matplotlib still picks it (yticks list has 12 values, 11 intervals).
-            if (count <= tickSpace + 1 && count >= 2)
-            {
-                chosenStep = step;
-                break;
-            }
-        }
-
-        double first = Math.Ceiling(lo / chosenStep - 1e-9) * chosenStep;
-        var ticks = new List<double>();
-        for (double t = first; t <= hi + chosenStep * 0.01; t += chosenStep)
-            ticks.Add(Math.Round(t, 10));
-        return ticks.ToArray();
-    }
-
-    /// <summary>Euclidean distance between two projected points (used for projected-edge tick-density math).</summary>
-    private static double PixelLength(Point a, Point b)
-        => Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
-
-    /// <summary>Computes a unit perpendicular to edge <c>AB</c> that points AWAY from <paramref name="centroid"/>, scaled to <paramref name="px"/> pixels.</summary>
-    private static Point PerpAwayFromCentroid(Point a, Point b, Point edgeMid, Point centroid, double px)
-    {
-        double dx = b.X - a.X, dy = b.Y - a.Y;
-        double len = Math.Sqrt(dx * dx + dy * dy);
-        var perp = new Point(dy / len * px, -dx / len * px);
-        double towardX = centroid.X - edgeMid.X;
-        double towardY = centroid.Y - edgeMid.Y;
-        if (perp.X * towardX + perp.Y * towardY > 0) perp = new Point(-perp.X, -perp.Y);
-        return perp;
-    }
-
-    /// <summary>
-    /// Renders tick marks and numeric labels on the three bounding-box edges the camera selects —
-    /// the X row along the front Y plane and the back Z plane, the Y row along the front X plane and
-    /// the back Z plane, the Z row along the front X plane and the back Y plane. At the default view
-    /// that is the characteristic L-shape with Z on the right, X on the left-front and Y on the
-    /// right-front; past ±90° of azimuth the rows follow the cube instead of staying behind it.
-    /// </summary>
-    private void Render3DAxisTicks(Projection3D proj, CubeFaceSelection faces, Box3D box)
-    {
-        double zMin = Axes.ZAxis.Min ?? box.Z.Lo;
-        double zMax = Axes.ZAxis.Max ?? box.Z.Hi;
-
-        // Cube centroid in screen space — used to orient each axis's perpendicular outward.
-        var centroid = proj.Project(
-            (box.X.Lo + box.X.Hi) / 2, (box.Y.Lo + box.Y.Hi) / 2, (zMin + zMax) / 2);
-
-        RenderAxisEdgeTicks(Axes.XAxis, CubeAxis.X, box.X, proj,
-            faces.AxisEdge(CubeAxis.X, box), centroid, _rawXMin);
-        RenderAxisEdgeTicks(Axes.YAxis, CubeAxis.Y, box.Y, proj,
-            faces.AxisEdge(CubeAxis.Y, box), centroid, _rawYMin);
-        RenderAxisEdgeTicks(Axes.ZAxis, CubeAxis.Z, new Range1D(zMin, zMax), proj,
-            faces.AxisEdge(CubeAxis.Z, box), centroid, _rawZMin);
-    }
-
-    /// <summary>
-    /// Renders major (and optionally minor) tick marks and labels along a single projected 3D axis edge.
-    /// Respects <see cref="TickConfig"/> for length, width, color, label size/color, pad, and
-    /// <see cref="Axis.TickFormatter"/>/<see cref="Axis.TickLocator"/> for tick placement and formatting.
-    /// </summary>
-    private void RenderAxisEdgeTicks(Axis axis, CubeAxis cubeAxis, Range1D range,
-        Projection3D proj, AxisEdge3D edge, Point cubeCentroid,
-        double labelFloor = double.NegativeInfinity)
+    private void RenderAxisEdgeTicks(Axis axis, in CubeAxisRow row, Projection3D proj, SceneVertexWriter vertices)
     {
         var major = axis.MajorTicks;
         if (!major.Visible) return;
 
-        double lo = range.Lo, hi = range.Hi;
-        var edgeA = proj.Project(edge.From.X, edge.From.Y, edge.From.Z);
-        var edgeB = proj.Project(edge.To.X, edge.To.Y, edge.To.Z);
-
-        // Every coordinate of the tick row except the one it varies along sits on a selected face,
-        // so those are the components the browser mirror must flip when the selection changes.
-        var pinned = cubeAxis.OtherAxes();
-
-        // The tick's 3-D point: the edge's own axis component replaced by the tick value.
-        Vec3 TickPoint(double t) => cubeAxis switch
-        {
-            CubeAxis.X => new(t, edge.From.Y, edge.From.Z),
-            CubeAxis.Y => new(edge.From.X, t, edge.From.Z),
-            _ => new(edge.From.X, edge.From.Y, t),
-        };
-
-        // matplotlib Axis3D uses MaxNLocator with nbins = axis.get_tick_space()
-        // = floor(projected_edge_pixels / (label_font_size * 3)). The projected edge pixel
-        // length differs per axis (Y often projects longer in screen than X for the default
-        // bar3d camera), which is why Y ends up with step 0.2 and X with step 0.5 even
-        // though Y's data range is smaller.
-        double edgePx = PixelLength(edgeA, edgeB);
-        double labelFontSize = major.LabelSize ?? Theme.DefaultFont.Size;
-        var ticks = ComputeAxisTicks(axis, range, edgePx, labelFontSize);
-
-        // Tick marks and labels always extend AWAY from the cube, whatever the camera angle or the
-        // edge orientation — the same perpendicular the axis title is placed along.
-        var perp = OutwardPerp(edgeA, edgeB, cubeCentroid);
-
+        // Every coordinate of the row except the one it runs along sits on a selected face: those the browser flips.
+        var pinned = OtherAxes(row.Axis);
+        var perp = row.Outward;
         var tickColor = major.Color ?? Theme.ForegroundText;
+        var labelFont = row.Labels.LabelFont(major);
+        double labelOffset = CubeAxisRow.LabelOffset(major);
+        string? pad = vertices.PadWire(labelOffset);
 
-        var labelFont = TickFont();
-        if (major.LabelSize.HasValue)  labelFont = labelFont with { Size  = major.LabelSize.Value };
-        if (major.LabelColor.HasValue) labelFont = labelFont with { Color = major.LabelColor };
-
-        // Build a single uniform-precision formatter from the tick list so every label
-        // gets the same decimal places (e.g. "0.0"/"0.5"/"1.0" instead of "0"/"0.5"/"1").
-        // Matches matplotlib's ScalarFormatter. User-supplied axis.TickFormatter still wins.
-        var uniformFormat = BuildUniformTickFormatter(ticks);
-        foreach (double t in ticks)
+        foreach (double t in row.Ticks)
         {
-            // Skip tick MARKS and LABELS below the data floor. Matches matplotlib's
-            // behaviour of hiding sub-zero ticks when the data starts at 0 (visible
-            // in the bar3d reference: yticks list [-0.6..1.6] but rendered labels
-            // start at 0.0).
-            if (t < labelFloor - 1e-9) continue;
+            if (!row.Holds(t)) continue;
 
-            var point = TickPoint(t);
+            var point = row.TickPoint(t);
             var p = proj.Project(point.X, point.Y, point.Z);
-            var tip = new Point(p.X + perp.X * major.Length, p.Y + perp.Y * major.Length);
-            // Tick mark — both endpoints share the same 3D anchor (it's a 2D mark on the
-            // axis edge, but for re-projection purposes both ends pin to the tick's data point).
-            EmitV3D(proj, pinned, point, point);
-            Ctx.DrawLine(p, tip, new StrokeStyle(tickColor, major.Width, LineStyle.Solid));
+            vertices.Vertices(pinned, point, point);
+            Ctx.DrawLine(p, new Point(p.X + perp.X * major.Length, p.Y + perp.Y * major.Length),
+                StrokeStyle.Solid(tickColor, major.Width));
 
-            double labelOffset = major.Length + major.Pad + ThreeDExtraPad;
-            var labelPos = new Point(
-                p.X + perp.X * labelOffset,
-                p.Y + perp.Y * labelOffset);
-            // Phase F.2 of v1.7.2 follow-on — emit the perpendicular-pad contract so
-            // the JS reproject can preserve label-outside-cube on interactive rotation
-            // (was: JS wrote x/y = projected tick anchor only, dropping labelOffset →
-            // labels collapsed onto the axis edge after drag).
-            EmitTextWithPerpPad(proj, point, edge, labelOffset, pinned);
-            Ctx.DrawText(axis.TickFormatter?.Format(t) ?? uniformFormat(t),
-                labelPos, labelFont, TextAlignment.Center);
+            if (pad is not null) vertices.TextAnchor(point, row.EdgeWire!, pad, pinned);
+            Ctx.Draw(TextLabel.Of(row.LabelText(t)), labelFont, new TextPlacement(new Point(p.X + perp.X * labelOffset, p.Y + perp.Y * labelOffset), TextAlignment.Center));
         }
 
-        // Minor ticks (marks only, no labels)
         var minor = axis.MinorTicks;
-        if (!minor.Visible || ticks.Length < 2) return;
+        if (!minor.Visible) return;
 
         var minorColor = minor.Color ?? Theme.ForegroundText;
-        double majorStep = ticks[1] - ticks[0];
-        double minorStep = majorStep / 5;
-        for (double t = lo; t <= hi + minorStep * 0.01; t += minorStep)
+        foreach (double t in Theme.Looks.Ticks.MinorValuesBetween(minor, row.Ticks))
         {
-            if (ticks.Any(mt => Math.Abs(mt - t) < minorStep * 0.1)) continue;
-            var point = TickPoint(t);
+            if (!row.Holds(t)) continue;
+            var point = row.TickPoint(t);
             var p = proj.Project(point.X, point.Y, point.Z);
-            var tip = new Point(p.X + perp.X * minor.Length, p.Y + perp.Y * minor.Length);
-            EmitV3D(proj, pinned, point, point);
-            Ctx.DrawLine(p, tip, new StrokeStyle(minorColor, minor.Width, LineStyle.Solid));
+            vertices.Vertices(pinned, point, point);
+            Ctx.DrawLine(p, new Point(p.X + perp.X * minor.Length, p.Y + perp.Y * minor.Length),
+                StrokeStyle.Solid(minorColor, minor.Width));
         }
     }
 
-    /// <summary>
-    /// The UNIT perpendicular of a projected axis edge, flipped so it points AWAY from the cube
-    /// centroid. One rule, shared by the tick marks, the tick labels and the axis title — they must
-    /// travel in the same direction or the title lands on a different side than the labels it clears.
-    /// </summary>
-    private static Point OutwardPerp(Point edgeA, Point edgeB, Point cubeCentroid)
+    /// <summary>The compact <c>data-v3d-pinned</c> attribute value: the axis letters, in x-y-z order.</summary>
+    /// <param name="axes">The <see cref="Rendering.ThreeDAxesRenderer.PinnedAxes"/> it works on.</param>
+    internal static string ToWire(PinnedAxes axes)
     {
-        var perp = Perp2D(edgeA, edgeB, 1.0);
-        var edgeMid = new Point((edgeA.X + edgeB.X) / 2, (edgeA.Y + edgeB.Y) / 2);
-        double towardCubeX = cubeCentroid.X - edgeMid.X;
-        double towardCubeY = cubeCentroid.Y - edgeMid.Y;
-        return perp.X * towardCubeX + perp.Y * towardCubeY > 0 ? new Point(-perp.X, -perp.Y) : perp;
+        Span<char> buffer = stackalloc char[3];
+        int length = 0;
+        if (axes.HasFlag(PinnedAxes.X)) buffer[length++] = 'x';
+        if (axes.HasFlag(PinnedAxes.Y)) buffer[length++] = 'y';
+        if (axes.HasFlag(PinnedAxes.Z)) buffer[length++] = 'z';
+        return new string(buffer[..length]);
     }
 
-    /// <summary>
-    /// The major tick values for one 3-D axis: an explicit locator wins, then a fixed spacing, then
-    /// matplotlib's MaxNLocator over the projected edge length. ONE rule — the grid, the tick row and
-    /// the title-clearance measurement all call this, so they cannot disagree about where a tick is.
-    /// </summary>
-    private static double[] ComputeAxisTicks(Axis axis, Range1D range, double edgePx, double labelFontSize) =>
-        axis.TickLocator is not null
-            ? axis.TickLocator.Locate(range.Lo, range.Hi)
-            : axis.MajorTicks.Spacing.HasValue
-                ? new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(range.Lo, range.Hi)
-                : ComputeMaxNTicks(range.Lo, range.Hi, edgePx, labelFontSize);
-
-    /// <summary>Returns a unit perpendicular from edge A→B (rotated 90° CW, outward from box), scaled to <paramref name="px"/> pixels.</summary>
-    private static Point Perp2D(Point a, Point b, double px)
+    /// <summary>The two axes other than this one — the components a tick row along it is pinned to.</summary>
+    /// <param name="axis">The <see cref="CubeAxis"/> it works on.</param>
+    private static PinnedAxes OtherAxes(CubeAxis axis) => axis switch
     {
-        double dx = b.X - a.X, dy = b.Y - a.Y;
-        double len = Math.Sqrt(dx * dx + dy * dy);
-        return new Point(dy / len * px, -dx / len * px);
+        CubeAxis.X => PinnedAxes.Y | PinnedAxes.Z,
+        CubeAxis.Y => PinnedAxes.X | PinnedAxes.Z,
+        _ => PinnedAxes.X | PinnedAxes.Y,
+    };
+
+    /// <summary>
+    /// Which coordinate components of an emitted 3-D vertex sit ON a camera-selected cube face, and
+    /// therefore have to be mirrored when the browser re-runs the face selection mid-drag. In the
+    /// centred normalized space the SVG carries, the opposite plane of an axis is the exact negation of
+    /// that component, so "mirror" is a sign flip and needs no extra geometry on the wire.
+    /// </summary>
+    [Flags]
+    internal enum PinnedAxes
+    {
+        /// <summary>Nothing on this element follows the face selection.</summary>
+        None = 0,
+
+        /// <summary>The X component sits on the selected X plane.</summary>
+        X = 1,
+
+        /// <summary>The Y component sits on the selected Y plane.</summary>
+        Y = 2,
+
+        /// <summary>The Z component sits on the selected Z plane.</summary>
+        Z = 4,
     }
 
-    /// <summary>
-    /// Computes 3-D data ranges by porting matplotlib's exact two-stage expansion from
-    /// <c>mpl_toolkits.mplot3d.axes3d.Axes3D._autoscale_axis</c> +
-    /// <c>_set_lim3d(view_margin=1/48)</c>. Verified numerically against matplotlib for
-    /// the bar3d scene: raw <c>[-0.3, 2.3]</c> → stage1 <c>[-0.43, 2.43]</c> (×0.05 margin)
-    /// → stage2 <c>[-0.4896, 2.4896]</c> (×1/48 view_margin).
-    /// </summary>
-    /// <remarks>
-    /// Stage-1 margins per matplotlib <c>clear()</c>:
-    /// <list type="bullet">
-    ///   <item><c>_xmargin = _ymargin = rcParams['axes.xmargin'] = 0.05</c></item>
-    ///   <item><c>_zmargin = 0</c> for ortho (<c>_focal_length == inf</c>),
-    ///         <c>0.05</c> for persp</item>
-    /// </list>
-    /// Stage-2 <c>_view_margin = 1/48 ≈ 0.02083</c> applied to ALL three axes on top of
-    /// stage-1. NO <c>locator.view_limits</c> rounding (bar3d uses <c>_tight=True</c>).
-    /// NO sticky clamping (matplotlib's bar3d lets <c>zlim</c> run negative).
-    /// </remarks>
-    private DataRange3D Compute3DDataRanges()
+    /// <summary>Writes the vertex data a browser turns a 3-D scene with, onto the next element the scene draws: its points
+    /// normalised by the projection (<c>data-v3d</c>), which of their components sit on a face the camera selects
+    /// (<c>data-v3d-pinned</c>), and for a text the edge it stands beside and its pad (<c>data-v3d-edge</c>, <c>data-pad</c>).
+    /// A scene that writes no vertex data (no browser asked for it, or a surface without markup) sets nothing.</summary>
+    /// <remarks>Every point is written in the digits of the frame (<see cref="Normalized3DPoint.FrameDigits"/>) into one builder the
+    /// scene keeps for its whole draw, so a point costs no string of its own.</remarks>
+    internal readonly struct SceneVertexWriter
     {
-        double xMin = double.MaxValue, xMax = double.MinValue;
-        double yMin = double.MaxValue, yMax = double.MinValue;
-        double zMin = double.MaxValue, zMax = double.MinValue;
+        private readonly IRenderContext _ctx;
+        private readonly Projection3D _proj;
 
-        // 1. Raw min/max from grid data, over the drawable values only (a missing value, NaN, and an infinity are left
-        //    out). A grid reports no range of its own, because that range would move the 2-D axes a grid can also be
-        //    placed on; a point series reports its extent itself (step 2), by the same rule, so it is not folded twice.
-        foreach (var series in Axes.Series)
+        /// <summary>The builder the wire is written into; <see langword="null"/> when the scene writes no vertex data.</summary>
+        private readonly StringBuilder? _wire;
+
+        /// <summary>A writer for one draw of a scene.</summary>
+        /// <param name="ctx">The context the scene draws into.</param>
+        /// <param name="proj">The projection the scene is drawn through.</param>
+        /// <param name="writes">Whether the scene writes vertex data.</param>
+        internal SceneVertexWriter(IRenderContext ctx, Projection3D proj, bool writes)
         {
-            if (series is I3DGridSeries grid)
+            _ctx = ctx;
+            _proj = proj;
+            _wire = writes ? new StringBuilder(96) : null;
+        }
+
+        /// <summary>Whether the scene writes vertex data.</summary>
+        internal bool Writes => _wire is not null;
+
+        /// <summary>The points normalised by the projection, each as <c>nx,ny,nz</c> in the digits of the frame, separated by a
+        /// space. Only for a scene that writes vertex data.</summary>
+        /// <param name="points">The points, in data units.</param>
+        /// <returns>The wire.</returns>
+        internal string Wire(params ReadOnlySpan<Vec3> points)
+        {
+            var sb = _wire!.Clear();
+            Span<char> point = stackalloc char[Normalized3DPoint.PointLength];
+            for (int i = 0; i < points.Length; i++)
             {
-                UpdateRange(grid.X, ref xMin, ref xMax);
-                UpdateRange(grid.Y, ref yMin, ref yMax);
-                if (grid.Z.DrawableRange() is { } z)
-                {
-                    if (z.Lo < zMin) zMin = z.Lo;
-                    if (z.Hi > zMax) zMax = z.Hi;
-                }
+                var n = _proj.Normalize(points[i].X, points[i].Y, points[i].Z);
+                if (i > 0) sb.Append(' ');
+                sb.Append(point[..n.FormatWire(point, Normalized3DPoint.FrameDigits)]);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Gives the next drawn element its points, and the components of them that sit on a selected cube face: the
+        /// browser re-runs the face selection every frame and negates exactly those components, so panes, edges, grid lines and
+        /// tick rows jump to the other side mid-drag instead of staying behind.</summary>
+        /// <param name="pinned">The components that sit on a selected face; <see cref="Rendering.ThreeDAxesRenderer.PinnedAxes.None"/> writes none.</param>
+        /// <param name="points">The element's points, in data units.</param>
+        internal void Vertices(PinnedAxes pinned, params ReadOnlySpan<Vec3> points)
+        {
+            if (_wire is null) return;
+            _ctx.SetNextElementData("v3d", Wire(points));
+            if (pinned != PinnedAxes.None)
+                _ctx.SetNextElementData("v3d-pinned", ToWire(pinned));
+        }
+
+        /// <summary>The pad of a text as the browser reads it: the pixel distance in the digits of the frame; <see langword="null"/>
+        /// for a scene that writes no vertex data.</summary>
+        /// <param name="pad">The pixel distance from the edge.</param>
+        /// <returns>The text of the pad.</returns>
+        internal string? PadWire(double pad) => _wire is null ? null : pad.InvariantText(Normalized3DPoint.FrameDigits);
+
+        /// <summary>Gives the next drawn text its anchor, the edge it stands beside and its pad, so the browser keeps it that far
+        /// outside the cube on the perpendicular of the edge as the scene turns, rather than on the edge itself.</summary>
+        /// <param name="anchor">The point the text names, in data units.</param>
+        /// <param name="edgeWire">The edge's two ends as a wire (<see cref="Rendering.ThreeDAxesRenderer.SceneVertexWriter.Wire"/>), written once for its row.</param>
+        /// <param name="pad">The pixel distance from the edge, as <see cref="Rendering.ThreeDAxesRenderer.SceneVertexWriter.PadWire"/> writes it.</param>
+        /// <param name="pinned">The components of the anchor that sit on a selected face.</param>
+        internal void TextAnchor(Vec3 anchor, string edgeWire, string pad, PinnedAxes pinned)
+        {
+            if (_wire is null) return;
+            Vertices(pinned, anchor);
+            _ctx.SetNextElementData("v3d-edge", edgeWire);
+            _ctx.SetNextElementData("pad", pad);
+        }
+    }
+
+    /// <summary>The frame of a 3-D cube in one draw: which side of each axis the camera puts at the back, worked out once, and
+    /// what stands on those back faces, the shaded panes, the nine edges that bound them or the three axis lines matplotlib draws
+    /// instead, and the grid lines on them. Every line
+    /// and pane carries its vertex data (<see cref="Rendering.ThreeDAxesRenderer.SceneVertexWriter"/>), so a browser turns it with the scene.</summary>
+    internal readonly struct CubeFrame
+    {
+        private readonly Projection3D _proj;
+        private readonly IRenderContext _ctx;
+        private readonly SceneVertexWriter _vertices;
+
+        /// <summary>The frame of <paramref name="box"/> as <paramref name="proj"/> sees it.</summary>
+        /// <param name="proj">The projection the scene is drawn through; its face selection decides the back faces.</param>
+        /// <param name="box">The cube, in data units.</param>
+        /// <param name="ctx">The context the frame is drawn into.</param>
+        /// <param name="vertices">The scene's vertex data writer.</param>
+        internal CubeFrame(Projection3D proj, Box3D box, IRenderContext ctx, SceneVertexWriter vertices)
+        {
+            _proj = proj;
+            _ctx = ctx;
+            _vertices = vertices;
+            Box = box;
+            var faces = proj.Faces;
+            XBack = faces.X.Coordinate(box, faces.X.Back);
+            XFront = faces.X.Coordinate(box, faces.X.Front);
+            YBack = faces.Y.Coordinate(box, faces.Y.Back);
+            YFront = faces.Y.Coordinate(box, faces.Y.Front);
+            ZBack = faces.Z.Coordinate(box, faces.Z.Back);
+            ZFront = faces.Z.Coordinate(box, faces.Z.Front);
+        }
+
+        /// <summary>The cube.</summary>
+        internal Box3D Box { get; }
+
+        /// <summary>The X of the wall the camera puts at the back.</summary>
+        internal double XBack { get; }
+
+        /// <summary>The X of the open side facing the camera.</summary>
+        internal double XFront { get; }
+
+        /// <summary>The Y of the wall the camera puts at the back.</summary>
+        internal double YBack { get; }
+
+        /// <summary>The Y of the open side facing the camera.</summary>
+        internal double YFront { get; }
+
+        /// <summary>The Z of the floor the camera puts at the back.</summary>
+        internal double ZBack { get; }
+
+        /// <summary>The Z of the open top.</summary>
+        internal double ZFront { get; }
+
+        /// <summary>Shades the three back faces, the floor first, then the X wall, then the Y wall, the paint order the browser's
+        /// depth sort relies on (it skips the <c>mpl-pane</c> class). The colour is bound to the axis, never to a side, so a wall
+        /// keeps its colour when it swaps sides. A pane given no colour, under a theme that names none, wears matplotlib's shade of
+        /// its axis (<see cref="Rendering.ThreeDAxesRenderer.CubeFrame.DefaultPaneColor"/>).</summary>
+        /// <param name="pane">The axes' pane settings.</param>
+        /// <param name="themeColor">The theme's pane colour, when it sets one.</param>
+        internal void DrawPanes(Pane3DConfig pane, Color? themeColor)
+        {
+            if (!pane.Visible) return;
+
+            foreach (var axis in (ReadOnlySpan<CubeAxis>)[CubeAxis.Z, CubeAxis.X, CubeAxis.Y])
+            {
+                var quad = PaneQuad(axis);
+                _vertices.Vertices(PinnedAxes.X | PinnedAxes.Y | PinnedAxes.Z, quad);
+                _ctx.SetNextElementClass("mpl-pane");
+                _ctx.DrawPolygon(
+                    [_proj.Project(quad[0].X, quad[0].Y, quad[0].Z), _proj.Project(quad[1].X, quad[1].Y, quad[1].Z),
+                     _proj.Project(quad[2].X, quad[2].Y, quad[2].Z), _proj.Project(quad[3].X, quad[3].Y, quad[3].Z)],
+                    ShapeStyle.Filled((pane.ColorFor(axis) ?? themeColor ?? DefaultPaneColor(axis)).ScaleAlpha(pane.Alpha)));
             }
         }
 
-        // _rawXMin/_rawYMin/_rawZMin are set AFTER ComputeDataRange contributions
-        // below, so they include Bar3D's ZMin=0 floor and widened X/Y edges.
-
-        // 2. Fold in series-reported X/Y/Z contributions. Bar3DSeries widens X/Y by
-        //    BarWidth/2 here so the cube-face positions reflect bar EDGES, not bar
-        //    centres, and reports ZMin=0 so the cube floor sits on z=0 (the bar floor)
-        //    regardless of the minimum bar height.
-        var context = new AxesContextAdapter(Axes);
-        var contribs = new List<DataRangeContribution>(Axes.Series.Count);
-        foreach (var series in Axes.Series)
+        /// <summary>matplotlib's shade of the pane of <paramref name="axis"/> laid over a white axes, as its Agg backend lays it in
+        /// eight bits: <c>axes3d.xaxis.panecolor</c> (0.95, 0.95, 0.95, 0.5) gives #F8F8F8, <c>axes3d.yaxis.panecolor</c> (0.9,
+        /// 0.9, 0.9, 0.5) #F2F2F2 and <c>axes3d.zaxis.panecolor</c> (0.925, 0.925, 0.925, 0.5) #F5F5F5, the same in matplotlib's
+        /// default and classic styles.</summary>
+        /// <param name="axis">The axis the pane is the back wall of (<see cref="CubeAxis.Z"/>: the floor).</param>
+        /// <returns>The opaque grey of that pane.</returns>
+        internal static Color DefaultPaneColor(CubeAxis axis) => axis switch
         {
-            var c = series.ComputeDataRange(context);
-            contribs.Add(c);
-            if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
-            if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
-            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
-            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
-            if (c.ZMin.HasValue && c.ZMin.Value < zMin) zMin = c.ZMin.Value;
-            if (c.ZMax.HasValue && c.ZMax.Value > zMax) zMax = c.ZMax.Value;
+            CubeAxis.X => XPane,
+            CubeAxis.Y => YPane,
+            _ => ZPane,
+        };
+
+        private static readonly Color XPane = Color.FromHex("#F8F8F8");
+        private static readonly Color YPane = Color.FromHex("#F2F2F2");
+        private static readonly Color ZPane = Color.FromHex("#F5F5F5");
+
+        /// <summary>The four corners of one back pane, wound so the polygon is convex on screen.</summary>
+        /// <param name="axis">The axis the pane is the back wall of (<see cref="CubeAxis.Z"/>: the floor).</param>
+        /// <returns>The corners.</returns>
+        internal Vec3[] PaneQuad(CubeAxis axis) => axis switch
+        {
+            CubeAxis.Z => [new(XBack, YFront, ZBack), new(XFront, YFront, ZBack), new(XFront, YBack, ZBack), new(XBack, YBack, ZBack)],
+            CubeAxis.X => [new(XBack, YFront, ZBack), new(XBack, YBack, ZBack), new(XBack, YBack, ZFront), new(XBack, YFront, ZFront)],
+            _ => [new(XBack, YBack, ZBack), new(XFront, YBack, ZBack), new(XFront, YBack, ZFront), new(XBack, YBack, ZFront)],
+        };
+
+        /// <summary>Draws the nine edges that bound the back panes, half a pixel wide: the four of the floor, the top edge of each
+        /// wall, and the three verticals that touch a wall. The other three edges form the cube's front silhouette and would cut
+        /// across the data, so matplotlib leaves them out too.</summary>
+        /// <param name="color">The edge colour.</param>
+        internal void DrawEdges(Color color)
+        {
+            double x0 = Box.X.Lo, x1 = Box.X.Hi;
+            DrawEdge(new(x0, YFront, ZBack), new(x1, YFront, ZBack), PinnedAxes.Y | PinnedAxes.Z, color);
+            DrawEdge(new(x1, YFront, ZBack), new(x1, YBack, ZBack), PinnedAxes.Z, color);
+            DrawEdge(new(x1, YBack, ZBack), new(x0, YBack, ZBack), PinnedAxes.Y | PinnedAxes.Z, color);
+            DrawEdge(new(x0, YBack, ZBack), new(x0, YFront, ZBack), PinnedAxes.Z, color);
+
+            DrawEdge(new(x1, YBack, ZFront), new(x0, YBack, ZFront), PinnedAxes.Y | PinnedAxes.Z, color);
+            DrawEdge(new(XBack, YBack, ZFront), new(XBack, YFront, ZFront), PinnedAxes.X | PinnedAxes.Z, color);
+
+            DrawEdge(new(XBack, YFront, ZBack), new(XBack, YFront, ZFront), PinnedAxes.X | PinnedAxes.Y, color);
+            DrawEdge(new(XFront, YBack, ZBack), new(XFront, YBack, ZFront), PinnedAxes.X | PinnedAxes.Y, color);
+            DrawEdge(new(XBack, YBack, ZBack), new(XBack, YBack, ZFront), PinnedAxes.X | PinnedAxes.Y, color);
         }
 
-        // Cache label-floor minimums AFTER ComputeDataRange contributions so they
-        // include Bar3D's ZMin=0 floor and widened X/Y edges. This ensures the z=0
-        // tick label is visible when bars start at z=0.
-        _rawXMin = xMin != double.MaxValue ? xMin : 0;
-        _rawYMin = yMin != double.MaxValue ? yMin : 0;
-        _rawZMin = zMin != double.MaxValue ? zMin : 0;
-
-        // 3. Degenerate-range fallbacks.
-        if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-        if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-        if (zMin == double.MaxValue) { zMin = 0; zMax = 1; }
-        if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
-        if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
-        if (Math.Abs(zMax - zMin) < 1e-10) { zMin -= 0.5; zMax += 0.5; }
-
-        // 4. User-set limits bypass both stages.
-        if (Axes.XAxis.Min.HasValue) xMin = Axes.XAxis.Min.Value;
-        if (Axes.XAxis.Max.HasValue) xMax = Axes.XAxis.Max.Value;
-        if (Axes.YAxis.Min.HasValue) yMin = Axes.YAxis.Min.Value;
-        if (Axes.YAxis.Max.HasValue) yMax = Axes.YAxis.Max.Value;
-        if (Axes.ZAxis.Min.HasValue) zMin = Axes.ZAxis.Min.Value;
-        if (Axes.ZAxis.Max.HasValue) zMax = Axes.ZAxis.Max.Value;
-
-        // 5–7. Stage-1 margin, stage-2 view-margin (1/48), and sticky-edge clamp —
-        //      each axis runs the same Range1D pipeline used by CartesianAxesRenderer.
-        //      matplotlib Axes3D.clear() sets _zmargin=0 for ortho (focal_length==inf)
-        //      and _zmargin=rcParams['axes.zmargin']=0.05 for persp. We're ortho-only
-        //      today, so zMargin default = 0.
-        //      Verified against matplotlib: bar3d → xlim (-0.4896, 2.4896),
-        //      ylim (-0.4167, 1.4167), zlim (-0.125, 6.125).
-        const double xMarginDefault = 0.05;
-        const double yMarginDefault = 0.05;
-        double zMarginDefault = Axes.CameraDistance.HasValue ? 0.05 : 0.0;
-        const double viewMargin = 1.0 / 48.0;
-
-        var xUnpadded = new Range1D(xMin, xMax);
-        var yUnpadded = new Range1D(yMin, yMax);
-        var zUnpadded = new Range1D(zMin, zMax);
-
-        var xRange = xUnpadded.Padded(Axes.XAxis.Margin ?? xMarginDefault, Axes.XAxis)
-                              .Padded(viewMargin, Axes.XAxis);
-        var yRange = yUnpadded.Padded(Axes.YAxis.Margin ?? yMarginDefault, Axes.YAxis)
-                              .Padded(viewMargin, Axes.YAxis);
-        var zRange = zUnpadded.Padded(Axes.ZAxis.Margin ?? zMarginDefault, Axes.ZAxis)
-                              .Padded(viewMargin, Axes.ZAxis);
-
-        foreach (var c in contribs)
+        /// <summary>Draws one axis line per axis along the edge its row's ticks stand on, as matplotlib's 3-D axis draws its
+        /// <c>line</c>, pinned as the row's ticks are, so a browser turns it with them.</summary>
+        /// <param name="x">The X row.</param>
+        /// <param name="y">The Y row.</param>
+        /// <param name="z">The Z row.</param>
+        /// <param name="stroke">The axis lines' colour, width and line style.</param>
+        internal void DrawAxisLines(in CubeAxisRow x, in CubeAxisRow y, in CubeAxisRow z, StrokeStyle stroke)
         {
-            xRange = xRange.ClampSticky(c.StickyXMin, c.StickyXMax, xUnpadded, Axes.XAxis);
-            yRange = yRange.ClampSticky(c.StickyYMin, c.StickyYMax, yUnpadded, Axes.YAxis);
-            zRange = zRange.ClampSticky(c.StickyZMin, c.StickyZMax, zUnpadded, Axes.ZAxis);
+            DrawAxisLine(x, stroke);
+            DrawAxisLine(y, stroke);
+            DrawAxisLine(z, stroke);
         }
 
-        return new DataRange3D(xRange.Lo, xRange.Hi, yRange.Lo, yRange.Hi, zRange.Lo, zRange.Hi);
+        private void DrawAxisLine(in CubeAxisRow row, StrokeStyle stroke) =>
+            DrawLine(row.Line.From, row.Line.To, OtherAxes(row.Axis), stroke);
+
+        private void DrawEdge(Vec3 from, Vec3 to, PinnedAxes pinned, Color color) =>
+            DrawLine(from, to, pinned, StrokeStyle.Solid(color, LineWidthRule.OwnHairline.Resting));
+
+        /// <summary>Draws the grid lines on the three back faces, at the grid ticks of each row where a grid line stands
+        /// (<see cref="Rendering.ThreeDAxesRenderer.CubeAxisRow.GridTicks"/>, <see cref="Rendering.ThreeDAxesRenderer.CubeAxisRow.HoldsGridLine"/>), so a line never stands where its axis shows
+        /// no mark: the major ticks, and under the matplotlib themes the minor ones of an axis whose minor ticks are on, in the grid's own
+        /// colour, width and line style: matplotlib's <c>Axis.draw_grid</c> hands its lines those and nothing else. Two families per axis: X on the floor and the Y wall, Y on
+        /// the floor and the X wall, Z on the X wall and the Y wall.</summary>
+        /// <param name="grid">The grid the walls wear (<see cref="AxesGridExtensions.WallGridUnder"/>); a hidden one draws nothing.</param>
+        /// <param name="x">The X row.</param>
+        /// <param name="y">The Y row.</param>
+        /// <param name="z">The Z row.</param>
+        internal void DrawGrid(GridStyle grid, in CubeAxisRow x, in CubeAxisRow y, in CubeAxisRow z)
+        {
+            if (!grid.Visible) return;
+
+            var stroke = grid.Stroke;
+            double x0 = Box.X.Lo, x1 = Box.X.Hi;
+            double y0 = Box.Y.Lo, y1 = Box.Y.Hi;
+            double z0 = Box.Z.Lo, z1 = Box.Z.Hi;
+
+            foreach (var t in x.GridTicks)
+                if (x.HoldsGridLine(t)) DrawLine(new(t, y0, ZBack), new(t, y1, ZBack), PinnedAxes.Z, stroke);
+            foreach (var t in y.GridTicks)
+                if (y.HoldsGridLine(t)) DrawLine(new(x0, t, ZBack), new(x1, t, ZBack), PinnedAxes.Z, stroke);
+
+            foreach (var t in y.GridTicks)
+                if (y.HoldsGridLine(t)) DrawLine(new(XBack, t, z0), new(XBack, t, z1), PinnedAxes.X, stroke);
+            foreach (var t in z.GridTicks)
+                if (z.HoldsGridLine(t)) DrawLine(new(XBack, y0, t), new(XBack, y1, t), PinnedAxes.X, stroke);
+
+            foreach (var t in x.GridTicks)
+                if (x.HoldsGridLine(t)) DrawLine(new(t, YBack, z0), new(t, YBack, z1), PinnedAxes.Y, stroke);
+            foreach (var t in z.GridTicks)
+                if (z.HoldsGridLine(t)) DrawLine(new(x0, YBack, t), new(x1, YBack, t), PinnedAxes.Y, stroke);
+        }
+
+        /// <summary>A line between two points of the scene, with its vertex data.</summary>
+        /// <param name="from">One end, in data units.</param>
+        /// <param name="to">The other end.</param>
+        /// <param name="pinned">The components that sit on a selected face.</param>
+        /// <param name="stroke">The colour, width and dash pattern of the line.</param>
+        internal void DrawLine(Vec3 from, Vec3 to, PinnedAxes pinned, StrokeStyle stroke)
+        {
+            _vertices.Vertices(pinned, from, to);
+            _ctx.DrawLine(_proj.Project(from.X, from.Y, from.Z), _proj.Project(to.X, to.Y, to.Z), stroke);
+        }
     }
 }

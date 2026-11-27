@@ -6,49 +6,19 @@ using MatPlotLibNet.Animation;
 
 namespace MatPlotLibNet.Avalonia;
 
-/// <summary><see cref="IAnimationTimer"/> that fires on the Avalonia UI thread via
-/// <see cref="DispatcherTimer"/>. Use this when tick handlers must touch Avalonia controls.</summary>
-public sealed class AvaloniaAnimationTimer : IAnimationTimer
+/// <summary>An <see cref="AnimationTimer"/> that ticks on the Avalonia UI thread, through <see cref="DispatcherTimer"/>. Use it when
+/// tick handlers must touch Avalonia controls.</summary>
+public sealed class AvaloniaAnimationTimer : AnimationTimer
 {
-    private readonly DispatcherTimer _timer;
-    private bool _running;
+    private readonly DispatcherTimer _timer = new() { Interval = DefaultInterval };
 
-    /// <inheritdoc />
-    public TimeSpan Interval
-    {
-        get => _timer.Interval;
-        set => _timer.Interval = value;
-    }
+    /// <summary>Creates a stopped timer on the Avalonia UI thread with a tick every 16 ms (about 60 frames a second); call
+    /// <see cref="AnimationTimer.Start"/> to begin ticking.</summary>
+    public AvaloniaAnimationTimer() => _timer.Tick += RaiseTick;
 
-    /// <inheritdoc />
-    public event EventHandler? Tick;
+    private protected override void Begin() => _timer.Start();
 
-    /// <summary>Creates a stopped timer on the Avalonia UI thread with a tick every 16 ms (about 60 frames a second);
-    /// call <see cref="Start"/> to begin ticking.</summary>
-    public AvaloniaAnimationTimer()
-    {
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-        _timer.Tick += (_, _) => RaiseTick();
-    }
+    private protected override void End() => _timer.Stop();
 
-    /// <summary>Says to whoever listens that a frame is due.</summary>
-    internal void RaiseTick() => Tick?.Invoke(this, EventArgs.Empty);
-
-    /// <inheritdoc />
-    public void Start()
-    {
-        if (_running) return;
-        _running = true;
-        _timer.Start();
-    }
-
-    /// <inheritdoc />
-    public void Stop()
-    {
-        _running = false;
-        _timer.Stop();
-    }
-
-    /// <inheritdoc />
-    public void Dispose() => Stop();
+    private protected override void Retime(TimeSpan interval) => _timer.Interval = interval;
 }

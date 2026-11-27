@@ -16,38 +16,43 @@ namespace MatPlotLibNet.GraphQL;
 /// <summary>Extension methods for registering MatPlotLibNet GraphQL services and endpoints.</summary>
 public static class GraphQLExtensions
 {
-    /// <summary>Registers HotChocolate GraphQL services with chart query and subscription types.</summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="figureFactory">Factory function that creates a <see cref="Figure"/> for a given chart identifier.</param>
-    /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddMatPlotLibNetGraphQL(
-        this IServiceCollection services,
-        Func<string, Figure> figureFactory)
+    extension(IServiceCollection services)
     {
-        services.AddSingleton(new ChartFigureFactory(figureFactory));
-        services.AddSingleton<IChartSerializer, ChartSerializer>();
-        services.AddSingleton<IChartRenderer, ChartRenderer>();
-        services.AddSingleton<ISvgRenderer, SvgTransform>();
-        services.AddSingleton<IChartEventSender, ChartEventSender>();
-        services.AddSingleton<IChartPublisher, ChartPublisher>();
+        /// <summary>Registers HotChocolate GraphQL services with chart query and subscription types.</summary>
+        /// <param name="figureFactory">Factory function that creates a <see cref="Figure"/> for a given chart identifier.</param>
+        /// <returns>The service collection for chaining.</returns>
+        public IServiceCollection AddMatPlotLibNetGraphQL(
+            Func<string, Figure> figureFactory)
+        {
+            services.AddSingleton(new ChartFigureFactory(figureFactory));
+            services.AddSingleton<IChartSerializer, ChartSerializer>();
+            services.AddSingleton<IChartRenderer, ChartRenderer>();
+            services.AddSingleton<ISvgRenderer, SvgTransform>();
+            services.AddSingleton<IChartEventSender, ChartEventSender>();
+            services.AddSingleton<IChartPublisher, ChartPublisher>();
 
-        services
-            .AddGraphQLServer()
-            .AddQueryType<ChartQueryType>()
-            .AddSubscriptionType<ChartSubscriptionType>()
-            .AddInMemorySubscriptions();
+            services
+                .AddGraphQLServer()
+                .AddQueryType<ChartQueryType>()
+                .AddSubscriptionType<ChartSubscriptionType>()
+                .AddInMemorySubscriptions();
 
-        return services;
+            return services;
+        }
     }
 
-    /// <summary>Maps the MatPlotLibNet GraphQL endpoint to the specified route pattern.</summary>
     /// <param name="endpoints">The endpoint route builder.</param>
-    /// <param name="pattern">The URL pattern for the GraphQL endpoint (defaults to "/graphql").</param>
-    /// <returns>The endpoint route builder for chaining.</returns>
-    public static IEndpointRouteBuilder MapMatPlotLibNetGraphQL(
-        this IEndpointRouteBuilder endpoints, string pattern = "/graphql")
+    extension(IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGraphQL(pattern);
-        return endpoints;
+        /// <summary>Maps the MatPlotLibNet GraphQL endpoint to the specified route pattern.</summary>
+        /// <param name="pattern">The URL pattern for the GraphQL endpoint (defaults to "/graphql").</param>
+        /// <returns>The endpoint route builder for chaining.</returns>
+        public IEndpointRouteBuilder MapMatPlotLibNetGraphQL(
+            string pattern = "/graphql")
+        {
+            endpoints.MapGraphQL(pattern);
+            return endpoints;
+        }
     }
 }

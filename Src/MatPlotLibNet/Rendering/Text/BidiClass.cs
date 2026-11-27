@@ -54,14 +54,3 @@ internal enum BidiClass : byte
     /// <summary>Pop directional isolate.</summary>
     PDI,
 }
-
-/// <summary>The paragraph direction a caller can impose instead of letting rules P2 and P3 find the first strong
-/// character.</summary>
-internal enum BidiDirection : byte
-{
-    /// <summary>The paragraph reads left to right (embedding level 0).</summary>
-    LeftToRight = 0,
-
-    /// <summary>The paragraph reads right to left (embedding level 1).</summary>
-    RightToLeft = 1,
-}

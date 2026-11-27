@@ -24,8 +24,9 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
         AddPolyline(marks, pixels.Line);
     }
 
-    /// <summary>The fitted line in pixels, and the outline of its confidence band when it shows one.</summary>
-    private readonly record struct RegressionPixels(List<Point>? Band, List<Point> Line);
+    /// <summary>The fitted line in pixels, and the outline of its confidence band when it shows one, each cut where it leaves the
+    /// plot towards a value a log axis cannot place.</summary>
+    private readonly record struct RegressionPixels(IReadOnlyList<Point>? Band, IReadOnlyList<Point> Line);
 
     /// <summary>Fits the series and works its pixels out: the one geometry <see cref="Render"/> draws and
     /// <see cref="AddMarks"/> hands to a legend.</summary>
@@ -45,13 +46,10 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
         {
             coeff = LeastSquares.PolyFit(pairs.X, pairs.Y, degree);
         }
-        catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException)
+        catch (IndexOutOfRangeException ex)
         {
-            // LeastSquares.PolyFit documents ArgumentException/ArgumentOutOfRangeException for
-            // empty data or an out-of-range degree; IndexOutOfRangeException is the reachable
-            // failure at this call site when XData/YData lengths disagree (identical-X data does
-            // NOT throw — the normal-equations solver degrades to a degenerate-but-valid fit for
-            // singular matrices). Either way: skip this series' regression line, but tell someone.
+            // PolyFit's refusals (no data, a degree outside 0..10) cannot reach it here; X data longer than its Y reads past the Y
+            // (identical X does not throw: the solver degrades to a valid fit). Skip this series' line, but tell someone.
             if (reportFailure)
                 ChartDiagnostics.Emit(new ChartDiagnostic(
                     nameof(RegressionSeriesRenderer),
@@ -61,25 +59,22 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
         }
 
         double xMin = pairs.X.Min(), xMax = pairs.X.Max();
-        double step = (xMax - xMin) / (NumEvalPoints - 1);
-        double[] evalX = Enumerable.Range(0, NumEvalPoints).Select(i => xMin + step * i).ToArray();
+        double[] evalX = new EqualWidthBins(xMin, xMax, NumEvalPoints - 1).Edges();
         double[] evalY = LeastSquares.PolyEval(coeff, evalX);
 
-        List<Point>? band = null;
+        IReadOnlyList<Point>? band = null;
         if (series.ShowConfidence)
         {
             var interval = LeastSquares.ConfidenceBand(pairs.X, pairs.Y, coeff, evalX, series.ConfidenceLevel);
-            band = new List<Point>(NumEvalPoints * 2);
+            var outline = new List<Point>(NumEvalPoints * 2);
             for (int i = 0; i < NumEvalPoints; i++)
-                band.Add(Transform.DataToPixel(evalX[i], interval.Upper[i]));
+                outline.Add(Transform.DataToPixelUnclipped(evalX[i], interval.Upper[i]));
             for (int i = NumEvalPoints - 1; i >= 0; i--)
-                band.Add(Transform.DataToPixel(evalX[i], interval.Lower[i]));
+                outline.Add(Transform.DataToPixelUnclipped(evalX[i], interval.Lower[i]));
+            band = Transform.CutBeyondTheStart(outline, closed: true);
         }
 
-        var line = new List<Point>(NumEvalPoints);
-        for (int i = 0; i < NumEvalPoints; i++)
-            line.Add(Transform.DataToPixel(evalX[i], evalY[i]));
-        return new RegressionPixels(band, line);
+        return new RegressionPixels(band, Transform.TransformPath(evalX, evalY));
     }
 
     /// <inheritdoc />
@@ -87,12 +82,12 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
     {
         if (Pixels(series, reportFailure: true) is not { } pixels) return;
 
-        var color = ResolveColor(series.Color);
+        var color = ColorOf(series);
         if (pixels.Band is not null)
         {
             var bandColor = series.BandColor ?? color;
-            Ctx.DrawPolygon(pixels.Band, new ShapeStyle(ApplyAlpha(bandColor, series.BandAlpha), null, 0));
+            Ctx.DrawPolygon(pixels.Band, ShapeStyle.Filled(bandColor.WithOpacityGiven(series.BandAlpha)));
         }
-        Ctx.DrawLines(pixels.Line, Slot.StrokeOf(color, series.LineWidth, series.LineStyle, RegressionSeries.RestingLineWidth));
+        DrawSeriesLine(pixels.Line, series, color);
     }
 }

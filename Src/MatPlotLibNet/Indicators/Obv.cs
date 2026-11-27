@@ -15,22 +15,24 @@ public sealed class Obv : Indicator<SignalResult>
     private readonly double[] _close;
     private readonly double[] _volume;
 
+    /// <inheritdoc />
+    private protected override int BarsIn => Math.Min(_close.Length, _volume.Length);
+
     /// <summary>Creates a new OBV indicator.</summary>
     /// <param name="close">Close prices.</param>
     /// <param name="volume">Volume data.</param>
-    public Obv(double[] close, double[] volume)
+    public Obv(double[] close, double[] volume) : base(Spec())
     {
         _close = close;
         _volume = volume;
-        Label = "OBV";
     }
+
+    internal static IndicatorSpec Spec() => IndicatorSpec.Of(0, "OBV");
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Math.Min(_close.Length, _volume.Length);
-        if (n == 0) return Array.Empty<double>();
-
+        int n = ValuedBars;
         var result = new double[n];
         var step = new ObvStep();
         for (int i = 0; i < n; i++)
@@ -39,5 +41,5 @@ public sealed class Obv : Indicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), 0);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

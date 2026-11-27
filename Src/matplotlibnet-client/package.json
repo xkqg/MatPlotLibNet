@@ -1,0 +1,30 @@
+{
+  "name": "@matplotlibnet/client",
+  "version": "0.3.2",
+  "description": "The framework-free MatPlotLibNet chart client the React, Vue and Angular packages share: the SignalR hub client, the SVG mount and the parts document",
+  "license": "MIT",
+  "author": "H.P. Gansevoort",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "@microsoft/signalr": "^8.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "jsdom": "^25.0.0",
+    "@microsoft/signalr": "^8.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "charting",
+    "plotting",
+    "svg",
+    "signalr",
+    "matplotlibnet"
+  ]
+}

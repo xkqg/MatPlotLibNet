@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series.Streaming;
 
 /// <summary>A streaming candlestick series that accepts OHLC bars via <see cref="AppendBar(OhlcBar)"/>,
-/// backed by ONE <see cref="RingBuffer{T}"/> of <see cref="OhlcBar"/> — a bar is the value this series is a
+/// backed by ONE ring of <see cref="OhlcBar"/> — a bar is the value this series is a
 /// sequence of, and its four prices belong to one tick or to none.
 ///
 /// <para>It used to be four parallel buffers. Each was thread-safe; a bar was not. An append was four separate
@@ -18,25 +18,27 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 /// <c>o=60365, h=60382, l=60380</c> within milliseconds of starting.</para>
 ///
 /// <para>Supports indicator auto-attachment via the <see cref="BarAppended"/> event.</para></summary>
-public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeries, IHasColor
+public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeries, IVersionedSeries, IHasColor, ISeriesKind<StreamingCandlestickSeries>
 {
-    private readonly RingBuffer<OhlcBar> _bars;
-    private long _version;
+    private readonly StreamRing<OhlcBar> _bars;
 
     /// <summary>Up-candle (close &gt; open) body color.</summary>
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
     /// <summary>Down-candle body color.</summary>
-    public Color? DownColor { get; set; }
+    public Color? DownColor { get; set => Change(ref field, value); }
 
-    /// <inheritdoc />
-    public long Version => Interlocked.Read(ref _version);
+    /// <inheritdoc cref="IStreamingOhlcSeries.Version" />
+    public long Version => _bars.Version;
 
     /// <inheritdoc />
     public int Count => _bars.Count;
 
     /// <inheritdoc />
-    public int Capacity { get; }
+    public int Capacity => _bars.Capacity;
+
+    /// <inheritdoc />
+    internal override long LatestChange => ChangeClock.Latest(base.LatestChange, _bars.LatestChange);
 
     /// <inheritdoc />
     public event Action<OhlcBar>? BarAppended;
@@ -46,13 +48,12 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     /// prices only, so a volume reaches the indicators attached while the bar arrives and is not kept, written or drawn.</summary>
     public event Action<OhlcvBar>? OhlcvBarAppended;
 
+    /// <summary>How many bars a streaming candlestick series keeps when it is told no capacity.</summary>
+    internal const int RestingCapacity = 5_000;
+
     /// <summary>Initializes a new streaming candlestick series.</summary>
-    /// <param name="capacity">Maximum bars retained. Default 5,000.</param>
-    public StreamingCandlestickSeries(int capacity = 5_000)
-    {
-        Capacity = capacity;
-        _bars = new RingBuffer<OhlcBar>(capacity);
-    }
+    /// <param name="capacity">Maximum bars retained. Default <see cref="RestingCapacity"/>.</param>
+    public StreamingCandlestickSeries(int capacity = RestingCapacity) => _bars = new StreamRing<OhlcBar>(capacity);
 
     /// <inheritdoc />
     public void AppendBar(double open, double high, double low, double close) =>
@@ -68,25 +69,19 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     public void AppendBar(OhlcvBar bar)
     {
         _bars.Append(bar.Ohlc);
-        Interlocked.Increment(ref _version);
         BarAppended?.Invoke(bar.Ohlc);
         OhlcvBarAppended?.Invoke(bar);
     }
 
     /// <inheritdoc />
-    public void Clear()
-    {
-        _bars.Clear();
-        Interlocked.Increment(ref _version);
-    }
+    public void Clear() => _bars.Clear();
 
     /// <inheritdoc />
     public OhlcStreamingSnapshot CreateOhlcSnapshot()
     {
         // ONE read of ONE buffer, then split — the four arrays consumers expect, off a value nothing can
         // change any more.
-        long version = Version;
-        var bars = _bars.ToArray();
+        var (bars, version) = _bars.Read();
         var open = new double[bars.Length];
         var high = new double[bars.Length];
         var low = new double[bars.Length];
@@ -107,13 +102,16 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     {
         // The lowest low and the highest high of ONE state, found by walking: read separately they can come
         // from either side of an append, and a candle chart would be scaled to a range no bar ever occupied.
-        // A missing price (NaN) and an infinity are left out of the extent.
-        int count = 0;
-        var extent = _bars.Aggregate(StreamingSeries.Box.Empty, (box, bar) => { count++; return box.Extend(bar.Low, bar.High); });
-        return count == 0
-            ? new(null, null, null, null)
-            : new(0, count - 1, extent.X.OrNone()?.Lo, extent.Y.OrNone()?.Hi);
+        // A missing price (NaN) and an infinity are left out of the extent. The bars are counted in the same walk, so the X
+        // extent describes the same moment as the prices.
+        // The lows are folded along the box's first side and the highs along its second.
+        var prices = _bars.Aggregate(StreamingSeries.Box.Empty, static (box, bar) => box.Extend(bar.Low, bar.High));
+        return prices.Count == 0
+            ? default
+            : new(0, prices.Count - 1, prices.X.OrNone()?.Lo, prices.Y.OrNone()?.Hi);
     }
+
+    static string ISeriesKind<StreamingCandlestickSeries>.Kind => "streaming_candlestick";
 
     /// <inheritdoc />
     /// <remarks>Carries the ring buffer's current OHLC snapshot, one read of one buffer (<see cref="CreateOhlcSnapshot"/>),
@@ -124,7 +122,7 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
         var snapshot = CreateOhlcSnapshot();
         return new()
         {
-            Type = "streaming_candlestick",
+            Type = this.WireKind(),
             Open = snapshot.Open,
             High = snapshot.High,
             Low = snapshot.Low,
@@ -135,14 +133,10 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
         };
     }
 
-    /// <summary>Reconstructs a <see cref="StreamingCandlestickSeries"/> at the capacity and the snapshot it was
-    /// written with, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="StreamingCandlestickSeries"/> that <see cref="SeriesRegistry"/> takes; it restores the capacity and the snapshot it was written with.</summary>
     internal static StreamingCandlestickSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.AddSeries(new StreamingCandlestickSeries(dto.Capacity ?? 5_000));
+        var s = axes.AddSeries(new StreamingCandlestickSeries(dto.Capacity ?? RestingCapacity));
         var open = dto.Open ?? [];
         var high = dto.High ?? [];
         var low = dto.Low ?? [];
@@ -152,8 +146,8 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
             s.AppendBar(open[i], high[i], low[i], close[i]);
         }
 
-        if (dto.Color.HasValue) s.Color = dto.Color.Value;
-        if (dto.DownColor.HasValue) s.DownColor = dto.DownColor.Value;
+        if (dto.Color is { } color) s.Color = color;
+        if (dto.DownColor is { } downColor) s.DownColor = downColor;
         return s;
     }
 
@@ -164,7 +158,7 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     {
         var snapshot = CreateOhlcSnapshot();
         return ChartDataTable.FromNumberColumns(
-            [new("x", Axis: DataAxis.X), new("open", Axis: DataAxis.Y), new("high", Axis: DataAxis.Y), new("low", Axis: DataAxis.Y), new("close", Axis: DataAxis.Y)],
+            [ChartDataColumn.Position(DataAxis.X), .. OhlcSeries.PriceColumns],
             [
                 Enumerable.Range(0, snapshot.Close.Length).Select(i => (double)i).ToArray(),
                 snapshot.Open, snapshot.High, snapshot.Low, snapshot.Close,

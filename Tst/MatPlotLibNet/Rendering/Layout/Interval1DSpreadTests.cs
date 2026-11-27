@@ -30,15 +30,6 @@ public class Interval1DSpreadTests
     }
 
     [Fact]
-    public void Interval1D_FromCentre_PlacesStartHalfAnExtentBelowTheCentre()
-    {
-        var i = Interval1D.FromCentre(50, 14);
-        Assert.Equal(43, i.Start, Eps);
-        Assert.Equal(14, i.Size, Eps);
-        Assert.Equal(50, i.Centre, Eps);
-    }
-
-    [Fact]
     public void SpreadApart_EmptyList_StaysEmpty()
     {
         var list = new List<Interval1D>();
@@ -87,29 +78,15 @@ public class Interval1DSpreadTests
         Assert.Equal(2, r[1].Start - r[0].End, Eps);
     }
 
-    [Fact]
-    public void SpreadApart_PaddingZero_ButtsTheNeighboursEdgeToEdge()
+    [Theory]
+    [InlineData(0, 5, 0, 10)] // SpreadApart_PaddingZero_ButtsTheNeighboursEdgeToEdge
+    [InlineData(5, 0, 10, 0)] // SpreadApart_KeepsTheListPositionsOfAnUnsortedInput_AndTheOrderByCentre
+    [InlineData(20, 20, 20, 30)] // SpreadApart_EqualCentres_KeepTheirInputOrder
+    public void SpreadApart_ButtsTwoNeighboursEdgeToEdge_InTheOrderOfTheirCentres(int firstStart, int secondStart, int firstSpreadStart, int secondSpreadStart)
     {
-        var r = Spread(0, 0, 100, new Interval1D(0, 10), new Interval1D(5, 10));
-        Assert.Equal(0, r[0].Start, Eps);
-        Assert.Equal(10, r[1].Start, Eps);
-    }
-
-    [Fact]
-    public void SpreadApart_KeepsTheListPositionsOfAnUnsortedInput_AndTheOrderByCentre()
-    {
-        // input order is [lower-centre-second]; the interval with the smaller centre stays first in the sweep
-        var r = Spread(0, 0, 100, new Interval1D(5, 10), new Interval1D(0, 10));
-        Assert.Equal(10, r[0].Start, Eps);
-        Assert.Equal(0, r[1].Start, Eps);
-    }
-
-    [Fact]
-    public void SpreadApart_EqualCentres_KeepTheirInputOrder()
-    {
-        var r = Spread(0, 0, 100, new Interval1D(20, 10), new Interval1D(20, 10));
-        Assert.Equal(20, r[0].Start, Eps);
-        Assert.Equal(30, r[1].Start, Eps);
+        var r = Spread(0, 0, 100, new Interval1D(firstStart, 10), new Interval1D(secondStart, 10));
+        Assert.Equal(firstSpreadStart, r[0].Start, Eps);
+        Assert.Equal(secondSpreadStart, r[1].Start, Eps);
     }
 
     [Fact]
@@ -136,7 +113,7 @@ public class Interval1DSpreadTests
     [Fact]
     public void SpreadApart_ClusterOfTwelveAtTheBottomEdge_StaysInsideTheBoundsWithEveryGapAtLeastThePadding()
     {
-        var items = Enumerable.Range(0, 12).Select(i => Interval1D.FromCentre(395 + i * 0.3, 10)).ToArray();
+        var items = Enumerable.Range(0, 12).Select(i => new Interval1D(395 + i * 0.3 - 5, 10)).ToArray();
         var r = Spread(2, 0, 400, items);
 
         Assert.All(r, x => Assert.InRange(x.Start, -Eps, 400 + Eps));

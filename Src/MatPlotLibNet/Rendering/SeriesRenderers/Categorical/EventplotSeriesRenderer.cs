@@ -22,21 +22,18 @@ internal sealed class EventplotSeriesRenderer : SeriesRenderer<EventplotSeries>
     private readonly record struct EventTick(PixelSegment Line, Color Colour);
 
     /// <summary>The ticks that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a
-    /// legend. An event that cannot be placed draws no tick.</summary>
+    /// legend. An event that cannot be placed draws no tick; a tick that runs to a value a log axis cannot place is cut at the
+    /// edge that axis begins at, as matplotlib's EventCollection is cut by the plot (<see cref="DataTransform.SegmentBetween"/>).</summary>
     private IEnumerable<EventTick> Ticks(EventplotSeries series)
     {
         double halfLen = series.LineLength / 2.0;
         for (int i = 0; i < series.Positions.Length; i++)
         {
-            var color = series.Colors is not null && i < series.Colors.Length
-                ? series.Colors[i]
-                : ResolveColor(null);
+            var color = series.Colors.ElementOrNull(i) ?? SeriesColor;
 
             foreach (double pos in series.Positions[i])
             {
-                var bottom = Transform.DataToPixel(pos, i - halfLen);
-                var top = Transform.DataToPixel(pos, i + halfLen);
-                if (bottom.CanDrawLineTo(top)) yield return new EventTick(new PixelSegment(bottom, top), color);
+                if (Transform.SegmentBetween(pos, i - halfLen, pos, i + halfLen) is { } tick) yield return new EventTick(tick, color);
             }
         }
     }
@@ -44,7 +41,12 @@ internal sealed class EventplotSeriesRenderer : SeriesRenderer<EventplotSeries>
     /// <inheritdoc />
     public override void Render(EventplotSeries series)
     {
+        double width = Slot.LineWidthOf(series);
         foreach (var tick in Ticks(series))
-            Ctx.DrawLine(tick.Line.From, tick.Line.To, new StrokeStyle(tick.Colour, series.LineWidth, Styling.LineStyle.Solid));
+        {
+            // eventplot draws an EventCollection, a LineCollection of vertical segments, which Agg puts on the pixel grid, with butt ends.
+            var drawn = Ctx.OnPixelGrid(tick.Line, width, projectingEnds: false);
+            Ctx.DrawLine(drawn.From, drawn.To, StrokeStyle.Solid(tick.Colour, width));
+        }
     }
 }

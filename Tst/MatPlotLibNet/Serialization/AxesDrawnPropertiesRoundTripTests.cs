@@ -9,7 +9,7 @@ using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
-using MatPlotLibNet.Tests.Models.Series;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Serialization;
 
@@ -18,9 +18,9 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// the JSON drops is a picture that changes the moment a figure is sent over the wire, handed to the MCP server or saved
 /// and opened again: the rank axis of a bump chart that counts in halves, the calendar's month names that turn into
 /// column numbers, the Pareto legend that jumps from the right to the best corner, the control limits that turn grey.
-/// <para>One row per part and property, reflected off the types (<see cref="DrawnAxesFixtures"/>): set to a value that
-/// is not its default, the property comes back with that value; left alone, it comes back at its default, which is what
-/// a JSON written before the field existed reads as.</para>
+/// <para>One case per part, its properties reflected off the types (<see cref="DrawnAxesFixtures"/>) and every one it finds
+/// wrong named at once: set to a value that is not its default, a property comes back with that value; left alone, it comes back
+/// at its default, which is what a JSON written before the field existed reads as.</para>
 /// <para>Tagged into the <c>ChartSerializerGlobalState</c> collection: the normaliser rows below read series of a score of
 /// types back through the process-global series registry, which <see cref="SeriesRegistryTests"/> briefly rewrites.</para></summary>
 [Collection("ChartSerializerGlobalState")]
@@ -28,32 +28,22 @@ public class AxesDrawnPropertiesRoundTripTests
 {
     private static readonly ChartSerializer Serializer = new();
 
-    private static Figure RoundTrip(Figure figure) => Serializer.FromJson(Serializer.ToJson(figure));
-
     [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.Rows), MemberType = typeof(DrawnAxesFixtures))]
-    public void ADrawnAxesProperty_ComesBackFromJson_WithTheValueItWasGiven(string part, string path)
+    [MemberData(nameof(DrawnAxesFixtures.PartNames), MemberType = typeof(DrawnAxesFixtures))]
+    public void EveryDrawnPropertyOfAPart_ComesBackFromJson_WithTheValueItWasGiven(string part)
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: true);
-        object? written = DrawnAxesFixtures.ValueOf(figure, part, path);
 
-        object? read = DrawnAxesFixtures.ValueOf(RoundTrip(figure), part, path);
-
-        Assert.True(DrawnSeriesFixtures.SameValue(written, read),
-            $"{part}.{path}: set to {DrawnSeriesFixtures.Show(written)}, read back from JSON as {DrawnSeriesFixtures.Show(read)}.");
+        DrawnSeriesFixtures.AssertKept(part, DrawnAxesFixtures.ValuesOf(figure, part), DrawnAxesFixtures.ValuesOf(figure.RoundTripped(), part), "from JSON");
     }
 
     [Theory]
-    [MemberData(nameof(DrawnAxesFixtures.Rows), MemberType = typeof(DrawnAxesFixtures))]
-    public void ADrawnAxesPropertyLeftAlone_ComesBackFromJson_AtItsDefault(string part, string path)
+    [MemberData(nameof(DrawnAxesFixtures.PartNames), MemberType = typeof(DrawnAxesFixtures))]
+    public void EveryDrawnPropertyOfAPartLeftAlone_ComesBackFromJson_AtItsDefault(string part)
     {
         var figure = DrawnAxesFixtures.Build(everyPropertySet: false);
-        object? atRest = DrawnAxesFixtures.ValueOf(figure, part, path);
 
-        object? read = DrawnAxesFixtures.ValueOf(RoundTrip(figure), part, path);
-
-        Assert.True(DrawnSeriesFixtures.SameValue(atRest, read),
-            $"{part}.{path}: at rest {DrawnSeriesFixtures.Show(atRest)}, read back from JSON as {DrawnSeriesFixtures.Show(read)}.");
+        DrawnSeriesFixtures.AssertKept(part, DrawnAxesFixtures.ValuesOf(figure, part), DrawnAxesFixtures.ValuesOf(figure.RoundTripped(), part), "from JSON");
     }
 
     /// <summary>A part with one setting changed and every other at its default keeps exactly that: the one setting
@@ -83,7 +73,7 @@ public class AxesDrawnPropertiesRoundTripTests
         var figure = DrawnAxesFixtures.Build(everyPropertySet: false);
         DrawnAxesFixtures.Set(figure, part, changed, k: 3);
 
-        var read = RoundTrip(figure);
+        var read = figure.RoundTripped();
 
         foreach (var path in DrawnAxesFixtures.DrawnPaths(DrawnAxesFixtures.Part(part)))
         {
@@ -106,6 +96,22 @@ public class AxesDrawnPropertiesRoundTripTests
         Assert.Equal("2023", formatter.Format(new DateTime(2023, 3, 1).ToOADate()));
     }
 
+    /// <summary>An auto date formatter read back onto an axis whose ticks another locator places writes each tick as a day, as the
+    /// formatter a date axis keeps over such a locator does (<c>AxesTickSourceExtensionsTests.FixedLocatorOnADateAxis_KeepsTheAutoDateFormatter_AtTheDayScale</c>;
+    /// matplotlib 3.11.2's <c>AutoDateFormatter</c> over a <c>FixedLocator</c> reads the day scale), not as a year.</summary>
+    [Fact]
+    public void AnAutoDateFormatterOnAnAxisWithAFixedLocator_ReadsBackWritingDays()
+    {
+        double jan15 = new DateTime(2024, 1, 15).ToOADate();
+        string json = "{\"width\":400,\"height\":300,\"subPlots\":[{\"xAxis\":{\"tickLocator\":{\"type\":\"fixed\",\"positions\":["
+            + jan15.ToString(System.Globalization.CultureInfo.InvariantCulture) + "]},\"tickFormatter\":{\"type\":\"autoDate\"}}}]}";
+
+        var formatter = Serializer.FromJson(json).SubPlots[0].XAxis.TickFormatter;
+
+        Assert.IsType<AutoDateFormatter>(formatter);
+        Assert.Equal("Jan 15", formatter.Format(jan15));
+    }
+
     /// <summary>A property of an axis named as not carried yet (<see cref="DrawnAxesFixtures.AxisNotCarried"/>) is a settable
     /// property of an axis that no axis seat holds, and it really is not carried: set on the top axis, it reads back at its
     /// default. The day the JSON carries it this goes red, the name leaves the list, and every axis seat holds it from then
@@ -125,7 +131,7 @@ public class AxesDrawnPropertiesRoundTripTests
             object? atRest = property.GetValue(top);
             property.SetValue(top, DrawnSeriesFixtures.NotTheDefault(property, atRest, 0));
 
-            object? read = property.GetValue(RoundTrip(figure).SubPlots[0].SecondaryXAxis!);
+            object? read = property.GetValue(figure.RoundTripped().SubPlots[0].SecondaryXAxis!);
 
             Assert.True(DrawnSeriesFixtures.SameValue(atRest, read),
                 $"Axis.{name} is named as not carried, yet came back from JSON as {DrawnSeriesFixtures.Show(read)}: take it out of AxisNotCarried.");
@@ -195,8 +201,7 @@ public class AxesDrawnPropertiesRoundTripTests
     public static TheoryData<string> FormatterKinds { get; } = new(BuiltInFormatters.Keys);
 
     private static IEnumerable<string> PublicImplementationsOf<T>() =>
-        typeof(T).Assembly.GetTypes()
-            .Where(t => t.IsPublic && !t.IsAbstract && !t.IsInterface && typeof(T).IsAssignableFrom(t))
+        typeof(T).Assembly.ConcretePublicSubtypesOf(typeof(T))
             .Select(t => t.Name)
             .Order(StringComparer.Ordinal);
 
@@ -217,7 +222,7 @@ public class AxesDrawnPropertiesRoundTripTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2, 3], [1.0, 2, 3])).Build();
         figure.SubPlots[0].YAxis.TickLocator = BuiltInLocators[kind]();
 
-        var read = RoundTrip(figure).SubPlots[0].YAxis.TickLocator;
+        var read = figure.RoundTripped().SubPlots[0].YAxis.TickLocator;
 
         Assert.True(DrawnSeriesFixtures.SameValue(figure.SubPlots[0].YAxis.TickLocator, read),
             $"{kind}: placed {DrawnSeriesFixtures.Show(figure.SubPlots[0].YAxis.TickLocator)}, read back as {DrawnSeriesFixtures.Show(read)}.");
@@ -233,7 +238,7 @@ public class AxesDrawnPropertiesRoundTripTests
         axis.TickLocator = locator;
         axis.TickFormatter = BuiltInFormatters[kind](locator);
 
-        var readAxis = RoundTrip(figure).SubPlots[0].XAxis;
+        var readAxis = figure.RoundTripped().SubPlots[0].XAxis;
 
         // The auto date formatter writes what its locator last chose: both axes choose over the same eleven days.
         locator.Locate(45000, 45011);
@@ -243,9 +248,9 @@ public class AxesDrawnPropertiesRoundTripTests
     }
 
     /// <summary>Every series of the library that takes a normaliser, as a fresh instance each call: the instances of the
-    /// one list every series test shares (<see cref="AllSeriesTests.AllSeriesInstances"/>), less the series that take none.</summary>
+    /// one roster every series test shares (<see cref="DrawnSeriesFixtures.Instance"/>), less the series that take none.</summary>
     private static IEnumerable<ISeries> NormalizableSeries() =>
-        AllSeriesTests.AllSeriesInstances.Select(row => (ISeries)((ITheoryDataRow)row).GetData()[0]!).Where(series => series is INormalizable);
+        DrawnSeriesFixtures.DrawnTypes.Select(type => DrawnSeriesFixtures.Instance(type.Name)).Where(series => series is INormalizable);
 
     /// <summary>The type names of the series that take a normaliser.</summary>
     public static TheoryData<string> NormalizableSeriesNames { get; } = new(NormalizableSeries().Select(series => series.GetType().Name));
@@ -287,18 +292,21 @@ public class AxesDrawnPropertiesRoundTripTests
     {
         var figure = FigureWithNormalizer(series, BuiltInNormalizers[kind]());
 
-        var read = NormalizerOfTheOnlySeries(RoundTrip(figure));
+        var read = NormalizerOfTheOnlySeries(figure.RoundTripped());
 
         Assert.True(DrawnSeriesFixtures.SameValue(NormalizerOfTheOnlySeries(figure), read),
             $"{series}, {kind}: mapped {DrawnSeriesFixtures.Show(NormalizerOfTheOnlySeries(figure))}, read back as {DrawnSeriesFixtures.Show(read)}.");
     }
 
     /// <summary>The series the rows above cover are every public series type that implements
-    /// <see cref="INormalizable"/>, so a new one turns this red until a shared instance of it is listed.</summary>
+    /// <see cref="INormalizable"/>, so a new one turns this red until a shared instance of it is listed. The figure image, which is not
+    /// a series and takes one too, is held by its own round trip (<c>FigureOverlayRoundTripTests</c>).</summary>
     [Fact]
     public void EverySeriesTheLibraryShipsThatTakesANormaliser_IsCoveredByTheNormaliserTheory()
     {
-        Assert.Equal(PublicImplementationsOf<INormalizable>(), NormalizableSeries().Select(series => series.GetType().Name).Order(StringComparer.Ordinal));
+        Assert.Equal(PublicImplementationsOf<INormalizable>().Where(name => name != nameof(FigureImage)),
+            NormalizableSeries().Select(series => series.GetType().Name).Order(StringComparer.Ordinal));
+        Assert.Contains(nameof(FigureImage), PublicImplementationsOf<INormalizable>());
     }
 
     /// <summary>The other arm: a series left on its default mapping writes no normaliser, so a figure that never sets one
@@ -318,17 +326,12 @@ public class AxesDrawnPropertiesRoundTripTests
     [MemberData(nameof(NormalizableSeriesNames))]
     public void AUserWrittenNormaliser_IsLeftOutOfTheJson_AndTheSeriesReadsBackOnItsDefault(string series)
     {
-        var figure = FigureWithNormalizer(series, new HalvingNormalizer());
+        var figure = FigureWithNormalizer(series, new TestNormalizer((value, min, max) => 0.5 * (value - min) / (max - min)));
 
         string json = Serializer.ToJson(figure);
 
         Assert.DoesNotContain("\"normalizer\"", json);
         Assert.Null(NormalizerOfTheOnlySeries(Serializer.FromJson(json)));
-    }
-
-    private sealed class HalvingNormalizer : INormalizer
-    {
-        public double Normalize(double value, double min, double max) => 0.5 * (value - min) / (max - min);
     }
 
     /// <summary>A date axis pairs its formatter with its locator: read back from JSON the two are paired again, so the
@@ -340,9 +343,9 @@ public class AxesDrawnPropertiesRoundTripTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(days, [.. days.Select((_, i) => (double)(i % 7))])).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
-        Assert.Matches(">Mar [0-9]{2}<", drawn);
+        Assert.Contains(drawn.Elements("text"), text => Regex.IsMatch(text.Text, "^Mar [0-9]{2}$"));
         Assert.Equal(drawn, readBack);
     }
 
@@ -378,19 +381,22 @@ public class AxesDrawnPropertiesRoundTripTests
         Assert.True(DrawnSeriesFixtures.SameValue(expected, read), $"{kind}: read as {DrawnSeriesFixtures.Show(read)}, expected {DrawnSeriesFixtures.Show(expected)}.");
     }
 
-    /// <summary>A category formatter on the slot rule writes no positions, so the JSON of every figure named that way is the
-    /// JSON it was before positions existed.</summary>
-    [Fact]
-    public void ACategoryFormatterOnTheSlotRule_WritesNoPositions()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2])
-            .SetXTickFormatter(new CategoryFormatter(["a", "b"], reversed: true))).Build();
+        //  A category formatter on the slot rule writes no positions, so the JSON of every figure named that way is the JSON it was before
+        // positions existed.
+        new DrawnToken("ACategoryFormatterOnTheSlotRule_WritesNoPositions", () =>
+        {
+            var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [1.0, 2])
+                .SetXTickFormatter(new CategoryFormatter(["a", "b"], reversed: true))).Build();
+            return Serializer.ToJson(figure);
+        }, "\"category\"") { Absent = ["positions"] },
+    };
 
-        string json = Serializer.ToJson(figure);
-
-        Assert.Contains("\"category\"", json);
-        Assert.DoesNotContain("positions", json);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Positions that do not pair up with the names (JSON written by hand), positions written without any names
     /// among them, are refused with the parameter named, as the formatter refuses them, rather than naming the wrong
@@ -428,8 +434,8 @@ public class AxesDrawnPropertiesRoundTripTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2, 3], [1.0, 2, 3])
-            .SetXTickLocator(new EveryThirdLocator())
-            .SetXTickFormatter(new ShoutingFormatter())).Build();
+            .SetXTickLocator(new TestTickLocator((min, max) => [min, (min + max) / 2, max]))
+            .SetXTickFormatter(new TestTickFormatter(value => $"{value}!"))).Build();
 
         string json = Serializer.ToJson(figure);
         var read = Serializer.FromJson(json).SubPlots[0].XAxis;
@@ -438,16 +444,6 @@ public class AxesDrawnPropertiesRoundTripTests
         Assert.DoesNotContain("tickFormatter", json);
         Assert.Null(read.TickLocator);
         Assert.Null(read.TickFormatter);
-    }
-
-    private sealed class EveryThirdLocator : ITickLocator
-    {
-        public double[] Locate(double min, double max) => [min, (min + max) / 2, max];
-    }
-
-    private sealed class ShoutingFormatter : ITickFormatter
-    {
-        public string Format(double value) => $"{value}!";
     }
 
     // ---- the drawn picture of a part, end to end ------------------------------------------------------------------
@@ -467,7 +463,7 @@ public class AxesDrawnPropertiesRoundTripTests
             .WithColorBar(cb => cb with { Label = "count", Extend = ColorBarExtend.Max })).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Contains(">Feb<", drawn);
         Assert.Contains(">count<", drawn);
@@ -484,7 +480,7 @@ public class AxesDrawnPropertiesRoundTripTests
             .WithGrid(g => g with { Visible = true, Axis = GridAxis.Y, LineStyle = LineStyle.Dashed })).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
     }
@@ -497,7 +493,7 @@ public class AxesDrawnPropertiesRoundTripTests
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2, 3], [1.0, 3, 2]).ShowGrid()).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = RoundTrip(figure).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(drawn, readBack);
     }
@@ -512,7 +508,7 @@ public class AxesDrawnPropertiesRoundTripTests
             .WithSpines(s => s with { Left = s.Left with { LineStyle = LineStyle.Dotted } })).Build();
         const string older = """{"width":400,"height":300,"subPlots":[{"spines":{"left":{"visible":true,"lineWidth":2}},"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}]}""";
 
-        var read = RoundTrip(figure).SubPlots[0].Spines.Left;
+        var read = figure.RoundTripped().SubPlots[0].Spines.Left;
         var olderRead = Serializer.FromJson(older).SubPlots[0].Spines.Left;
 
         Assert.Equal(LineStyle.Dotted, read.LineStyle);
@@ -532,12 +528,12 @@ public class AxesDrawnPropertiesRoundTripTests
         inset.AxHLine(1.5).Color = Color.FromHex("#D62728");
         inset.Annotate("peak", 1, 2).Color = Color.FromHex("#2CA02C");
 
-        var read = RoundTrip(figure).SubPlots[0].Insets.Single();
+        var read = figure.RoundTripped().SubPlots[0].Insets.Single();
 
         Assert.Equal(LegendPosition.LowerLeft, read.Legend.Position);
         Assert.Equal(Color.FromHex("#D62728"), read.ReferenceLines.Single().Color);
         Assert.Equal(Color.FromHex("#2CA02C"), read.Annotations.Single().Color);
-        Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
+        Assert.Equal(figure.ToSvg(), figure.RoundTripped().ToSvg());
     }
 
     /// <summary>A figure that sets none of the new parts writes the bytes it wrote before they reached the JSON. (The

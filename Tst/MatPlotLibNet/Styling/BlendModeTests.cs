@@ -5,118 +5,51 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
-/// <summary>Verifies <see cref="BlendMode"/> enum and <see cref="CompositeOperation"/> blending math.</summary>
+/// <summary>Verifies <see cref="CompositeOperation"/> blending math (the numbers of the <see cref="BlendMode"/> members are held by <c>EnumOrdinalContractTests</c>).</summary>
 public class BlendModeTests
 {
-    // ── BlendMode enum values ─────────────────────────────────────────────────
-
-    [Fact]
-    public void BlendMode_HasNormal()   => Assert.Equal(BlendMode.Normal,   (BlendMode)0);
-    [Fact]
-    public void BlendMode_HasMultiply() => _ = BlendMode.Multiply;
-    [Fact]
-    public void BlendMode_HasScreen()   => _ = BlendMode.Screen;
-    [Fact]
-    public void BlendMode_HasOverlay()  => _ = BlendMode.Overlay;
-
-    // ── Normal blend (alpha compositing) ─────────────────────────────────────
-
-    [Fact]
-    public void Normal_FullAlpha_ReturnsSrc()
+    /// <summary>A blend and where its result lands: the source and the destination, the mode and the share of the source, and the least
+    /// and the most each channel of the result may be.</summary>
+    /// <param name="Case">What the row shows.</param>
+    /// <param name="Source">The colour blended over.</param>
+    /// <param name="Destination">The colour blended onto.</param>
+    /// <param name="Mode">The blend.</param>
+    /// <param name="Alpha">The share of the blended source.</param>
+    /// <param name="Least">The least each channel of the result may be.</param>
+    /// <param name="Most">The most each channel of the result may be.</param>
+    public readonly record struct BlendRow(string Case, Color Source, Color Destination, BlendMode Mode, double Alpha, Color Least, Color Most)
     {
-        // alpha=1 → src completely replaces dst
-        var src = new Color(255, 0, 0);
-        var dst = new Color(0, 0, 255);
-        var result = CompositeOperation.Blend(src, dst, BlendMode.Normal, alpha: 1.0);
-        Assert.Equal(src, result);
+        public override string ToString() => Case;
     }
 
-    [Fact]
-    public void Normal_ZeroAlpha_ReturnsDst()
+    private static readonly Color Black = new(0, 0, 0);
+    private static readonly Color White = new(255, 255, 255);
+
+    public static TheoryData<BlendRow> Blends => new()
     {
-        var src = new Color(255, 0, 0);
-        var dst = new Color(0, 0, 255);
-        var result = CompositeOperation.Blend(src, dst, BlendMode.Normal, alpha: 0.0);
-        Assert.Equal(dst, result);
-    }
+        // Normal: src * alpha + dst * (1 - alpha).
+        new BlendRow("normal, all of the source", new(255, 0, 0), new(0, 0, 255), BlendMode.Normal, 1.0, new(255, 0, 0), new(255, 0, 0)),
+        new BlendRow("normal, none of the source", new(255, 0, 0), new(0, 0, 255), BlendMode.Normal, 0.0, new(0, 0, 255), new(0, 0, 255)),
+        new BlendRow("normal, half of each", new(200, 0, 0), new(0, 200, 0), BlendMode.Normal, 0.5, new(95, 95, 0), new(105, 105, 0)),
+        // Multiply: src * dst, so white keeps the source and black is black.
+        new BlendRow("multiply with white", new(128, 64, 32), White, BlendMode.Multiply, 1.0, new(120, 57, 0), new(135, 70, 255)),
+        new BlendRow("multiply with black", new(200, 150, 100), Black, BlendMode.Multiply, 1.0, Black, Black),
+        // Screen: 1 - (1 - src) * (1 - dst), so black keeps the source and two values brighten past the larger.
+        new BlendRow("screen with black", new(200, 100, 50), Black, BlendMode.Screen, 1.0, new(195, 0, 0), new(205, 255, 255)),
+        new BlendRow("screen of two values", new(100, 0, 0), new(150, 0, 0), BlendMode.Screen, 1.0, new(150, 0, 0), White),
+        // Overlay: multiply over a dark base (2 * src * dst, about 39 here), screen over a light one.
+        new BlendRow("overlay on a dark base", new(100, 0, 0), new(50, 0, 0), BlendMode.Overlay, 1.0, new(30, 0, 0), new(50, 255, 255)),
+        new BlendRow("overlay on a light base", new(200, 0, 0), new(200, 0, 0), BlendMode.Overlay, 1.0, new(201, 0, 0), White),
+    };
 
-    [Fact]
-    public void Normal_HalfAlpha_BlendsMidpoint()
+    [Theory]
+    [MemberData(nameof(Blends))]
+    public void ABlend_LandsEachChannelBetweenTheLeastAndTheMostOfItsRow(BlendRow row)
     {
-        var src = new Color(200, 0, 0);
-        var dst = new Color(0, 200, 0);
-        var result = CompositeOperation.Blend(src, dst, BlendMode.Normal, alpha: 0.5);
-        // R ≈ 100, G ≈ 100
-        Assert.InRange(result.R, 95, 105);
-        Assert.InRange(result.G, 95, 105);
-    }
+        var result = CompositeOperation.Blend(row.Source, row.Destination, row.Mode, row.Alpha);
 
-    // ── Multiply blend ────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Multiply_WithWhite_ReturnsSrc()
-    {
-        // src * white (255,255,255) normalized = src * 1 = src
-        var src = new Color(128, 64, 32);
-        var white = new Color(255, 255, 255);
-        var result = CompositeOperation.Blend(src, white, BlendMode.Multiply, alpha: 1.0);
-        Assert.InRange(result.R, 120, 135);
-        Assert.InRange(result.G, 57, 70);
-    }
-
-    [Fact]
-    public void Multiply_WithBlack_ReturnsBlack()
-    {
-        var src = new Color(200, 150, 100);
-        var black = new Color(0, 0, 0);
-        var result = CompositeOperation.Blend(src, black, BlendMode.Multiply, alpha: 1.0);
-        Assert.Equal(0, result.R);
-        Assert.Equal(0, result.G);
-        Assert.Equal(0, result.B);
-    }
-
-    // ── Screen blend ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Screen_WithBlack_ReturnsSrc()
-    {
-        // Screen(src, black=0) = 1-(1-src)*(1-0) = src
-        var src = new Color(200, 100, 50);
-        var black = new Color(0, 0, 0);
-        var result = CompositeOperation.Blend(src, black, BlendMode.Screen, alpha: 1.0);
-        Assert.InRange(result.R, 195, 205);
-    }
-
-    [Fact]
-    public void Screen_TwoValues_IsAtLeastMax()
-    {
-        var src = new Color(100, 0, 0);
-        var dst = new Color(150, 0, 0);
-        var result = CompositeOperation.Blend(src, dst, BlendMode.Screen, alpha: 1.0);
-        // Screen always brightens: result >= max(src, dst)
-        Assert.True(result.R >= 150, $"Screen result {result.R} should be >= max(100,150)=150");
-    }
-
-    // ── Overlay blend ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Overlay_DarkBase_UsesMultiply()
-    {
-        // dst < 128 → overlay = 2*src*dst/255
-        var src = new Color(100, 0, 0);
-        var dst = new Color(50, 0, 0);    // dark: 50 < 128
-        var result = CompositeOperation.Blend(src, dst, BlendMode.Overlay, alpha: 1.0);
-        // 2 * (100/255) * (50/255) * 255 ≈ 39
-        Assert.InRange(result.R, 30, 50);
-    }
-
-    [Fact]
-    public void Overlay_LightBase_UsesScreen()
-    {
-        // dst >= 128 → overlay = 1 - 2*(1-src)*(1-dst)
-        var src = new Color(200, 0, 0);
-        var dst = new Color(200, 0, 0);   // light: 200 >= 128
-        var result = CompositeOperation.Blend(src, dst, BlendMode.Overlay, alpha: 1.0);
-        Assert.True(result.R > 200, $"Overlay light result {result.R} should be > 200");
+        Assert.InRange(result.R, row.Least.R, row.Most.R);
+        Assert.InRange(result.G, row.Least.G, row.Most.G);
+        Assert.InRange(result.B, row.Least.B, row.Most.B);
     }
 }

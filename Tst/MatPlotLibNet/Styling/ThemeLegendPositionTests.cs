@@ -5,6 +5,7 @@ using System.Reflection;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests;
 
 namespace MatPlotLibNet.Tests.Styling;
 
@@ -16,9 +17,6 @@ public class ThemeLegendPositionTests
         new(typeof(Theme).GetProperties(BindingFlags.Public | BindingFlags.Static)
             .Where(p => p.PropertyType == typeof(Theme) && p.Name != nameof(Theme.MatplotlibClassic))
             .Select(p => p.Name));
-
-    private static Theme BuiltIn(string name) => (Theme)typeof(Theme).GetProperty(name, BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
-
     [Fact]
     public void TheClassicTheme_PutsTheLegendInTheUpperRight()
         => Assert.Equal(LegendPosition.UpperRight, Theme.MatplotlibClassic.DefaultLegendPosition);
@@ -26,15 +24,7 @@ public class ThemeLegendPositionTests
     [Theory]
     [MemberData(nameof(OtherThemes))]
     public void EveryOtherTheme_LetsTheLegendLookForRoom(string name)
-        => Assert.Equal(LegendPosition.Best, BuiltIn(name).DefaultLegendPosition);
-
-    [Fact]
-    public void ADerivedTheme_KeepsTheLegendPositionOfItsBase()
-    {
-        var derived = Theme.CreateFrom(Theme.MatplotlibClassic).WithBackground(Colors.Black).Build();
-
-        Assert.Equal(LegendPosition.UpperRight, derived.DefaultLegendPosition);
-    }
+        => Assert.Equal(LegendPosition.Best, name.AsTheme().DefaultLegendPosition);
 
     [Fact]
     public void TheLegendPosition_SurvivesTheFigureJson()
@@ -56,21 +46,14 @@ public class ThemeLegendPositionTests
             .WithLegend(position))
         .Build();
 
-    [Fact]
-    public void ALegendLeftAtBest_UnderTheClassicTheme_StandsInTheUpperRightWhateverIsThere()
-        => Assert.Equal(
-            Climbing(Theme.MatplotlibClassic, LegendPosition.UpperRight).ToSvg(),
-            Climbing(Theme.MatplotlibClassic, LegendPosition.Best).ToSvg());
-
-    [Fact]
-    public void ALegendLeftAtBest_UnderTheDefaultTheme_MovesOutOfTheWayOfTheLine()
-        => Assert.NotEqual(
-            Climbing(Theme.MatplotlibV2, LegendPosition.UpperRight).ToSvg(),
-            Climbing(Theme.MatplotlibV2, LegendPosition.Best).ToSvg());
-
-    [Fact]
-    public void ALegendThatNamesItsPlace_UnderTheClassicTheme_StaysThere()
-        => Assert.NotEqual(
-            Climbing(Theme.MatplotlibClassic, LegendPosition.UpperRight).ToSvg(),
-            Climbing(Theme.MatplotlibClassic, LegendPosition.LowerRight).ToSvg());
+    /// <summary>A legend left at Best stands in the upper right under the classic theme, whatever is there, and moves out of the way of
+    /// the line under the default one; a legend that names its place stays there under the classic theme too.</summary>
+    [Theory]
+    [InlineData("classic", LegendPosition.Best, true)]
+    [InlineData("v2", LegendPosition.Best, false)]
+    [InlineData("classic", LegendPosition.LowerRight, false)]
+    public void ALegend_StandsInTheUpperRight_OnlyWhereTheThemeAndItsPlaceSaySo(string theme, LegendPosition position, bool upperRight)
+    {
+        Assert.Equal(upperRight, Climbing(theme.AsTheme(), LegendPosition.UpperRight).ToSvg() == Climbing(theme.AsTheme(), position).ToSvg());
+    }
 }

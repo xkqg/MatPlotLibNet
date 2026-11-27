@@ -81,17 +81,8 @@ public class MauiCanvasParityTests
     public void AHatch_IsBothPaintedOverTheFlatFill_AndNoLongerAnnouncedAsLost()
     {
         var (canvas, fills) = RecordingCanvas();
-        var announced = new List<string>();
-        void Collect(ChartDiagnostic d) => announced.Add(d.Message);
-        ChartDiagnostics.Emitted += Collect;
-        try
-        {
-            new MauiGraphicsRenderContext(canvas).DrawRectangle(new MplRect(0, 0, 60, 60), Hatched(HatchPattern.Cross));
-        }
-        finally
-        {
-            ChartDiagnostics.Emitted -= Collect;
-        }
+        var announced = DiagnosticsCapture.During(() => new MauiGraphicsRenderContext(canvas).DrawRectangle(new MplRect(0, 0, 60, 60), Hatched(HatchPattern.Cross)))
+            .Select(d => d.Message).ToList();
 
         canvas.Received(2).FillRectangle(0f, 0f, 60f, 60f);   // the flat fill, then the hatch over it
         Assert.DoesNotContain(announced, m => m.Contains("Hatch pattern", StringComparison.Ordinal));
@@ -171,6 +162,70 @@ public class MauiCanvasParityTests
         Assert.IsType<PatternPaint>(fills[1].Paint);
     }
 
+    // ── antialiasing ────────────────────────────────────────────────────────────
+
+    /// <summary>The value of the canvas' Antialias setting at the moment each rectangle fill was painted, and what it was
+    /// set to last: the canvas keeps the setting between calls, so both matter.</summary>
+    private static (List<bool> AtFill, Func<bool?> Last) AntialiasRecorder(ICanvas canvas)
+    {
+        var atFill = new List<bool>();
+        bool? last = null;
+        canvas.When(c => c.Antialias = Arg.Any<bool>()).Do(call => last = call.Arg<bool>());
+        canvas.When(c => c.FillRectangle(Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>()))
+            .Do(_ => atFill.Add(last ?? true));
+        return (atFill, () => last);
+    }
+
+    [Fact]
+    public void AnAliasedFill_IsPaintedWithNoAntialiasing_AndTheCanvasIsPutBack()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var (atFill, last) = AntialiasRecorder(canvas);
+
+        new MauiGraphicsRenderContext(canvas).DrawRectangle(new MplRect(0, 0, 60, 30), new ShapeStyle(Blue, null, 0) { Aliased = true });
+
+        Assert.False(Assert.Single(atFill));
+        Assert.True(last());
+    }
+
+    [Fact]
+    public void AFillThatIsNotAliased_IsPaintedAntialiased()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var (atFill, last) = AntialiasRecorder(canvas);
+
+        new MauiGraphicsRenderContext(canvas).DrawRectangle(new MplRect(0, 0, 60, 30), new ShapeStyle(Blue, null, 0));
+
+        Assert.True(Assert.Single(atFill));
+        Assert.True(last());
+    }
+
+    [Fact]
+    public void AnAliasedFill_DoesNotLeaveTheNextShapeAliased()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var (atFill, _) = AntialiasRecorder(canvas);
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawRectangle(new MplRect(0, 0, 60, 30), new ShapeStyle(Blue, null, 0) { Aliased = true });
+        ctx.DrawRectangle(new MplRect(0, 0, 60, 30), new ShapeStyle(Blue, null, 0));
+
+        Assert.Equal(new[] { false, true }, atFill);
+    }
+
+    [Fact]
+    public void AnAliasedHatchedFill_IsAliasedForBothLayers_AndPutBackAfterTheHatch()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var (atFill, last) = AntialiasRecorder(canvas);
+
+        new MauiGraphicsRenderContext(canvas).DrawRectangle(new MplRect(0, 0, 60, 30),
+            new ShapeStyle(Blue, null, 0) { Aliased = true, Hatch = HatchPattern.Cross });
+
+        Assert.Equal(new[] { false, false }, atFill);
+        Assert.True(last());
+    }
+
     // ── arcs ────────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -202,7 +257,7 @@ public class MauiCanvasParityTests
     [Fact]
     public void ALabelIsMeasured_ByTheMetricsTheLayoutUses()
     {
-        var ctx = new MauiGraphicsRenderContext(Substitute.For<ICanvas>());
+        var ctx = MauiRig.Fresh().Context;
         var font = new MplFont { Size = 14 };
 
         var size = ctx.MeasureText("Temperature (°C)", font);

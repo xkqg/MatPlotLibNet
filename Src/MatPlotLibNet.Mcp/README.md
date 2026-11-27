@@ -51,6 +51,10 @@ wrong, so the model can correct the spec instead of receiving a blank picture. I
 of a subplot the same way, a left-hand Y axis or the fifth right-hand one included, and the message names the place
 (for example `$.subPlots[0].leftYAxes[1].series[0].type`). A chart can have any number of Y axes on either side.
 
+A map is a chart type too (`geo_polygon`, from `MatPlotLibNet.Geo`, which the server carries): its `packageData` names the
+projection and the features, `{"projection": {"name": "Robinson"}, "source": "ne_110m_admin_0_countries"}`, as the figure JSON
+of a map is written. A projection, a source or a number the Geo package does not know is refused with the names it accepts.
+
 A spec's `dpi` sizes the PNG it renders, as `WithDpi` does in code: an 800 by 600 spec at 192 dpi is a 1600 by 1200
 pixel picture with the same layout, drawn finer. SVG and PDF ignore it. The canvas ceiling (4,000 by 4,000 pixels)
 holds for the picture the spec draws, so its width and height times `dpi / 96` must stay inside it: 400 wide at 960 dpi
@@ -78,4 +82,4 @@ identical everywhere.
 
 ## License
 
-MIT — see the repository.
+MIT — see the repository. The tool carries third-party libraries, fonts and map data; their licences are in `THIRD-PARTY-NOTICES.md` in the package.

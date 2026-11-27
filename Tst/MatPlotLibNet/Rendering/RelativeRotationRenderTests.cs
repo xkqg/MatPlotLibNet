@@ -14,14 +14,6 @@ public class RelativeRotationRenderTests
     private static double[] Rising(int n, double start = 100.0, double step = 1.0) =>
         Enumerable.Range(0, n).Select(i => start + i * step).ToArray();
 
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        int count = 0, idx = 0;
-        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
-        { count++; idx += needle.Length; }
-        return count;
-    }
-
     private static string RenderSvg(Action<RelativeRotationSeries>? configure = null)
     {
         // 60 bars: enough for DualEma(10,26) to produce valid momentum
@@ -36,48 +28,53 @@ public class RelativeRotationRenderTests
 
     // ── Smoke tests ──────────────────────────────────────────────────────────
 
-    [Fact]
-    public void SimpleRrg_RendersValidSvg()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = RenderSvg();
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+        new DrawnToken("Render_EmitsAssetLabelsAsText", () => RenderSvg(), "ETH", "BNB"),
+        // Periods larger than data → all rsRatio + rsMomentum NaN → DrawAsset returns
+        // early at the points.Count == 0 guard without rendering any circles.
+        // > data length → EMA returns empty → all NaN
+        // no heads drawn
+        new DrawnToken("AllNaNTail_DoesNotCrash", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax =>
+                ax.RelativeRotation([Rising(30), Flat(30, 95)], Flat(30), ["ETH", "BNB"], s =>
+                {
+                    s.ShortPeriod = 25;
+                    s.LongPeriod  = 50;  
+                }))
+            .ToSvg(), "<svg") { Absent = ["<circle "] },
+    };
 
-    [Fact]
-    public void EmptyAssets_RendersValidSvg()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation([], [], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-        Assert.Contains("</svg>", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ── Quadrant grid ────────────────────────────────────────────────────────
 
-    [Fact]
-    public void ShowQuadrantGrid_True_EmitsRectElements()
-    {
-        // Four quadrant fills → at least 4 <rect> elements beyond the plot frame.
-        string svgOn  = RenderSvg(s => s.ShowQuadrantGrid = true);
-        string svgOff = RenderSvg(s => s.ShowQuadrantGrid = false);
-        int rectsOn  = CountOccurrences(svgOn,  "<rect ");
-        int rectsOff = CountOccurrences(svgOff, "<rect ");
-        Assert.True(rectsOn > rectsOff,
-            $"ShowQuadrantGrid=true ({rectsOn} rects) must exceed off ({rectsOff}).");
-    }
+    /// <summary>The rotation chart of two assets with a tail of <paramref name="tailLength"/> points and none of the overlays an overlay fact adds.</summary>
+    private static string BaselineSvg(int tailLength) => Plt.Create()
+        .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+            [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+            {
+                s.ShortPeriod = 3;
+                s.LongPeriod  = 5;
+                s.TailLength  = tailLength;
+            }))
+        .ToSvg();
 
-    [Fact]
-    public void ShowQuadrantGrid_True_EmitsCrossairLines()
+    /// <summary>Four quadrant fills are at least 4 rect elements beyond the plot frame, and the crosshair is 2 dashed lines (horizontal and
+    /// vertical through 100/100).</summary>
+    [Theory]
+    [InlineData("<rect ")]
+    [InlineData("<line ")]
+    public void ShowQuadrantGrid_True_EmitsMoreOfTheTagThanFalse(string tag)
     {
-        // Crosshair = 2 dashed lines (horizontal + vertical through 100/100).
         string svgOn  = RenderSvg(s => s.ShowQuadrantGrid = true);
         string svgOff = RenderSvg(s => s.ShowQuadrantGrid = false);
-        int linesOn  = CountOccurrences(svgOn,  "<line ");
-        int linesOff = CountOccurrences(svgOff, "<line ");
-        Assert.True(linesOn > linesOff,
-            $"ShowQuadrantGrid=true ({linesOn} lines) must exceed off ({linesOff}).");
+        int on  = svgOn.CountOf(tag);
+        int off = svgOff.CountOf(tag);
+        Assert.True(on > off, $"ShowQuadrantGrid=true ({on} {tag}) must exceed off ({off}).");
     }
 
     // ── the centre of a chart whose assets all stand on one side of it ───────
@@ -98,12 +95,12 @@ public class RelativeRotationRenderTests
 
         new ChartRenderer().Render(figure, ctx);
 
-        var quadrants = ctx.OfKind("DrawRectangle")
-            .Where(c => ((Color?)((dynamic)c.Args!).fill) is { A: 20 })
-            .Select(c => (Rect)((dynamic)c.Args!).rect).ToList();
+        var quadrants = ctx.Of<DrawRectangleCall>()
+            .Where(c => (c.Fill) is { A: 20 })
+            .Select(c => c.Rect).ToList();
         Assert.Equal(4, quadrants.Count);
         Assert.All(quadrants, r => Assert.True(r.Width > 0 && r.Height > 0, $"a quadrant of no area: {r}"));
-        Assert.Equal(2, ctx.OfKind("DrawLine").Count(c => ((Color)((dynamic)c.Args!).color) == new Color(100, 100, 100, 120)));
+        Assert.Equal(2, ctx.Of<DrawLineCall>().Count(c => (c.Color) == new Color(100, 100, 100, 120)));
     }
 
     // ── Asset heads ──────────────────────────────────────────────────────────
@@ -113,7 +110,7 @@ public class RelativeRotationRenderTests
     {
         // 2 assets → at least 2 <circle> elements for the asset heads.
         string svg = RenderSvg();
-        int circles = CountOccurrences(svg, "<circle ");
+        int circles = svg.CountOf("<circle ");
         Assert.True(circles >= 2, $"Expected ≥2 circles for 2 assets, got {circles}.");
     }
 
@@ -134,188 +131,54 @@ public class RelativeRotationRenderTests
         // Toggling the quadrant grid should not add/remove asset head circles.
         string svgOn  = RenderSvg(s => s.ShowQuadrantGrid = true);
         string svgOff = RenderSvg(s => s.ShowQuadrantGrid = false);
-        Assert.Equal(CountOccurrences(svgOn, "<circle "), CountOccurrences(svgOff, "<circle "));
-    }
-
-    // ── Asset labels ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Render_EmitsAssetLabelsAsText()
-    {
-        string svg = RenderSvg();
-        Assert.Contains("ETH", svg);
-        Assert.Contains("BNB", svg);
+        Assert.Equal(svgOn.CountOf("<circle "), svgOff.CountOf("<circle "));
     }
 
     // ── ZScore formula ───────────────────────────────────────────────────────
 
-    [Fact]
-    public void ZScoreFormula_RendersValidSvg()
-    {
-        string svg = RenderSvg(s => { s.Formula = RrgFormula.ZScore; s.ShortPeriod = 5; });
-        Assert.Contains("<svg", svg);
-    }
-
     // ── LogReturn formula ─────────────────────────────────────────────────────
-
-    [Fact]
-    public void LogReturnFormula_RendersValidSvg()
-    {
-        string svg = RenderSvg(s => { s.Formula = RrgFormula.LogReturn; s.ShortPeriod = 5; s.LongPeriod = 10; });
-        Assert.Contains("<svg", svg);
-    }
 
     // ── Single-asset branch ───────────────────────────────────────────────────
 
-    [Fact]
-    public void SingleAsset_RendersValidSvg()
-    {
-        // Covers the rsData.Length > 1 ? ... : 0.0 false branch (hue = 0.0 for single asset).
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-                ax.RelativeRotation([Rising(60)], Flat(60), ["ETH"]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    // ── All-NaN tail branch ───────────────────────────────────────────────────
-
-    [Fact]
-    public void AllNaNTail_DoesNotCrash()
-    {
-        // Periods larger than data → all rsRatio + rsMomentum NaN → DrawAsset returns
-        // early at the points.Count == 0 guard without rendering any circles.
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax =>
-                ax.RelativeRotation([Rising(30), Flat(30, 95)], Flat(30), ["ETH", "BNB"], s =>
-                {
-                    s.ShortPeriod = 25;
-                    s.LongPeriod  = 50;  // > data length → EMA returns empty → all NaN
-                }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-        Assert.DoesNotContain("<circle ", svg);  // no heads drawn
-    }
-
     // ── Absorption overlay ────────────────────────────────────────────────────
 
-    [Fact]
-    public void AbsorptionOverlay_EmitsCirclePerTailPoint()
+    /// <summary>The markup of two assets drawn with a tail of four points and the overlay the caller sets on the series.</summary>
+    private static string OverlaySvg(Action<RelativeRotationSeries> overlay) => Plt.Create()
+        .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+            [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+            {
+                s.ShortPeriod = 3;
+                s.LongPeriod  = 5;
+                s.TailLength  = 4;
+                overlay(s);
+            }))
+        .ToSvg();
+
+    /// <summary>Without an overlay a series draws one circle per asset (its head only); with the absorption ratio, the effective number of
+    /// bets or both it draws one per tail point per asset.</summary>
+    [Theory]
+    [InlineData("absorption", true, false)]
+    [InlineData("ENB", false, true)]
+    [InlineData("both", true, true)]
+    public void AnOverlay_EmitsACirclePerTailPoint(string overlayName, bool absorption, bool enb)
     {
-        // Without overlay: 1 circle per asset (head only).
-        // With AbsorptionRatioPerBar: one circle per tail point per asset.
         const int TailLen   = 4;
         const int NumAssets = 2;
-        var absorption = Enumerable.Repeat(0.4, 60).ToArray();
 
-        string svgOverlay = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
-                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
-                {
-                    s.ShortPeriod           = 3;
-                    s.LongPeriod            = 5;
-                    s.TailLength            = TailLen;
-                    s.AbsorptionRatioPerBar = absorption;
-                }))
-            .ToSvg();
+        string svgOverlay = OverlaySvg(s =>
+        {
+            if (absorption) s.AbsorptionRatioPerBar = Enumerable.Repeat(0.4, 60).ToArray();
+            if (enb) s.EnbPerBar = Enumerable.Repeat(3.0, 60).ToArray();
+        });
 
-        string svgBase = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
-                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
-                {
-                    s.ShortPeriod = 3;
-                    s.LongPeriod  = 5;
-                    s.TailLength  = TailLen;
-                }))
-            .ToSvg();
-
-        int circlesOverlay = CountOccurrences(svgOverlay, "<circle ");
-        int circlesBase    = CountOccurrences(svgBase,    "<circle ");
+        int circlesOverlay = svgOverlay.CountOf("<circle ");
+        int circlesBase    = BaselineSvg(TailLen).CountOf("<circle ");
 
         Assert.True(circlesOverlay > circlesBase,
-            $"Absorption overlay ({circlesOverlay} circles) must exceed baseline ({circlesBase}).");
+            $"The {overlayName} overlay ({circlesOverlay} circles) must exceed baseline ({circlesBase}).");
         Assert.Equal(TailLen * NumAssets, circlesOverlay);
-    }
-
-    [Fact]
-    public void EnbOverlay_EmitsCirclePerTailPoint()
-    {
-        const int TailLen   = 4;
-        const int NumAssets = 2;
-        var enb = Enumerable.Repeat(3.0, 60).ToArray();
-
-        string svgOverlay = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
-                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
-                {
-                    s.ShortPeriod = 3;
-                    s.LongPeriod  = 5;
-                    s.TailLength  = TailLen;
-                    s.EnbPerBar   = enb;
-                }))
-            .ToSvg();
-
-        string svgBase = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
-                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
-                {
-                    s.ShortPeriod = 3;
-                    s.LongPeriod  = 5;
-                    s.TailLength  = TailLen;
-                }))
-            .ToSvg();
-
-        int circlesOverlay = CountOccurrences(svgOverlay, "<circle ");
-        int circlesBase    = CountOccurrences(svgBase,    "<circle ");
-
-        Assert.True(circlesOverlay > circlesBase,
-            $"ENB overlay ({circlesOverlay} circles) must exceed baseline ({circlesBase}).");
-        Assert.Equal(TailLen * NumAssets, circlesOverlay);
-    }
-
-    [Fact]
-    public void BothOverlays_EmitsCirclePerTailPoint()
-    {
-        const int TailLen   = 4;
-        const int NumAssets = 2;
-
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
-                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
-                {
-                    s.ShortPeriod           = 3;
-                    s.LongPeriod            = 5;
-                    s.TailLength            = TailLen;
-                    s.AbsorptionRatioPerBar = Enumerable.Repeat(0.5, 60).ToArray();
-                    s.EnbPerBar             = Enumerable.Repeat(2.5, 60).ToArray();
-                }))
-            .ToSvg();
-
-        Assert.Equal(TailLen * NumAssets, CountOccurrences(svg, "<circle "));
     }
 
     // ── Fluent API coverage ────────────────────────────────────────────────────
 
-    [Fact]
-    public void Axes_RelativeRotation_WithConfigure_InvokesCallback()
-    {
-        // Directly call Axes.RelativeRotation with a non-null configure to cover
-        // the configure?.Invoke(series) non-null branch (unreachable via AxesBuilder).
-        var figure = Plt.Create().AddSubPlot(1, 1, 1, _ => { }).Build();
-        var axes   = figure.SubPlots[0];
-        var s = axes.RelativeRotation(
-            [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"],
-            configure: series => series.Formula = RrgFormula.ZScore);
-        Assert.Equal(RrgFormula.ZScore, s.Formula);
-    }
-
-    [Fact]
-    public void FigureBuilder_RelativeRotation_BuildsWithoutException()
-    {
-        // Exercises FigureBuilder.RelativeRotation so the method body is line-covered.
-        var figure = Plt.Create()
-            .RelativeRotation([Rising(60)], Flat(60), ["ETH"])
-            .Build();
-        Assert.NotNull(figure);
-    }
 }

@@ -10,37 +10,6 @@ namespace MatPlotLibNet.Tests.Models;
 public class TitleLabelTests
 {
     [Fact]
-    public void Axes_TitleStyle_DefaultsToNull()
-    {
-        var axes = new Axes();
-        Assert.Null(axes.TitleStyle);
-    }
-
-    [Fact]
-    public void Axes_TitleLoc_DefaultsToCenter()
-    {
-        var axes = new Axes();
-        Assert.Equal(TitleLocation.Center, axes.TitleLoc);
-    }
-
-    [Fact]
-    public void Axis_LabelStyle_DefaultsToNull()
-    {
-        var axis = new Axis();
-        Assert.Null(axis.LabelStyle);
-    }
-
-    [Fact]
-    public void TitleLocation_HasThreeValues()
-    {
-        var values = Enum.GetValues<TitleLocation>();
-        Assert.Equal(3, values.Length);
-        Assert.Contains(TitleLocation.Left, values);
-        Assert.Contains(TitleLocation.Center, values);
-        Assert.Contains(TitleLocation.Right, values);
-    }
-
-    [Fact]
     public void AxesBuilder_WithTitle_StyleOverload()
     {
         var figure = Plt.Create()
@@ -63,28 +32,23 @@ public class TitleLabelTests
         Assert.Null(axes.TitleStyle);
     }
 
-    [Fact]
-    public void AxesBuilder_SetXLabel_StyleOverload()
+    public static TheoryData<Action<AxesBuilder>, Func<Axes, Axis>, string, Func<TextStyle, object?>, object> LabelStyleOverloads => new()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.SetXLabel("Time", ts => ts with { FontSize = 14 }))
-            .Build();
-        var axes = figure.SubPlots[0];
-        Assert.Equal("Time", axes.XAxis.Label);
-        Assert.NotNull(axes.XAxis.LabelStyle);
-        Assert.Equal(14, axes.XAxis.LabelStyle!.FontSize);
-    }
+        { ax => ax.SetXLabel("Time", ts => ts with { FontSize = 14 }), axes => axes.XAxis, "Time", style => style.FontSize, 14.0 },
+        { ax => ax.SetYLabel("Value", ts => ts with { Color = Colors.Red }), axes => axes.YAxis, "Value", style => style.Color, Colors.Red },
+    };
 
-    [Fact]
-    public void AxesBuilder_SetYLabel_StyleOverload()
+    [Theory]
+    [MemberData(nameof(LabelStyleOverloads))]
+    public void AxesBuilder_SetALabel_StyleOverload(Action<AxesBuilder> setLabel, Func<Axes, Axis> axisOf, string label, Func<TextStyle, object?> read, object expected)
     {
         var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.SetYLabel("Value", ts => ts with { Color = Colors.Red }))
+            .AddSubPlot(1, 1, 1, setLabel)
             .Build();
-        var axes = figure.SubPlots[0];
-        Assert.Equal("Value", axes.YAxis.Label);
-        Assert.NotNull(axes.YAxis.LabelStyle);
-        Assert.Equal(Colors.Red, axes.YAxis.LabelStyle!.Color);
+        var axis = axisOf(figure.SubPlots[0]);
+        Assert.Equal(label, axis.Label);
+        Assert.NotNull(axis.LabelStyle);
+        Assert.Equal(expected, read(axis.LabelStyle!));
     }
 
     [Fact]
@@ -95,21 +59,5 @@ public class TitleLabelTests
         var result = style.ApplyTo(baseFont);
         Assert.Equal(22, result.Size);
         Assert.Equal(FontWeight.Bold, result.Weight);
-    }
-
-    [Fact]
-    public void Axes_TitleLoc_CanBeSetToLeft()
-    {
-        var axes = new Axes { TitleLoc = TitleLocation.Left };
-        Assert.Equal(TitleLocation.Left, axes.TitleLoc);
-    }
-
-    [Fact]
-    public void Axes_TitleStyle_CanBeSet()
-    {
-        var style = new TextStyle { FontSize = 18, Color = Colors.Blue };
-        var axes = new Axes { TitleStyle = style };
-        Assert.NotNull(axes.TitleStyle);
-        Assert.Equal(18, axes.TitleStyle!.FontSize);
     }
 }

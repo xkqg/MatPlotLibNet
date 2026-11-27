@@ -9,9 +9,9 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet;
 
 /// <summary>Fluent builder for ONE Y axis of a subplot and the series plotted against it, on either side. The callback of
-/// <see cref="AxesBuilder.WithAddRightYAxis"/> and <see cref="AxesBuilder.WithAddLeftYAxis"/> receives one for the axis
-/// it just stacked, and the builder's own Y verbs (<see cref="AxesBuilder.SetYLabel(string)"/>,
-/// <see cref="AxesBuilder.SetYAxisColor"/>, <see cref="AxesBuilder.SetYLim"/>) are this builder over the primary Y axis,
+/// <see cref="AxesBuilderLinkedAxesVerbs.WithAddRightYAxis"/> and <see cref="AxesBuilderLinkedAxesVerbs.WithAddLeftYAxis"/> receives one for the axis
+/// it just stacked, and the builder's own Y verbs (<see cref="AxesBuilderLabelVerbs.extension(AxesBuilder).SetYLabel(string)"/>,
+/// <see cref="AxesBuilderLabelVerbs.SetYAxisColor"/>, <see cref="AxesBuilderLimitVerbs.SetYLim"/>) are this builder over the primary Y axis,
 /// which is slot 0 of the left side. One set of verbs configures every Y axis, so a setting made on the primary is made
 /// the same way on any other.</summary>
 /// <remarks>Every verb acts on this builder's own axis and no other. The series a verb adds are plotted against this
@@ -21,30 +21,21 @@ namespace MatPlotLibNet;
 /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
 ///     .Plot(days, price).SetYLabel("Price")
 ///     .WithAddRightYAxis(rate => rate
-///         .SetYLabel("Rate (%)").SetYAxisColor(Color.Red)
+///         .SetYLabel("Rate (%)").SetYAxisColor(Colors.Red)
 ///         .Plot(days, rates)));
 /// </code>
 /// </example>
 public sealed class YAxisSlotBuilder
 {
-    private readonly Axes _axes;
-    private readonly YAxisSlot _slot;
+    private readonly AxisVerbs _verbs;
 
     /// <summary>Initializes a builder over <paramref name="slot"/> of <paramref name="axes"/>.</summary>
     /// <param name="axes">The axes the slot belongs to; its spines are the ones slot 0 of a side colours.</param>
     /// <param name="slot">The slot this builder configures.</param>
     internal YAxisSlotBuilder(Axes axes, YAxisSlot slot)
     {
-        _axes = axes;
-        _slot = slot;
+        _verbs = AxisVerbs.Of(axes, slot);
     }
-
-    /// <summary>The edge whose spine this axis stands on: the left or the right edge for slot 0 of its side, and
-    /// <see langword="null"/> for a slot stacked past it, which draws ticks, tick labels and a title but no spine of its
-    /// own.</summary>
-    private SpineEdge? Spine =>
-        !ReferenceEquals(_axes.YAxes.StackOn(_slot.Side)[0], _slot) ? null
-        : _slot.Side == AxisSide.Left ? SpineEdge.Left : SpineEdge.Right;
 
     /// <summary>Sets the label displayed alongside this axis, with an optional text style override.</summary>
     /// <param name="label">The axis label text.</param>
@@ -54,8 +45,7 @@ public sealed class YAxisSlotBuilder
     /// <example><code>rate.SetYLabel("Rate (%)", style => style with { FontSize = 14 });</code></example>
     public YAxisSlotBuilder SetYLabel(string label, Func<TextStyle, TextStyle>? configure = null)
     {
-        _slot.Axis.Label = label;
-        if (configure is not null) _slot.Axis.LabelStyle = configure(_slot.Axis.LabelStyle ?? new TextStyle());
+        _verbs.Label(label, configure);
         return this;
     }
 
@@ -66,8 +56,7 @@ public sealed class YAxisSlotBuilder
     /// <example><code>rate.SetYLim(0, 100);</code></example>
     public YAxisSlotBuilder SetYLim(double min, double max)
     {
-        _slot.Axis.Min = min;
-        _slot.Axis.Max = max;
+        _verbs.Limits(min, max);
         return this;
     }
 
@@ -82,7 +71,7 @@ public sealed class YAxisSlotBuilder
     /// <example><code>rate.SetYAxisColor(Color.FromHex("#D62728"));</code></example>
     public YAxisSlotBuilder SetYAxisColor(Color color)
     {
-        _axes.ApplyAxisColor(_slot.Axis, Spine, color);
+        _verbs.Color(color);
         return this;
     }
 
@@ -108,7 +97,7 @@ public sealed class YAxisSlotBuilder
     /// </example>
     public YAxisSlotBuilder Link(AxisTransform transform)
     {
-        _slot.Axis.LinkThrough(transform, _slot.Series.Count);
+        _verbs.Link(transform);
         return this;
     }
 
@@ -122,10 +111,7 @@ public sealed class YAxisSlotBuilder
     /// <example><code>rate.Plot(days, rates, line => line.Label = "Rate");</code></example>
     public YAxisSlotBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)
     {
-        _slot.Axis.RefuseSeriesWhenLinked(nameof(y));
-        x.Length.ThrowIfMisaligned(y.Length);
-        var series = _slot.AddSeries(new LineSeries(x, y));
-        configure?.Invoke(series);
+        _verbs.Seat(nameof(y), () => _verbs.Slot!.Plot(x, y), configure);
         return this;
     }
 
@@ -139,28 +125,22 @@ public sealed class YAxisSlotBuilder
     /// <example><code>rate.Scatter(days, rates, points => points.Label = "Samples");</code></example>
     public YAxisSlotBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
     {
-        _slot.Axis.RefuseSeriesWhenLinked(nameof(y));
-        x.Length.ThrowIfMisaligned(y.Length);
-        var series = _slot.AddSeries(new ScatterSeries(x, y));
-        configure?.Invoke(series);
+        _verbs.Seat(nameof(y), () => _verbs.Slot!.Scatter(x, y), configure);
         return this;
     }
 
     /// <summary>Adds a STREAMING line series against this axis, so a live chart can carry another unit at once.</summary>
-    /// <param name="capacity">Maximum data points retained in the ring buffer. Default 10,000.</param>
+    /// <param name="capacity">Maximum data points retained in the ring buffer. Default <see cref="StreamingSeries.RestingCapacity"/>.</param>
     /// <param name="configure">Optional callback that configures the new series.</param>
     /// <returns>The created series, so the caller can <c>AppendPoint</c> to it from any thread. Unlike the other verbs
     /// it does NOT return the builder, because the series IS the handle live data needs (the same shape
-    /// <see cref="AxesBuilder.StreamingPlot"/> has on the primary axis).</returns>
+    /// <see cref="AxesBuilderStreamingVerbs.StreamingPlot"/> has on the primary axis).</returns>
     /// <exception cref="ArgumentException">This axis is linked (<see cref="Link"/>), which holds no series of its own; the
     /// refusal names <paramref name="capacity"/>, the size of the series it would have made.</exception>
     /// <example><code>var latency = rate.StreamingPlot(capacity: 600, line => line.Label = "Latency");</code></example>
-    public StreamingLineSeries StreamingPlot(int capacity = 10_000, Action<StreamingLineSeries>? configure = null)
+    public StreamingLineSeries StreamingPlot(int capacity = StreamingSeries.RestingCapacity, Action<StreamingLineSeries>? configure = null)
     {
-        _slot.Axis.RefuseSeriesWhenLinked(nameof(capacity));
-        var series = _slot.AddSeries(new StreamingLineSeries(capacity));
-        configure?.Invoke(series);
-        return series;
+        return _verbs.Seat(nameof(capacity), () => _verbs.Slot!.AddSeries(new StreamingLineSeries(capacity)), configure);
     }
 
     /// <summary>Draws the name of the series added last to this axis at the end of its line, in the line's colour,
@@ -173,7 +153,7 @@ public sealed class YAxisSlotBuilder
     /// <example><code>rate.Plot(days, rates, line => line.Label = "Rate").WithDirectLabel();</code></example>
     public YAxisSlotBuilder WithDirectLabel()
     {
-        if (_slot.Series.LastOrDefault() is IHasLabelPlacement placed) placed.LabelPlacement = SeriesLabelPlacement.LineEnd;
+        _verbs.Slot!.LabelLastAtLineEnd();
         return this;
     }
 }

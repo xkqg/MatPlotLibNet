@@ -10,25 +10,16 @@ namespace MatPlotLibNet.Skia.Tests;
 /// <summary>What <see cref="PngTransform"/> does with the save options it is handed: the resolution scales the picture,
 /// the title and the author travel in the file as text chunks, and the settings that only an SVG can use leave the
 /// PNG exactly as it was.</summary>
-public class PngTransformOptionsTests
+public class PngTransformOptionsTests : TransformOptionsTests<PngTransform>
 {
-    /// <summary>Save routes .png and .pdf to the Skia transforms only once the Skia assembly's module initializer has
-    /// run, which happens when something of the assembly is first used; a test that saves a file before any other
-    /// Skia call would otherwise write an SVG under a .png name, depending on the order the tests run in.</summary>
-    static PngTransformOptionsTests() =>
-        System.Runtime.CompilerServices.RuntimeHelpers.RunModuleConstructor(typeof(FigureSkiaExtensions).Module.ModuleHandle);
+    /// <inheritdoc/>
+    protected override int Width => 200;
 
-    private static Figure Chart(double dpi = 96) =>
-        Plt.Create().WithSize(200, 150).WithDpi(dpi).Plot([1.0, 2.0, 3.0], [3.0, 1.0, 2.0]).Build();
+    /// <inheritdoc/>
+    protected override int Height => 150;
 
-    private static byte[] Png(Figure figure, SaveOptions? options)
-    {
-        using var stream = new MemoryStream();
-        var transform = new PngTransform();
-        if (options is null) transform.Transform(figure, stream);
-        else transform.Transform(figure, stream, options);
-        return stream.ToArray();
-    }
+    /// <inheritdoc/>
+    protected override string Extension => ".png";
 
     [Fact]
     public void ATransformMadeWithARenderer_DrawsWithIt_AtTheOptionsResolution()
@@ -45,13 +36,13 @@ public class PngTransformOptionsTests
     [Fact]
     public void TransformWithOptions_UsesTheOptionsResolution()
     {
-        Assert.Equal(new PngSize(400, 300), Png(Chart(), new SaveOptions { Dpi = 192 }).PngPixelSize());
+        Assert.Equal(new PngSize(400, 300), Make(Chart(), new SaveOptions { Dpi = 192 }).PngPixelSize());
     }
 
     [Fact]
     public void TransformWithOptions_ThatSayNothingOfResolution_UsesTheFigureResolution()
     {
-        Assert.Equal(new PngSize(400, 300), Png(Chart(dpi: 192), new SaveOptions()).PngPixelSize());
+        Assert.Equal(new PngSize(400, 300), Make(Chart(dpi: 192), new SaveOptions()).PngPixelSize());
     }
 
     [Theory]
@@ -60,17 +51,9 @@ public class PngTransformOptionsTests
     public void OptionsDpi_ThatIsNotPositive_IsRefused(int dpi)
     {
         var refusal = Assert.Throws<ArgumentOutOfRangeException>(
-            () => Png(Chart(), new SaveOptions { Dpi = dpi }));
+            () => Make(Chart(), new SaveOptions { Dpi = dpi }));
 
         Assert.Equal("dpi", refusal.ParamName);
-    }
-
-    [Fact]
-    public void NoOptions_AndDefaultOptions_WriteTheSameBytes()
-    {
-        var figure = Chart(dpi: 120);
-
-        Assert.Equal(Png(figure, options: null), Png(figure, new SaveOptions()));
     }
 
     // ── title and author ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +61,7 @@ public class PngTransformOptionsTests
     [Fact]
     public void WithoutATitleOrAuthor_TheFileCarriesNoTextChunk()
     {
-        var chunks = Png(Chart(), new SaveOptions { Dpi = 120 }).PngChunks();
+        var chunks = Make(Chart(), new SaveOptions { Dpi = 120 }).PngChunks();
 
         Assert.DoesNotContain(chunks, c => c.Type is "iTXt" or "tEXt" or "zTXt");
     }
@@ -86,7 +69,7 @@ public class PngTransformOptionsTests
     [Fact]
     public void TitleAndAuthor_AreWrittenAsTextChunks_AfterTheHeader()
     {
-        var chunks = Png(Chart(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }).PngChunks();
+        var chunks = Make(Chart(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }).PngChunks();
 
         Assert.Equal("IHDR", chunks[0].Type);
         Assert.Equal("iTXt", chunks[1].Type);
@@ -96,22 +79,15 @@ public class PngTransformOptionsTests
         Assert.Equal("IEND", chunks[^1].Type);
     }
 
-    [Fact]
-    public void ATitleAlone_WritesOneChunk()
+    [Theory]
+    [InlineData(true, "Title", "Only a title")]
+    [InlineData(false, "Author", "Only an author")]
+    public void ATitleOrAnAuthorAlone_WritesOneChunk(bool title, string key, string value)
     {
-        var chunks = Png(Chart(), new SaveOptions { Title = "Only a title" }).PngChunks();
+        var chunks = Make(Chart(), title ? new SaveOptions { Title = value } : new SaveOptions { Author = value }).PngChunks();
 
         var text = Assert.Single(chunks, c => c.Type == "iTXt");
-        Assert.Equal(new PngText("Title", "Only a title"), text.InternationalText());
-    }
-
-    [Fact]
-    public void AnAuthorAlone_WritesOneChunk()
-    {
-        var chunks = Png(Chart(), new SaveOptions { Author = "Only an author" }).PngChunks();
-
-        var text = Assert.Single(chunks, c => c.Type == "iTXt");
-        Assert.Equal(new PngText("Author", "Only an author"), text.InternationalText());
+        Assert.Equal(new PngText(key, value), text.InternationalText());
     }
 
     [Fact]
@@ -119,7 +95,7 @@ public class PngTransformOptionsTests
     {
         const string title = "Résumé — 東京 ☂";
 
-        var chunks = Png(Chart(), new SaveOptions { Title = title }).PngChunks();
+        var chunks = Make(Chart(), new SaveOptions { Title = title }).PngChunks();
 
         Assert.Equal(new PngText("Title", title), Assert.Single(chunks, c => c.Type == "iTXt").InternationalText());
     }
@@ -127,12 +103,12 @@ public class PngTransformOptionsTests
     [Fact]
     public void EveryChunkCrc_IsTheCrcOfItsTypeAndData()
     {
-        var chunks = Png(Chart(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }).PngChunks();
+        var chunks = Make(Chart(), new SaveOptions { Title = "Annual Revenue", Author = "Finance Team" }).PngChunks();
 
         foreach (var chunk in chunks)
         {
             byte[] covered = [.. System.Text.Encoding.ASCII.GetBytes(chunk.Type), .. chunk.Data];
-            Assert.Equal(PngTextChunkExtensions.Crc32(covered), chunk.StoredCrc);
+            Assert.Equal(PngTransform.Crc32(covered), chunk.StoredCrc);
         }
     }
 
@@ -140,9 +116,9 @@ public class PngTransformOptionsTests
     public void ThePictureSurvivesTheTextChunks()
     {
         var figure = Chart();
-        using var plain = SKBitmap.Decode(Png(figure, options: null));
+        using var plain = SKBitmap.Decode(Make(figure, options: null));
 
-        using var withText = SKBitmap.Decode(Png(figure, new SaveOptions { Title = "T", Author = "A" }));
+        using var withText = SKBitmap.Decode(Make(figure, new SaveOptions { Title = "T", Author = "A" }));
 
         Assert.NotNull(withText);
         Assert.Equal(plain.Width, withText.Width);
@@ -153,7 +129,7 @@ public class PngTransformOptionsTests
     [Fact]
     public void AnEmptyTitle_WritesNoChunk()
     {
-        var chunks = Png(Chart(), new SaveOptions { Title = "", Author = "" }).PngChunks();
+        var chunks = Make(Chart(), new SaveOptions { Title = "", Author = "" }).PngChunks();
 
         Assert.DoesNotContain(chunks, c => c.Type == "iTXt");
     }
@@ -161,32 +137,10 @@ public class PngTransformOptionsTests
     [Fact]
     public void Save_ToAPngPath_WritesTheResolutionTheTitleAndTheAuthor()
     {
-        string path = Path.Combine(Path.GetTempPath(), $"s9_{Guid.NewGuid():N}.png");
-        try
-        {
-            Chart().Save(path, new SaveOptions { Dpi = 192, Title = "Annual Revenue", Author = "Finance Team" });
+        byte[] png = Saved(Chart(), new SaveOptions { Dpi = 192, Title = "Annual Revenue", Author = "Finance Team" });
 
-            byte[] png = File.ReadAllBytes(path);
-            Assert.Equal(new PngSize(400, 300), png.PngPixelSize());
-            Assert.Equal(new PngText("Title", "Annual Revenue"), png.PngChunks()[1].InternationalText());
-            Assert.Equal(new PngText("Author", "Finance Team"), png.PngChunks()[2].InternationalText());
-        }
-        finally
-        {
-            if (File.Exists(path)) File.Delete(path);
-        }
-    }
-
-    // ── what a PNG cannot use ────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void SvgOnlySettings_LeaveThePngExactlyAsItWas()
-    {
-        var figure = Chart();
-
-        var plain = Png(figure, options: null);
-        var withSvgSettings = Png(figure, new SaveOptions { PrettifySvg = true, SvgDecimalPrecision = 1 });
-
-        Assert.Equal(plain, withSvgSettings);
+        Assert.Equal(new PngSize(400, 300), png.PngPixelSize());
+        Assert.Equal(new PngText("Title", "Annual Revenue"), png.PngChunks()[1].InternationalText());
+        Assert.Equal(new PngText("Author", "Finance Team"), png.PngChunks()[2].InternationalText());
     }
 }

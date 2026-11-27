@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
@@ -25,15 +26,53 @@ public class HatchRenderTests
     private static ShapeStyle Hatched(HatchPattern hatch, Color? hatchColor = null) =>
         new(Colors.Gray, null, 0) { Hatch = hatch, HatchColor = hatchColor };
 
-    /// <summary>A hatched shape fills with a pattern reference, not a flat colour.</summary>
-    [Fact]
-    public void HatchedShape_FillsWithAPatternReference()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = RenderRect(Hatched(HatchPattern.ForwardDiagonal, Colors.Black));
+        // A hatched shape fills with a pattern reference, not a flat colour.
+        new DrawnToken("HatchedShape_FillsWithAPatternReference", () => RenderRect(Hatched(HatchPattern.ForwardDiagonal, Colors.Black)), "<pattern", "fill=\"url(#"),
+        // End-to-end through the figure: a hatched bar reaches the canvas hatched. This property was inert until v1.14.
+        new DrawnToken("BarSeries_WithHatch_RendersHatched", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bar(["A", "B"], [3.0, 5.0], s =>
+            {
+                s.Hatch = HatchPattern.ForwardDiagonal;
+                s.HatchColor = Colors.Black;
+            }))
+            .ToSvg(), "<pattern", "fill=\"url(#"),
+        // End-to-end through the figure: a hatched filled area reaches the canvas hatched.
+        new DrawnToken("AreaSeries_WithHatch_RendersHatched", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.FillBetween([0.0, 1, 2], [1.0, 2, 1], null, s =>
+            {
+                s.Hatch = HatchPattern.BackDiagonal;
+                s.HatchColor = Colors.Black;
+            }))
+            .ToSvg(), "<pattern", "fill=\"url(#"),
+        // No hatch: the fill attribute keeps its exact byte layout — a flat colour, no pattern, no defs. This is the regression guard for
+        // every existing golden.
+        new DrawnToken("NoHatch_EmitsAFlatFillAndNoPattern", () => RenderRect(new ShapeStyle(Colors.Gray, null, 0)), $"fill=\"{Colors.Gray.ToHex()}\"") { Absent = ["<pattern"] },
+        // Opaque colours write the tile they always wrote: no opacity anywhere in it.
+        new DrawnToken("AnOpaqueFaceAndHatch_WriteNoOpacityInTheTile", () =>
+        {
+            string svg = RenderRect(Hatched(HatchPattern.Cross, Colors.Black));
+            return svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
+        }) { Absent = ["opacity"] },
+        new DrawnToken("ATranslucentDotHatch_FadesEachDotAsOne", () =>
+        {
+            string svg = RenderRect(new ShapeStyle(Colors.Gray, null, 0) { Hatch = HatchPattern.Dots, HatchColor = Colors.Black.WithAlpha(64) });
+            return svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
+        }, $"fill=\"#000000\" stroke=\"#000000\" opacity=\"{(64 / 255.0).ToString("G", CultureInfo.InvariantCulture)}\""),
+        // A hatch WITHOUT an explicit hatch colour still paints visible lines — the caller never has to supply two colours to get a hatch.
+        new DrawnToken("HatchWithoutHatchColour_StillPaintsVisibleLines (the pattern)", () => RenderRect(Hatched(HatchPattern.ForwardDiagonal)), "<pattern"),
+        new DrawnToken("HatchWithoutHatchColour_StillPaintsVisibleLines (the lines)", () =>
+        {
+            string svg = RenderRect(Hatched(HatchPattern.ForwardDiagonal));
+            return svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..];
+        }, "stroke="),
+    };
 
-        Assert.Contains("<pattern", svg);
-        Assert.Contains("fill=\"url(#", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The pattern carries BOTH the base fill and the hatch strokes: a background rect in the
     /// shape's own colour, the lines on top of it in the hatch colour.</summary>
@@ -63,7 +102,7 @@ public class HatchRenderTests
         ctx.DrawRectangle(new Rect(10, 10, 50, 50), style);
         ctx.DrawRectangle(new Rect(80, 10, 50, 50), style);
 
-        Assert.Equal(1, CountOccurrences(ctx.GetOutput(), "<pattern"));
+        Assert.Equal(1, ctx.GetOutput().CountOf("<pattern"));
     }
 
     /// <summary>Two DIFFERENT hatches yield two definitions — de-duplication keys on the pattern and its
@@ -75,30 +114,7 @@ public class HatchRenderTests
         ctx.DrawRectangle(new Rect(10, 10, 50, 50), Hatched(HatchPattern.ForwardDiagonal, Colors.Black));
         ctx.DrawRectangle(new Rect(80, 10, 50, 50), Hatched(HatchPattern.BackDiagonal, Colors.Black));
 
-        Assert.Equal(2, CountOccurrences(ctx.GetOutput(), "<pattern"));
-    }
-
-    /// <summary>No hatch: the fill attribute keeps its exact byte layout — a flat colour, no pattern, no
-    /// defs. This is the regression guard for every existing golden.</summary>
-    [Fact]
-    public void NoHatch_EmitsAFlatFillAndNoPattern()
-    {
-        string svg = RenderRect(new ShapeStyle(Colors.Gray, null, 0));
-
-        Assert.Contains($"fill=\"{Colors.Gray.ToHex()}\"", svg);
-        Assert.DoesNotContain("<pattern", svg);
-    }
-
-    /// <summary>A hatch WITHOUT an explicit hatch colour still paints visible lines — the caller never has
-    /// to supply two colours to get a hatch.</summary>
-    [Fact]
-    public void HatchWithoutHatchColour_StillPaintsVisibleLines()
-    {
-        string svg = RenderRect(Hatched(HatchPattern.ForwardDiagonal));
-
-        Assert.Contains("<pattern", svg);
-        string pattern = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..];
-        Assert.Contains("stroke=", pattern);
+        Assert.Equal(2, ctx.GetOutput().CountOf("<pattern"));
     }
 
     /// <summary>The tile of a hatch keeps the opacity of the face it is laid over and of its own colour, as a flat fill and a
@@ -116,27 +132,8 @@ public class HatchRenderTests
         });
         string tile = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
 
-        Assert.Contains($"fill=\"{Colors.Gray.ToHex()}\" fill-opacity=\"{(128 / 255.0).ToSvgNumber()}\"", tile);
-        Assert.Equal(2, CountOccurrences(tile, $"stroke=\"#000000\" stroke-width=\"1\" stroke-opacity=\"{(64 / 255.0).ToSvgNumber()}\" />"));
-    }
-
-    [Fact]
-    public void ATranslucentDotHatch_FadesEachDotAsOne()
-    {
-        string svg = RenderRect(new ShapeStyle(Colors.Gray, null, 0) { Hatch = HatchPattern.Dots, HatchColor = Colors.Black.WithAlpha(64) });
-        string tile = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
-
-        Assert.Contains($"fill=\"#000000\" stroke=\"#000000\" opacity=\"{(64 / 255.0).ToSvgNumber()}\"", tile);
-    }
-
-    /// <summary>Opaque colours write the tile they always wrote: no opacity anywhere in it.</summary>
-    [Fact]
-    public void AnOpaqueFaceAndHatch_WriteNoOpacityInTheTile()
-    {
-        string svg = RenderRect(Hatched(HatchPattern.Cross, Colors.Black));
-        string tile = svg[svg.IndexOf("<pattern", StringComparison.Ordinal)..svg.IndexOf("</pattern>", StringComparison.Ordinal)];
-
-        Assert.DoesNotContain("opacity", tile);
+        Assert.Contains($"fill=\"{Colors.Gray.ToHex()}\" fill-opacity=\"{(128 / 255.0).ToString("G", CultureInfo.InvariantCulture)}\"", tile);
+        Assert.Equal(2, tile.CountOf($"stroke=\"#000000\" stroke-width=\"1\" stroke-opacity=\"{(64 / 255.0).ToString("G", CultureInfo.InvariantCulture)}\" />"));
     }
 
     /// <summary>Every declared pattern is reachable: each member of the enum renders its own definition.</summary>
@@ -150,51 +147,5 @@ public class HatchRenderTests
 
         Assert.Contains("<pattern", svg);
         Assert.Contains("fill=\"url(#", svg);
-    }
-
-    /// <summary>End-to-end through the figure: a hatched bar reaches the canvas hatched. This property was
-    /// inert until v1.14.</summary>
-    [Fact]
-    public void BarSeries_WithHatch_RendersHatched()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Bar(["A", "B"], [3.0, 5.0], s =>
-            {
-                s.Hatch = HatchPattern.ForwardDiagonal;
-                s.HatchColor = Colors.Black;
-            }))
-            .ToSvg();
-
-        Assert.Contains("<pattern", svg);
-        Assert.Contains("fill=\"url(#", svg);
-    }
-
-    /// <summary>End-to-end through the figure: a hatched filled area reaches the canvas hatched.</summary>
-    [Fact]
-    public void AreaSeries_WithHatch_RendersHatched()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.FillBetween([0.0, 1, 2], [1.0, 2, 1], null, s =>
-            {
-                s.Hatch = HatchPattern.BackDiagonal;
-                s.HatchColor = Colors.Black;
-            }))
-            .ToSvg();
-
-        Assert.Contains("<pattern", svg);
-        Assert.Contains("fill=\"url(#", svg);
-    }
-
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        int count = 0;
-        int i = 0;
-        while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            i += needle.Length;
-        }
-
-        return count;
     }
 }

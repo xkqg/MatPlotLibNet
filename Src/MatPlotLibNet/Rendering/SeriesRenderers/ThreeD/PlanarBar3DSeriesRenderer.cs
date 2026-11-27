@@ -8,15 +8,12 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>
 /// Renders a <see cref="PlanarBar3DSeries"/> — flat, translucent rectangles placed in the
-/// XZ plane at <c>y = Y[i]</c>. Unlike <see cref="Bar3DSeriesRenderer"/> which builds six
-/// cuboid faces per bar and shades them with matplotlib's <c>_shade_colors</c> formula,
-/// this renderer produces a single polygon per bar and leaves shading to the caller's
-/// chosen <see cref="PlanarBar3DSeries.Alpha"/> and <see cref="PlanarBar3DSeries.Color"/>.
-/// When a shared <see cref="DepthQueue3D"/> is present on the context, face draws are
-/// queued so rectangles from multiple <c>PlanarBar3D</c> series composite correctly
-/// across planes regardless of insertion order.
+/// XZ plane at <c>y = Y[i]</c>. Unlike <see cref="Bar3DSeriesRenderer"/>, which draws each bar as a box whose six faces are
+/// shaded by the light, this renderer draws a single polygon per bar and leaves shading to the caller's
+/// chosen <see cref="PlanarBar3DSeries.Alpha"/> and <see cref="PlanarBar3DSeries.Color"/>. The rectangles are drawn back to front
+/// with the scene, so the bars of several planes composite correctly whatever order they were added in.
 /// </summary>
-internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeries>
+internal sealed class PlanarBar3DSeriesRenderer : SceneSeriesRenderer<PlanarBar3DSeries>
 {
     /// <inheritdoc />
     public PlanarBar3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -34,21 +31,15 @@ internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeri
         var proj = ProjectionFor(x is { } bars ? new Range1D(bars.Lo, bars.Hi + series.BarWidth) : null,
             series.Y.Data.DrawableRange(), new Range1D(0, series.Z.Data.DrawableRange()?.Hi ?? 1));
 
-        var baseColor = ResolveColor(series.Color);
-        var edgeColor = series.EdgeColor ?? Colors.Black;
-        byte alpha    = (byte)Math.Clamp(255 * series.Alpha, 0, 255);
-        var queue     = Context.DepthQueue;
+        var baseColor = ColorOf(series);
 
+        var faces = new List<FilledFace>(series.X.Length);
         for (int i = 0; i < series.X.Length; i++)
         {
             double x0 = series.X.Data[i];
             double x1 = x0 + series.BarWidth;
             double y  = series.Y.Data[i];
             double h  = series.Z.Data[i];
-
-            // Per-bar fill colour resolution: Colors[i] > Color > baseColor, then apply Alpha.
-            Color pickedColor = (series.Colors is { } cs && i < cs.Length) ? cs[i] : baseColor;
-            Color fill = pickedColor.WithAlpha(alpha);
 
             // Four corners of the rectangle in the XZ plane at y = const, CCW from viewer.
             var pts = new[]
@@ -62,22 +53,16 @@ internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeri
             // A bar with a corner that cannot be placed is skipped.
             if (!pts.IsDrawable()) continue;
 
-            // Depth key: centroid of the rectangle.
-            double depth = proj.Depth((x0 + x1) / 2, y, h / 2);
-
-            if (queue is not null)
-            {
-                // Capture-by-value so the foreach variables don't alias when the closure
-                // is invoked later during DepthQueue3D.Flush().
-                var pLocal = pts;
-                var fLocal = fill;
-                var eLocal = edgeColor;
-                queue.Add(depth, () => Ctx.DrawPolygon(pLocal, new ShapeStyle(fLocal, eLocal, 0.5)));
-            }
-            else
-            {
-                Ctx.DrawPolygon(pts, new ShapeStyle(fill, edgeColor, 0.5));
-            }
+            // Per-bar fill colour: Colors[i] > Color > the slot's colour, then the alpha; at the depth of its centre.
+            var picked = series.Colors.ElementOrNull(i) ?? baseColor;
+            faces.Add(new(proj.Depth((x0 + x1) / 2, y, h / 2), pts, picked.WithOpacityGiven(series.Alpha)));
         }
+
+        // Every bar edged as the theme decides for a patch (the colour given, else black at 1 pt under classic and none under v2), the
+        // bar's own hairline under the library's themes.
+        var theme = Context.Theme;
+        var edges = theme.PatchEdgesOf(series);
+        var edge = edges.Of();
+        DrawBackToFront(faces, face => Ctx.DrawPolygon(face.Vertices, edges.StyleOf(face.Fill, edge)));
     }
 }

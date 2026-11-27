@@ -10,11 +10,11 @@ namespace MatPlotLibNet.Blazor.Tests;
 /// covered separately in X.11.c via the AspNetCore.Tests project's existing harness.
 ///
 /// This file pins:
-///   - IsConnected with a never-connected client → false (line 16, _hub null)
-///   - SubscribeAsync without ConnectAsync → no-op (line 44 false arm)
-///   - UnsubscribeAsync without ConnectAsync → no-op (line 51 false arm)
-///   - OnSvgUpdated / OnChartUpdated handler setters (lines 56, 59)
-///   - DisposeAsync without prior connect → no-op (line 64 false arm)</summary>
+///   - IsConnected with a never-connected client → false (_hub null)
+///   - SubscribeAsync without ConnectAsync → no-op
+///   - UnsubscribeAsync without ConnectAsync → no-op
+///   - OnSvgUpdated / OnChartUpdated handler setters
+///   - DisposeAsync without prior connect → no-op</summary>
 public class ChartSubscriptionClientTests
 {
     [Fact]
@@ -24,32 +24,13 @@ public class ChartSubscriptionClientTests
         Assert.False(client.IsConnected);
     }
 
-    [Fact]
-    public async Task SubscribeAsync_WithoutConnect_NoOp()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SubscribeAndUnsubscribeAsync_WithoutConnect_AreNoOps(bool subscribe)
     {
         var client = new ChartSubscriptionClient();
-        await client.SubscribeAsync("c1", TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
-    public async Task UnsubscribeAsync_WithoutConnect_NoOp()
-    {
-        var client = new ChartSubscriptionClient();
-        await client.UnsubscribeAsync("c1", TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
-    public void OnSvgUpdated_HandlerSetter_DoesNotThrow()
-    {
-        var client = new ChartSubscriptionClient();
-        client.OnSvgUpdated((id, svg) => Task.CompletedTask);
-    }
-
-    [Fact]
-    public void OnChartUpdated_HandlerSetter_DoesNotThrow()
-    {
-        var client = new ChartSubscriptionClient();
-        client.OnChartUpdated((id, json) => Task.CompletedTask);
+        await (subscribe ? client.SubscribeAsync("c1", TestContext.Current.CancellationToken) : client.UnsubscribeAsync("c1", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -59,62 +40,59 @@ public class ChartSubscriptionClientTests
         await client.DisposeAsync();
     }
 
-    /// <summary>Handler-setter overwrite — calling OnSvgUpdated twice replaces the
-    /// previous handler (no event collection internally). Forward-regression guard
-    /// for the contract that handlers are single-slot, not multicast.</summary>
-    [Fact]
-    public void OnSvgUpdated_CalledTwice_OverwritesPrevious()
+    /// <summary>The client holds two handlers of the same shape, one for the picture a chart is redrawn as and one for its data;
+    /// a test of either runs for both.</summary>
+    private static void Handle(ChartSubscriptionClient client, bool picture, Func<string, string, Task> handler)
     {
-        var client = new ChartSubscriptionClient();
-        client.OnSvgUpdated((id, svg) => Task.CompletedTask);
-        client.OnSvgUpdated((id, svg) => Task.CompletedTask);
+        if (picture) client.OnSvgUpdated(handler);
+        else client.OnChartUpdated(handler);
     }
 
-    // ── Wave J.1 — HandleSvgUpdatedAsync / HandleChartUpdatedAsync internal dispatch ───
+    /// <summary>Hands the client an update the way the hub does, as a picture or as data.</summary>
+    private static Task Update(ChartSubscriptionClient client, bool picture, string id, string payload) =>
+        picture ? client.HandleSvgUpdatedAsync(id, payload) : client.HandleChartUpdatedAsync(id, payload);
 
-    /// <summary>HandleSvgUpdatedAsync with no handler registered — null arm, no-op.</summary>
-    [Fact]
-    public async Task HandleSvgUpdatedAsync_NoHandler_NoOp()
+    /// <summary>Handler-setter overwrite - setting a handler twice replaces the previous one (no event collection internally).
+    /// Forward-regression guard for the contract that handlers are single-slot, not multicast.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AHandlerSetTwice_OverwritesThePrevious(bool picture)
     {
         var client = new ChartSubscriptionClient();
-        await client.HandleSvgUpdatedAsync("chart1", "<svg/>");
+        int first = 0, second = 0;
+        Handle(client, picture, (id, payload) => { first++; return Task.CompletedTask; });
+        Handle(client, picture, (id, payload) => { second++; return Task.CompletedTask; });
+
+        await Update(client, picture, "c1", "{}");
+
+        Assert.Equal(0, first);
+        Assert.Equal(1, second);
     }
 
-    /// <summary>HandleSvgUpdatedAsync with a registered handler — invokes the handler.</summary>
-    [Fact]
-    public async Task HandleSvgUpdatedAsync_WithHandler_InvokesHandler()
+    /// <summary>An update with no handler registered is the null arm: a no-op.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AnUpdate_WithNoHandler_IsANoOp(bool picture)
+    {
+        await Update(new ChartSubscriptionClient(), picture, "chart1", "{}");
+    }
+
+    /// <summary>An update with a registered handler invokes it with the chart's id and the payload.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AnUpdate_WithAHandler_InvokesItWithTheIdAndThePayload(bool picture)
     {
         var client = new ChartSubscriptionClient();
         string? receivedId = null;
-        string? receivedSvg = null;
-        client.OnSvgUpdated((id, svg) => { receivedId = id; receivedSvg = svg; return Task.CompletedTask; });
+        string? receivedPayload = null;
+        Handle(client, picture, (id, payload) => { receivedId = id; receivedPayload = payload; return Task.CompletedTask; });
 
-        await client.HandleSvgUpdatedAsync("c1", "<svg/>");
-
-        Assert.Equal("c1", receivedId);
-        Assert.Equal("<svg/>", receivedSvg);
-    }
-
-    /// <summary>HandleChartUpdatedAsync with no handler registered — null arm, no-op.</summary>
-    [Fact]
-    public async Task HandleChartUpdatedAsync_NoHandler_NoOp()
-    {
-        var client = new ChartSubscriptionClient();
-        await client.HandleChartUpdatedAsync("chart1", "{}");
-    }
-
-    /// <summary>HandleChartUpdatedAsync with a registered handler — invokes the handler.</summary>
-    [Fact]
-    public async Task HandleChartUpdatedAsync_WithHandler_InvokesHandler()
-    {
-        var client = new ChartSubscriptionClient();
-        string? receivedId = null;
-        string? receivedJson = null;
-        client.OnChartUpdated((id, json) => { receivedId = id; receivedJson = json; return Task.CompletedTask; });
-
-        await client.HandleChartUpdatedAsync("c2", "{\"x\":1}");
+        await Update(client, picture, "c2", "{\"x\":1}");
 
         Assert.Equal("c2", receivedId);
-        Assert.Equal("{\"x\":1}", receivedJson);
+        Assert.Equal("{\"x\":1}", receivedPayload);
     }
 }

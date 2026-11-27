@@ -5,8 +5,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Animation;
 
-/// <summary>Builds an animation as a sequence of figure frames for playback via SignalR.</summary>
-public sealed class AnimationBuilder
+/// <summary>Builds an animation as a sequence of figure frames for playback via SignalR. It is an animation of frame indexes
+/// (<see cref="IAnimation{TState}"/> of <see cref="int"/>): its state is the index of the frame, so a controller, an interactive
+/// figure or a native control plays it as it is.</summary>
+public sealed class AnimationBuilder : IAnimation<int>
 {
     private readonly Func<int, Figure> _frameGenerator;
 
@@ -39,6 +41,17 @@ public sealed class AnimationBuilder
     public Figure GenerateFrame(int index) => _frameGenerator(index);
 
     /// <summary>Wraps this builder in an <see cref="AnimationController{TState}"/> ready to play.</summary>
-    public AnimationController<int> ToController() =>
-        new(new LegacyAnimationAdapter(this), static (_, _) => Task.CompletedTask);
+    public AnimationController<int> ToController() => new(this, static (_, _) => Task.CompletedTask);
+
+    /// <inheritdoc />
+    /// <remarks>The state of a builder is the index of its frame, so it starts at the first.</remarks>
+    int IAnimation<int>.CreateInitialState() => 0;
+
+    /// <inheritdoc />
+    /// <remarks>The next state is the index of the frame asked for, whatever the state was.</remarks>
+    int IAnimation<int>.Advance(int currentState, int frameIndex) => frameIndex;
+
+    /// <inheritdoc />
+    /// <remarks>The frame is the one the generator makes for the index (<see cref="GenerateFrame(int)"/>).</remarks>
+    Figure IAnimation<int>.GenerateFrame(int state, int frameIndex) => _frameGenerator(frameIndex);
 }

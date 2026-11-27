@@ -9,8 +9,8 @@ namespace MatPlotLibNet.Tests.Models.Series;
 /// share its inner width in stripes side by side, in the order given.</summary>
 public class CalendarEventLayoutTests
 {
-    private static CalendarGrid Of(DateTime first, DateTime last, DayOfWeek start = DayOfWeek.Monday) =>
-        CalendarGrid.Of([first, last], [0, 0], start);
+    private static GridAxesExtensions.CalendarGrid Of(DateTime first, DateTime last, DayOfWeek start = DayOfWeek.Monday) =>
+        GridAxesExtensions.CalendarGrid.Of([first, last], [0, 0], start);
 
     [Theory]
     [InlineData(2025, 1, 1, 2, 0)]     // a Wednesday: the third row of a week that starts on Monday, in the first column
@@ -55,7 +55,7 @@ public class CalendarEventLayoutTests
         var stripe = grid.StripeOf(new DateTime(2025, 1, 1), 0, 1, 1);
 
         Assert.Equal(0 + 0.1 + 0.4, stripe.Centre, 12);                  // column 0: the middle of the cell
-        Assert.Equal(0.8 * CalendarEventLayoutExtensions.StripeFill, stripe.Width, 12);
+        Assert.Equal(0.8 * GridAxesExtensions.StripeFill, stripe.Width, 12);
         Assert.Equal(0.8, stripe.Height, 12);
         // Row 2 of 7, counted from the top: its slot along Y runs 4..5, so the mark begins a tenth above 4.
         Assert.Equal(4 + 0.1, stripe.Foot, 12);
@@ -72,8 +72,8 @@ public class CalendarEventLayoutTests
 
         Assert.True(first.Centre < second.Centre);
         Assert.True(first.Centre + first.Width / 2 < second.Centre - second.Width / 2, "the two marks are disjoint");
-        Assert.True(first.Centre - first.Width / 2 >= 1 + CalendarEventLayoutExtensions.CellInset - 1e-12, "inside the cell on the left");
-        Assert.True(second.Centre + second.Width / 2 <= 2 - CalendarEventLayoutExtensions.CellInset + 1e-12, "inside the cell on the right");
+        Assert.True(first.Centre - first.Width / 2 >= 1 + GridAxesExtensions.CellInset - 1e-12, "inside the cell on the left");
+        Assert.True(second.Centre + second.Width / 2 <= 2 - GridAxesExtensions.CellInset + 1e-12, "inside the cell on the right");
         Assert.Equal(first.Foot, second.Foot);
         Assert.Equal(first.Height, second.Height);
     }
@@ -120,7 +120,7 @@ public class CalendarEventLayoutTests
             for (var day = new DateTime(2025, 1, 1); day <= new DateTime(2025, 2, 28); day = day.AddDays(1))
             {
                 var stripe = grid.StripeOf(day, 0, 1, 3);
-                int column = grid.ColumnOf(day), rowFromBottom = CalendarGrid.DaysPerWeek - 1 - grid.RowOf(day);
+                int column = grid.ColumnOf(day), rowFromBottom = GridAxesExtensions.CalendarGrid.DaysPerWeek - 1 - grid.RowOf(day);
 
                 Assert.InRange(stripe.Centre - stripe.Width / 2, column, column + 1);
                 Assert.InRange(stripe.Centre + stripe.Width / 2, column, column + 1);
@@ -128,5 +128,61 @@ public class CalendarEventLayoutTests
                 Assert.InRange(stripe.Foot + stripe.Height, rowFromBottom, rowFromBottom + 1);
             }
         }
+    }
+
+    [Fact]
+    public void TheDayCells_AreZeroInsideTheSpan_AndMissingOutsideIt()
+    {
+        var grid = Of(new DateTime(2025, 1, 1), new DateTime(2025, 1, 10));
+
+        var cells = grid.DayCells();
+
+        Assert.Equal(GridAxesExtensions.CalendarGrid.DaysPerWeek, cells.GetLength(0));
+        Assert.Equal(grid.Columns, cells.GetLength(1));
+        for (int row = 0; row < cells.GetLength(0); row++)
+        {
+            for (int column = 0; column < cells.GetLength(1); column++)
+            {
+                if (grid.DateAt(row, column) is null) Assert.True(double.IsNaN(cells[row, column]), $"({row}, {column}) lies outside the span");
+                else Assert.Equal(0.0, cells[row, column]);
+            }
+        }
+    }
+
+    [Fact]
+    public void TheEventMarks_AreOneSeriesForEachKind_InTheOrderTheKindsFirstAppear()
+    {
+        DateTime[] days = [new(2025, 1, 1), new(2025, 1, 1), new(2025, 1, 8)];
+        string[] kinds = ["deploy", "incident", "deploy"];
+        var grid = GridAxesExtensions.CalendarGrid.Of(days, new double[3], DayOfWeek.Monday);
+
+        var marks = grid.EventMarks(days, kinds);
+
+        Assert.Equal(["deploy", "incident"], marks.Select(series => series.Label));
+        // The two events of January 1 share its cell side by side, so the mark is as wide as the narrowest stripe (two to a day).
+        var first = grid.StripeOf(days[0], 0, 2, 2);
+        var second = grid.StripeOf(days[1], 1, 2, 2);
+        var next = grid.StripeOf(days[2], 0, 1, 2);
+        Assert.Equal(["2025-01-01", "2025-01-08"], marks[0].Categories);
+        Assert.Equal([first.Centre, next.Centre], marks[0].XCoordinate!);
+        Assert.Equal([first.Foot, next.Foot], marks[0].StackBaseline!);
+        Assert.Equal([first.Height, next.Height], marks[0].Values);
+        Assert.Equal(first.Width, marks[0].BarWidth);
+        Assert.Equal(["2025-01-01"], marks[1].Categories);
+        Assert.Equal([second.Centre], marks[1].XCoordinate!);
+        Assert.Null(marks[0].Color);
+    }
+
+    [Fact]
+    public void AnEventOfNoKind_IsAMarkWithNoLegendName()
+    {
+        DateTime[] days = [new(2025, 1, 1), new(2025, 1, 2)];
+        var grid = GridAxesExtensions.CalendarGrid.Of(days, new double[2], DayOfWeek.Monday);
+
+        var marks = grid.EventMarks(days, [null!, ""]);
+
+        var only = Assert.Single(marks);
+        Assert.Null(only.Label);
+        Assert.Equal(2, only.Categories.Length);
     }
 }

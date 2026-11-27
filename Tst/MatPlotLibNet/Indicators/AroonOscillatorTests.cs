@@ -7,63 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="AroonOscillator"/>. Covers all 12 branches in
-/// docs/contrib/indicator-tier-2d.md §2.</summary>
+/// <summary>Verifies <see cref="AroonOscillator"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class AroonOscillatorTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        Assert.Empty(new AroonOscillator(OhlcvBars.Hl([], []), period: 5).Compute().Values);
-    }
-
-    // ── Branch 2 — HL length mismatch throws ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new AroonOscillator(OhlcvBars.Hl([101.0, 102], [99.0]), period: 2));
-    }
-
-    // ── Branch 3 — period < 2 throws ──
-    [Theory]
-    [InlineData(1)]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_PeriodBelowTwo_Throws(int p)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new AroonOscillator(OhlcvBars.Hl([101.0, 102, 103], [99.0, 100, 101]), p));
-    }
-
-    // ── Branch 4 — BarCount <= period → empty ──
-    [Fact]
-    public void Compute_BarCountEqualsPeriod_ReturnsEmpty()
-    {
-        var r = new AroonOscillator(
-            OhlcvBars.Hl([101.0, 102, 103, 104, 105], [99.0, 100, 101, 102, 103]), period: 5);
-        Assert.Empty(r.Compute().Values);
-    }
-
-    // ── Branch 5 — BarCount == period + 1 → single output ──
-    [Fact]
-    public void Compute_BarCountEqualsPeriodPlusOne_ReturnsSingleValue()
-    {
-        var r = new AroonOscillator(
-            OhlcvBars.Hl([101.0, 102, 103, 104, 105, 106], [99.0, 100, 101, 102, 103, 104]), period: 5);
-        Assert.Single(r.Compute().Values);
-    }
-
-    // ── Branch 6 — H < L throws ──
-    [Fact]
-    public void Constructor_HighBelowLow_Throws()
-    {
-        // Bar 1 has H=99 < L=100 — invalid.
-        Assert.Throws<ArgumentException>(() =>
-            new AroonOscillator(OhlcvBars.Hl([101.0, 99], [99.0, 100]), period: 2));
-    }
-
     // ── Branch 7 — Ties on highest high: most recent wins ──
     //   h = [100, 100, 100], l = [99, 99, 99], period = 2
     //   At output index 0 (bar t=2): window = bars [0..2], all H=100 → tie → most recent (bar 2).
@@ -98,17 +45,6 @@ public class AroonOscillatorTests
         Assert.Equal(0.0, r[0], precision: 10);
     }
 
-    // ── Branch 9 — Flat prices → ties → Osc = 0 ──
-    [Fact]
-    public void Compute_FlatPrices_ReturnsZero()
-    {
-        var h = Enumerable.Repeat(100.0, 30).ToArray();
-        var l = Enumerable.Repeat(100.0, 30).ToArray();
-        var r = new AroonOscillator(OhlcvBars.Hl(h, l), period: 10).Compute().Values;
-        Assert.NotEmpty(r);
-        Assert.All(r, v => Assert.Equal(0.0, v, precision: 10));
-    }
-
     // ── Branch 10 — Monotonic rise → Osc near +100 ──
     [Fact]
     public void Compute_MonotonicRise_OscillatorNearHundred()
@@ -130,77 +66,5 @@ public class AroonOscillatorTests
         var r = new AroonOscillator(OhlcvBars.Hl(falling, falling), period: 5).Compute().Values;
         Assert.NotEmpty(r);
         Assert.All(r, v => Assert.Equal(-100.0, v, precision: 10));
-    }
-
-    // ── Branch 12 — Normal multi-bar path ──
-    [Fact]
-    public void Compute_MixedSignal_OutputBounded()
-    {
-        var rng = new Random(42);
-        var h = new double[100];
-        var l = new double[100];
-        for (int i = 0; i < 100; i++)
-        {
-            double mid = 100 + rng.NextDouble() * 10;
-            h[i] = mid + 0.5;
-            l[i] = mid - 0.5;
-        }
-        var r = new AroonOscillator(OhlcvBars.Hl(h, l), period: 25).Compute().Values;
-        Assert.Equal(75, r.Length); // 100 - 25
-        Assert.All(r, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.InRange(v, -100.0, 100.0);
-        });
-    }
-
-    // ── Apply / label ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
-        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        new AroonOscillator(OhlcvBars.Hl(h, l), period: 10).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsYAxisRange()
-    {
-        var axes = new Axes();
-        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
-        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        new AroonOscillator(OhlcvBars.Hl(h, l), period: 10).Apply(axes);
-        Assert.Equal(-100, axes.YAxis.Min);
-        Assert.Equal(100, axes.YAxis.Max);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
-        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        new AroonOscillator(OhlcvBars.Hl(h, l), period: 25).Apply(axes);
-        Assert.Equal("Aroon(25)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultPeriod_IsTwentyFive()
-    {
-        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
-        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        var r = new AroonOscillator(OhlcvBars.Hl(h, l));
-        Assert.Equal("Aroon(25)", r.Label);
-    }
-
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        var r = new AroonOscillator(OhlcvBars.Hl([101.0, 102], [99.0, 100]), period: 2);
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(r);
-        Assert.IsAssignableFrom<IIndicator>(r);
     }
 }

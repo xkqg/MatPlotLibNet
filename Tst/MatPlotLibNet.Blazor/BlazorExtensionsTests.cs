@@ -24,7 +24,7 @@ public class BlazorExtensionsTests
         Assert.Contains("Test", markup.Value);
     }
 
-    /// <summary>Verifies that ToMarkupString produces valid SVG even for an empty figure.</summary>
+    /// <summary>ToMarkupString hands the figure's own SVG to the page, an empty figure's too.</summary>
     [Fact]
     public void ToMarkupString_EmptyFigure_ReturnsValidSvg()
     {
@@ -32,8 +32,7 @@ public class BlazorExtensionsTests
 
         MarkupString markup = figure.ToMarkupString();
 
-        Assert.StartsWith("<svg", markup.Value.TrimStart());
-        Assert.Contains("</svg>", markup.Value);
+        Assert.Equal(figure.ToSvg(), markup.Value);
     }
 
     /// <summary>Verifies that ToMarkupString preserves the configured width and height in the SVG output.</summary>

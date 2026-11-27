@@ -196,20 +196,20 @@ Plt.Create()
 
 ### All marker shapes
 
-`MarkerStyle` has 13 shapes. The shared `MarkerRenderer` draws every one of them:
+`MarkerStyle` has 13 shapes, and each is drawn by one shape the library shares:
 
 | Shape | SVG primitive | Notes |
 |---|---|---|
-| `Circle` | `<circle>` | Default. Radius = `MarkerSize / 2`. |
-| `Square` | `<rect>` | Edge = `MarkerSize`. |
-| `Triangle` / `TriangleDown` / `TriangleLeft` / `TriangleRight` | `<polygon>` (3 vertices) | Equilateral; orientation as named. |
-| `Diamond` | `<polygon>` (4 vertices) | Square rotated 45°. |
+| `Circle` | `<circle>` | Default. `MarkerSize` points across. |
+| `Square` | `<rect>` | `MarkerSize` points on a side. |
+| `Triangle` / `TriangleDown` / `TriangleLeft` / `TriangleRight` | `<polygon>` (3 vertices) | Orientation as named. Under the matplotlib themes it fills the box of the size, as matplotlib's `'^'` does (1 x 1); under the library's own themes it is equilateral, inscribed in the circle of the size. |
+| `Diamond` | `<polygon>` (4 vertices) | Square rotated 45°. Under the matplotlib themes it is the box of the size turned (1.414 across, as matplotlib's `'D'`); under the library's own themes it is 1 across. |
 | `Pentagon` / `Hexagon` | `<polygon>` (5 / 6 vertices) | Regular N-gon, flat-top-up variant. |
 | `Star` | `<polygon>` (10 vertices) | 5-point star, inner radius ≈ 0.38 × outer (matplotlib parity). |
-| `Cross` / `Plus` | `<line>` × 2 | Outline-only (no fill). Stroke thickness falls back to `MarkerSize / 8` when `MarkerEdgeWidth` is zero. |
+| `Cross` / `Plus` | `<line>` × 2 | Outline-only (no fill), drawn in the edge colour. Stroke thickness is `MarkerEdgeWidth` where one is given or the theme names one (matplotlib's `lines.markeredgewidth`: 1 point under v2, half a point under classic), else an eighth of the marker's size. |
 | `None` | — | No marker drawn. |
 
-The shared `MarkerRenderer` draws every shape the same way for lines, steps and scatters, and the legend entry of
+The same shape draws a marker the same way for lines, steps and scatters, and the legend entry of
 a series draws the marker the series has: a triangle in the plot is a triangle in the legend, and a line with
 `Marker = MarkerStyle.None` shows no marker there either. The other way round, `LineStyle = LineStyle.None` with a marker
 draws the markers alone, with no line between them, in the plot and in the legend (matplotlib's `linestyle='None'`).
@@ -319,8 +319,9 @@ Plt.Create()
     .Save("four_axes.svg");
 ```
 
-Every Y axis title stands 4 px from the tick labels beside it, the same on the left and on the right and for every
-axis, and the same 4 px separates one stacked axis from the next. A browser draws the text with the metrics of its own
+Every Y axis title stands 4 px from the tick labels beside it (under the matplotlib themes matplotlib's `axes.labelpad`, 4 pt
+under v2 and 5 pt under classic), the same on the left and on the right and for every axis, and the same gap separates one
+stacked axis from the next. A browser draws the text with the metrics of its own
 font, so what you see differs from that by a pixel or two. `WithYAxisTitleGap(pixels)` sets another distance for the
 whole subplot. A figure with this many axes still saves to JSON and reads back whole.
 
@@ -431,7 +432,7 @@ ax.WithLegend(l => l with
     Title = "Metrics",
     TitleFontSize = 12,
     FrameOn = true,
-    FancyBox = true,          // rounded corners
+    FancyBox = true,          // rounded corners, 0.2 of the text's size (the matplotlib themes round them unasked)
     Shadow = true,
     FaceColor = Colors.AliceBlue,
     EdgeColor = Colors.SteelBlue,
@@ -440,6 +441,17 @@ ax.WithLegend(l => l with
     LabelSpacing = 0.4,
     ColumnSpacing = 1.5,
 });
+```
+
+Left alone, a legend is drawn as its theme says. The library's own themes draw it at the tick labels' size in a square frame at
+0.8 opacity, in light grey, with one marker in a handle. The matplotlib themes draw it as matplotlib's `legend.*` settings say:
+v2 at the font size in a rounded frame at 0.8 with a light-grey edge and one marker in each handle; classic at 1.2 times the font
+size in a square, opaque frame with a black edge, two markers in the handle of a line (it runs between them) and three in the
+handle of a scatter. `NumPoints` and `ScatterPoints` (matplotlib's `numpoints` and `scatterpoints`) choose another number under
+any theme:
+
+```csharp
+ax.WithLegend(l => l with { NumPoints = 2, ScatterPoints = 3 });
 ```
 
 ## Legend value display
@@ -492,10 +504,10 @@ the legend anyway.
 | `LineStyle` | `LineStyle` | `Solid` | Solid, Dashed, Dotted, DashDot |
 | `LineWidth` | `double` | `1.5` | Line width in pixels |
 | `Marker` | `MarkerStyle` | none | Circle, Square, Triangle, Diamond, Star, Cross, Plus, ... |
-| `MarkerSize` | `double` | `6` | Marker diameter |
+| `MarkerSize` | `double` | `6` | Marker diameter, in points (a point is 100/72 pixels). A scatter takes its size as an area in points squared, so 36 is the same marker. |
 | `MarkerFaceColor` | `Color` | auto | Marker fill color |
-| `MarkerEdgeColor` | `Color` | auto | Marker edge color |
-| `MarkerEdgeWidth` | `double` | `1` | Marker edge width |
+| `MarkerEdgeColor` | `Color` | auto | Marker edge color. Left alone, the matplotlib themes outline a marker in the color of its line, and black under classic for a filled one, as `markeredgecolor='auto'` does; the library's own themes draw no outline |
+| `MarkerEdgeWidth` | `double` | `1` | Marker edge width, in pixels. Left alone, the matplotlib themes use `lines.markeredgewidth` (1 point under v2, half a point under classic) |
 | `MarkEvery` | `int?` | none | Show a marker on every Nth point (none: on every point) |
 | `DrawStyle` | `DrawStyle?` | none | Straight segments; `StepsPre`, `StepsMid` or `StepsPost` for steps |
 | `Smooth` | `bool` | `false` | Fritsch-Carlson cubic interpolation |
@@ -503,7 +515,7 @@ the legend anyway.
 | `Label` | `string` | none | The series name, in the legend or at the end of the line |
 | `LabelPlacement` | `SeriesLabelPlacement` | `Legend` | `LineEnd` draws the name at the end of the line instead of in the legend ([direct labels](direct-labels-and-axis-colours.md)) |
 | `Visible` | `bool` | `true` | Show/hide series |
-| `ZOrder` | `int` | `0` | Render order (higher = on top) |
+| `ZOrder` | `int` | `0` | Render order (higher = on top); left alone, the matplotlib themes draw a line at matplotlib's 2, over the grid of the default style and over bars, fills and markers |
 
 ## Bump / rank chart
 
@@ -753,7 +765,7 @@ Plt.Create()
 
 ![A connected scatter with an arrow along each segment](../images/connected_scatter.png)
 
-The path is a scatter and a quiver in one colour; each arrow's head lands on the next point and points along the segment as the
+The path is a scatter and a quiver in one colour; each arrow's head lands on the next point (the arrows ask for data units, `AutoScale = false`, whatever the theme) and points along the segment as the
 page draws it. The points keep the order given, so the x values may go back and forth. `ConnectedScatterParts` hands you the
 points and the arrows, to label the moments that matter with `Annotate` or to restyle either.
 

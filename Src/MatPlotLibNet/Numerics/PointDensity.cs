@@ -29,10 +29,7 @@ internal static class PointDensity
     {
         ArgumentNullException.ThrowIfNull(x);
         ArgumentNullException.ThrowIfNull(y);
-        if (x.Length != y.Length)
-        {
-            throw new ArgumentException($"There are {x.Length} x values and {y.Length} y values.", nameof(y));
-        }
+        x.ThrowIfNotOneYPerX(y);
 
         if (x.Length == 0)
         {
@@ -44,15 +41,15 @@ internal static class PointDensity
 
         // A cloud with no width in one direction is a line, and every point on it still belongs somewhere: the
         // span becomes 1 so the whole line falls in the first column, rather than dividing by zero.
-        double xSpan = xMax > xMin ? xMax - xMin : 1.0;
-        double ySpan = yMax > yMin ? yMax - yMin : 1.0;
+        var columns = new EqualWidthBins(xMin, xMax > xMin ? xMax : xMin + 1.0, cells);
+        var rows = new EqualWidthBins(yMin, yMax > yMin ? yMax : yMin + 1.0, cells);
 
         var counts = new int[cells * cells];
         var cellOf = new int[x.Length];
         for (int i = 0; i < x.Length; i++)
         {
-            int cx = Math.Clamp((int)((x[i] - xMin) / xSpan * cells), 0, cells - 1);
-            int cy = Math.Clamp((int)((y[i] - yMin) / ySpan * cells), 0, cells - 1);
+            int cx = columns.IndexOf(x[i]);
+            int cy = rows.IndexOf(y[i]);
             int cell = (cy * cells) + cx;
             cellOf[i] = cell;
             counts[cell]++;

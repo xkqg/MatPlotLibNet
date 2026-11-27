@@ -257,7 +257,9 @@ public class ColorMapTests
         var c0 = map.GetColor(0.0);
         var c1 = map.GetColor(1.0);
         int diff = Math.Abs(c0.R - c1.R) + Math.Abs(c0.G - c1.G) + Math.Abs(c0.B - c1.B);
-        Assert.True(diff <= 3,
+        // matplotlib 3.11.2: colormaps['hsv'](0.0, bytes=True) is (255, 0, 0) and (1.0) is (255, 0, 23), a hue of 351 degrees: the
+        // hue wheel stops a step short of red, as the library's own map did not.
+        Assert.True(diff <= (map.Name == "hsv" ? 24 : 3),
             $"{map.Name}: start and end colors should be approximately equal (diff={diff})");
     }
 
@@ -285,324 +287,15 @@ public class ColorMapTests
 
     // --- Clamping (kept for specificity) ---
 
-    [Fact]
-    public void GetColor_ClampsBelow0()
+    [Theory]
+    [InlineData(0.0, -0.5)]
+    [InlineData(1.0, 1.5)]
+    public void GetColor_ClampsBelow0AndAbove1(double atTheEnd, double beyond)
     {
-        Assert.Equal(ColorMaps.Viridis.GetColor(0.0), ColorMaps.Viridis.GetColor(-0.5));
+        Assert.Equal(ColorMaps.Viridis.GetColor(atTheEnd), ColorMaps.Viridis.GetColor(beyond));
     }
 
-    [Fact]
-    public void GetColor_ClampsAbove1()
-    {
-        Assert.Equal(ColorMaps.Viridis.GetColor(1.0), ColorMaps.Viridis.GetColor(1.5));
-    }
-
-    // --- Batch 1: Sequential endpoint tests ---
-
-    [Fact]
-    public void Hot_AtZero_IsBlack()
-    {
-        var c = SequentialColorMaps.Hot.GetColor(0.0);
-        Assert.True(c.R < 20 && c.G < 20 && c.B < 20, $"Hot at 0 should be near-black, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Hot_AtOne_IsWhite()
-    {
-        var c = SequentialColorMaps.Hot.GetColor(1.0);
-        Assert.True(c.R > 240 && c.G > 240 && c.B > 240, $"Hot at 1 should be near-white, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Copper_AtZero_IsBlack()
-    {
-        var c = SequentialColorMaps.Copper.GetColor(0.0);
-        Assert.True(c.R < 30 && c.G < 30 && c.B < 30, $"Copper at 0 should be near-black, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Copper_AtOne_HasCopperTone()
-    {
-        var c = SequentialColorMaps.Copper.GetColor(1.0);
-        Assert.True(c.R > c.G && c.G >= c.B, $"Copper at 1 should have R>G>=B (copper tone), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Bone_AtZero_IsBlack()
-    {
-        var c = SequentialColorMaps.Bone.GetColor(0.0);
-        Assert.True(c.R < 30 && c.G < 30 && c.B < 30, $"Bone at 0 should be near-black, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Bone_AtOne_IsLightBluish()
-    {
-        var c = SequentialColorMaps.Bone.GetColor(1.0);
-        Assert.True(c.R > 200 && c.G > 200 && c.B > 200, $"Bone at 1 should be near-white, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void BuPu_AtZero_IsLight()
-    {
-        var c = SequentialColorMaps.BuPu.GetColor(0.0);
-        Assert.True(Brightness(c) > 700, $"BuPu at 0 should be light, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void BuPu_AtOne_IsDarkPurple()
-    {
-        var c = SequentialColorMaps.BuPu.GetColor(1.0);
-        Assert.True(c.B > c.G, $"BuPu at 1 should have blue>green (purple), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void GnBu_AtZero_IsLight()
-    {
-        var c = SequentialColorMaps.GnBu.GetColor(0.0);
-        Assert.True(Brightness(c) > 700, $"GnBu at 0 should be light, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void GnBu_AtOne_IsDarkBlue()
-    {
-        var c = SequentialColorMaps.GnBu.GetColor(1.0);
-        Assert.True(c.B > c.R, $"GnBu at 1 should have blue>red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void PuRd_AtZero_IsLight()
-    {
-        var c = SequentialColorMaps.PuRd.GetColor(0.0);
-        Assert.True(Brightness(c) > 700, $"PuRd at 0 should be light, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void PuRd_AtOne_IsDarkRed()
-    {
-        var c = SequentialColorMaps.PuRd.GetColor(1.0);
-        Assert.True(c.R > c.B, $"PuRd at 1 should have red>blue, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void RdPu_AtZero_IsLight()
-    {
-        var c = SequentialColorMaps.RdPu.GetColor(0.0);
-        Assert.True(Brightness(c) > 700, $"RdPu at 0 should be light, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void RdPu_AtOne_IsDarkPurple()
-    {
-        var c = SequentialColorMaps.RdPu.GetColor(1.0);
-        Assert.True(c.B > c.G, $"RdPu at 1 should have blue>green (purple), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void YlGnBu_AtZero_IsLight()
-    {
-        var c = SequentialColorMaps.YlGnBu.GetColor(0.0);
-        Assert.True(Brightness(c) > 700, $"YlGnBu at 0 should be light, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void YlGnBu_AtOne_IsDarkBlue()
-    {
-        var c = SequentialColorMaps.YlGnBu.GetColor(1.0);
-        Assert.True(c.B > c.R, $"YlGnBu at 1 should have blue>red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void PuBuGn_AtZero_IsLight()
-    {
-        var c = SequentialColorMaps.PuBuGn.GetColor(0.0);
-        Assert.True(Brightness(c) > 700, $"PuBuGn at 0 should be light, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void PuBuGn_AtOne_IsDarkGreen()
-    {
-        var c = SequentialColorMaps.PuBuGn.GetColor(1.0);
-        Assert.True(c.G >= c.R, $"PuBuGn at 1 should have green>=red, got ({c.R},{c.G},{c.B})");
-    }
-
-    // --- Batch 2: Diverging endpoint tests ---
-
-    [Fact]
-    public void PuOr_AtZero_IsDarkPurple()
-    {
-        var c = DivergingColorMaps.PuOr.GetColor(0.0);
-        Assert.True(c.B >= c.G, $"PuOr at 0 should have blue>=green (purple), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void PuOr_AtOne_IsOrange()
-    {
-        var c = DivergingColorMaps.PuOr.GetColor(1.0);
-        Assert.True(c.R > c.B, $"PuOr at 1 should have red>blue (orange), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Seismic_AtZero_IsDarkBlue()
-    {
-        var c = DivergingColorMaps.Seismic.GetColor(0.0);
-        Assert.True(c.B > c.R, $"Seismic at 0 should be blue, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Seismic_AtOne_IsDarkRed()
-    {
-        var c = DivergingColorMaps.Seismic.GetColor(1.0);
-        Assert.True(c.R > c.B, $"Seismic at 1 should be red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Bwr_AtZero_IsBlue()
-    {
-        var c = DivergingColorMaps.Bwr.GetColor(0.0);
-        Assert.True(c.B > c.R && c.B > c.G, $"Bwr at 0 should be blue, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Bwr_AtHalf_IsWhite()
-    {
-        var c = DivergingColorMaps.Bwr.GetColor(0.5);
-        Assert.True(c.R > 240 && c.G > 240 && c.B > 240, $"Bwr at 0.5 should be near-white, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Bwr_AtOne_IsRed()
-    {
-        var c = DivergingColorMaps.Bwr.GetColor(1.0);
-        Assert.True(c.R > c.B && c.R > c.G, $"Bwr at 1 should be red, got ({c.R},{c.G},{c.B})");
-    }
-
-    // --- Batch 3: Qualitative endpoint tests ---
-
-    [Fact]
-    public void Pastel2_AtZero_IsGreenish()
-    {
-        var c = QualitativeColorMaps.Pastel2.GetColor(0.0);
-        Assert.True(c.G >= c.R, $"Pastel2 at 0 should be greenish (#B3E2CD), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Dark2_AtZero_IsTeal()
-    {
-        var c = QualitativeColorMaps.Dark2.GetColor(0.0);
-        Assert.True(c.G > c.R, $"Dark2 at 0 should have green>red (teal #1B9E77), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Accent_AtZero_IsGreen()
-    {
-        var c = QualitativeColorMaps.Accent.GetColor(0.0);
-        Assert.True(c.G > c.R && c.G > c.B, $"Accent at 0 should have green dominant (#7FC97F), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Paired_AtZero_IsLightBlue()
-    {
-        var c = QualitativeColorMaps.Paired.GetColor(0.0);
-        Assert.True(c.B >= c.R, $"Paired at 0 should be light blue (#A6CEE3), got ({c.R},{c.G},{c.B})");
-    }
-
-    // --- Batch 4: Special colormap endpoint tests ---
-
-    [Fact]
-    public void Turbo_AtZero_IsDarkBlue()
-    {
-        var c = ColorMaps.Turbo.GetColor(0.0);
-        Assert.True(c.B > c.R, $"Turbo at 0 should be dark blue, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Turbo_AtOne_IsDarkRed()
-    {
-        var c = ColorMaps.Turbo.GetColor(1.0);
-        Assert.True(c.R > c.B, $"Turbo at 1 should be dark red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Jet_AtZero_IsDarkBlue()
-    {
-        var c = ColorMaps.Jet.GetColor(0.0);
-        Assert.True(c.B > c.R, $"Jet at 0 should be dark blue, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Jet_AtHalf_IsGreenish()
-    {
-        var c = ColorMaps.Jet.GetColor(0.5);
-        Assert.True(c.G > c.B, $"Jet at 0.5 should be greenish, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Jet_AtOne_IsDarkRed()
-    {
-        var c = ColorMaps.Jet.GetColor(1.0);
-        Assert.True(c.R > c.B, $"Jet at 1 should be dark red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Hsv_AtZero_IsRed()
-    {
-        var c = CyclicColorMaps.Hsv.GetColor(0.0);
-        Assert.True(c.R > 200 && c.G < 50 && c.B < 50, $"Hsv at 0 should be red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Hsv_AtOne_IsRed()
-    {
-        var c = CyclicColorMaps.Hsv.GetColor(1.0);
-        Assert.True(c.R > 200 && c.G < 50 && c.B < 50, $"Hsv at 1 should be red (cyclic), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Cubehelix_AtZero_IsBlack()
-    {
-        var c = SequentialColorMaps.Cubehelix.GetColor(0.0);
-        Assert.True(Brightness(c) < 60, $"Cubehelix at 0 should be near-black, brightness={Brightness(c)}");
-    }
-
-    [Fact]
-    public void Cubehelix_AtOne_IsWhite()
-    {
-        var c = SequentialColorMaps.Cubehelix.GetColor(1.0);
-        Assert.True(Brightness(c) > 650, $"Cubehelix at 1 should be near-white, brightness={Brightness(c)}");
-    }
-
-    // --- Semantic endpoint tests ---
-
-    [Fact]
-    public void Viridis_AtZero_ReturnsDarkColor()
-    {
-        Assert.True(ColorMaps.Viridis.GetColor(0.0).R < 128);
-    }
-
-    [Fact]
-    public void Viridis_AtOne_ReturnsLightColor()
-    {
-        Assert.True(ColorMaps.Viridis.GetColor(1.0).R > 128);
-    }
-
-    [Fact]
-    public void Blues_AtZero_ReturnsLightColor()
-    {
-        Assert.True(ColorMaps.Blues.GetColor(0.0).R > 200);
-    }
-
-    [Fact]
-    public void Blues_AtOne_ReturnsBlueColor()
-    {
-        var c = ColorMaps.Blues.GetColor(1.0);
-        Assert.True(c.B > c.R && c.B > c.G);
-    }
-
-    [Fact]
-    public void Reds_AtZero_ReturnsLightColor()
-    {
-        Assert.True(ColorMaps.Reds.GetColor(0.0).R > 200);
-    }
+    // The look of each map at its endpoints is a row of ColorMapEndpointTests.
 
     [Fact]
     public void Coolwarm_AtHalf_DiffersFromEndpoints()
@@ -659,18 +352,13 @@ public class ColorMapTests
         Assert.Equal(map.GetColor(1.0), map.GetColor(0.95));  // last bin
     }
 
-    [Fact]
-    public void ListedColorMap_NegativeInput_Clamped()
+    [Theory]
+    [InlineData(0.0, -0.5)]
+    [InlineData(1.0, 1.5)]
+    public void ListedColorMap_AnInputOutsideZeroToOne_Clamped(double atTheEnd, double beyond)
     {
         var cm = new ListedColorMap("test", [new Color(10, 0, 0), new Color(100, 0, 0)]);
-        Assert.Equal(cm.GetColor(0.0), cm.GetColor(-0.5));
-    }
-
-    [Fact]
-    public void ListedColorMap_OverOneInput_Clamped()
-    {
-        var cm = new ListedColorMap("test", [new Color(10, 0, 0), new Color(100, 0, 0)]);
-        Assert.Equal(cm.GetColor(1.0), cm.GetColor(1.5));
+        Assert.Equal(cm.GetColor(atTheEnd), cm.GetColor(beyond));
     }
 
     [Fact]
@@ -742,128 +430,6 @@ public class ColorMapTests
             Assert.Equal(255, map.GetColor(v).A);
     }
 
-    [Fact]
-    public void Gray_AtZero_IsBlack()
-    {
-        var c = AdditionalColorMaps.Gray.GetColor(0.0);
-        Assert.True(c.R < 20 && c.G < 20 && c.B < 20, $"Gray at 0 should be near-black, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Gray_AtOne_IsWhite()
-    {
-        var c = AdditionalColorMaps.Gray.GetColor(1.0);
-        Assert.True(c.R > 240 && c.G > 240 && c.B > 240, $"Gray at 1 should be near-white, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Spring_AtZero_IsMagenta()
-    {
-        var c = AdditionalColorMaps.Spring.GetColor(0.0);
-        Assert.True(c.R > 200 && c.G < 10, $"Spring at 0 should be magenta (R high, G=0), got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Spring_AtOne_IsYellow()
-    {
-        var c = AdditionalColorMaps.Spring.GetColor(1.0);
-        Assert.True(c.R > 200 && c.G > 200, $"Spring at 1 should be yellow, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Summer_AtZero_IsGreenish()
-    {
-        var c = AdditionalColorMaps.Summer.GetColor(0.0);
-        Assert.True(c.G > c.R, $"Summer at 0 should have G>R, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Autumn_AtZero_IsRed()
-    {
-        var c = AdditionalColorMaps.Autumn.GetColor(0.0);
-        Assert.True(c.R > 200 && c.G < 10, $"Autumn at 0 should be red, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Autumn_AtOne_IsYellow()
-    {
-        var c = AdditionalColorMaps.Autumn.GetColor(1.0);
-        Assert.True(c.R > 200 && c.G > 200, $"Autumn at 1 should be yellow, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Winter_AtZero_IsBluish()
-    {
-        var c = AdditionalColorMaps.Winter.GetColor(0.0);
-        Assert.True(c.B > c.R, $"Winter at 0 should have B>R, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Cool_AtZero_IsCyan()
-    {
-        var c = AdditionalColorMaps.Cool.GetColor(0.0);
-        Assert.True(c.G > 200 && c.B > 200 && c.R < 10, $"Cool at 0 should be cyan, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Cool_AtOne_IsMagenta()
-    {
-        var c = AdditionalColorMaps.Cool.GetColor(1.0);
-        Assert.True(c.R > 200 && c.B > 200, $"Cool at 1 should be magenta, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void AfmHot_AtZero_IsDark()
-    {
-        var c = AdditionalColorMaps.AfmHot.GetColor(0.0);
-        Assert.True(c.R + c.G + c.B < 30, $"AfmHot at 0 should be dark, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void PRGn_AtZero_IsPurple()
-    {
-        var c = AdditionalColorMaps.PRGn.GetColor(0.0);
-        Assert.True(c.R > 50 && c.B > 50, $"PRGn at 0 should be purplish, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void PRGn_AtOne_IsGreen()
-    {
-        var c = AdditionalColorMaps.PRGn.GetColor(1.0);
-        Assert.True(c.G > c.R && c.G > c.B, $"PRGn at 1 should be green, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void RdGy_AtZero_IsRed()
-    {
-        var c = AdditionalColorMaps.RdGy.GetColor(0.0);
-        Assert.True(c.R > c.B, $"RdGy at 0 should be reddish, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void Rainbow_HasFullSpectrum()
-    {
-        // Blue at 0, red at 1
-        var c0 = AdditionalColorMaps.Rainbow.GetColor(0.0);
-        var c1 = AdditionalColorMaps.Rainbow.GetColor(1.0);
-        Assert.True(c0.B > c0.R, $"Rainbow at 0 should be blue, got ({c0.R},{c0.G},{c0.B})");
-        Assert.True(c1.R > c1.B, $"Rainbow at 1 should be red, got ({c1.R},{c1.G},{c1.B})");
-    }
-
-    [Fact]
-    public void Ocean_AtZero_IsDeepBlue()
-    {
-        var c = AdditionalColorMaps.Ocean.GetColor(0.0);
-        Assert.True(c.B > c.R, $"Ocean at 0 should be blue, got ({c.R},{c.G},{c.B})");
-    }
-
-    [Fact]
-    public void CMRmap_AtZero_IsDark()
-    {
-        var c = AdditionalColorMaps.CMRmap.GetColor(0.0);
-        Assert.True(c.R + c.G + c.B < 30, $"CMRmap at 0 should be dark, got ({c.R},{c.G},{c.B})");
-    }
-
     // --- B3: LinearColorMap ---
 
     [Fact]
@@ -916,93 +482,45 @@ public class ColorMapTests
         Assert.Equal(blue, cm.GetColor(1.0));
     }
 
-    [Fact]
-    public void LinearColorMap_FromPositions_UnorderedStops_Throws()
+    /// <summary>Both factories hold their stops to the one rule: two or more, at positions that strictly increase, refused by the
+    /// name of the parameter that holds them.</summary>
+    [Theory]
+    [InlineData(true, new[] { 0.5 })]
+    [InlineData(true, new[] { 0.0, 0.0, 1.0 })]
+    [InlineData(false, new[] { 0.5 })]
+    [InlineData(false, new[] { 0.5, 0.0, 1.0 })]
+    public void LinearColorMap_StopsThatAreNotTwoOrMoreRising_AreRefused(bool fromList, double[] positions)
     {
-        var c = new Color(0, 0, 0);
-        Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromPositions("test", [new(0.5, c), new(0.0, c), new(1.0, c)]));
-    }
+        ColorStop[] stops = [.. positions.Select(p => new ColorStop(p, new Color(0, 0, 0)))];
 
-    [Fact]
-    public void LinearColorMap_FromPositions_SingleStop_Throws()
-    {
-        var c = new Color(0, 0, 0);
-        Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromPositions("test", [new(0.5, c)]));
+        var refused = Assert.Throws<ArgumentException>(() => fromList ? LinearColorMap.FromList("refused stops", stops) : LinearColorMap.FromPositions("test", stops));
+
+        Assert.Equal(fromList ? "colors" : "stops", refused.ParamName);
     }
 
     // --- B4: Extreme value support ---
 
-    [Fact]
-    public void IColorMap_GetUnderColor_Default_IsNull()
+    /// <summary>Either kind of map takes an under, an over (the linear one) and a bad colour as it is given and hands it back.</summary>
+    [Theory]
+    [InlineData(true, "under")]
+    [InlineData(true, "over")]
+    [InlineData(true, "bad")]
+    [InlineData(false, "under")]
+    [InlineData(false, "bad")]
+    public void AColorMap_ExtremeColor_CanBeSet(bool linear, string extreme)
     {
-        IColorMap cm = ColorMaps.Viridis;
-        Assert.Null(cm.GetUnderColor());
-    }
-
-    [Fact]
-    public void IColorMap_GetOverColor_Default_IsNull()
-    {
-        IColorMap cm = ColorMaps.Viridis;
-        Assert.Null(cm.GetOverColor());
-    }
-
-    [Fact]
-    public void IColorMap_GetBadColor_Default_IsNull()
-    {
-        IColorMap cm = ColorMaps.Viridis;
-        Assert.Null(cm.GetBadColor());
-    }
-
-    [Fact]
-    public void LinearColorMap_UnderColor_CanBeSet()
-    {
-        IColorMap cm = new LinearColorMap("test", [new Color(0, 0, 0), new Color(255, 255, 255)])
+        var color = new Color(11, 22, 33);
+        Color[] stops = [new Color(0, 0, 0), new Color(255, 255, 255)];
+        IColorMap cm = (linear, extreme) switch
         {
-            UnderColor = new Color(0, 0, 200)
+            (true, "under") => new LinearColorMap("test", stops) { UnderColor = color },
+            (true, "over") => new LinearColorMap("test", stops) { OverColor = color },
+            (true, _) => new LinearColorMap("test", stops) { BadColor = color },
+            (false, "under") => new ListedColorMap("test", stops) { UnderColor = color },
+            _ => new ListedColorMap("test", stops) { BadColor = color },
         };
-        Assert.Equal(new Color(0, 0, 200), cm.GetUnderColor());
-    }
 
-    [Fact]
-    public void LinearColorMap_OverColor_CanBeSet()
-    {
-        IColorMap cm = new LinearColorMap("test", [new Color(0, 0, 0), new Color(255, 255, 255)])
-        {
-            OverColor = new Color(200, 0, 0)
-        };
-        Assert.Equal(new Color(200, 0, 0), cm.GetOverColor());
-    }
-
-    [Fact]
-    public void LinearColorMap_BadColor_CanBeSet()
-    {
-        IColorMap cm = new LinearColorMap("test", [new Color(0, 0, 0), new Color(255, 255, 255)])
-        {
-            BadColor = new Color(128, 128, 128)
-        };
-        Assert.Equal(new Color(128, 128, 128), cm.GetBadColor());
-    }
-
-    [Fact]
-    public void ListedColorMap_UnderColor_CanBeSet()
-    {
-        IColorMap cm = new ListedColorMap("test", [new Color(255, 0, 0), new Color(0, 255, 0)])
-        {
-            UnderColor = new Color(0, 0, 255)
-        };
-        Assert.Equal(new Color(0, 0, 255), cm.GetUnderColor());
-    }
-
-    [Fact]
-    public void ListedColorMap_BadColor_CanBeSet()
-    {
-        IColorMap cm = new ListedColorMap("test", [new Color(255, 0, 0)])
-        {
-            BadColor = new Color(50, 50, 50)
-        };
-        Assert.Equal(new Color(50, 50, 50), cm.GetBadColor());
+        Assert.Equal(color, extreme switch { "under" => cm.GetUnderColor(), "over" => cm.GetOverColor(), _ => cm.GetBadColor() });
     }
 
     [Fact]
@@ -1076,22 +594,5 @@ public class ColorMapTests
             [new(0.0, new Color(0, 0, 0)), new(1.0, new Color(255, 255, 255))]);
         Assert.NotNull(ColorMapRegistry.Get("fl_test_reg"));
         Assert.NotNull(ColorMapRegistry.Get("fl_test_reg_r"));
-    }
-
-    [Fact]
-    public void FromList_SingleStop_Throws()
-    {
-        var c = new Color(0, 0, 0);
-        Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromList("fl_test_single", [new(0.0, c)]));
-    }
-
-    [Fact]
-    public void FromList_NonIncreasingPositions_Throws()
-    {
-        var c = new Color(0, 0, 0);
-        Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromList("fl_test_nonincr",
-                [new(0.0, c), new(0.0, c), new(1.0, c)]));
     }
 }

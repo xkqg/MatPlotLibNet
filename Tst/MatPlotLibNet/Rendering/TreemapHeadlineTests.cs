@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 
@@ -15,8 +13,6 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// strip, so its headline sits at the right end of that strip — the parent's total beside the parent's name.</para></summary>
 public class TreemapHeadlineTests
 {
-    private static readonly Regex Text = new("<text[^>]*x=\"([-0-9.]+)\"[^>]*y=\"([-0-9.]+)\"[^>]*font-size=\"([0-9.]+)\"[^>]*>([^<]*)<", RegexOptions.Compiled);
-
     private readonly record struct Drawn(double X, double Y, double Size, string Value);
 
     private static List<Drawn> Texts(TreeNode root, Action<TreemapSeries>? configure = null)
@@ -24,11 +20,8 @@ public class TreemapHeadlineTests
         string svg = Plt.Create().WithSize(600, 400)
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, configure))
             .ToSvg();
-        return [.. Text.Matches(svg).Select(m => new Drawn(
-            double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture),
-            double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
-            double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture),
-            m.Groups[4].Value))];
+        return [.. svg.Elements("text").Where(text => text["x"] is not null && text["y"] is not null && text["font-size"] is not null)
+            .Select(text => new Drawn(text.Number("x"), text.Number("y"), text.Number("font-size"), text.Text))];
     }
 
     private static TreeNode Fleet(string? headline = null) => new()
@@ -131,9 +124,8 @@ public class TreemapHeadlineTests
     public void TheHeadline_SurvivesTheWire()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Treemap(Fleet("24 %"), s => s.HeadlineFontSize = 26)).Build();
-        var serializer = new MatPlotLibNet.Serialization.ChartSerializer();
 
-        var back = serializer.FromJson(serializer.ToJson(figure));
+        var back = figure.RoundTripped();
 
         // The tree itself round-trips now (JSON-roundtrip plan, cluster A), headline included — the root's own
         // and each leaf's.

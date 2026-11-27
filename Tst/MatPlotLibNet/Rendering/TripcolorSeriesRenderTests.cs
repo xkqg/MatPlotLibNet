@@ -14,15 +14,6 @@ public class TripcolorSeriesRenderTests
     private static readonly double[] Z = [1.0, 2.0, 3.0, 1.5, 2.5];
 
     [Fact]
-    public void Tripcolor_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tripcolor(X, Y, Z))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Tripcolor_SvgContainsFilledPolygon()
     {
         string svg = Plt.Create()
@@ -32,39 +23,15 @@ public class TripcolorSeriesRenderTests
             "Expected SVG to contain filled triangle elements");
     }
 
-    [Fact]
-    public void Tripcolor_EmptyData_RendersWithoutError()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tripcolor([], [], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Tripcolor_FluentShortcut_ProducesSvg()
-    {
-        string svg = Plt.Create()
-            .Tripcolor(X, Y, Z)
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Tripcolor_WithExplicitTriangles_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tripcolor(X, Y, Z, s => s.Triangles = new int[] { 0, 1, 2, 0, 2, 3 }))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
-    public void Tripcolor_WithAnEmptyTriangleList_DrawsNoTriangle()
-    {
-        string svg = Plt.Create()
+        new DrawnToken("Tripcolor_WithAnEmptyTriangleList_DrawsNoTriangle", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Tripcolor(X, Y, Z, s => s.Triangles = []))
-            .ToSvg();
-        Assert.DoesNotContain("<polygon", svg);
-    }
+            .ToSvg()) { Absent = ["<polygon"] },
+    };
+
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

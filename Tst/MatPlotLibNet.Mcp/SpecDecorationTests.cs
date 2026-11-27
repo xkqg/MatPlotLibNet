@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using static MatPlotLibNet.Mcp.Tests.SpecFixtures;
 
 namespace MatPlotLibNet.Mcp.Tests;
 
@@ -13,7 +14,6 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// it normalises still has to survive the serializer, which is what these assert.</summary>
 public class SpecDecorationTests
 {
-    private static readonly ChartSpecReader Reader = new(new ChartTypeCatalog(), RenderLimits.Default);
 
     private const string Line = """{"type":"line","xData":[1,2,3],"yData":[2,4,3]}""";
 
@@ -146,9 +146,10 @@ public class SpecDecorationTests
         Assert.NotEqual(EmptyAxes.ToSvg(), figure.ToSvg());
     }
 
-    /// <summary>Every overlay list of an axes the Cartesian renderer draws counts, not the span alone.</summary>
+    /// <summary>Every overlay list of an axes the Cartesian renderer draws counts, not the span alone. The annotation annotates a point the
+    /// axes show: an axes with no series shows 0 to 1, and an annotation of a point past that is not drawn, as matplotlib's is not.</summary>
     [Theory]
-    [InlineData("annotations", """{"text":"peak","x":2,"y":4}""")]
+    [InlineData("annotations", """{"text":"peak","x":0.5,"y":0.5}""")]
     [InlineData("referenceLines", """{"value":3,"orientation":"vertical"}""")]
     [InlineData("spans", """{"min":1,"max":2,"orientation":"horizontal"}""")]
     [InlineData("trendlines", """{"x1":1,"y1":1,"x2":3,"y2":3}""")]
@@ -175,8 +176,7 @@ public class SpecDecorationTests
         var overlayLists = typeof(Axes).GetProperties()
             .Where(property => property.PropertyType.IsGenericType
                 && property.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)
-                && !typeof(ISeries).IsAssignableFrom(property.PropertyType.GetGenericArguments()[0])
-                && property.PropertyType.GetGenericArguments()[0].Name != "SecondaryAxisSlot")
+                && !typeof(ISeries).IsAssignableFrom(property.PropertyType.GetGenericArguments()[0]))
             .Select(property => property.Name);
 
         Assert.Equal(
@@ -204,7 +204,8 @@ public class SpecDecorationTests
         Assert.Contains("Nothing to draw", refusal.Message);
     }
 
-    /// <summary>The polar, ternary and 3-D renderers draw no overlay, so a span on such an axes is no picture: the refusal stands.</summary>
+    /// <summary>The polar, ternary and 3-D renderers draw no overlay but their patches, so a span on such an axes is no picture: the
+    /// refusal stands.</summary>
     [Theory]
     [InlineData("Polar")]
     [InlineData("ThreeD")]
@@ -215,6 +216,20 @@ public class SpecDecorationTests
             $$"""{"coordinateSystem":"{{coordinateSystem}}","spans":[{"min":1,"max":2}]}"""))));
 
         Assert.Contains("Nothing to draw", refusal.Message);
+    }
+
+    /// <summary>Every renderer draws its patches, so a patch on a polar, ternary or 3-D subplot with no series is a picture, as it is
+    /// on a Cartesian one.</summary>
+    [Theory]
+    [InlineData("Polar")]
+    [InlineData("ThreeD")]
+    [InlineData("Ternary")]
+    public void APatchOnAnyAxes_IsSomethingToDraw(string coordinateSystem)
+    {
+        var figure = Reader.Read(new ChartSpec(SpecOf(
+            $$"""{"coordinateSystem":"{{coordinateSystem}}","patches":[{"type":"circle","center":{"dataX":0.5,"dataY":0.3},"radius":0.1}]}""")));
+
+        Assert.Single(figure.SubPlots[0].Patches);
     }
 
     /// <summary>A break marks a gap in an axis that has data, a legend and a colour bar say what series draw: with no series
@@ -258,7 +273,7 @@ public class SpecDecorationTests
     [InlineData("#ABC", "#AABBCC")]
     [InlineData("#abcd", "#AABBCCDD")]
     [InlineData("00FF00", "#00FF00")]
-    public void AShortOrUnprefixedHex_IsExpanded(string written, string expected)
+    public void AShortOrUnprefixedHex_IsReadByCore(string written, string expected)
     {
         var figure = Read2($$"""{"type":"line","xData":[1,2],"yData":[1,2],"color":"{{written}}"}""");
 

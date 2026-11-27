@@ -14,7 +14,7 @@ namespace MatPlotLibNet.Models.Series;
 /// <c>ChordLayout</c>'s, with the ribbons inside an arc ordered so that a complete graph crosses as few times as any layout can.
 /// <para>It fills its plot without axes around it. The matrix is square, finite, not negative and not all zero; the table is the
 /// matrix as source, target and value.</para></summary>
-public sealed class ChordSeries : ChartSeries
+public sealed class ChordSeries : ChartSeries, ISeriesKind<ChordSeries>
 {
     private const double RestingRibbonAlpha = 0.67;
 
@@ -33,31 +33,27 @@ public sealed class ChordSeries : ChartSeries
     /// <summary>The flow from the group of each row to the group of each column.</summary>
     public double[,] Flows { get; }
 
-    /// <summary>The gap between neighbouring arcs, in radians; 0.05 unless said otherwise.</summary>
+    /// <summary>The gap between neighbouring arcs, in radians; <see cref="ChordLayout.DefaultPadding"/> unless said otherwise.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The value is negative, not a number, or so large that the gaps alone fill
     /// the circle.</exception>
     public double Padding
     {
         get => _padding;
-        set => _padding = value >= 0 && value * Names.Length < 2 * Math.PI
-            ? value
-            : throw new ArgumentOutOfRangeException(nameof(Padding), value, "The gaps between the arcs are 0 or more, and together less than the circle.");
+        set => Change(ref _padding, ChordLayout.ThrowIfNotAGap(value, Names.Length, nameof(Padding)));
     }
 
-    /// <summary>How opaque the ribbons are, from 0 (clear) to 1 (solid); 0.67 unless said otherwise, so a ribbon behind another shows.</summary>
+    /// <summary>How opaque the ribbons are, from 0 (clear) to 1 (solid); <see cref="RestingRibbonAlpha"/> unless said otherwise, so a ribbon behind another shows.</summary>
     /// <exception cref="ArgumentOutOfRangeException">The value is below 0, above 1 or not a number.</exception>
     public double RibbonAlpha
     {
         get => _ribbonAlpha;
-        set => _ribbonAlpha = value >= 0 && value <= 1
-            ? value
-            : throw new ArgumentOutOfRangeException(nameof(RibbonAlpha), value, "The opacity of a ribbon is between 0 and 1.");
+        set => Change(ref _ribbonAlpha, value.ThrowIfNotOpacity(nameof(RibbonAlpha)));
     }
 
     /// <summary>The colour of each group, by position; <see langword="null"/> (the default) names none. A group past the end of
     /// the array, or every group when it is <see langword="null"/>, wears what the figure's theme hands out at its own
     /// position, as the slices of a pie do.</summary>
-    public Color[]? Colors { get; set; }
+    public Color[]? Colors { get; set => Change(ref field, value); }
 
     /// <summary>Initializes a chord diagram of the given groups and the flows between them. Built through <c>Axes.Chord</c>,
     /// which refuses a matrix that cannot be drawn.</summary>
@@ -74,16 +70,17 @@ public sealed class ChordSeries : ChartSeries
 
     /// <inheritdoc />
     /// <remarks>An entry for every group that has a name, in the colour its arc and the ribbons it sends wear.</remarks>
-    internal override IReadOnlyList<LegendPart> LegendParts =>
-        [.. Names.Select((name, position) => new LegendPart(name, LegendSwatch.Patch, position)).Where(part => !string.IsNullOrEmpty(part.Label))];
+    internal override IReadOnlyList<LegendPart> LegendPartsUnder(Theme theme) => Names.AsLegendParts(Colors);
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) => default;
+
+    static string ISeriesKind<ChordSeries>.Kind => "chord";
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "chord",
+        Type = this.WireKind(),
         Categories = Names,
         ChordFlows = Flows.To2DList(),
         ChordPadding = Padding.OrNullAtRest(ChordLayout.DefaultPadding),
@@ -91,15 +88,12 @@ public sealed class ChordSeries : ChartSeries
         Colors = Colors?.ToList(),
     };
 
-    /// <summary>Reconstructs a <see cref="ChordSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="ChordSeries"/> that <see cref="SeriesRegistry"/> takes.</summary>
     internal static ChordSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Chord(dto.Categories ?? [], dto.ChordFlows.From2DList());
-        s.Padding = dto.ChordPadding ?? ChordLayout.DefaultPadding;
-        s.RibbonAlpha = dto.Alpha ?? RestingRibbonAlpha;
+        if (dto.ChordPadding is { } chordPadding) s.Padding = chordPadding;
+        if (dto.Alpha is { } alpha) s.RibbonAlpha = alpha;
         s.Colors = dto.Colors?.ToArray();
         return s;
     }

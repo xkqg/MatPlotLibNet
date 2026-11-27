@@ -44,17 +44,17 @@ internal sealed record LinearAxisTransformDto(double Scale, double? Offset) : Ax
 }
 
 /// <summary>Describes <see cref="AxisTransform.Reciprocal"/>.</summary>
-/// <param name="Numerator">What is divided by the primary value; absent for 1.</param>
+/// <param name="Numerator">What is divided by the primary value; absent for <see cref="Models.AxisTransform.RestingNumerator"/>.</param>
 internal sealed record ReciprocalAxisTransformDto(double? Numerator) : AxisTransformDto
 {
-    internal override AxisTransform Restore() => AxisTransform.Reciprocal(Numerator ?? 1);
+    internal override AxisTransform Restore() => AxisTransform.Reciprocal(Numerator ?? AxisTransform.RestingNumerator);
 }
 
 /// <summary>Describes <see cref="AxisTransform.Logarithm"/>.</summary>
-/// <param name="Base">The base of the logarithm; absent for 10.</param>
+/// <param name="Base">The base of the logarithm; absent for <see cref="Models.AxisTransform.RestingBase"/>.</param>
 internal sealed record LogarithmAxisTransformDto(double? Base) : AxisTransformDto
 {
-    internal override AxisTransform Restore() => AxisTransform.Logarithm(Base ?? 10);
+    internal override AxisTransform Restore() => AxisTransform.Logarithm(Base ?? AxisTransform.RestingBase);
 }
 
 /// <summary>Describes <see cref="AxisTransform.Power"/>.</summary>

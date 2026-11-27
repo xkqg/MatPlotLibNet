@@ -5,6 +5,7 @@ using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -12,15 +13,15 @@ namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 /// <see cref="MatPlotLibNet.Rendering.SeriesRenderers.PieSeriesRenderer"/>. Pre-X.9
 /// the renderer was at 98%L / 61%B because slice-decoration arms (shadow, explode,
 /// AutoPct, outer-labels with collision pass) were not exercised. This file pins:
-///   - Sizes.Sum() == 0 → early return (line 23)
-///   - Radius set explicitly (line 27 ?? has-value arm)
-///   - CounterClockwise true vs false (line 33 ternary's two arms)
-///   - Explode array per-slice (line 49 ternary's true arm)
-///   - Shadow=true (line 55 true arm draws gray slice first)
-///   - Colors per-slice (line 65 ternary's true arm)
-///   - AutoPct format string (line 73 true arm)
-///   - Labels per-slice → outer-label collision pass (lines 85-96 + 102-116)
-///   - Labels alignment branches at 0°/90°/180° angles (line 92 ternary)</summary>
+///   - Sizes.Sum() == 0 → early return
+///   - Radius set explicitly (?? has-value arm)
+///   - CounterClockwise true vs false (ternary's two arms)
+///   - Explode array per-slice (ternary's true arm)
+///   - Shadow=true (true arm draws gray slice first)
+///   - Colors per-slice (ternary's true arm)
+///   - AutoPct format string (true arm)
+///   - Labels per-slice → outer-label collision pass
+///   - Labels alignment branches at 0°/90°/180° angles (ternary)</summary>
 public class PieSeriesRendererTests
 {
     private static string Render(PieSeries s) =>
@@ -30,51 +31,79 @@ public class PieSeriesRendererTests
             .Build()
             .ToSvg();
 
-    [Fact]
-    public void Render_BasicPie_DrawsSlices()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var svg = Render(new PieSeries([1.0, 2.0, 3.0]));
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Sizes.Sum() == 0 → early return at line 23.</summary>
-    [Fact]
-    public void Render_AllZeroSizes_EarlyReturn()
-    {
-        var svg = Render(new PieSeries([0.0, 0.0, 0.0]));
-        Assert.DoesNotContain("<path", svg);
-    }
-
-    /// <summary>Explicit Radius (line 27 .HasValue true arm) — radius scaled by Radius.Value.</summary>
-    [Fact]
-    public void Render_ExplicitRadius_ScalesPie()
-    {
-        var svg = Render(new PieSeries([1.0, 2.0, 3.0]) { Radius = 0.5 });
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>CounterClockwise=true (line 33 ternary's true arm) — slices sweep
-    /// in the opposite direction.</summary>
-    [Fact]
-    public void Render_CounterClockwise_SweepsForward()
-    {
-        var svg = Render(new PieSeries([1.0, 2.0, 3.0]) { CounterClockwise = true });
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Explode set with matching length (line 49 ternary's true arm). Each slice
-    /// drifts outward by Explode[i] * radius.</summary>
-    [Fact]
-    public void Render_Explode_OffsetsSlicesOutward()
-    {
-        var svg = Render(new PieSeries([1.0, 2.0, 3.0])
+        new DrawnToken("Render_BasicPie_DrawsSlices", () => Render(new PieSeries([1.0, 2.0, 3.0])), "<path"),
+        // Sizes.Sum() == 0 → early return.
+        new DrawnToken("Render_AllZeroSizes_EarlyReturn", () => Render(new PieSeries([0.0, 0.0, 0.0]))) { Absent = ["<path"] },
+        // Explicit Radius (.HasValue true arm) — radius scaled by Radius.Value.
+        new DrawnToken("Render_ExplicitRadius_ScalesPie", () => Render(new PieSeries([1.0, 2.0, 3.0]) { Radius = 0.5 }), "<path"),
+        // CounterClockwise=true (ternary's true arm) — slices sweep in the opposite direction.
+        new DrawnToken("Render_CounterClockwise_SweepsForward", () => Render(new PieSeries([1.0, 2.0, 3.0]) { CounterClockwise = true }), "<path"),
+        // Explode set with matching length (ternary's true arm). Each slice drifts outward by Explode[i] * radius.
+        new DrawnToken("Render_Explode_OffsetsSlicesOutward", () => Render(new PieSeries([1.0, 2.0, 3.0])
         {
             Explode = new[] { 0.0, 0.1, 0.2 },
-        });
-        Assert.Contains("<path", svg);
-    }
+        }), "<path"),
+        // AutoPct (true arm) — emits percentage text inside each slice.
+        // 10/(10+20+30) = 16.67%
+        // 20/(60) = 33.33%
+        // 30/(60) = 50%
+        new DrawnToken("Render_AutoPct_DrawsPercentages", () => Render(new PieSeries([10.0, 20.0, 30.0]) { AutoPct = "{0:F1}%" }), ">16.7%<", ">33.3%<", ">50.0%<"),
+        // Theme with DefaultFont set (`is { } f` true arm). MatplotlibClassic theme provides explicit font metrics; the renderer
+        // should pick them up rather than fall back to the size-12 default.
+        new DrawnToken("Render_WithThemedFont_PicksUpThemeFont", () => Plt.Create()
+            .WithSize(400, 400)
+            .WithTheme(Theme.MatplotlibClassic)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AddSeries(new PieSeries([1.0, 2.0]) { Labels = new[] { "X", "Y" } })
+                .HideAllAxes())
+            .Build()
+            .ToSvg(), ">X<"),
+        // Labels → outer-label collision-resolution pass. All three text-alignment arms (Left for cosA >
+        // 0.1, Right for cosA < -0.1, Center otherwise) are exercised by 4 slices spaced at cardinal directions.
+        // 4 equal slices starting at 90° (top), sweeping clockwise:
+        // slice 0 mid 45° (right of top, cosA > 0 → Left-aligned)
+        // slice 1 mid 315° = -45° (right-bottom, cosA > 0 → Left)
+        // slice 2 mid 225° (left-bottom, cosA < 0 → Right)
+        // slice 3 mid 135° (left-top, cosA < 0 → Right)
+        new DrawnToken("Render_Labels_AllAlignmentArms", () => Render(new PieSeries([1.0, 1.0, 1.0, 1.0])
+        {
+            Labels = new[] { "A", "B", "C", "D" },
+        }), ">A<", ">B<", ">C<", ">D<"),
+        // CENTER arm — cosA ∈ [-0.1, 0.1] → TextAlignment.Center. StartAngle=0, CCW, sizes [1,1,2]: third slice midAngle = 3π/2 → cos
+        // = 0.
+        new DrawnToken("Render_LabelAtTopOrBottom_UsesCenterAlignment", () => Render(new PieSeries([1.0, 1.0, 2.0])
+        {
+            Labels = ["left", "right", "center"],
+            StartAngle = 0,
+            CounterClockwise = true,
+        }), ">center<"),
+        // Leader-line arm — very wide labels on a tiny canvas guarantee that LabelLayoutEngine offsets each label >6px from its anchor,
+        // setting LeaderLineStart so DrawLeaderLine fires. The SVG emits <line> elements (one per displaced label) that do not appear in
+        // pie renders without labels or without collision.
+        // HideAllAxes removes all axis lines; the only <line> elements come from leader lines.
+        new DrawnToken("Render_DenseLabels_SmallCanvas_DrawsLeaderLines", () =>
+        {
+            // 12 equal slices on a 100×100 canvas. Outer label radius ≈44px, arc spacing
+            // ≈23px, "WWWWWWWWWW" ≈92px wide → every adjacent pair overlaps → labels
+            // are pushed well past the 6px leader-line threshold.
+            double[] sizes = Enumerable.Repeat(1.0, 12).ToArray();
+            string[] labels = Enumerable.Repeat("WWWWWWWWWW", 12).ToArray();
+            return Plt.Create()
+                .WithSize(100, 100)
+                .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PieSeries(sizes) { Labels = labels }).HideAllAxes())
+                .Build()
+                .ToSvg();
+        }, "<line"),
+    };
 
-    /// <summary>Shadow=true (line 55 true arm) — emits a gray offset slice before the
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
+
+    /// <summary>Shadow=true — emits a gray offset slice before the
     /// real one. SVG path count doubles.</summary>
     [Fact]
     public void Render_Shadow_EmitsExtraGraySlice()
@@ -96,23 +125,13 @@ public class PieSeriesRendererTests
         Assert.Equal([Colors.Red.ToHex(), Colors.Green.ToHex(), Colors.Blue.ToHex()], WedgeFills(svg));
     }
 
-    /// <summary>AutoPct (line 73 true arm) — emits percentage text inside each slice.</summary>
-    [Fact]
-    public void Render_AutoPct_DrawsPercentages()
-    {
-        var svg = Render(new PieSeries([10.0, 20.0, 30.0]) { AutoPct = "{0:F1}%" });
-        Assert.Contains(">16.7%<", svg);     // 10/(10+20+30) = 16.67%
-        Assert.Contains(">33.3%<", svg);     // 20/(60) = 33.33%
-        Assert.Contains(">50.0%<", svg);     // 30/(60) = 50%
-    }
-
     private static Figure ThemedFigure(Theme theme, PieSeries pie) =>
         Plt.Create().WithTheme(theme).WithSize(400, 400)
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(pie).HideAllAxes()).Build();
 
     /// <summary>The fill of each wedge, in the order the wedges are drawn.</summary>
     private static string[] WedgeFills(string svg) =>
-        XDocument.Parse(svg).Descendants().Where(e => e.Name.LocalName == "path" && e.Attribute("fill") is not null)
+        svg.Each("path").Where(e => e.Attribute("fill") is not null)
             .Select(e => (string)e.Attribute("fill")!).ToArray();
 
     /// <summary>A pinned semantic changed on purpose: Colors[] shorter than Sizes[] used to give every wedge past the array
@@ -170,79 +189,4 @@ public class PieSeriesRendererTests
         Assert.Equal(Theme.Seaborn.CycleColors.Take(3).Select(c => c.ToHex()), second);
     }
 
-    /// <summary>Theme with DefaultFont set (line 38 `is { } f` true arm). MatplotlibClassic
-    /// theme provides explicit font metrics; the renderer should pick them up rather than
-    /// fall back to the size-12 default.</summary>
-    [Fact]
-    public void Render_WithThemedFont_PicksUpThemeFont()
-    {
-        var svg = Plt.Create()
-            .WithSize(400, 400)
-            .WithTheme(Theme.MatplotlibClassic)
-            .AddSubPlot(1, 1, 1, ax => ax
-                .AddSeries(new PieSeries([1.0, 2.0]) { Labels = new[] { "X", "Y" } })
-                .HideAllAxes())
-            .Build()
-            .ToSvg();
-        Assert.Contains(">X<", svg);
-    }
-
-    /// <summary>Labels (lines 85-96) → outer-label collision-resolution pass (lines 102-116).
-    /// All three text-alignment arms (Left for cosA &gt; 0.1, Right for cosA &lt; -0.1, Center
-    /// otherwise) are exercised by 4 slices spaced at cardinal directions.</summary>
-    [Fact]
-    public void Render_Labels_AllAlignmentArms()
-    {
-        // 4 equal slices starting at 90° (top), sweeping clockwise:
-        // slice 0 mid 45° (right of top, cosA > 0 → Left-aligned)
-        // slice 1 mid 315° = -45° (right-bottom, cosA > 0 → Left)
-        // slice 2 mid 225° (left-bottom, cosA < 0 → Right)
-        // slice 3 mid 135° (left-top, cosA < 0 → Right)
-        var svg = Render(new PieSeries([1.0, 1.0, 1.0, 1.0])
-        {
-            Labels = new[] { "A", "B", "C", "D" },
-        });
-        Assert.Contains(">A<", svg);
-        Assert.Contains(">B<", svg);
-        Assert.Contains(">C<", svg);
-        Assert.Contains(">D<", svg);
-    }
-
-    // ── Wave J.0.e — remaining uncovered arms ────────────────────────────────
-
-    /// <summary>L92 CENTER arm — cosA ∈ [-0.1, 0.1] → TextAlignment.Center.
-    /// StartAngle=0, CCW, sizes [1,1,2]: third slice midAngle = 3π/2 → cos = 0.</summary>
-    [Fact]
-    public void Render_LabelAtTopOrBottom_UsesCenterAlignment()
-    {
-        var svg = Render(new PieSeries([1.0, 1.0, 2.0])
-        {
-            Labels = ["left", "right", "center"],
-            StartAngle = 0,
-            CounterClockwise = true,
-        });
-        Assert.Contains(">center<", svg);
-    }
-
-    /// <summary>L110 TRUE arm — very wide labels on a tiny canvas guarantee that
-    /// LabelLayoutEngine offsets each label &gt;6px from its anchor, setting
-    /// <c>LeaderLineStart</c> so <c>DrawLeaderLine</c> fires. The SVG emits &lt;line&gt;
-    /// elements (one per displaced label) that do not appear in pie renders without
-    /// labels or without collision.</summary>
-    [Fact]
-    public void Render_DenseLabels_SmallCanvas_DrawsLeaderLines()
-    {
-        // 12 equal slices on a 100×100 canvas. Outer label radius ≈44px, arc spacing
-        // ≈23px, "WWWWWWWWWW" ≈92px wide → every adjacent pair overlaps → labels
-        // are pushed well past the 6px leader-line threshold.
-        double[] sizes = Enumerable.Repeat(1.0, 12).ToArray();
-        string[] labels = Enumerable.Repeat("WWWWWWWWWW", 12).ToArray();
-        string svg = Plt.Create()
-            .WithSize(100, 100)
-            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PieSeries(sizes) { Labels = labels }).HideAllAxes())
-            .Build()
-            .ToSvg();
-        // HideAllAxes removes all axis lines; the only <line> elements come from leader lines.
-        Assert.Contains("<line", svg);
-    }
 }

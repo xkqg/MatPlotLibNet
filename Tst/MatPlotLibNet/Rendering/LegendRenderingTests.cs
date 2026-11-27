@@ -1,11 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.LegendRendering;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -13,58 +12,52 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies legend rendering behavior.</summary>
 public class LegendRenderingTests
 {
-    /// <summary>Verifies that labeled series produce a legend box in SVG output.</summary>
-    [Fact]
-    public void Legend_WithLabeledSeries_ContainsLegendText()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = Plt.Create()
+        // Verifies that labeled series produce a legend box in SVG output.
+        new DrawnToken("Legend_WithLabeledSeries_ContainsLegendText", () => Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Temperature")
             .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "Humidity")
-            .ToSvg();
-
-        Assert.Contains("Temperature", svg);
-        Assert.Contains("Humidity", svg);
-    }
-
-    /// <summary>Verifies that series without labels do not produce legend entries.</summary>
-    [Fact]
-    public void Legend_NoLabels_SkipsLegend()
-    {
-        string svg = Plt.Create()
-            .Plot([1.0, 2.0], [3.0, 4.0])
-            .ToSvg();
-
+            .ToSvg(), "Temperature", "Humidity"),
+        // Verifies that series without labels do not produce legend entries.
         // No labeled series → no legend rectangle
         // The SVG should not contain a legend group
-        Assert.DoesNotContain("class=\"legend\"", svg);
-    }
-
-    /// <summary>Verifies that a hidden legend produces no legend output.</summary>
-    [Fact]
-    public void Legend_NotVisible_SkipsLegend()
-    {
-        string svg = Plt.Create()
+        new DrawnToken("Legend_NoLabels_SkipsLegend", () => Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .ToSvg()) { Absent = ["class=\"legend\""] },
+        // Verifies that a hidden legend produces no legend output.
+        new DrawnToken("Legend_NotVisible_SkipsLegend", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Data")
                 .WithLegend(visible: false))
-            .ToSvg();
-
-        Assert.DoesNotContain("class=\"legend\"", svg);
-    }
-
-    /// <summary>Verifies that the legend contains color swatches as rect elements.</summary>
-    [Fact]
-    public void Legend_ContainsColorSwatches()
-    {
-        string svg = Plt.Create()
+            .ToSvg()) { Absent = ["class=\"legend\""] },
+        // Verifies that the legend contains color swatches as rect elements.
+        new DrawnToken("Legend_ContainsColorSwatches", () => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Series A")
                 .WithLegend())
-            .ToSvg();
+            .ToSvg(), "class=\"legend\"", "Series A"),
+        // Verifies that only labeled series appear in the legend.
+        new DrawnToken("Legend_MixedLabeledAndUnlabeled_OnlyShowsLabeled", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Visible")
+                .Plot([1.0, 2.0], [5.0, 6.0])
+                .WithLegend())
+            .ToSvg(), "Visible", "class=\"legend\""),
+        // Verifies that multiple labeled series all appear in the legend.
+        new DrawnToken("Legend_MultipleSeries_AllLabelsPresent", () => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Alpha")
+                .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "Beta")
+                .Scatter([1.0, 2.0], [7.0, 8.0], s => s.Label = "Gamma")
+                .WithLegend())
+            .ToSvg(), "Alpha", "Beta", "Gamma"),
+    };
 
-        Assert.Contains("class=\"legend\"", svg);
-        Assert.Contains("Series A", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that legend position can be set via AxesBuilder.</summary>
     [Fact]
@@ -94,41 +87,13 @@ public class LegendRenderingTests
         Assert.Equal(LegendPosition.Best, figure.SubPlots[0].Legend.Position);
     }
 
-    /// <summary>Verifies that only labeled series appear in the legend.</summary>
-    [Fact]
-    public void Legend_MixedLabeledAndUnlabeled_OnlyShowsLabeled()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Visible")
-                .Plot([1.0, 2.0], [5.0, 6.0])
-                .WithLegend())
-            .ToSvg();
-
-        Assert.Contains("Visible", svg);
-        Assert.Contains("class=\"legend\"", svg);
-    }
-
-    /// <summary>Verifies that multiple labeled series all appear in the legend.</summary>
-    [Fact]
-    public void Legend_MultipleSeries_AllLabelsPresent()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Alpha")
-                .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "Beta")
-                .Scatter([1.0, 2.0], [7.0, 8.0], s => s.Label = "Gamma")
-                .WithLegend())
-            .ToSvg();
-
-        Assert.Contains("Alpha", svg);
-        Assert.Contains("Beta", svg);
-        Assert.Contains("Gamma", svg);
-    }
-
     // ---- Best: where the marks are -----------------------------------------------------------------------------
 
     private static readonly double[] Ramp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    /// <summary>How far a legend stands inside the corner of the axes under the default style, the figure's own theme:
+    /// <c>legend.borderaxespad</c>, 0.5 of the legend's 10 pt font.</summary>
+    private static readonly double Inset = 0.5 * 10.0.PointsInPixels;
 
     private static FigureBuilder BestCase(string name) => name switch
     {
@@ -150,11 +115,8 @@ public class LegendRenderingTests
     };
 
     private static Rect PlotAreaOf(string svg) =>
-        Regex.Matches(svg, @"<rect x=""([\d.]+)"" y=""([\d.]+)"" width=""([\d.]+)"" height=""([\d.]+)"" fill=""#FFFFFF"" />")
-            .Skip(1).Select(m => new Rect(
-                double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture),
-                double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture), double.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture)))
-            .First();
+        svg.Elements("rect").Where(rect => rect["fill"] == "#FFFFFF").Skip(1)
+            .Select(rect => new Rect(rect.Number("x"), rect.Number("y"), rect.Number("width"), rect.Number("height"))).First();
 
     /// <summary>A Best legend stands where the marks the chart drew are fewest: the first of matplotlib's places that
     /// nothing is under, the upper right when it is free.</summary>
@@ -170,23 +132,85 @@ public class LegendRenderingTests
         string svg = BestCase(name).ToSvg();
         var frame = svg.LegendFrame()!.Value;
 
-        var place = LegendPositionStrategyFactory.Create(expected).ComputeBox(PlotAreaOf(svg), frame.Width, frame.Height);
+        var place = LegendPositionStrategyFactory.Create(expected).Place(PlotAreaOf(svg), new Size(frame.Width, frame.Height), Inset);
 
-        Assert.Equal(place.X, frame.X, 6);
-        Assert.Equal(place.Y, frame.Y, 6);
+        Assert.Equal(place.X, frame.X, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(place.Y, frame.Y, SvgMarkupExtensions.WrittenPrecision);
+    }
+
+    /// <summary>The first place, in the order a Best legend tries them, that <paramref name="svg"/>'s legend stands at (Right and
+    /// CenterRight are the same box).</summary>
+    private static LegendPosition PlaceOf(string svg, double inset)
+    {
+        var frame = svg.LegendFrame()!.Value;
+        var plot = PlotAreaOf(svg);
+        LegendPosition[] tried =
+        [
+            LegendPosition.UpperRight, LegendPosition.UpperLeft, LegendPosition.LowerLeft, LegendPosition.LowerRight,
+            LegendPosition.Right, LegendPosition.CenterLeft, LegendPosition.CenterRight, LegendPosition.LowerCenter,
+            LegendPosition.UpperCenter, LegendPosition.Center,
+        ];
+        return tried.First(p =>
+            {
+                var place = LegendPositionStrategyFactory.Create(p).Place(plot, new Size(frame.Width, frame.Height), inset);
+                return Math.Abs(place.X - frame.X) <= SvgMarkupExtensions.WrittenPrecision && Math.Abs(place.Y - frame.Y) <= SvgMarkupExtensions.WrittenPrecision;
+            });
+    }
+
+    /// <summary>One panel of a live wall: three seeded noisy lines of 360 points between <paramref name="low"/> and
+    /// <paramref name="high"/> on an axis from 0 to 5000, under a wide legend of four columns, at Best. The X axis is held
+    /// at -17.95 to 400, the range the places below were pinned on (the margin, widened to the nice bound 400), so the pins
+    /// stay about the scoring and not about where the default theme ends an axis.</summary>
+    private static FigureBuilder NoisyPanel(int seed, double low, double high) => Plt.Create().WithSize(1000, 190)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            var random = new Random(seed);
+            double[] x = [.. Enumerable.Range(0, 360).Select(i => (double)i)];
+            for (int line = 0; line < 3; line++)
+                ax.Plot(x, [.. x.Select(_ => low + random.NextDouble() * (high - low))], s => s.Label = $"queue {line + 1}");
+            ax.SetXLim(-17.95, 400).SetYLim(0, 5000).WithLegend(l => l with { Position = LegendPosition.Best, FontSize = 9, MarkerScale = 0.55, NCols = 4 });
+        });
+
+    /// <summary>Where a Best legend stands over noisy lines, pinned as it stood before the scoring was made cheaper: lines over
+    /// the whole height cover every place, so every candidate is scored and the least covered wins; lines over a band leave
+    /// places free, and the first free one wins. Seeds 2, 3, 9, 13 and 14 were pinned again when the box took matplotlib's padding and
+    /// inset under the default style: a box of another size and place covers other marks, and over lines that fill the height the
+    /// least covered of the right-hand corners is a near tie.</summary>
+    [Theory]
+    [InlineData(1, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(2, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(3, 0, 5000, LegendPosition.LowerRight)]
+    [InlineData(4, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(8, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(9, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(10, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(11, 0, 5000, LegendPosition.LowerRight)]
+    [InlineData(12, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(13, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(14, 0, 5000, LegendPosition.UpperRight)]
+    [InlineData(5, 2500, 5000, LegendPosition.LowerLeft)]
+    [InlineData(15, 4200, 5000, LegendPosition.LowerLeft)]
+    [InlineData(16, 0, 4600, LegendPosition.UpperRight)]
+    [InlineData(6, 0, 2500, LegendPosition.UpperRight)]
+    [InlineData(7, 1500, 3500, LegendPosition.UpperRight)]
+    public void ABestLegend_OverNoisyLines_StandsWhereItAlwaysStood(int seed, double low, double high, LegendPosition expected)
+    {
+        Assert.Equal(expected, PlaceOf(NoisyPanel(seed, low, high).ToSvg(), inset: 0.5 * 9));   // borderaxespad: half the 9 px legend font
     }
 
     /// <summary>The picture the roadmap's own example draws: a rising line y = x in a 500 x 350 figure. The legend that stood
     /// over a stretch of the line in the upper right now stands in the upper left, clear of it.</summary>
     [Fact]
-    public void ABestLegend_OverARisingLine_StandsInTheUpperLeft_At72And52()
+    public void ABestLegend_OverARisingLine_StandsInTheUpperLeft_HalfItsFontInsideTheCorner()
     {
-        var frame = BestCase("a rising line").ToSvg().LegendFrame()!.Value;
+        string svg = BestCase("a rising line").ToSvg();
+        var frame = svg.LegendFrame()!.Value;
+        var plot = PlotAreaOf(svg);
 
-        Assert.Equal(72.0, frame.X, 6);
-        Assert.Equal(52.0, frame.Y, 6);
-        Assert.Equal(93.5, frame.Width, 1);
-        Assert.Equal(25.7, frame.Height, 1);
+        Assert.Equal(plot.X + Inset, frame.X, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(plot.Y + Inset, frame.Y, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(88.6, frame.Width, 1);    // 'signal' and 3.6 of the 13.89 px font (2 x borderpad, handlelength, handletextpad)
+        Assert.Equal(27.8, frame.Height, 1);   // 2 x borderpad and a row as tall as the text's line
     }
 
     /// <summary>Hiding a series (the legend's own toggle) does not move the legend from under the pointer: a hidden series
@@ -213,10 +237,10 @@ public class LegendRenderingTests
         string svg = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
             .Plot([0.0, 1.0], [5.0, 5.0], s => s.Label = "flat").SetXLim(0, 1).SetYLim(0, 10).WithLegend()).ToSvg();
         var frame = svg.LegendFrame()!.Value;
-        var place = LegendPositionStrategyFactory.Create(LegendPosition.UpperRight).ComputeBox(PlotAreaOf(svg), frame.Width, frame.Height);
+        var place = LegendPositionStrategyFactory.Create(LegendPosition.UpperRight).Place(PlotAreaOf(svg), new Size(frame.Width, frame.Height), Inset);
 
-        Assert.Equal(place.X, frame.X, 6);
-        Assert.Equal(place.Y, frame.Y, 6);
+        Assert.Equal(place.X, frame.X, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(place.Y, frame.Y, SvgMarkupExtensions.WrittenPrecision);
     }
 
     /// <summary>An annotation's text stands among the marks a Best legend keeps clear of, where it is drawn: a flat line
@@ -246,7 +270,7 @@ public class LegendRenderingTests
             .WithLegend()).ToSvg();
         var frame = svg.LegendFrame()!.Value;
 
-        var under = SvgGeometry.ExtractPolylinePoints(svg)
+        var under = svg.PolylinePoints()
             .Where(p => p.X > frame.X && p.X < frame.Right && p.Y > frame.Y && p.Y < frame.Bottom).ToList();
 
         Assert.Empty(under);

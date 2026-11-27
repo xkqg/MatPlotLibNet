@@ -45,6 +45,20 @@ Set `IsInteractive="True"` and the element handles pan, zoom, reset, and brush-s
 | Home / Escape | Reset to original limits |
 | Shift + left-drag | Brush select (fires `BrushSelectEvent` to your custom sink) |
 
+## Server mode
+
+`WithServerInteraction` makes a chart element or a streaming chart element interactive and sends each gesture through the
+delegate you give it (typically `hubConnection.SendAsync`) instead of applying it to the figure; whoever receives it applies it:
+
+```csharp
+element.WithServerInteraction((method, payload) => hubConnection.SendAsync(method, payload));
+```
+
+## Animation
+
+Set `AnimationSource` on a `MplChartElement` to an `IAnimationSource` (an `AnimationBuilder`'s animation, say) and the element
+shows each frame it raises, on the UI thread.
+
 ## Requirements
 
 - .NET 10

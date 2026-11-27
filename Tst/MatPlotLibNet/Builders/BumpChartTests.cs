@@ -1,14 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Tests.Rendering;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
@@ -28,11 +27,9 @@ public class BumpChartTests
         new("Wrens", [3, 3, 2, 1]),
     ];
 
-    /// <summary>How far under its tick the baseline of a Y tick label stands, in pixels (half the label's height).</summary>
-    private const double TickLabelDrop = 4;
-
-    private static Axes AxesOf(Action<AxesBuilder> configure) =>
-        Plt.Create().AddSubPlot(1, 1, 1, configure).Build().SubPlots[0];
+    /// <summary>How far under its tick the baseline of a Y tick label stands, in pixels: the label is centred on its tick, its baseline
+    /// 0.35 of its ascent (the font size) below it (TextBox's centre rule).</summary>
+    private static readonly double TickLabelDrop = 0.35 * MatPlotLibNet.Styling.Theme.MatplotlibV2.TickFont().Size;
 
     private static LineSeries[] Lines(Axes axes) => [.. axes.Series.Cast<LineSeries>()];
 
@@ -42,8 +39,6 @@ public class BumpChartTests
     private readonly record struct Dot(double Cx, double Cy);
 
     /// <summary>The plot area in pixels.</summary>
-    private readonly record struct Area(double X, double Y, double W, double H);
-
     /// <summary>A name drawn at the end of a line: its text, where it starts, the height of its baseline and its colour.</summary>
     private readonly record struct EndLabel(string Text, double X, double Y, string Fill);
 
@@ -59,53 +54,36 @@ public class BumpChartTests
     private static string Svg(double[] x, IReadOnlyList<BarGroup> ranks, bool legendToggle = false) =>
         Svg(ax => ax.BumpChart(x, ranks), legendToggle);
 
-    /// <summary>The plot area: the first background-coloured rectangle that is not the figure's.</summary>
-    private static Area PlotArea(string svg)
-    {
-        var m = Regex.Match(svg, """<rect x="([1-9][0-9.]*)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)" fill="#FFFFFF" """.TrimEnd());
-        return new Area(Num(m.Groups[1].Value), Num(m.Groups[2].Value), Num(m.Groups[3].Value), Num(m.Groups[4].Value));
-    }
-
-    private static IEnumerable<XElement> Named(XContainer root, string name) =>
-        root.Descendants().Where(e => e.Name.LocalName == name);
-
-    private static List<XElement> SeriesGroups(string svg) =>
-        [.. Named(XDocument.Parse(svg), "g").Where(g => (string?)g.Attribute("class") == "series")];
-
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
-
     private static Dot[] Dots(XElement series) =>
-        [.. Named(series, "circle").Select(c => new Dot(Num((string)c.Attribute("cx")!), Num((string)c.Attribute("cy")!)))];
+        [.. series.Each("circle").Select(c => new Dot(c.Number("cx"), c.Number("cy")))];
 
     /// <summary>The runs of the line, one per polyline: the points a stretch of the line without a gap passes through.</summary>
     private static List<Dot[]> Runs(XElement series) =>
-        [.. Named(series, "polyline").Select(p => ((string)p.Attribute("points")!)
+        [.. series.Each("polyline").Select(p => ((string)p.Attribute("points")!)
             .Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(pair => pair.Split(','))
-            .Select(xy => new Dot(Num(xy[0]), Num(xy[1])))
+            .Select(xy => new Dot(xy[0].Number(), xy[1].Number()))
             .ToArray())];
 
-    private static string Stroke(XElement series) => (string)Named(series, "polyline").First().Attribute("stroke")!;
+    private static string Stroke(XElement series) => (string)series.Each("polyline").First().Attribute("stroke")!;
 
     /// <summary>The name drawn at the end of the series' line, when it has one: the text inside the series group but not
     /// inside the clipped drawing group.</summary>
     private static EndLabel? Label(XElement series) =>
-        series.Elements().Where(e => e.Name.LocalName == "text").Select(t => new EndLabel(
-            t.Value, Num((string)t.Attribute("x")!), Num((string)t.Attribute("y")!), (string)t.Attribute("fill")!))
+        series.Children("text").Select(t => new EndLabel(
+            t.Value, t.Number("x"), t.Number("y"), (string)t.Attribute("fill")!))
             .Cast<EndLabel?>().SingleOrDefault();
 
     /// <summary>The tick labels of the Y axis, from the first tick down the file: the text elements anchored at their end
     /// that sit directly in the figure, not inside a series.</summary>
     private static string[] YTickLabels(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text" && (string?)e.Attribute("text-anchor") == "end")
+        [.. svg.Direct("text").Where(e => (string?)e.Attribute("text-anchor") == "end")
             .Select(e => e.Value)];
 
     /// <summary>The pixel height of each Y tick, in the order the ticks are listed.</summary>
     private static double[] YTickHeights(string svg) =>
-        [.. XDocument.Parse(svg).Root!.Elements()
-            .Where(e => e.Name.LocalName == "text" && (string?)e.Attribute("text-anchor") == "end")
-            .Select(e => Num((string)e.Attribute("y")!))];
+        [.. svg.Direct("text").Where(e => (string?)e.Attribute("text-anchor") == "end")
+            .Select(e => e.Number("y"))];
 
     // ---- one line series per group ---------------------------------------------------------------------------------
 
@@ -114,7 +92,7 @@ public class BumpChartTests
     [Fact]
     public void TheChart_IsOneLineSeriesPerGroup_AndNothingElse()
     {
-        var axes = AxesOf(ax => ax.BumpChart(Seasons, Table));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, Table));
 
         var lines = Lines(axes);
         Assert.Equal(Table.Length, lines.Length);
@@ -132,7 +110,7 @@ public class BumpChartTests
     [Fact]
     public void EveryLine_HoldsItsOwnXArray()
     {
-        var lines = Lines(AxesOf(ax => ax.BumpChart(Seasons, Table)));
+        var lines = Lines(Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, Table)));
 
         Assert.NotSame(Seasons, lines[0].XData);
         Assert.NotSame(lines[0].XData, lines[1].XData);
@@ -142,7 +120,7 @@ public class BumpChartTests
     [Fact]
     public void EveryLine_HasAMarkerAtEachRank_AndItsNameAtItsEnd()
     {
-        var lines = Lines(AxesOf(ax => ax.BumpChart(Seasons, Table)));
+        var lines = Lines(Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, Table)));
 
         Assert.All(lines, line =>
         {
@@ -159,16 +137,16 @@ public class BumpChartTests
     public void TheNames_AreDrawnAtTheEndOfTheirLines_NotInALegend()
     {
         string svg = Svg(ax => ax.BumpChart(Seasons, Table).WithLegend(), legendToggle: true);
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.DoesNotContain("data-legend-index=", svg);
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         Assert.Equal(Table.Length, groups.Count);
         for (int g = 0; g < Table.Length; g++)
         {
             var label = Assert.IsType<EndLabel>(Label(groups[g]));
             Assert.Equal(Table[g].Label, label.Text);
-            Assert.True(label.X > plot.X + plot.W, $"'{label.Text}' starts at {label.X}, not right of the plot area ending at {plot.X + plot.W}");
+            Assert.True(label.X > plot.X + plot.Width, $"'{label.Text}' starts at {label.X}, not right of the plot area ending at {plot.X + plot.Width}");
             Assert.Equal(Stroke(groups[g]), label.Fill);
         }
     }
@@ -178,13 +156,13 @@ public class BumpChartTests
     [Fact]
     public void EveryLine_WearsOneColourOfItsOwn_ItsMarkersToo()
     {
-        var groups = SeriesGroups(Svg(Seasons, Table));
+        var groups = Svg(Seasons, Table).SeriesGroups();
 
         var strokes = groups.Select(Stroke).ToList();
         Assert.Equal(Table.Length, strokes.Distinct().Count());
         for (int g = 0; g < groups.Count; g++)
         {
-            Assert.All(Named(groups[g], "circle"), c => Assert.Equal(strokes[g], (string)c.Attribute("fill")!));
+            Assert.All(groups[g].Each("circle"), c => Assert.Equal(strokes[g], (string)c.Attribute("fill")!));
         }
     }
 
@@ -194,7 +172,7 @@ public class BumpChartTests
     [Fact]
     public void TheYLimits_RunFromTheLowestRankPlusHalfDownToOneHalf()
     {
-        var axes = AxesOf(ax => ax.BumpChart(Seasons, Table));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, Table));
 
         Assert.Equal(3.5, axes.YAxis.Min);
         Assert.Equal(0.5, axes.YAxis.Max);
@@ -204,7 +182,7 @@ public class BumpChartTests
     [Fact]
     public void TheVerb_LeavesTheXAxisToTheData()
     {
-        var axes = AxesOf(ax => ax.BumpChart(Seasons, Table));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, Table));
 
         Assert.Null(axes.XAxis.Min);
         Assert.Null(axes.XAxis.Max);
@@ -216,7 +194,7 @@ public class BumpChartTests
     [Fact]
     public void ALimitTheCallerSetsAfterTheCall_Wins()
     {
-        var axes = AxesOf(ax => ax.BumpChart(Seasons, Table).SetYLim(10, 0));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, Table).SetYLim(10, 0));
 
         Assert.Equal(10.0, axes.YAxis.Min);
         Assert.Equal(0.0, axes.YAxis.Max);
@@ -227,7 +205,7 @@ public class BumpChartTests
     [Fact]
     public void Rank1_IsOnTop_AndTheLowestRankAtTheBottom()
     {
-        var groups = SeriesGroups(Svg(Seasons, Table));
+        var groups = Svg(Seasons, Table).SeriesGroups();
 
         // The first season holds rank 1 for Hawks, 2 for Owls and 3 for Wrens.
         double rank1 = Dots(groups[0])[0].Cy, rank2 = Dots(groups[1])[0].Cy, rank3 = Dots(groups[2])[0].Cy;
@@ -242,14 +220,14 @@ public class BumpChartTests
     public void TheEndRanks_KeepHalfARankOfMargin_SoTheirMarkersAreWhole()
     {
         string svg = Svg(Seasons, Table);
-        var plot = PlotArea(svg);
-        var groups = SeriesGroups(svg);
+        var plot = svg.PlotArea();
+        var groups = svg.SeriesGroups();
 
         double rank1 = Dots(groups[0])[0].Cy, rank2 = Dots(groups[1])[0].Cy, rank3 = Dots(groups[2])[0].Cy;
         double pitch = rank2 - rank1;
-        Assert.Equal(0.5 * pitch, rank1 - plot.Y, 6);
-        Assert.Equal(0.5 * pitch, plot.Y + plot.H - rank3, 6);
-        Assert.True(rank1 - 5 >= plot.Y && rank3 + 5 <= plot.Y + plot.H);
+        Assert.Equal(0.5 * pitch, rank1 - plot.Y, SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(0.5 * pitch, plot.Y + plot.Height - rank3, SvgMarkupExtensions.WrittenPrecision);
+        Assert.True(rank1 - 5 >= plot.Y && rank3 + 5 <= plot.Y + plot.Height);
     }
 
     /// <summary>The Y axis is ticked at every whole rank, from the top down, and nowhere else.</summary>
@@ -262,10 +240,10 @@ public class BumpChartTests
         var heights = YTickHeights(svg);
         Assert.True(heights[0] < heights[1] && heights[1] < heights[2], $"the rank ticks stand at {string.Join(", ", heights)} px: not top to bottom");
         // Each tick stands level with the markers of its rank.
-        var groups = SeriesGroups(svg);
-        Assert.Equal(Dots(groups[0])[0].Cy + TickLabelDrop, heights[0], 6);
-        Assert.Equal(Dots(groups[1])[0].Cy + TickLabelDrop, heights[1], 6);
-        Assert.Equal(Dots(groups[2])[0].Cy + TickLabelDrop, heights[2], 6);
+        var groups = svg.SeriesGroups();
+        Assert.Equal(Dots(groups[0])[0].Cy + TickLabelDrop, heights[0], SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(Dots(groups[1])[0].Cy + TickLabelDrop, heights[1], SvgMarkupExtensions.WrittenPrecision);
+        Assert.Equal(Dots(groups[2])[0].Cy + TickLabelDrop, heights[2], SvgMarkupExtensions.WrittenPrecision);
     }
 
     /// <summary>A rank past the number of groups (a few teams of a table of six) is drawn, not cut at the frame: the axis
@@ -275,14 +253,14 @@ public class BumpChartTests
     {
         BarGroup[] subset = [new("Hawks", [1, 4]), new("Wrens", [6, 2])];
 
-        var axes = AxesOf(ax => ax.BumpChart([1.0, 2.0], subset));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart([1.0, 2.0], subset));
         string svg = Svg([1.0, 2.0], subset);
-        var plot = PlotArea(svg);
+        var plot = svg.PlotArea();
 
         Assert.Equal(6.5, axes.YAxis.Min);
         Assert.Equal(["1", "2", "3", "4", "5", "6"], YTickLabels(svg));
-        double wrensAtSix = Dots(SeriesGroups(svg)[1])[0].Cy;
-        Assert.True(wrensAtSix + 5 <= plot.Y + plot.H, $"the marker at rank 6 reaches {wrensAtSix + 5} past the plot's bottom edge {plot.Y + plot.H}");
+        double wrensAtSix = Dots(svg.SeriesGroups()[1])[0].Cy;
+        Assert.True(wrensAtSix + 5 <= plot.Y + plot.Height, $"the marker at rank 6 reaches {wrensAtSix + 5} past the plot's bottom edge {plot.Y + plot.Height}");
     }
 
     /// <summary>A fractional rank counts to the next whole rank: with 2 groups a rank of 2.5 needs the axis to reach 3.5.</summary>
@@ -291,7 +269,7 @@ public class BumpChartTests
     {
         BarGroup[] ties = [new("Hawks", [1, 2.5]), new("Owls", [2, 1])];
 
-        var axes = AxesOf(ax => ax.BumpChart([1.0, 2.0], ties));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart([1.0, 2.0], ties));
 
         Assert.Equal(3.5, axes.YAxis.Min);
         Assert.Equal(["1", "2", "3"], YTickLabels(Svg([1.0, 2.0], ties)));
@@ -306,14 +284,14 @@ public class BumpChartTests
         var figure = Plt.Create().WithSize(900, 450).AddSubPlot(1, 1, 1, ax => ax.BumpChart(Seasons, fractional)).Build();
         string svg = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(["1", "2", "3"], YTickLabels(svg));
         Assert.Equal(["1", "2", "3"], YTickLabels(readBack));
         Assert.Equal(svg, readBack);
         var heights = YTickHeights(svg);
-        double halfway = Dots(SeriesGroups(svg)[0])[1].Cy;
-        Assert.Equal((heights[1] + heights[2]) / 2 - TickLabelDrop, halfway, 6);
+        double halfway = Dots(svg.SeriesGroups()[0])[1].Cy;
+        Assert.Equal((heights[1] + heights[2]) / 2 - TickLabelDrop, halfway, SvgMarkupExtensions.WrittenPrecision);
     }
 
     // ---- missing ranks and ties ------------------------------------------------------------------------------------
@@ -327,7 +305,7 @@ public class BumpChartTests
     {
         BarGroup[] gappy = [new("Hawks", [1, 2, double.NaN, 3, 2]), new("Owls", [2, 1, 1, 1, 1]), new("Wrens", [3, 3, 2, 2, 3])];
         string svg = Svg(FiveSeasons, gappy);
-        var groups = SeriesGroups(svg);
+        var groups = svg.SeriesGroups();
         double[] seasonX = [.. Dots(groups[1]).Select(d => d.Cx)];
 
         var runs = Runs(groups[0]);
@@ -335,7 +313,7 @@ public class BumpChartTests
         Assert.Equal([seasonX[0], seasonX[1]], runs[0].Select(p => p.Cx));
         Assert.Equal([seasonX[3], seasonX[4]], runs[1].Select(p => p.Cx));
         Assert.Equal([seasonX[0], seasonX[1], seasonX[3], seasonX[4]], Dots(groups[0]).Select(d => d.Cx));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>A point alone between two gaps is a marker with no line.</summary>
@@ -344,7 +322,7 @@ public class BumpChartTests
     {
         BarGroup[] lonely = [new("Hawks", [1, double.NaN, 2, double.NaN, 3]), new("Owls", [2, 1, 1, 1, 1])];
 
-        var hawks = SeriesGroups(Svg(FiveSeasons, lonely))[0];
+        var hawks = Svg(FiveSeasons, lonely).SeriesGroups()[0];
 
         Assert.Empty(Runs(hawks));
         Assert.Equal(3, Dots(hawks).Length);
@@ -358,12 +336,12 @@ public class BumpChartTests
         BarGroup[] groups = [.. Table, new("Ghosts", [double.NaN, double.NaN, double.NaN, double.NaN])];
         string svg = Svg(Seasons, groups);
 
-        var drawn = SeriesGroups(svg);
+        var drawn = svg.SeriesGroups();
         var ghosts = drawn.Single(g => (string?)g.Attribute("aria-label") == "Ghosts");
         Assert.Empty(Dots(ghosts));
         Assert.Empty(Runs(ghosts));
         Assert.Null(Label(ghosts));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
         Assert.Equal(4, Dots(drawn[0]).Length);
         Assert.Equal(["1", "2", "3", "4"], YTickLabels(svg));
     }
@@ -375,13 +353,13 @@ public class BumpChartTests
     {
         BarGroup[] blank = [new("A", [double.NaN, double.NaN]), new("B", [double.NaN, double.NaN])];
 
-        var axes = AxesOf(ax => ax.BumpChart([1.0, 2.0], blank));
+        var axes = Plt.Create().OneAxes(ax => ax.BumpChart([1.0, 2.0], blank));
         string svg = Svg([1.0, 2.0], blank);
 
         Assert.Equal(2.5, axes.YAxis.Min);
         Assert.Equal(0.5, axes.YAxis.Max);
         Assert.Equal(["1", "2"], YTickLabels(svg));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     /// <summary>A line whose last rank is missing is named at the last rank that is there: the name stands level with that
@@ -391,7 +369,7 @@ public class BumpChartTests
     {
         // Hawks end at rank 1, Wrens at rank 3 and Owls at rank 2 (a trailing NaN after their rank 2): three distinct ends.
         BarGroup[] trailing = [new("Hawks", [1, 1, 1, 1]), new("Owls", [2, 3, 2, double.NaN]), new("Wrens", [3, 2, 3, 3])];
-        var groups = SeriesGroups(Svg(Seasons, trailing));
+        var groups = Svg(Seasons, trailing).SeriesGroups();
 
         var hawks = Assert.IsType<EndLabel>(Label(groups[0]));
         var owls = Assert.IsType<EndLabel>(Label(groups[1]));
@@ -407,7 +385,7 @@ public class BumpChartTests
     public void TwoGroupsAtTheSameRank_StandOnTheSamePoint()
     {
         BarGroup[] tied = [new("Hawks", [1, 1, 2]), new("Owls", [1, 2, 2]), new("Wrens", [3, 3, 3])];
-        var groups = SeriesGroups(Svg([1.0, 2.0, 3.0], tied));
+        var groups = Svg([1.0, 2.0, 3.0], tied).SeriesGroups();
 
         Assert.Equal(Dots(groups[0])[0], Dots(groups[1])[0]);
         Assert.Equal(Dots(groups[0])[2], Dots(groups[1])[2]);
@@ -417,24 +395,6 @@ public class BumpChartTests
 
     // ---- the callback ----------------------------------------------------------------------------------------------
 
-    /// <summary>The callback runs once for each line, in the order of the groups, after the verb has built and styled it.</summary>
-    [Fact]
-    public void TheCallback_RunsOncePerLine_InTheOrderOfTheGroups_AfterTheVerbStyledIt()
-    {
-        var seen = new List<string?>();
-
-        var axes = AxesOf(ax => ax.BumpChart(Seasons, Table, line =>
-        {
-            Assert.Equal(SeriesLabelPlacement.LineEnd, line.LabelPlacement);
-            Assert.Equal(MarkerStyle.Circle, line.Marker);
-            seen.Add(line.Label);
-            line.MarkerSize = 4;
-        }));
-
-        Assert.Equal(["Hawks", "Owls", "Wrens"], seen);
-        Assert.All(Lines(axes), line => Assert.Equal(4, line.MarkerSize));
-    }
-
     /// <summary>What the callback sets wins: it can put a name back in the legend instead of at the end of the line.</summary>
     [Fact]
     public void TheCallback_CanPutTheNamesBackInTheLegend()
@@ -442,24 +402,11 @@ public class BumpChartTests
         string svg = Svg(ax => ax.BumpChart(Seasons, Table, line => line.LabelPlacement = SeriesLabelPlacement.Legend).WithLegend(),
             legendToggle: true);
 
-        Assert.Equal(Table.Length, Regex.Matches(svg, "data-legend-index=").Count);
-        Assert.All(SeriesGroups(svg), g => Assert.Null(Label(g)));
+        Assert.Equal(Table.Length, svg.CountOf("data-legend-index="));
+        Assert.All(svg.SeriesGroups(), g => Assert.Null(Label(g)));
     }
 
     // ---- the verb draws what the hand chain drew ---------------------------------------------------------------------
-
-    /// <summary>The verb adds nothing to the picture that the hand-written chain did not draw, and leaves nothing out: same
-    /// SVG, byte for byte, with and without a missing value.</summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void TheVerb_DrawsExactlyWhatTheHandRecipeDrew(bool missing)
-    {
-        string byVerb = ComposedChartShapes.Named("bump").Build(missing).ToSvg();
-        string byHand = ComposedChartShapes.BumpByHand(missing).ToSvg();
-
-        Assert.Equal(byHand, byVerb);
-    }
 
     /// <summary>Written to JSON and read back, the chart draws the same picture with a gap, fractional ranks and a rank past
     /// the number of groups: the names still stand at the end of the lines and the ticks are still whole ranks.</summary>
@@ -470,7 +417,7 @@ public class BumpChartTests
         var figure = Plt.Create().WithSize(900, 450).AddSubPlot(1, 1, 1, ax => ax.BumpChart(Seasons, mixed)).Build();
         string svg = figure.ToSvg();
 
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
+        string readBack = figure.RoundTripped().ToSvg();
 
         Assert.Equal(svg, readBack);
         Assert.Equal(["1", "2", "3", "4", "5", "6", "7"], YTickLabels(readBack));
@@ -488,29 +435,10 @@ public class BumpChartTests
         string svg = Svg([], empty);
 
         Assert.Equal(["1", "2"], YTickLabels(svg));
-        Assert.DoesNotContain("NaN", svg);
+        svg.AssertNoNonFiniteNumber();
     }
 
     // ---- refused arguments -----------------------------------------------------------------------------------------
-
-    /// <summary>An axes, an x array or a list of groups that is not there is refused by name.</summary>
-    [Fact]
-    public void ANullArgument_IsRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).BumpChart(Seasons, Table)).ParamName);
-        Assert.Equal("x", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.BumpChart(null!, Table))).ParamName);
-        Assert.Equal("ranks", Assert.Throws<ArgumentNullException>(() => AxesOf(ax => ax.BumpChart(Seasons, null!))).ParamName);
-    }
-
-    /// <summary>A bump chart draws one line for each group: no groups is refused, by the parameter.</summary>
-    [Fact]
-    public void NoGroups_AreRefused()
-    {
-        var error = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.BumpChart(Seasons, [])));
-
-        Assert.Equal("ranks", error.ParamName);
-        Assert.StartsWith("No groups were given", error.Message);
-    }
 
     /// <summary>A group with more or fewer ranks than x positions is refused, naming the group, both counts and the
     /// parameter, in the words every verb that takes groups uses.</summary>
@@ -519,10 +447,10 @@ public class BumpChartTests
     {
         BarGroup[] groups = [Table[0], new("Owls", [2, 1, 1])];
 
-        var error = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.BumpChart(Seasons, groups)));
+        var error = Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, groups)));
 
         Assert.Equal("ranks", error.ParamName);
-        Assert.Equal("Group 'Owls' carries 3 values; there are 4 x values. (Parameter 'ranks')", error.Message);
+        Assert.Equal(3.RefusalAgainst(4, "ranks", "group 'Owls'"), error.Message);
     }
 
     /// <summary>A group whose ranks are not there at all is refused by name, not with a null reference.</summary>
@@ -531,7 +459,7 @@ public class BumpChartTests
     {
         BarGroup[] groups = [Table[0], new("Owls", null!)];
 
-        var error = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.BumpChart(Seasons, groups)));
+        var error = Assert.Throws<ArgumentException>(() => Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, groups)));
 
         Assert.Equal("ranks", error.ParamName);
         Assert.Equal("Group 'Owls' carries no values; there are 4 x values. (Parameter 'ranks')", error.Message);
@@ -549,56 +477,41 @@ public class BumpChartTests
     {
         BarGroup[] groups = [Table[0], new("Owls", [2, rank, 1, 2])];
 
-        var error = Assert.Throws<ArgumentException>(() => AxesOf(ax => ax.BumpChart(Seasons, groups)));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Plt.Create().OneAxes(ax => ax.BumpChart(Seasons, groups)));
 
         Assert.Equal("ranks", error.ParamName);
-        Assert.Equal(
-            $"The rank of 'Owls' at x = 2022 is {written}; a rank counts from 1 and is finite (NaN marks a missing rank). (Parameter 'ranks')",
+        Assert.StartsWith("The rank of 'Owls' at x = 2022 must be ", error.Message, StringComparison.Ordinal);
+        Assert.EndsWith(
+            $"(got {written}). (Parameter 'ranks')",
             error.Message);
-    }
-
-    /// <summary>A refused call adds nothing to the axes: the checks come before the first line.</summary>
-    [Fact]
-    public void ARefusedCall_AddsNothingToTheAxes()
-    {
-        BarGroup[] badRank = [Table[0], new("Owls", [2, 0, 1, 2])];
-        BarGroup[] badLength = [Table[0], new("Owls", [2, 1])];
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.BumpChart(Seasons, badRank));
-        Assert.Throws<ArgumentException>(() => builder.BumpChart(Seasons, badLength));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Series);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
-        Assert.Null(axes.YAxis.TickLocator);
     }
 
     // ---- the example in the documentation --------------------------------------------------------------------------
 
-    /// <summary>The example of the verb's documentation, as written there, compiles and draws.</summary>
-    [Fact]
-    public void TheDocumentationExample_Draws()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        double[] seasons = [2021, 2022, 2023, 2024];
+        //  The example of the verb's documentation, as written there, compiles and draws.
+        new DrawnToken("TheDocumentationExample_Draws", () =>
+        {
+            double[] seasons = [2021, 2022, 2023, 2024];
+            return Plt.Create()
+                .WithTitle("League table")
+                .AddSubPlot(1, 1, 1, ax => ax
+                    .BumpChart(seasons,
+                    [
+                        new BarGroup("Hawks", [1, 2, 3, 3]),
+                        new BarGroup("Owls", [2, 1, 1, 2]),
+                        new BarGroup("Wrens", [3, 3, 2, 1]),
+                    ])
+                    .SetXTickLocator(new MultipleLocator(1))
+                    .SetXLabel("Season")
+                    .SetYLabel("Rank"))
+                .ToSvg();
+        }, ">Hawks<", ">Rank<", ">2022<"),
+    };
 
-        string svg = Plt.Create()
-            .WithTitle("League table")
-            .AddSubPlot(1, 1, 1, ax => ax
-                .BumpChart(seasons,
-                [
-                    new BarGroup("Hawks", [1, 2, 3, 3]),
-                    new BarGroup("Owls", [2, 1, 1, 2]),
-                    new BarGroup("Wrens", [3, 3, 2, 1]),
-                ])
-                .SetXTickLocator(new MultipleLocator(1))
-                .SetXLabel("Season")
-                .SetYLabel("Rank"))
-            .ToSvg();
-
-        Assert.Contains(">Hawks<", svg);
-        Assert.Contains(">Rank<", svg);
-        Assert.Contains(">2022<", svg);   // whole years on the X axis, not 2022.0 and 2022.5
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 }

@@ -3,6 +3,13 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Indicators;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet;
+using System.Text.Json;
 
 namespace MatPlotLibNet.Tests.Data;
 
@@ -129,11 +136,37 @@ public class EnumerableFigureExtensionsTests
     }
 
     [Fact]
-    public void Hist_DefaultBins_Is30()
+    public void Hist_DefaultBins_IsTheHistogramsOwn()
     {
         var data = new[] { new Point("A", 0, 1.0), new Point("A", 0, 2.0) };
         var figure = data.Hist(p => p.Y).Build();
         var hist = (HistogramSeries)figure.SubPlots[0].Series[0];
-        Assert.Equal(30, hist.Bins);
+        Assert.Equal(HistogramSeries.RestingBins, hist.Bins);
+    }
+
+    [Fact]
+    public void EnumerableFigureExtensions_Line_NoHue_BuildsSingleSeries()
+    {
+        var data = new[] { new Point("a", 1, 10), new Point("a", 2, 20), new Point("b", 3, 30) };
+        var fb = data.Line(s => s.X, s => s.Y);
+        Assert.Single(fb.Build().SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void EnumerableFigureExtensions_Line_WithHue_GroupsIntoMultipleSeries()
+    {
+        var data = new[] { new Point("a", 1, 10), new Point("b", 2, 20), new Point("a", 3, 30) };
+        var fb = data.Line(s => s.X, s => s.Y, hue: s => s.Group);
+        // Two unique hue groups → two series
+        Assert.Equal(2, fb.Build().SubPlots[0].Series.Count);
+    }
+
+    [Fact]
+    public void EnumerableFigureExtensions_Hist_WithHueAndPalette_OverlapsSeriesPerHue()
+    {
+        var data = new[] { new Point("a", 0, 1.0), new Point("b", 0, 2.0), new Point("a", 0, 3.0) };
+        var palette = new[] { Colors.Red, Colors.Blue };
+        var fb = data.Hist(s => s.Y, bins: 5, hue: s => s.Group, palette: palette);
+        Assert.Equal(2, fb.Build().SubPlots[0].Series.Count);
     }
 }

@@ -145,23 +145,33 @@ public class YAxisContainerWireCompatTests
             .WithTitle("Four Y axes")
             .WithSize(900, 500)
             .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([0.0, 1, 2, 3], [1.0, 3, 2, 4], s => { s.Label = "Primary line"; s.Color = Blue; })
+                .Plot([0.0, 1, 2, 3], [1.0, 3, 2, 4], s => { s.Label = "Primary line"; s.Color = Blue; s.LineWidth = 1.5; })
                 .SetXLabel("Time")
                 .SetYLabel("Primary")
                 .SetYAxisColor(Blue)
                 .WithAddRightYAxis(y => y
-                    .Plot([0.0, 1, 2, 3], [10.0, 30, 20, 40], s => { s.Label = "Right 0 line"; s.Color = Orange; })
+                    .Plot([0.0, 1, 2, 3], [10.0, 30, 20, 40], s => { s.Label = "Right 0 line"; s.Color = Orange; s.LineWidth = 1.5; })
                     .SetYLabel("Right 0")
                     .SetYAxisColor(Orange))
                 .WithAddRightYAxis(y => y
-                    .Plot([0.0, 1, 2, 3], [100.0, 300, 200, 400], s => { s.Label = "Right 1 line"; s.Color = Green; })
+                    .Plot([0.0, 1, 2, 3], [100.0, 300, 200, 400], s => { s.Label = "Right 1 line"; s.Color = Green; s.LineWidth = 1.5; })
                     .SetYLabel("Right 1")
                     .SetYAxisColor(Green))
                 .WithAddLeftYAxis(y => y
-                    .Plot([0.0, 1, 2, 3], [0.5, 1.5, 1.0, 2.0], s => { s.Label = "Left 0 line"; s.Color = Red; })
+                    .Plot([0.0, 1, 2, 3], [0.5, 1.5, 1.0, 2.0], s => { s.Label = "Left 0 line"; s.Color = Red; s.LineWidth = 1.5; })
                     .SetYLabel("Left 0")
                     .SetYAxisColor(Red))
-                .WithLegend(LegendPosition.UpperLeft))
+                .WithLegend(LegendPosition.UpperLeft)
+                // The file names the width of every spine, as the writer of 1.23.0 did for every spine of an axes whose spines it
+                // had to write, so each is a width that was given and stays under the theme, 0.8 px; it names every line's
+                // 1.5 too (above), which is given and drawn 1.5 px as that release drew it.
+                .WithSpines(spines => spines with
+                {
+                    Top = spines.Top with { LineWidth = 0.8 },
+                    Bottom = spines.Bottom with { LineWidth = 0.8 },
+                    Left = spines.Left with { LineWidth = 0.8 },
+                    Right = spines.Right with { LineWidth = 0.8 },
+                }))
             .Build();
 
         string read = S.FromJson(FixtureJson()).ToSvg();
@@ -228,17 +238,26 @@ public class YAxisContainerWireCompatTests
         Assert.Equal(json, S.ToJson(S.FromJson(json)));
     }
 
-    /// <summary>A figure that stays within what 1.23.0 could hold (two right axes, one left axis past the primary) writes no
-    /// overflow field: its bytes are the bytes 1.23.0 wrote for it.</summary>
-    [Fact]
-    public void AFigureWithinTheOldCaps_WritesNoOverflowField()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string json = S.ToJson(StackedFigure(right: 2, left: 1));
+        //  A figure that stays within what 1.23.0 could hold (two right axes, one left axis past the primary) writes no overflow field: its
+        // bytes are the bytes 1.23.0 wrote for it.
+        new DrawnToken("AFigureWithinTheOldCaps_WritesNoOverflowField", () => S.ToJson(StackedFigure(right: 2, left: 1)), "\"extraRightYAxes\":[{", "\"leftYAxes\":[{") { Absent = ["Overflow"] },
+        //  A title gap nobody gave is left out of the JSON, so a figure that never set it keeps its bytes; a gap that is given is written,
+        // a given 4 included, because under the matplotlib themes an unset gap is the theme's labelpad and 4 is not that.
+        new DrawnToken("AFigureThatNeverSetTheTitleGap_WritesNoGapField", () => S.ToJson(StackedFigure(right: 1, left: 1))) { Absent = ["yAxisTitleGap"] },
+        new DrawnToken("OneThatSetTheTitleGapToFour_WritesIt", () =>
+        {
+            var figure = StackedFigure(right: 1, left: 1);
+            figure.SubPlots[0].YAxes.TitleGap = 4;
+            return S.ToJson(figure);
+        }, "\"yAxisTitleGap\":4"),
+    };
 
-        Assert.Contains("\"extraRightYAxes\":[{", json, StringComparison.Ordinal);
-        Assert.Contains("\"leftYAxes\":[{", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("Overflow", json, StringComparison.Ordinal);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The overflow fields continue the outward order where the frozen field stops: a JSON that carries them is
     /// read slot for slot even when it was written by hand, with right slot 0 created first so no entry moves into it.</summary>
@@ -261,16 +280,6 @@ public class YAxisContainerWireCompatTests
         Assert.Equal(["Primary", "L1", "L2"], axes.YAxes.Left.Select(slot => slot.Axis.Label));
         Assert.Equal(["R1 line", "R2 line"], axes.YAxes.Right.Skip(1).Select(slot => Assert.Single(slot.Series).Label));
         Assert.Equal(["L1 line", "L2 line"], axes.YAxes.Left.Skip(1).Select(slot => Assert.Single(slot.Series).Label));
-    }
-
-    /// <summary>The title gap at its default of 4 is left out of the JSON, so a figure that never set it keeps its bytes.</summary>
-    [Fact]
-    public void AFigureWithTitleGapFour_WritesNoGapField()
-    {
-        var figure = StackedFigure(right: 1, left: 1);
-        figure.SubPlots[0].YAxes.TitleGap = 4;
-
-        Assert.DoesNotContain("yAxisTitleGap", S.ToJson(figure), StringComparison.Ordinal);
     }
 
     /// <summary>A title gap other than 4 (0 included) is written and read back, and the figure read back draws the same.</summary>

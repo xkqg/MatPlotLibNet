@@ -11,12 +11,6 @@ namespace MatPlotLibNet.Skia.Tests;
 /// dpi says how many device pixels a unit takes. The SaveOptions resolution is the per-save override.</summary>
 public class PngResolutionTests
 {
-    /// <summary>Save routes .png and .pdf to the Skia transforms only once the Skia assembly's module initializer has
-    /// run, which happens when something of the assembly is first used; a test that saves a file before any other
-    /// Skia call would otherwise write an SVG under a .png name, depending on the order the tests run in.</summary>
-    static PngResolutionTests() =>
-        System.Runtime.CompilerServices.RuntimeHelpers.RunModuleConstructor(typeof(FigureSkiaExtensions).Module.ModuleHandle);
-
     private static readonly SKColor BarBlue = new(31, 119, 180);
 
     private static Figure Chart(double width = 400, double height = 300, double dpi = 96) =>
@@ -181,21 +175,13 @@ public class PngResolutionTests
         }
     }
 
-    [Fact]
-    public void ADpiThatLeavesLessThanOnePixel_IsRefusedByName()
+    /// <summary>A dpi that leaves less than one pixel (400 * 0.1 / 96 = 0.4 px wide) and one that overflows a pixel count are refused alike.</summary>
+    [Theory]
+    [InlineData(0.1)]
+    [InlineData(1e12)]
+    public void ADpiThatLeavesNoPixelOrOverflowsTheCount_IsRefusedByName(double dpi)
     {
-        // 400 * 0.1 / 96 = 0.4 px wide.
-        var figure = Chart(dpi: 0.1);
-
-        var refusal = Assert.Throws<ArgumentException>(() => figure.ToPng());
-
-        Assert.Contains("pixel", refusal.Message);
-    }
-
-    [Fact]
-    public void ADpiThatOverflowsAPixelCount_IsRefusedByName()
-    {
-        var figure = Chart(dpi: 1e12);
+        var figure = Chart(dpi: dpi);
 
         var refusal = Assert.Throws<ArgumentException>(() => figure.ToPng());
 

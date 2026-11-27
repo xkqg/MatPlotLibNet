@@ -17,29 +17,27 @@ internal sealed record GridDto
     public GridWhich? Which { get; init; }
     public GridAxis? Axis { get; init; }
 
-    private static readonly GridStyle Plain = new();
-
     /// <summary>The JSON's form of <paramref name="grid"/>.</summary>
     internal static GridDto From(GridStyle grid) => new()
     {
         Visible = grid.Visible,
-        Color = grid.Color.OrNullAtRest(Plain.Color),
-        LineStyle = grid.LineStyle.OrNullAtRest(Plain.LineStyle),
-        LineWidth = grid.LineWidth.OrNullAtRest(Plain.LineWidth),
-        Alpha = grid.Alpha.OrNullAtRest(Plain.Alpha),
-        Which = grid.Which.OrNullAtRest(Plain.Which),
-        Axis = grid.Axis.OrNullAtRest(Plain.Axis),
+        Color = grid.Color.OrNullAtRest(GridStyle.AtRest.Color),
+        LineStyle = grid.LineStyle.OrNullAtRest(GridStyle.AtRest.LineStyle),
+        LineWidth = grid.LineWidth.OrNullAtRest(GridStyle.AtRest.LineWidth),
+        Alpha = grid.Alpha.OrNullAtRest(GridStyle.AtRest.Alpha),
+        Which = grid.Which.OrNullAtRest(GridStyle.AtRest.Which),
+        Axis = grid.Axis.OrNullAtRest(GridStyle.AtRest.Axis),
     };
 
     /// <summary>The grid this record describes.</summary>
     internal GridStyle ToGridStyle() => new()
     {
         Visible = Visible,
-        Color = Color ?? Plain.Color,
-        LineStyle = LineStyle ?? Plain.LineStyle,
-        LineWidth = LineWidth ?? Plain.LineWidth,
-        Alpha = Alpha ?? Plain.Alpha,
-        Which = Which ?? Plain.Which,
-        Axis = Axis ?? Plain.Axis,
+        Color = Color ?? GridStyle.AtRest.Color,
+        LineStyle = LineStyle ?? GridStyle.AtRest.LineStyle,
+        LineWidth = LineWidth ?? GridStyle.AtRest.LineWidth,
+        Alpha = Alpha ?? GridStyle.AtRest.Alpha,
+        Which = Which ?? GridStyle.AtRest.Which,
+        Axis = Axis ?? GridStyle.AtRest.Axis,
     };
 }

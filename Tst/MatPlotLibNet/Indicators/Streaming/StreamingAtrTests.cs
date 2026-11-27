@@ -6,46 +6,10 @@ using MatPlotLibNet.Indicators.Streaming;
 
 namespace MatPlotLibNet.Tests.Indicators.Streaming;
 
-/// <summary>Coverage uplift Batch D — completes coverage for <see cref="StreamingAtr"/>
-/// (was 91% line / 100% branch). The remaining gap was the <c>WarmupPeriod</c> getter and
-/// the unused <c>ComputeNext</c> scalar path. These tests also pin Wilder's smoothing
-/// against hand-derived ATR values from a tiny period-2 sequence.</summary>
-public sealed class StreamingAtrTests : OhlcStreamingIndicatorTests<StreamingAtr>
+/// <summary>The streaming ATR: Wilder's smoothing, pinned against hand-derived values from a tiny period-2
+/// sequence.</summary>
+public sealed class StreamingAtrTests
 {
-    protected override StreamingAtr CreateIndicator(int period, int capacity = 256)
-        => new(period: period, capacity: capacity);
-
-    [Fact]
-    public void Construction_DefaultsAreCorrect()
-    {
-        var atr = new StreamingAtr();
-        Assert.Equal(15, atr.WarmupPeriod);   // period + 1 = 14 + 1
-        Assert.Equal("ATR(14)", atr.Label);
-        Assert.Single(atr.OutputSeries);
-    }
-
-    [Fact]
-    public void Construction_CustomPeriod_PropagatesLabel()
-    {
-        var atr = new StreamingAtr(period: 7);
-        Assert.Equal(8, atr.WarmupPeriod);
-        Assert.Equal("ATR(7)", atr.Label);
-    }
-
-    [Fact]
-    public void Warmup_OutputIsNaN_UntilPeriodPlusOne()
-    {
-        var atr = new StreamingAtr(period: 3);
-        atr.AppendCandle(new OhlcBar(10, 11, 9, 10));
-        atr.AppendCandle(new OhlcBar(10, 12, 9, 11));
-        atr.AppendCandle(new OhlcBar(11, 13, 10, 12));
-
-        var y = atr.OutputSeries[0].CreateSnapshot().YData;
-        Assert.True(double.IsNaN(y[0]));
-        Assert.True(double.IsNaN(y[1]));
-        Assert.True(double.IsNaN(y[2]));
-    }
-
     [Fact]
     public void HandDerivedSequence_MatchesWilderSmoothing()
     {
@@ -69,18 +33,6 @@ public sealed class StreamingAtrTests : OhlcStreamingIndicatorTests<StreamingAtr
         Assert.True(double.IsNaN(y[1]));
         Assert.Equal(2.0, y[2], 1e-9);
         Assert.Equal(3.0, y[3], 1e-9);
-    }
-
-    [Fact]
-    public void IsWarmedUp_FlipsAtPeriodPlusOne()
-    {
-        var atr = new StreamingAtr(period: 2);
-        atr.AppendCandle(new OhlcBar(10, 11, 9, 10));
-        Assert.False(atr.IsWarmedUp);
-        atr.AppendCandle(new OhlcBar(10, 12, 9, 11));
-        Assert.False(atr.IsWarmedUp);
-        atr.AppendCandle(new OhlcBar(11, 13, 10, 12));
-        Assert.True(atr.IsWarmedUp);
     }
 
     [Fact]
@@ -114,5 +66,4 @@ public sealed class StreamingAtrTests : OhlcStreamingIndicatorTests<StreamingAtr
         Assert.Equal(0.0, y[3]);
         Assert.Equal(0.0, y[4]);
     }
-
 }

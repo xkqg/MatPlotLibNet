@@ -21,88 +21,68 @@ public class TreemapValueColorTests
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => { s.ColorMap = RedToBlue; s.ShowLabels = false; configure?.Invoke(s); }))
             .ToSvg();
 
-    [Fact]
-    public void ALeafWithAColorValue_IsColouredThroughTheMap()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        var root = new TreeNode
+        new DrawnToken("ALeafWithAColorValue_IsColouredThroughTheMap", () =>
         {
-            Label = "fleet",
-            Children =
-            [
-                new() { Label = "cold", Value = 10, ColorValue = 0 },
-                new() { Label = "hot", Value = 10, ColorValue = 100 },
-            ]
-        };
-
-        string svg = Render(root, s => { s.VMin = 0; s.VMax = 100; });
-
-        Assert.Contains(Colors.Red.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(Colors.Blue.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>Without explicit limits the map spans the leaves' own ColorValue range — the convention every
-    /// normalizable series shares (<c>VMin</c>/<c>VMax</c> null ⇒ data min/max).</summary>
-    [Fact]
-    public void WithoutLimits_TheRangeIsTheLeavesOwn()
-    {
-        var root = new TreeNode
+            var root = new TreeNode
+            {
+                Label = "fleet",
+                Children =
+                [
+                    new() { Label = "cold", Value = 10, ColorValue = 0 },
+                    new() { Label = "hot", Value = 10, ColorValue = 100 },
+                ]
+            };
+            return Render(root, s => { s.VMin = 0; s.VMax = 100; });
+        }, Colors.Red.ToHex(), Colors.Blue.ToHex()) { Comparison = StringComparison.OrdinalIgnoreCase },
+        // Without explicit limits the map spans the leaves' own ColorValue range — the convention every normalizable series shares
+        // (VMin/VMax null ⇒ data min/max).
+        new DrawnToken("WithoutLimits_TheRangeIsTheLeavesOwn", () =>
         {
-            Children =
-            [
-                new() { Label = "a", Value = 10, ColorValue = 40 },
-                new() { Label = "b", Value = 10, ColorValue = 60 },
-            ]
-        };
-
-        string svg = Render(root);
-
-        Assert.Contains(Colors.Red.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(Colors.Blue.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void AnExplicitNodeColour_StillWins()
-    {
-        var root = new TreeNode
+            var root = new TreeNode
+            {
+                Children =
+                [
+                    new() { Label = "a", Value = 10, ColorValue = 40 },
+                    new() { Label = "b", Value = 10, ColorValue = 60 },
+                ]
+            };
+            return Render(root);
+        }, Colors.Red.ToHex(), Colors.Blue.ToHex()) { Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("AnExplicitNodeColour_StillWins", () =>
         {
-            Children = [new() { Label = "a", Value = 10, ColorValue = 100, Color = Colors.Green }]
-        };
-
-        string svg = Render(root, s => { s.VMin = 0; s.VMax = 100; });
-
-        Assert.Contains(Colors.Green.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(Colors.Blue.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ALeafWithoutAColorValue_KeepsTheIndexRamp()
-    {
-        var root = new TreeNode { Children = [new() { Label = "a", Value = 10 }, new() { Label = "b", Value = 10 }] };
-
-        string svg = Render(root);
-
-        Assert.Contains(Colors.Red.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(Colors.Blue.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void TheNormalizer_IsHonoured()
-    {
-        var root = new TreeNode
+            var root = new TreeNode
+            {
+                Children = [new() { Label = "a", Value = 10, ColorValue = 100, Color = Colors.Green }]
+            };
+            return Render(root, s => { s.VMin = 0; s.VMax = 100; });
+        }, Colors.Green.ToHex()) { Absent = [Colors.Blue.ToHex()], Comparison = StringComparison.OrdinalIgnoreCase },
+        new DrawnToken("ALeafWithoutAColorValue_KeepsTheIndexRamp", () =>
         {
-            Children = [new() { Label = "a", Value = 10, ColorValue = 50 }]
-        };
-
+            var root = new TreeNode { Children = [new() { Label = "a", Value = 10 }, new() { Label = "b", Value = 10 }] };
+            return Render(root);
+        }, Colors.Red.ToHex(), Colors.Blue.ToHex()) { Comparison = StringComparison.OrdinalIgnoreCase },
         // A boundary normalizer with one bin below 75 puts 50 at fraction 0 → the map's first stop.
-        string svg = Render(root, s =>
+        new DrawnToken("TheNormalizer_IsHonoured", () =>
         {
-            s.VMin = 0;
-            s.VMax = 100;
-            s.Normalizer = new BoundaryNormalizer([0, 75, 100]);
-        });
+            var root = new TreeNode
+            {
+                Children = [new() { Label = "a", Value = 10, ColorValue = 50 }]
+            };
+            return Render(root, s =>
+            {
+                s.VMin = 0;
+                s.VMax = 100;
+                s.Normalizer = new BoundaryNormalizer([0, 75, 100]);
+            });
+        }, Colors.Red.ToHex()) { Comparison = StringComparison.OrdinalIgnoreCase },
+    };
 
-        Assert.Contains(Colors.Red.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>The alarm palette owns the three state hues; its ramp is the ONE colour map an ops caller
     /// reaches for, so "50 % is warning, 100 % is critical" is decided in one place.</summary>

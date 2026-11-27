@@ -1,6 +1,8 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
+using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
@@ -39,7 +41,7 @@ public readonly record struct StateSegment(double Start, double End, string Labe
 /// <c>[Start, End]</c> in data units, with a centred <c>Label</c> text overlay.</summary>
 /// <remarks>The Y range is fixed at [0, 1] so the segments fill the full plot height.
 /// Use a mosaic or sub-plot layout to stack multiple timelines vertically.</remarks>
-public sealed class StateTimelineSeries : ChartSeries
+public sealed class StateTimelineSeries : ChartSeries, IHoverTarget, ISeriesKind<StateTimelineSeries>, IGivenTextSize
 {
     /// <summary>The ordered list of state segments rendered on the timeline.</summary>
     public IReadOnlyList<StateSegment> Segments { get; }
@@ -62,12 +64,29 @@ public sealed class StateTimelineSeries : ChartSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        if (Segments.Count == 0) return new(null, null, null, null);
+        if (Segments.Count == 0) return default;
         // Over the segments that can be drawn: a segment with an end that is missing (NaN) or infinite is not drawn, so
         // neither of its ends counts.
         var x = Segments.Select(s => new Range1D(s.Start, s.End)).DrawableRange();
         return new(x?.Lo, x?.Hi, 0.0, 1.0);
     }
+
+    static string ISeriesKind<StateTimelineSeries>.Kind => "statetimeline";
+
+    /// <summary>The size of the name of each state on its segment, in pixels (the unit of <see cref="Font.Size"/>). Default <see cref="RestingFontSize"/>. Given no size, the name of each state on its segment
+    /// is the size of the theme's text under the matplotlib themes, as matplotlib draws the text it writes beside its data
+    /// (<c>font.size</c>), and <see cref="RestingFontSize"/> under every other theme; a size that is given, the default included, is drawn as given.</summary>
+    public double FontSize { get => GivenFontSize ?? RestingFontSize; set => GivenFontSize = value; }
+
+    /// <summary>The size a state's name takes under a theme that names none.</summary>
+    private const double RestingFontSize = 11;
+
+    /// <summary>The size that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenFontSize { get; private set => Change(ref field, value); }
+
+    double? IGivenTextSize.GivenTextSize => GivenFontSize;
+
+    double IGivenTextSize.RestingTextSize => RestingFontSize;
 
     /// <inheritdoc />
     /// <remarks>Round-trips: <c>Type = "statetimeline"</c>; segment <c>Start</c> values via
@@ -78,7 +97,8 @@ public sealed class StateTimelineSeries : ChartSeries
     /// serialized — consistent with the StatTile minimal-DTO approach.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type       = "statetimeline",
+        Type       = this.WireKind(),
+        FontSize = GivenFontSize,
         Starts     = Segments.Select(s => s.Start).ToArray(),
         Ends       = Segments.Select(s => s.End).ToArray(),
         Categories = Segments.Select(s => s.Label).ToArray(),
@@ -98,11 +118,7 @@ public sealed class StateTimelineSeries : ChartSeries
             : null,
     };
 
-    /// <summary>Reconstructs a <see cref="StateTimelineSeries"/> from its serialization DTO, restoring
-    /// segment starts, ends, labels, and per-segment colours, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="StateTimelineSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries segment starts, ends, labels, and per-segment colours.</summary>
     internal static StateTimelineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var starts  = dto.Starts     ?? [];
@@ -119,13 +135,15 @@ public sealed class StateTimelineSeries : ChartSeries
         {
             segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i])
             {
-                Hatch = hatches is not null && i < hatches.Count ? hatches[i] : HatchPattern.None,
+                Hatch = hatches.ElementOr(i, HatchPattern.None),
                 Condition = new OpsCondition(
-                    severities is not null && i < severities.Count ? severities[i] : OpsSeverity.Normal,
-                    visibilities is not null && i < visibilities.Count ? visibilities[i] : OpsVisibility.Observed)
+                    severities.ElementOr(i, OpsSeverity.Normal),
+                    visibilities.ElementOr(i, OpsVisibility.Observed))
             };
         }
-        return axes.StateTimeline(segments);
+        var s = axes.StateTimeline(segments);
+        if (dto.FontSize is { } fontSize) s.FontSize = fontSize;
+        return s;
     }
 
 
@@ -140,9 +158,43 @@ public sealed class StateTimelineSeries : ChartSeries
             rows.Add([DataCell.FromText(segment.Label), DataCell.FromNumber(segment.Start), DataCell.FromNumber(segment.End)]);
         }
 
-        return new ChartDataTable(null, [new("state", DataColumnKind.Text), new("start", Axis: DataAxis.X), new("end", Axis: DataAxis.X)], rows);
+        return new ChartDataTable(null, [new("state", DataColumnKind.Text), ChartDataColumn.Position(DataAxis.X, "start"), ChartDataColumn.Position(DataAxis.X, "end")], rows);
     }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
+
+    /// <inheritdoc />
+    /// <remarks>A segment is a span, so it is hit by containing the cursor, edges included, and it answers at no distance in
+    /// place of anything found before it; where segments overlap the one drawn last is the one the reader sees, so it
+    /// answers. A gap, or a hidden timeline, leaves the answer as it was.</remarks>
+    NearestPointResult? IHoverTarget.Nearest(in HoverSearch search, int seriesIndex, NearestPointResult? best)
+    {
+        if (!Visible) return best;
+
+        for (int i = Segments.Count - 1; i >= 0; i--)
+        {
+            var segment = Segments[i];
+            if (search.DataX >= segment.Start && search.DataX <= segment.End)
+            {
+                return new NearestPointResult(Label ?? string.Invariant($"Series {seriesIndex}"), seriesIndex, search.DataX, search.DataY, 0.0)
+                {
+                    PointIndex = i,
+                    Detail = $"{segment.Label} ({PositionText(segment.Start, search.Axes)}–{PositionText(segment.End, search.Axes)})",
+                };
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>A position along X as a reader would say it: a date and time on a date axis, a plain number otherwise. A value
+    /// no date can hold falls back to the number rather than failing a hover.</summary>
+    private static string PositionText(double x, Axes axes)
+    {
+        bool isDate = axes.XAxis.Scale.Rule.HoldsDates && x.IsOleDate;
+        return isDate
+            ? DateTime.FromOADate(x).InvariantText("yyyy-MM-dd HH:mm")
+            : x.InvariantText("G5");
+    }
 }

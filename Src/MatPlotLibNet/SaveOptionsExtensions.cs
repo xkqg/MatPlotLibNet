@@ -12,7 +12,7 @@ internal static class SaveOptionsExtensions
     extension(SaveOptions options)
     {
         /// <summary>The resolution a raster export draws <paramref name="figure"/> at when saved with these options: the
-        /// resolution of the options when they ask for one (anything but the default of 96), else the figure's own.
+        /// resolution of the options when they ask for one (anything but <see cref="Figure.ReferenceDpi"/>), else the figure's own.
         /// A figure with <c>WithDpi(300)</c> saved with <c>new SaveOptions { Title = "x" }</c> therefore stays at 300.</summary>
         public double DpiFor(Figure figure) =>
             options.Dpi == Figure.ReferenceDpi ? figure.Dpi : options.Dpi;

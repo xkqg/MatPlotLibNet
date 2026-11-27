@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -12,26 +13,25 @@ namespace MatPlotLibNet.Indicators;
 /// Ch. 7 of <i>Cybernetic Analysis for Stocks and Futures</i> (2004).</summary>
 public sealed class CgOscillator : PriceIndicator<SignalResult>
 {
+    /// <summary>The <c>period</c> the indicator is made with when the caller gives none.</summary>
+    public const int DefaultPeriod = 10;
+
     private readonly int _period;
 
     /// <summary>Creates a new CG Oscillator.</summary>
     /// <param name="prices">Price series.</param>
-    /// <param name="period">Weighting window length. Default 10. Must be ≥ 2.</param>
-    public CgOscillator(double[] prices, int period = 10) : base(prices)
+    /// <param name="period">Weighting window length. Default <see cref="DefaultPeriod"/>. Must be ≥ 2.</param>
+    public CgOscillator(double[] prices, int period = DefaultPeriod) : base(prices, Spec(period))
     {
-        if (period < 2)
-            throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _period = period;
-        Label = $"CG({period})";
     }
+
+    internal static IndicatorSpec Spec(int period) => IndicatorSpec.OfCheckedWindow("CG", period, 2, period - 1);
 
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Prices.Length;
-        if (n < _period) return Array.Empty<double>();
-
-        int outLen = n - _period + 1;
+        int outLen = ValueCount;
         var result = new double[outLen];
         double offset = (_period + 1) / 2.0;
 
@@ -54,5 +54,5 @@ public sealed class CgOscillator : PriceIndicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), warmup: _period - 1);
+    public override void Apply(Axes axes) => PlotLine(axes, Compute());
 }

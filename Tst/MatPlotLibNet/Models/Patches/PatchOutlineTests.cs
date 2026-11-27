@@ -93,6 +93,71 @@ public class PatchOutlineTests
         Assert.Equal(new DataPoint[] { new(1, 1), new(-1, 1), new(-1, 0), new(1, 0) }, Vertices(rectangle));
     }
 
+    [Fact]
+    public void ARectangleTurnedAboutItsCentre_TurnsInPlaceAndKeepsItsCornerOrder()
+    {
+        // matplotlib: Rectangle((1, 1), 2, 1, angle=30, rotation_point='center').get_verts()[:4]
+        var rectangle = new Rectangle(new(1, 1), 2, 1) { Angle = 30, RotationPoint = RotationPoint.Center };
+
+        AssertVertices([new(1.383974596216, 0.566987298108), new(3.116025403784, 1.566987298108), new(2.616025403784, 2.433012701892), new(0.883974596216, 1.433012701892)], Vertices(rectangle));
+    }
+
+    [Fact]
+    public void ARectangleTurnedAboutAPoint_TurnsAboutThatPoint()
+    {
+        // matplotlib: Rectangle((1, 1), 2, 1, angle=30, rotation_point=(3, 0)).get_verts()[:4]
+        var rectangle = new Rectangle(new(1, 1), 2, 1) { Angle = 30, RotationPoint = RotationPoint.At(new(3, 0)) };
+
+        AssertVertices([new(0.767949192431, -0.133974596216), new(2.5, 0.866025403784), new(2.0, 1.732050807569), new(0.267949192431, 0.732050807569)], Vertices(rectangle));
+    }
+
+    [Fact]
+    public void ARectangleTurnedAboutAPointAtTheOrigin_QuarterTurnMovesTheAnchorToo()
+    {
+        // matplotlib: Rectangle((1, 1), 2, 1, angle=90, rotation_point=(0, 0)).get_verts()[:4]
+        var rectangle = new Rectangle(new(1, 1), 2, 1) { Angle = 90, RotationPoint = RotationPoint.At(new(0, 0)) };
+
+        AssertVertices([new(-1, 1), new(-1, 3), new(-2, 3), new(-2, 1)], Vertices(rectangle));
+    }
+
+    [Fact]
+    public void ACentreOfARectangleWithNegativeSides_IsHalfTheSignedSizeFromTheAnchor()
+    {
+        // matplotlib: Rectangle((1, 1), -2, -1, angle=90, rotation_point='center').get_verts()[:4]
+        var rectangle = new Rectangle(new(1, 1), -2, -1) { Angle = 90, RotationPoint = RotationPoint.Center };
+
+        AssertVertices([new(-0.5, 1.5), new(-0.5, -0.5), new(0.5, -0.5), new(0.5, 1.5)], Vertices(rectangle));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ARectangleThatIsNotTurned_LooksTheSameWhateverItsRotationPoint(bool centre)
+    {
+        // matplotlib: Rectangle((1, 1), 2, 1, angle=0, rotation_point='center').get_verts()[:4] == the plain corners
+        var rectangle = new Rectangle(new(1, 1), 2, 1) { RotationPoint = centre ? RotationPoint.Center : RotationPoint.At(new(7, -3)) };
+
+        Assert.Equal(new DataPoint[] { new(1, 1), new(3, 1), new(3, 2), new(1, 2) }, Vertices(rectangle));
+    }
+
+    [Fact]
+    public void ARectangleTurnedAboutItsAnchor_ByNameOrByDefault_DrawsTheSame()
+    {
+        var turned = new Rectangle(new(2, -1), 3, 2) { Angle = 30 };
+        var named = new Rectangle(new(2, -1), 3, 2) { Angle = 30, RotationPoint = RotationPoint.Anchor };
+        var atTheAnchor = new Rectangle(new(2, -1), 3, 2) { Angle = 30, RotationPoint = RotationPoint.At(new(2, -1)) };
+
+        Assert.Equal(Vertices(turned), Vertices(named));
+        Assert.Equal(Vertices(turned), Vertices(atTheAnchor));
+    }
+
+    [Fact]
+    public void ARotationPointThatIsNotFinite_LeavesTheRectangleWithoutAnOutline()
+    {
+        Assert.Empty(new Rectangle(new(0, 0), 1, 1) { Angle = 30, RotationPoint = RotationPoint.At(new(double.NaN, 0)) }.Outline());
+        Assert.Empty(new Rectangle(new(0, 0), 1, 1) { RotationPoint = RotationPoint.At(new(0, double.PositiveInfinity)) }.Outline());
+    }
+
     private static readonly Dictionary<string, Func<Rectangle>> RectanglesWithANumberThatIsNotFinite = new()
     {
         ["anchor x NaN"] = () => new Rectangle(new(double.NaN, 0), 1, 1),

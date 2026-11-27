@@ -7,59 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
-/// <summary>Verifies <see cref="AdaptiveStochastic"/>. Covers all 11 branches in
-/// docs/contrib/indicator-tier-2c.md §4.</summary>
+/// <summary>Verifies <see cref="AdaptiveStochastic"/>. Its arithmetic is held here against reference values; what it keeps with every
+/// indicator (its lines, its pane, its first value, the arguments it refuses) is held by <see cref="IndicatorContractTests"/>.</summary>
 public class AdaptiveStochasticTests
 {
-    // ── Branch 1 — Empty input ──
-    [Fact]
-    public void Compute_EmptyInput_ReturnsEmpty()
-    {
-        var r = new AdaptiveStochastic(OhlcvBars.Hlc([], [], []));
-        Assert.Empty(r.Compute().Values);
-    }
-
-    // ── Branch 2 — HLC length mismatch throws ──
-    [Fact]
-    public void Constructor_LengthMismatch_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new AdaptiveStochastic(OhlcvBars.Hlc([101.0, 102], [99.0], [100.0, 100.5])));
-    }
-
-    // ── Branch 3 — BarCount < 7 → empty ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(3)]
-    [InlineData(6)]
-    public void Compute_BarCountBelowSeven_ReturnsEmpty(int n)
-    {
-        var h = Enumerable.Range(0, n).Select(i => 101.0 + i).ToArray();
-        var l = Enumerable.Range(0, n).Select(i => 99.0 + i).ToArray();
-        var c = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
-        var r = new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c));
-        Assert.Empty(r.Compute().Values);
-    }
-
-    // ── Branch 4 — smoothingPeriod < 1 throws ──
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_NonPositiveSmoothing_Throws(int sp)
-    {
-        Assert.Throws<ArgumentException>(() =>
-            new AdaptiveStochastic(OhlcvBars.Hlc([1.0, 2], [1.0, 2], [1.0, 2]), smoothingPeriod: sp));
-    }
-
-    // ── Branch 5 — H < L throws ──
-    [Fact]
-    public void Constructor_HighBelowLow_Throws()
-    {
-        // H < L on bar 1 (H=99 < L=101).
-        Assert.Throws<ArgumentException>(() =>
-            new AdaptiveStochastic(OhlcvBars.Hlc([101.0, 99], [99.0, 101], [100.0, 100.5])));
-    }
-
     // ── Branch 6 — Non-positive price is NOT a throw (range ratio doesn't need logs) ──
     [Fact]
     public void Constructor_NonPositivePrice_DoesNotThrow()
@@ -69,20 +20,6 @@ public class AdaptiveStochasticTests
         var ex = Record.Exception(() =>
             new AdaptiveStochastic(OhlcvBars.Hlc([1.0, 2, 3, 4, 5, 6, 7], [-1.0, 0, 1, 2, 3, 4, 5], [0.0, 1, 2, 3, 4, 5, 6])));
         Assert.Null(ex);
-    }
-
-    // ── Branch 7 — Flat H==L zero-range guard → output 50 (neutral) ──
-    [Fact]
-    public void Compute_FlatHEqualsL_ReturnsFifty()
-    {
-        var prices = Enumerable.Repeat(100.0, 30).ToArray();
-        var r = new AdaptiveStochastic(OhlcvBars.Hlc(prices, prices, prices)).Compute().Values;
-        Assert.NotEmpty(r);
-        Assert.All(r, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.Equal(50.0, v, precision: 6);
-        });
     }
 
     // ── Branch 8 — Constant prices (H > L but close doesn't move within window) → near 50 ──
@@ -95,11 +32,7 @@ public class AdaptiveStochasticTests
         var c = Enumerable.Repeat(100.0, 30).ToArray();
         var r = new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c)).Compute().Values;
         Assert.NotEmpty(r);
-        Assert.All(r, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.InRange(v, 40.0, 60.0);
-        });
+        Assert.All(r, v => Assert.InRange(v, 40.0, 60.0));
     }
 
     // ── Branch 9 & 10 — Adaptive lookback hit at lower / upper clamps ──
@@ -115,11 +48,7 @@ public class AdaptiveStochasticTests
         var l = c.Select(v => v - 1).ToArray();
 
         var r = new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c)).Compute().Values;
-        Assert.All(r, v =>
-        {
-            Assert.False(double.IsNaN(v));
-            Assert.InRange(v, 0.0, 100.0);
-        });
+        Assert.All(r, v => Assert.InRange(v, 0.0, 100.0));
     }
 
     // ── Branch 11 — Normal multi-bar path — output at top of rising range = 100 ──
@@ -132,62 +61,5 @@ public class AdaptiveStochasticTests
         var l = c.Select(v => v - 0.5).ToArray();
         var r = new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c), smoothingPeriod: 1).Compute().Values;
         Assert.True(r[^1] > 80, $"expected %K > 80 in strong uptrend, got {r[^1]}");
-    }
-
-    // ── Apply / label / styling ──
-    [Fact]
-    public void Apply_AddsLineSeries()
-    {
-        var axes = new Axes();
-        var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
-        var h = c.Select(v => v + 0.5).ToArray();
-        var l = c.Select(v => v - 0.5).ToArray();
-        new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c)).Apply(axes);
-        Assert.Single(axes.Series);
-        Assert.IsType<LineSeries>(axes.Series[0]);
-    }
-
-    [Fact]
-    public void Apply_SetsYAxisZeroToHundred()
-    {
-        var axes = new Axes();
-        var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
-        var h = c.Select(v => v + 0.5).ToArray();
-        var l = c.Select(v => v - 0.5).ToArray();
-        new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c)).Apply(axes);
-        Assert.Equal(0, axes.YAxis.Min);
-        Assert.Equal(100, axes.YAxis.Max);
-    }
-
-    [Fact]
-    public void Apply_SetsExpectedLabel()
-    {
-        var axes = new Axes();
-        var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
-        var h = c.Select(v => v + 0.5).ToArray();
-        var l = c.Select(v => v - 0.5).ToArray();
-        new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c), smoothingPeriod: 3).Apply(axes);
-        Assert.Equal("AdaptStoch(3)", axes.Series[0].Label);
-    }
-
-    [Fact]
-    public void DefaultSmoothingPeriod_IsThree()
-    {
-        var c = Enumerable.Range(0, 10).Select(i => 100.0 + i).ToArray();
-        var h = c.Select(v => v + 0.5).ToArray();
-        var l = c.Select(v => v - 0.5).ToArray();
-        var r = new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c));
-        Assert.Equal("AdaptStoch(3)", r.Label);
-    }
-
-    [Fact]
-    public void InheritsCandleIndicator()
-    {
-        var c = Enumerable.Range(0, 10).Select(i => 100.0 + i).ToArray();
-        var h = c.Select(v => v + 0.5).ToArray();
-        var l = c.Select(v => v - 0.5).ToArray();
-        var r = new AdaptiveStochastic(OhlcvBars.Hlc(h, l, c));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(r);
-        Assert.IsAssignableFrom<IIndicator>(r);
     }
 }

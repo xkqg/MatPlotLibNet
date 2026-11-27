@@ -28,68 +28,23 @@ public class ShapeStyleTests
         Assert.Equal(2.0, thickness);
     }
 
-    /// <summary>Verifies value equality for identical component values.</summary>
-    [Fact]
-    public void Equality_SameValues_AreEqual()
+    public static TheoryData<ShapeStyle, bool, bool> Visibility => new()
     {
-        var a = new ShapeStyle(Colors.Blue, Colors.White, 3.0);
-        var b = new ShapeStyle(Colors.Blue, Colors.White, 3.0);
-        Assert.Equal(a, b);
-        Assert.True(a == b);
-    }
+        { new ShapeStyle(Colors.Red, null, 0.0), true, false },
+        { new ShapeStyle(null, Colors.Black, 1.0), false, true },
+        { new ShapeStyle(Colors.Red, null, 1.0), true, false },
+        { new ShapeStyle(null, Colors.Black, 0.0), false, false },
+        { new ShapeStyle(null, Colors.Black, -2.0), false, false },
+    };
 
-    /// <summary>Verifies inequality when any component differs.</summary>
-    [Fact]
-    public void Equality_DifferentStroke_AreNotEqual()
+    /// <summary>A fill is visible when there is one; a stroke when there is one and its thickness is positive, the one guard the SVG,
+    /// Skia and MAUI backends read.</summary>
+    [Theory]
+    [MemberData(nameof(Visibility))]
+    public void AFill_IsVisibleWhenGiven_AndAStroke_WhenGivenAPositiveThickness(ShapeStyle shape, bool fill, bool stroke)
     {
-        var a = new ShapeStyle(Colors.Blue, Colors.White, 3.0);
-        var b = new ShapeStyle(Colors.Blue, null, 3.0);
-        Assert.NotEqual(a, b);
-        Assert.True(a != b);
-    }
-
-    /// <summary>Verifies that a present fill is reported as visible.</summary>
-    [Fact]
-    public void HasVisibleFill_WithFill_True()
-    {
-        Assert.True(new ShapeStyle(Colors.Red, null, 0.0).HasVisibleFill);
-    }
-
-    /// <summary>Verifies that a null fill is reported as not visible.</summary>
-    [Fact]
-    public void HasVisibleFill_NullFill_False()
-    {
-        Assert.False(new ShapeStyle(null, Colors.Black, 1.0).HasVisibleFill);
-    }
-
-    /// <summary>Verifies that a present stroke with positive thickness is visible.</summary>
-    [Fact]
-    public void HasVisibleStroke_StrokeAndPositiveThickness_True()
-    {
-        Assert.True(new ShapeStyle(null, Colors.Black, 1.0).HasVisibleStroke);
-    }
-
-    /// <summary>Verifies that a null stroke is not visible.</summary>
-    [Fact]
-    public void HasVisibleStroke_NullStroke_False()
-    {
-        Assert.False(new ShapeStyle(Colors.Red, null, 1.0).HasVisibleStroke);
-    }
-
-    /// <summary>Verifies the centralized guard: a stroke with zero thickness is not visible.
-    /// This is the semantic previously enforced only by the Skia backend; SVG and MAUI now
-    /// consult the same guard uniformly.</summary>
-    [Fact]
-    public void HasVisibleStroke_ZeroThickness_False()
-    {
-        Assert.False(new ShapeStyle(null, Colors.Black, 0.0).HasVisibleStroke);
-    }
-
-    /// <summary>Verifies the centralized guard: a stroke with negative thickness is not visible.</summary>
-    [Fact]
-    public void HasVisibleStroke_NegativeThickness_False()
-    {
-        Assert.False(new ShapeStyle(null, Colors.Black, -2.0).HasVisibleStroke);
+        Assert.Equal(fill, shape.HasVisibleFill);
+        Assert.Equal(stroke, shape.HasVisibleStroke);
     }
 
     /// <summary>A shape built without a line style strokes solid, so every figure drawn before the property existed is
@@ -161,5 +116,114 @@ public class ShapeStyleTests
 
         Assert.False(shape.HatchLayer.HasVisibleStroke);
         Assert.Equal(LineStyle.Solid, shape.HatchLayer.StrokeLineStyle);
+    }
+
+    /// <summary>The strokes of a hatch are the colour the shape names for them.</summary>
+    [Fact]
+    public void TheHatchStroke_IsTheHatchColorWhenTheShapeNamesOne()
+    {
+        var shape = new ShapeStyle(Colors.White, null, 0) { Hatch = HatchPattern.Cross, HatchColor = Colors.Red };
+
+        Assert.Equal(Colors.Red, shape.HatchStroke);
+    }
+
+    /// <summary>Without a hatch colour the strokes are the contrasting shade of the fill: black on a light fill and white on a
+    /// dark one, so one property is enough to get a visible hatch.</summary>
+    [Fact]
+    public void TheHatchStroke_FallsBackToTheContrastOfTheFill()
+    {
+        var light = new ShapeStyle(Colors.White, null, 0) { Hatch = HatchPattern.Cross };
+        var dark = new ShapeStyle(Colors.Black, null, 0) { Hatch = HatchPattern.Cross };
+
+        Assert.Equal(Colors.Black, light.HatchStroke);
+        Assert.Equal(Colors.White, dark.HatchStroke);
+    }
+
+    /// <summary>The hatch layer of a shape with a gradient paints in the colour the shape's own hatch resolves to.</summary>
+    [Fact]
+    public void TheHatchLayer_PaintsInTheHatchStroke()
+    {
+        var shape = new ShapeStyle(Colors.Black, null, 0) { Hatch = HatchPattern.Cross };
+
+        Assert.Equal(shape.HatchStroke, shape.HatchLayer.HatchColor);
+    }
+
+    /// <summary>A shape with a fill and no outline is one value with one spelling: the fill, no stroke colour, a stroke of no
+    /// width. Every mark a renderer fills and does not outline is built by it.</summary>
+    [Fact]
+    public void Filled_IsAFillWithNoOutline()
+    {
+        var shape = ShapeStyle.Filled(Colors.Red);
+
+        Assert.Equal(new ShapeStyle(Colors.Red, null, 0), shape);
+        Assert.True(shape.HasVisibleFill);
+        Assert.False(shape.HasVisibleStroke);
+    }
+
+    /// <summary>A fill-only shape takes the hatch and the gradient as any shape does, with a <c>with</c> where an init block stood.</summary>
+    [Fact]
+    public void Filled_TakesAHatchAndAGradientLikeAnyShape()
+    {
+        var hatched = ShapeStyle.Filled(Colors.White) with { Hatch = HatchPattern.Cross, HatchColor = Colors.Red };
+
+        Assert.Equal(new ShapeStyle(Colors.White, null, 0) { Hatch = HatchPattern.Cross, HatchColor = Colors.Red }, hatched);
+        Assert.True(hatched.HasVisibleHatch);
+    }
+
+    /// <summary>A shape with an outline and no fill is the stroke colour at its width over no fill.</summary>
+    [Fact]
+    public void Outlined_IsAnOutlineOverNoFill()
+    {
+        var shape = ShapeStyle.Outlined(Colors.Blue, 2.5);
+
+        Assert.Equal(new ShapeStyle(null, Colors.Blue, 2.5), shape);
+        Assert.False(shape.HasVisibleFill);
+        Assert.True(shape.HasVisibleStroke);
+    }
+
+    /// <summary>A fill edged by an edge is the one construction every shape goes through: either may be absent where its source names none,
+    /// and the shape then has no fill or no outline.</summary>
+    [Fact]
+    public void Edged_IsTheFillTheEdgeAndItsWidth_EitherMayBeAbsent()
+    {
+        Assert.Equal(new ShapeStyle(Colors.Red, Colors.Blue, 1.5), ShapeStyle.Edged(Colors.Red, Colors.Blue, 1.5));
+        Assert.Equal(ShapeStyle.Filled(Colors.Red), ShapeStyle.Edged(Colors.Red, null, 0));
+        Assert.Equal(ShapeStyle.Outlined(Colors.Blue, 2), ShapeStyle.Edged(null, Colors.Blue, 2));
+    }
+
+    /// <summary>The stroke an outline is drawn with is its colour, width, dash pattern and join, as every backend that draws a shape's
+    /// outline as a line reads them.</summary>
+    [Fact]
+    public void OutlineStroke_CarriesColourWidthDashAndJoin()
+    {
+        var shape = new ShapeStyle(Colors.Red, Colors.Black, 1.5) { StrokeLineStyle = LineStyle.Dashed, StrokeJoin = JoinStyle.Round };
+
+        var stroke = shape.OutlineStroke();
+
+        Assert.Equal(new StrokeStyle(Colors.Black, 1.5, LineStyle.Dashed) { Join = JoinStyle.Round }, stroke);
+    }
+
+    /// <summary>A shape built the plain way strokes with the mitre, a solid line, as it always did.</summary>
+    [Fact]
+    public void OutlineStroke_OfAPlainShape_IsSolidAndMitred()
+    {
+        var stroke = new ShapeStyle(null, Colors.Black, 1).OutlineStroke();
+
+        Assert.Equal(LineStyle.Solid, stroke.Style);
+        Assert.Equal(JoinStyle.Miter, stroke.Join);
+    }
+
+    /// <summary>A shape with no stroke colour has no outline to hand out: asking for it is a mistake, not a default colour.</summary>
+    [Fact]
+    public void OutlineStroke_OfAShapeWithNoStrokeColour_IsRefused()
+    {
+        Assert.Throws<InvalidOperationException>(() => ShapeStyle.Filled(Colors.Red).OutlineStroke());
+    }
+
+    /// <summary>Writing a shape out (a failed assertion does, a debugger does) never asks for an outline it does not have.</summary>
+    [Fact]
+    public void AFilledShape_CanBeWrittenOut()
+    {
+        Assert.NotEmpty(ShapeStyle.Filled(Colors.Red).ToString());
     }
 }

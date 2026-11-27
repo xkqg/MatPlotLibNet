@@ -51,7 +51,8 @@ public readonly record struct ControlChartData
     public static ControlChartData Individuals(double[] x, double[] values)
     {
         ArgumentNullException.ThrowIfNull(x);
-        values.ThrowIfMisaligned(x.Length, nameof(values), "x positions", "x position");
+        ArgumentNullException.ThrowIfNull(values);
+        values.Length.ThrowIfMisaligned(x.Length, nameof(values));
         return new ControlChartData(x, values, () => IndividualsLimits(values));
     }
 
@@ -72,8 +73,9 @@ public readonly record struct ControlChartData
     public static ControlChartData MovingRange(double[] x, double[] values)
     {
         ArgumentNullException.ThrowIfNull(x);
-        values.ThrowIfMisaligned(x.Length, nameof(values), "x positions", "x position");
-        values.Observations(MovingRangeObservations, "The sample", "a moving range chart is drawn from", nameof(values));
+        ArgumentNullException.ThrowIfNull(values);
+        values.Length.ThrowIfMisaligned(x.Length, nameof(values));
+        values.Observations(MovingRangeObservations, "The sample", "a moving range chart", nameof(values));
 
         // The values that can be drawn, with the range from each to the one before it.
         int[] there = [.. Enumerable.Range(0, values.Length).Where(i => double.IsFinite(values[i]))];
@@ -147,26 +149,17 @@ public readonly record struct ControlChartData
     /// <param name="sampleSize">The number of items in every sample, 1 or more.</param>
     /// <returns>The data.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="defectives"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="sampleSize"/> is below 1.</exception>
-    /// <exception cref="ArgumentException">A sample has fewer than 0 or more than <paramref name="sampleSize"/> defectives, or
-    /// no sample has a result.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="sampleSize"/> is below 1, or a sample has fewer than 0 or
+    /// more than <paramref name="sampleSize"/> defectives.</exception>
+    /// <exception cref="ArgumentException">No sample has a result.</exception>
     public static ControlChartData P(double[] defectives, int sampleSize)
     {
         ArgumentNullException.ThrowIfNull(defectives);
-        if (sampleSize < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(sampleSize), sampleSize, "A sample holds 1 item or more.");
-        }
-
+        sampleSize.ThrowIfBelow(1, nameof(sampleSize));
         for (int i = 0; i < defectives.Length; i++)
         {
-            double count = defectives[i];
-            if (!double.IsNaN(count) && !(count >= 0 && count <= sampleSize))
-            {
-                throw new ArgumentException(
-                    $"Sample {i + 1} has {count.ToString(CultureInfo.InvariantCulture)} defectives; a sample of {sampleSize} has between 0 and {sampleSize}.",
-                    nameof(defectives));
-            }
+            if (!defectives[i].IsMissing())
+                defectives[i].ThrowIfNotIn(0, sampleSize, nameof(defectives), i, static at => string.Invariant($"The defectives of sample {at + 1}"));
         }
 
         if (!defectives.Any(count => !double.IsNaN(count)))
@@ -191,19 +184,12 @@ public readonly record struct ControlChartData
     /// or more, or NaN for a sample with no count; at least one with a count.</param>
     /// <returns>The data.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="counts"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">A count is negative or infinite, or no sample has a count.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A count is negative or infinite.</exception>
+    /// <exception cref="ArgumentException">No sample has a count.</exception>
     public static ControlChartData C(double[] counts)
     {
         ArgumentNullException.ThrowIfNull(counts);
-        for (int i = 0; i < counts.Length; i++)
-        {
-            if (!double.IsNaN(counts[i]) && !(double.IsFinite(counts[i]) && counts[i] >= 0))
-            {
-                throw new ArgumentException(
-                    $"Sample {i + 1} has a count of {counts[i].ToString(CultureInfo.InvariantCulture)}; a count is a finite number of 0 or more.",
-                    nameof(counts));
-            }
-        }
+        counts.ThrowIfAnyNotAmount(nameof(counts), 0, static (_, i) => string.Invariant($"The count of sample {i + 1}"));
 
         if (!counts.Any(count => !double.IsNaN(count)))
         {
@@ -233,36 +219,20 @@ public readonly record struct ControlChartData
     private static SubgroupStatistics Measure(double[][] subgroups)
     {
         ArgumentNullException.ThrowIfNull(subgroups);
-        if (subgroups.Length == 0)
-        {
-            throw new ArgumentException("No subgroups were given; a control chart for subgroups is drawn from 1 or more.", nameof(subgroups));
-        }
+        subgroups.ThrowIfEmpty("No subgroups were given; a control chart for subgroups is drawn from 1 or more.");
 
         for (int i = 0; i < subgroups.Length; i++)
         {
             if (subgroups[i] is null)
             {
-                throw new ArgumentException($"Subgroup {i + 1} is missing (null); every subgroup holds its observations.", nameof(subgroups));
+                throw new ArgumentException(string.Invariant($"Subgroup {i + 1} is missing (null); every subgroup holds its observations."), nameof(subgroups));
             }
         }
 
+        subgroups.Select(s => s.Length).ThrowIfNotAllEqual(nameof(subgroups), "subgroup");
         int size = subgroups[0].Length;
-        for (int i = 1; i < subgroups.Length; i++)
-        {
-            if (subgroups[i].Length != size)
-            {
-                throw new ArgumentException(
-                    $"Subgroup {i + 1} holds {Observations(subgroups[i].Length)} and subgroup 1 holds {Observations(size)}; the limits of the chart are for one subgroup size.",
-                    nameof(subgroups));
-            }
-        }
 
-        if (size < ControlChartConstants.SmallestSubgroup || size > ControlChartConstants.LargestSubgroup)
-        {
-            throw new ArgumentException(
-                $"The subgroups hold {Observations(size)} each; the constants of a control chart for subgroups are tabulated for {ControlChartConstants.SmallestSubgroup} to {ControlChartConstants.LargestSubgroup}.",
-                nameof(subgroups));
-        }
+        ControlChartConstants.ThrowIfNotTabulated(size, nameof(subgroups));
 
         double[] means = [.. subgroups.Select(s => s.All(double.IsFinite) ? s.Sum() / size : double.NaN)];
         double[] ranges = [.. subgroups.Select(s => s.All(double.IsFinite) ? s.Max() - s.Min() : double.NaN)];
@@ -292,9 +262,6 @@ public readonly record struct ControlChartData
         return sum / placed;
     }
 
-    /// <summary>"1 observation" or "n observations".</summary>
-    private static string Observations(int count) => count == 1 ? "1 observation" : $"{count} observations";
-
     /// <summary>The limits of the individuals chart estimated from <paramref name="values"/>: the centre is the mean of the
     /// values that can be drawn, in their order; sigma is the average moving range between neighbouring ones over
     /// <see cref="ControlChartConstants.MovingRangeD2"/>; the limits stand <see cref="ControlChartConstants.Sigmas"/> sigma
@@ -302,7 +269,7 @@ public readonly record struct ControlChartData
     /// <exception cref="ArgumentException">Fewer than two values can be drawn: a moving range is the distance between two.</exception>
     private static ControlLimits IndividualsLimits(double[] values)
     {
-        double[] there = values.Observations(MovingRangeObservations, "The sample", "the limits of a control chart are estimated from", nameof(values));
+        double[] there = values.Observations(MovingRangeObservations, "The sample", "the estimate of a control chart's limits", nameof(values));
         double sum = 0, ranges = 0;
         for (int i = 0; i < there.Length; i++)
         {

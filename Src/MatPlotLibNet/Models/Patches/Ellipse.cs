@@ -11,8 +11,8 @@ namespace MatPlotLibNet.Models.Patches;
 /// the centre.</summary>
 /// <remarks>The outline is matplotlib's: the unit circle's eight cubic Bézier curves, scaled to the ellipse, turned and moved, every
 /// control point in data units. On a log axis each point moves through the scale on its own, so the ellipse bends there as it does
-/// in matplotlib. An ellipse with a width or a height of 0 or less, or a number that is not finite, has no outline and draws
-/// nothing.</remarks>
+/// in matplotlib. An ellipse with a width or a height of 0, or a number that is not finite, has no outline and draws
+/// nothing; a negative width or height mirrors it, as matplotlib's scale does.</remarks>
 /// <example>
 /// <code>
 /// ax.AddPatch(new Ellipse(new(2, 1), 4, 1.5) { Angle = 30, FaceColor = Colors.Tab10Orange });
@@ -32,17 +32,17 @@ public sealed class Ellipse : FilledPatch
     }
 
     /// <summary>The centre, in data units (matplotlib's <c>xy</c>).</summary>
-    public DataPoint Center { get; set; }
+    public DataPoint Center { get; set => Change(ref field, value); }
 
-    /// <summary>The full width along X before the ellipse is turned, in data units; 0 or less draws nothing.</summary>
-    public double Width { get; set; }
+    /// <summary>The full width along X before the ellipse is turned, in data units; 0 draws nothing, and a negative width mirrors the ellipse across its height axis.</summary>
+    public double Width { get; set => Change(ref field, value); }
 
-    /// <summary>The full height along Y before the ellipse is turned, in data units; 0 or less draws nothing.</summary>
-    public double Height { get; set; }
+    /// <summary>The full height along Y before the ellipse is turned, in data units; 0 draws nothing, and a negative height mirrors the ellipse across its width axis.</summary>
+    public double Height { get; set => Change(ref field, value); }
 
     /// <summary>The angle the ellipse is turned through about its <see cref="Center"/>, in degrees, counter-clockwise in data
     /// space. 0 (the default) keeps its width along X.</summary>
-    public double Angle { get; set; }
+    public double Angle { get; set => Change(ref field, value); }
 
     /// <inheritdoc />
     internal override IReadOnlyList<PathSegment> Outline() => new EllipticArc(Center, Width, Height, Angle).Place(EllipticArc.UnitCircle);

@@ -20,7 +20,7 @@ public sealed record SaveOptions
     /// <summary>The resolution of a raster image in dots per inch. A figure is laid out in units of one pixel at 96 dpi,
     /// so a PNG is drawn with <c>Dpi / 96</c> pixels for each unit: a 500 by 350 figure saved at 192 dpi is a 1000 by 700
     /// PNG with the same layout, text and line widths, drawn finer. The pixel count is rounded to a whole number.
-    /// <para>The default, 96, asks for nothing and leaves the resolution of the figure itself (<see cref="Figure.Dpi"/>,
+    /// <para>The default, <see cref="Figure.ReferenceDpi"/>, asks for nothing and leaves the figure's own resolution (<see cref="Figure.Dpi"/>,
     /// set with <c>WithDpi</c>) in force; any other value overrides the figure's for this save. A resolution below 1
     /// is refused when the image is drawn.</para>
     /// <para>An SVG and a PDF page are vector drawings with no pixels to count and a JSON document is data, so the
@@ -36,10 +36,12 @@ public sealed record SaveOptions
     /// <summary>The number of decimals kept in the coordinates of an SVG, from 0 (whole numbers) to 15, rounding half
     /// away from zero: <c>0.25</c> at one decimal is <c>0.3</c>. It applies to positions and sizes: the attributes
     /// x, y, cx, cy, r, rx, ry, width, height, the path data, the points of a polygon, transforms and the view box.
-    /// Stroke widths, dash lengths, opacities and font sizes keep the digits they were written with, since rounding
-    /// them would change how the chart looks rather than where it draws; so do the text of labels, the data-*
-    /// attributes and the script of an interactive chart. <see langword="null"/>, the default, keeps every digit. A
-    /// number outside 0 to 15 is refused. Used by an SVG only; a PNG, a PDF page and JSON have no SVG numbers.</summary>
+    /// The SVG itself writes these to two decimals, a hundredth of a pixel, so only 0 and 1 round them further; 2 to 15
+    /// leave them as written. Stroke widths, dash lengths, opacities and font sizes keep the digits they were written
+    /// with, since rounding them would change how the chart looks rather than where it draws; so do the text of labels,
+    /// the data-* attributes and the script of an interactive chart. <see langword="null"/>, the default, keeps the
+    /// numbers as written. A number outside 0 to 15 is refused. Used by an SVG only; a PNG, a PDF page and JSON have no
+    /// SVG numbers.</summary>
     public int? SvgDecimalPrecision { get; init; }
 
     /// <summary>A prefix put in front of every id an SVG defines and in front of every reference to one (<c>id</c>,

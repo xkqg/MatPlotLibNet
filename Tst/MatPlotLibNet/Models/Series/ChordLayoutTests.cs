@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -207,7 +208,7 @@ public class ChordLayoutTests
     {
         var arc = new ChordArc(0, midAngle - 0.1, midAngle + 0.1);
 
-        var label = arc.Label();
+        var label = ChordSeriesRenderer.Label(arc);
 
         Assert.Equal(midAngle, label.Angle, 12);
         Assert.Equal(alignment == 0 ? TextAlignment.Left : TextAlignment.Right, label.Alignment);
@@ -219,7 +220,7 @@ public class ChordLayoutTests
     {
         for (double angle = 0; angle < Tau; angle += 0.01)
         {
-            var label = new ChordArc(0, angle, angle).Label();
+            var label = ChordSeriesRenderer.Label(new ChordArc(0, angle, angle));
 
             Assert.InRange(label.Rotation, -90.0 - 1e-9, 90.0 + 1e-9);
         }
@@ -237,17 +238,17 @@ public class ChordLayoutTests
     }
 
     [Theory]
-    [InlineData(-1.0, "negative")]
-    [InlineData(double.NaN, "not a number")]
-    [InlineData(double.PositiveInfinity, "infinite")]
-    public void C4_AFlowThatCannotBeDrawn_IsRefusedByItsPlace(double value, string what)
+    [InlineData(-1.0, "flows[1,0] must be >= 0 (got -1).")]
+    [InlineData(double.NaN, "flows[1,0] must be finite (got NaN).")]
+    [InlineData(double.PositiveInfinity, "flows[1,0] must be finite (got Infinity).")]
+    public void C4_AFlowThatCannotBeDrawn_IsRefusedByItsPlace(double value, string sentence)
     {
         var flows = new double[,] { { 1, 2 }, { value, 1 } };
 
-        var refusal = Assert.Throws<ArgumentException>(() => ChordLayout.Compute(flows));
+        var refusal = Assert.Throws<ArgumentOutOfRangeException>(() => ChordLayout.Compute(flows));
 
-        Assert.Contains("flows[1,0]", refusal.Message, StringComparison.Ordinal);
-        Assert.Contains(what, refusal.Message, StringComparison.Ordinal);
+        Assert.Equal("flows", refusal.ParamName);
+        Assert.StartsWith(sentence, refusal.Message, StringComparison.Ordinal);
     }
 
     [Fact]

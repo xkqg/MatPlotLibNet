@@ -1,14 +1,15 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>v1.10 Phase 4 — Verifies <see cref="PairGridSeries"/> construction, validation,
-/// default properties, and clamping. Render + serialization behaviour live in
-/// <c>PairGridRenderTests</c> and <c>PairGridSerializationTests</c>.</summary>
+/// <summary>Verifies <see cref="PairGridSeries"/> construction, validation, clamping and its diagonal densities. What it
+/// starts from and the settings it stores are held by the resting-value corpus and the drawn-property round trips; render
+/// behaviour lives in <c>PairGridRenderTests</c>.</summary>
 public class PairGridSeriesTests
 {
     private static double[][] SampleVars => new[]
@@ -19,14 +20,6 @@ public class PairGridSeriesTests
     };
 
     // ── Construction ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void Constructor_StoresVariables()
-    {
-        var v = SampleVars;
-        var s = new PairGridSeries(v);
-        Assert.Same(v, s.Variables);
-    }
 
     [Fact]
     public void Constructor_EmptyVariables_Throws()
@@ -53,233 +46,18 @@ public class PairGridSeriesTests
         Assert.Single(s.Variables);
     }
 
-    // ── Default properties ────────────────────────────────────────────────────
-
-    [Fact]
-    public void DiagonalKind_DefaultsToHistogram()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal(PairGridDiagonalKind.Histogram, s.DiagonalKind);
-    }
-
-    [Fact]
-    public void OffDiagonalKind_DefaultsToScatter()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal(PairGridOffDiagonalKind.Scatter, s.OffDiagonalKind);
-    }
-
-    [Fact]
-    public void Triangular_DefaultsToBoth()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal(PairGridTriangle.Both, s.Triangular);
-    }
-
-    [Fact]
-    public void DiagonalBins_DefaultsTo20()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal(20, s.DiagonalBins);
-    }
-
-    [Fact]
-    public void MarkerSize_DefaultsTo3()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal(3.0, s.MarkerSize);
-    }
-
-    [Fact]
-    public void CellSpacing_DefaultsTo002()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal(0.02, s.CellSpacing, 10);
-    }
-
-    [Fact]
-    public void Labels_DefaultsToNull()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Null(s.Labels);
-    }
-
-    [Fact]
-    public void HueGroups_DefaultsToNull()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Null(s.HueGroups);
-    }
-
-    [Fact]
-    public void HueLabels_DefaultsToNull()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Null(s.HueLabels);
-    }
-
-    [Fact]
-    public void HuePalette_DefaultsToNull()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Null(s.HuePalette);
-    }
-
     // ── CellSpacing clamping [0, 0.2] ─────────────────────────────────────────
 
-    [Fact]
-    public void CellSpacing_NegativeValue_ClampsToZero()
-    {
-        var s = new PairGridSeries(SampleVars) { CellSpacing = -0.5 };
-        Assert.Equal(0.0, s.CellSpacing, 10);
-    }
-
-    [Fact]
-    public void CellSpacing_AboveMax_ClampsToTwoTenths()
-    {
-        var s = new PairGridSeries(SampleVars) { CellSpacing = 0.9 };
-        Assert.Equal(0.2, s.CellSpacing, 10);
-    }
-
-    [Fact]
-    public void CellSpacing_InRange_StoredVerbatim()
-    {
-        var s = new PairGridSeries(SampleVars) { CellSpacing = 0.07 };
-        Assert.Equal(0.07, s.CellSpacing, 10);
-    }
-
-    [Fact]
-    public void CellSpacing_ExactlyZero_Allowed()
-    {
-        var s = new PairGridSeries(SampleVars) { CellSpacing = 0.0 };
-        Assert.Equal(0.0, s.CellSpacing, 10);
-    }
-
-    [Fact]
-    public void CellSpacing_ExactlyTwoTenths_Allowed()
-    {
-        var s = new PairGridSeries(SampleVars) { CellSpacing = 0.2 };
-        Assert.Equal(0.2, s.CellSpacing, 10);
-    }
-
-    // ── Init properties accepted ──────────────────────────────────────────────
-
-    [Fact]
-    public void Labels_SetViaInit_Stored()
-    {
-        var labs = new[] { "A", "B", "C" };
-        var s = new PairGridSeries(SampleVars) { Labels = labs };
-        Assert.Same(labs, s.Labels);
-    }
-
-    [Fact]
-    public void HueGroups_SetViaInit_Stored()
-    {
-        var hue = new[] { 0, 1, 0, 1 };
-        var s = new PairGridSeries(SampleVars) { HueGroups = hue };
-        Assert.Same(hue, s.HueGroups);
-    }
-
-    [Fact]
-    public void HueLabels_SetViaInit_Stored()
-    {
-        var labs = new[] { "Setosa", "Versicolor" };
-        var s = new PairGridSeries(SampleVars) { HueLabels = labs };
-        Assert.Same(labs, s.HueLabels);
-    }
-
-    // ── ToSeriesDto ───────────────────────────────────────────────────────────
-
-    [Fact]
-    public void ToSeriesDto_TypeIsPairGrid()
-    {
-        var s = new PairGridSeries(SampleVars);
-        Assert.Equal("pairgrid", s.ToSeriesDto().Type);
-    }
-
-    [Fact]
-    public void ToSeriesDto_DefaultProperties_NotEmittedAsNonNull()
-    {
-        var s = new PairGridSeries(SampleVars);
-        var dto = s.ToSeriesDto();
-        // Type is the only required tag; everything else stays null on a fresh series.
-        Assert.Null(dto.PairGridLabels);
-        Assert.Null(dto.PairGridHueGroups);
-        Assert.Null(dto.PairGridHueLabels);
-        Assert.Null(dto.PairGridDiagonal);     // default Histogram → null
-        Assert.Null(dto.PairGridOffDiagonal);  // default Scatter   → null
-        Assert.Null(dto.PairGridTriangular);   // default Both      → null
-        Assert.Null(dto.PairGridDiagonalBins); // default 20        → null
-        Assert.Null(dto.PairGridMarkerSize);   // default 3.0       → null
-        Assert.Null(dto.PairGridCellSpacing);  // default 0.02      → null
-    }
-
-    [Fact]
-    public void ToSeriesDto_NonDefaultDiagonalKind_EmittedAsString()
-    {
-        var s = new PairGridSeries(SampleVars) { DiagonalKind = PairGridDiagonalKind.Kde };
-        var dto = s.ToSeriesDto();
-        Assert.Equal("Kde", dto.PairGridDiagonal);
-    }
-
-    [Fact]
-    public void ToSeriesDto_NonDefaultTriangular_EmittedAsString()
-    {
-        var s = new PairGridSeries(SampleVars) { Triangular = PairGridTriangle.LowerOnly };
-        var dto = s.ToSeriesDto();
-        Assert.Equal("LowerOnly", dto.PairGridTriangular);
-    }
-
-    [Fact]
-    public void ToSeriesDto_NonDefaultOffDiagonalKind_EmittedAsString()
-    {
-        var s = new PairGridSeries(SampleVars) { OffDiagonalKind = PairGridOffDiagonalKind.None };
-        var dto = s.ToSeriesDto();
-        Assert.Equal("None", dto.PairGridOffDiagonal);
-    }
-
-    [Fact]
-    public void ToSeriesDto_NonDefaultBinsAndMarker_Emitted()
-    {
-        var s = new PairGridSeries(SampleVars)
-        {
-            DiagonalBins = 50,
-            MarkerSize = 5.0,
-            CellSpacing = 0.05,
-        };
-        var dto = s.ToSeriesDto();
-        Assert.Equal(50,   dto.PairGridDiagonalBins);
-        Assert.Equal(5.0,  dto.PairGridMarkerSize);
-        Assert.Equal(0.05, dto.PairGridCellSpacing!.Value, 10);
-    }
-
-    [Fact]
-    public void ToSeriesDto_VariablesRoundTripShape()
-    {
-        var s = new PairGridSeries(SampleVars);
-        var dto = s.ToSeriesDto();
-        Assert.NotNull(dto.Variables);
-        Assert.Equal(3, dto.Variables!.Count);
-        Assert.Equal(4, dto.Variables[0].Count);
-    }
-
-    [Fact]
-    public void ToSeriesDto_LabelsHueRoundTripShape()
-    {
-        var labs = new[] { "A", "B", "C" };
-        var hue = new[] { 0, 1, 0, 1 };
-        var hLabs = new[] { "G0", "G1" };
-        var s = new PairGridSeries(SampleVars)
-        {
-            Labels = labs,
-            HueGroups = hue,
-            HueLabels = hLabs,
-        };
-        var dto = s.ToSeriesDto();
-        Assert.Equal(labs,  dto.PairGridLabels);
-        Assert.Equal(hue,   dto.PairGridHueGroups);
-        Assert.Equal(hLabs, dto.PairGridHueLabels);
-    }
+    /// <summary>The space between cells is held between 0 and 0.2 of a cell: a value outside is clamped to the nearer end, one inside
+    /// (both ends included) is kept as given.</summary>
+    [Theory]
+    [InlineData(-0.5, 0.0)]
+    [InlineData(0.9, 0.2)]
+    [InlineData(0.07, 0.07)]
+    [InlineData(0.0, 0.0)]
+    [InlineData(0.2, 0.2)]
+    public void CellSpacing_IsHeldBetweenZeroAndTwoTenths(double given, double kept) =>
+        Assert.Equal(kept, new PairGridSeries(SampleVars) { CellSpacing = given }.CellSpacing, 10);
 
     // ── ComputeDataRange ──────────────────────────────────────────────────────
 
@@ -294,4 +72,118 @@ public class PairGridSeriesTests
         Assert.Equal(0.0, range.YMin);
         Assert.Equal(3.0, range.YMax);
     }
+
+    // ── Diagonal densities ───────────────────────────────────────────────────
+
+    /// <summary>The density on the diagonal of a variable is the density curve a <see cref="KdeSeries"/> of the same
+    /// observations estimates: one rule for the density of a sample.</summary>
+    [Fact]
+    public void TheDiagonalDensities_AreOneCurvePerVariable_TheCurveADensitySeriesEstimates()
+    {
+        var series = new PairGridSeries(SampleVars) { DiagonalKind = PairGridDiagonalKind.Kde };
+
+        var densities = series.DiagonalDensitiesUnder(ThemeLooks.Library);
+
+        Assert.Equal(3, densities.Length);
+        for (int v = 0; v < densities.Length; v++)
+        {
+            var only = Assert.Single(densities[v]);
+            var expected = new KdeSeries(SampleVars[v]).CurveUnder(ThemeLooks.Library)!.Value;
+            Assert.Equal(expected.X, only.Curve!.Value.X);
+            Assert.Equal(expected.Y, only.Curve!.Value.Y);
+        }
+    }
+
+    /// <summary>Split by hue, a variable has one density per group, smallest group first, each estimated from the group's
+    /// drawable observations; a group with nothing to draw has no curve.</summary>
+    [Fact]
+    public void TheDiagonalDensities_SplitByHue_AreOnePerGroup_SmallestGroupFirst()
+    {
+        var series = new PairGridSeries([[1.0, 5, 2, 6, double.NaN, 3], [0.0, 1, 2, 3, 4, 5]])
+        {
+            DiagonalKind = PairGridDiagonalKind.Kde,
+            HueGroups = [2, -1, 2, -1, 7, 2],
+        };
+
+        var first = series.DiagonalDensitiesUnder(ThemeLooks.Library)[0];
+
+        Assert.Equal(new[] { -1, 2, 7 }, first.Select(d => d.Group));
+        Assert.Equal(new KdeSeries([5.0, 6]).CurveUnder(ThemeLooks.Library)!.Value.Y, first[0].Curve!.Value.Y);
+        Assert.Equal(new KdeSeries([1.0, 2, 3]).CurveUnder(ThemeLooks.Library)!.Value.Y, first[1].Curve!.Value.Y);
+        Assert.Null(first[2].Curve);
+    }
+
+    /// <summary>A grid whose groups do not match its samples is not split: one density per variable.</summary>
+    [Fact]
+    public void TheDiagonalDensities_WithGroupsThatDoNotMatchTheSamples_AreOnePerVariable()
+    {
+        var series = new PairGridSeries(SampleVars) { DiagonalKind = PairGridDiagonalKind.Kde, HueGroups = [0, 1] };
+
+        Assert.All(series.DiagonalDensitiesUnder(ThemeLooks.Library), variable => Assert.Single(variable));
+    }
+
+    /// <summary>The densities are estimated once and kept: asked twice, they are the same estimate.</summary>
+    [Fact]
+    public void TheDiagonalDensities_AskedTwice_AreEstimatedOnce()
+    {
+        var series = new PairGridSeries(SampleVars) { DiagonalKind = PairGridDiagonalKind.Kde };
+
+        Assert.Same(series.DiagonalDensitiesUnder(ThemeLooks.Library), series.DiagonalDensitiesUnder(ThemeLooks.Library));
+    }
+
+    /// <summary>A figure drawn again with its grid unchanged (here its title changed, so the subplot is drawn) draws the
+    /// densities the series kept and estimates none: a kept curve altered behind the series' back shows in the second
+    /// picture, which a fresh estimate would not.</summary>
+    [Fact]
+    public void TheDiagonal_OfAGridDrawnAgainUnchanged_IsDrawnFromTheKeptDensities()
+    {
+        PairGridSeries series = null!;
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.PairGrid(SkewedVars, s =>
+        {
+            s.DiagonalKind = PairGridDiagonalKind.Kde;
+            s.HueGroups = [0, 1, 0, 1, 0, 1, 0, 1];
+            series = s;
+        })).Build();
+        _ = figure.ToSvg();
+        var kept = series.DiagonalDensitiesUnder(figure.Theme.Looks);
+
+        Array.Reverse(kept[0][0].Curve!.Value.Y);
+        figure.SubPlots[0].Title = "drawn again";
+        string again = figure.ToSvg();
+
+        Assert.Same(kept, series.DiagonalDensitiesUnder(figure.Theme.Looks));
+        Assert.NotEqual(figure.RoundTripped().ToSvg(), again);
+    }
+
+    /// <summary>A value changed in place in a variable or in the hue groups passes no setter; the grid is drawn as a fresh
+    /// figure of the same data draws it all the same.</summary>
+    [Fact]
+    public void AValueChangedInPlace_IsDrawnAsAFreshGridDrawsIt()
+    {
+        var variables = SkewedVars;
+        int[] hue = [0, 1, 0, 1, 0, 1, 0, 1];
+        PairGridSeries series = null!;
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.PairGrid(variables, s =>
+        {
+            s.DiagonalKind = PairGridDiagonalKind.Kde;
+            s.HueGroups = hue;
+            series = s;
+        })).Build();
+        _ = figure.ToSvg();
+        var before = series.DiagonalDensitiesUnder(ThemeLooks.Library);
+
+        variables[1][2] = 40;
+        string valueChanged = figure.ToSvg();
+        Assert.NotSame(before, series.DiagonalDensitiesUnder(ThemeLooks.Library));
+        Assert.Equal(figure.RoundTripped().ToSvg(), valueChanged);
+
+        hue[3] = 2;
+        Assert.Equal(figure.RoundTripped().ToSvg(), figure.ToSvg());
+    }
+
+    private static double[][] SkewedVars =>
+    [
+        [1.0, 1.2, 1.3, 2.0, 4.5, 9.0, 1.1, 2.2],
+        [3.0, 0.5, 0.25, 7.0, 6.5, 6.0, 1.0, 2.0],
+    ];
 }

@@ -19,8 +19,6 @@ public class ServerHoverRemountTests
 
     private static int Tooltips(InteractionScriptHarness h) => h.Document.QuerySelectorAllRaw("div[role=tooltip]").Length;
 
-    private static DomElement Svg(InteractionScriptHarness h) => h.Document.QuerySelectorAllRaw("svg").Single();
-
     [Fact]
     public void TwoRedraws_LeaveOneHandler_AndOneTooltip()
     {
@@ -59,7 +57,7 @@ public class ServerHoverRemountTests
         var hub = h.WireJsSignalRHub();
         h.Remount(Chart(21));
         h.Remount(Chart(22));
-        var svg = Svg(h);
+        var svg = h.Chart();
 
         svg.Fire(new DomEvent("pointermove") { target = svg, clientX = 300, clientY = 250 });
         hub.Deliver("ReceiveTooltipContent", "c", "now");

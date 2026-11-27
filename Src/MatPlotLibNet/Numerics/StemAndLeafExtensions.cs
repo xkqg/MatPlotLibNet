@@ -18,6 +18,39 @@ internal readonly record struct StemAndLeafDisplay(int Exponent, IReadOnlyList<S
 {
     /// <summary>The value a leaf unit is, written exactly (decimal, so 0.1 is 0.1).</summary>
     internal decimal LeafUnit => StemAndLeafExtensions.UnitOf(Exponent);
+
+    /// <summary>How many leaves the fullest row has: the columns after the stem and the bar.</summary>
+    internal int LeafColumns => Rows.Max(row => row.Leaves.Count);
+
+    /// <summary>The display as the cells of a table: for each row its stem, a bar and its leaves, padded with empty cells to the
+    /// fullest row so every row has the same number of cells.</summary>
+    /// <returns>One array of text for each row, from the smallest stem to the largest.</returns>
+    internal string[][] Cells()
+    {
+        int leaves = LeafColumns;
+        return
+        [
+            .. Rows.Select(row => (string[])
+            [
+                row.Stem, "|",
+                .. Enumerable.Range(0, leaves).Select(i => row.Leaves.ElementOrNull(i)?.InvariantText() ?? string.Empty),
+            ]),
+        ];
+    }
+
+    /// <summary>The line that says how to read the display: the first leaf on it, written as the value it stands for, such as
+    /// <c>Key: 1 | 2 = 1.2</c>.</summary>
+    internal string Key
+    {
+        get
+        {
+            var row = Rows.First(candidate => candidate.Leaves.Count > 0);
+            int leaf = row.Leaves[0];
+            decimal digits = row.Stem.TrimStart('-').ReadInvariant<decimal>(NumberStyles.Number) * 10 + leaf;
+            decimal value = (row.Stem.StartsWith('-') ? -digits : digits) * LeafUnit;
+            return string.Invariant($"Key: {row.Stem} | {leaf} = {value.InvariantText()}");
+        }
+    }
 }
 
 /// <summary>The one owner of how a sample becomes a stem-and-leaf display. A value is cut at the leaf unit (a power of ten) without
@@ -88,11 +121,8 @@ internal static class StemAndLeafExtensions
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="leafUnit"/> is not a power of ten, or is too fine or too coarse for the data.</exception>
         internal StemAndLeafDisplay StemAndLeaf(double? leafUnit)
         {
-            double[] values = [.. sample.Where(double.IsFinite).Order()];
-            if (values.Length == 0)
-            {
-                throw new ArgumentException("The sample holds no finite number to put on a stem.", nameof(sample));
-            }
+            double[] values = sample.SortedDrawableValues();
+            values.ThrowIfEmpty("The sample holds no finite number to put on a stem.", nameof(sample));
 
             int exponent = leafUnit is { } unit ? ExponentOf(unit) : ChosenExponent(values);
             return Display(values, exponent);
@@ -103,9 +133,8 @@ internal static class StemAndLeafExtensions
     private static int ExponentOf(double unit)
     {
         int at = Array.IndexOf(PowersOfTen, unit);
-        return at >= 0
-            ? at + LowestExponent
-            : throw new ArgumentOutOfRangeException("leafUnit", unit, "A leaf unit is a power of ten, 10^-15 to 10^15.");
+        unit.ThrowIfNot(at >= 0, "leafUnit", "must be a power of ten, 10^-15 to 10^15");
+        return at + LowestExponent;
     }
 
     /// <summary>The finest power of ten within the budget of rows whose stems have no more than two digits.</summary>
@@ -149,10 +178,7 @@ internal static class StemAndLeafExtensions
         foreach (double value in sortedValues)
         {
             var slot = SlotOf(value, exponent);
-            if (!slot.Fits)
-            {
-                throw new ArgumentOutOfRangeException("leafUnit", PowersOfTen[exponent - LowestExponent], "The leaf unit is too fine for the largest value of the sample.");
-            }
+            PowersOfTen[exponent - LowestExponent].ThrowIfNot(slot.Fits, "leafUnit", "is too fine for the largest value of the sample", "The leaf unit");
 
             if (!leavesAt.TryGetValue(slot.Place, out var leaves)) leavesAt[slot.Place] = leaves = [];
             leaves.Add(slot.Leaf);
@@ -164,7 +190,7 @@ internal static class StemAndLeafExtensions
         {
             bool negative = place < 0;
             long digits = negative ? -place - 1 : place;
-            string stem = (negative ? "-" : "") + digits.ToString(CultureInfo.InvariantCulture);
+            string stem = (negative ? "-" : "") + digits.InvariantText();
             // The values were visited in ascending order, so the leaves of a stem already stand in the order of the values.
             rows.Add(new StemRow(stem, leavesAt.TryGetValue(place, out var found) ? found : []));
         }

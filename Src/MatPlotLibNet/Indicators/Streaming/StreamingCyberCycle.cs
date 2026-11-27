@@ -2,10 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators.Steps;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Indicators.Streaming;
 
-/// <summary>Streaming CyberCycle: the Ehlers cyber cycle. It is the <see cref="CyberCycleStep"/> the batch <see cref="CyberCycle"/> folds over its input, taken
+/// <summary>Streaming CyberCycle: the Ehlers cyber cycle. It is the step the batch <see cref="CyberCycle"/> folds over its input, taken
 /// one price (the close of a bar, when it is attached to a candle series) at a time, so after each one it says what the batch says over everything so far; a value the batch does not have yet
 /// is NaN. O(1) per input.</summary>
 public sealed class StreamingCyberCycle : StreamingIndicator<double>
@@ -13,18 +14,15 @@ public sealed class StreamingCyberCycle : StreamingIndicator<double>
     private CyberCycleStep _step;
 
     /// <inheritdoc />
-    public override int WarmupPeriod => 4;
+    public override int WarmupPeriod => Spec.Warmup;
 
     /// <summary>Creates a streaming CyberCycle.</summary>
     /// <param name="alpha">The smoothing factor, in (0, 1).</param>
     /// <param name="capacity">How many points each output line keeps.</param>
-    public StreamingCyberCycle(double alpha = 0.07, int capacity = 10_000)
-        : base(capacity)
+    public StreamingCyberCycle(double alpha = CyberCycle.DefaultAlpha, int capacity = StreamingSeries.RestingCapacity)
+        : base(CyberCycle.Spec(alpha), capacity)
     {
-        if (alpha <= 0 || alpha >= 1)
-            throw new ArgumentException($"alpha must be in (0, 1) (got {alpha}).", nameof(alpha));
         _step = new CyberCycleStep(alpha);
-        Label = $"CC({alpha.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

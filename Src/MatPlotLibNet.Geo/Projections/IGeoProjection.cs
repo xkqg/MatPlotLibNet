@@ -21,7 +21,8 @@ public interface IGeoProjection
     /// <param name="x">Projected X coordinate.</param>
     /// <param name="y">Projected Y coordinate.</param>
     /// <returns>The geographic coordinate, or <see langword="null"/> if the point is outside
-    /// the projection domain.</returns>
+    /// the projection domain or the projection gives no inverse (of the projections this package ships, Plate Carrée, Mercator
+    /// and Sinusoidal give one).</returns>
     GeoCoordinate? Inverse(double x, double y);
 
     /// <summary>Bounding box of the projection in projected-plane coordinates.</summary>

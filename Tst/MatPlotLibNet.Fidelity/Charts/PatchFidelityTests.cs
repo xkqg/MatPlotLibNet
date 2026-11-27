@@ -43,15 +43,11 @@ public class PatchFidelityTests : FidelityTest
     ];
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 40, Ssim = 0.75, DeltaE = 42)]   // measured on Windows (classic 35, v2 22 over 1.5; the dominant colours 30 and 65 over 1.7) plus a margin of 10 percent, SSIM less 0.04
+    [FidelityRows]
+    [FidelityTolerance(Rms = 16, Ssim = 0.97, DeltaE = 3, V2Rms = 16, V2Ssim = 0.97)]
     public void Patches_OnALinearAxesWithALegend_MatchMatplotlib(string themeId)
     {
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
+        var figure = FidelityFigure(themeId)
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.WithTitle("Patches in data space");
@@ -63,15 +59,11 @@ public class PatchFidelityTests : FidelityTest
     }
 
     [Theory]
-    [InlineData("classic")]
-    [InlineData("v2")]
-    [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 35, Ssim = 0.80, DeltaE = 42)]   // measured on Windows (classic 30, v2 17 over 1.5), plus a margin of 10 percent, SSIM less 0.04. The dominant colours measure 1, but the fifth and sixth of v2 are an orange and a pink 18 pixels apart: a platform that swaps them reads 65 over 1.7
+    [FidelityRows]
+    [FidelityTolerance(Rms = 10, Ssim = 0.98, DeltaE = 3, V2Rms = 11)]
     public void Patches_OnALogXAxis_MatchMatplotlib(string themeId)
     {
-        var figure = Plt.Create()
-            .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
+        var figure = FidelityFigure(themeId)
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.WithTitle("Patches on a log axis");

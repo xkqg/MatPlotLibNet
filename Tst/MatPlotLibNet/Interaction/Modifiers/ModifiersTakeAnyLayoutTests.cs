@@ -15,15 +15,8 @@ namespace MatPlotLibNet.Tests.Interaction.Modifiers;
 public class ModifiersTakeAnyLayoutTests
 {
     /// <summary>A layout that states a plot area and a range and nothing else: the least a host can implement.</summary>
-    private sealed class PlainLayout : IChartLayout
-    {
-        public int AxesCount => 1;
-        public Rect GetPlotArea(int axesIndex) => new(10, 10, 200, 100);
-        public DataRange GetDataRange(int axesIndex) => new(0, 100, 0, 50);
-        public int? HitTestAxes(double pixelX, double pixelY) =>
-            pixelX >= 10 && pixelX <= 210 && pixelY >= 10 && pixelY <= 110 ? 0 : null;
-        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
-    }
+    private static TestChartLayout PlainLayout() =>
+        new(new Rect(10, 10, 200, 100), new DataRange(0, 100, 0, 50)) { HitsOnlyOnThePlot = true };
 
     private static Figure NewFigure()
     {
@@ -41,7 +34,7 @@ public class ModifiersTakeAnyLayoutTests
     public void ThePanModifier_ConvertsThePixelsOfAPlainLayout()
     {
         var events = new List<FigureInteractionEvent>();
-        var pan = new PanModifier("c", new PlainLayout(), events.Add);
+        var pan = new PanModifier("c", PlainLayout(), events.Add);
 
         var thrown = Record.Exception(() =>
         {
@@ -54,62 +47,36 @@ public class ModifiersTakeAnyLayoutTests
         Assert.Equal(-20.0, sent.DxData, 9);   // 40 px over a 200 px plot of 100 data units
     }
 
-    [Fact]
-    public void TheRectangleZoomModifier_ConvertsThePixelsOfAPlainLayout()
+    [Theory]
+    [InlineData(nameof(RectangleZoomModifier), ModifierKeys.Ctrl, typeof(RectangleZoomEvent))]
+    [InlineData(nameof(BrushSelectModifier), ModifierKeys.Shift, typeof(BrushSelectEvent))]
+    [InlineData(nameof(SpanSelectModifier), ModifierKeys.Alt, typeof(SpanSelectEvent))]
+    public void ADragModifier_ConvertsThePixelsOfAPlainLayout(string modifierName, ModifierKeys keys, Type sentType)
     {
         var events = new List<FigureInteractionEvent>();
-        var zoom = new RectangleZoomModifier("c", new PlainLayout(), events.Add);
+        IInteractionModifier drag = modifierName switch
+        {
+            nameof(RectangleZoomModifier) => new RectangleZoomModifier("c", PlainLayout(), events.Add),
+            nameof(BrushSelectModifier) => new BrushSelectModifier("c", PlainLayout(), events.Add),
+            _ => new SpanSelectModifier("c", PlainLayout(), events.Add),
+        };
 
         var thrown = Record.Exception(() =>
         {
-            zoom.OnPointerPressed(At(50, 30, ModifierKeys.Ctrl));
-            zoom.OnPointerMoved(At(110, 80, ModifierKeys.Ctrl));
-            zoom.OnPointerReleased(At(110, 80, ModifierKeys.Ctrl));
+            drag.OnPointerPressed(At(50, 30, keys));
+            drag.OnPointerMoved(At(110, 80, keys));
+            drag.OnPointerReleased(At(110, 80, keys));
         });
 
         Assert.Null(thrown);
-        Assert.IsType<RectangleZoomEvent>(Assert.Single(events));
-    }
-
-    [Fact]
-    public void TheBrushSelectModifier_ConvertsThePixelsOfAPlainLayout()
-    {
-        var events = new List<FigureInteractionEvent>();
-        var brush = new BrushSelectModifier("c", new PlainLayout(), events.Add);
-
-        var thrown = Record.Exception(() =>
-        {
-            brush.OnPointerPressed(At(50, 30, ModifierKeys.Shift));
-            brush.OnPointerMoved(At(110, 80, ModifierKeys.Shift));
-            brush.OnPointerReleased(At(110, 80, ModifierKeys.Shift));
-        });
-
-        Assert.Null(thrown);
-        Assert.IsType<BrushSelectEvent>(Assert.Single(events));
-    }
-
-    [Fact]
-    public void TheSpanSelectModifier_ConvertsThePixelsOfAPlainLayout()
-    {
-        var events = new List<FigureInteractionEvent>();
-        var span = new SpanSelectModifier("c", new PlainLayout(), events.Add);
-
-        var thrown = Record.Exception(() =>
-        {
-            span.OnPointerPressed(At(50, 30, ModifierKeys.Alt));
-            span.OnPointerMoved(At(110, 80, ModifierKeys.Alt));
-            span.OnPointerReleased(At(110, 80, ModifierKeys.Alt));
-        });
-
-        Assert.Null(thrown);
-        Assert.IsType<SpanSelectEvent>(Assert.Single(events));
+        Assert.IsType(sentType, Assert.Single(events));
     }
 
     [Fact]
     public void TheHoverModifier_ConvertsThePixelsOfAPlainLayout()
     {
         var events = new List<FigureInteractionEvent>();
-        var hover = new HoverModifier("c", new PlainLayout(), events.Add);
+        var hover = new HoverModifier("c", PlainLayout(), events.Add);
 
         var thrown = Record.Exception(() => hover.OnPointerMoved(Over(90, 60)));
 
@@ -122,7 +89,7 @@ public class ModifiersTakeAnyLayoutTests
     public void TheDataCursorModifier_ConvertsThePixelsOfAPlainLayout()
     {
         var events = new List<FigureInteractionEvent>();
-        var cursor = new DataCursorModifier("c", new PlainLayout(), NewFigure(), events.Add);
+        var cursor = new DataCursorModifier("c", PlainLayout(), NewFigure(), events.Add);
 
         var thrown = Record.Exception(() => cursor.HandlesPointerPressed(At(50, 30)));
 
@@ -132,7 +99,7 @@ public class ModifiersTakeAnyLayoutTests
     [Fact]
     public void TheController_ReadsTheHoverPointOfAPlainLayout()
     {
-        var controller = InteractionController.CreateLocal(NewFigure(), new PlainLayout());
+        var controller = InteractionController.CreateLocal(NewFigure(), PlainLayout());
 
         var thrown = Record.Exception(() => controller.HandlePointerMoved(Over(90, 60)));
 

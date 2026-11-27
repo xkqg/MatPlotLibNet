@@ -6,7 +6,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
-/// <summary>Verifies <see cref="CalloutBoxRenderer"/> SVG output for each box style.</summary>
+/// <summary>Verifies <see cref="CalloutBox"/> SVG output for each box style.</summary>
 public class CalloutBoxRendererTests
 {
     private static Figure CreateFigureWithBoxAnnotation(BoxStyle boxStyle,
@@ -30,44 +30,35 @@ public class CalloutBoxRendererTests
         return figure;
     }
 
-    /// <summary>Verifies that BoxStyle.Square renders a stroked rectangle around the annotation text.</summary>
-    [Fact]
-    public void Square_DrawsRectangle()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        string svg = CreateFigureWithBoxAnnotation(BoxStyle.Square).ToSvg();
-
+        // Verifies that BoxStyle.Square renders a stroked rectangle around the annotation text.
         // Square box uses DrawRectangle with stroke
-        Assert.Contains("<rect", svg);
-    }
-
-    /// <summary>Verifies that BoxStyle.Round renders an SVG path with Bezier curve commands.</summary>
-    [Fact]
-    public void Round_DrawsPathWithBezierCorners()
-    {
-        string svg = CreateFigureWithBoxAnnotation(BoxStyle.Round, cornerRadius: 8).ToSvg();
-
+        new DrawnToken("Square_DrawsRectangle", () => CreateFigureWithBoxAnnotation(BoxStyle.Square).ToSvg(), "<rect"),
+        // Verifies that BoxStyle.Round renders an SVG path with Bezier curve commands.
         // Round corners are rendered as a path with bezier curve (C) commands
-        Assert.Contains("<path", svg);
-        Assert.Contains(" C ", svg);
-    }
+        new DrawnToken("Round_DrawsPathWithBezierCorners", () => CreateFigureWithBoxAnnotation(BoxStyle.Round, cornerRadius: 8).ToSvg(), "<path", " C "),
+        // Verifies that BoxStyle.RoundTooth renders an SVG path (has non-straight edges).
+        new DrawnToken("RoundTooth_DrawsZigzagBottom", () => CreateFigureWithBoxAnnotation(BoxStyle.RoundTooth).ToSvg(), "<path"),
+        // Verifies that BoxStyle.Sawtooth renders an SVG path.
+        new DrawnToken("Sawtooth_DrawsSawteethEdges", () => CreateFigureWithBoxAnnotation(BoxStyle.Sawtooth).ToSvg(), "<path"),
+        // Verifies that an annotation with a box and a pointer target renders a path with pointer geometry.
+        // With a pointer target, the connection path is also drawn
+        new DrawnToken("WithPointer_InsertsTriangleInPath", () => CreateFigureWithBoxAnnotation(BoxStyle.Square, withPointer: true).ToSvg(), "<path"),
+        // Verifies that CornerRadius affects the arc curvature in the Round style path.
+        new DrawnToken("CornerRadius_AffectsArcSize (svgSmall)", () => CreateFigureWithBoxAnnotation(BoxStyle.Round, cornerRadius: 2).ToSvg(), "<path"),
+        new DrawnToken("CornerRadius_AffectsArcSize (svgLarge)", () => CreateFigureWithBoxAnnotation(BoxStyle.Round, cornerRadius: 15).ToSvg(), "<path"),
+        // Verifies that padding expands the box rectangle beyond the text bounds.
+        // Both render a rect, but larger padding results in larger width/height values
+        // We just verify both render without error and produce rects
+        new DrawnToken("Padding_ExpandsRect (svgTight)", () => CreateFigureWithBoxAnnotation(BoxStyle.Square, padding: 1).ToSvg(), "<rect"),
+        new DrawnToken("Padding_ExpandsRect (svgPadded)", () => CreateFigureWithBoxAnnotation(BoxStyle.Square, padding: 20).ToSvg(), "<rect"),
+    };
 
-    /// <summary>Verifies that BoxStyle.RoundTooth renders an SVG path (has non-straight edges).</summary>
-    [Fact]
-    public void RoundTooth_DrawsZigzagBottom()
-    {
-        string svg = CreateFigureWithBoxAnnotation(BoxStyle.RoundTooth).ToSvg();
-
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Verifies that BoxStyle.Sawtooth renders an SVG path.</summary>
-    [Fact]
-    public void Sawtooth_DrawsSawteethEdges()
-    {
-        string svg = CreateFigureWithBoxAnnotation(BoxStyle.Sawtooth).ToSvg();
-
-        Assert.Contains("<path", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     /// <summary>Verifies that BoxStyle.None draws no extra box geometry around the annotation.</summary>
     [Fact]
@@ -80,65 +71,9 @@ public class CalloutBoxRendererTests
         string svgNoBox   = figureNoBox.ToSvg();
 
         // Box adds a rect; None should not add an extra rect beyond the axes background
-        int rectsWithBox = CountOccurrences(svgWithBox, "<rect");
-        int rectsNoBox   = CountOccurrences(svgNoBox, "<rect");
+        int rectsWithBox = svgWithBox.CountOf("<rect");
+        int rectsNoBox   = svgNoBox.CountOf("<rect");
         Assert.True(rectsWithBox > rectsNoBox, "Square box should produce more rects than no box");
     }
 
-    /// <summary>Verifies that padding expands the box rectangle beyond the text bounds.</summary>
-    [Fact]
-    public void Padding_ExpandsRect()
-    {
-        string svgTight  = CreateFigureWithBoxAnnotation(BoxStyle.Square, padding: 1).ToSvg();
-        string svgPadded = CreateFigureWithBoxAnnotation(BoxStyle.Square, padding: 20).ToSvg();
-
-        // Both render a rect, but larger padding results in larger width/height values
-        // We just verify both render without error and produce rects
-        Assert.Contains("<rect", svgTight);
-        Assert.Contains("<rect", svgPadded);
-    }
-
-    /// <summary>Verifies that CornerRadius affects the arc curvature in the Round style path.</summary>
-    [Fact]
-    public void CornerRadius_AffectsArcSize()
-    {
-        string svgSmall = CreateFigureWithBoxAnnotation(BoxStyle.Round, cornerRadius: 2).ToSvg();
-        string svgLarge = CreateFigureWithBoxAnnotation(BoxStyle.Round, cornerRadius: 15).ToSvg();
-
-        Assert.Contains("<path", svgSmall);
-        Assert.Contains("<path", svgLarge);
-    }
-
-    /// <summary>Verifies that an annotation with a box and a pointer target renders a path with pointer geometry.</summary>
-    [Fact]
-    public void WithPointer_InsertsTriangleInPath()
-    {
-        string svg = CreateFigureWithBoxAnnotation(BoxStyle.Square, withPointer: true).ToSvg();
-
-        // With a pointer target, the connection path is also drawn
-        Assert.Contains("<path", svg);
-    }
-
-    /// <summary>Undefined enum value falls through the switch's implicit default
-    /// arm — covers the otherwise-unreached branch.</summary>
-    [Fact]
-    public void UndefinedBoxStyle_FallsThroughSwitchDefault()
-    {
-        // (BoxStyle)99 is not None and not any defined case → switch matches no arm
-        var fig = CreateFigureWithBoxAnnotation((BoxStyle)99);
-        // Should not throw — we're testing the unreached default branch
-        var svg = fig.ToSvg();
-        Assert.NotNull(svg);
-    }
-
-    private static int CountOccurrences(string text, string pattern)
-    {
-        int count = 0, index = 0;
-        while ((index = text.IndexOf(pattern, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += pattern.Length;
-        }
-        return count;
-    }
 }

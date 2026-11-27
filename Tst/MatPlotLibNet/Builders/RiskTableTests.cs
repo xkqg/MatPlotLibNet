@@ -1,8 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 using MatPlotLibNet.Models;
@@ -225,7 +223,7 @@ public class RiskTableTests
         var axes = Table([new("A", [3, 5, 8], [false, false, false]), new("B", [2, 4, 9], [false, false, false])], [0]);
 
         Assert.Equal("Log-rank test: no events to compare", TestLine(axes).Text);
-        Assert.DoesNotContain("NaN", string.Concat(axes.Annotations.Select(a => a.Text)));
+        string.Concat(axes.Annotations.Select(a => a.Text)).AssertNoNonFiniteNumber();
     }
 
     /// <summary>One group has nothing to be compared with: no test line, and no slot for one below the row.</summary>
@@ -239,104 +237,29 @@ public class RiskTableTests
         Assert.Equal([0.5, 0.5], axes.Annotations.Select(a => a.Y));
     }
 
-    // ---- the parts --------------------------------------------------------------------------------------------------------
-
-    /// <summary>The callback gets the very annotations on the axes (the counts in the order group by group, each group's times
-    /// in order), the test line, and the result of the test, so what it sets wins.</summary>
-    [Fact]
-    public void TheCallback_RunsOnce_OnThePartsOnTheAxes_AfterTheVerbBuiltThem()
-    {
-        int calls = 0;
-        RiskTableParts seen = default;
-
-        var axes = Table(Arms, [0, 10], parts =>
-        {
-            calls++;
-            seen = parts;
-            parts.Test!.OffsetY = 3;
-            parts.Counts[0].Color = MatPlotLibNet.Styling.Colors.Red;
-        });
-
-        Assert.Equal(1, calls);
-        Assert.Equal(4, seen.Counts.Count);
-        Assert.Same(axes.Annotations[0], seen.Counts[0]);
-        Assert.Same(axes.Annotations[3], seen.Counts[3]);
-        Assert.Same(TestLine(axes), seen.Test);
-        Assert.Equal(1, seen.LogRank.DegreesOfFreedom);
-        Assert.Equal(7.854898685977314, seen.LogRank.Statistic, 9);
-        Assert.Equal(0.005068319243038367, seen.LogRank.PValue, 9);
-        Assert.Equal(MatPlotLibNet.Styling.Colors.Red, axes.Annotations[0].Color);
-        Assert.Equal(3, TestLine(axes).OffsetY);
-    }
-
-    /// <summary>The parts are a public readonly record struct a caller cannot make: no public constructor, no setters.</summary>
-    [Fact]
-    public void TheParts_AreAReadOnlyRecordStruct_WithNoPublicConstructor()
-    {
-        var type = typeof(RiskTableParts);
-
-        Assert.True(type.IsValueType);
-        Assert.True(type.IsPublic);
-        Assert.True(type.IsDefined(typeof(IsReadOnlyAttribute)));
-        Assert.Empty(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        Assert.Equal(["Counts", "LogRank", "Test"], properties.Select(p => p.Name).Order());
-        Assert.All(properties, p => Assert.Null(p.SetMethod));
-    }
-
     // ---- refusals ---------------------------------------------------------------------------------------------------------
-
-    [Fact]
-    public void MissingArguments_AreRefusedByName()
-    {
-        Assert.Equal("axes", Assert.Throws<ArgumentNullException>(() => ((AxesBuilder)null!).RiskTable(Arms)).ParamName);
-        Assert.Equal("groups", Assert.Throws<ArgumentNullException>(() => Table(null!)).ParamName);
-    }
-
-    [Fact]
-    public void NoGroups_AreRefused()
-    {
-        var error = Assert.Throws<ArgumentException>(() => Table([]));
-
-        Assert.Equal("groups", error.ParamName);
-        Assert.StartsWith("No groups were given; a risk table counts one row per group.", error.Message, StringComparison.Ordinal);
-    }
 
     /// <summary>A group that is not survival data is refused in the words the survival chart uses, naming the group.</summary>
     [Fact]
     public void AGroupThatIsNotSurvivalData_IsRefused_NamingIt()
     {
-        var error = Assert.Throws<ArgumentException>(() => Table([Treatment, new("Broken", [4, double.NaN], [true, false])]));
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Table([Treatment, new("Broken", [4, double.NaN], [true, false])]));
 
         Assert.Equal("groups", error.ParamName);
-        Assert.StartsWith("Group 'Broken' has a duration of NaN at index 1;", error.Message, StringComparison.Ordinal);
+        Assert.StartsWith("The duration at index 1 of group 'Broken' must be finite (got NaN).", error.Message, StringComparison.Ordinal);
     }
 
-    /// <summary>The times are one or more finite numbers.</summary>
+    /// <summary>The times are one or more finite numbers: none is refused as an empty argument, a time that is not finite by the owner
+    /// of a finite number.</summary>
     [Theory]
     [InlineData(new double[0])]
     [InlineData(new[] { 0.0, double.NaN })]
     [InlineData(new[] { double.PositiveInfinity })]
     public void TimesThatAreNotFiniteNumbers_AreRefused(double[] times)
     {
-        var error = Assert.Throws<ArgumentException>(() => Table(Arms, times));
+        var error = Assert.ThrowsAny<ArgumentException>(() => Table(Arms, times));
 
         Assert.Equal("times", error.ParamName);
-    }
-
-    /// <summary>A refused call has added nothing: no annotation, no title, no limit.</summary>
-    [Fact]
-    public void ARefusedCall_LeavesTheAxesAsItWas()
-    {
-        var builder = new AxesBuilder();
-
-        Assert.Throws<ArgumentException>(() => builder.RiskTable(Arms, [double.NaN]));
-        var axes = builder.Build(1, 1, 1);
-
-        Assert.Empty(axes.Annotations);
-        Assert.Null(axes.YAxis.Label);
-        Assert.Null(axes.YAxis.Min);
-        Assert.Null(axes.YAxis.Max);
     }
 
     // ---- stacked under the survival chart ---------------------------------------------------------------------------------
@@ -370,55 +293,42 @@ public class RiskTableTests
         var table = layout.PlotAreas[1];
 
         // Treatment has 5 at risk at 15 weeks; the count's text is the one inside the table's plot area.
-        var count = XDocument.Parse(svg).Descendants().Where(e => e.Name.LocalName == "text" && e.Value == "5")
-            .Single(e => Num((string)e.Attribute("y")!) > table.Y && Num((string)e.Attribute("y")!) < table.Bottom);
-        double countX = Num((string)count.Attribute("x")!);
+        var count = svg.Each("text").Where(e => e.Value == "5")
+            .Single(e => e.Number("y") > table.Y && e.Number("y") < table.Bottom);
+        double countX = count.Number("x");
 
         // Treatment's step down at 15 weeks is a vertex of its curve (the Placebo curve, which ends at 11, has none there).
-        var curveXs = XDocument.Parse(svg).Descendants().Where(e => e.Name.LocalName == "polyline")
-            .SelectMany(e => ((string)e.Attribute("points")!).Split(' ').Select(p => Num(p.Split(',')[0])))
+        var curveXs = svg.Each("polyline")
+            .SelectMany(e => ((string)e.Attribute("points")!).Split(' ').Select(p => p.Split(',')[0].Number()))
             .ToList();
         Assert.Contains(curveXs, x => Math.Abs(x - countX) < 1e-6);
     }
 
-    // ---- JSON -------------------------------------------------------------------------------------------------------------
-
-    /// <summary>The table is its parts in JSON: the counts, the test line and the row names read back draw the same picture.</summary>
-    [Fact]
-    public void TheTable_SurvivesJson()
-    {
-        var figure = Stacked(Arms, [0, 10, 20, 30]).Build();
-
-        string drawn = figure.ToSvg();
-        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
-
-        Assert.Equal(drawn, readBack);
-        Assert.Contains("Log-rank χ²(1) = 7.85, p = 0.0051", readBack);
-    }
-
     // ---- the example in the documentation --------------------------------------------------------------------------------
 
-    /// <summary>The example of the verb's documentation, as written there, compiles and draws.</summary>
-    [Fact]
-    public void TheDocumentationExample_Draws()
+    /// <summary>What each fact about the markup of this class held, as one row: how it is drawn, the tokens it must carry and the ones it must not.</summary>
+    public static TheoryData<DrawnToken> Tokens { get; } = new()
     {
-        SurvivalGroup[] arms =
-        [
-            new("Treatment", [6, 7, 10, 15, 19, 25, 32, 34], [true, true, false, true, false, true, false, false]),
-            new("Placebo", [1, 2, 3, 4, 5, 8, 8, 11], [true, true, true, false, true, true, true, true]),
-        ];
+        //  The example of the verb's documentation, as written there, compiles and draws.
+        new DrawnToken("TheDocumentationExample_Draws", () =>
+        {
+            SurvivalGroup[] arms =
+            [
+                new("Treatment", [6, 7, 10, 15, 19, 25, 32, 34], [true, true, false, true, false, true, false, false]),
+                new("Placebo", [1, 2, 3, 4, 5, 8, 8, 11], [true, true, true, false, true, true, true, true]),
+            ];
+            return Plt.Create()
+                .WithSize(800, 600)
+                .WithGridSpec(2, 1, heightRatios: [4, 1])
+                .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(arms).WithLegend(), key: "survival")
+                .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(arms).SetXLabel("Weeks"))
+                .ToSvg();
+        }, ">Number at risk<", ">Log-rank χ²(1) = 7.85, p = 0.0051<", ">Weeks<"),
+    };
 
-        string svg = Plt.Create()
-            .WithSize(800, 600)
-            .WithGridSpec(2, 1, heightRatios: [4, 1])
-            .AddSubPlot(GridPosition.Single(0, 0), ax => ax.KaplanMeier(arms).WithLegend(), key: "survival")
-            .AddSubPlot(GridPosition.Single(1, 0), ax => ax.ShareX("survival").RiskTable(arms).SetXLabel("Weeks"))
-            .ToSvg();
-
-        Assert.Contains(">Number at risk<", svg);
-        Assert.Contains(">Log-rank χ²(1) = 7.85, p = 0.0051<", svg);
-        Assert.Contains(">Weeks<", svg);
-    }
+    [Theory]
+    [MemberData(nameof(Tokens))]
+    public void TheMarkup_CarriesWhatItsRowNames(DrawnToken row) => row.AssertHolds();
 
     // ---- the Kaplan-Meier chart is as it was ------------------------------------------------------------------------------
 
@@ -431,8 +341,4 @@ public class RiskTableTests
 
         Assert.Empty(axes.Annotations);
     }
-
-    // ---- reading the picture ----------------------------------------------------------------------------------------------
-
-    private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
 }

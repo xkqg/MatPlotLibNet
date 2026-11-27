@@ -29,15 +29,15 @@ public class StateTimelineLegendTests
         var ctx = new RecordingRenderContext();
         new CartesianAxesRenderer(figure.SubPlots[0], Area, ctx, Theme.Default).Render();
 
-        int open = ctx.Calls.FindIndex(c => c.Kind == "BeginGroup" && ((dynamic)c.Args!).cssClass == "legend");
+        int open = ctx.Calls.FindIndex(c => c is BeginGroupCall { CssClass: "legend" });
         Assert.True(open >= 0, "the axes drew no legend");
-        return ctx.Calls.Skip(open + 1).TakeWhile(c => c.Kind != "EndGroup").ToList();
+        return ctx.Calls.Skip(open + 1).TakeWhile(c => c is not EndGroupCall).ToList();
     }
 
     /// <summary>The opaque rectangles of the legend: the swatches (the frame behind them is translucent).</summary>
     private static List<(Rect Rect, Color Fill)> Rectangles(IEnumerable<CallRecord> marks) =>
-        [.. marks.Where(c => c.Kind == "DrawRectangle")
-            .Select(c => (Rect: (Rect)((dynamic)c.Args!).rect, Fill: (Color?)((dynamic)c.Args!).fill))
+        [.. marks.OfType<DrawRectangleCall>()
+            .Select(c => (Rect: c.Rect, Fill: c.Fill))
             .Where(r => r.Rect.Width > 0 && r.Rect.Height > 0 && r.Fill is { A: 255 })
             .Select(r => (r.Rect, r.Fill!.Value))];
 
@@ -52,7 +52,7 @@ public class StateTimelineLegendTests
 
         var stripes = Stripes(marks);
         Assert.Equal([Green, Orange, Red], stripes.Select(s => s.Fill));
-        Assert.Equal("Link", Assert.Single(marks, c => c.Kind == "DrawText") is { } text ? (string)((dynamic)text.Args!).text : null);
+        Assert.Equal("Link", Assert.Single(marks.OfType<DrawTextCall>()) is { } text ? text.Text : null);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class StateTimelineLegendTests
     {
         var marks = LegendMarks(Timeline());
 
-        Assert.Equal("Link", (string)((dynamic)Assert.Single(marks, c => c.Kind == "DrawText").Args!).text);
+        Assert.Equal("Link", Assert.Single(marks.OfType<DrawTextCall>()).Text);
         Assert.Single(Rectangles(marks));
     }
 
@@ -145,5 +145,15 @@ public class StateTimelineLegendTests
 
         Assert.Equal(LegendSwatchKind.Stripes, swatch.Kind);
         Assert.Equal([shelved.Fill(Theme.Default)], swatch.States!.DistinctFills(Theme.Default));
+    }
+
+    /// <summary>A segment that starts but never ends (or never starts) draws nothing, so a timeline of only such segments has
+    /// no state to show in its legend and keeps the plain swatch.</summary>
+    [Theory]
+    [InlineData(0.0, double.PositiveInfinity)]
+    [InlineData(double.NaN, 1.0)]
+    public void ATimelineOfSegmentsThatCannotBeDrawn_KeepsAPlainSwatch(double start, double end)
+    {
+        Assert.Equal(LegendSwatch.Patch, Timeline(Segment(start, end, Green)).LegendSwatch);
     }
 }

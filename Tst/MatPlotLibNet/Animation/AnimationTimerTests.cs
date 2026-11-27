@@ -5,167 +5,131 @@ using MatPlotLibNet.Animation;
 
 namespace MatPlotLibNet.Tests.Animation;
 
-/// <summary>Verifies <see cref="IAnimationTimer"/> contract and
-/// <see cref="SystemThreadingAnimationTimer"/> behavior.</summary>
+/// <summary>What every animation timer does, held once by <see cref="AnimationTimer"/>: it ticks every 16 ms until it is told another
+/// interval, a second start is the same timer, a stop of a timer that never ran is harmless, a tick is said to whoever listens with the
+/// timer itself as the sender, and the ticks come from the thread pool unless the platform's timer gives them.</summary>
 public class AnimationTimerTests
 {
-    // ── IAnimationTimer contract ──────────────────────────────────────────────
-
-    [Fact]
-    public void SystemTimer_ImplementsInterface()
+    /// <summary>A timer whose platform tick is a count of what the base asked of it.</summary>
+    private sealed class RecordingTimer : AnimationTimer
     {
-        IAnimationTimer timer = new SystemThreadingAnimationTimer();
-        Assert.NotNull(timer);
-    }
+        public int Begun;
+        public int Ended;
+        public TimeSpan? IntervalAtBegin;
+        public readonly List<TimeSpan> Retimed = [];
 
-    [Fact]
-    public void SystemTimer_DefaultInterval_Is16ms()
-    {
-        var timer = new SystemThreadingAnimationTimer();
-        Assert.Equal(TimeSpan.FromMilliseconds(16), timer.Interval);
-    }
-
-    [Fact]
-    public void SystemTimer_IntervalCanBeChanged()
-    {
-        var timer = new SystemThreadingAnimationTimer();
-        timer.Interval = TimeSpan.FromMilliseconds(50);
-        Assert.Equal(TimeSpan.FromMilliseconds(50), timer.Interval);
-    }
-
-    /// <summary>The contract is that a started timer fires REPEATEDLY — not that it manages a given number of
-    /// ticks inside a given number of milliseconds.
-    /// <para>Asserting the second is how this test failed on CI: 20 ms interval, a fixed 100 ms sleep, and a
-    /// shared runner that delivered one tick in that window. Widening the sleep would only move the boundary;
-    /// waiting for the CONDITION removes it — a fast box finishes in ~40 ms, a loaded one takes as long as it
-    /// takes, and the assertion is the same either way.</para></summary>
-    [Fact]
-    public async Task SystemTimer_FiresTick_AfterStart()
-    {
-        using var timer = new SystemThreadingAnimationTimer
+        private protected override void Begin()
         {
-            Interval = TimeSpan.FromMilliseconds(20)
-        };
-        int ticks = 0;
-        timer.Tick += (_, _) => Interlocked.Increment(ref ticks);
-        timer.Start();
-
-        var budget = TimeSpan.FromSeconds(5);
-        var deadline = DateTime.UtcNow + budget;
-        while (Volatile.Read(ref ticks) < 2 && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
+            Begun++;
+            IntervalAtBegin = Interval;
         }
 
-        timer.Stop();
-        Assert.True(Volatile.Read(ref ticks) >= 2,
-            $"a started timer must fire repeatedly; got {ticks} tick(s) in {budget.TotalSeconds:0} s at a 20 ms interval");
+        private protected override void End() => Ended++;
+
+        private protected override void Retime(TimeSpan interval) => Retimed.Add(interval);
+
+        public void PlatformTicks() => RaiseTick(this, EventArgs.Empty);
     }
 
     [Fact]
-    public async Task SystemTimer_StopPreventsMoreTicks()
+    public void ATimerTicksEverySixteenMilliseconds_UntilToldOtherwise()
     {
-        using var timer = new SystemThreadingAnimationTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(20)
-        };
+        Assert.Equal(TimeSpan.FromMilliseconds(16), new RecordingTimer().Interval);
+        Assert.Equal(TimeSpan.FromMilliseconds(16), new SystemThreadingAnimationTimer().Interval);
+    }
+
+    [Fact]
+    public void AnIntervalSet_IsKept_AndThePlatformIsToldAtOnce()
+    {
+        var timer = new RecordingTimer { Interval = TimeSpan.FromMilliseconds(33) };
+
+        Assert.Equal(TimeSpan.FromMilliseconds(33), timer.Interval);
+        Assert.Equal([TimeSpan.FromMilliseconds(33)], timer.Retimed);
+    }
+
+    [Fact]
+    public void ASecondStart_IsTheSameTimer_AndAStartAfterAStopBeginsAgain()
+    {
+        var timer = new RecordingTimer();
+
+        timer.Start();
+        timer.Start();
+        Assert.Equal(1, timer.Begun);
+
+        timer.Stop();
+        timer.Start();
+        Assert.Equal(2, timer.Begun);
+        Assert.Equal(1, timer.Ended);
+    }
+
+    [Fact]
+    public void AStopBeforeAnyStart_IsHarmless_AndADisposeIsAStop()
+    {
+        var timer = new RecordingTimer();
+
+        Assert.Null(Record.Exception(timer.Stop));
+        timer.Dispose();
+
+        Assert.Equal(0, timer.Begun);
+        Assert.Equal(2, timer.Ended);
+    }
+
+    [Fact]
+    public void ThePlatformIsBegun_AtTheIntervalSetBeforeTheStart()
+    {
+        var timer = new RecordingTimer { Interval = TimeSpan.FromMilliseconds(50) };
+
+        timer.Start();
+
+        Assert.Equal(TimeSpan.FromMilliseconds(50), timer.IntervalAtBegin);
+    }
+
+    [Fact]
+    public void ATick_IsSaidToWhoeverListens_WithTheTimerAsTheSender_AndToNobodyWhenNobodyDoes()
+    {
+        var timer = new RecordingTimer();
+        timer.PlatformTicks();   // nobody listens: nothing happens
         int ticks = 0;
-        timer.Tick += (_, _) => Interlocked.Increment(ref ticks);
-        timer.Start();
-        await Task.Delay(60, TestContext.Current.CancellationToken);
-        timer.Stop();
-        int snapshot = ticks;
-        await Task.Delay(60, TestContext.Current.CancellationToken);
-        // After stop, tick count must not grow (allow ±1 for in-flight tick)
-        Assert.True(ticks <= snapshot + 1, $"Ticks grew after Stop: {snapshot} → {ticks}");
+        EventHandler listener = (sender, _) =>
+        {
+            Assert.Same(timer, sender);
+            ticks++;
+        };
+        timer.Tick += listener;
+
+        timer.PlatformTicks();
+        timer.Tick -= listener;
+        timer.PlatformTicks();
+
+        Assert.Equal(1, ticks);
     }
 
     [Fact]
-    public void SystemTimer_StartThenStart_DoesNotThrow()
+    public async Task OnThePool_AStartedTimerTicks_UntilItIsStopped_AndAnIntervalChangedWhileRunningIsTheOneThatFollows()
     {
-        using var timer = new SystemThreadingAnimationTimer
+        using var timer = new SystemThreadingAnimationTimer { Interval = TimeSpan.FromMinutes(5) };
+        var ticked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        timer.Tick += (sender, _) =>
         {
-            Interval = TimeSpan.FromMilliseconds(50)
+            Assert.Same(timer, sender);
+            ticked.TrySetResult();
         };
         timer.Start();
-        var ex = Record.Exception(() => timer.Start());
+
+        timer.Interval = TimeSpan.FromMilliseconds(5);
+        await ticked.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         timer.Stop();
-        Assert.Null(ex);
+
+        Assert.Equal(TimeSpan.FromMilliseconds(5), timer.Interval);
     }
 
     [Fact]
-    public void SystemTimer_StopWithoutStart_DoesNotThrow()
+    public void OnThePool_ATimerThatWasNeverStarted_CanBeRetimedAndStopped()
     {
-        using var timer = new SystemThreadingAnimationTimer();
-        var ex = Record.Exception(() => timer.Stop());
-        Assert.Null(ex);
-    }
+        var timer = new SystemThreadingAnimationTimer { Interval = TimeSpan.FromMilliseconds(20) };
 
-    [Fact]
-    public void SystemTimer_Dispose_DoesNotThrow()
-    {
-        var timer = new SystemThreadingAnimationTimer();
-        timer.Start();
-        var ex = Record.Exception(() => timer.Dispose());
-        Assert.Null(ex);
-    }
-
-    [Fact]
-    public void SystemTimer_IntervalChangedWhileRunning_UpdatesLivePeriod()
-    {
-        // Drives the `if (_running) _timer?.Change(...)` true-arm in the Interval setter.
-        using var timer = new SystemThreadingAnimationTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(30)
-        };
-        timer.Start();
-        timer.Interval = TimeSpan.FromMilliseconds(15); // while running
-        Assert.Equal(TimeSpan.FromMilliseconds(15), timer.Interval);
         timer.Stop();
-    }
 
-    [Fact]
-    public void SystemTimer_StopBeforeStart_ThenStart_DoesNotThrow()
-    {
-        // Stop-then-Start path — ensures the `_running` guard resets correctly.
-        using var timer = new SystemThreadingAnimationTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(30)
-        };
-        timer.Stop();
-        var ex = Record.Exception(() => timer.Start());
-        Assert.Null(ex);
-        timer.Stop();
-    }
-
-    [Fact]
-    public async Task SystemTimer_FireWithoutTickSubscriber_DoesNotThrow()
-    {
-        // Drives the `Tick?.Invoke(...)` null-conditional false arm — the timer fires, the lambda runs, and
-        // `Tick` is null (no subscriber), so the `?.` short-circuits.
-        //
-        // A fixed 40 ms sleep used to decide whether that arm was ever reached, which made this class's BRANCH
-        // coverage a function of machine load: under the coverage collector the thread-pool callback sometimes
-        // did not run inside the window and the gate read 87.5 % (measured 2026-08-31). So: first PROVE this
-        // process is scheduling timer callbacks at all — with a subscribed probe that signals — and only then
-        // hold an unsubscribed timer open for a window that is two orders of magnitude wider than its interval.
-        using var fired = new ManualResetEventSlim(false);
-        using (var probe = new SystemThreadingAnimationTimer { Interval = TimeSpan.FromMilliseconds(5) })
-        {
-            probe.Tick += (_, _) => fired.Set();
-            probe.Start();
-            Assert.True(fired.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken),
-                "the process is not scheduling timer callbacks at all — nothing about the timer can be asserted");
-            probe.Stop();
-        }
-
-        using var timer = new SystemThreadingAnimationTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(5)
-        };
-        timer.Start();
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
-        timer.Stop();
-        // No exception expected — the null-conditional path is covered.
+        Assert.Equal(TimeSpan.FromMilliseconds(20), timer.Interval);
     }
 }

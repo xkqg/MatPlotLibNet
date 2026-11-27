@@ -8,10 +8,14 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an error bar series showing uncertainty at each data point.</summary>
-public sealed class ErrorBarSeries : XYSeries, IHasColor
+public sealed class ErrorBarSeries : XYSeries, IHasColor, ISeriesKind<ErrorBarSeries>, IWidthGiven
 {
     /// <inheritdoc />
-    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.ErrorBar, LineWidth);
+    /// <remarks>2: the bars and caps of <c>errorbar</c> are a <c>LineCollection</c> and <c>Line2D</c>s at 2.</remarks>
+    internal override MatplotlibArtist Artist => MatplotlibArtist.Line;
+
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => LegendSwatch.Of(LegendSwatchKind.ErrorBar, this) with { CapSize = GivenCapSize };
 
     /// <summary>How far each vertical error bar reaches below its point, in data units, one non-negative distance per point.</summary>
     public double[] YErrorLow { get; }
@@ -21,31 +25,51 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
 
     /// <summary>How far each horizontal error bar reaches left of its point, in data units, one distance per point.
     /// Horizontal bars are drawn only when both this and <see cref="XErrorHigh"/> are set; null (the default) draws none.</summary>
-    public double[]? XErrorLow { get; set; }
+    /// <exception cref="ArgumentException">The array does not hold one distance for each point; the distances the series had are kept.</exception>
+    public double[]? XErrorLow { get; set => Change(ref field, value.ThrowIfNotOnePer(XData.Length, nameof(XErrorLow))); }
 
     /// <summary>How far each horizontal error bar reaches right of its point, in data units, one distance per point.
     /// Horizontal bars are drawn only when both this and <see cref="XErrorLow"/> are set; null (the default) draws none.</summary>
-    public double[]? XErrorHigh { get; set; }
+    /// <exception cref="ArgumentException">The array does not hold one distance for each point; the distances the series had are kept.</exception>
+    public double[]? XErrorHigh { get; set => Change(ref field, value.ThrowIfNotOnePer(XData.Length, nameof(XErrorHigh))); }
 
     /// <inheritdoc />
-    public Color? Color { get; set; }
+    public Color? Color { get; set => Change(ref field, value); }
 
-    /// <summary>The thickness of the error bars and their caps, in pixels. Default 1.5. <see cref="ELineWidth"/> and
-    /// <see cref="CapThick"/> override it for the bars and the caps separately.</summary>
-    public double LineWidth { get; set; } = 1.5;
+    /// <summary>The thickness of the error bars and their caps, in pixels, read and drawn as a line's (<see cref="LineSeries.LineWidth"/>);
+    /// <see cref="ELineWidth"/> and <see cref="CapThick"/> override it for the bars and the caps separately.</summary>
+    public double LineWidth { get => this.ReportedLineWidth; set => GivenLineWidth = value; }
 
-    /// <summary>The half-length of the cap at the end of each error bar, in pixels: the cap spans twice this. Default 5.</summary>
-    public double CapSize { get; set; } = 5.0;
+    /// <summary>The line width that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenLineWidth { get; private set => Change(ref field, value); }
+
+    double? IWidthGiven.GivenLineWidth => GivenLineWidth;
+
+    /// <summary>The half-length of the cap at the end of each error bar, in pixels: the cap spans twice this. Default <see cref="RestingCapSize"/>. Given no size,
+    /// the caps reach as far as their theme says: matplotlib's <c>errorbar.capsize</c> under the matplotlib themes (<c>SeriesLineLook.ErrorBarCapSize</c>), <see cref="RestingCapSize"/> under every other; a size that is given, the default included, is drawn as given, and a cap of 0
+    /// is not drawn.</summary>
+    public double CapSize { get => GivenCapSize ?? RestingCapSize; set => GivenCapSize = value; }
+
+    /// <summary>The cap size a new series holds under a theme that names none.</summary>
+    private const double RestingCapSize = 5.0;
+
+    /// <summary>The cap size that was given, <see langword="null"/> when none was.</summary>
+    internal double? GivenCapSize { get; private set => Change(ref field, value); }
+
+    /// <summary>The half-length of the caps under <paramref name="theme"/>, in pixels.</summary>
+    /// <param name="theme">The theme the series is drawn under.</param>
+    /// <returns>The half-length, in pixels.</returns>
+    internal double CapSizeUnder(Theme theme) => theme.Looks.Lines.CapSizeOver(GivenCapSize, RestingCapSize);
 
     /// <summary>The thickness of the error bar lines alone, in pixels; null (the default) uses <see cref="LineWidth"/>.</summary>
-    public double? ELineWidth { get; set; }
+    public double? ELineWidth { get; set => Change(ref field, value); }
 
     /// <summary>The thickness of the caps alone, in pixels; null (the default) uses <see cref="LineWidth"/>.</summary>
-    public double? CapThick { get; set; }
+    public double? CapThick { get; set => Change(ref field, value); }
 
     /// <summary>Draws the error bars only at every N-th point, starting with the first, while every point keeps its dot.
-    /// Default 1 draws a bar at every point; a thick data set reads better with a larger value.</summary>
-    public int ErrorEvery { get; set; } = RestingErrorEvery;
+    /// The default, <see cref="RestingErrorEvery"/>, draws a bar at every point; a thick data set reads better with a larger value.</summary>
+    public int ErrorEvery { get; set => Change(ref field, value); } = RestingErrorEvery;
 
     private const int RestingErrorEvery = 1;
 
@@ -88,37 +112,33 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
         return new(xLows.DrawableRange()?.Lo, xHighs.DrawableRange()?.Hi, low.DrawableRange()?.Lo, high.DrawableRange()?.Hi);
     }
 
+    static string ISeriesKind<ErrorBarSeries>.Kind => "errorbar";
+
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
-        Type = "errorbar",
+        Type = this.WireKind(),
         XData = XData, YData = YData,
         YErrorLow = YErrorLow, YErrorHigh = YErrorHigh,
         XErrorLow = XErrorLow, XErrorHigh = XErrorHigh,
-        Color = Color, LineWidth = LineWidth, CapSize = CapSize,
+        Color = Color, LineWidth = GivenLineWidth, CapSize = GivenCapSize,
         ELineWidth = ELineWidth,
         CapThick = CapThick,
         ErrorEvery = ErrorEvery.OrNullAtRest(RestingErrorEvery),
     };
 
-    /// <summary>Reconstructs an <see cref="ErrorBarSeries"/> from its serialization DTO, including optional X error bars, and adds it to the axes.</summary>
-    /// <param name="axes">The target axes the reconstructed series is added to.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    /// <returns>The reconstructed series instance.</returns>
+    /// <summary>The reader of a <see cref="ErrorBarSeries"/> that <see cref="SeriesRegistry"/> takes; it also carries optional X error bars.</summary>
     internal static ErrorBarSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.ErrorBar(dto.XData ?? [], dto.YData ?? [], dto.YErrorLow ?? [], dto.YErrorHigh ?? []);
         s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
-        if (dto.CapSize.HasValue)
-        {
-            s.CapSize = dto.CapSize.Value;
-        }
+        if (dto.LineWidth is { } width) s.LineWidth = width;
+        if (dto.CapSize is { } capSize) s.CapSize = capSize;
         s.XErrorLow = dto.XErrorLow;
         s.XErrorHigh = dto.XErrorHigh;
         s.ELineWidth = dto.ELineWidth;
         s.CapThick = dto.CapThick;
-        s.ErrorEvery = dto.ErrorEvery ?? RestingErrorEvery;
+        if (dto.ErrorEvery is { } errorEvery) s.ErrorEvery = errorEvery;
         return s;
     }
 
@@ -126,36 +146,10 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
     /// <inheritdoc />
     /// <remarks>The point, then every error arm the series carries. An error bar without its errors is a
     /// scatter plot, so the arms are columns, not a footnote.</remarks>
-    public override ChartDataTable? ToDataTable()
-    {
-        var columns = new List<ChartDataColumn> { new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y) };
-        var values = new List<IReadOnlyList<double>> { XData, YData };
-        if (YErrorLow is { Length: > 0 } yLow)
-        {
-            columns.Add(new("y error low", Axis: DataAxis.Y));
-            values.Add(yLow);
-        }
-
-        if (YErrorHigh is { Length: > 0 } yHigh)
-        {
-            columns.Add(new("y error high", Axis: DataAxis.Y));
-            values.Add(yHigh);
-        }
-
-        if (XErrorLow is { Length: > 0 } xLow)
-        {
-            columns.Add(new("x error low", Axis: DataAxis.X));
-            values.Add(xLow);
-        }
-
-        if (XErrorHigh is { Length: > 0 } xHigh)
-        {
-            columns.Add(new("x error high", Axis: DataAxis.X));
-            values.Add(xHigh);
-        }
-
-        return this.WithRowKeys(ChartDataTable.FromNumberColumns(columns, values));
-    }
+    public override ChartDataTable? ToDataTable() =>
+        this.WithRowKeys(ChartDataTable.XY(Label, XData, YData,
+            NumberColumn.IfAny("y error low", DataAxis.Y, YErrorLow), NumberColumn.IfAny("y error high", DataAxis.Y, YErrorHigh),
+            NumberColumn.IfAny("x error low", DataAxis.X, XErrorLow), NumberColumn.IfAny("x error high", DataAxis.X, XErrorHigh)));
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

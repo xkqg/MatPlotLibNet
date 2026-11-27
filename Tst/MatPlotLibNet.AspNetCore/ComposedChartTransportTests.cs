@@ -28,31 +28,14 @@ public sealed class ComposedChartHostFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        Host = new HostBuilder()
-            .ConfigureWebHost(web =>
-            {
-                web.UseTestServer();
-                web.ConfigureServices(services =>
-                {
-                    services.AddMatPlotLibNetSignalR();
-                    services.AddRouting();
-                });
-                web.Configure(app =>
-                {
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints =>
+        Host = SignalRTestHost.Start(endpoints =>
                     {
                         endpoints.MapChartHub();
                         endpoints.MapChartEndpoint("/api/composed/json", context => ComposedFigure(context.Request.Query));
                         endpoints.MapChartSvgEndpoint("/api/composed/svg", context => ComposedFigure(context.Request.Query));
                     });
-                });
-            })
-            .Start();
 
-        _connection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/charts-hub", options => options.HttpMessageHandlerFactory = _ => Host.GetTestServer().CreateHandler())
-            .Build();
+        _connection = Host.ConnectToTheHub();
         _connection.On<string, string>("UpdateChart", (id, json) => Waiting(_json, id).TrySetResult(json));
         _connection.On<string, string>("UpdateChartSvg", (id, svg) => Waiting(_svg, id).TrySetResult(svg));
         await _connection.StartAsync();
